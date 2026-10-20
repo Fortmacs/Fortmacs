@@ -1,0 +1,34 @@
+# Valgrind suppressions for tools/check.sh --valgrind.
+#
+# gfortran leaks function results with allocatable components that appear
+# inside array constructors.  test-drive's suite registration does exactly
+# that (`[new_unittest(...), ...]`), once per run.  These entries hide only
+# those registration leaks; anything leaking from src/ still fails.
+{
+   testdrive-collect
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:__test_*_MOD_collect_*
+}
+{
+   testdrive-new-unittest
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:__testdrive_MOD_new_unittest
+}
+{
+   testdrive-suite-list
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:__testdrive_MOD_new_testsuite
+}
+{
+   testdrive-suite-array
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:MAIN__
+}

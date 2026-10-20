@@ -79,6 +79,12 @@ then features in whatever order the user asks for.
 
 Copy the FSF year range exactly from the upstream file.
 
+## Progress
+
+Rough, from `tools/progress.sh` (upstream C functions cited as ported, plus
+Elisp definitions, none ported yet): **Done 204 of 56,866 (~0.36%)**.
+C: 204 of 8,547. Elisp: 0 of 48,319.
+
 ## Status
 
 | Module | Upstream | Ported | Deferred | Tests | State |
@@ -115,6 +121,10 @@ Copy the FSF year range exactly from the upstream file.
   directly; nothing else may. Terminal tests run on a pty (`open_pty`).
 - If fpm reports "Project is up to date" after a source change, the build
   cache is stale: delete `build/gfortran_*`. CI always builds clean.
+- Never put a function result inside an array constructor of a type with
+  allocatable components (`[f(x)]`): gfortran leaks it. Use `list(...)`
+  or variables. No recursive allocatable types (gfortran copies them
+  shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks.
 - Objects are freed explicitly: every `make_marker` needs a `free_marker`.
 - Registry slots are reused after kill; any cache keyed by slot must also
   check `buffers(i)%serial` (see the regression test in test_fm_insdel).
@@ -129,12 +139,11 @@ Each lists the default being used meanwhile.
 1. **Merging.** May Claude merge its own PRs once CI is green, or should
    every PR wait for review? *Default: PRs stay open; later work is stacked
    on the previous branch.*
-2. **Value model.** Text properties, keymaps and buffer-local variables are
-   Lisp data upstream. Without Elisp we still need symbols and a small value
-   type. *Proposed default: interned symbols (`fm_symbol`, after
-   `lread.c:intern`) referenced by handle, and a tagged `value_type`
-   holding nil / integer / symbol / string / list-of-values, with explicit
-   free. To be confirmed before Phase 1 step 5.*
+2. **Value model.** *Decided (2026-10-20):* no Lisp; values are a plain
+   Fortran `value_type` with value semantics (fm_lisp), interned symbols
+   by id (fm_lread), data.c/fns.c operations in fm_data/fm_fns. Values are
+   stored as flat preorder atom arrays because gfortran 13/14 copy
+   recursive allocatable components shallowly (double free).
 3. **Error-code naming.** Error codes are `FM_<SYMBOL>` parameters, except
    the root `error` condition, which is `FM_GENERIC_ERROR` because Fortran
    names are case-insensitive and `FM_ERROR` collides with module
@@ -160,6 +169,8 @@ Each lists the default being used meanwhile.
 ## Session log
 
 Resume point for the next working session, newest first.
+
+- 2026-10-20 — Value model (fm_lisp, fm_lread, fm_data, fm_fns), valgrind CI gate, progress script, on `phase1-values` (based on main). Open: spurious gfortran `-Wmaybe-uninitialized` warnings in fm_lisp (no failures). Next: intervals/text properties.
 
 - 2026-10-20 — `fm_search` newline scanning, line positions, `fm_cmds` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Work that doesn't need an answer to open questions 2 (value model) or 5 (terminal capabilities) is now done; keymaps, the command loop, text properties and terminal output all wait on them.
 - 2026-10-20 — `fm_editfns` subset on `phase1-editfns` (PR #7).

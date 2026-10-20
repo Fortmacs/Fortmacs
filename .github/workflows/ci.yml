@@ -28,7 +28,7 @@ jobs:
       - name: Install gfortran
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q gfortran
+          sudo apt-get install -y -q gfortran valgrind
           gfortran --version | head -1
 
       # fpm ships no aarch64 binaries, so build it from the single-file
@@ -53,8 +53,8 @@ jobs:
       - name: Install fprettify
         run: pipx install "fprettify==${FPRETTIFY_VERSION}"
 
-      - name: Format, build and test
+      - name: Format, build, test, and test under valgrind
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           fpm --version | head -1
-          tools/check.sh
+          tools/check.sh --valgrind
