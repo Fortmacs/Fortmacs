@@ -79,12 +79,6 @@ then features in whatever order the user asks for.
 
 Copy the FSF year range exactly from the upstream file.
 
-## Progress
-
-Rough, from `tools/progress.sh` (upstream C functions cited as ported, plus
-Elisp definitions, none ported yet): **Done 204 of 56,866 (~0.36%)**.
-C: 204 of 8,547. Elisp: 0 of 48,319.
-
 ## Status
 
 | Module | Upstream | Ported | Deferred | Tests | State |
