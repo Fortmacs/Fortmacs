@@ -40,6 +40,8 @@ module fm_insdel
                         GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
                         buf_bytes, barf_if_buffer_read_only
    use fm_marker, only: char_to_byte, byte_to_char, markers
+   use fm_intervals, only: offset_intervals
+   use fm_textprop, only: verify_interval_modification
    implicit none(type, external)
    private
 
@@ -300,8 +302,11 @@ contains
                                      buffers(cur)%pt + nchars, buffers(cur)%pt_byte + nbytes, &
                                      before_markers)
 
-      ! offset_intervals / set_text_properties (which use `inherit`) are
-      ! pending; the no-op reference keeps the interface without a warning.
+      ! The inserted text gets an interval of its own with no properties
+      ! (upstream: offset_intervals, then set_text_properties to nil when
+      ! not inheriting).  Inheriting via stickiness is pending; the no-op
+      ! reference keeps `inherit` in the interface without a warning.
+      call offset_intervals(buffers(cur)%text%intervals, buffers(cur)%pt, nchars)
       if (inherit) continue
 
       call adjust_point(nchars, nbytes)
@@ -474,7 +479,7 @@ contains
             b%pt_byte = b%pt_byte + (from_byte - min(b%pt_byte, to_byte))
          end if
 
-         ! offset_intervals: pending.
+         call offset_intervals(t%intervals, from, -nchars_del)
 
          t%gap_size = t%gap_size + nbytes_del
          b%zv = b%zv - nchars_del
@@ -508,20 +513,19 @@ contains
       end associate
    end subroutine modify_text
 
-   !> Check that the region may be modified.  Upstream also verifies
-   !> read-only text properties, locks the visited file, saves the region
-   !> for `select-active-regions' and runs before-change hooks; only the
-   !> read-only check exists so far.
+   !> Check that the region may be modified: the buffer's read-only state
+   !> and `read-only` text properties.  Upstream also locks the visited
+   !> file, saves the region for `select-active-regions' and runs
+   !> before-change hooks (pending).
    !> Port of insdel.c:prepare_to_modify_buffer(_1).
    subroutine prepare_to_modify_buffer(start, end, status)
       integer(int64), intent(in) :: start, end
       type(status_type), intent(out) :: status
 
-      call barf_if_buffer_read_only(status)
+      call barf_if_buffer_read_only(status, start)
       if (.not. status%ok()) return
       buffers(cur)%text%redisplay = .true.
-      ! start/end feed verify_interval_modification once intervals exist.
-      if (start > end) continue
+      call verify_interval_modification(start, end, status)
    end subroutine prepare_to_modify_buffer
 
 end module fm_insdel

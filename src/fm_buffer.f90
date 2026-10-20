@@ -43,6 +43,10 @@ module fm_buffer
    use fm_error, only: status_type, set_error, FM_GENERIC_ERROR, &
                        FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
    use fm_handle, only: handle_type, slot_table_type, null_handle
+   use fm_lisp, only: value_type, nilp, make_symbol_ref
+   use fm_lread, only: intern
+   use fm_data, only: symbol_value
+   use fm_intervals, only: intervals_type, find_interval, textget
    use fm_character, only: bytes_by_char_head, raw_prev_char_len, &
                            string_char_and_length
    implicit none(type, external)
@@ -72,6 +76,8 @@ module fm_buffer
       !> BUF_MARKERS: first marker slot of this text's marker chain (0 if
       !> none); the chain itself lives in fm_marker.
       integer(int64) :: markers = 0
+      !> The text's intervals (text properties); none if `intervals%n` is 0.
+      type(intervals_type) :: intervals
    end type buffer_text_type
 
    !> Port of the parts of buffer.h:struct buffer used so far.
@@ -126,7 +132,7 @@ module fm_buffer
    public :: set_buffer, kill_buffer, erase_buffer
    public :: buffer_modified_p, restore_buffer_modified_p, &
              buffer_modified_tick, buffer_chars_modified_tick
-   public :: barf_if_buffer_read_only, set_buffer_read_only
+   public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
    public :: modiff_incr, buf_compute_unchanged
    public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
              buf_next_char_len, buf_prev_char_len, buf_bytes
@@ -504,16 +510,39 @@ contains
       tick = buffers(i)%text%chars_modiff
    end subroutine buffer_chars_modified_tick
 
-   !> Fail with buffer-read-only if the current buffer is read-only.
-   !> Port of buffer.c:Fbarf_if_buffer_read_only (`inhibit-read-only',
-   !> variable and text property, not supported yet).
-   subroutine barf_if_buffer_read_only(status)
+   !> Value of the variable `inhibit-read-only' (nil when unbound).
+   !> Port of buffer.c:Vinhibit_read_only (global value only).
+   function inhibit_read_only() result(v)
+      type(value_type) :: v
+      type(status_type) :: st
+
+      call symbol_value(make_symbol_ref(intern("inhibit-read-only")), v, st)
+   end function inhibit_read_only
+
+   !> Fail with buffer-read-only if the current buffer is read-only,
+   !> unless `inhibit-read-only' is non-nil or the text at `position'
+   !> (default: point) has a non-nil `inhibit-read-only' property.
+   !> Port of buffer.c:Fbarf_if_buffer_read_only.
+   subroutine barf_if_buffer_read_only(status, position)
       type(status_type), intent(out) :: status
+      integer(int64), intent(in), optional :: position
+      integer(int64) :: pos, k
+      type(value_type) :: props
 
       if (cur == 0) return
-      if (buffers(cur)%read_only) then
-         call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
-      end if
+      if (.not. buffers(cur)%read_only) return
+      if (.not. nilp(inhibit_read_only())) return
+      pos = buffers(cur)%pt
+      if (present(position)) pos = position
+      associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
+         ! Fget_text_property (POSITION, Qinhibit_read_only, Qnil)
+         if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
+            k = find_interval(iv, pos)
+            props = iv%runs(k)%plist
+            if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit-read-only"))))) return
+         end if
+      end associate
+      call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
    end subroutine barf_if_buffer_read_only
 
    !> Set BVAR read_only of buffer `h` (the `buffer-read-only' variable).

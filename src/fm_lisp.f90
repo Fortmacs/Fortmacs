@@ -425,7 +425,6 @@ contains
       type(value_type), intent(in) :: v
       integer(int64), intent(in) :: k
       type(value_type) :: e
-      type(atom_type), allocatable :: atoms(:)
       integer(int64) :: p
 
       if (k >= 1 .and. k <= list_length(v)) then
