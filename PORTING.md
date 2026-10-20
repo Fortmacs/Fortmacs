@@ -44,7 +44,13 @@ this file.
    useful.
 
 ### Phase 3 — Terminal display
-Minimal `term.c` / `dispnew.c` / `xdisp.c` subset.
+1. `fm_terminfo` — terminfo database reader and `tparm` (pure Fortran) — done.
+2. Minimal `term.c` / `cm.c` (cursor motion, clearing, insert/delete
+   lines, colors and attributes) on top of it.
+3. Minimal `dispnew.c` / `xdisp.c` subset (one window, mode line, echo
+   area).
+4. File visiting and saving (`fileio.c` subset, `find-file`,
+   `save-buffer`).
 **Milestone: open a file, edit it, save it.**
 
 ### Phase 4 — Config API
@@ -113,6 +119,7 @@ Copy the FSF year range exactly from the upstream file.
 | fm_simple | simple.el | `newline`, `open-line`, `delete-backward-char`, `delete-forward-char`, `keyboard-quit`, `quoted-insert`, `universal-argument` (+ `-more`, `-map`, `--mode`), `digit-argument`, `negative-argument`, `prefix-command-preserve-state` | mark/region, undo, kill ring, electric indent, auto-fill, hard newlines, prefix echo, octal `read-quoted-char`, `move-beginning/end-of-line`, `next-line` (needs columns) | test_fm_bindings | partial |
 | fm_bindings | bindings.el, subr.el (`global-map`, `esc-map`, `ctl-x-map`), international/mule-conf.el (self-insert range) | the default keymaps with every binding whose command is ported, `function-key-map` (backspace/delete → DEL), `right-char`, `left-char` | bindings to unported commands, bidi-aware left/right, menus | test_fm_bindings | partial |
 | fm_term_xterm | term/xterm.el | `xterm-rxvt-function-map`, `xterm-function-map` (cursor, editing, F1–F12, keypad, all modifier forms, modifyOtherKeys/formatOtherKeys), `terminal-init-xterm` (input-decode-map part) | bracketed paste, focus events, terminal queries, colors, OSC 52, rxvt, `xterm-alternatives-map` | test_fm_term_xterm (own) | partial |
+| fm_terminfo | terminfo.c (`tparam`), plus the libtinfo interface Emacs uses, reimplemented | compiled entry parser (16- and 32-bit numbers, extended capabilities), ncurses search path, `tgetent`, `tgetstr`/`tgetnum`/`tgetflag` (termcap codes), `tigetstr`/`tigetnum`/`tigetflag`, `tparm` (full %-language and printf formats), `tgoto`, padding removal, built-in xterm-256color | string parameters (%s), padding delays, the termcap database | test_fm_terminfo (own; checked against infocmp) | done |
 
 ## Conventions learned while porting
 
@@ -150,6 +157,12 @@ Copy the FSF year range exactly from the upstream file.
 
 ## Design decisions
 
+- **Pure Fortran (2026-10-20).** Besides libc system calls bound in
+  src/sys, Fortmacs links no C libraries. Where upstream uses one (ncurses
+  for terminfo, and later things like GnuTLS, libxml2 or image
+  libraries), the needed part is reimplemented in Fortran or the feature
+  waits.
+
 - **Threads (2026-10-20).** One main thread owns all editor state
   (buffers, markers, symbols, keymaps, windows), as in upstream. Background
   work (file I/O, search over large files, subprocess output, syntax
@@ -180,13 +193,10 @@ Each lists the default being used meanwhile.
    the current slot `cur` (read-only outside the module) so fm_insdel and
    fm_marker can work like upstream's buffer.h macros. *Default: keep;
    higher layers use the procedures only.*
-5. **Terminal capabilities (blocks Phase 3 output).** Upstream drives
-   terminals through terminfo (term.c with tparam.c/terminfo.c over
-   ncurses' libtinfo). Options: (a) bind libtinfo's `tgetent`/`tgetstr`/
-   `tparm` from src/sys -- closest to upstream, adds a C library
-   dependency; (b) parse compiled terminfo files in pure Fortran;
-   (c) hardcode ANSI/xterm sequences (simplest; most modern terminals).
-   *No default taken: Phase 3 output waits for an answer.*
+5. **Terminal capabilities.** *Decided (2026-10-20): (b), pure Fortran.*
+   Upstream drives terminals through ncurses' libtinfo; Fortmacs reads
+   the compiled terminfo files itself and evaluates `tparm` strings
+   (`fm_terminfo`), with a built-in xterm-256color entry as fallback.
 6. **Upstream LLM policy (FYI).** The emacs-31.1 tree contains an
    `AGENTS.md` stating that GNU Emacs does not accept LLM-generated
    contributions. That governs patches sent to Emacs, not this separate
@@ -198,6 +208,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-20 — Open question 5 decided (pure-Fortran terminfo); `fm_terminfo` on `phase3-terminfo` (based on main after PRs #15, #16). Pure-Fortran rule recorded under design decisions. Next: Phase 3.2, `term.c`/`cm.c` output on top of it.
 - 2026-10-20 — Typing: `self-insert-command`, `fm_simple`, `fm_bindings`, `fm_term_xterm`, keymap character ranges and transient maps; progress.sh now counts cited Lisp definitions; on `phase2-bindings` (based on main after PR #14). Next: the editor binary needs Phase 3 output, which waits on open question 5; meanwhile `move-beginning/end-of-line` and `next-line` (needs indent.c columns), or the mark/region.
 - 2026-10-20 — Command loop (`fm_keyboard`, `fm_callint`), `void-function` error, `(error MSG)` formats as MSG, on `phase2-keyboard` (based on main after PR #13). Next: xterm input-decode-map (port of `term/xterm.el` key maps) and `self-insert-command` + default global bindings (`bindings.el` subset), then the `app/main.f90` loop on a raw tty. Terminal output still waits on open question 5.
 - 2026-10-20 — Phase 2 keymaps (`fm_keymap`), buffer-local keymap slot, threading decision recorded, on `phase2-keymap` (based on main after PR #12). Next: `fm_keyboard` subset (command loop: read events from the tty, look them up with `key_binding`, run Fortran command procedures), then `self-insert-command`. Terminal output still waits on open question 5.
