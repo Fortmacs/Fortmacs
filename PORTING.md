@@ -143,7 +143,14 @@ Each lists the default being used meanwhile.
    the current slot `cur` (read-only outside the module) so fm_insdel and
    fm_marker can work like upstream's buffer.h macros. *Default: keep;
    higher layers use the procedures only.*
-5. **Upstream LLM policy (FYI).** The emacs-31.1 tree contains an
+5. **Terminal capabilities (blocks Phase 3 output).** Upstream drives
+   terminals through terminfo (term.c with tparam.c/terminfo.c over
+   ncurses' libtinfo). Options: (a) bind libtinfo's `tgetent`/`tgetstr`/
+   `tparm` from src/sys -- closest to upstream, adds a C library
+   dependency; (b) parse compiled terminfo files in pure Fortran;
+   (c) hardcode ANSI/xterm sequences (simplest; most modern terminals).
+   *No default taken: Phase 3 output waits for an answer.*
+6. **Upstream LLM policy (FYI).** The emacs-31.1 tree contains an
    `AGENTS.md` stating that GNU Emacs does not accept LLM-generated
    contributions. That governs patches sent to Emacs, not this separate
    GPL project, but it means Fortmacs code (largely Claude-written) should
@@ -154,7 +161,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
-- 2026-10-20 — `fm_search` newline scanning, line positions, `fm_cmds` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Remaining value-independent work is thin: Phase 2's keyboard input needs keymaps (values), display needs windows/frames. Next: a minimal `term.c` output layer (cursor motion, clear, write) over fm_sysdep.
+- 2026-10-20 — `fm_search` newline scanning, line positions, `fm_cmds` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Work that doesn't need an answer to open questions 2 (value model) or 5 (terminal capabilities) is now done; keymaps, the command loop, text properties and terminal output all wait on them.
 - 2026-10-20 — `fm_editfns` subset on `phase1-editfns` (PR #7).
 - 2026-10-20 — Phase 2 groundwork: src/sys (`fm_sys_linux`, `fm_sysdep`) on `phase2-sys` (PR #6), stacked on PR #5. Phase 1 step 5 waits on open question 2. Next without it: keyboard input decoding (`fm_keyboard` subset: reading bytes into events, terminal escape sequences come with `term.c`), or `fm_editfns` (point, narrowing, `buffer-substring`).
 - 2026-10-20 — Phase 1 step 4 (marker objects, marker adjustment, `kill-buffer`/`erase-buffer` submodule) on `phase1-markers` (PR #5).
