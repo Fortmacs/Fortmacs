@@ -73,7 +73,8 @@ module fm_keymap
    public :: keymap_prompt, keymap_full_p
    public :: access_keymap, define_key, lookup_key, key_binding
    public :: current_global_map, use_global_map
-   public :: current_local_map, use_local_map
+   public :: current_local_map, use_local_map, current_active_maps
+   public :: parse_modifiers, apply_modifiers
    public :: key_parse, key_description, single_key_description, &
              push_key_description
 
@@ -350,16 +351,16 @@ contains
       end select
    end function modifier_bit
 
-   !> Symbol event `v` with its modifier prefixes in canonical order, so
-   !> `M-C-x` and `C-M-x` are the same event.  Port of the modifier part
-   !> of keyboard.c:reorder_modifiers (click modifiers are not handled).
-   function reorder_modifiers(v) result(e)
+   !> Split symbol event `v` into modifier bits and base name: `C-M-home`
+   !> gives CTL+META and "home".  Port of the modifier part of
+   !> keyboard.c:parse_modifiers (click modifiers are not handled).
+   subroutine parse_modifiers(v, bits, base)
       type(value_type), intent(in) :: v
-      type(value_type) :: e
-      character(len=:), allocatable :: name, canon
-      integer(int64) :: bits, i
+      integer(int64), intent(out) :: bits
+      character(len=:), allocatable, intent(out) :: base
+      character(len=:), allocatable :: name
+      integer(int64) :: i
 
-      e = v
       name = symbols(xsymbol(v))%name
       bits = 0
       i = 1
@@ -369,9 +370,33 @@ contains
          bits = ior(bits, modifier_bit(name(i:i)))
          i = i + 2
       end do
+      base = name(i:)
+   end subroutine parse_modifiers
+
+   !> The symbol event for `base` with modifiers `bits`, prefixes in
+   !> canonical order.  Port of keyboard.c:apply_modifiers (symbols only).
+   function apply_modifiers(bits, base) result(e)
+      integer(int64), intent(in) :: bits
+      character(len=*), intent(in) :: base
+      type(value_type) :: e
+
+      e = make_symbol_ref(intern(modifier_prefix(bits)//base))
+   end function apply_modifiers
+
+   !> Symbol event `v` with its modifier prefixes in canonical order, so
+   !> `M-C-x` and `C-M-x` are the same event.  Port of
+   !> keyboard.c:reorder_modifiers.
+   function reorder_modifiers(v) result(e)
+      type(value_type), intent(in) :: v
+      type(value_type) :: e
+      character(len=:), allocatable :: base
+      integer(int64) :: bits
+
+      e = v
+      call parse_modifiers(v, bits, base)
       if (bits == 0) return
-      canon = modifier_prefix(bits)//name(i:)
-      if (canon /= name) e = make_symbol_ref(intern(canon))
+      if (modifier_prefix(bits)//base /= symbols(xsymbol(v))%name) &
+         e = apply_modifiers(bits, base)
    end function reorder_modifiers
 
    !> Event `c` in the form keymaps store: high bits of characters
@@ -883,14 +908,11 @@ contains
       buffers(cur)%keymap = km
    end subroutine use_local_map
 
-   !> Binding of `key` in the active maps (local, then global); nil if
-   !> none.  Port of keymap.c:Fkey_binding without remapping or
-   !> minor-mode and text-property maps.
-   subroutine key_binding(key, val, status, accept_default)
-      type(value_type), intent(in) :: key(:)
-      type(value_type), intent(out) :: val
-      type(status_type), intent(out) :: status
-      logical, intent(in), optional :: accept_default
+   !> The active keymaps, highest precedence first, as one composite: the
+   !> local map (if any), then the global map.  Port of
+   !> keymap.c:Fcurrent_active_maps without minor-mode, overriding and
+   !> text-property maps.
+   function current_active_maps() result(maps)
       type(value_type) :: maps
       type(handle_type) :: local
 
@@ -901,6 +923,18 @@ contains
       else
          maps = make_keymap_ref(current_global_map())
       end if
+   end function current_active_maps
+
+   !> Binding of `key` in the active maps (local, then global); nil if
+   !> none.  Port of keymap.c:Fkey_binding without remapping.
+   subroutine key_binding(key, val, status, accept_default)
+      type(value_type), intent(in) :: key(:)
+      type(value_type), intent(out) :: val
+      type(status_type), intent(out) :: status
+      logical, intent(in), optional :: accept_default
+      type(value_type) :: maps
+
+      maps = current_active_maps()
       call lookup_key(maps, key, val, status, accept_default)
       if (fixnump(val)) val = nil()
    end subroutine key_binding

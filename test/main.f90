@@ -37,6 +37,7 @@ program tester
    use test_fm_values, only: collect_fm_values
    use test_fm_textprop, only: collect_fm_textprop
    use test_fm_keymap, only: collect_fm_keymap
+   use test_fm_keyboard, only: collect_fm_keyboard
    implicit none(type, external)
 
    ! test-drive's interfaces take default integers.
@@ -59,7 +60,8 @@ program tester
                 new_testsuite("fm_cmds", collect_fm_cmds), &
                 new_testsuite("fm_values", collect_fm_values), &
                 new_testsuite("fm_textprop", collect_fm_textprop), &
-                new_testsuite("fm_keymap", collect_fm_keymap) &
+                new_testsuite("fm_keymap", collect_fm_keymap), &
+                new_testsuite("fm_keyboard", collect_fm_keyboard) &
                 ]
 
    call get_argument(1, suite_name)

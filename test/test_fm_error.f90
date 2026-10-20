@@ -117,6 +117,13 @@ contains
       if (allocated(error)) return
       call set_error(st, FM_USER_ERROR, "No more undo")
       call check(error, format_error(st), "No more undo")
+      if (allocated(error)) return
+      ! (error "Cyclic keymap inheritance")
+      call set_error(st, FM_GENERIC_ERROR, "Cyclic keymap inheritance")
+      call check(error, format_error(st), "Cyclic keymap inheritance")
+      if (allocated(error)) return
+      call set_error(st, FM_VOID_FUNCTION, "foo")
+      call check(error, format_error(st), "Symbol's function definition is void: foo")
    end subroutine test_format
 
 end module test_fm_error
