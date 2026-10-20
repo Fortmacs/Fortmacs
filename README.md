@@ -7,7 +7,7 @@ the binary, xmonad-style. There is no Elisp.
 **Status:** early porting; not usable as an editor yet. See
 [PORTING.md](PORTING.md) for the roadmap and progress.
 
-**Progress:** Done 338 of 56,864 (~0.59%): 319 of 8,547 upstream C
+**Progress:** Done 351 of 56,864 (~0.62%): 332 of 8,547 upstream C
 functions and 19 of 48,317 Elisp definitions. A rough estimate from
 `tools/progress.sh`.
 
