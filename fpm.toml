@@ -1,0 +1,34 @@
+name = "fortmacs"
+version = "0.0.0"
+license = "GPL-3.0-or-later"
+author = "The Fortmacs authors"
+copyright = "Copyright (C) 2026 The Fortmacs authors"
+description = "A rewrite of GNU Emacs 31.1 in modern Fortran"
+homepage = "https://github.com/vermi-culous/fortmacs"
+
+[build]
+auto-executables = false
+auto-tests = false
+auto-examples = false
+
+[fortran]
+implicit-typing = false
+implicit-external = false
+source-form = "free"
+
+[install]
+library = false
+
+[[executable]]
+name = "fortmacs"
+source-dir = "app"
+main = "main.f90"
+
+[[test]]
+name = "tester"
+source-dir = "test"
+main = "main.f90"
+
+[dev-dependencies]
+test-drive.git = "https://github.com/fortran-lang/test-drive"
+test-drive.tag = "v0.6.1"

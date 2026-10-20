@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  FPM_VERSION: "0.13.0"
+  # sha256 of fpm-${FPM_VERSION}.F90, as published with the fpm release.
+  FPM_SHA256: "001cff6cf1145f215baa0888ba27acc06cea30a89b79d1a8be97db3fffbc8cd2"
+  FPRETTIFY_VERSION: "0.3.7"
+
+jobs:
+  check:
+    name: check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install gfortran
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gfortran
+          gfortran --version | head -1
+
+      # fpm ships no aarch64 binaries, so build it from the single-file
+      # release source on both architectures and cache the result.
+      - name: Cache fpm
+        id: fpm-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/bin/fpm
+          key: fpm-${{ env.FPM_VERSION }}-${{ runner.arch }}
+
+      - name: Build fpm
+        if: steps.fpm-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSLf -o fpm.F90 \
+            "https://github.com/fortran-lang/fpm/releases/download/v${FPM_VERSION}/fpm-${FPM_VERSION}.F90"
+          echo "${FPM_SHA256}  fpm.F90" | sha256sum -c -
+          mkdir -p ~/.local/bin fpm-mod
+          gfortran -O1 -fopenmp -J fpm-mod -o ~/.local/bin/fpm fpm.F90
+          rm -rf fpm.F90 fpm-mod
+
+      - name: Install fprettify
+        run: pipx install "fprettify==${FPRETTIFY_VERSION}"
+
+      - name: Format, build and test
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          fpm --version | head -1
+          tools/check.sh
