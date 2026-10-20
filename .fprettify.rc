@@ -1,0 +1,5 @@
+# fprettify settings; enforced by tools/check.sh.
+indent = 3
+line-length = 132
+whitespace = 2
+strict-indent = true

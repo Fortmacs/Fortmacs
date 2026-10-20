@@ -1,0 +1,5 @@
+# fpm build output
+/build/
+
+# Reference source fetched by tools/fetch-upstream.sh
+/upstream/
