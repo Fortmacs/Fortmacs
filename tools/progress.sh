@@ -24,8 +24,9 @@
 #     platforms.  A function counts as done when a "file.c:name" citation
 #     for it appears in our sources ("Port of buffer.c:Fset_buffer").
 #   - Lisp: top-level definitions (defun, defmacro, cl-defun,
-#     define-minor-mode, define-derived-mode) in upstream lisp/.  None are
-#     tracked as done yet.
+#     define-minor-mode, define-derived-mode) in upstream lisp/, counted
+#     done when cited as "path.el:name" with the path under lisp/
+#     ("simple.el:newline", "term/xterm.el:terminal-init-xterm").
 # It's an estimate: functions differ wildly in size, and macros and
 # variables are not counted.
 #
@@ -56,9 +57,19 @@ comm -12 "$tmp/all" "$tmp/cited" > "$tmp/done"
 
 c_total=$(wc -l < "$tmp/all")
 c_done=$(wc -l < "$tmp/done")
-l_total=$(find "$up/lisp" -name '*.el' -exec cat {} + |
-    grep -cE '^\((defun|cl-defun|defmacro|define-minor-mode|define-derived-mode) ')
-l_done=0
+# Every upstream Lisp definition, as path-under-lisp/:name.
+(cd "$up/lisp" && find . -name '*.el' | sed 's|^\./||' | sort | while read -r f; do
+    sed -nE "s/^\((defun|cl-defun|defmacro|define-minor-mode|define-derived-mode) ([^ ()]+).*/$(printf '%s' "$f" | sed 's|[/&]|\\&|g'):\2/p" "$f"
+done) | sort -u > "$tmp/lall"
+
+# Lisp definitions our sources cite ("simple.el:newline",
+# "term/xterm.el:terminal-init-xterm").
+grep -ohE '\b[a-z0-9/_-]+\.el:[A-Za-z0-9*+/<>=!?-]*[A-Za-z0-9*+<>=!?]' \
+    "$root"/src/*.f90 "$root"/src/sys/*.f90 | sort -u > "$tmp/lcited"
+comm -12 "$tmp/lall" "$tmp/lcited" > "$tmp/ldone"
+
+l_total=$(wc -l < "$tmp/lall")
+l_done=$(wc -l < "$tmp/ldone")
 
 total=$((c_total + l_total))
 done=$((c_done + l_done))

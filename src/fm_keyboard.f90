@@ -39,7 +39,7 @@
 module fm_keyboard
    use, intrinsic :: iso_fortran_env, only: int32, int64
    use fm_error, only: status_type, set_error, format_error, FM_GENERIC_ERROR
-   use fm_handle, only: handle_type
+   use fm_handle, only: handle_type, null_handle
    use fm_lisp, only: value_type, V_LIST, nil, make_fixnum, &
                       make_keymap_ref, vtag, nilp, fixnump, symbolp, &
                       stringp, xfixnum, xsymbol, xstring, list_elements
@@ -49,7 +49,8 @@ module fm_keyboard
                            multibyte_length, string_char_and_length
    use fm_keymap, only: keymapp, keymap_live_p, access_keymap, &
                         current_active_maps, &
-                        key_description, parse_modifiers, apply_modifiers
+                        key_description, parse_modifiers, apply_modifiers, &
+                        overriding_terminal_local_map
    use fm_callint, only: call_interactively, current_prefix_arg, prefix_arg, &
                          prefix_numeric_value
    use fm_sysdep, only: emacs_read, input_available
@@ -60,7 +61,7 @@ module fm_keyboard
              tty_read_avail_input, unread_command_events, &
              discard_input, input_pending_p, read_event
    public :: read_key_sequence, command_loop_step, command_loop, &
-             request_exit
+             request_exit, set_transient_map
    public :: READ_KEY_ELTS
 
    !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -107,6 +108,9 @@ module fm_keyboard
 
    !> Set by `request_exit` to end `command_loop`.
    logical :: exit_requested = .false.
+   !> overriding-terminal-local-map holds a transient map, to be dropped
+   !> before the next command runs.
+   logical :: transient_active = .false.
 
    !> keyboard.c:struct keyremap.  `start` and `end` are 0-based offsets
    !> into the key buffer, as upstream.
@@ -622,6 +626,17 @@ contains
    ! The command loop
    ! ------------------------------------------------------------------
 
+   !> Make `km` take precedence over all other keymaps for the next key
+   !> sequence only.  Port of subr.el:set-transient-map with KEEP-PRED
+   !> nil (no ON-EXIT, MESSAGE or TIMEOUT); like upstream, the map is
+   !> dropped from the pre-command hook.
+   subroutine set_transient_map(km)
+      type(handle_type), intent(in) :: km
+
+      overriding_terminal_local_map = km
+      transient_active = .true.
+   end subroutine set_transient_map
+
    !> Make `command_loop` return after the current command.
    subroutine request_exit()
       exit_requested = .true.
@@ -673,11 +688,17 @@ contains
       this_command = cmd
       real_this_command = cmd
 
+      ! pre-command-hook: a transient map lasts for one key sequence.
+      if (transient_active) then
+         overriding_terminal_local_map = null_handle()
+         transient_active = .false.
+      end if
+
       ! simple.el:command-execute
       current_prefix_arg = prefix_arg
       prefix_arg = nil()
       if (test_undefined(cmd)) then
-         ! simple.el:undefined
+         ! subr.el:undefined
          last_message = key_description(keys)//" is undefined"
       else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
          call execute_kbd_macro(cmd, prefix_numeric_value(current_prefix_arg))
