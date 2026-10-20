@@ -18,16 +18,21 @@ this file.
    registry. Foundations with no single upstream file.
 2. `fm_character` — UTF-8 encoding and char↔byte conversion
    (`character.c`, `character.h`).
-3. `fm_insdel` + `fm_buffer` — gap buffer, insert/delete, point, narrowing,
-   create/kill (`insdel.c`, `buffer.c`, `buffer.h`).
-4. `fm_marker` — markers and their adjustment on insert/delete (`marker.c`).
+3. `fm_buffer` + `fm_insdel` — gap buffer, insert/delete, create/kill,
+   current buffer (`buffer.c`, `buffer.h`, `insdel.c`); plus the
+   char↔byte conversion half of `fm_marker` (`marker.c`), which insdel needs.
+4. `fm_marker` — marker objects and their adjustment on insert/delete
+   (`marker.c`); `kill-buffer`/`erase-buffer` completed in a submodule of
+   fm_buffer (which can use fm_marker/fm_insdel without a module cycle).
+   Narrowing and `goto-char` come with `fm_editfns` (`editfns.c`, done).
 5. Value model — symbols and the minimal value type that text properties,
    keymaps and buffer-local variables need (see Open questions).
 6. `fm_intervals` + `fm_textprop` — interval tree and text properties
    (`intervals.c`, `textprop.c`).
 
 ### Phase 2 — Command loop and keymaps
-`src/sys/` termios raw mode, `fm_keymap` (`keymap.c`), `fm_keyboard`
+`src/sys/` termios raw mode (done early, while Phase 1 step 5 waits on
+open question 2), `fm_keymap` (`keymap.c`), `fm_keyboard`
 (`keyboard.c`), `fm_cmds` (`cmds.c`).
 
 ### Phase 3 — Terminal display
@@ -79,6 +84,42 @@ Copy the FSF year range exactly from the upstream file.
 | Module | Upstream | Ported | Deferred | Tests | State |
 |---|---|---|---|---|---|
 | fm_version | — | — | — | test_fm_version | done |
+| fm_error | data.c `syms_of_data` error table (subset), fileio.c `file-error`, print.c `print_error_message` layout | status type, codes, `condition_matches`, `format_error` | remaining error symbols (added as modules need them) | test_fm_error | done |
+| fm_handle | — (replaces GC'd pointers) | slot table, generational handles | — | test_fm_handle | done |
+| fm_buffer_ops (submodule of fm_buffer) | buffer.c | `kill-buffer` (unchains markers, clears the position cache), `erase-buffer` (with inline `widen`) | hooks, windows, processes, overlays, labeled restrictions | test_fm_buffer, test_fm_marker | done |
+| fm_buffer | buffer.c, buffer.h (+ intervals.c `temp_set_point_both`, lisp.h `modiff_incr`) | struct buffer_text / struct buffer (subset), registry, `get-buffer`, `get-buffer-create`, `generate-new-buffer-name`, `buffer-name`, `buffer-last-name`, `rename-buffer`, `buffer-list`, `set-buffer`, `kill-buffer` (core), `buffer-modified-p`, `restore-buffer-modified-p`, modified ticks, `barf-if-buffer-read-only`, BUF_BYTE_ADDRESS / FETCH_BYTE / FETCH_CHAR / next/prev char len, BUF_COMPUTE_UNCHANGED | indirect buffers, buffer-local vars, overlays, undo, files/locking, hooks, `autosaved` state, `inhibit-read-only`, `erase-buffer`, marker/window parts of `kill-buffer`, `other-buffer` ordering | test_fm_buffer (ports bug27966 and the file-independent parts of test-buffer-modifications, test-restore-buffer-modified-p, test-buffer-chars-modified-ticks) | done |
+| fm_marker | marker.c (+ alloc.c `Fmake_marker`) | conversion with cache and marker hints, `make-marker`, `marker-buffer`, `marker-position`, `marker_byte_position`, `marker-last-position`, `set-marker` (integer and marker positions), `set_marker_restricted(_both)`, `set_marker_both`, `detach_marker`, `unchain_marker`, `copy-marker`, insertion types, `count_markers`; `free_marker` (ours: no GC) | `build_marker` after long scans (would leak without GC), `need_adjustment` | test_fm_marker (marker-tests.el needs windows; its Bug#24368 point is ported as set-marker-from-other-buffer) | done |
+| fm_insdel | insdel.c | gap motion, `make_gap` (larger/smaller), `insert`, `insert_char`, `insert_before_markers`, `insert_1_both`, `adjust_point`, `adjust_markers_for_insert/delete`, `del_range`, `del_range_1/_byte/_both/_2`, `modify_text`, `prepare_to_modify_buffer` (read-only check) | intervals, overlays, undo, change hooks, compositions, quit during gap motion, `copy_text`, `insert_from_string/buffer`, `replace_range` | test_fm_insdel (own; no upstream insdel-tests.el) | partial |
+| fm_editfns | editfns.c (+ buffer.c `validate_region`, intervals.c `set_point_from_marker`) | `point`, `point-min/max`, `pos-bol`, `pos-eol`, `line-beginning/end-position` (no fields), `buffer-size`, `gap-position/size`, `goto-char` (integer and marker), `point(-min/-max)-marker`, `position-bytes`, `byte-to-position`, `following-char`, `preceding-char`, `bobp`, `eobp`, `bolp`, `eolp`, `char-after/before`, `insert-char` (count), `narrow-to-region`, `widen`, `buffer-substring`, `buffer-string`, `delete-region`, `delete-and-extract-region` | labeled restrictions, save-excursion/-restriction, `format`/`message`, fields, `transpose-regions`, `compare-buffer-substrings`, `subst-char-in-region`, `insert-buffer-substring`, fields (so `line-beginning/end-position` equal `pos-bol/eol` for now), text properties in substrings | test_fm_editfns, test_fm_cmds (own; editfns-tests.el needs format/props/undo/transpose) | partial |
+| fm_search | search.c | `find_newline` (both directions, across the gap), `scan_newline`, `scan_newline_from_point`, `find_newline_no_quit`, `find_before_next_newline` | newline cache (region-cache.c), string and regexp search, match data, `replace-match` | test_fm_cmds | partial |
+| fm_cmds | cmds.c | `forward-char`, `backward-char` (`move_point`), `forward-line` (incl. excessive counts), `beginning-of-line`, `end-of-line`, `delete-char` | `self-insert-command` (needs the command loop), kill-ring `delete-char`, undo amalgamation, intangible text | test_fm_cmds (ports forward-line-with-bignum from cmds-tests.el) | partial |
+| fm_sys_linux (src/sys) | — (glibc/kernel headers) | struct termios / winsize / pollfd, termios flags and c_cc indices, ioctl/open/signal/errno constants, bindings for tcgetattr, tcsetattr, read, write, close, isatty, poll, ioctl, signal, raise, posix_openpt, grantpt, unlockpt, ptsname, open, errno | — | test_fm_sysdep (struct sizes checked on both arches in CI) | done |
+| fm_sysdep (src/sys) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | `emacs_get_tty`, `emacs_set_tty`, the termios part of `init_sys_modes` / `reset_sys_modes` (raw-mode transform as pure `tty_raw_settings`), `get_tty_size`, `set_window_size`, `emacs_read`, `emacs_full_write`, `emacs_write`, `input_available` (poll), SIGWINCH flag, `open_pty` | job control (`narrow_foreground_group`, SIGTSTP/SIGCONT), F_SETOWN/SIGIO, keypad/meta terminfo setup, process groups | test_fm_sysdep (runs on a pty, so CI needs no terminal) | done |
+| fm_character | character.c, character.h | encoding table, `char_string`, `multibyte_length`, `string_char_and_length`, `raw_prev_char_len`, raw-byte (eight-bit) conversions, `multibyte_chars_in_text`, `parse_str_as_multibyte`, `str_as_multibyte`, `count_size_as_multibyte`, `str_to_multibyte`, `str_as_unibyte`, `char_resolve_modifier_mask`, small predicates | `chars_in_text` (needs current buffer → fm_buffer); `char_width`/`string-width` and `alphabeticp` etc. (need char-tables → display phase); `translate_char`; Lisp-level DEFUNs | test_fm_character (own; character-tests.el only tests `string-width`, deferred) | done |
+
+## Conventions learned while porting
+
+- Bytes are default-kind `character` elements: build them with `char(i)` and
+  read them with `ichar(c, kind=int32)`. Not `achar`, whose result outside
+  0..127 is processor-dependent (gfortran warns).
+- Upstream's unchecked fast paths (`check = false`, no end pointer) are not
+  ported; everything bound-checks against `len(str)`.
+- Functions that must return two values become `pure subroutine`s (a pure
+  function may not have `intent(out)` arguments).
+- fpm tree-shakes the library: a module is only compiled once something
+  (a test or the app) uses it, so register a module's test suite at once.
+- Procedures in a submodule can't call *private* parent procedures that
+  the parent itself never uses: gfortran drops them (link error). Put such
+  helpers in the submodule.
+- Tests of the src/sys layer may use ISO_C_BINDING and fm_sys_linux
+  directly; nothing else may. Terminal tests run on a pty (`open_pty`).
+- If fpm reports "Project is up to date" after a source change, the build
+  cache is stale: delete `build/gfortran_*`. CI always builds clean.
+- Objects are freed explicitly: every `make_marker` needs a `free_marker`.
+- Registry slots are reused after kill; any cache keyed by slot must also
+  check `buffers(i)%serial` (see the regression test in test_fm_insdel).
+- Text uses Emacs's internal encoding (UTF-8 extended to 22-bit codes, raw
+  bytes as C0/C1 two-byte forms), so files with invalid UTF-8 round-trip.
 
 ## Open questions
 
@@ -94,9 +135,37 @@ Each lists the default being used meanwhile.
    `lread.c:intern`) referenced by handle, and a tagged `value_type`
    holding nil / integer / symbol / string / list-of-values, with explicit
    free. To be confirmed before Phase 1 step 5.*
+3. **Error-code naming.** Error codes are `FM_<SYMBOL>` parameters, except
+   the root `error` condition, which is `FM_GENERIC_ERROR` because Fortran
+   names are case-insensitive and `FM_ERROR` collides with module
+   `fm_error`. *Default: keep as is.*
+4. **Buffer internals visibility.** `fm_buffer` exposes `buffers(:)` and
+   the current slot `cur` (read-only outside the module) so fm_insdel and
+   fm_marker can work like upstream's buffer.h macros. *Default: keep;
+   higher layers use the procedures only.*
+5. **Terminal capabilities (blocks Phase 3 output).** Upstream drives
+   terminals through terminfo (term.c with tparam.c/terminfo.c over
+   ncurses' libtinfo). Options: (a) bind libtinfo's `tgetent`/`tgetstr`/
+   `tparm` from src/sys -- closest to upstream, adds a C library
+   dependency; (b) parse compiled terminfo files in pure Fortran;
+   (c) hardcode ANSI/xterm sequences (simplest; most modern terminals).
+   *No default taken: Phase 3 output waits for an answer.*
+6. **Upstream LLM policy (FYI).** The emacs-31.1 tree contains an
+   `AGENTS.md` stating that GNU Emacs does not accept LLM-generated
+   contributions. That governs patches sent to Emacs, not this separate
+   GPL project, but it means Fortmacs code (largely Claude-written) should
+   never be offered upstream. *Default: read upstream as reference only;
+   never propose changes to it.*
 
 ## Session log
 
 Resume point for the next working session, newest first.
 
-- 2026-10-20 — Phase 0 scaffold on branch `phase0-scaffold`.
+- 2026-10-20 — `fm_search` newline scanning, line positions, `fm_cmds` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Work that doesn't need an answer to open questions 2 (value model) or 5 (terminal capabilities) is now done; keymaps, the command loop, text properties and terminal output all wait on them.
+- 2026-10-20 — `fm_editfns` subset on `phase1-editfns` (PR #7).
+- 2026-10-20 — Phase 2 groundwork: src/sys (`fm_sys_linux`, `fm_sysdep`) on `phase2-sys` (PR #6), stacked on PR #5. Phase 1 step 5 waits on open question 2. Next without it: keyboard input decoding (`fm_keyboard` subset: reading bytes into events, terminal escape sequences come with `term.c`), or `fm_editfns` (point, narrowing, `buffer-substring`).
+- 2026-10-20 — Phase 1 step 4 (marker objects, marker adjustment, `kill-buffer`/`erase-buffer` submodule) on `phase1-markers` (PR #5).
+- 2026-10-20 — Phase 1 step 3 (`fm_buffer`, `fm_insdel`, conversion half of `fm_marker`) on `phase1-buffer` (PR #4).
+- 2026-10-20 — Phase 1 step 2 (`fm_character`) on `phase1-character` (PR #3).
+- 2026-10-20 — Phase 1 step 1 (`fm_error`, `fm_handle`) on `phase1-error-handle` (PR #2), stacked on PR #1.
+- 2026-10-20 — Phase 0 scaffold on branch `phase0-scaffold` (PR #1, CI green).

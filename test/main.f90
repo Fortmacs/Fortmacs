@@ -25,6 +25,15 @@ program tester
    use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                         testsuite_type, select_suite
    use test_fm_version, only: collect_fm_version
+   use test_fm_error, only: collect_fm_error
+   use test_fm_handle, only: collect_fm_handle
+   use test_fm_character, only: collect_fm_character
+   use test_fm_buffer, only: collect_fm_buffer
+   use test_fm_insdel, only: collect_fm_insdel
+   use test_fm_marker, only: collect_fm_marker
+   use test_fm_sysdep, only: collect_fm_sysdep
+   use test_fm_editfns, only: collect_fm_editfns
+   use test_fm_cmds, only: collect_fm_cmds
    implicit none(type, external)
 
    ! test-drive's interfaces take default integers.
@@ -35,7 +44,16 @@ program tester
 
    stat = 0
    testsuites = [ &
-                new_testsuite("fm_version", collect_fm_version) &
+                new_testsuite("fm_version", collect_fm_version), &
+                new_testsuite("fm_error", collect_fm_error), &
+                new_testsuite("fm_handle", collect_fm_handle), &
+                new_testsuite("fm_character", collect_fm_character), &
+                new_testsuite("fm_buffer", collect_fm_buffer), &
+                new_testsuite("fm_insdel", collect_fm_insdel), &
+                new_testsuite("fm_marker", collect_fm_marker), &
+                new_testsuite("fm_sysdep", collect_fm_sysdep), &
+                new_testsuite("fm_editfns", collect_fm_editfns), &
+                new_testsuite("fm_cmds", collect_fm_cmds) &
                 ]
 
    call get_argument(1, suite_name)
