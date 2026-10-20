@@ -71,7 +71,8 @@ module fm_keymap
    public :: make_keymap, make_sparse_keymap, free_keymap, keymap_live_p
    public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap
    public :: keymap_prompt, keymap_full_p
-   public :: access_keymap, define_key, lookup_key, key_binding
+   public :: access_keymap, define_key, define_key_range, lookup_key, &
+             key_binding
    public :: current_global_map, use_global_map
    public :: current_local_map, use_local_map, current_active_maps
    public :: parse_modifiers, apply_modifiers
@@ -104,12 +105,20 @@ module fm_keymap
       type(value_type) :: prompt
       !> Made by make-keymap rather than make-sparse-keymap.
       logical :: full = .false.
+      !> Character ranges (upstream: char-table ranges), newest last;
+      !> they apply to characters without modifiers that have no entry.
+      integer(int64), allocatable :: range_from(:), range_to(:)
+      type(value_type), allocatable :: range_bindings(:)
+      integer(int64) :: nranges = 0
    end type keymap_type
 
    type(keymap_type), allocatable :: keymaps(:)
    type(slot_table_type) :: table
    !> keymap.c:current_global_map; made on first use.
    type(handle_type) :: global_map
+   !> KVAR Voverriding_terminal_local_map: a keymap taking precedence
+   !> over all others (null: none).  Used for transient maps.
+   type(handle_type), public :: overriding_terminal_local_map
 
    !> State of one access_keymap_1 scan.
    type :: access_state
@@ -515,7 +524,7 @@ contains
       type(value_type), allocatable :: elems(:)
       type(status_type) :: status
       integer(int64) :: i, j, k, c
-      logical :: f, stop
+      logical :: f, stop, matched
 
       found = .false.
       st%t_ok = t_ok
@@ -546,8 +555,10 @@ contains
          call table%resolve(xhandle(m), i, status)
          if (status%ok()) then
             scan: do
+               matched = .false.
                do j = keymaps(i)%n, 1, -1
                   if (value_eq(keymaps(i)%events(j), idx)) then
+                     matched = .true.
                      call take_binding(st, keymaps(i)%bindings(j), stop)
                      if (stop) exit scan
                   else if (st%t_ok .and. is_t(keymaps(i)%events(j))) then
@@ -556,6 +567,19 @@ contains
                      st%t_ok = .false.
                   end if
                end do
+               ! The char-table part: plain characters only.
+               if (.not. matched .and. fixnump(idx)) then
+                  c = xfixnum(idx)
+                  if (iand(c, M_ALL) == 0) then
+                     do j = keymaps(i)%nranges, 1, -1
+                        if (c < keymaps(i)%range_from(j) .or. &
+                            c > keymaps(i)%range_to(j)) cycle
+                        call take_binding(st, keymaps(i)%range_bindings(j), stop)
+                        if (stop) exit scan
+                        exit
+                     end do
+                  end if
+               end if
                if (.not. table%is_live(keymaps(i)%parent)) exit scan
                tail = make_keymap_ref(keymaps(i)%parent)
                call at_parent(st, tail, idx, noinherit, stop)
@@ -702,6 +726,66 @@ contains
       end do
       if (.not. remove) call append_entry(i, idx, def)
    end subroutine store_in_keymap
+
+   !> Bind characters `from`..`to` (without modifiers) to `def` in `km`,
+   !> replacing their single-character entries.  Port of the
+   !> (FROM . TO) case of keymap.c:store_in_keymap (Fset_char_table_range
+   !> on the keymap's char-table).  Removing one character of a range
+   !> later lets the range show through, where upstream it would unbind
+   !> the character.
+   subroutine define_key_range(km, from, to, def, status)
+      type(handle_type), intent(in) :: km
+      integer(int64), intent(in) :: from, to
+      type(value_type), intent(in) :: def
+      type(status_type), intent(out) :: status
+      integer(int64), allocatable :: grown_i(:)
+      type(value_type), allocatable :: grown_v(:)
+      integer(int64) :: i, j, c, n, cap
+
+      call resolve_keymap(km, i, status)
+      if (.not. status%ok()) return
+      if (from < 0 .or. to > MAX_CHAR .or. from > to) then
+         call set_error(status, FM_GENERIC_ERROR, "Invalid character range")
+         return
+      end if
+      ! Drop entries for characters in the range.
+      n = 0
+      do j = 1, keymaps(i)%n
+         if (fixnump(keymaps(i)%events(j))) then
+            c = xfixnum(keymaps(i)%events(j))
+            if (c >= from .and. c <= to) cycle
+         end if
+         n = n + 1
+         if (n /= j) then
+            keymaps(i)%events(n) = keymaps(i)%events(j)
+            keymaps(i)%bindings(n) = keymaps(i)%bindings(j)
+         end if
+      end do
+      do j = n + 1, keymaps(i)%n
+         keymaps(i)%events(j) = nil()
+         keymaps(i)%bindings(j) = nil()
+      end do
+      keymaps(i)%n = n
+      if (.not. allocated(keymaps(i)%range_from)) then
+         allocate (keymaps(i)%range_from(4), keymaps(i)%range_to(4), &
+                   keymaps(i)%range_bindings(4))
+      else if (keymaps(i)%nranges == size(keymaps(i)%range_from, kind=int64)) then
+         cap = 2*keymaps(i)%nranges
+         allocate (grown_i(cap))
+         grown_i(1:keymaps(i)%nranges) = keymaps(i)%range_from
+         call move_alloc(grown_i, keymaps(i)%range_from)
+         allocate (grown_i(cap))
+         grown_i(1:keymaps(i)%nranges) = keymaps(i)%range_to
+         call move_alloc(grown_i, keymaps(i)%range_to)
+         allocate (grown_v(cap))
+         grown_v(1:keymaps(i)%nranges) = keymaps(i)%range_bindings
+         call move_alloc(grown_v, keymaps(i)%range_bindings)
+      end if
+      keymaps(i)%nranges = keymaps(i)%nranges + 1
+      keymaps(i)%range_from(keymaps(i)%nranges) = from
+      keymaps(i)%range_to(keymaps(i)%nranges) = to
+      keymaps(i)%range_bindings(keymaps(i)%nranges) = def
+   end subroutine define_key_range
 
    !> The keymap to define into when the prefix binding is `cmd`: a
    !> keymap, or the first member of a composite (as store_in_keymap
@@ -855,6 +939,12 @@ contains
          end if
          call append_entry(copy%index, ev, b)
       end do
+      if (keymaps(i)%nranges > 0) then
+         keymaps(copy%index)%range_from = keymaps(i)%range_from
+         keymaps(copy%index)%range_to = keymaps(i)%range_to
+         keymaps(copy%index)%range_bindings = keymaps(i)%range_bindings
+         keymaps(copy%index)%nranges = keymaps(i)%nranges
+      end if
    end subroutine copy_keymap_1
 
    ! ------------------------------------------------------------------
@@ -908,20 +998,33 @@ contains
       buffers(cur)%keymap = km
    end subroutine use_local_map
 
-   !> The active keymaps, highest precedence first, as one composite: the
-   !> local map (if any), then the global map.  Port of
-   !> keymap.c:Fcurrent_active_maps without minor-mode, overriding and
-   !> text-property maps.
+   !> The active keymaps, highest precedence first, as one composite:
+   !> overriding-terminal-local-map, the local map, the global map.  Port
+   !> of keymap.c:Fcurrent_active_maps without minor-mode,
+   !> overriding-local-map and text-property maps.
    function current_active_maps() result(maps)
       type(value_type) :: maps
+      type(value_type), allocatable :: elems(:)
       type(handle_type) :: local
+      integer :: n
 
+      allocate (elems(3))
+      n = 0
+      if (table%is_live(overriding_terminal_local_map)) then
+         n = n + 1
+         elems(n) = make_keymap_ref(overriding_terminal_local_map)
+      end if
       local = current_local_map()
       if (local%index /= 0) then
-         maps = list(make_keymap_ref(local), &
-                     make_keymap_ref(current_global_map()))
+         n = n + 1
+         elems(n) = make_keymap_ref(local)
+      end if
+      n = n + 1
+      elems(n) = make_keymap_ref(current_global_map())
+      if (n == 1) then
+         maps = elems(1)
       else
-         maps = make_keymap_ref(current_global_map())
+         maps = make_list(elems(1:n))
       end if
    end function current_active_maps
 

@@ -19,25 +19,33 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Motion and deletion commands on the current buffer.
+!> Motion, deletion and insertion commands on the current buffer, and
+!> their registration as commands (`syms_of_cmds`).
 !>
-!> Deferred: `self-insert-command` (needs the command loop's last event,
-!> abbrevs, auto-fill and overwrite mode), the kill-ring path of
-!> `delete-char`, undo amalgamation, and intangible/invisible text.
+!> Deferred: overwrite mode, abbrevs, auto-fill and electric characters
+!> in `self-insert-command`, `translation-table-for-input`, the kill-ring
+!> path of `delete-char`, undo amalgamation, and intangible/invisible
+!> text.
 module fm_cmds
-   use, intrinsic :: iso_fortran_env, only: int64
-   use fm_error, only: status_type, set_error, FM_BEGINNING_OF_BUFFER, &
+   use, intrinsic :: iso_fortran_env, only: int32, int64
+   use fm_error, only: status_type, set_error, FM_GENERIC_ERROR, &
+                       FM_BEGINNING_OF_BUFFER, &
                        FM_END_OF_BUFFER
    use fm_buffer, only: buffers, cur, BUF_BYTES_MAX, buf_fetch_byte, &
                         temp_set_point_both
    use fm_search, only: scan_newline_from_point
    use fm_insdel, only: del_range
-   use fm_editfns, only: line_beginning_position, line_end_position, goto_char
+   use fm_editfns, only: line_beginning_position, line_end_position, goto_char, &
+                         insert_char_n
+   use fm_lisp, only: value_type, fixnump, xfixnum
+   use fm_character, only: MAX_CHAR
+   use fm_callint, only: defcommand, current_prefix_arg, prefix_numeric_value
+   use fm_keyboard, only: last_command_event
    implicit none(type, external)
    private
 
    public :: forward_char, backward_char, forward_line, beginning_of_line, &
-             end_of_line, delete_char
+             end_of_line, delete_char, self_insert_command, syms_of_cmds
 
 contains
 
@@ -164,5 +172,93 @@ contains
          end if
       end if
    end subroutine delete_char
+
+   !> Insert character `c` `n` times.  Port of cmds.c:Fself_insert_command
+   !> with internal_self_insert reduced to the insertion (no overwrite,
+   !> abbrevs, auto-fill or hooks).  A non-character `c` does nothing
+   !> (upstream rings the bell).
+   subroutine self_insert_command(n, c, status)
+      integer(int64), intent(in) :: n, c
+      type(status_type), intent(out) :: status
+      character(len=24) :: buf
+
+      if (n < 0) then
+         write (buf, '(i0)') n
+         call set_error(status, FM_GENERIC_ERROR, &
+                        "Negative repetition argument "//trim(buf))
+         return
+      end if
+      if (c < 0 .or. c > MAX_CHAR) return
+      call insert_char_n(int(c, int32), n, status)
+   end subroutine self_insert_command
+
+   ! ------------------------------------------------------------------
+   ! Commands (the interactive side of the DEFUNs)
+   ! ------------------------------------------------------------------
+
+   !> Interactive "p": the numeric prefix argument.
+   integer(int64) function arg_p()
+      arg_p = prefix_numeric_value(current_prefix_arg)
+   end function arg_p
+
+   subroutine cmd_forward_char(status)
+      type(status_type), intent(out) :: status
+
+      call forward_char(status, arg_p())
+   end subroutine cmd_forward_char
+
+   subroutine cmd_backward_char(status)
+      type(status_type), intent(out) :: status
+
+      call backward_char(status, arg_p())
+   end subroutine cmd_backward_char
+
+   subroutine cmd_forward_line(status)
+      type(status_type), intent(out) :: status
+      integer(int64) :: shortage
+
+      status = status_type()
+      shortage = forward_line(arg_p())
+   end subroutine cmd_forward_line
+
+   subroutine cmd_beginning_of_line(status)
+      type(status_type), intent(out) :: status
+
+      status = status_type()
+      call beginning_of_line(arg_p())
+   end subroutine cmd_beginning_of_line
+
+   subroutine cmd_end_of_line(status)
+      type(status_type), intent(out) :: status
+
+      status = status_type()
+      call end_of_line(arg_p())
+   end subroutine cmd_end_of_line
+
+   subroutine cmd_delete_char(status)
+      type(status_type), intent(out) :: status
+
+      call delete_char(arg_p(), status)
+   end subroutine cmd_delete_char
+
+   subroutine cmd_self_insert_command(status)
+      type(status_type), intent(out) :: status
+
+      status = status_type()
+      if (.not. fixnump(last_command_event)) return
+      call self_insert_command(arg_p(), xfixnum(last_command_event), status)
+   end subroutine cmd_self_insert_command
+
+   !> Register this module's commands.  Port of the defsubr part of
+   !> cmds.c:syms_of_cmds.
+   subroutine syms_of_cmds()
+      call defcommand("forward-char", cmd_forward_char)
+      call defcommand("backward-char", cmd_backward_char)
+      call defcommand("forward-line", cmd_forward_line)
+      call defcommand("beginning-of-line", cmd_beginning_of_line)
+      call defcommand("end-of-line", cmd_end_of_line)
+      call defcommand("delete-char", cmd_delete_char)
+      call defcommand("self-insert-command", cmd_self_insert_command)
+   end subroutine syms_of_cmds
 
 end module fm_cmds
