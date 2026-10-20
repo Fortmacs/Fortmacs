@@ -48,7 +48,7 @@ module fm_sysdep
              reset_sys_modes, get_tty_size, set_tty_size, emacs_read, &
              emacs_full_write, emacs_write, input_available
    public :: install_window_change_handler, window_change_pending
-   public :: open_pty, close_fd
+   public :: open_pty, close_fd, tabs_safe_p
 
    !> Set (to the signal number) asynchronously by the SIGWINCH handler;
    !> read and cleared by `window_change_pending`.
@@ -191,6 +191,17 @@ contains
 
       call emacs_set_tty(fd, old, .false., status)
    end subroutine reset_sys_modes
+
+   !> Whether the terminal on `fd` passes tabs through (does not expand
+   !> them to spaces).  Port of sysdep.c:tabs_safe_p.
+   logical function tabs_safe_p(fd)
+      integer(int32), intent(in) :: fd
+      type(emacs_tty_type) :: settings
+      type(status_type) :: status
+
+      call emacs_get_tty(fd, settings, status)
+      tabs_safe_p = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
+   end function tabs_safe_p
 
    !> Width and height of the terminal on `fd`.
    !> Port of sysdep.c:get_tty_size.
