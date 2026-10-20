@@ -61,7 +61,7 @@ module fm_lisp
    !> Value tags.
    integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
                                         V_STRING = 3, V_LIST = 4, &
-                                        V_BUFFER = 5, V_MARKER = 6
+                                        V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7
 
    !> Ids of the predefined symbols.
    integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
@@ -73,7 +73,7 @@ module fm_lisp
       integer(int64) :: i = 0
       !> Atoms in this subtree, itself included (1 for scalars).
       integer(int64) :: span = 1
-      !> V_BUFFER, V_MARKER: the object's handle.
+      !> V_BUFFER, V_MARKER, V_KEYMAP: the object's handle.
       type(handle_type) :: h
       !> V_STRING: text in the internal (multibyte) encoding.
       character(len=:), allocatable :: s
@@ -100,9 +100,9 @@ module fm_lisp
    integer(int64), public :: nsymbols = 0
 
    public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
-             make_buffer_ref, make_marker_ref, make_list, list, cons
+             make_buffer_ref, make_marker_ref, make_keymap_ref, make_list, list, cons
    public :: vtag, nilp, fixnump, symbolp, stringp, consp, listp, bufferp, &
-             markerp
+             markerp, keymap_ref_p
    public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
              list_elements, list_tail
 
@@ -192,6 +192,17 @@ contains
       atom%h = h
       v = scalar(atom)
    end function make_marker_ref
+
+   !> A value referring to keymap `h`.
+   pure function make_keymap_ref(h) result(v)
+      type(handle_type), intent(in) :: h
+      type(value_type) :: v
+      type(atom_type) :: atom
+
+      atom%tag = V_KEYMAP
+      atom%h = h
+      v = scalar(atom)
+   end function make_keymap_ref
 
    !> The atoms of `v` as an element of a list (nil becomes an explicit
    !> V_NIL atom).
@@ -363,6 +374,13 @@ contains
       markerp = vtag(v) == V_MARKER
    end function markerp
 
+   !> True for a single keymap (not a list of keymaps); see fm_keymap.
+   elemental logical function keymap_ref_p(v)
+      type(value_type), intent(in) :: v
+
+      keymap_ref_p = vtag(v) == V_KEYMAP
+   end function keymap_ref_p
+
    !> The integer in `v`, unchecked.  Port of lisp.h:XFIXNUM.
    elemental integer(int64) function xfixnum(v)
       type(value_type), intent(in) :: v
@@ -392,7 +410,7 @@ contains
       end if
    end function xstring
 
-   !> The handle in a buffer or marker value.
+   !> The handle in a buffer, marker or keymap value.
    elemental function xhandle(v) result(h)
       type(value_type), intent(in) :: v
       type(handle_type) :: h

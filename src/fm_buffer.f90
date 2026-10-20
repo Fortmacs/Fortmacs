@@ -94,6 +94,8 @@ module fm_buffer
       !> Upstream sets undo_list to t (disabled) for names starting with SPC.
       logical :: undo_enabled = .true.
       logical :: inhibit_buffer_hooks = .false.
+      !> BVAR keymap: the local keymap, or the null handle (fm_keymap).
+      type(handle_type) :: keymap
       !> Unique per buffer ever created, so caches keyed by slot (which is
       !> reused after kill-buffer) can tell buffers apart.
       integer(int64) :: serial = 0

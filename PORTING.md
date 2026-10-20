@@ -31,9 +31,11 @@ this file.
    (`intervals.c`, `textprop.c`).
 
 ### Phase 2 — Command loop and keymaps
-`src/sys/` termios raw mode (done early, while Phase 1 step 5 waits on
-open question 2), `fm_keymap` (`keymap.c`), `fm_keyboard`
-(`keyboard.c`), `fm_cmds` (`cmds.c`).
+1. `src/sys/` termios raw mode — done.
+2. `fm_keymap` (`keymap.c`) — done (core; see the status table).
+3. `fm_keyboard` (`keyboard.c`) — command loop, event reading.
+4. `fm_cmds` (`cmds.c`) — `self-insert-command` and friends (motion and
+   deletion done in Phase 1).
 
 ### Phase 3 — Terminal display
 Minimal `term.c` / `dispnew.c` / `xdisp.c` subset.
@@ -98,6 +100,8 @@ Copy the FSF year range exactly from the upstream file.
 | fm_sys_linux (src/sys) | — (glibc/kernel headers) | struct termios / winsize / pollfd, termios flags and c_cc indices, ioctl/open/signal/errno constants, bindings for tcgetattr, tcsetattr, read, write, close, isatty, poll, ioctl, signal, raise, posix_openpt, grantpt, unlockpt, ptsname, open, errno | — | test_fm_sysdep (struct sizes checked on both arches in CI) | done |
 | fm_sysdep (src/sys) | sysdep.c (+ dispnew.c SIGWINCH flag, process.c `allocate_pty`) | `emacs_get_tty`, `emacs_set_tty`, the termios part of `init_sys_modes` / `reset_sys_modes` (raw-mode transform as pure `tty_raw_settings`), `get_tty_size`, `set_window_size`, `emacs_read`, `emacs_full_write`, `emacs_write`, `input_available` (poll), SIGWINCH flag, `open_pty` | job control (`narrow_foreground_group`, SIGTSTP/SIGCONT), F_SETOWN/SIGIO, keypad/meta terminfo setup, process groups | test_fm_sysdep (runs on a pty, so CI needs no terminal) | done |
 | fm_character | character.c, character.h | encoding table, `char_string`, `multibyte_length`, `string_char_and_length`, `raw_prev_char_len`, raw-byte (eight-bit) conversions, `multibyte_chars_in_text`, `parse_str_as_multibyte`, `str_as_multibyte`, `count_size_as_multibyte`, `str_to_multibyte`, `str_as_unibyte`, `char_resolve_modifier_mask`, small predicates | `chars_in_text` (needs current buffer → fm_buffer); `char_width`/`string-width` and `alphabeticp` etc. (need char-tables → display phase); `translate_char`; Lisp-level DEFUNs | test_fm_character (own; character-tests.el only tests `string-width`, deferred) | done |
+| fm_lisp, fm_lread, fm_data, fm_fns | lisp.h, alloc.c, lread.c (obarray), data.c, fns.c | `value_type` (nil, fixnums, symbols, strings, proper lists, buffer/marker/keymap refs), constructors and predicates, obarray (`intern`, `intern-soft`), `eq`, `car`/`cdr`, symbol values, `equal`, `length`, `nth`, `memq`, `member`, `string-lessp`, plists, `get`/`put` | dotted pairs, floats, bignums, vectors, hash tables, function cells | test_fm_values (ports fns-tests length and plist cases, binding-test-set-constant) | partial |
+| fm_keymap | keymap.c (+ keymap.el `key-parse`, keyboard.c `reorder_modifiers` subset) | registry with explicit lifetimes, `make-keymap`, `make-sparse-keymap`, `keymapp`, `keymap-parent`, `set-keymap-parent` (cycle check), `copy-keymap`, `access_keymap` (meta→ESC, t defaults, parent and composite prefix maps), `define-key` (with REMOVE, `define_as_prefix`), `lookup-key` (lists of keymaps, too-long), `current-global-map`, `use-global-map`, `current-local-map`, `use-local-map`, `key-binding` (local + global), `kbd`, `key-description`, `single-key-description`, `push_key_description` | char-tables/vectors (full keymap is a flag), menu items, `[remap CMD]`, symbol function cells as prefix maps, event ranges, minor-mode / text-property / overriding maps, `where-is-internal`, `describe-*`, `text-char-description`, `map-keymap` | test_fm_keymap (ports keymap-tests: make-keymap, keymapp, keymap-parent, copy-keymap, define-key/undefined, /keyboard-macro, /keymap, lookup-key, /list-of-keymaps, /too-long, removal-inherit, unset-test-remove-and-inheritance, keymap--key-description) | partial |
 
 ## Conventions learned while porting
 
@@ -129,14 +133,29 @@ Copy the FSF year range exactly from the upstream file.
 - Text uses Emacs's internal encoding (UTF-8 extended to 22-bit codes, raw
   bytes as C0/C1 two-byte forms), so files with invalid UTF-8 round-trip.
 
+- Keymaps are registry objects too. Prefix maps made by `define_key` and
+  sub-keymap copies are owned by the map they were made for, so one
+  `free_keymap` frees the whole tree.
+
+## Design decisions
+
+- **Threads (2026-10-20).** One main thread owns all editor state
+  (buffers, markers, symbols, keymaps, windows), as in upstream. Background
+  work (file I/O, search over large files, subprocess output, syntax
+  analysis) will run on POSIX worker threads bound from src/sys (libc
+  `pthread_*` via ISO_C_BINDING, built with `-pthread`). Workers only see
+  copied data and report back through a queue that the command loop polls,
+  so core modules need no locks. Worker code must be reentrant (no `save`d
+  state). No OpenMP or coarrays. Not implemented yet: lands with the
+  command loop (`fm_keyboard`) or the first feature that needs it.
+
 ## Open questions
 
 Decisions the porting work is waiting on, or defaults taken provisionally.
 Each lists the default being used meanwhile.
 
-1. **Merging.** May Claude merge its own PRs once CI is green, or should
-   every PR wait for review? *Default: PRs stay open; later work is stacked
-   on the previous branch.*
+1. **Merging.** *Decided:* one roadmap step per PR, based on main (never
+   stacked); the user reviews and merges.
 2. **Value model.** *Decided (2026-10-20):* no Lisp; values are a plain
    Fortran `value_type` with value semantics (fm_lisp), interned symbols
    by id (fm_lread), data.c/fns.c operations in fm_data/fm_fns. Values are
@@ -168,8 +187,9 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-20 — Phase 2 keymaps (`fm_keymap`), buffer-local keymap slot, threading decision recorded, on `phase2-keymap` (based on main after PR #12). Next: `fm_keyboard` subset (command loop: read events from the tty, look them up with `key_binding`, run Fortran command procedures), then `self-insert-command`. Terminal output still waits on open question 5.
+- 2026-10-20 — Text properties (`fm_intervals`, `fm_textprop`), read-only text in insdel, `inhibit-read-only` in barf, on `phase1-textprop` (PR #12). Next: strings with properties / buffer-substring with properties, or Phase 2 keymaps.
 - 2026-10-20 — Value model (fm_lisp, fm_lread, fm_data, fm_fns), valgrind CI gate, progress script, on `phase1-values` (based on main). Open: spurious gfortran `-Wmaybe-uninitialized` warnings in fm_lisp (no failures). Next: intervals/text properties.
-- 2026-10-20 — Text properties (`fm_intervals`, `fm_textprop`), read-only text in insdel, `inhibit-read-only` in barf, on `phase1-textprop`. Next: strings with properties / buffer-substring with properties, or Phase 2 keymaps.
 
 - 2026-10-20 — `fm_search` newline scanning, line positions, `fm_cmds` motion/deletion on `phase1-search-cmds`, stacked on PR #7. Work that doesn't need an answer to open questions 2 (value model) or 5 (terminal capabilities) is now done; keymaps, the command loop, text properties and terminal output all wait on them.
 - 2026-10-20 — `fm_editfns` subset on `phase1-editfns` (PR #7).

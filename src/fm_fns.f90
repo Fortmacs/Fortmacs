@@ -84,7 +84,7 @@ contains
       case (V_STRING)
          eq = len(x%s) == len(y%s)
          if (eq) eq = x%s == y%s
-      case (V_BUFFER)
+      case (V_BUFFER, V_KEYMAP)
          eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
       case (V_MARKER)
          call resolve_marker(x%h, ix, sx)

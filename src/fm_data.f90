@@ -100,7 +100,7 @@ contains
          value_eq = .true.
       case (V_INT, V_SYMBOL)
          value_eq = a%a(1)%i == b%a(1)%i
-      case (V_BUFFER, V_MARKER)
+      case (V_BUFFER, V_MARKER, V_KEYMAP)
          value_eq = a%a(1)%h%index == b%a(1)%h%index .and. &
                     a%a(1)%h%generation == b%a(1)%h%generation
       end select
