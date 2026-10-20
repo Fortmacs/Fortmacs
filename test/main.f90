@@ -34,6 +34,7 @@ program tester
    use test_fm_sysdep, only: collect_fm_sysdep
    use test_fm_editfns, only: collect_fm_editfns
    use test_fm_cmds, only: collect_fm_cmds
+   use test_fm_values, only: collect_fm_values
    implicit none(type, external)
 
    ! test-drive's interfaces take default integers.
@@ -53,7 +54,8 @@ program tester
                 new_testsuite("fm_marker", collect_fm_marker), &
                 new_testsuite("fm_sysdep", collect_fm_sysdep), &
                 new_testsuite("fm_editfns", collect_fm_editfns), &
-                new_testsuite("fm_cmds", collect_fm_cmds) &
+                new_testsuite("fm_cmds", collect_fm_cmds), &
+                new_testsuite("fm_values", collect_fm_values) &
                 ]
 
    call get_argument(1, suite_name)

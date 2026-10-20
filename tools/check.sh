@@ -18,17 +18,28 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: tools/check.sh [--fix]
-#   --fix  reformat sources in place instead of failing on format drift.
+# Usage: tools/check.sh [--fix] [--valgrind]
+#   --fix       reformat sources in place instead of failing on format drift.
+#   --valgrind  also run the tests under valgrind and fail on any definite
+#               leak or memory error (see tools/valgrind.supp).
 
 set -eu
 
 FFLAGS="-std=f2018 -Wall -Wextra -fcheck=all -g"
 DIRS="src app test"
+fix=false
+memcheck=false
+for arg in "$@"; do
+    case "$arg" in
+        --fix) fix=true ;;
+        --valgrind) memcheck=true ;;
+        *) echo "usage: tools/check.sh [--fix] [--valgrind]" >&2; exit 2 ;;
+    esac
+done
 
 cd "$(dirname "$0")/.."
 
-if [ "${1:-}" = "--fix" ]; then
+if $fix; then
     fprettify --config-file .fprettify.rc --recursive $DIRS
 else
     drift=$(fprettify --config-file .fprettify.rc --recursive --diff $DIRS)
@@ -41,3 +52,8 @@ fi
 
 fpm build --profile debug --flag "$FFLAGS"
 fpm test --profile debug --flag "$FFLAGS"
+
+if $memcheck; then
+    fpm test --profile debug --flag "$FFLAGS" --runner \
+        "valgrind -q --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=9 --suppressions=tools/valgrind.supp"
+fi
