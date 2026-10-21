@@ -27,18 +27,74 @@
 #     define-minor-mode, define-derived-mode) in upstream lisp/, counted
 #     done when cited as "path.el:name" with the path under lisp/
 #     ("simple.el:newline", "term/xterm.el:terminal-init-xterm").
+#   - Packages: the packages in GNU ELPA, NonGNU ELPA and MELPA, as
+#     counted in each archive's archive-contents and recorded in
+#     tools/package-totals; a package counts as done when listed in
+#     tools/ported-packages.
 # It's an estimate: functions differ wildly in size, and macros and
 # variables are not counted.
 #
-# Usage: tools/progress.sh   (needs upstream/emacs; see fetch-upstream.sh)
+# Usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]
+#   (no option)       print the counts
+#   --readme          print the README's progress block (Markdown)
+#   --update-readme   replace that block in README.md
+#   --fetch-packages  recount the archives' packages into
+#                     tools/package-totals (needs curl and network access)
+# Needs upstream/emacs (see fetch-upstream.sh) except for --fetch-packages.
 
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 up="$root/upstream/emacs"
-[ -d "$up/src" ] || { echo "run tools/fetch-upstream.sh first" >&2; exit 1; }
+mode=${1:-}
+case "$mode" in
+    ""|--readme|--update-readme|--fetch-packages) ;;
+    *) echo "usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]" >&2; exit 2 ;;
+esac
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+
+# Archives: key, name, archive-contents URL.
+archives="gnu-elpa|GNU ELPA|https://elpa.gnu.org/packages/archive-contents
+nongnu-elpa|NonGNU ELPA|https://elpa.nongnu.org/nongnu/archive-contents
+melpa|MELPA|https://melpa.org/packages/archive-contents"
+
+# The number of packages in an archive-contents file: the entries
+# (NAME . [...]) of its top-level list, i.e. the lists opened at depth 1
+# outside strings.
+count_packages() {
+    awk 'BEGIN { RS = "\001" }
+         {
+             n = length($0); depth = 0; instr = 0; count = 0
+             for (i = 1; i <= n; i++) {
+                 c = substr($0, i, 1)
+                 if (instr) {
+                     if (c == "\\") i++
+                     else if (c == "\"") instr = 0
+                 } else if (c == "\"") instr = 1
+                 else if (c == "(") { if (depth == 1) count++; depth++ }
+                 else if (c == ")") depth--
+             }
+             print count
+         }' "$1"
+}
+
+if [ "$mode" = --fetch-packages ]; then
+    out="$root/tools/package-totals"
+    {
+        echo "# Packages per archive, from tools/progress.sh --fetch-packages."
+        echo "# fetched $(date -u +%Y-%m-%d)"
+        printf '%s\n' "$archives" | while IFS='|' read -r key name url; do
+            curl -sSLf --retry 3 -o "$tmp/$key" "$url"
+            echo "$key $(count_packages "$tmp/$key")"
+        done
+    } > "$tmp/totals"
+    mv "$tmp/totals" "$out"
+    cat "$out"
+    exit 0
+fi
+
+[ -d "$up/src" ] || { echo "run tools/fetch-upstream.sh first" >&2; exit 1; }
 
 # Every upstream C function, as file:name.
 for f in "$up"/src/*.c "$up"/src/*.h; do
@@ -73,8 +129,90 @@ l_done=$(wc -l < "$tmp/ldone")
 
 total=$((c_total + l_total))
 done=$((c_done + l_done))
-pct=$(awk "BEGIN { printf \"%.2f\", 100 * $done / $total }")
 
-echo "C functions:      $c_done of $c_total"
-echo "Lisp definitions: $l_done of $l_total"
-echo "Overall:          Done $done of $total (~$pct%)"
+# Packages: totals per archive, and the ported ones ("ARCHIVE NAME" lines).
+pkg_total() { awk -v k="$1" '$1 == k { print $2 }' "$root/tools/package-totals"; }
+pkg_done() { grep -c "^$1 " "$root/tools/ported-packages" || true; }
+gnu_total=$(pkg_total gnu-elpa); gnu_done=$(pkg_done gnu-elpa)
+nongnu_total=$(pkg_total nongnu-elpa); nongnu_done=$(pkg_done nongnu-elpa)
+melpa_total=$(pkg_total melpa); melpa_done=$(pkg_done melpa)
+p_total=$((gnu_total + nongnu_total + melpa_total))
+p_done=$((gnu_done + nongnu_done + melpa_done))
+
+# "DONE of TOTAL" with thousands separators, then a ten-cell bar of
+# quarter blocks and the share rounded to a quarter percent ("≆" unless
+# exact; never 0 or 100 unless it is).
+line() {
+    awk -v label="$1" -v d="$2" -v t="$3" '
+        function commas(n,   s) {
+            s = sprintf("%d", n)
+            while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
+            return s
+        }
+        BEGIN {
+            f = (t > 0) ? d / t : 0
+            p = 100 * f
+            r = int(p * 4 + 0.5) / 4
+            if (d > 0 && r == 0) r = 0.25
+            if (d < t && r == 100) r = 99.75
+            sign = (r == p) ? "" : "≆"
+            cells = 10 * f
+            full = int(cells)
+            q = int((cells - full) * 4 + 0.5)
+            if (q == 4) { full++; q = 0 }
+            if (d > 0 && full == 0 && q == 0) q = 1
+            bar = ""
+            for (i = 0; i < full; i++) bar = bar "█"
+            if (q == 1) bar = bar "░"; else if (q == 2) bar = bar "▒"; else if (q == 3) bar = bar "▓"
+            used = full + (q > 0)
+            for (i = used; i < 10; i++) bar = bar " "
+            printf "%s: %s of %s\\\n`[%s]` (%s%.2f%%)\n", label, commas(d), commas(t), bar, sign, r
+        }'
+}
+
+readme_block() {
+    echo "**Progress:**"
+    echo
+    echo "*Main*"
+    echo
+    line "Total translations" "$done" "$total"
+    echo
+    line "Upstream C functions" "$c_done" "$c_total"
+    echo
+    line "Elisp definitions" "$l_done" "$l_total"
+    echo
+    echo "*Packages*"
+    echo
+    line "Total packages" "$p_done" "$p_total"
+    echo
+    line "GNU ELPA" "$gnu_done" "$gnu_total"
+    echo
+    line "NonGNU ELPA" "$nongnu_done" "$nongnu_total"
+    echo
+    line "MELPA" "$melpa_done" "$melpa_total"
+    echo
+    echo "A rough estimate from \`tools/progress.sh\`."
+}
+
+case "$mode" in
+    --readme)
+        readme_block
+        ;;
+    --update-readme)
+        readme_block > "$tmp/block"
+        awk -v blockfile="$tmp/block" '
+            /^<!-- progress:start -->$/ { print; while ((getline l < blockfile) > 0) print l; skip = 1; next }
+            /^<!-- progress:end -->$/ { skip = 0 }
+            !skip { print }' "$root/README.md" > "$tmp/readme"
+        grep -q '^<!-- progress:start -->$' "$tmp/readme" || { echo "README.md has no progress markers" >&2; exit 1; }
+        mv "$tmp/readme" "$root/README.md"
+        ;;
+    *)
+        pct=$(awk "BEGIN { printf \"%.2f\", 100 * $done / $total }")
+        echo "C functions:      $c_done of $c_total"
+        echo "Lisp definitions: $l_done of $l_total"
+        echo "Overall:          Done $done of $total (~$pct%)"
+        echo "Packages:         $p_done of $p_total (GNU ELPA $gnu_done of $gnu_total," \
+             "NonGNU ELPA $nongnu_done of $nongnu_total, MELPA $melpa_done of $melpa_total)"
+        ;;
+esac

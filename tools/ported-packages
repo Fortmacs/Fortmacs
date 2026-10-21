@@ -1,0 +1,2 @@
+# Packages ported to Fortran, one per line: ARCHIVE NAME, with ARCHIVE one of
+# gnu-elpa, nongnu-elpa or melpa (as in tools/package-totals).

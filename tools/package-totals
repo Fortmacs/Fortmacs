@@ -1,0 +1,5 @@
+# Packages per archive, from tools/progress.sh --fetch-packages.
+# fetched 2026-10-21
+gnu-elpa 509
+nongnu-elpa 293
+melpa 6333

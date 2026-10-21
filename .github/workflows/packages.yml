@@ -1,0 +1,35 @@
+name: Package totals
+
+# Recount the packages in GNU ELPA, NonGNU ELPA and MELPA, for the README's
+# progress block. The counts are reported as an annotation, to be copied into
+# tools/package-totals (tools/progress.sh --update-readme then updates the
+# README). It never fails because the totals moved.
+on:
+  pull_request:
+    paths:
+      - tools/progress.sh
+      - tools/package-totals
+      - .github/workflows/packages.yml
+  schedule:
+    - cron: "43 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  count:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Count packages
+        run: |
+          tools/progress.sh --fetch-packages
+          totals=$(grep -v '^#' tools/package-totals | tr '\n' ' ')
+          echo "::notice title=Package totals::$totals"
+          if git diff --quiet -I '^# fetched' tools/package-totals; then
+            echo "tools/package-totals is current."
+          else
+            echo "::notice title=Package totals changed::update tools/package-totals with: $totals"
+          fi
