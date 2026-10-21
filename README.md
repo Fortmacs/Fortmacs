@@ -7,8 +7,8 @@ the binary, xmonad-style. There is no Elisp.
 **Status:** early porting; not usable as an editor yet. See
 [PORTING.md](PORTING.md) for the roadmap and progress.
 
-**Progress:** Done 351 of 56,864 (~0.62%): 332 of 8,547 upstream C
-functions and 19 of 48,317 Elisp definitions. A rough estimate from
+**Progress:** Done 373 of 56,864 (~0.66%): 351 of 8,547 upstream C
+functions and 22 of 48,317 Elisp definitions. A rough estimate from
 `tools/progress.sh`.
 
 ## Building
@@ -21,6 +21,7 @@ and [Fortitude](https://fortitude.readthedocs.io) 0.9.2
 ```sh
 fpm build
 fpm run -- --version
+fpm run                 # the editor, in this terminal (C-x C-c exits)
 tools/check.sh          # format + lint check, debug build, tests (what CI runs)
 tools/check.sh --fix    # reformat and apply safe lint fixes in place
 ```
