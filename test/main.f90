@@ -47,6 +47,7 @@ program tester
     use test_fm_fileio, only: collect_fm_fileio
     use test_fm_files, only: collect_fm_files
     use test_fm_minibuf, only: collect_fm_minibuf
+    use test_fm_indent, only: collect_fm_indent
     implicit none(type, external)
 
     ! test-drive's interfaces take default integers.
@@ -79,7 +80,8 @@ program tester
                  new_testsuite("fm_xdisp", collect_fm_xdisp), &
                  new_testsuite("fm_fileio", collect_fm_fileio), &
                  new_testsuite("fm_files", collect_fm_files), &
-                 new_testsuite("fm_minibuf", collect_fm_minibuf) &
+                 new_testsuite("fm_minibuf", collect_fm_minibuf), &
+                 new_testsuite("fm_indent", collect_fm_indent) &
                  ]
 
     call get_argument(1, suite_name)

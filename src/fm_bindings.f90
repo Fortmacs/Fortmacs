@@ -145,6 +145,8 @@ contains
         call bind(global_map, "C-b", "backward-char")
         call bind(global_map, "C-e", "end-of-line")
         call bind(global_map, "C-f", "forward-char")
+        call bind(global_map, "C-n", "next-line")
+        call bind(global_map, "C-p", "previous-line")
 
         ! bindings.el
         call bind(global_map, "C-g", "keyboard-quit")
@@ -166,6 +168,8 @@ contains
         call bind(global_map, "<end>", "end-of-line")
         call bind(global_map, "<left>", "left-char")
         call bind(global_map, "<right>", "right-char")
+        call bind(global_map, "<down>", "next-line")
+        call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
