@@ -37,4 +37,4 @@ test-drive.tag = "v0.6.1"
 [extra.fortitude.check]
 line-length = 132
 # C bindings take C buffers as assumed-size arrays.
-per-file-ignores = { "src/sys/fm_sys_linux.f90" = ["C071", "C072"] }
+per-file-ignores = { "src/sys/sys_linux_fm.f90" = ["C071", "C072"] }
