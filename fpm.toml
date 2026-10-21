@@ -32,3 +32,9 @@ main = "main.f90"
 [dev-dependencies]
 test-drive.git = "https://github.com/fortran-lang/test-drive"
 test-drive.tag = "v0.6.1"
+
+# Lint settings for Fortitude (tools/check.sh).
+[extra.fortitude.check]
+line-length = 132
+# C bindings take C buffers as assumed-size arrays.
+per-file-ignores = { "src/sys/fm_sys_linux.f90" = ["C071", "C072"] }

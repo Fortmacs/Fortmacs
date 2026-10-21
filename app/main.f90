@@ -20,32 +20,32 @@
 !> Entry point.  Only `--version` and `--help` work so far; the editor
 !> itself arrives with the command loop and terminal display.
 program fortmacs
-   use, intrinsic :: iso_fortran_env, only: output_unit, error_unit
-   use fm_version, only: version_string
-   implicit none(type, external)
+    use, intrinsic :: iso_fortran_env, only: output_unit, error_unit
+    use fm_version, only: version_string
+    implicit none(type, external)
 
-   character(len=:), allocatable :: arg
-   integer :: nargs, arglen
+    character(len=:), allocatable :: arg
+    integer :: nargs, arglen
 
-   nargs = command_argument_count()
-   if (nargs == 0) then
-      write (output_unit, '(a)') version_string()
-      write (output_unit, '(a)') "Not usable as an editor yet; see PORTING.md."
-      stop
-   end if
+    nargs = command_argument_count()
+    if (nargs == 0) then
+        write (output_unit, "(a)") version_string()
+        write (output_unit, "(a)") "Not usable as an editor yet; see PORTING.md."
+        stop
+    end if
 
-   call get_command_argument(1, length=arglen)
-   allocate (character(len=arglen) :: arg)
-   call get_command_argument(1, value=arg)
+    call get_command_argument(1, length=arglen)
+    allocate (character(len=arglen) :: arg)
+    call get_command_argument(1, value=arg)
 
-   select case (arg)
-   case ("--version")
-      write (output_unit, '(a)') version_string()
-   case ("--help")
-      write (output_unit, '(a)') "Usage: fortmacs [--version | --help]"
-   case default
-      write (error_unit, '(a)') "fortmacs: unknown option '"//arg//"'"
-      write (error_unit, '(a)') "Usage: fortmacs [--version | --help]"
-      stop 2
-   end select
+    select case (arg)
+    case ("--version")
+        write (output_unit, "(a)") version_string()
+    case ("--help")
+        write (output_unit, "(a)") "Usage: fortmacs [--version | --help]"
+    case default
+        write (error_unit, "(a)") "fortmacs: unknown option '"//arg//"'"
+        write (error_unit, "(a)") "Usage: fortmacs [--version | --help]"
+        stop 2
+    end select
 end program fortmacs

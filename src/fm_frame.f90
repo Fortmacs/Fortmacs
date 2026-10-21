@@ -25,25 +25,25 @@
 !> Windows and child frames are not ported yet: the frame's cursor
 !> position is set directly.
 module fm_frame
-   use fm_termchar, only: tty_display_info
-   use fm_dispextern, only: glyph_matrix_type, face_type
-   implicit none(type, external)
-   private
+    use fm_termchar, only: tty_display_info
+    use fm_dispextern, only: glyph_matrix_type, face_type
+    implicit none(type, external)
+    private
 
-   !> Port of the parts of frame.h:struct frame in use.
-   type, public :: frame_type
-      type(tty_display_info) :: tty
-      type(glyph_matrix_type) :: current_matrix, desired_matrix
-      !> The realized faces, indexed by face id (FRAME_FACE_CACHE).
-      type(face_type), allocatable :: faces(:)
-      !> Where to leave the cursor after an update (the selected window's
-      !> cursor upstream), 0-based; -1 for none.
-      integer :: cursor_vpos = -1, cursor_hpos = -1
-      !> Hide the cursor after the update (cursor_off_p).
-      logical :: cursor_off_p = .false.
-      !> The screen contents are unknown and must be redrawn.
-      logical :: garbaged = .true.
-      logical :: glyphs_initialized_p = .false.
-   end type frame_type
+    !> Port of the parts of frame.h:struct frame in use.
+    type, public :: frame_type
+        type(tty_display_info) :: tty
+        type(glyph_matrix_type) :: current_matrix, desired_matrix
+        !> The realized faces, indexed by face id (FRAME_FACE_CACHE).
+        type(face_type), allocatable :: faces(:)
+        !> Where to leave the cursor after an update (the selected window's
+        !> cursor upstream), 0-based; -1 for none.
+        integer :: cursor_vpos = -1, cursor_hpos = -1
+        !> Hide the cursor after the update (cursor_off_p).
+        logical :: cursor_off_p = .false.
+        !> The screen contents are unknown and must be redrawn.
+        logical :: garbaged = .true.
+        logical :: glyphs_initialized_p = .false.
+    end type frame_type
 
 end module fm_frame

@@ -18,40 +18,40 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_fm_version
-   use testdrive, only: new_unittest, unittest_type, error_type, check
-   use fm_version, only: fortmacs_version, upstream_version, version_string
-   implicit none(type, external)
-   private
+    use testdrive, only: new_unittest, unittest_type, error_type, check
+    use fm_version, only: fortmacs_version, upstream_version, version_string
+    implicit none(type, external)
+    private
 
-   public :: collect_fm_version
+    public :: collect_fm_version
 
 contains
 
-   subroutine collect_fm_version(testsuite)
-      type(unittest_type), allocatable, intent(out) :: testsuite(:)
+    subroutine collect_fm_version(testsuite)
+        type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
-      testsuite = [ &
-                  new_unittest("upstream-is-31.1", test_upstream), &
-                  new_unittest("banner-contents", test_banner) &
-                  ]
-   end subroutine collect_fm_version
+        testsuite = [ &
+                    new_unittest("upstream-is-31.1", test_upstream), &
+                    new_unittest("banner-contents", test_banner) &
+                    ]
+    end subroutine collect_fm_version
 
-   subroutine test_upstream(error)
-      type(error_type), allocatable, intent(out) :: error
+    subroutine test_upstream(error)
+        type(error_type), allocatable, intent(out) :: error
 
-      call check(error, upstream_version, "31.1")
-   end subroutine test_upstream
+        call check(error, upstream_version, "31.1")
+    end subroutine test_upstream
 
-   subroutine test_banner(error)
-      type(error_type), allocatable, intent(out) :: error
-      character(len=:), allocatable :: s
+    subroutine test_banner(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: s
 
-      s = version_string()
-      call check(error, index(s, fortmacs_version) > 0, &
-                 "banner lacks Fortmacs version")
-      if (allocated(error)) return
-      call check(error, index(s, "GNU Emacs "//upstream_version) > 0, &
-                 "banner lacks upstream version")
-   end subroutine test_banner
+        s = version_string()
+        call check(error, index(s, fortmacs_version) > 0, &
+                   "banner lacks Fortmacs version")
+        if (allocated(error)) return
+        call check(error, index(s, "GNU Emacs "//upstream_version) > 0, &
+                   "banner lacks upstream version")
+    end subroutine test_banner
 
 end module test_fm_version
