@@ -64,7 +64,22 @@ module fm_dispextern
       integer(int64) :: underline_color = 0
    end type face_type
 
-   public :: face_tty_specified_color
+   !> The text area of one screen line (struct glyph_row).  `glyphs`
+   !> holds a full line; the first `used` are meaningful.
+   type, public :: glyph_row_type
+      type(glyph_type), allocatable :: glyphs(:)
+      integer :: used = 0
+      !> The row holds valid glyphs (false: unknown / not to be drawn).
+      logical :: enabled_p = .false.
+   end type glyph_row_type
+
+   !> A grid of rows (struct glyph_matrix); rows are numbered from 0.
+   type, public :: glyph_matrix_type
+      type(glyph_row_type), allocatable :: rows(:)
+      integer :: nrows = 0, ncols = 0
+   end type glyph_matrix_type
+
+   public :: face_tty_specified_color, glyph_equal_p, char_glyph_space_p
 
 contains
 
@@ -75,5 +90,20 @@ contains
 
       face_tty_specified_color = color >= 0
    end function face_tty_specified_color
+
+   !> dispextern.h:GLYPH_EQUAL_P for character glyphs.
+   elemental logical function glyph_equal_p(x, y)
+      type(glyph_type), intent(in) :: x, y
+
+      glyph_equal_p = x%ch == y%ch .and. x%face_id == y%face_id .and. &
+                      (x%padding .eqv. y%padding)
+   end function glyph_equal_p
+
+   !> A blank in the default face.  dispextern.h:CHAR_GLYPH_SPACE_P.
+   elemental logical function char_glyph_space_p(g)
+      type(glyph_type), intent(in) :: g
+
+      char_glyph_space_p = g%ch == 32 .and. g%face_id == DEFAULT_FACE_ID
+   end function char_glyph_space_p
 
 end module fm_dispextern

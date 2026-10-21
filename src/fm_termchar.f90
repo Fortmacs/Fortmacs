@@ -96,6 +96,9 @@ module fm_termchar
                                        ts_set_foreground, ts_set_background
       character(len=:), allocatable :: tf_set_underline_style, tf_set_underline_color
       integer :: tn_max_colors = 0, tn_no_color_video = 0
+      !> term.c:char_ins_del_vector: the cost of inserting (k > 0) or
+      !> deleting (k < 0) k characters, indexed -FrameCols..FrameCols.
+      integer, allocatable :: char_ins_del_cost(:)
       logical :: tf_hazeltine = .false., tf_insmode_motion = .false., &
                  tf_standout_motion = .false., tf_underscore = .false., &
                  tf_teleray = .false., tf_rgb_separate = .false.

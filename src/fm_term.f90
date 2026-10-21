@@ -38,7 +38,7 @@ module fm_term
    use fm_character, only: MAX_MULTIBYTE_LENGTH, char_string, char_byte8_p, &
                            char_to_byte8
    use fm_terminfo, only: terminfo_type, tgetent, tgetstr, tgetnum, tgetflag, tigetstr, &
-                          tigetflag, tparam
+                          tigetflag, tparam, delete_padding
    use fm_termchar, only: tty_display_info, tty_output, tty_put_bytes, tty_flush
    use fm_cm, only: cmcostinit, cmgoto, cmcheckmagic, cmat, cmplus, &
                     losecursor, wcm_init
@@ -393,8 +393,62 @@ contains
       type(tty_display_info), intent(inout) :: tty
 
       tty%costs_set = .true.
+      call calculate_ins_del_char_costs(tty)
       call cmcostinit(tty)
    end subroutine calculate_costs
+
+   !> The output cost of capability `cap` (0 if absent).  Port of
+   !> term.c:string_cost (and string_cost_one_line: padding is dropped).
+   integer function string_cost(cap)
+      character(len=:), allocatable, intent(in) :: cap
+
+      string_cost = 0
+      if (allocated(cap)) string_cost = len(delete_padding(cap))
+   end function string_cost
+
+   !> Fill in the cost of inserting and deleting characters.  Port of
+   !> term.c:calculate_ins_del_char_costs.
+   subroutine calculate_ins_del_char_costs(tty)
+      type(tty_display_info), intent(inout) :: tty
+      integer :: ins_startup_cost, del_startup_cost, ins_cost_per_char, &
+                 del_cost_per_char, cols, i
+
+      if (allocated(tty%ts_ins_multi_chars)) then
+         ins_cost_per_char = 0
+         ins_startup_cost = string_cost(tty%ts_ins_multi_chars)
+      else if (allocated(tty%ts_ins_char) .or. allocated(tty%ts_pad_inserted_char) .or. &
+               (allocated(tty%ts_insert_mode) .and. allocated(tty%ts_end_insert_mode))) then
+         ins_startup_cost = (30*(string_cost(tty%ts_insert_mode) + &
+                                 string_cost(tty%ts_end_insert_mode)))/100
+         ins_cost_per_char = string_cost(tty%ts_ins_char) + string_cost(tty%ts_pad_inserted_char)
+      else
+         ins_startup_cost = 9999
+         ins_cost_per_char = 0
+      end if
+      if (allocated(tty%ts_del_multi_chars)) then
+         del_cost_per_char = 0
+         del_startup_cost = string_cost(tty%ts_del_multi_chars)
+      else if (allocated(tty%ts_del_char)) then
+         del_startup_cost = string_cost(tty%ts_delete_mode) + string_cost(tty%ts_end_delete_mode)
+         if (tty%delete_in_insert_mode) del_startup_cost = del_startup_cost/2
+         del_cost_per_char = string_cost(tty%ts_del_char)
+      else
+         del_startup_cost = 9999
+         del_cost_per_char = 0
+      end if
+      cols = tty%wcm%cm_cols
+      if (allocated(tty%char_ins_del_cost)) deallocate (tty%char_ins_del_cost)
+      allocate (tty%char_ins_del_cost(-cols:cols))
+      do i = -1, -cols, -1
+         del_startup_cost = del_startup_cost + del_cost_per_char
+         tty%char_ins_del_cost(i) = del_startup_cost
+      end do
+      tty%char_ins_del_cost(0) = 0
+      do i = 1, cols
+         ins_startup_cost = ins_startup_cost + ins_cost_per_char
+         tty%char_ins_del_cost(i) = ins_startup_cost
+      end do
+   end subroutine calculate_ins_del_char_costs
 
    !> Map the escape sequences the terminal's function keys send to
    !> function-key events in input-decode-map.  Port of
