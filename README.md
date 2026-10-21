@@ -26,7 +26,7 @@ Elisp definitions: 39 of 48,317\
 
 *Packages*
 
-Total: 0 of 7,135\
+Total packages: 0 of 7,135\
 `[          ]` (0.00%)
 
 GNU ELPA: 0 of 509\

@@ -183,7 +183,7 @@ readme_block() {
     echo
     echo "*Packages*"
     echo
-    line "Total" "$p_done" "$p_total"
+    line "Total packages" "$p_done" "$p_total"
     echo
     line "GNU ELPA" "$gnu_done" "$gnu_total"
     echo
