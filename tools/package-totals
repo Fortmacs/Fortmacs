@@ -1,0 +1,5 @@
+# Packages per archive, from tools/progress.sh --fetch-packages.
+# fetched (not yet)
+gnu-elpa 0
+nongnu-elpa 0
+melpa 0
