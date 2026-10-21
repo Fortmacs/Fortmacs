@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Show compiler
-        run: gfortran --version | head -1
+        run: gfortran --version | sed -n 1p
 
       # fpm ships no aarch64 binaries, so build it from the single-file
       # release source and cache the result (per distro: each has its own
@@ -84,7 +84,9 @@ jobs:
         shell: bash
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          fpm --version | head -1
+          fpm --version | sed -n 1p
+          # (sed, not head, for version lines: pipefail would turn head's early
+          # exit into a SIGPIPE failure.)
           # On failure, repeat the end of the output as an annotation, so it
           # shows on the PR's checks page without opening the full log.
           set -o pipefail

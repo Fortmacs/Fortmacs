@@ -30,7 +30,7 @@ jobs:
           chmod +x guix-install.sh
           # Accept the defaults, including substitutes from the build farm.
           yes | sudo ./guix-install.sh
-          guix --version | head -1
+          guix --version | sed -n 1p
 
       - name: Update Guix
         run: guix pull && hash guix && guix describe
@@ -39,7 +39,7 @@ jobs:
         run: |
           guix shell gfortran-toolchain valgrind curl coreutils bash grep sed findutils \
             ncurses -- bash -euc '
-              gfortran --version | head -1
+              gfortran --version | sed -n 1p
               curl -sSLf -o fpm.F90 \
                 "https://github.com/fortran-lang/fpm/releases/download/v${FPM_VERSION}/fpm-${FPM_VERSION}.F90"
               echo "${FPM_SHA256}  fpm.F90" | sha256sum -c -
