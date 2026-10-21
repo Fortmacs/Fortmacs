@@ -17,6 +17,6 @@ Rules:
 - Signal handlers only set a flag; all work happens in the main loop.
 - No `.c` files, ever.
 
-Module names follow the upstream file they serve (`sysdep.c` → `fm_sysdep`,
-`term.c` → `fm_term`), plus small `fm_sys_*` modules for raw bindings that
+Module names follow the upstream file they serve (`sysdep.c` → `sysdep_fm`,
+`term.c` → `term_fm`), plus small `sys_*_fm` modules for raw bindings that
 have no single upstream counterpart.

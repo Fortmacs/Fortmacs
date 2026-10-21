@@ -21,10 +21,10 @@
 !> otherwise the editor runs in the terminal, visiting the files named.
 program fortmacs
     use, intrinsic :: iso_fortran_env, only: output_unit, error_unit, int32
-    use fm_version, only: version_string
-    use fm_error, only: status_type, format_error
-    use fm_sysdep, only: emacs_isatty
-    use fm_emacs, only: emacs_main, arg_type
+    use version_fm, only: version_string
+    use error_fm, only: status_type, format_error
+    use sysdep_fm, only: emacs_isatty
+    use emacs_fm, only: emacs_main, arg_type
     implicit none(type, external)
 
     character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [+LINE] [FILE]..."

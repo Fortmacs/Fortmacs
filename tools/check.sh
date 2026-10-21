@@ -51,7 +51,7 @@ if $style; then
     # Lint: Fortitude's default rules, configured in fpm.toml.  Fixes go
     # first so the formatter tidies what they change.
     if ! command -v fortitude >/dev/null 2>&1; then
-        echo "fortitude not found: pip install fortitude-lint==$FORTITUDE_VERSION" >&2
+        echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
     if $fix; then
