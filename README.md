@@ -4,11 +4,14 @@ A rewrite of GNU Emacs 31.1 in modern Fortran (2018+), for Linux on x86-64
 and aarch64. Configuration is Fortran too: your `init.f90` is compiled into
 the binary, xmonad-style. There is no Elisp.
 
-**Status:** early porting; not usable as an editor yet. See
-[PORTING.md](PORTING.md) for the roadmap and progress.
+**Status:** early porting. `fortmacs FILE` opens a file in the terminal
+where you can type, delete, move within lines and save (`C-x C-s`, with a
+`FILE~` backup), but most of Emacs is still missing: moving between lines,
+the minibuffer, undo, search and much more. See [PORTING.md](PORTING.md)
+for the roadmap and progress.
 
-**Progress:** Done 373 of 56,864 (~0.66%): 351 of 8,547 upstream C
-functions and 22 of 48,317 Elisp definitions. A rough estimate from
+**Progress:** Done 427 of 56,864 (~0.75%): 388 of 8,547 upstream C
+functions and 39 of 48,317 Elisp definitions. A rough estimate from
 `tools/progress.sh`.
 
 ## Building
@@ -21,7 +24,7 @@ and [Fortitude](https://fortitude.readthedocs.io) 0.9.2
 ```sh
 fpm build
 fpm run -- --version
-fpm run                 # the editor, in this terminal (C-x C-c exits)
+fpm run -- FILE         # edit FILE in this terminal (C-x C-s saves, C-x C-c exits)
 tools/check.sh          # format + lint check, debug build, tests (what CI runs)
 tools/check.sh --fix    # reformat and apply safe lint fixes in place
 ```

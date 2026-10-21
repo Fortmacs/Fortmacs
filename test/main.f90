@@ -44,6 +44,8 @@ program tester
     use test_fm_term, only: collect_fm_term
     use test_fm_dispnew, only: collect_fm_dispnew
     use test_fm_xdisp, only: collect_fm_xdisp
+    use test_fm_fileio, only: collect_fm_fileio
+    use test_fm_files, only: collect_fm_files
     implicit none(type, external)
 
     ! test-drive's interfaces take default integers.
@@ -73,7 +75,9 @@ program tester
                  new_testsuite("fm_terminfo", collect_fm_terminfo), &
                  new_testsuite("fm_term", collect_fm_term), &
                  new_testsuite("fm_dispnew", collect_fm_dispnew), &
-                 new_testsuite("fm_xdisp", collect_fm_xdisp) &
+                 new_testsuite("fm_xdisp", collect_fm_xdisp), &
+                 new_testsuite("fm_fileio", collect_fm_fileio), &
+                 new_testsuite("fm_files", collect_fm_files) &
                  ]
 
     call get_argument(1, suite_name)

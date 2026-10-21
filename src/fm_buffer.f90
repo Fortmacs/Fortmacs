@@ -96,6 +96,21 @@ module fm_buffer
         logical :: inhibit_buffer_hooks = .false.
         !> BVAR keymap: the local keymap, or the null handle (fm_keymap).
         type(handle_type) :: keymap
+        !> BVAR filename (`buffer-file-name`): the visited file's expanded
+        !> name; unallocated when the buffer visits no file.
+        character(len=:), allocatable :: filename
+        !> BVAR directory (`default-directory`), ending in a slash;
+        !> unallocated for nil.
+        character(len=:), allocatable :: directory
+        !> `buffer-backed-up`: a backup was made since the file was visited.
+        logical :: backed_up = .false.
+        !> modtime and modtime_size: the visited file's modification time
+        !> and size when last read or written.  `modtime_known` is false for
+        !> UNKNOWN_MODTIME_NSECS; a nonexistent file has modtime_nsec -1
+        !> (NONEXISTENT_MODTIME_NSECS).
+        logical :: modtime_known = .false.
+        integer(int64) :: modtime_sec = 0, modtime_size = -1
+        integer(int32) :: modtime_nsec = 0
         !> Unique per buffer ever created, so caches keyed by slot (which is
         !> reused after kill-buffer) can tell buffers apart.
         integer(int64) :: serial = 0
@@ -131,7 +146,7 @@ module fm_buffer
     end interface
 
     public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle
-    public :: get_buffer, get_buffer_create, generate_new_buffer_name
+    public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list
     public :: set_buffer, kill_buffer, erase_buffer
     public :: buffer_modified_p, restore_buffer_modified_p, &
@@ -255,11 +270,38 @@ contains
         buffers(i)%name = name
         buffers(i)%last_name = name
         buffers(i)%undo_enabled = name(1:1) /= " "
+        ! reset_buffer: a new buffer starts in the current one's directory.
+        if (cur /= 0) then
+            if (allocated(buffers(cur)%directory)) buffers(i)%directory = buffers(cur)%directory
+        end if
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
 
         call alist_append(h)
         if (cur == 0) cur = i
     end subroutine get_buffer_create
+
+    !> The live buffer visiting `filename`, or the null handle.  The caller
+    !> passes the expanded name (fm_fileio's `expand_file_name`, which
+    !> depends on this module).  Port of buffer.c:Fget_file_buffer (no file
+    !> name handlers).
+    function get_file_buffer(filename) result(h)
+        character(len=*), intent(in) :: filename
+        type(handle_type) :: h
+        integer(int64) :: k, i
+        type(status_type) :: status
+
+        h = handle_type()
+        do k = 1, alist_count
+            call resolve_buffer(alist(k), i, status)
+            if (.not. status%ok()) cycle
+            if (.not. allocated(buffers(i)%filename)) cycle
+            if (buffers(i)%filename == filename .and. &
+                len(buffers(i)%filename) == len(filename)) then
+                h = alist(k)
+                return
+            end if
+        end do
+    end function get_file_buffer
 
     !> A name, based on `name`, that no live buffer has.  `ignore` is a name
     !> that may be returned even if taken.
