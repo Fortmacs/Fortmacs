@@ -61,7 +61,7 @@ module fm_keyboard
               tty_read_avail_input, unread_command_events, &
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
-              request_exit, set_transient_map
+              request_exit, exit_requested_p, set_transient_map
     public :: READ_KEY_ELTS, redisplay_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -659,6 +659,11 @@ contains
     subroutine request_exit()
         exit_requested = .true.
     end subroutine request_exit
+
+    !> Whether a command asked the command loop to stop.
+    logical function exit_requested_p()
+        exit_requested_p = exit_requested
+    end function exit_requested_p
 
     !> Run keyboard macro `macro` (a string or list of events): its events
     !> are read before other input.  A count from the prefix argument

@@ -28,15 +28,20 @@
 !> - TIOCGWINSZ / TIOCSWINSZ: asm-generic/ioctls.h
 !> - O_* flags: asm-generic/fcntl.h;  signals: asm-generic/signal.h
 !> - errno values: asm-generic/errno-base.h
+!> - struct statx: linux/stat.h (the same on every architecture, which is
+!>   why it is used instead of struct stat, whose layout differs)
+!> - struct passwd: glibc pwd.h (pointers and 32-bit ids, the same on both)
+!> - access modes: unistd.h;  AT_FDCWD: linux/fcntl.h
 !>
 !> Variadic functions (`open`, `ioctl`) are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
 !> Apple's) passes variadic arguments like fixed ones, and on x86-64 the
 !> only difference is %al, which glibc's prologue merely tests to decide
 !> whether to spill vector registers.  `open` is never given O_CREAT here,
-!> so it never reads a mode argument.
+!> so it never reads a mode argument; files are created with `creat`.
+!> O_DIRECTORY differs between the two targets, so it is not used.
 module fm_sys_linux
-    use, intrinsic :: iso_c_binding, only: c_int, c_signed_char, &
+    use, intrinsic :: iso_c_binding, only: c_int, c_signed_char, c_int16_t, c_int32_t, c_int64_t, &
                                                                               c_short, c_long, c_size_t, c_ptr, c_char, &
                                                                               c_funptr, c_null_char, c_f_pointer, c_associated
     implicit none(type, external)
@@ -116,17 +121,73 @@ module fm_sys_linux
     integer(c_int), parameter, public :: O_RDONLY = 0, O_WRONLY = 1, O_RDWR = 2
     integer(c_int), parameter, public :: O_NOCTTY = int(o'0000400', c_int)
     integer(c_int), parameter, public :: O_NONBLOCK = int(o'0004000', c_int)
+    integer(c_int), parameter, public :: O_CLOEXEC = int(o'2000000', c_int)
+    ! access modes
+    integer(c_int), parameter, public :: F_OK = 0, X_OK = 1, W_OK = 2, R_OK = 4
+    ! *at() directory argument for the current directory
+    integer(c_int), parameter, public :: AT_FDCWD = -100
+    ! statx
+    integer(c_int), parameter, public :: AT_STATX_SYNC_AS_STAT = 0
+    integer(c_int), parameter, public :: AT_SYMLINK_NOFOLLOW = int(z'100', c_int)
+    integer(c_int), parameter, public :: STATX_BASIC_STATS = int(z'7FF', c_int)
     ! poll events
     integer(c_short), parameter, public :: POLLIN = 1_c_short
     ! signals
     integer(c_int), parameter, public :: SIGINT = 2, SIGTERM = 15, SIGCONT = 18, &
                                          SIGTSTP = 20, SIGWINCH = 28
     ! errno
-    integer(c_int), parameter, public :: EINTR = 4, EAGAIN = 11
+    integer(c_int), parameter, public :: ENOENT = 2, EINTR = 4, EAGAIN = 11, &
+                                         EACCES = 13, EEXIST = 17, ENOTDIR = 20, &
+                                         EISDIR = 21, ERANGE = 34
+    ! file type bits of st_mode (bits/stat.h)
+    integer(c_int), parameter, public :: S_IFMT = int(o'170000', c_int)
+    integer(c_int), parameter, public :: S_IFDIR = int(o'040000', c_int)
+    integer(c_int), parameter, public :: S_IFREG = int(o'100000', c_int)
+    integer(c_int), parameter, public :: S_IFLNK = int(o'120000', c_int)
+
+    !> struct statx_timestamp.
+    type, bind(C), public :: statx_timestamp_type
+        integer(c_int64_t) :: tv_sec = 0
+        integer(c_int32_t) :: tv_nsec = 0
+        integer(c_int32_t) :: reserved = 0
+    end type statx_timestamp_type
+
+    !> struct statx (256 bytes).
+    type, bind(C), public :: statx_type
+        integer(c_int32_t) :: stx_mask = 0
+        integer(c_int32_t) :: stx_blksize = 0
+        integer(c_int64_t) :: stx_attributes = 0
+        integer(c_int32_t) :: stx_nlink = 0
+        integer(c_int32_t) :: stx_uid = 0
+        integer(c_int32_t) :: stx_gid = 0
+        integer(c_int16_t) :: stx_mode = 0
+        integer(c_int16_t) :: spare0 = 0
+        integer(c_int64_t) :: stx_ino = 0
+        integer(c_int64_t) :: stx_size = 0
+        integer(c_int64_t) :: stx_blocks = 0
+        integer(c_int64_t) :: stx_attributes_mask = 0
+        type(statx_timestamp_type) :: stx_atime, stx_btime, stx_ctime, stx_mtime
+        integer(c_int32_t) :: stx_rdev_major = 0
+        integer(c_int32_t) :: stx_rdev_minor = 0
+        integer(c_int32_t) :: stx_dev_major = 0
+        integer(c_int32_t) :: stx_dev_minor = 0
+        integer(c_int64_t) :: spare2(14) = 0
+    end type statx_type
+
+    !> struct passwd.
+    type, bind(C), public :: passwd_type
+        type(c_ptr) :: pw_name, pw_passwd
+        integer(c_int32_t) :: pw_uid = 0
+        integer(c_int32_t) :: pw_gid = 0
+        type(c_ptr) :: pw_gecos, pw_dir, pw_shell
+    end type passwd_type
 
     public :: c_tcgetattr, c_tcsetattr, c_read, c_write, c_close, c_isatty, &
               c_poll, c_ioctl_winsize, c_signal, c_raise, c_posix_openpt, &
               c_grantpt, c_unlockpt, c_ptsname, c_open
+    public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
+    public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
+              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror
     public :: errno, c_string_to_fortran
 
     interface
@@ -234,6 +295,116 @@ module fm_sys_linux
             character(kind=c_char), intent(in) :: path(*)
             integer(c_int), value :: flags
         end function c_open
+
+        !> creat(path, mode): open(path, O_CREAT | O_WRONLY | O_TRUNC, mode)
+        !> without a variadic call.
+        integer(c_int) function c_creat(path, mode) bind(C, name="creat")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int), value :: mode
+        end function c_creat
+
+        integer(c_int) function c_access(path, mode) bind(C, name="access")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int), value :: mode
+        end function c_access
+
+        integer(c_int) function c_rename(old, new) bind(C, name="rename")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: old(*), new(*)
+        end function c_rename
+
+        integer(c_int) function c_unlink(path) bind(C, name="unlink")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+        end function c_unlink
+
+        integer(c_int) function c_mkdir(path, mode) bind(C, name="mkdir")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int), value :: mode
+        end function c_mkdir
+
+        integer(c_int) function c_rmdir(path) bind(C, name="rmdir")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+        end function c_rmdir
+
+        integer(c_int) function c_setenv(name, value, overwrite) bind(C, name="setenv")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: name(*), value(*)
+            integer(c_int), value :: overwrite
+        end function c_setenv
+
+        integer(c_int) function c_unsetenv(name) bind(C, name="unsetenv")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: name(*)
+        end function c_unsetenv
+
+        integer(c_int) function c_chmod(path, mode) bind(C, name="chmod")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int), value :: mode
+        end function c_chmod
+
+        integer(c_int) function c_statx(dirfd, path, flags, mask, buf) bind(C, name="statx")
+            import :: c_int, c_char, statx_type
+            implicit none(type, external)
+            integer(c_int), value :: dirfd
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int), value :: flags, mask
+            type(statx_type), intent(out) :: buf
+        end function c_statx
+
+        type(c_ptr) function c_getcwd(buf, size) bind(C, name="getcwd")
+            import :: c_ptr, c_char, c_size_t
+            implicit none(type, external)
+            character(kind=c_char), intent(out) :: buf(*)
+            integer(c_size_t), value :: size
+        end function c_getcwd
+
+        integer(c_int32_t) function c_getuid() bind(C, name="getuid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getuid
+
+        integer(c_int32_t) function c_geteuid() bind(C, name="geteuid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_geteuid
+
+        integer(c_int32_t) function c_getegid() bind(C, name="getegid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_getegid
+
+        type(c_ptr) function c_getpwnam(name) bind(C, name="getpwnam")
+            import :: c_ptr, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: name(*)
+        end function c_getpwnam
+
+        type(c_ptr) function c_getpwuid(uid) bind(C, name="getpwuid")
+            import :: c_ptr, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: uid
+        end function c_getpwuid
+
+        type(c_ptr) function c_strerror(errnum) bind(C, name="strerror")
+            import :: c_ptr, c_int
+            implicit none(type, external)
+            integer(c_int), value :: errnum
+        end function c_strerror
 
         type(c_ptr) function c_errno_location() bind(C, name="__errno_location")
             import :: c_ptr

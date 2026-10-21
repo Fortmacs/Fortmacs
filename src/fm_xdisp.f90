@@ -56,7 +56,11 @@ module fm_xdisp
     private
 
     public :: redisplay, init_frame_windows, realize_basic_faces, glyph_width, &
-              mode_line_text, layout_window
+              mode_line_text, layout_window, message
+
+    !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
+    !> text (while a prompt there waits for an answer).
+    logical, public :: cursor_in_echo_area = .false.
 
     !> buffer.c BVAR tab_width (the default).
     integer, public :: tab_width = 8
@@ -410,13 +414,16 @@ contains
 
     !> Show the last message in the minibuffer window, or blank it.  Port
     !> of the display part of xdisp.c:echo_area_display.
-    subroutine display_echo_area(f)
+    subroutine display_echo_area(f, endcol)
         type(frame_type), intent(inout) :: f
-        integer :: k, n, cols
+        !> Column after the text.
+        integer, intent(out) :: endcol
+        integer :: n, cols
         integer(int64) :: pos
         integer(int32) :: ch, length
 
         cols = f%minibuffer_window%total_cols
+        endcol = 0
         associate (m => f%desired_matrix%rows(f%minibuffer_window%top_line))
             m%glyphs = glyph_type()
             m%used = 0
@@ -433,8 +440,17 @@ contains
                 pos = pos + length
             end do
             m%used = n
+            endcol = n
         end associate
     end subroutine display_echo_area
+
+    !> Show `text` in the echo area.  Port of editfns.c:Fmessage (with a
+    !> plain string; no *Messages* log yet).
+    subroutine message(text)
+        character(len=*), intent(in) :: text
+
+        last_message = text
+    end subroutine message
 
     !> Redisplay the frame: the root window (showing the current buffer),
     !> its mode line and the echo area, then update the terminal.  Port of
@@ -444,6 +460,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
         integer(int64) :: bi
+        integer :: endcol
 
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (f%root_window%total_lines == 0) call init_frame_windows(f)
@@ -459,9 +476,12 @@ contains
         call resolve_buffer(cb, bi, status)
         if (.not. status%ok()) return
         call redisplay_window(f, f%root_window, buffers(bi)%pt)
-        call display_echo_area(f)
+        call display_echo_area(f, endcol)
         f%cursor_vpos = -1
-        if (f%root_window%cursor_vpos >= 0) then
+        if (cursor_in_echo_area) then
+            f%cursor_vpos = f%minibuffer_window%top_line
+            f%cursor_hpos = min(endcol, f%minibuffer_window%total_cols - 1)
+        else if (f%root_window%cursor_vpos >= 0) then
             f%cursor_vpos = f%root_window%top_line + f%root_window%cursor_vpos
             f%cursor_hpos = f%root_window%cursor_hpos
         end if
