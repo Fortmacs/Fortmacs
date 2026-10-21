@@ -116,8 +116,9 @@ contains
     end function commandp
 
     !> Run command `cmd`.  Port of callint.c:Fcall_interactively (the
-    !> interactive spec is the command's own business here).
-    subroutine call_interactively(cmd, status)
+    !> interactive spec is the command's own business here).  Recursive:
+    !> a command may read the minibuffer, running commands in turn.
+    recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
 

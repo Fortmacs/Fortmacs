@@ -366,11 +366,21 @@ contains
         call setup()
         call get_buffer_create("nofile", buf, st)
         call set_buffer(buf, st)
+        buffers(cur)%directory = path("")
         call insert("x", st)
+        ! It asks for a file name ("File to save in: "); C-g gives up.
+        call type_keys(achar(7))
         call basic_save_buffer(.true., st)
-        call check(error, st%code == FM_USER_ERROR .and. &
-                   format_error(st) == "Buffer nofile is not visiting a file", format_error(st))
+        call check(error, st%code == FM_QUIT, format_error(st))
+        if (allocated(error)) return
+        ! RET accepts the default, the buffer name in its directory.
+        call type_keys(achar(13))
+        call basic_save_buffer(.true., st)
+        call check(error, st%ok() .and. slurp(path("nofile")) == "x", format_error(st))
+        if (allocated(error)) return
+        call check(error, buffers(cur)%filename == path("nofile"))
         call kill_buffer(buf, st)
+        call delete_file_internal(path("nofile"), st)
     end subroutine test_save_no_file
 
     subroutine test_backup_predicate(error)
@@ -504,11 +514,9 @@ contains
             call insert("bee", st)
             ! Don't save; then refuse to exit.
             call reset_exit()
-            call type_keys("nn")
+            call type_keys("nno"//achar(13))
             call save_buffers_kill_emacs(.false., st)
             call check(error, st%ok() .and. .not. exit_requested_p(), "stayed")
-            if (allocated(error)) exit body
-            call check(error, last_message == "Modified buffers exist; exit anyway? (y or n) n", last_message)
             if (allocated(error)) exit body
             ! Save it: then exit without further questions.
             call type_keys("y")

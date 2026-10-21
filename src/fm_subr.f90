@@ -19,19 +19,27 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions in the echo area: `read-key` and `y-or-n-p`.
+!> Questions in the echo area (`read-key`, `y-or-n-p`) and
+!> `add-to-history`.
 !>
 !> Without a minibuffer yet, `y-or-n-p` behaves as upstream does with
 !> `y-or-n-p-use-read-key` set: it reads a single key in the echo area.
 module fm_subr
     use fm_error, only: status_type, set_error, FM_QUIT
-    use fm_lisp, only: value_type, fixnump, xfixnum
+    use, intrinsic :: iso_fortran_env, only: int64
+    use fm_lisp, only: value_type, fixnump, xfixnum, nil, make_string, cons, list_length, list_elt, &
+                       list_elements, make_list, stringp, xstring
+    use fm_lread, only: sym
+    use fm_data, only: symbol_value, set
     use fm_keyboard, only: read_event, discard_input
     use fm_xdisp, only: message, cursor_in_echo_area
     implicit none(type, external)
     private
 
-    public :: read_key, y_or_n_p, query_replace_answer
+    public :: read_key, y_or_n_p, query_replace_answer, add_to_history
+
+    !> history-length: the longest history list kept.
+    integer, public :: history_length = 100
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE
 
@@ -138,5 +146,33 @@ contains
             call message(padded//"n")
         end if
     end subroutine y_or_n_p
+
+    !> Add `newelt` to the front of history list `history_var` (a symbol
+    !> name) unless it is already first, keeping at most history-length
+    !> elements.  Port of subr.el:add-to-history
+    !> (history-delete-duplicates nil).
+    subroutine add_to_history(history_var, newelt)
+        character(len=*), intent(in) :: history_var, newelt
+        type(value_type) :: history, first, longer
+        type(value_type), allocatable :: elems(:)
+        type(status_type) :: status
+        logical :: ok
+
+        call symbol_value(sym(history_var), history, status)
+        if (.not. status%ok()) history = nil()
+        if (list_length(history) > 0) then
+            first = list_elt(history, 1_int64)
+            if (stringp(first)) then
+                if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
+            end if
+        end if
+        call cons(make_string(newelt), history, longer, ok)
+        if (.not. ok) return
+        if (list_length(longer) > history_length) then
+            call list_elements(longer, elems)
+            longer = make_list(elems(1:history_length))
+        end if
+        call set(sym(history_var), longer, status)
+    end subroutine add_to_history
 
 end module fm_subr

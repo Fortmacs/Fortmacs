@@ -41,6 +41,7 @@ module fm_fileio
     use fm_marker, only: char_to_byte
     use fm_insdel, only: insert
     use fm_editfns, only: point, goto_char, validate_region
+    use fm_env, only: substitute_env_vars
     use fm_sysdep, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
@@ -52,7 +53,7 @@ module fm_fileio
     public :: file_stat_type
     public :: file_name_directory, file_name_nondirectory, file_name_as_directory, &
               directory_file_name, directory_name_p, file_name_absolute_p, expand_file_name, &
-              get_homedir, init_fileio, emacs_wd
+              get_homedir, init_fileio, emacs_wd, substitute_in_file_name
     public :: file_exists_p, file_readable_p, file_writable_p, file_directory_p, &
               file_accessible_directory_p, file_attributes, file_modes, set_file_modes, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
@@ -406,6 +407,42 @@ contains
         end do
         out = buf(1:o)
     end function canonicalize
+
+    !> Where an absolute file name ("//...", "/~...", "/~user...") starts
+    !> after a slash inside `nm`, or 0.  Port of
+    !> fileio.c:search_embedded_absfilename.
+    integer function search_embedded_absfilename(nm) result(p)
+        character(len=*), intent(in) :: nm
+
+        do p = 2, len(nm)
+            if (nm(p - 1:p - 1) == "/" .and. file_name_absolute_p(nm(p:))) return
+        end do
+        p = 0
+    end function search_embedded_absfilename
+
+    !> `filename` with environment variables substituted ($FOO, ${FOO},
+    !> $$; unset ones stay), and everything before an embedded "//" or
+    !> "/~" dropped, so that typing "~/x" after a default directory in the
+    !> minibuffer means "~/x".  Port of fileio.c:Fsubstitute_in_file_name
+    !> with env.el:substitute-env-in-file-name.
+    recursive function substitute_in_file_name(filename) result(name)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: name
+        integer :: p
+
+        p = search_embedded_absfilename(filename)
+        if (p > 0) then
+            name = substitute_in_file_name(filename(p:))
+            return
+        end if
+        name = substitute_env_vars(filename, .true.)
+        if (name == filename .and. len(name) == len(filename)) return
+        do
+            p = search_embedded_absfilename(name)
+            if (p == 0) exit
+            name = name(p:)
+        end do
+    end function substitute_in_file_name
 
     ! ------------------------------------------------------------------
     ! File predicates and attributes

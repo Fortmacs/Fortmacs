@@ -32,7 +32,8 @@
 !> Simplified for now: the mode line has a fixed format (no
 !> mode-line-format), character widths follow a built-in table of wide
 !> ranges (no char-width-table), there are no text properties, overlays,
-!> faces from text, display tables, bidi, hscroll or truncate-lines, and
+!> faces from text, display tables, bidi or truncate-lines (only the
+!> minibuffer line scrolls horizontally), and
 !> the incremental redisplay shortcuts (try_window_reusing_current_matrix
 !> and friends) are not ported: each redisplay lays out the whole window
 !> and fm_dispnew sends only the differences.
@@ -444,6 +445,79 @@ contains
         end associate
     end subroutine display_echo_area
 
+    !> Show the active minibuffer's text on the minibuffer line, scrolled
+    !> horizontally to keep point visible ("$" marks text cut off at
+    !> either edge).  `cursor_col` is point's column on the screen line.
+    !> The one-line case of xdisp.c:display_line for a minibuffer window
+    !> with auto-hscroll.
+    subroutine display_minibuffer(f, cursor_col)
+        type(frame_type), intent(inout) :: f
+        integer, intent(out) :: cursor_col
+        type(glyph_type), allocatable :: line(:), grown(:)
+        type(glyph_type) :: cells(8)
+        type(status_type) :: status
+        integer(int64) :: bi, pos, byte
+        integer(int32) :: c
+        integer :: x, n, cols, col_of_point
+
+        cursor_col = 0
+        call resolve_buffer(f%minibuffer_window%buffer, bi, status)
+        if (.not. status%ok()) return
+        cols = f%minibuffer_window%total_cols
+        allocate (line(max(2*cols, 16)))
+        ! Lay out the whole accessible text as one long line.
+        x = 0
+        col_of_point = -1
+        pos = buffers(bi)%begv
+        byte = buffers(bi)%begv_byte
+        do while (pos < buffers(bi)%zv)
+            if (pos == buffers(bi)%pt) col_of_point = x
+            c = buf_fetch_char(buffers(bi), byte)
+            call produce_char(c, x, cells, n)
+            if (x + n > size(line)) then
+                allocate (grown(2*size(line) + n))
+                grown(1:x) = line(1:x)
+                call move_alloc(grown, line)
+            end if
+            line(x + 1:x + n) = cells(1:n)
+            x = x + n
+            byte = byte + buf_next_char_len(buffers(bi), byte)
+            pos = pos + 1
+        end do
+        if (col_of_point < 0) col_of_point = x
+
+        ! auto-hscroll: recenter point when it would leave the line.
+        associate (w => f%minibuffer_window)
+            if (col_of_point < w%hscroll .or. col_of_point - w%hscroll >= cols - 1) then
+                w%hscroll = max(0, col_of_point - cols/2)
+            end if
+            associate (m => f%desired_matrix%rows(w%top_line))
+                m%glyphs = glyph_type()
+                m%enabled_p = .true.
+                n = min(cols, max(0, x - w%hscroll))
+                if (n > 0) m%glyphs(1:n) = line(w%hscroll + 1:w%hscroll + n)
+                m%used = n
+                ! Truncation glyphs.
+                if (w%hscroll > 0) then
+                    m%glyphs(1) = glyph_type()
+                    m%glyphs(1)%ch = iachar("$")
+                end if
+                if (x - w%hscroll > cols) then
+                    m%glyphs(cols) = glyph_type()
+                    m%glyphs(cols)%ch = iachar("$")
+                end if
+                ! A wide character cut by the left edge shows as a space.
+                if (n > 0) then
+                    if (m%glyphs(1)%padding) then
+                        m%glyphs(1) = glyph_type()
+                        m%glyphs(1)%ch = 32
+                    end if
+                end if
+            end associate
+            cursor_col = col_of_point - w%hscroll
+        end associate
+    end subroutine display_minibuffer
+
     !> Show `text` in the echo area.  Port of editfns.c:Fmessage (with a
     !> plain string; no *Messages* log yet).
     subroutine message(text)
@@ -452,33 +526,53 @@ contains
         last_message = text
     end subroutine message
 
-    !> Redisplay the frame: the root window (showing the current buffer),
-    !> its mode line and the echo area, then update the terminal.  Port of
-    !> the core of xdisp.c:redisplay_internal.
+    !> Redisplay the frame: the root window (showing the current buffer
+    !> unless the minibuffer is selected), its mode line, and the echo area
+    !> or active minibuffer, then update the terminal.  Port of the core
+    !> of xdisp.c:redisplay_internal.
     subroutine redisplay(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
         integer(int64) :: bi
-        integer :: endcol
+        integer :: endcol, mini_col
+        logical :: showing_message, mini_active
 
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (f%root_window%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         if (size(f%faces) < 2) call realize_basic_faces(f)
-        ! The selected window shows the current buffer.
+        ! The selected window shows the current buffer: the root window
+        ! unless the minibuffer window is selected.
         cb = current_buffer()
-        if (cb%index /= f%root_window%buffer%index .or. &
-            cb%generation /= f%root_window%buffer%generation) then
-            call set_window_buffer(f%root_window, cb, status)
-            if (.not. status%ok()) return
+        if (.not. f%minibuffer_selected) then
+            if (cb%index /= f%root_window%buffer%index .or. &
+                cb%generation /= f%root_window%buffer%generation) then
+                call set_window_buffer(f%root_window, cb, status)
+                if (.not. status%ok()) return
+            end if
         end if
-        call resolve_buffer(cb, bi, status)
+        call resolve_buffer(f%root_window%buffer, bi, status)
         if (.not. status%ok()) return
         call redisplay_window(f, f%root_window, buffers(bi)%pt)
-        call display_echo_area(f, endcol)
+
+        ! The minibuffer line: a message if there is one, else the active
+        ! minibuffer, else blank.
+        showing_message = .false.
+        if (allocated(last_message)) showing_message = len(last_message) > 0
+        mini_active = f%minibuffer_selected .and. f%minibuffer_window%buffer%index /= 0
+        mini_col = 0
+        if (mini_active .and. .not. showing_message) then
+            call display_minibuffer(f, mini_col)
+        else
+            call display_echo_area(f, endcol)
+        end if
+
         f%cursor_vpos = -1
-        if (cursor_in_echo_area) then
+        if (mini_active .and. .not. showing_message) then
+            f%cursor_vpos = f%minibuffer_window%top_line
+            f%cursor_hpos = min(mini_col, f%minibuffer_window%total_cols - 1)
+        else if (cursor_in_echo_area .or. (mini_active .and. showing_message)) then
             f%cursor_vpos = f%minibuffer_window%top_line
             f%cursor_hpos = min(endcol, f%minibuffer_window%total_cols - 1)
         else if (f%root_window%cursor_vpos >= 0) then

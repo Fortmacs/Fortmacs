@@ -44,7 +44,12 @@ module fm_editfns
     use fm_marker, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                          markers, resolve_marker, make_marker, set_marker_both
     use fm_insdel, only: insert, del_range, del_range_1
-    use fm_search, only: scan_newline_from_point, find_before_next_newline
+    use fm_search, only: scan_newline_from_point, find_before_next_newline, find_newline
+    use fm_lisp, only: value_type, nilp, nil
+    use fm_lread, only: sym
+    use fm_data, only: value_eq
+    use fm_textprop, only: get_text_property, text_property_stickiness, &
+                           next_single_char_property_change, previous_single_char_property_change
     implicit none(type, external)
     private
 
@@ -59,6 +64,11 @@ module fm_editfns
     public :: buffer_substring, buffer_string, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
+    public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
+              delete_field, constrain_to_field
+
+    !> editfns.c inhibit-field-text-motion.
+    logical, public :: inhibit_field_text_motion = .false.
 
 contains
 
@@ -504,13 +514,15 @@ contains
         pos_bol = bol(n)
     end function pos_bol
 
-    !> Like `pos_bol`; upstream also constrains the result to the current
-    !> field, which needs text properties (pending).
+    !> Like `pos_bol`, but constrained to the field point is in (so it
+    !> stops after a minibuffer prompt).
     !> Port of editfns.c:Fline_beginning_position.
     integer(int64) function line_beginning_position(n)
         integer(int64), intent(in), optional :: n
+        integer(int64) :: count, charpos
 
-        line_beginning_position = bol(n)
+        charpos = bol(n, count)
+        line_beginning_position = constrain_to_field(charpos, buffers(cur)%pt, count /= 0, .true.)
     end function line_beginning_position
 
     !> Port of editfns.c:eol.
@@ -532,12 +544,195 @@ contains
         pos_eol = eol(n)
     end function pos_eol
 
-    !> Like `pos_eol`, without the field constraint (pending).
+    !> Like `pos_eol`, but constrained to the field point is in.
     !> Port of editfns.c:Fline_end_position.
     integer(int64) function line_end_position(n)
         integer(int64), intent(in), optional :: n
 
-        line_end_position = eol(n)
+        line_end_position = constrain_to_field(eol(n), buffers(cur)%pt, .false., .true.)
     end function line_end_position
+
+    ! ------------------------------------------------------------------
+    ! Fields: runs of text with the same `field` property (text
+    ! properties only, as there are no overlays yet).
+    ! ------------------------------------------------------------------
+
+    !> The `field` symbol.
+    function qfield() result(v)
+        type(value_type) :: v
+
+        v = sym("field")
+    end function qfield
+
+    !> `prop` of the current buffer's character at `pos` (nil outside the
+    !> accessible text); get_char_property without overlays.
+    function char_property(pos, prop) result(v)
+        integer(int64), intent(in) :: pos
+        type(value_type), intent(in) :: prop
+        type(value_type) :: v
+        type(status_type) :: status
+
+        call get_text_property(pos, prop, v, status)
+    end function char_property
+
+    !> The value of `prop` that a character inserted at `position` would
+    !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
+    !> properties only).
+    function get_pos_property(position, prop) result(v)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        type(value_type) :: v
+        integer :: stickiness
+
+        stickiness = text_property_stickiness(prop, position)
+        if (stickiness > 0) then
+            v = char_property(position, prop)
+        else if (stickiness < 0 .and. position > buffers(cur)%begv) then
+            v = char_property(position - 1, prop)
+        else
+            v = nil()
+        end if
+    end function get_pos_property
+
+    !> The field around `pos` (default point): `beg` and `end`, limited
+    !> by `beg_limit` and `end_limit`.  With `merge_at_boundary`, a
+    !> position at the start of a field belongs to the previous one, and
+    !> `boundary` fields are skipped.  Port of editfns.c:find_field.
+    subroutine find_field(pos, merge_at_boundary, beg, end, beg_limit, end_limit)
+        integer(int64), intent(in) :: pos
+        logical, intent(in) :: merge_at_boundary
+        integer(int64), intent(out) :: beg, end
+        integer(int64), intent(in), optional :: beg_limit, end_limit
+        type(value_type) :: before_field, after_field, field, boundary
+        integer(int64) :: p
+        logical :: at_field_start, at_field_end
+
+        at_field_start = .false.
+        at_field_end = .false.
+        boundary = sym("boundary")
+        after_field = char_property(pos, qfield())
+        if (pos > buffers(cur)%begv) then
+            before_field = char_property(pos - 1, qfield())
+        else
+            ! Not nil: a buffer may start with a non-sticky field.
+            before_field = after_field
+        end if
+        if (.not. merge_at_boundary) then
+            field = get_pos_property(pos, qfield())
+            if (.not. value_eq(field, after_field)) at_field_end = .true.
+            if (.not. value_eq(field, before_field)) at_field_start = .true.
+            ! A nil field between non-nil ones is a field not meant for
+            ! editing (like a prompt), not a zero-length field.
+            if (nilp(field) .and. at_field_start .and. at_field_end) then
+                at_field_end = .false.
+                at_field_start = .false.
+            end if
+        end if
+
+        if (at_field_start) then
+            beg = pos
+        else
+            p = pos
+            if (merge_at_boundary .and. value_eq(before_field, boundary)) then
+                p = previous_single_char_property_change(p, qfield(), beg_limit)
+            end if
+            beg = previous_single_char_property_change(p, qfield(), beg_limit)
+        end if
+        if (at_field_end) then
+            end = pos
+        else
+            p = pos
+            if (merge_at_boundary .and. value_eq(after_field, boundary)) then
+                p = next_single_char_property_change(p, qfield(), end_limit)
+            end if
+            end = next_single_char_property_change(p, qfield(), end_limit)
+        end if
+    end subroutine find_field
+
+    !> Start of the field around `pos`.  Port of editfns.c:Ffield_beginning.
+    integer(int64) function field_beginning(pos, escape_from_edge, limit)
+        integer(int64), intent(in) :: pos
+        logical, intent(in) :: escape_from_edge
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: end
+
+        call find_field(pos, escape_from_edge, field_beginning, end, beg_limit=limit)
+    end function field_beginning
+
+    !> End of the field around `pos`.  Port of editfns.c:Ffield_end.
+    integer(int64) function field_end(pos, escape_from_edge, limit)
+        integer(int64), intent(in) :: pos
+        logical, intent(in) :: escape_from_edge
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: beg
+
+        call find_field(pos, escape_from_edge, beg, field_end, end_limit=limit)
+    end function field_end
+
+    !> Text of the field around `pos`.  Port of
+    !> editfns.c:Ffield_string_no_properties.
+    function field_string(pos) result(text)
+        integer(int64), intent(in) :: pos
+        character(len=:), allocatable :: text
+        integer(int64) :: beg, end
+        type(status_type) :: status
+
+        call find_field(pos, .false., beg, end)
+        call buffer_substring(beg, end, text, status)
+    end function field_string
+
+    !> Delete the field around `pos`.  Port of editfns.c:Fdelete_field.
+    subroutine delete_field(pos, status)
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        integer(int64) :: beg, end
+
+        call find_field(pos, .false., beg, end)
+        if (beg /= end) call del_range(beg, end, status)
+    end subroutine delete_field
+
+    !> `new_pos` moved, if needed, to stay in the field of `old_pos`.  With
+    !> `escape_from_edge`, `old_pos` at a field edge may count as in the
+    !> neighbouring field; with `only_in_line`, constrain only if the
+    !> field edge is on the same line.  Port of
+    !> editfns.c:Fconstrain_to_field (NEW-POS given; no
+    !> INHIBIT-CAPTURE-PROPERTY).
+    integer(int64) function constrain_to_field(new_pos, old_pos, escape_from_edge, only_in_line) &
+        result(pos)
+        integer(int64), intent(in) :: new_pos, old_pos
+        logical, intent(in) :: escape_from_edge, only_in_line
+        integer(int64) :: field_bound, counted, nl
+        logical :: fwd
+
+        pos = new_pos
+        if (inhibit_field_text_motion .or. new_pos == old_pos) return
+        if (nilp(char_property(new_pos, qfield())) .and. nilp(char_property(old_pos, qfield()))) then
+            if (.not. (new_pos > buffers(cur)%begv .and. &
+                       .not. nilp(char_property(new_pos - 1, qfield())))) then
+                if (.not. (old_pos > buffers(cur)%begv .and. &
+                           .not. nilp(char_property(old_pos - 1, qfield())))) return
+            end if
+        end if
+        ! NEW_POS may not be in OLD_POS's field: try to move it there.
+        fwd = new_pos > old_pos
+        if (fwd) then
+            field_bound = field_end(old_pos, escape_from_edge, new_pos)
+        else
+            field_bound = field_beginning(old_pos, escape_from_edge, new_pos)
+        end if
+        ! Unless escaping put the bound beyond NEW_POS already, constrain
+        ! it (with ONLY_IN_LINE, only to a bound on the same line).
+        if (merge(fwd,.not. fwd, field_bound < new_pos)) then
+            if (only_in_line) then
+                if (fwd) then
+                    nl = find_newline(new_pos, field_bound, -1_int64, counted)
+                else
+                    nl = find_newline(new_pos, field_bound, 1_int64, counted)
+                end if
+                if (counted /= 0) return
+            end if
+            pos = field_bound
+        end if
+    end function constrain_to_field
 
 end module fm_editfns

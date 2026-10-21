@@ -48,6 +48,8 @@ module fm_textprop
               next_single_property_change, previous_property_change, &
               previous_single_property_change, text_property_any, &
               text_property_not_all, verify_interval_modification
+    public :: text_property_stickiness, next_single_char_property_change, &
+              previous_single_char_property_change
 
 contains
 
@@ -724,6 +726,110 @@ contains
             end do
         end associate
     end subroutine property_scan
+
+    !> Whether `prop` at `pos` would be inherited by text inserted there:
+    !> -1 from the character before (rear-sticky), 1 from the one after
+    !> (front-sticky), 0 from neither.  Port of
+    !> textprop.c:text_property_stickiness (current buffer).
+    integer function text_property_stickiness(prop, pos) result(stickiness)
+        type(value_type), intent(in) :: prop
+        integer(int64), intent(in) :: pos
+        type(value_type) :: rear_non_sticky, front_sticky, prev_value
+        type(status_type) :: status
+        logical :: ignore_previous_character, is_rear_sticky, is_front_sticky
+
+        is_rear_sticky = .true.
+        is_front_sticky = .false.
+        ignore_previous_character = pos <= buffers(cur)%begv
+        ! text-property-default-nonsticky: syntax-table, display,
+        ! composition and cursor are rear-nonsticky by default.
+        if (ignore_previous_character .or. default_nonsticky(prop)) then
+            is_rear_sticky = .false.
+        else
+            call get_text_property(pos - 1, qsym("rear-nonsticky"), rear_non_sticky, status)
+            if (consp(rear_non_sticky)) then
+                if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
+            else if (.not. nilp(rear_non_sticky)) then
+                is_rear_sticky = .false.
+            end if
+        end if
+        call get_text_property(pos, qsym("front-sticky"), front_sticky, status)
+        if (value_eq(front_sticky, qsym("t"))) then
+            is_front_sticky = .true.
+        else if (consp(front_sticky)) then
+            if (memq_p(prop, front_sticky)) is_front_sticky = .true.
+        end if
+
+        if (is_rear_sticky .and. .not. is_front_sticky) then
+            stickiness = -1
+        else if (.not. is_rear_sticky .and. is_front_sticky) then
+            stickiness = 1
+        else if (.not. is_rear_sticky .and. .not. is_front_sticky) then
+            stickiness = 0
+        else
+            ! Inconsistent: rear-sticky wins unless its value is nil.
+            stickiness = -1
+            if (ignore_previous_character) then
+                stickiness = 1
+            else
+                call get_text_property(pos - 1, prop, prev_value, status)
+                if (nilp(prev_value)) stickiness = 1
+            end if
+        end if
+    contains
+        logical function default_nonsticky(p)
+            type(value_type), intent(in) :: p
+
+            default_nonsticky = value_eq(p, qsym("syntax-table")) .or. value_eq(p, qsym("display")) .or. &
+                                value_eq(p, qsym("composition")) .or. value_eq(p, qsym("cursor"))
+        end function default_nonsticky
+    end function text_property_stickiness
+
+    !> The next position after `position` where `prop` changes, or
+    !> `limit` (default point-max) if it doesn't change before it.  Port of
+    !> textprop.c:Fnext_single_char_property_change for the current
+    !> buffer (text properties only: there are no overlays yet).
+    integer(int64) function next_single_char_property_change(position, prop, limit) result(next)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: lim
+        type(status_type) :: status
+        logical :: found
+
+        lim = buffers(cur)%zv
+        if (present(limit)) lim = limit
+        if (position >= lim) then
+            next = min(lim, buffers(cur)%zv)
+            return
+        end if
+        call next_single_property_change(position, prop, next, found, status, lim)
+        if (.not. found .or. .not. status%ok()) next = lim
+        next = min(next, lim)
+    end function next_single_char_property_change
+
+    !> The previous position before `position` where `prop` changes, or
+    !> `limit` (default point-min).  Port of
+    !> textprop.c:Fprevious_single_char_property_change for the current
+    !> buffer (text properties only).
+    integer(int64) function previous_single_char_property_change(position, prop, limit) result(prev)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: lim
+        type(status_type) :: status
+        logical :: found
+
+        lim = buffers(cur)%begv
+        if (present(limit)) lim = limit
+        if (position <= lim) then
+            prev = max(lim, buffers(cur)%begv)
+            return
+        end if
+        call previous_single_property_change(position, prop, prev, found, status, lim)
+        if (.not. found .or. .not. status%ok()) prev = lim
+        prev = max(prev, lim)
+    end function previous_single_char_property_change
 
     ! ------------------------------------------------------------------
     ! Read-only text

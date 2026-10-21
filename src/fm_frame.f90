@@ -43,9 +43,15 @@ module fm_frame
         integer :: cursor_vpos = -1, cursor_hpos = -1
         !> Hide the cursor after the update (cursor_off_p).
         logical :: cursor_off_p = .false.
+        !> The minibuffer window is the selected window (window.c's
+        !> selected_window, which is otherwise the root window).
+        logical :: minibuffer_selected = .false.
         !> The screen contents are unknown and must be redrawn.
         logical :: garbaged = .true.
         logical :: glyphs_initialized_p = .false.
     end type frame_type
+
+    !> The terminal frame (frame.c:selected_frame).
+    type(frame_type), target, public :: selected_frame
 
 end module fm_frame
