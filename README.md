@@ -4,24 +4,25 @@ A rewrite of GNU Emacs 31.1 in modern Fortran (2018+), for Linux on x86-64
 and aarch64. Configuration is Fortran too: your `init.f90` is compiled into
 the binary, xmonad-style. There is no Elisp.
 
-**Status:** early porting. `fortmacs FILE` opens a file in the terminal
-where you can type, delete, move within lines and save (`C-x C-s`, with a
-`FILE~` backup), but most of Emacs is still missing: moving between lines,
-the minibuffer, undo, search and much more. See [PORTING.md](PORTING.md)
-for the roadmap and progress.
+**Status:** early porting. Fortmacs runs as a bare-bones terminal editor:
+open files (`fortmacs FILE` or `C-x C-f`), type, delete, move within lines,
+and save (`C-x C-s`, with a `FILE~` backup; `C-x C-w` to write elsewhere).
+Most of Emacs is still missing: moving between lines, completion, undo,
+search and much more. See [PORTING.md](PORTING.md) for the roadmap and
+progress.
 
 <!-- progress:start -->
 **Progress:**
 
 *Main*
 
-Total translations: 427 of 56,864\
+Total translations: 466 of 56,864\
 `[░         ]` (≆0.75%)
 
-Upstream C functions: 388 of 8,547\
-`[▒         ]` (≆4.50%)
+Upstream C functions: 413 of 8,547\
+`[▒         ]` (≆4.75%)
 
-Elisp definitions: 39 of 48,317\
+Elisp definitions: 53 of 48,317\
 `[░         ]` (≆0.25%)
 
 *Packages*

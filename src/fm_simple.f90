@@ -36,8 +36,14 @@ module fm_simple
     use fm_lread, only: sym
     use fm_data, only: value_eq
     use fm_character, only: MAX_CHAR
-    use fm_buffer, only: barf_if_buffer_read_only
-    use fm_editfns, only: point, goto_char
+    use fm_buffer, only: barf_if_buffer_read_only, buffers, cur
+    use fm_editfns, only: point, goto_char, point_max
+    use fm_insdel, only: insert, del_range
+    use fm_data, only: symbol_value
+    use fm_lisp, only: list_length, xstring, stringp
+    use fm_minibuf, only: minibuffer_history_position, minibuffer_history_variable, &
+                          minibuffer_default, minibuffer_text_before_history, &
+                          minibuffer_prompt_end, minibuffer_contents
     use fm_cmds, only: delete_char, self_insert_command
     use fm_keymap, only: make_sparse_keymap, define_key, keymap_live_p, &
                          key_description
@@ -52,7 +58,7 @@ module fm_simple
 
     public :: newline, open_line, delete_backward_char, &
               prefix_command_preserve_state, universal_argument_map, &
-              syms_of_simple
+              syms_of_simple, goto_history_element
 
     type(handle_type) :: uarg_map
 
@@ -294,7 +300,110 @@ contains
     end subroutine cmd_universal_argument_minus
 
     !> Register this module's commands.
+    ! ------------------------------------------------------------------
+    ! Minibuffer history
+    ! ------------------------------------------------------------------
+
+    !> The current minibuffer history list (minibuffer-history-value).
+    function history_value() result(history)
+        type(value_type) :: history
+        type(status_type) :: status
+
+        history = nil()
+        if (.not. allocated(minibuffer_history_variable)) return
+        if (len(minibuffer_history_variable) == 0) return
+        call symbol_value(sym(minibuffer_history_variable), history, status)
+        if (.not. status%ok()) history = nil()
+    end function history_value
+
+    !> Put history element `nabs` in the minibuffer: 0 is the input typed
+    !> before moving into the history, N > 0 the Nth previous input, -1
+    !> the default ("future history").  Point stays where it was unless it
+    !> was at the end or in the prompt.  Port of
+    !> simple.el:goto-history-element (one default; no
+    !> minibuffer-default-add-function or history-sexp flag).
+    subroutine goto_history_element(nabs, status)
+        integer, intent(in) :: nabs
+        type(status_type), intent(out) :: status
+        type(value_type) :: history, elt
+        character(len=:), allocatable :: text
+        integer(int64) :: goal, pend
+        integer :: minimum
+
+        minimum = 0
+        if (allocated(minibuffer_default)) minimum = -1
+        history = history_value()
+        if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
+            minibuffer_text_before_history = minibuffer_contents()
+        end if
+        if (nabs < minimum) then
+            if (allocated(minibuffer_default)) then
+                call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
+            else
+                call set_error(status, FM_USER_ERROR, "End of history; no default available")
+            end if
+            return
+        end if
+        if (nabs > list_length(history)) then
+            call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
+            return
+        end if
+        ! minibuffer-temporary-goal-position
+        pend = minibuffer_prompt_end()
+        goal = -1
+        if (point() <= pend) then
+            goal = pend
+        else if (point() /= point_max()) then
+            goal = point()
+        end if
+        call del_range(pend, buffers(cur)%zv, status)
+        if (.not. status%ok()) return
+        minibuffer_history_position = nabs
+        if (nabs < 0) then
+            text = minibuffer_default
+        else if (nabs == 0) then
+            text = ""
+            if (allocated(minibuffer_text_before_history)) then
+                call move_alloc(minibuffer_text_before_history, text)
+            end if
+        else
+            elt = list_elt(history, int(nabs, int64))
+            text = ""
+            if (stringp(elt)) text = xstring(elt)
+        end if
+        call insert(text, status)
+        if (goal >= 0) then
+            call goto_char(goal)
+        else
+            call goto_char(point_max())
+        end if
+    end subroutine goto_history_element
+
+    !> M-p: the previous history element.  Port of
+    !> simple.el:previous-history-element.
+    subroutine cmd_previous_history_element(status)
+        type(status_type), intent(out) :: status
+        integer :: n
+
+        n = int(prefix_numeric_value(current_prefix_arg))
+        if (n /= 0) call goto_history_element(minibuffer_history_position + n, status)
+    end subroutine cmd_previous_history_element
+
+    !> M-n: the next history element, then the default.  Port of
+    !> simple.el:next-history-element.
+    subroutine cmd_next_history_element(status)
+        type(status_type), intent(out) :: status
+        integer :: n
+
+        n = int(prefix_numeric_value(current_prefix_arg))
+        if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
+    end subroutine cmd_next_history_element
+
     subroutine syms_of_simple()
+        ! (<up> and <down> run previous/next-line-or-history-element
+        ! upstream, which in a one-line minibuffer are these.)
+        call defcommand("previous-history-element", cmd_previous_history_element)
+        call defcommand("next-history-element", cmd_next_history_element)
         call defcommand("newline", cmd_newline)
         call defcommand("open-line", cmd_open_line)
         call defcommand("delete-backward-char", cmd_delete_backward_char)

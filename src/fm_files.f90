@@ -21,10 +21,9 @@
 
 !> Visiting files, saving buffers with backups, and leaving Emacs.
 !>
-!> Not yet: the minibuffer (so no C-x C-f, and a buffer with no file
-!> can't be saved), `yes-or-no-p` (`y-or-n-p` asks instead), auto-save,
-!> file locks, major modes and local variables, uniquify (buffer names
-!> get "<2>"), version-control backups and `backup-directory-alist`, and
+!> Not yet: file name completion, wildcards and dired, auto-save, file
+!> locks, major modes and local variables, uniquify (buffer names get
+!> "<2>"), version-control backups and `backup-directory-alist`, and
 !> `file-precious-flag`.
 module fm_files
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -35,8 +34,9 @@ module fm_files
     use fm_lread, only: sym
     use fm_buffer, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
-                         buffer_list, kill_buffer, erase_buffer, set_buffer_read_only
-    use fm_fileio, only: file_stat_type, expand_file_name, file_name_directory, &
+                         buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
+                         rename_buffer, restore_buffer_modified_p
+    use fm_fileio, only: file_stat_type, expand_file_name, file_name_directory, directory_name_p, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
                          get_homedir, file_exists_p, file_readable_p, file_writable_p, &
                          file_directory_p, file_accessible_directory_p, file_attributes, &
@@ -48,6 +48,7 @@ module fm_files
     use fm_keyboard, only: request_exit
     use fm_xdisp, only: message
     use fm_subr, only: y_or_n_p
+    use fm_fns, only: yes_or_no_p
     use fm_map_ynp, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     implicit none(type, external)
     private
@@ -57,6 +58,20 @@ module fm_files
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
+    public :: set_visited_file_name, write_file
+
+    interface
+        !> minibuffer.el:read-file-name.  (In submodule fm_files_read, as
+        !> the minibuffer code depends on this module.)
+        recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
+                                                                 default_filename, initial)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: result
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: dir, default_filename, initial
+        end subroutine read_file_name_in_minibuffer
+    end interface
 
     !> files.el make-backup-files.
     logical, public :: make_backup_files = .true.
@@ -392,15 +407,32 @@ contains
             return
         end if
         if (.not. allocated(buffers(cur)%filename)) then
-            ! Upstream asks for a file name in the minibuffer.
-            call set_error(status, FM_USER_ERROR, "Buffer "//buffers(cur)%name//" is not visiting a file")
-            return
+            call read_file_name_in_minibuffer("File to save in: ", file, status, &
+                                              default_filename=file_in_default_directory(buffers(cur)%name))
+            if (.not. status%ok()) return
+            call expand_file_name(file, dir, status)
+            if (.not. status%ok()) return
+            file = dir
+            if (file_exists_p(file)) then
+                if (file_directory_p(file)) then
+                    call set_error(status, FM_GENERIC_ERROR, file//" is a directory")
+                    return
+                end if
+                call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
+                if (.not. status%ok()) return
+                if (.not. ok) then
+                    call set_error(status, FM_GENERIC_ERROR, "Canceled")
+                    return
+                end if
+            end if
+            call set_visited_file_name(file, status)
+            if (.not. status%ok()) return
         end if
         file = buffers(cur)%filename
 
         if (.not. verify_visited_file_modtime() .and. file_exists_p(file)) then
-            call y_or_n_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
-                          ok, status)
+            call yes_or_no_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
+                             ok, status)
             if (.not. status%ok()) return
             if (.not. ok) then
                 call set_error(status, FM_USER_ERROR, "Save not confirmed")
@@ -431,8 +463,8 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "Directory "//dir//" write-protected")
                 return
             end if
-            call y_or_n_p("File "//file_name_nondirectory(file)// &
-                          " is write-protected; try to save anyway? ", ok, status)
+            call yes_or_no_p("File "//file_name_nondirectory(file)// &
+                             " is write-protected; try to save anyway? ", ok, status)
             if (.not. status%ok()) return
             if (.not. ok) then
                 call set_error(status, FM_GENERIC_ERROR, &
@@ -563,12 +595,139 @@ contains
             if (.not. status%ok()) return
         end if
         if (modified_file_buffers_exist()) then
-            ! Upstream uses yes-or-no-p, which needs the minibuffer.
-            call y_or_n_p("Modified buffers exist; exit anyway? ", ok, status)
+            call yes_or_no_p("Modified buffers exist; exit anyway? ", ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
         call request_exit()
     end subroutine save_buffers_kill_emacs
+
+    !> `name` in the current buffer's default directory.
+    function file_in_default_directory(name) result(file)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: file
+        type(status_type) :: status
+
+        call expand_file_name(name, file, status)
+        if (.not. status%ok()) file = name
+    end function file_in_default_directory
+
+    !> Make the current buffer visit `filename` (no file if ""): its name,
+    !> default directory and backup state follow, and it counts as
+    !> modified unless `along_with_file`.  Asks first if another buffer
+    !> visits that file, unless `no_query`.  Port of
+    !> files.el:set-visited-file-name (no truenames, locks, auto-save or
+    !> major-mode change).
+    subroutine set_visited_file_name(filename, status, no_query, along_with_file)
+        character(len=*), intent(in) :: filename
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: no_query, along_with_file
+        character(len=:), allocatable :: file, new_name, actual
+        type(handle_type) :: other, cb
+        logical :: ok, query, along
+
+        query = .true.
+        if (present(no_query)) query = .not. no_query
+        along = .false.
+        if (present(along_with_file)) along = along_with_file
+        if (len(filename) > 0) then
+            call expand_file_name(filename, file, status)
+            if (.not. status%ok()) return
+            if (len(file_name_nondirectory(file)) == 0) then
+                call set_error(status, FM_GENERIC_ERROR, "Empty file name")
+                return
+            end if
+            other = get_file_buffer(file)
+            cb = current_buffer()
+            if (other%index /= 0 .and. other%index /= cb%index .and. query) then
+                call y_or_n_p("A buffer is visiting "//file//"; proceed? ", ok, status)
+                if (.not. status%ok()) return
+                if (.not. ok) then
+                    call set_error(status, FM_USER_ERROR, "Aborted")
+                    return
+                end if
+            end if
+            buffers(cur)%filename = file
+            buffers(cur)%directory = file_name_directory(file)
+            new_name = file_name_nondirectory(file)
+            if (.not. (new_name == buffers(cur)%name .and. len(new_name) == len(buffers(cur)%name))) then
+                call rename_buffer(new_name, .true., actual, status)
+                if (.not. status%ok()) return
+            end if
+        else
+            if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+        end if
+        buffers(cur)%backed_up = .false.
+        ! clear-visited-file-modtime
+        if (.not. along) buffers(cur)%modtime_known = .false.
+        if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
+    end subroutine set_visited_file_name
+
+    !> Write the current buffer to `filename` and visit it there; a
+    !> directory name means the buffer's file (or buffer) name in that
+    !> directory.  With `confirm`, ask before overwriting.  Port of
+    !> files.el:write-file.
+    subroutine write_file(filename, confirm, status)
+        character(len=*), intent(in) :: filename
+        logical, intent(in) :: confirm
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file
+        logical :: ok
+
+        file = filename
+        if (len(file) > 0) then
+            if (directory_name_p(file) .or. file_directory_p(file)) then
+                file = file_name_as_directory(file)
+                if (allocated(buffers(cur)%filename)) then
+                    file = file//file_name_nondirectory(buffers(cur)%filename)
+                else
+                    file = file//buffers(cur)%name
+                end if
+            end if
+            if (confirm .and. file_exists_p(file)) then
+                call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
+                if (.not. status%ok()) return
+                if (.not. ok) then
+                    call set_error(status, FM_USER_ERROR, "Canceled")
+                    return
+                end if
+            end if
+            call set_visited_file_name(file, status, no_query=.not. confirm)
+            if (.not. status%ok()) return
+        end if
+        call restore_buffer_modified_p(.true.)
+        ! Make the buffer writable if the file is.
+        if (allocated(buffers(cur)%filename)) then
+            if (file_writable_p(buffers(cur)%filename)) buffers(cur)%read_only = .false.
+        end if
+        call save_buffer(1_int64, .false., status)
+    end subroutine write_file
+
+    !> C-x C-f.  Port of files.el:find-file (interactive), with
+    !> find-file-read-args.
+    subroutine cmd_find_file(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dir
+
+        dir = "~/"
+        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        call read_file_name_in_minibuffer("Find file: ", filename, status, default_filename=dir)
+        if (.not. status%ok()) return
+        call find_file(filename, status)
+    end subroutine cmd_find_file
+
+    !> C-x C-w.  Port of files.el:write-file (interactive).
+    subroutine cmd_write_file(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename
+
+        if (allocated(buffers(cur)%filename)) then
+            call read_file_name_in_minibuffer("Write file: ", filename, status)
+        else
+            call read_file_name_in_minibuffer("Write file: ", filename, status, initial=buffers(cur)%name)
+        end if
+        if (.not. status%ok()) return
+        call write_file(filename, .true., status)
+    end subroutine cmd_write_file
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -602,9 +761,17 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
+        call defcommand("find-file", cmd_find_file)
+        call defcommand("write-file", cmd_write_file)
         call defcommand("save-buffer", cmd_save_buffer)
         call defcommand("save-some-buffers", cmd_save_some_buffers)
         call defcommand("save-buffers-kill-terminal", cmd_save_buffers_kill_terminal)
+        ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
+        key(1) = make_fixnum(6_int64)
+        call define_key(ctl_x_map, key, sym("find-file"), status)
+        ! files.el: (define-key ctl-x-map "\C-w" 'write-file)
+        key(1) = make_fixnum(23_int64)
+        call define_key(ctl_x_map, key, sym("write-file"), status)
         ! files.el: (define-key ctl-x-map "\C-s" 'save-buffer)
         key(1) = make_fixnum(19_int64)
         call define_key(ctl_x_map, key, sym("save-buffer"), status)

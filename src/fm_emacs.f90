@@ -34,8 +34,9 @@ module fm_emacs
     use fm_cmds, only: forward_line
     use fm_fileio, only: init_fileio, emacs_wd, file_name_as_directory, file_name_absolute_p
     use fm_files, only: find_file_noselect
-    use fm_frame, only: frame_type
+    use fm_frame, only: selected_frame
     use fm_window, only: free_window
+    use fm_sysdep, only: install_interrupt_handler
     use fm_term, only: init_tty, delete_tty, tty_set_terminal_modes
     use fm_termchar, only: tty_flush
     use fm_dispnew, only: adjust_frame_glyphs
@@ -52,9 +53,6 @@ module fm_emacs
     type :: arg_type
         character(len=:), allocatable :: s
     end type arg_type
-
-    !> The terminal frame (frame.c:selected_frame).
-    type(frame_type), target :: selected_frame
 
 contains
 
@@ -213,6 +211,7 @@ contains
         if (.not. status%ok()) return
         if (xterm_like(terminal_type)) call terminal_init_xterm()
         call set_input_fd(fd)
+        call install_interrupt_handler()
         call adjust_frame_glyphs(selected_frame)
         call init_frame_windows(selected_frame)
         call realize_basic_faces(selected_frame)
