@@ -14,14 +14,19 @@ functions and 19 of 48,317 Elisp definitions. A rough estimate from
 ## Building
 
 Requires gfortran ≥ 13, [fpm](https://fpm.fortran-lang.org) and, for
-development, [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7.
+development, [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7
+and [Fortitude](https://fortitude.readthedocs.io) 0.9.2
+(`pip install fprettify==0.3.7 fortitude-lint==0.9.2`).
 
 ```sh
 fpm build
 fpm run -- --version
-tools/check.sh          # format check + debug build + tests (what CI runs)
-tools/check.sh --fix    # reformat sources in place
+tools/check.sh          # format + lint check, debug build, tests (what CI runs)
+tools/check.sh --fix    # reformat and apply safe lint fixes in place
 ```
+
+CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and on
+Arch Linux (x86-64), and builds and tests on Guix weekly.
 
 ## Reference source
 

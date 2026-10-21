@@ -131,6 +131,22 @@ Copy the FSF year range exactly from the upstream file.
 | fm_frame | frame.h | `frame_type` (terminal, current and desired matrices, face table, cursor) | windows (next step), child frames, frame parameters | test_fm_dispnew | partial |
 | fm_dispnew | dispnew.c | frame matrices (`adjust_frame_glyphs`, clear current/desired), `redraw_frame`, `write_row` (prefix/suffix matching, character insertion and deletion by cost), `write_matrix` (last row first), `make_matrix_current`, `tty_set_cursor`, `update_frame` (terminal path); term.c `calculate_ins_del_char_costs` | line scrolling (scroll.c), window matrices, pausing for input, size changes, child frames, menus | test_fm_dispnew (own; byte-exact xterm output) | partial |
 
+## Style
+
+- The [fortran-lang style guide](https://fortran-lang.org/learn/best_practices/style_guide/):
+  lowercase keywords and names, words separated by underscores, short but
+  unambiguous names. Like the [stdlib guide](https://stdlib.fortran-lang.org/page/contributing/StyleGuide.html):
+  `intent` on every dummy, named `end` statements, one module per file,
+  FORD `!>` comments on public entities, 4-space indentation; but 132
+  columns (stdlib's hard limit) rather than 80.
+- Enforced by `tools/check.sh` (and so CI): fprettify for layout
+  (`.fprettify.rc`), Fortitude 0.9.2 with its default rules for the rest
+  (`[extra.fortitude.check]` in fpm.toml). Notable rules: double-quoted
+  strings, `use ..., only:` everywhere, `implicit none` in interface
+  bodies, a `case default` in every `select case`, no misleading one-line
+  `if` continuations. Justified exceptions are marked in the source with
+  `! allow(rule-name)` and a comment saying why.
+
 ## Conventions learned while porting
 
 - Bytes are default-kind `character` elements: build them with `char(i)` and
@@ -218,6 +234,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-21 — Style and CI: Fortitude lint gate (all code fixed), 4-space indentation (stdlib), CI on Fedora (x86-64, aarch64) and Arch (x86-64) containers, a weekly Guix job (`.github/workflows/guix.yml`, also runnable by hand; first run unverified), on `style-ci`. Proposed instruction changes (pure Fortran incl. X11/fonts, terminal first then X11, distros, style, built-in docs) are awaiting the user's confirmation.
 - 2026-10-21 — Frame updates (`fm_frame`, `fm_dispnew`, ins/del character costs) on `phase3-dispnew` (based on main after PR #18). WIP kept aside: `fm_window` (window.c subset) for the next step. Next: `xdisp.c`/`window.c` subset; a style/CI PR (Fortitude lint gate, Fedora and Arch containers).
 - 2026-10-20 — Phase 3.2 terminal output (`fm_dispextern`, `fm_termchar`, `fm_cm`, `fm_term`), `tabs_safe_p` in fm_sysdep, PR-polling workflow recorded; on `phase3-term` (based on main after PR #17). Next: Phase 3.3, the redisplay subset (glyph matrices, one window, mode line, echo area).
 - 2026-10-20 — Open question 5 decided (pure-Fortran terminfo); `fm_terminfo` on `phase3-terminfo` (based on main after PRs #15, #16). Pure-Fortran rule recorded under design decisions. Next: Phase 3.2, `term.c`/`cm.c` output on top of it.

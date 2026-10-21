@@ -20,24 +20,24 @@
 !> Version constants.  Not a port: Fortmacs has no upstream equivalent
 !> of its own version number, only the Emacs release it tracks.
 module fm_version
-   implicit none(type, external)
-   private
+    implicit none(type, external)
+    private
 
-   public :: fortmacs_version, upstream_version, version_string
+    public :: fortmacs_version, upstream_version, version_string
 
-   !> Fortmacs release number.
-   character(len=*), parameter :: fortmacs_version = "0.0.0"
-   !> GNU Emacs release this port tracks (tag emacs-31.1).
-   character(len=*), parameter :: upstream_version = "31.1"
+    !> Fortmacs release number.
+    character(len=*), parameter :: fortmacs_version = "0.0.0"
+    !> GNU Emacs release this port tracks (tag emacs-31.1).
+    character(len=*), parameter :: upstream_version = "31.1"
 
 contains
 
-   !> One-line version banner, as printed by `fortmacs --version`.
-   pure function version_string() result(s)
-      character(len=:), allocatable :: s
+    !> One-line version banner, as printed by `fortmacs --version`.
+    pure function version_string() result(s)
+        character(len=:), allocatable :: s
 
-      s = "Fortmacs "//fortmacs_version//" (port of GNU Emacs "// &
-          upstream_version//")"
-   end function version_string
+        s = "Fortmacs "//fortmacs_version//" (port of GNU Emacs "// &
+            upstream_version//")"
+    end function version_string
 
 end module fm_version

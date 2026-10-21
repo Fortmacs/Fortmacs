@@ -13,32 +13,53 @@ env:
   # sha256 of fpm-${FPM_VERSION}.F90, as published with the fpm release.
   FPM_SHA256: "001cff6cf1145f215baa0888ba27acc06cea30a89b79d1a8be97db3fffbc8cd2"
   FPRETTIFY_VERSION: "0.3.7"
+  FORTITUDE_VERSION: "0.9.2"
 
 jobs:
   check:
-    name: check (${{ matrix.os }})
+    name: check (${{ matrix.distro }}, ${{ matrix.arch }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.os }}
+        include:
+          # Ubuntu runs on the runner itself; the others in containers.
+          - { distro: ubuntu, arch: x86-64, runner: ubuntu-24.04 }
+          - { distro: ubuntu, arch: aarch64, runner: ubuntu-24.04-arm }
+          - { distro: fedora, arch: x86-64, runner: ubuntu-24.04, image: "fedora:latest" }
+          - { distro: fedora, arch: aarch64, runner: ubuntu-24.04-arm, image: "fedora:latest" }
+          # Arch Linux publishes no official aarch64 image.
+          - { distro: arch, arch: x86-64, runner: ubuntu-24.04, image: "archlinux:latest" }
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Install gfortran
+      - name: Install packages (Ubuntu)
+        if: matrix.distro == 'ubuntu'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q gfortran valgrind
-          gfortran --version | head -1
+          sudo apt-get install -y -q gfortran valgrind pipx
+
+      - name: Install packages (Fedora)
+        if: matrix.distro == 'fedora'
+        run: dnf install -y -q gcc-gfortran valgrind pipx git curl ncurses-base which
+
+      - name: Install packages (Arch)
+        if: matrix.distro == 'arch'
+        run: pacman -Syu --noconfirm --needed gcc-fortran valgrind python-pipx git curl ncurses which
+
+      - uses: actions/checkout@v7
+
+      - name: Show compiler
+        run: gfortran --version | head -1
 
       # fpm ships no aarch64 binaries, so build it from the single-file
-      # release source on both architectures and cache the result.
+      # release source and cache the result (per distro: each has its own
+      # gfortran runtime).
       - name: Cache fpm
         id: fpm-cache
         uses: actions/cache@v6
         with:
           path: ~/.local/bin/fpm
-          key: fpm-${{ env.FPM_VERSION }}-${{ runner.arch }}
+          key: fpm-${{ env.FPM_VERSION }}-${{ matrix.distro }}-${{ runner.arch }}
 
       - name: Build fpm
         if: steps.fpm-cache.outputs.cache-hit != 'true'
@@ -50,10 +71,12 @@ jobs:
           gfortran -O1 -fopenmp -J fpm-mod -o ~/.local/bin/fpm fpm.F90
           rm -rf fpm.F90 fpm-mod
 
-      - name: Install fprettify
-        run: pipx install "fprettify==${FPRETTIFY_VERSION}"
+      - name: Install fprettify and Fortitude
+        run: |
+          pipx install "fprettify==${FPRETTIFY_VERSION}"
+          pipx install "fortitude-lint==${FORTITUDE_VERSION}"
 
-      - name: Format, build, test, and test under valgrind
+      - name: Format, lint, build, test, and test under valgrind
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           fpm --version | head -1
