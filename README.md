@@ -10,16 +10,42 @@ where you can type, delete, move within lines and save (`C-x C-s`, with a
 the minibuffer, undo, search and much more. See [PORTING.md](PORTING.md)
 for the roadmap and progress.
 
-**Progress:** Done 427 of 56,864 (~0.75%): 388 of 8,547 upstream C
-functions and 39 of 48,317 Elisp definitions. A rough estimate from
-`tools/progress.sh`.
+<!-- progress:start -->
+**Progress:**
+
+*Main*
+
+Total translations: 427 of 56,864\
+`[░         ]` (≆0.75%)
+
+Upstream C functions: 388 of 8,547\
+`[▒         ]` (≆4.50%)
+
+Elisp definitions: 39 of 48,317\
+`[░         ]` (≆0.25%)
+
+*Packages*
+
+Total packages: 0 of 7,135\
+`[          ]` (0.00%)
+
+GNU ELPA: 0 of 509\
+`[          ]` (0.00%)
+
+NonGNU ELPA: 0 of 293\
+`[          ]` (0.00%)
+
+MELPA: 0 of 6,333\
+`[          ]` (0.00%)
+
+A rough estimate from `tools/progress.sh`.
+<!-- progress:end -->
 
 ## Building
 
 Requires gfortran ≥ 13, [fpm](https://fpm.fortran-lang.org) and, for
 development, [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7
-and [Fortitude](https://fortitude.readthedocs.io) 0.9.2
-(`pip install fprettify==0.3.7 fortitude-lint==0.9.2`).
+and [Fortitude](https://fortitude.readthedocs.io) 0.9.2.
 
 ```sh
 fpm build
@@ -62,6 +88,36 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   - Native data. Elisp values are tagged objects, and floating-point
     numbers are allocated on the heap. Fortran works with plain machine
     integers, reals and arrays.
+- **Readable syntax.** Lisp's parentheses have devoted fans, but for many
+  people the sea of them is where they give up on Elisp: meaning hides in
+  nesting depth, and a misplaced paren changes what code does. Fortran
+  spells its structure out in words. Blocks say where they end (`end if`,
+  `end do`, `end subroutine name`), variables are declared with their types
+  and how they are used, and arguments can be passed by name. A command
+  that underlines the current line, in Elisp:
+
+  ```elisp
+  (defun underline-line ()
+    "Insert a line of dashes as long as the current line."
+    (interactive)
+    (let ((width (- (line-end-position) (line-beginning-position))))
+      (end-of-line)
+      (insert "\n" (make-string width ?-))))
+  ```
+
+  and in Fortran, written as Fortmacs's own commands are:
+
+  ```fortran
+  !> Insert a line of dashes as long as the current line.
+  subroutine underline_line(status)
+      type(status_type), intent(out) :: status
+      integer(int64) :: width
+
+      width = line_end_position() - line_beginning_position()
+      call end_of_line()
+      call insert(new_line("a")//repeat("-", width), status)
+  end subroutine underline_line
+  ```
 - **Errors caught at compile time.** Fortran is statically typed. With
   `implicit none` and declared argument intents, many mistakes are compile
   errors instead of runtime surprises.
@@ -75,13 +131,26 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
 The trade-off: you can't evaluate code in a running session. Changing the
 config means rebuilding (`fortmacs --recompile`).
 
+**And why not?** Rewriting Emacs in another language used to be the kind
+of idea people joked about and never tried, because it meant years of
+volunteered evenings for an experiment few would use. New tools have
+changed that: experiments that once stayed hypothetical can now become
+real without anyone giving up years of their time. Fortmacs is one of
+them, and finding out how far it goes is half the fun.
+
 ## Why AI assistance?
 
-As the progress line shows, tens of thousands of definitions need
+As the progress block shows, tens of thousands of definitions need
 rewriting in Fortran. That isn't only Elisp but Emacs's internal C as
 well. One person would have to master three languages, and even then it
 would be a monumental undertaking. Emacs is niche as it is; Emacs in
 Fortran would probably never happen.
+
+And that is only Emacs itself. Much of what people love about Emacs lives
+in its packages: GNU ELPA, NonGNU ELPA and MELPA hold over 7,000 of them
+(509, 293 and 6,333), every one written in Elisp. For Fortmacs to be
+usable, everyone's favorite package has to be available too, so they all
+need translating as well.
 
 An AI assistant changes the math:
 
