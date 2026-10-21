@@ -67,7 +67,8 @@ module editfns_fm
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
               delete_field, constrain_to_field
 
-    !> editfns.c inhibit-field-text-motion.
+    !> Non-nil means text motion commands don't notice fields.
+    !> Port of editfns.c inhibit-field-text-motion.
     logical, public :: inhibit_field_text_motion = .false.
 
 contains

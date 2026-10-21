@@ -73,7 +73,19 @@ module files_fm
         end subroutine read_file_name_in_minibuffer
     end interface
 
-    !> files.el make-backup-files.
+    !> Non-nil means make a backup of a file the first time it is saved.
+    !> This can be done by renaming the file or by copying.
+    !>
+    !> Renaming means that Emacs renames the existing file so that it is a
+    !> backup file, then writes the buffer into a new file.  Any other names
+    !> that the old file had will now refer to the backup file.  The new file
+    !> is owned by you and its group is defaulted.
+    !>
+    !> Copying means that Emacs copies the existing file into the backup
+    !> file, then writes the buffer on top of the existing file.  Any other
+    !> names that the old file had will now refer to the new (edited) file.
+    !> The file's owner and group are unchanged.  Port of files.el
+    !> make-backup-files.
     logical, public :: make_backup_files = .true.
 
     !> Buffers save_some_buffers is asking about (its map-y-or-n-p list).

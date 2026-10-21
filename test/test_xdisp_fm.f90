@@ -22,7 +22,7 @@
 module test_xdisp_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type
+    use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, resolve_buffer, &
                          erase_buffer
@@ -286,7 +286,7 @@ contains
         call init_sys_modes(slave, old, st)
         call emacs_write(master, "hi"//achar(24)//achar(3), st)
         call emacs_main("xterm-256color", slave, st)
-        call check(error, st%ok(), "emacs_main")
+        call check(error, st%ok(), "emacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
         do while (input_available(master, 100_int32))

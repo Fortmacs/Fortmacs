@@ -1,7 +1,7 @@
 ! emacs_fm.f90 -- starting and running the editor.
-! Ported from GNU Emacs 31.1 src/emacs.c (main) with the terminal setup and
-! file arguments of lisp/startup.el and lisp/faces.el
-! (tty-run-terminal-initialization).
+! Ported from GNU Emacs 31.1 src/emacs.c (main) with the terminal setup,
+! options, init file and file arguments of lisp/startup.el and
+! lisp/faces.el (tty-run-terminal-initialization).
 !
 ! Copyright (C) 1985-1987, 1993-1995, 1997-1999, 2001-2026 Free Software
 ! Foundation, Inc.
@@ -23,11 +23,14 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `emacs_main` sets up the *scratch* buffer, the key bindings and the
-!> terminal, visits the files named on the command line, then runs the
-!> command loop until C-x C-c, redisplaying whenever it waits for input.
+!> terminal, runs the init file's `configure` (unless -q), visits the
+!> files named on the command line, then runs the command loop until
+!> C-x C-c, redisplaying whenever it waits for input.  `run` is the
+!> program around it.
 module emacs_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
+    use version_fm, only: version_string
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
     use editfns_fm, only: goto_char, point_min
@@ -36,7 +39,7 @@ module emacs_fm
     use files_fm, only: find_file_noselect
     use frame_fm, only: selected_frame
     use window_fm, only: free_window
-    use sysdep_fm, only: install_interrupt_handler
+    use sysdep_fm, only: install_interrupt_handler, emacs_isatty
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
     use dispnew_fm, only: adjust_frame_glyphs
@@ -47,12 +50,28 @@ module emacs_fm
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line_1, arg_type
+    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, run
+    public :: load_init_file
 
     !> One command-line argument.
     type :: arg_type
         character(len=:), allocatable :: s
     end type arg_type
+
+    abstract interface
+        !> The user's configuration: `configure` in init.f90, run once at
+        !> startup the way upstream loads the init file.
+        subroutine init_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine init_proc
+    end interface
+
+    !> startup.el:init-file-had-error: whether the init file's
+    !> `configure` failed at startup.
+    public :: init_file_had_error
+    logical, protected :: init_file_had_error = .false.
 
 contains
 
@@ -187,13 +206,16 @@ contains
     !> `fd` until the user leaves, visiting the files in `args` first.
     !> Port of the terminal path of emacs.c:main (init_display, then the
     !> file part of startup.el:command-line, then Frecursive_edit).
-    subroutine emacs_main(terminal_type, fd, status, args)
+    subroutine emacs_main(terminal_type, fd, status, args, configure)
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
         type(arg_type), intent(in), optional :: args(:)
+        procedure(init_proc), optional :: configure
         type(handle_type) :: scratch
         type(status_type) :: st
+        type(arg_type), allocatable :: rest(:)
+        logical :: init
 
         call init_fileio()
         call init_bindings()
@@ -217,11 +239,19 @@ contains
         call realize_basic_faces(selected_frame)
         call tty_set_terminal_modes(selected_frame%tty)
 
-        ! An error in the arguments is shown once the editor is up.
+        ! startup.el:command-line: the options, then the init file, then
+        ! command-line-1 for the rest.  Errors are shown once the editor
+        ! is up.
         if (present(args)) then
-            call command_line_1(args, st)
-            if (.not. st%ok()) call message(format_error(st))
+            call command_line(args, rest, init)
+        else
+            allocate (rest(0))
+            init = .true.
         end if
+        init_file_had_error = .false.
+        if (init .and. present(configure)) call load_init_file(configure)
+        call command_line_1(rest, st)
+        if (.not. st%ok()) call message(format_error(st))
 
         redisplay_hook => do_redisplay
         call command_loop(st)
@@ -231,5 +261,110 @@ contains
         call tty_flush(selected_frame%tty, st)
         call set_input_fd(-1_int32)
     end subroutine emacs_main
+
+    !> Run the init file's `configure`.  An error is shown in the echo area
+    !> and sets `init_file_had_error`; startup goes on.  Port of
+    !> startup.el:startup--load-user-init-file (the init file is compiled
+    !> in, so loading it is calling it).
+    subroutine load_init_file(configure)
+        procedure(init_proc) :: configure
+        type(status_type) :: status
+
+        init_file_had_error = .false.
+        call configure(status)
+        if (.not. status%ok()) then
+            init_file_had_error = .true.
+            call message("An error occurred while loading the init file: "//format_error(status))
+        end if
+    end subroutine load_init_file
+
+    !> Handle the options that come before the files: -q (--no-init-file)
+    !> and -Q (--quick) turn off the init file (`init` false); `rest` gets
+    !> the arguments from the first other one on, for `command_line_1`.
+    !> Port of the option loop of startup.el:command-line.
+    subroutine command_line(args, rest, init)
+        type(arg_type), intent(in) :: args(:)
+        type(arg_type), allocatable, intent(out) :: rest(:)
+        logical, intent(out) :: init
+        character(len=:), allocatable :: argi
+        integer :: k
+
+        init = .true.
+        k = 0
+        options: do while (k < size(args))
+            argi = args(k + 1)%s
+            ! --foo is the same as -foo.
+            if (len(argi) > 2) then
+                if (argi(1:2) == "--") argi = argi(2:)
+            end if
+            select case (argi)
+            case ("-q", "-no-init-file", "-Q", "-quick")
+                init = .false.
+            case default
+                exit options
+            end select
+            k = k + 1
+        end do options
+        rest = args(k + 1:)
+    end subroutine command_line
+
+    !> The program: handle --version and --help, check for a terminal,
+    !> then run the editor with the user's `configure`.  `exit_code` is
+    !> the process's exit status (the main program stops with it).  Port
+    !> of the startup part of emacs.c:main.
+    subroutine run(configure, exit_code)
+        procedure(init_proc) :: configure
+        integer, intent(out) :: exit_code
+        character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."
+        character(len=:), allocatable :: term
+        type(arg_type), allocatable :: args(:)
+        type(status_type) :: status
+        integer :: nargs, arglen, stat, k
+
+        exit_code = 0
+        nargs = command_argument_count()
+        allocate (args(nargs))
+        do k = 1, nargs
+            call get_command_argument(k, length=arglen)
+            allocate (character(len=arglen) :: args(k)%s)
+            call get_command_argument(k, value=args(k)%s)
+        end do
+
+        if (nargs > 0) then
+            select case (args(1)%s)
+            case ("--version", "-version")
+                write (output_unit, "(a)") version_string()
+                return
+            case ("--help", "-help")
+                write (output_unit, "(a)") usage
+                write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
+                write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
+                write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
+                return
+            case default
+                ! Everything else is for startup.el:command-line.
+            end select
+        end if
+
+        ! emacs.c:main: a terminal is needed on standard input.
+        if (.not. emacs_isatty(0_int32)) then
+            write (error_unit, "(a)") "fortmacs: standard input is not a tty"
+            exit_code = 1
+            return
+        end if
+        call get_environment_variable("TERM", length=arglen, status=stat)
+        if (stat /= 0 .or. arglen == 0) then
+            write (error_unit, "(a)") "fortmacs: please set the environment variable TERM"
+            exit_code = 1
+            return
+        end if
+        allocate (character(len=arglen) :: term)
+        call get_environment_variable("TERM", term)
+        call emacs_main(term, 0_int32, status, args, configure)
+        if (.not. status%ok()) then
+            write (error_unit, "(a)") "fortmacs: "//format_error(status)
+            exit_code = 1
+        end if
+    end subroutine run
 
 end module emacs_fm

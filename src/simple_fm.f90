@@ -64,10 +64,19 @@ module simple_fm
               prefix_command_preserve_state, universal_argument_map, &
               syms_of_simple, goto_history_element, line_move, next_line, previous_line
 
-    !> goal-column: a semipermanent goal column for vertical motion, or
-    !> -1 for none.
+    !> Semipermanent goal column for vertical motion, or -1 for none (nil
+    !> upstream).  A setting other than -1 overrides the variable
+    !> `line_move_visual`, which see.  Port of simple.el goal-column.
     integer(int64), public :: goal_column = -1
-    !> line-move-visual: move by screen lines.
+    !> When true, `line_move` moves point by visual lines.
+    !> This movement is based on where the cursor is displayed on the
+    !> screen, instead of relying on buffer contents alone.  It takes
+    !> into account variable-width characters and line continuation.
+    !> If false, `line_move` moves point by logical lines.
+    !> A setting of `goal_column` overrides the value of this variable
+    !> and forces movement by logical lines.
+    !> A window that is horizontally scrolled also forces movement by logical
+    !> lines.  Port of simple.el line-move-visual.
     logical, public :: line_move_visual = .true.
     !> temporary-goal-column: the column vertical motion tries to keep;
     !> `tgc_visual` when it is a screen x (upstream's (X . HSCROLL) form)

@@ -40,7 +40,18 @@ module minibuffer_fm
 
     public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer
 
-    !> insert-default-directory.
+    !> Non-nil means when reading a filename start with default dir in minibuffer.
+    !>
+    !> When the initial minibuffer contents show a name of a file or a directory,
+    !> typing RETURN without editing the initial contents is equivalent to typing
+    !> the default file name.
+    !>
+    !> If this variable is non-nil, the minibuffer contents are always
+    !> initially non-empty, and typing RETURN without editing will fetch the
+    !> default name, if one is provided.
+    !>
+    !> If this variable is nil, the minibuffer often starts out empty.
+    !> Port of minibuffer.el insert-default-directory.
     logical, public :: insert_default_directory = .true.
 
 contains
