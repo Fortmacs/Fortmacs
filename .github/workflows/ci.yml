@@ -44,7 +44,11 @@ jobs:
 
       - name: Install packages (Arch)
         if: matrix.distro == 'arch'
-        run: pacman -Syu --noconfirm --needed gcc-fortran valgrind python-pipx git curl ncurses which
+        # Arch strips ld.so, so valgrind needs glibc's debug info, which Arch
+        # serves over debuginfod.
+        run: |
+          pacman -Syu --noconfirm --needed gcc-fortran valgrind debuginfod python-pipx git curl ncurses which
+          echo "DEBUGINFOD_URLS=https://debuginfod.archlinux.org" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
 
