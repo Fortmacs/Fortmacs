@@ -1,6 +1,6 @@
 ! keymap_fm.f90 -- keymaps: binding key sequences to commands.
-! Ported from GNU Emacs 31.1 src/keymap.c, plus key-parse from
-! lisp/keymap.el.
+! Ported from GNU Emacs 31.1 src/keymap.c, plus key-parse, key-valid-p,
+! keymap-set and keymap-global-set from lisp/keymap.el.
 !
 ! Copyright (C) 1985-1988, 1993-1995, 1998-2026 Free Software
 ! Foundation, Inc.
@@ -63,7 +63,7 @@ module keymap_fm
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
                             CHAR_CTL, CHAR_META, MAX_CHAR, &
                             MAX_MULTIBYTE_LENGTH, char_string, &
-                            string_char_and_length
+                            string_char_and_length, multibyte_length
     use buffer_fm, only: buffers, cur
     implicit none(type, external)
     private
@@ -78,6 +78,18 @@ module keymap_fm
     public :: parse_modifiers, apply_modifiers
     public :: key_parse, key_description, single_key_description, &
               push_key_description
+    public :: key_valid_p, keymap_set, keymap_global_set
+
+    !> Bind a key given as a `key_valid_p` string.  A character `command`
+    !> names a command (a symbol); a value is any key definition.
+    interface keymap_set
+        module procedure keymap_set_value, keymap_set_command
+    end interface keymap_set
+
+    !> Bind a key in the global map; see `keymap_set`.
+    interface keymap_global_set
+        module procedure keymap_global_set_value, keymap_global_set_command
+    end interface keymap_global_set
 
     !> Modifier bits as int64 (termhooks.h).
     integer(int64), parameter :: M_ALT = int(CHAR_ALT, int64), &
@@ -1502,5 +1514,166 @@ contains
             numeric_word = len(w) >= s .and. verify(w(s:), "0123456789") == 0
         end function numeric_word
     end subroutine key_parse
+
+    !> Return non-nil if KEYS, a key sequence, is valid.
+    !> This function checks key sequences that are being input to
+    !> `keymap_set`, `keymap_global_set` and the like.
+    !>
+    !> A key has the form "A-C-H-M-S-s-key" (the modifiers in this order),
+    !> where "key" is a single character, a name in angle brackets such as
+    !> "<f1>" or "<mouse-1>", or one of NUL, RET, TAB, LFD, ESC, SPC, DEL.
+    !> Keys of a sequence are separated by single spaces.  Control and
+    !> Meta'd characters are not accepted as keys: write "C-a" and "M-a".
+    !> Port of keymap.el:key-valid-p.
+    pure logical function key_valid_p(keys)
+        character(len=*), intent(in) :: keys
+        integer :: b, e, n
+
+        key_valid_p = .false.
+        n = len(keys)
+        ! "\`[^ ]+\( [^ ]+\)*\'"
+        if (n == 0) return
+        if (keys(1:1) == " " .or. keys(n:n) == " ") return
+        if (index(keys, "  ") > 0) return
+        b = 1
+        do while (b <= n)
+            e = index(keys(b:), " ")
+            if (e == 0) then
+                e = n
+            else
+                e = b + e - 2
+            end if
+            if (.not. valid_key(keys(b:e))) return
+            b = e + 2
+        end do
+        key_valid_p = .true.
+    end function key_valid_p
+
+    !> Whether one space-free word of `key_valid_p` input is a valid key.
+    pure logical function valid_key(word)
+        character(len=*), intent(in) :: word
+        integer :: s, m
+
+        s = after_modifiers(word, 1)
+        associate (key => word(s:))
+            if (len(key) == 1) then
+                ! A printing ASCII character (unibyte 127..255 are Meta'd).
+                valid_key = iachar(key) >= 32 .and. iachar(key) < 127
+            else if (len(key) >= 2 .and. multibyte_length(key, 1_int64, .false.) == len(key)) then
+                ! One multibyte (non-ASCII) character.
+                valid_key = .true.
+            else if (len(key) >= 3 .and. key(1:1) == "<" .and. key(len(key):len(key)) == ">") then
+                ! "\`<[-_A-Za-z0-9]+>\'", with no modifiers inside.
+                m = len(key) - 1
+                valid_key = verify(key(2:m), "-_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") == 0 &
+                            .and. after_modifiers(key, 2) == 2
+            else
+                select case (key)
+                case ("NUL", "RET", "TAB", "LFD", "ESC", "SPC", "DEL")
+                    valid_key = .true.
+                case default
+                    valid_key = .false.
+                end select
+            end if
+        end associate
+    end function valid_key
+
+    !> Skip the modifier prefixes "A-C-H-M-S-s-" (each optional, in this
+    !> order) starting at `start` of `word`; the position after them.
+    pure integer function after_modifiers(word, start) result(s)
+        character(len=*), intent(in) :: word
+        integer, intent(in) :: start
+        character(len=*), parameter :: order = "ACHMSs"
+        integer :: k
+
+        s = start
+        do k = 1, len(order)
+            if (s + 1 > len(word)) exit
+            if (word(s:s) == order(k:k) .and. word(s + 1:s + 1) == "-") s = s + 2
+        end do
+    end function after_modifiers
+
+    !> Signal an error if KEY doesn't have a valid syntax.  Port of
+    !> keymap.el:keymap--check.
+    subroutine keymap_check(key, status)
+        character(len=*), intent(in) :: key
+        type(status_type), intent(out) :: status
+
+        if (.not. key_valid_p(key)) then
+            call set_error(status, FM_GENERIC_ERROR, &
+                           """"//key//""" is not a valid key definition; see `key-valid-p'")
+        end if
+    end subroutine keymap_check
+
+    !> Set KEY to DEFINITION in KEYMAP.
+    !> KEY is a string that satisfies `key_valid_p`.
+    !> If DEFINITION is a string, it must also satisfy `key_valid_p`.
+    !>
+    !> DEFINITION is anything that can be a key's definition:
+    !>  nil (means key is undefined in this keymap),
+    !>  a command (a symbol naming a registered command),
+    !>  a string (treated as a keyboard macro or a sequence of input events),
+    !>  a keymap (to define a prefix key).
+    !> Port of keymap.el:keymap-set.
+    subroutine keymap_set_value(keymap, key, definition, status)
+        type(handle_type), intent(in) :: keymap
+        character(len=*), intent(in) :: key
+        type(value_type), intent(in) :: definition
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: events(:), macro(:)
+
+        call keymap_check(key, status)
+        if (.not. status%ok()) return
+        call key_parse(key, events, status)
+        if (.not. status%ok()) return
+        ! If we're binding this key to another key, then parse that other
+        ! key, too (a keyboard macro, which is a list of events here).
+        if (vtag(definition) == V_STRING) then
+            call keymap_check(xstring(definition), status)
+            if (.not. status%ok()) return
+            call key_parse(xstring(definition), macro, status)
+            if (.not. status%ok()) return
+            call define_key(keymap, events, make_list(macro), status)
+        else
+            call define_key(keymap, events, definition, status)
+        end if
+    end subroutine keymap_set_value
+
+    !> Set KEY to the command named COMMAND in KEYMAP: `keymap_set` with
+    !> the symbol COMMAND as the definition.
+    subroutine keymap_set_command(keymap, key, command, status)
+        type(handle_type), intent(in) :: keymap
+        character(len=*), intent(in) :: key, command
+        type(status_type), intent(out) :: status
+
+        call keymap_set_value(keymap, key, make_symbol_ref(intern(command)), status)
+    end subroutine keymap_set_command
+
+    !> Give KEY a global binding as COMMAND.
+    !> KEY is a string that must satisfy `key_valid_p`.
+    !>
+    !> COMMAND is the command definition to use: anything that
+    !> `keymap_set` accepts as its DEFINITION argument.
+    !>
+    !> Note that if KEY has a local binding in the current buffer,
+    !> that local binding will continue to shadow any global binding
+    !> that you make with this function.  Port of keymap.el:keymap-global-set.
+    subroutine keymap_global_set_value(key, command, status)
+        character(len=*), intent(in) :: key
+        type(value_type), intent(in) :: command
+        type(status_type), intent(out) :: status
+
+        call keymap_set_value(current_global_map(), key, command, status)
+    end subroutine keymap_global_set_value
+
+    !> Give KEY a global binding as the command named COMMAND, e.g.
+    !>
+    !>     call keymap_global_set("C-c f", "find-file", status)
+    subroutine keymap_global_set_command(key, command, status)
+        character(len=*), intent(in) :: key, command
+        type(status_type), intent(out) :: status
+
+        call keymap_set_command(current_global_map(), key, command, status)
+    end subroutine keymap_global_set_command
 
 end module keymap_fm

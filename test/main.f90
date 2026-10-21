@@ -48,6 +48,7 @@ program tester
     use test_files_fm, only: collect_files_fm
     use test_minibuf_fm, only: collect_minibuf_fm
     use test_indent_fm, only: collect_indent_fm
+    use test_emacs_fm, only: collect_emacs_fm
     implicit none(type, external)
 
     ! test-drive's interfaces take default integers.
@@ -81,7 +82,8 @@ program tester
                  new_testsuite("fileio_fm", collect_fileio_fm), &
                  new_testsuite("files_fm", collect_files_fm), &
                  new_testsuite("minibuf_fm", collect_minibuf_fm), &
-                 new_testsuite("indent_fm", collect_indent_fm) &
+                 new_testsuite("indent_fm", collect_indent_fm), &
+                 new_testsuite("emacs_fm", collect_emacs_fm) &
                  ]
 
     call get_argument(1, suite_name)

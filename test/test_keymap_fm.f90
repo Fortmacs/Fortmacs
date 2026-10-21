@@ -34,7 +34,9 @@ module test_keymap_fm
                          key_binding, key_description, key_parse, keymap_full_p, keymap_live_p, &
                          keymap_parent, keymap_prompt, keymapp, lookup_key, make_keymap, &
                          make_sparse_keymap, push_key_description, set_keymap_parent, &
-                         single_key_description, use_local_map
+                         single_key_description, use_local_map, key_valid_p, keymap_set, &
+                         keymap_global_set
+    use subr_fm, only: global_set_key
     implicit none(type, external)
     private
 
@@ -70,7 +72,10 @@ contains
                     new_unittest("keymap-key-parse", test_key_parse), &
                     new_unittest("keymap--key-description", test_key_description), &
                     new_unittest("keymap-key-binding", test_key_binding), &
-                    new_unittest("keymap-free", test_free) &
+                    new_unittest("keymap-free", test_free), &
+                    new_unittest("subr-test-key-valid-p", test_key_valid_p), &
+                    new_unittest("keymap-set-consistency", test_keymap_set), &
+                    new_unittest("keymap-global-set", test_keymap_global_set) &
                     ]
     end subroutine collect_keymap_fm
 
@@ -622,5 +627,94 @@ contains
         call free_keymap(map, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "stale")
     end subroutine test_free
+
+    subroutine test_key_valid_p(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: n_tilde = char(195)//char(177), u_umlaut = char(195)//char(188)
+        character(len=16), allocatable :: valid(:), invalid(:)
+        integer :: k
+
+        valid = [character(len=16) :: "f", "X", "X f", &
+                 "<F2>", "<f1> <f2> TAB", "<f1> RET", "<f1> SPC", "<f1>", "<return>", &
+                 "C-x", "C-x a", "C-;", "C-a", "C-c SPC", "C-c TAB", "C-c c", "C-x 4 C-f", &
+                 "C-x C-f", "C-M-<down>", "C-RET", "C-SPC", "C-TAB", "C-<down>", "C-c C-c C-c", &
+                 "M-a", "M-<DEL>", "C-M-a", "M-ESC", "M-RET", "M-SPC", "M-TAB", "M-x a", &
+                 "M-<up>", "M-c M-c M-c", &
+                 "s-SPC", "s-a", "s-x a", "s-c s-c s-c", &
+                 "S-a", "S-x a", "S-c S-c S-c", &
+                 "H-<RET>", "H-DEL", "H-a", "H-x a", "H-c H-c H-c", &
+                 "A-H-a", "A-SPC", "A-TAB", "A-a", "A-c A-c A-c", &
+                 "C-M-a", "C-M-<up>", &
+                 "DEL", "ESC C-a", "ESC", "LFD", "NUL", "RET", "SPC", "TAB", &
+                 n_tilde, u_umlaut, char(195)//char(182), char(196)//char(159), &
+                 char(213)//char(161), "C-"//u_umlaut, "M-"//u_umlaut, "H-"//u_umlaut, &
+                 "s-<return>", "C-M-<return>", "<mouse-1>", "<Scroll_Lock>"]
+        invalid = [character(len=16) :: " X", "a  b", "foobar", "return", "[f1]", "< right >", &
+                   "<C-M-down>", "M-C-a", "S-H-a", achar(9), "^M", achar(127), achar(0), &
+                   "\177", "\000", "C-x \150", u_umlaut//u_umlaut//char(195)//char(182)//char(195)//char(182), &
+                   "<s-return>", "<C-M-return>", "c-x", "C-xx", "M-xx", "M-x<TAB>"]
+
+        call check(error,.not. key_valid_p(""), "empty")
+        if (allocated(error)) return
+        do k = 1, size(valid)
+            call check(error, key_valid_p(trim(valid(k))), "valid: "//trim(valid(k)))
+            if (allocated(error)) return
+        end do
+        do k = 1, size(invalid)
+            ! Trimming would lose the significant spaces of " X".
+            if (k == 1) then
+                call check(error,.not. key_valid_p(" X"), "invalid:  X")
+            else
+                call check(error,.not. key_valid_p(trim(invalid(k))), "invalid: "//trim(invalid(k)))
+            end if
+            if (allocated(error)) return
+        end do
+    end subroutine test_key_valid_p
+
+    !> A string definition is a key to type: a keyboard macro, which is a
+    !> list of events here.
+    subroutine test_keymap_set(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: k
+        type(value_type) :: a
+        type(status_type) :: st
+
+        call make_sparse_keymap(k)
+        call keymap_set(k, "a", make_string("a"), st)
+        call check(error, st%ok(), "keymap-set")
+        if (allocated(error)) return
+        a = make_fixnum(97_int64)
+        call check(error, value_equal(lookup(ref(k), kbd("a")), list(a)), "a")
+        if (allocated(error)) return
+        call keymap_set(k, "C-c b", "backward-char", st)
+        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward-char")), "a command name")
+        if (allocated(error)) return
+        call keymap_set(k, "b", make_string("C-xx"), st)
+        call check(error, st%detail, """C-xx"" is not a valid key definition; see `key-valid-p'")
+        call free(k)
+    end subroutine test_keymap_set
+
+    subroutine test_keymap_global_set(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: global
+        type(status_type) :: st
+
+        global = ref(current_global_map())
+        call keymap_global_set("C-c x", "forward-char", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward-char")), &
+                   "keymap-global-set")
+        if (allocated(error)) return
+        call keymap_global_set("C-c x", nil(), st)
+        call check(error, nilp(lookup(global, kbd("C-c x"))), "unbound with nil")
+        if (allocated(error)) return
+        call keymap_global_set("C-xx", "forward-char", st)
+        call check(error, st%detail, """C-xx"" is not a valid key definition; see `key-valid-p'")
+        if (allocated(error)) return
+        call global_set_key(kbd("C-c y"), "backward-char", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward-char")), &
+                   "global-set-key")
+        call define_key(current_global_map(), kbd("C-c y"), nil(), st, remove=.true.)
+        call define_key(current_global_map(), kbd("C-c x"), nil(), st, remove=.true.)
+    end subroutine test_keymap_global_set
 
 end module test_keymap_fm

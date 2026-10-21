@@ -63,7 +63,10 @@ module xdisp_fm
     !> text (while a prompt there waits for an answer).
     logical, public :: cursor_in_echo_area = .false.
 
-    !> buffer.c BVAR tab_width (the default).
+    !> Distance between tab stops (for display of tab characters), in columns.
+    !> This controls the width of a TAB character on display.
+    !> The value should be a positive integer.  Port of buffer.c tab-width
+    !> (one value for all buffers until buffer-local variables exist).
     integer, public :: tab_width = 8
 
 contains

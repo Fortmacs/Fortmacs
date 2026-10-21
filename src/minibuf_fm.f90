@@ -52,11 +52,16 @@ module minibuf_fm
               minibufferp, abort_minibuffers, init_minibuf
     !> minibuf_level: the depth of active minibuffers.
     integer, public, protected :: minibuf_level = 0
-    !> enable-recursive-minibuffers.
+    !> Non-nil means to allow minibuffer commands while in the minibuffer.
+    !> This variable makes a difference whenever the minibuffer window is active.
+    !> Port of minibuf.c enable-recursive-minibuffers.
     logical, public :: enable_recursive_minibuffers = .false.
     !> minibuffer-local-map, the default keymap for reading.
     type(handle_type), public :: minibuffer_local_map
-    !> history-add-new-input.
+    !> Non-nil means to add new elements in history.
+    !> If set to false, minibuffer reading functions don't add new elements to the
+    !> history list, so it is possible to do this afterwards by calling
+    !> `add_to_history` explicitly.  Port of minibuf.c history-add-new-input.
     logical, public :: history_add_new_input = .true.
 
     !> Vminibuffer_history_variable: the history list's symbol name.

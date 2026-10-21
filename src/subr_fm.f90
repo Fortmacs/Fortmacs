@@ -33,12 +33,23 @@ module subr_fm
     use data_fm, only: symbol_value, set
     use keyboard_fm, only: read_event, discard_input
     use xdisp_fm, only: message, cursor_in_echo_area
+    use keymap_fm, only: define_key, current_global_map
     implicit none(type, external)
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
+    public :: global_set_key
 
-    !> history-length: the longest history list kept.
+    !> Give KEY a global binding as COMMAND (a command name or any key
+    !> definition).
+    interface global_set_key
+        module procedure global_set_key_value, global_set_key_command
+    end interface global_set_key
+
+    !> Maximum length of history lists before truncation takes place.
+    !> A number means truncate to that length; truncation deletes old
+    !> elements, and is done just after inserting a new element.
+    !> Port of minibuf.c history-length (no t for "no truncation" yet).
     integer, public :: history_length = 100
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE
@@ -174,5 +185,32 @@ contains
         end if
         call set(sym(history_var), longer, status)
     end subroutine add_to_history
+
+    !> Give KEY a global binding as COMMAND.
+    !> This is a legacy function; see `keymap_global_set` for the
+    !> recommended function to use instead.
+    !>
+    !> COMMAND is the command definition to use; usually it is
+    !> a symbol naming an interactively-callable function.
+    !> KEY is a key sequence: a vector of events, as `key_parse` makes.
+    !>
+    !> Note that if KEY has a local binding in the current buffer,
+    !> that local binding will continue to shadow any global binding
+    !> that you make with this function.  Port of subr.el:global-set-key.
+    subroutine global_set_key_value(key, command, status)
+        type(value_type), intent(in) :: key(:), command
+        type(status_type), intent(out) :: status
+
+        call define_key(current_global_map(), key, command, status)
+    end subroutine global_set_key_value
+
+    !> `global_set_key` with the command named COMMAND.
+    subroutine global_set_key_command(key, command, status)
+        type(value_type), intent(in) :: key(:)
+        character(len=*), intent(in) :: command
+        type(status_type), intent(out) :: status
+
+        call define_key(current_global_map(), key, sym(command), status)
+    end subroutine global_set_key_command
 
 end module subr_fm
