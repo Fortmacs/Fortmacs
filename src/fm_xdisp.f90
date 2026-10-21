@@ -57,7 +57,7 @@ module fm_xdisp
     private
 
     public :: redisplay, init_frame_windows, realize_basic_faces, glyph_width, &
-              mode_line_text, layout_window, message
+              mode_line_text, layout_window, message, glyph_columns
 
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
     !> text (while a prompt there waits for an answer).
@@ -169,6 +169,16 @@ contains
             cells(1)%ch = c
         end if
     end subroutine produce_char
+
+    !> Columns character `c` takes when displayed at column `x` (for
+    !> TAB, the distance to the next tab stop).
+    integer function glyph_columns(c, x) result(n)
+        integer(int32), intent(in) :: c
+        integer, intent(in) :: x
+        type(glyph_type) :: cells(8)
+
+        call produce_char(c, x, cells, n)
+    end function glyph_columns
 
     !> Lay out buffer slot `bi` from `start` in `rows` (one per window
     !> body line) `width` columns wide.  Gives the cursor position of `pt`

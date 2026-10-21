@@ -29,7 +29,7 @@
 module fm_simple
     use, intrinsic :: iso_fortran_env, only: int64
     use fm_error, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, &
-                        FM_USER_ERROR
+                        FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use fm_handle, only: handle_type
     use fm_lisp, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt
@@ -37,14 +37,18 @@ module fm_simple
     use fm_data, only: value_eq
     use fm_character, only: MAX_CHAR
     use fm_buffer, only: barf_if_buffer_read_only, buffers, cur
-    use fm_editfns, only: point, goto_char, point_max
+    use fm_editfns, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
+                          bolp, constrain_to_field, pos_eol
+    use fm_textprop, only: get_text_property
+    use fm_indent, only: current_column, move_to_column, vertical_motion, screen_column
     use fm_insdel, only: insert, del_range
     use fm_data, only: symbol_value
     use fm_lisp, only: list_length, xstring, stringp
     use fm_minibuf, only: minibuffer_history_position, minibuffer_history_variable, &
                           minibuffer_default, minibuffer_text_before_history, &
                           minibuffer_prompt_end, minibuffer_contents
-    use fm_cmds, only: delete_char, self_insert_command
+    use fm_cmds, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
+                       backward_char
     use fm_keymap, only: make_sparse_keymap, define_key, keymap_live_p, &
                          key_description
     use fm_callint, only: defcommand, current_prefix_arg, prefix_arg, &
@@ -58,7 +62,18 @@ module fm_simple
 
     public :: newline, open_line, delete_backward_char, &
               prefix_command_preserve_state, universal_argument_map, &
-              syms_of_simple, goto_history_element
+              syms_of_simple, goto_history_element, line_move, next_line, previous_line
+
+    !> goal-column: a semipermanent goal column for vertical motion, or
+    !> -1 for none.
+    integer(int64), public :: goal_column = -1
+    !> line-move-visual: move by screen lines.
+    logical, public :: line_move_visual = .true.
+    !> temporary-goal-column: the column vertical motion tries to keep;
+    !> `tgc_visual` when it is a screen x (upstream's (X . HSCROLL) form)
+    !> rather than a current-column.
+    integer(int64) :: temporary_goal_column = 0
+    logical :: tgc_visual = .false.
 
     type(handle_type) :: uarg_map
 
@@ -301,6 +316,205 @@ contains
 
     !> Register this module's commands.
     ! ------------------------------------------------------------------
+    ! Vertical motion
+    ! ------------------------------------------------------------------
+
+    !> Whether the last command was next-line or previous-line.
+    logical function after_line_move()
+        after_line_move = value_eq(last_command, sym("next-line")) .or. &
+                          value_eq(last_command, sym("previous-line"))
+    end function after_line_move
+
+    !> Move `arg` lines down (up if negative), keeping the goal column; by
+    !> screen lines unless a goal column is set or line-move-visual is
+    !> off.  With `noerror`, stopping early is not an error.  Port of
+    !> simple.el:line-move (no vscroll, which terminals don't have).
+    subroutine line_move(arg, status, noerror)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: noerror
+        logical :: quiet
+
+        quiet = .false.
+        if (present(noerror)) quiet = noerror
+        if (line_move_visual .and. goal_column < 0) then
+            call line_move_visual_1(arg, quiet, status)
+        else
+            call line_move_1(arg, quiet, status)
+        end if
+    end subroutine line_move
+
+    !> Port of simple.el:line-move-visual: keep the cursor's screen x.
+    subroutine line_move_visual_1(arg, noerror, status)
+        integer(int64), intent(in) :: arg
+        logical, intent(in) :: noerror
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, moved
+        logical :: ok
+
+        opoint = point()
+        if (.not. (tgc_visual .and. after_line_move())) then
+            temporary_goal_column = screen_column()
+            tgc_visual = .true.
+        end if
+        call vertical_motion(arg, moved, int(temporary_goal_column))
+        if (arg >= 0) then
+            ok = moved >= arg
+        else
+            ok = moved <= arg
+            if (ok .and. point() == opoint) then
+                call vertical_motion(arg, moved)
+                ok = moved == arg
+            end if
+        end if
+        if (.not. ok .and. .not. noerror) then
+            if (arg < 0) then
+                call set_error(status, FM_BEGINNING_OF_BUFFER)
+            else
+                call set_error(status, FM_END_OF_BUFFER)
+            end if
+        end if
+    end subroutine line_move_visual_1
+
+    !> Port of simple.el:line-move-1: move by buffer lines to the goal
+    !> column (no invisible text or selective display yet).
+    subroutine line_move_1(arg, noerror, status)
+        integer(int64), intent(in) :: arg
+        logical, intent(in) :: noerror
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, n, shortage, npoint, column
+        logical :: done
+
+        opoint = point()
+        if (tgc_visual) then
+            ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
+            tgc_visual = .false.
+        end if
+        if (.not. after_line_move()) temporary_goal_column = current_column()
+
+        n = arg
+        done = .false.
+        if (n > 0) then
+            if (n > 1) shortage = forward_line(n - 1)
+            call end_of_line()
+            if (forward_line(1_int64) == 0) then
+                n = 0
+                done = .true.
+            end if
+        else
+            if (forward_line(n) == 0) then
+                if (bolp()) then
+                    n = 0
+                    done = .true.
+                end if
+            end if
+        end if
+        if (.not. done .and. .not. noerror) then
+            if (n < 0) then
+                call set_error(status, FM_BEGINNING_OF_BUFFER)
+            else
+                call set_error(status, FM_END_OF_BUFFER)
+            end if
+        end if
+
+        if (n > 0) then
+            npoint = line_end_position()
+            call goto_char(opoint)
+            call goto_char(npoint)
+        else if (n < 0) then
+            npoint = line_beginning_position()
+            call goto_char(opoint)
+            call goto_char(npoint)
+        else
+            column = temporary_goal_column
+            if (goal_column >= 0) column = goal_column
+            call line_move_finish(column, opoint, arg > 0)
+        end if
+    end subroutine line_move_1
+
+    !> Go to `column` on the line reached, without moving backward when
+    !> moving forward, and stay in the field of `opoint`.  Port of
+    !> simple.el:line-move-finish (no invisible text).
+    subroutine line_move_finish(column, opoint, forward)
+        integer(int64), intent(in) :: column, opoint
+        logical, intent(in) :: forward
+        integer(int64) :: old, new, line_beg, line_end, moved, reached
+        type(value_type) :: new_field, old_field
+        type(status_type) :: st
+        logical :: repeat
+
+        repeat = .true.
+        do while (repeat)
+            repeat = .false.
+            old = point()
+            line_beg = line_beginning_position()
+            ! (skip-chars-forward "^\n"), ignoring fields
+            line_end = pos_eol()
+            if (line_move_visual) then
+                call vertical_motion(0_int64, moved, int(column))
+            else if (column == 0) then
+                call beginning_of_line()
+            else
+                call move_to_column(column, reached)
+            end if
+            if (forward .and. point() < old) call goto_char(old)
+            new = point()
+            if (new > line_end) then
+                call backward_char(st)
+                if (forward) then
+                    if (line_beg < point()) then
+                        new = point()
+                    else
+                        new = line_end
+                    end if
+                else if (point() <= line_end) then
+                    new = point()
+                else
+                    new = line_end
+                end if
+            end if
+            call goto_char(opoint)
+            call get_text_property(new, sym("field"), new_field, st)
+            call get_text_property(opoint, sym("field"), old_field, st)
+            if (value_eq(new_field, old_field)) then
+                call goto_char(new)
+            else
+                call goto_char(constrain_to_field(new, opoint, .true., .true.))
+            end if
+            if (point() < line_beg .or. point() > line_end) repeat = .true.
+        end do
+    end subroutine line_move_finish
+
+    !> Move down `arg` lines (C-n, <down>).  Port of simple.el:next-line
+    !> (no next-line-add-newlines).
+    subroutine next_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        call line_move(arg, status)
+    end subroutine next_line
+
+    !> Move up `arg` lines (C-p, <up>).  Port of simple.el:previous-line.
+    subroutine previous_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        call line_move(-arg, status)
+    end subroutine previous_line
+
+    subroutine cmd_next_line(status)
+        type(status_type), intent(out) :: status
+
+        call next_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_line
+
+    subroutine cmd_previous_line(status)
+        type(status_type), intent(out) :: status
+
+        call previous_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_line
+
+    ! ------------------------------------------------------------------
     ! Minibuffer history
     ! ------------------------------------------------------------------
 
@@ -402,6 +616,8 @@ contains
     subroutine syms_of_simple()
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
+        call defcommand("next-line", cmd_next_line)
+        call defcommand("previous-line", cmd_previous_line)
         call defcommand("previous-history-element", cmd_previous_history_element)
         call defcommand("next-history-element", cmd_next_history_element)
         call defcommand("newline", cmd_newline)

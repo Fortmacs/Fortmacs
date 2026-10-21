@@ -5,11 +5,11 @@ and aarch64. Configuration is Fortran too: your `init.f90` is compiled into
 the binary, xmonad-style. There is no Elisp.
 
 **Status:** early porting. Fortmacs runs as a bare-bones terminal editor:
-open files (`fortmacs FILE` or `C-x C-f`), type, delete, move within lines,
-and save (`C-x C-s`, with a `FILE~` backup; `C-x C-w` to write elsewhere).
-Most of Emacs is still missing: moving between lines, completion, undo,
-search and much more. See [PORTING.md](PORTING.md) for the roadmap and
-progress.
+open files (`fortmacs FILE` or `C-x C-f`), type, delete, move by character
+and line, and save (`C-x C-s`, with a `FILE~` backup; `C-x C-w` to write
+elsewhere). Most of Emacs is still missing: completion, undo, search,
+scrolling commands and much more. See [PORTING.md](PORTING.md) for the
+roadmap and progress.
 
 <!-- progress:start -->
 **Progress:**
@@ -18,7 +18,7 @@ progress.
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
 <tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆0.75%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆0.75%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆4.75%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.25%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">466<br>of 63,999</td><td align="center">466<br>of 56,864</td><td align="center">413<br>of 8,547</td><td align="center">53<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">475<br>of 63,999</td><td align="center">475<br>of 56,864</td><td align="center">416<br>of 8,547</td><td align="center">59<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
 <tr><td align="center">≆0.75%</td><td align="center">≆0.75%</td><td align="center">≆4.75%</td><td align="center">≆0.25%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
