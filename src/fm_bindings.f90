@@ -42,6 +42,8 @@ module fm_bindings
     use fm_cmds, only: syms_of_cmds, forward_char, backward_char
     use fm_simple, only: syms_of_simple
     use fm_files, only: syms_of_files
+    use fm_minibuf, only: init_minibuf, minibuffer_local_map
+    use fm_minibuffer, only: syms_of_minibuffer
     implicit none(type, external)
     private
 
@@ -167,6 +169,20 @@ contains
         call bind(global_map, "<deletechar>", "delete-forward-char")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
+
+        ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
+        ! then its history keys from bindings.el (<up> and <down> are
+        ! previous/next-line-or-history-element upstream, the same in a
+        ! one-line minibuffer).
+        if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
+        call init_minibuf()
+        call syms_of_minibuffer()
+        call bind(minibuffer_local_map, "M-n", "next-history-element")
+        call bind(minibuffer_local_map, "<next>", "next-history-element")
+        call bind(minibuffer_local_map, "<down>", "next-history-element")
+        call bind(minibuffer_local_map, "M-p", "previous-history-element")
+        call bind(minibuffer_local_map, "<prior>", "previous-history-element")
+        call bind(minibuffer_local_map, "<up>", "previous-history-element")
 
         ! bindings.el: function-key-map, the parent of every terminal's
         ! local-function-key-map.

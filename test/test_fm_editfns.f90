@@ -33,7 +33,12 @@ module test_fm_editfns
                           delete_region, eobp, eolp, following_char, gap_position, goto_char, &
                           goto_char_marker, insert_char_n, narrow_to_region, point, point_marker, &
                           point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
-                          preceding_char, widen
+                          preceding_char, widen, field_beginning, field_end, field_string, &
+                          constrain_to_field, line_beginning_position, line_end_position, &
+                          delete_field
+    use fm_lisp, only: list, t_value
+    use fm_lread, only: sym
+    use fm_textprop, only: add_text_properties
     implicit none(type, external)
     private
 
@@ -59,7 +64,9 @@ contains
                     new_unittest("delete-region", test_delete), &
                     new_unittest("insert-char-count", test_insert_char), &
                     new_unittest("point-markers", test_point_markers), &
-                    new_unittest("erase-buffer-widens", test_erase) &
+                    new_unittest("erase-buffer-widens", test_erase), &
+                    new_unittest("find-fields", test_find_fields), &
+                    new_unittest("prompt-field", test_prompt_field) &
                     ]
     end subroutine collect_fm_editfns
 
@@ -367,5 +374,63 @@ contains
                    "erase-buffer must widen and delete everything")
         call leave(h, old)
     end subroutine test_erase
+
+    ! editfns-tests.el: find-fields
+    subroutine test_find_fields(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        logical :: changed
+
+        call enter("te-fields", h, old)
+        call insert("foobarzot", st)
+        call add_text_properties(4_int64, 7_int64, list(sym("field"), sym("bar")), changed, st)
+        call goto_char(point_min())
+        call check(error, field_beginning(point(), .false.) == point_min() .and. &
+                   field_end(point(), .false.) == 4)
+        if (allocated(error)) return
+        call goto_char(5_int64)
+        call check(error, field_beginning(point(), .false.) == 4 .and. field_end(point(), .false.) == 7)
+        if (allocated(error)) return
+        call goto_char(8_int64)
+        call check(error, field_beginning(point(), .false.) == 7 .and. &
+                   field_end(point(), .false.) == point_max())
+        if (allocated(error)) return
+        call check(error, field_string(5_int64) == "bar")
+        if (allocated(error)) return
+        call delete_field(5_int64, st)
+        call check(error, buffer_string() == "foozot")
+        call leave(h, old)
+    end subroutine test_find_fields
+
+    !> A minibuffer-style prompt (a read-only, front-sticky,
+    !> rear-nonsticky field): line motion stops after it.
+    subroutine test_prompt_field(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        logical :: changed
+
+        call enter("te-prompt", h, old)
+        call insert("Find file: ", st)
+        call add_text_properties(1_int64, point(), &
+                                 list(sym("field"), t_value(), sym("front-sticky"), t_value(), &
+                                      sym("rear-nonsticky"), t_value()), changed, st)
+        call insert("/tmp/x", st)
+        call check(error, line_beginning_position() == 12, "C-a stops after the prompt")
+        if (allocated(error)) return
+        call check(error, line_end_position() == 18)
+        if (allocated(error)) return
+        call check(error, constrain_to_field(3_int64, 15_int64, .false., .false.) == 12)
+        if (allocated(error)) return
+        ! At the prompt end (the input field's start), escaping stays put.
+        call goto_char(12_int64)
+        call check(error, line_beginning_position() == 12)
+        if (allocated(error)) return
+        ! In the prompt itself, the line starts at the buffer start.
+        call goto_char(5_int64)
+        call check(error, line_beginning_position() == 1)
+        call leave(h, old)
+    end subroutine test_prompt_field
 
 end module test_fm_editfns

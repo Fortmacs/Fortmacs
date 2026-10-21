@@ -48,6 +48,20 @@ module fm_fns
     public :: value_equal, length, nth, nthcdr, memq, member
     public :: string_lessp, string_greaterp
     public :: plist_get, plist_put, plist_member, get, put
+    public :: yes_or_no_p
+
+    interface
+        !> Ask a yes-or-no question in the minibuffer: `answer` is true for
+        !> "yes", false for "no"; anything else asks again.  Port of
+        !> fns.c:Fyes_or_no_p.  (In submodule fm_fns_ask, as the minibuffer
+        !> depends on this module.)
+        recursive module subroutine yes_or_no_p(prompt, answer, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            logical, intent(out) :: answer
+            type(status_type), intent(out) :: status
+        end subroutine yes_or_no_p
+    end interface
 
 contains
 

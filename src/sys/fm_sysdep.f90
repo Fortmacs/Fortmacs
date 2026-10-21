@@ -34,7 +34,7 @@ module fm_sysdep
                                                                               c_signed_char, c_funloc, c_funptr
     use fm_error, only: status_type, set_error, FM_FILE_ERROR
     use fm_sys_linux, only: c_close, c_grantpt, c_ioctl_winsize, c_isatty, c_open, c_poll, c_posix_openpt, &
-                            c_ptsname, c_read, c_signal, c_string_to_fortran, c_tcgetattr, &
+                            c_ptsname, c_read, c_signal, sigint, c_string_to_fortran, c_tcgetattr, &
                             c_tcsetattr, c_unlockpt, c_write, cdisable, cs8, echo, eintr, errno, &
                             icanon, icrnl, iexten, ignbrk, inlcr, isig, istrip, ixany, ixon, &
                             o_noctty, o_rdwr, onlcr, parenb, pollfd_type, pollin, sigwinch, tab3, &
@@ -63,6 +63,7 @@ module fm_sysdep
               reset_sys_modes, get_tty_size, set_tty_size, emacs_read, &
               emacs_full_write, emacs_write, input_available
     public :: install_window_change_handler, window_change_pending
+    public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, tabs_safe_p, emacs_isatty
     public :: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
               sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
@@ -87,6 +88,8 @@ module fm_sysdep
     !> Set (to the signal number) asynchronously by the SIGWINCH handler;
     !> read and cleared by `window_change_pending`.
     integer(c_int), volatile :: winch_flag = 0
+    !> Set by the SIGINT handler; read and cleared by `interrupt_pending`.
+    integer(c_int), volatile :: sigint_flag = 0
 
 contains
 
@@ -369,6 +372,8 @@ contains
         do
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
+            ! A C-g (SIGINT) must reach the command loop.
+            if (sigint_flag /= 0) exit
         end do
         input_available = r > 0 .and. iand(pfd(1)%revents, POLLIN) /= 0
     end function input_available
@@ -387,6 +392,28 @@ contains
 
         old = c_signal(SIGWINCH, c_funloc(handle_window_change_signal))
     end subroutine install_window_change_handler
+
+    !> SIGINT handler, for the quit character typed on the controlling
+    !> terminal: only sets a flag, which the command loop reads.  Cf.
+    !> keyboard.c:handle_interrupt_signal.
+    subroutine handle_interrupt_signal(signum) bind(C)
+        integer(c_int), value :: signum
+
+        sigint_flag = signum
+    end subroutine handle_interrupt_signal
+
+    !> Install the SIGINT handler (keyboard.c:init_keyboard).
+    subroutine install_interrupt_handler()
+        type(c_funptr) :: old
+
+        old = c_signal(SIGINT, c_funloc(handle_interrupt_signal))
+    end subroutine install_interrupt_handler
+
+    !> True if the quit character was typed (SIGINT) since the last call.
+    logical function interrupt_pending()
+        interrupt_pending = sigint_flag /= 0
+        sigint_flag = 0
+    end function interrupt_pending
 
     !> True if the terminal was resized since the last call.
     logical function window_change_pending()

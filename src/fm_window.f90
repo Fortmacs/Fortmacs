@@ -49,6 +49,9 @@ module fm_window
         logical :: mini = .false.
         !> Where redisplay put the cursor, relative to the window; -1: none.
         integer :: cursor_vpos = -1, cursor_hpos = -1
+        !> Columns scrolled off the left (only the minibuffer window
+        !> scrolls horizontally so far: auto-hscroll).
+        integer :: hscroll = 0
         !> The start was set explicitly; redisplay must keep it.
         logical :: force_start = .false.
         !> Last display ended at window end (for "Bot"/"All" in the mode line).

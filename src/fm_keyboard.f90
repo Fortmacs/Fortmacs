@@ -38,7 +38,7 @@
 !> is ASCII only), quit while computing (C-g is an ordinary key).
 module fm_keyboard
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use fm_error, only: status_type, set_error, format_error, FM_GENERIC_ERROR
+    use fm_error, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR
     use fm_handle, only: handle_type, null_handle
     use fm_lisp, only: value_type, V_LIST, nil, make_fixnum, &
                        make_keymap_ref, vtag, nilp, fixnump, symbolp, &
@@ -53,7 +53,7 @@ module fm_keyboard
                          overriding_terminal_local_map
     use fm_callint, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
-    use fm_sysdep, only: emacs_read, input_available
+    use fm_sysdep, only: emacs_read, input_available, interrupt_pending
     implicit none(type, external)
     private
 
@@ -61,7 +61,8 @@ module fm_keyboard
               tty_read_avail_input, unread_command_events, &
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
-              request_exit, exit_requested_p, set_transient_map
+              request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
+              throw_exit, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: READ_KEY_ELTS, redisplay_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -107,7 +108,8 @@ module fm_keyboard
     integer(int64) :: nunread = 0
 
     abstract interface
-        !> Redisplay all frames (xdisp.c:redisplay).
+        !> Redisplay all frames (xdisp.c:redisplay); also the form of a
+        !> post-command hook.
         subroutine redisplay_proc()
             implicit none(type, external)
         end subroutine redisplay_proc
@@ -118,8 +120,16 @@ module fm_keyboard
     !> module); null in tests.
     procedure(redisplay_proc), pointer, public :: redisplay_hook => null()
 
+    !> Run after each command (keyboard.c's post-command-hook, with one
+    !> function); null for none.
+    procedure(redisplay_proc), pointer, public :: post_command_hook => null()
+
     !> Set by `request_exit` to end `command_loop`.
     logical :: exit_requested = .false.
+    !> keyboard.c:command_loop_level, the depth of recursive edits.
+    integer, public, protected :: command_loop_level = 0
+    !> A (throw 'exit VALUE) is pending; `exit_abort` for VALUE t.
+    logical :: exit_pending = .false., exit_abort = .false.
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
     logical :: transient_active = .false.
@@ -334,6 +344,14 @@ contains
                 return
             end if
             if (input_fd < 0) return
+            ! C-g on the terminal arrives as SIGINT; while waiting for
+            ! input it reads as the quit character (keyboard.c:
+            ! handle_interrupt's quit_throw_to_read_char).
+            if (interrupt_pending()) then
+                ev = make_fixnum(7_int64)
+                have = .true.
+                return
+            end if
             ! Nothing typed yet: show the screen before waiting (read_char's
             ! redisplay).
             if (associated(redisplay_hook)) then
@@ -655,6 +673,16 @@ contains
         transient_active = .true.
     end subroutine set_transient_map
 
+    !> Redisplay, then wait `ms` milliseconds or until input arrives.
+    !> Port of subr.el:sit-for (for a terminal; no wait without one).
+    subroutine sit_for(ms)
+        integer(int32), intent(in) :: ms
+        logical :: ready
+
+        if (associated(redisplay_hook)) call redisplay_hook()
+        if (input_fd >= 0 .and. .not. input_pending_p()) ready = input_available(input_fd, ms)
+    end subroutine sit_for
+
     !> Make `command_loop` return after the current command.
     subroutine request_exit()
         exit_requested = .true.
@@ -685,7 +713,7 @@ contains
     !> command loop's error handler displays them) and returned in
     !> `status`.  One iteration of keyboard.c:command_loop_1, with
     !> simple.el:command-execute.
-    subroutine command_loop_step(done, status)
+    recursive subroutine command_loop_step(done, status)
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
@@ -735,6 +763,8 @@ contains
         last_prefix_arg = current_prefix_arg
         last_command = this_command
         real_last_command = real_this_command
+        ! post-command-hook
+        if (associated(post_command_hook)) call post_command_hook()
         done = eof
     end subroutine command_loop_step
 
@@ -752,5 +782,59 @@ contains
         end do
         exit_requested = .false.
     end subroutine command_loop
+
+    !> Run a command loop until a command throws to `exit`: return when
+    !> it throws nil, signal quit when it throws t.  End of input, or a
+    !> request to leave Emacs, also ends it with a quit.  Port of
+    !> keyboard.c:recursive_edit_1 with Frecursive_edit's catch.
+    recursive subroutine recursive_edit_1(status)
+        type(status_type), intent(out) :: status
+        type(status_type) :: step_status
+        logical :: done
+
+        command_loop_level = command_loop_level + 1
+        exit_pending = .false.
+        do
+            call command_loop_step(done, step_status)
+            if (exit_pending .or. done .or. exit_requested) exit
+        end do
+        if (.not. exit_pending .or. exit_abort) call set_error(status, FM_QUIT)
+        exit_pending = .false.
+        exit_abort = .false.
+        command_loop_level = command_loop_level - 1
+    end subroutine recursive_edit_1
+
+    !> (throw 'exit nil), or with `abort` (throw 'exit t): end the
+    !> innermost recursive edit once the current command returns.
+    subroutine throw_exit(abort)
+        logical, intent(in) :: abort
+
+        exit_pending = .true.
+        exit_abort = abort
+    end subroutine throw_exit
+
+    !> Leave the innermost recursive edit or minibuffer.
+    !> Port of keyboard.c:Fexit_recursive_edit.
+    subroutine exit_recursive_edit(status)
+        type(status_type), intent(out) :: status
+
+        if (command_loop_level > 0) then
+            call throw_exit(.false.)
+        else
+            call set_error(status, FM_USER_ERROR, "No recursive edit is in progress")
+        end if
+    end subroutine exit_recursive_edit
+
+    !> Abort the command that started the innermost recursive edit or
+    !> minibuffer.  Port of keyboard.c:Fabort_recursive_edit.
+    subroutine abort_recursive_edit(status)
+        type(status_type), intent(out) :: status
+
+        if (command_loop_level > 0) then
+            call throw_exit(.true.)
+        else
+            call set_error(status, FM_USER_ERROR, "No recursive edit is in progress")
+        end if
+    end subroutine abort_recursive_edit
 
 end module fm_keyboard

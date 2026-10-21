@@ -36,7 +36,8 @@ module test_fm_fileio
                          file_readable_p, file_writable_p, file_directory_p, file_modes, &
                          set_file_modes, insert_file_contents, write_region, &
                          verify_visited_file_modtime, make_directory_internal, &
-                         delete_directory_internal, delete_file_internal, rename_file, copy_file
+                         delete_directory_internal, delete_file_internal, rename_file, copy_file, &
+                         substitute_in_file_name
     implicit none(type, external)
     private
 
@@ -67,7 +68,8 @@ contains
                     new_unittest("visit-non-empty-buffer", test_visit_non_empty), &
                     new_unittest("modtime", test_modtime), &
                     new_unittest("predicates-and-modes", test_predicates), &
-                    new_unittest("rename-and-copy", test_rename_copy) &
+                    new_unittest("rename-and-copy", test_rename_copy), &
+                    new_unittest("substitute-in-file-name", test_substitute) &
                     ]
     end subroutine collect_fm_fileio
 
@@ -563,5 +565,34 @@ contains
                    format_error(st))
         call teardown(buf)
     end subroutine test_rename_copy
+
+    subroutine test_substitute(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer(int32) :: e
+
+        e = sys_setenv("FM_TEST_DIR", "/opt/x")
+        e = sys_unsetenv("FM_TEST_UNSET")
+        call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/a/b/~root/x") == "~root/x")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/a/~nosuchuser/x") == "/a/~nosuchuser/x")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("$FM_TEST_DIR/y") == "/opt/x/y")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("${FM_TEST_DIR}y") == "/opt/xy")
+        if (allocated(error)) return
+        ! A substitution that makes an absolute name drops what came before.
+        call check(error, substitute_in_file_name("/a/$FM_TEST_DIR/y") == "/opt/x/y", &
+                   substitute_in_file_name("/a/$FM_TEST_DIR/y"))
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/a/$FM_TEST_UNSET/b") == "/a/$FM_TEST_UNSET/b")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/cost$$") == "/cost$")
+        if (allocated(error)) return
+        call check(error, substitute_in_file_name("/plain") == "/plain")
+    end subroutine test_substitute
 
 end module test_fm_fileio
