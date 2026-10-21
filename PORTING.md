@@ -250,6 +250,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-21 — Guix CI fixed: the installer moved to guix.gnu.org/install.sh, pulls come from Codeberg, and the build shell gets nss-certs and git (curl and fpm need TLS). A run on the branch passed. On `ci-guix-main`.
 - 2026-10-21 — Phase 3.4a: visiting and saving files (`fm_fileio`, `fm_files`, `fm_subr`, `fm_map_ynp`; command-line files in `fm_emacs`; file bindings in src/sys; `file-missing`), on `phase3-files` (based on main after PR #21). Milestone reached: `fortmacs FILE`, edit, `C-x C-s`. Next: Phase 3.4b, a minimal minibuffer (`C-x C-f`, `yes-or-no-p`).
 - 2026-10-21 — Phase 3.3b: redisplay and a runnable editor (`fm_window`, `fm_xdisp`, `fm_files`, `fm_emacs`, redisplay hook in fm_keyboard, `emacs_isatty`), on `phase3-redisplay` (based on main after PR #20). Running `fortmacs` in a terminal edits `*scratch*` with a mode line and echo area; `C-x C-c` exits. Next: Phase 3.4, file visiting and saving; then `next-line` (indent.c columns) and scroll.c line scrolling.
 - 2026-10-21 — Style and CI: Fortitude lint gate (all code fixed), 4-space indentation (stdlib), CI on Fedora (x86-64, aarch64) and Arch (x86-64) containers, a weekly Guix job (`.github/workflows/guix.yml`, also runnable by hand; first run unverified), on `style-ci`. Proposed instruction changes (pure Fortran incl. X11/fonts, terminal first then X11, distros, style, built-in docs) are awaiting the user's confirmation.
