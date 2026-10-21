@@ -84,7 +84,9 @@ then features in whatever order the user asks for.
 5. **Gate.** `tools/check.sh` passes (fprettify clean, debug profile
    `-std=f2018 -Wall -Wextra -fcheck=all -g`), and CI is green on both
    architectures.
-6. **Record.** Update the status table, one module per PR.
+6. **Record.** Update the status table, one module per PR, the session
+   log, and the README's progress block (`tools/progress.sh
+   --update-readme`).
 7. **Merge.** The user merges. Claude polls the open PR
    (`gh api repos/vermi-culous/fortmacs/pulls/N --jq .merged`) and, once it
    is merged, starts the next step on a fresh branch from main; work done
