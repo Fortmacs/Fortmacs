@@ -256,6 +256,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-21 — README: progress as a table of vertical SVG bars (`docs/progress/*.svg`, drawn by `tools/progress.sh --update-readme`; Total = Emacs + packages, Emacs with C and Elisp, Packages with each archive), a "Real parallel threads" section, the syntax point last with a deeper example, "Why not?" removed. On `docs-progress-table`.
 - 2026-10-21 — Phase 3.4b: the minibuffer (`fm_minibuf`, `fm_minibuffer`, `fm_env`; recursive edit, fields, `yes-or-no-p`, history, `C-x C-f`, `C-x C-w`; C-g on the terminal no longer kills the editor — SIGINT now reads as C-g), on `phase3-minibuf` (based on main after PR #24). Next: line motion (`next-line`/`previous-line`, which need indent.c columns), then scroll commands; completion later.
 - 2026-10-21 — Guix CI fixed: the installer moved to guix.gnu.org/install.sh, pulls come from Codeberg, and the build shell gets nss-certs and git (curl and fpm need TLS). A run on the branch passed. On `ci-guix-main`.
 - 2026-10-21 — README: progress shown as bars, now including the packages in GNU ELPA, NonGNU ELPA and MELPA (`tools/progress.sh --update-readme`; totals in `tools/package-totals`, recounted by `--fetch-packages` and the weekly Package totals workflow; ported packages listed in `tools/ported-packages`); syntax and "why not" in Why Fortran; no pip instructions. On `docs-progress`. Next: Phase 3.4b (minibuffer), WIP on `phase3-minibuf`.

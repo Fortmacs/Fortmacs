@@ -37,7 +37,8 @@
 # Usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]
 #   (no option)       print the counts
 #   --readme          print the README's progress block (Markdown)
-#   --update-readme   replace that block in README.md
+#   --update-readme   replace that block in README.md (and redraw its bars,
+#                     docs/progress/*.svg)
 #   --fetch-packages  recount the archives' packages into
 #                     tools/package-totals (needs curl and network access)
 # Needs upstream/emacs (see fetch-upstream.sh) except for --fetch-packages.
@@ -139,59 +140,79 @@ melpa_total=$(pkg_total melpa); melpa_done=$(pkg_done melpa)
 p_total=$((gnu_total + nongnu_total + melpa_total))
 p_done=$((gnu_done + nongnu_done + melpa_done))
 
-# "DONE of TOTAL" with thousands separators, then a ten-cell bar of
-# quarter blocks and the share rounded to a quarter percent ("≆" unless
-# exact; never 0 or 100 unless it is).
-line() {
-    awk -v label="$1" -v d="$2" -v t="$3" '
+# Each bar is an SVG image in docs/progress/ (GitHub strips colors from
+# HTML in Markdown, so the bars can't be text): a track with a line every
+# 10%, filled from the bottom; a share too small to see still shows a
+# sliver.  Arguments: NAME COLOR DONE TOTAL.
+bar_svg() {
+    awk -v name="$1" -v color="$2" -v d="$3" -v t="$4" '
+        BEGIN {
+            f = (t > 0) ? d / t : 0
+            h = 116 * f
+            if (d > 0 && h < 2) h = 2
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"28\" height=\"120\" viewBox=\"0 0 28 120\">\n"
+            printf "<rect x=\"0.5\" y=\"0.5\" width=\"27\" height=\"119\" rx=\"3\" fill=\"none\" stroke=\"#8c959f\" stroke-opacity=\"0.6\"/>\n"
+            for (k = 1; k <= 9; k++)
+                printf "<line x1=\"1\" x2=\"27\" y1=\"%.1f\" y2=\"%.1f\" stroke=\"#8c959f\" stroke-opacity=\"0.25\"/>\n", 2 + 11.6 * k, 2 + 11.6 * k
+            if (h > 0)
+                printf "<rect x=\"2\" y=\"%.2f\" width=\"24\" height=\"%.2f\" rx=\"2\" fill=\"%s\"/>\n", 118 - h, h, color
+            printf "</svg>\n"
+        }' > "$root/docs/progress/$1.svg"
+}
+
+# "DONE<br>of TOTAL" with thousands separators, and the share rounded to
+# a quarter percent ("≆" unless exact; never 0 or 100 unless it is).
+# Arguments: DONE TOTAL WHAT (count or share).
+figure() {
+    awk -v d="$1" -v t="$2" -v what="$3" '
         function commas(n,   s) {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
             return s
         }
         BEGIN {
-            f = (t > 0) ? d / t : 0
-            p = 100 * f
+            if (what == "count") { printf "%s<br>of %s", commas(d), commas(t); exit }
+            p = (t > 0) ? 100 * d / t : 0
             r = int(p * 4 + 0.5) / 4
             if (d > 0 && r == 0) r = 0.25
             if (d < t && r == 100) r = 99.75
-            sign = (r == p) ? "" : "≆"
-            cells = 10 * f
-            full = int(cells)
-            q = int((cells - full) * 4 + 0.5)
-            if (q == 4) { full++; q = 0 }
-            if (d > 0 && full == 0 && q == 0) q = 1
-            bar = ""
-            for (i = 0; i < full; i++) bar = bar "█"
-            if (q == 1) bar = bar "░"; else if (q == 2) bar = bar "▒"; else if (q == 3) bar = bar "▓"
-            used = full + (q > 0)
-            for (i = used; i < 10; i++) bar = bar " "
-            printf "%s: %s of %s\\\n`[%s]` (%s%.2f%%)\n", label, commas(d), commas(t), bar, sign, r
+            printf "%s%.2f%%", (r == p) ? "" : "≆", r
         }'
 }
 
+# The progress table: columns of NAME LABEL COLOR DONE TOTAL, with
+# grouped headings.
 readme_block() {
+    mkdir -p "$root/docs/progress"
+    cols="total|Total|#063D5F|$((done + p_done))|$((total + p_total))
+emacs|All|#1D638B|$done|$total
+c|C|#4690B9|$c_done|$c_total
+elisp|Elisp|#A6C6D9|$l_done|$l_total
+packages|All|#1D638B|$p_done|$p_total
+gnu-elpa|GNU ELPA|#4690B9|$gnu_done|$gnu_total
+nongnu-elpa|NonGNU ELPA|#A6C6D9|$nongnu_done|$nongnu_total
+melpa|MELPA|#4690B9|$melpa_done|$melpa_total"
+    bars="" counts="" shares=""
+    while IFS='|' read -r name label color d t; do
+        bar_svg "$name" "$color" "$d" "$t"
+        bars="$bars<td align=\"center\"><img src=\"docs/progress/$name.svg\" width=\"28\" height=\"120\" alt=\"$label: $(figure "$d" "$t" share)\"></td>"
+        counts="$counts<td align=\"center\">$(figure "$d" "$t" count)</td>"
+        shares="$shares<td align=\"center\">$(figure "$d" "$t" share)</td>"
+    done <<EOF2
+$cols
+EOF2
     echo "**Progress:**"
     echo
-    echo "*Main*"
+    echo "<table>"
+    echo '<tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>'
+    echo "<tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>"
+    echo "<tr>$bars</tr>"
+    echo "<tr>$counts</tr>"
+    echo "<tr>$shares</tr>"
+    echo "</table>"
     echo
-    line "Total translations" "$done" "$total"
-    echo
-    line "Upstream C functions" "$c_done" "$c_total"
-    echo
-    line "Elisp definitions" "$l_done" "$l_total"
-    echo
-    echo "*Packages*"
-    echo
-    line "Total packages" "$p_done" "$p_total"
-    echo
-    line "GNU ELPA" "$gnu_done" "$gnu_total"
-    echo
-    line "NonGNU ELPA" "$nongnu_done" "$nongnu_total"
-    echo
-    line "MELPA" "$melpa_done" "$melpa_total"
-    echo
-    echo "A rough estimate from \`tools/progress.sh\`."
+    echo "Total is Emacs (its C functions and Elisp definitions) and the packages"
+    echo "together. A rough estimate from \`tools/progress.sh\`."
 }
 
 case "$mode" in
