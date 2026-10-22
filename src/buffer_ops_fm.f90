@@ -22,7 +22,7 @@
 !> Part of buffer_fm.  A submodule can use marker_fm and insdel_fm even
 !> though both use buffer_fm, which a module cannot.
 submodule(buffer_fm) buffer_ops_fm
-    use marker_fm, only: unchain_all_markers, clear_charpos_cache
+    use marker_fm, only: unchain_all_markers, clear_charpos_cache, free_marker
     use insdel_fm, only: del_range
     implicit none(type, external)
 
@@ -36,6 +36,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         type(handle_type) :: other
+        type(status_type) :: ignore
         integer(int64) :: i, k
         logical :: was_current
 
@@ -49,6 +50,16 @@ contains
         ! Unchain all markers of this buffer and leave them pointing nowhere.
         call unchain_all_markers(i)
         call clear_charpos_cache(i)
+
+        ! The mark and the mark ring belong to the buffer (upstream they are
+        ! left to GC).
+        if (buffers(i)%mark%index /= 0) call free_marker(buffers(i)%mark, ignore)
+
+        if (allocated(buffers(i)%mark_ring)) then
+            do k = 1, size(buffers(i)%mark_ring)
+                call free_marker(buffers(i)%mark_ring(k), ignore)
+            end do
+        end if
 
         call table%release(h, status)
         if (.not. status%ok()) return

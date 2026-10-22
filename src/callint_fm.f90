@@ -66,6 +66,13 @@ module callint_fm
     !> keyboard.c KVAR prefix_arg: the raw prefix argument for the next
     !> command (set by universal-argument and friends).
     type(value_type), public :: prefix_arg
+    !> Non-nil means you can use the mark even when inactive.
+    !> This option makes a difference in Transient Mark mode.
+    !> When the option is non-nil, deactivation of the mark
+    !> turns off region highlighting, but commands that use the mark
+    !> behave as if the mark were still active.  Port of callint.c
+    !> mark-even-if-inactive.
+    logical, public :: mark_even_if_inactive = .true.
 
 contains
 
