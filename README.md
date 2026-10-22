@@ -47,6 +47,14 @@ tools/check.sh --fix    # reformat and apply safe lint fixes in place
 CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and on
 Arch Linux (x86-64), and builds and tests on Guix weekly.
 
+On Guix, `fortmacs-manifest.scm` builds fpm and Fortmacs (running the
+tests) from the checkout, so nothing else needs installing first:
+
+```sh
+guix shell -m fortmacs-manifest.scm -- fortmacs FILE
+guix shell -m fortmacs-manifest.scm   # a shell with fortmacs, fpm and gfortran
+```
+
 ## Configuring
 
 Install Fortmacs, then write your configuration as a Fortran module in

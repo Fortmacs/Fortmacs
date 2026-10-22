@@ -38,6 +38,13 @@ jobs:
         # installed (older) Guix still defaults to Savannah.
         run: guix pull --url=https://codeberg.org/guix/guix.git && hash guix && guix describe
 
+      - name: Build with the Guix manifest
+        # Guix builds fpm and Fortmacs (running its tests) from this
+        # checkout, as users of fortmacs-manifest.scm do.
+        run: |
+          guix build -m fortmacs-manifest.scm
+          guix shell -m fortmacs-manifest.scm -- fortmacs --version
+
       - name: Build and test in a Guix environment
         # nss-certs gives curl and git (for fpm's dependencies) the CA
         # bundle that the profile builds.
