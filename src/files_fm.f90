@@ -696,8 +696,14 @@ contains
         call save_buffer(1_int64, .false., status)
     end subroutine write_file
 
-    !> C-x C-f.  Port of files.el:find-file (interactive), with
-    !> find-file-read-args.
+    !> Edit file FILENAME.
+    !> \<minibuffer-local-map>Switch to a buffer visiting file FILENAME, creating one if none
+    !> already exists.
+    !> Interactively, the default if you just type RET is the current directory,
+    !> but the visited file name is available through the minibuffer history:
+    !> type \[next-history-element] to pull it into the minibuffer.
+    !> Port of files.el:find-file (interactive), with find-file-read-args (no
+    !> wildcards, remote files or `file-name-at-point-functions').
     subroutine cmd_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
@@ -709,7 +715,21 @@ contains
         call find_file(filename, status)
     end subroutine cmd_find_file
 
-    !> C-x C-w.  Port of files.el:write-file (interactive).
+    !> Write current buffer into file FILENAME.
+    !> This makes the buffer visit that file, and marks it as not modified.
+    !>
+    !> Interactively, prompt for FILENAME.
+    !> If you specify just a directory name as FILENAME, that means to write
+    !> to a file in that directory.  In this case, the base name of the file
+    !> is the same as that of the file visited in the buffer, or the buffer
+    !> name sans leading directories, if any, if the buffer is not already
+    !> visiting a file.
+    !>
+    !> You can also yank the file name into the minibuffer to edit it,
+    !> using \<minibuffer-local-map>\[next-history-element].
+    !>
+    !> Confirmation is required before overwriting an existing file, unless
+    !> you supply a prefix argument.  Port of files.el:write-file (interactive).
     subroutine cmd_write_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename
@@ -726,20 +746,51 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> C-x C-s.
+    !> Save current buffer in visited file if modified.
+    !> Variations are described below.
+    !>
+    !> By default, makes the previous version into a backup file
+    !>  if previously requested or if this is the first save.
+    !> Prefixed with one \[universal-argument], marks this version
+    !>  to become a backup when the next save is done.
+    !> Prefixed with two \[universal-argument]'s,
+    !>  makes the previous version into a backup file.
+    !> Prefixed with three \[universal-argument]'s, marks this version
+    !>  to become a backup when the next save is done,
+    !>  and makes the previous version into a backup file.
+    !>
+    !> With a numeric prefix argument of 0, never make the previous version
+    !> into a backup file.
+    !>
+    !> Note that `make-backup-files' and `backup-enable-predicate' still
+    !> control whether a backup will actually be produced, even when you
+    !> invoke this command prefixed with two or three \[universal-argument]'s.
+    !>
+    !> If a file's name is FOO, its backup file is called FOO~.
+    !> Port of files.el:save-buffer (the command; no numbered backups).
     subroutine cmd_save_buffer(status)
         type(status_type), intent(out) :: status
         call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
     end subroutine cmd_save_buffer
 
-    !> C-x s.
+    !> Save some modified file-visiting buffers.  Asks user about each one.
+    !> You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,
+    !> \`!' to save the buffer and all remaining
+    !> buffers without any further querying, \`.' to save only the
+    !> current buffer and skip the remaining ones and \`q' or \`RET' to exit
+    !> the function without saving any more buffers.
+    !>
+    !> A prefix argument means save all with no questions.
+    !> Port of files.el:save-some-buffers (the command).
     subroutine cmd_save_some_buffers(status)
         type(status_type), intent(out) :: status
         call save_some_buffers(.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_save_some_buffers
 
-    !> C-x C-c: leave Emacs.  Port of files.el:save-buffers-kill-terminal
-    !> (no emacsclient frames).
+    !> Offer to save each buffer, then kill Emacs.
+    !>
+    !> With prefix ARG, silently save all file-visiting buffers, then kill.
+    !> Port of files.el:save-buffers-kill-terminal (no emacsclient frames).
     subroutine cmd_save_buffers_kill_terminal(status)
         type(status_type), intent(out) :: status
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)

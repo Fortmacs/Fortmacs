@@ -237,11 +237,15 @@ contains
         result = substitute_in_file_name(val)
     end subroutine read_file_name
 
+    !> Terminate this minibuffer argument.
+    !> Port of minibuffer.el:exit-minibuffer.
     subroutine cmd_exit_minibuffer(status)
         type(status_type), intent(out) :: status
         call exit_minibuffer(status)
     end subroutine cmd_exit_minibuffer
 
+    !> Abort the current minibuffer.
+    !> Port of minibuffer.el:abort-minibuffers (one minibuffer level).
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
         call abort_minibuffers(status)
@@ -1062,7 +1066,7 @@ contains
         call set_buffer(mini, status)
         if (.not. completions_visible()) then
             completions_previous_buffer = selected_frame%root_window%buffer
-            call set_window_buffer(selected_frame%root_window, buf, status)
+            call set_window_buffer(selected_frame%root_window, buf, status, record=.false.)
         else
             call set_window_start(selected_frame%root_window, 1_int64, status, noforce=.true.)
         end if
@@ -1154,7 +1158,7 @@ contains
         previous = completions_previous_buffer
         if (previous%index == 0) previous = minibuffer_calling_buffer
         if (previous%index == 0) return
-        call set_window_buffer(selected_frame%root_window, previous, status)
+        call set_window_buffer(selected_frame%root_window, previous, status, record=.false.)
     end subroutine minibuffer_hide_completions
 
     ! ------------------------------------------------------------------

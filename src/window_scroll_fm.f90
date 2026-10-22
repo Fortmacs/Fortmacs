@@ -3,7 +3,7 @@
 ! scroll_command, Fscroll_up, Fscroll_down, Frecenter,
 ! Fmove_to_window_line) and lisp/window.el (scroll-up-command,
 ! scroll-down-command, recenter-top-bottom,
-! move-to-window-line-top-bottom).
+! move-to-window-line-top-bottom, quit-window).
 !
 ! Copyright (C) 1985-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -32,7 +32,7 @@ submodule(window_fm) window_scroll_fm
     use lisp_fm, only: nil, nilp, consp, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
-    use buffer_fm, only: cur, current_buffer, set_buffer
+    use buffer_fm, only: cur, current_buffer, set_buffer, buffer_live_p, buffer_list
     use editfns_fm, only: point, goto_char, eobp, bobp, point_min, point_max
     use cmds_fm, only: forward_line
     use indent_fm, only: vertical_motion, move_to_column
@@ -432,6 +432,41 @@ contains
         call move_to_window_line_top_bottom(current_prefix_arg, status)
     end subroutine cmd_move_to_window_line_top_bottom
 
+    module subroutine quit_window(status)
+        type(status_type), intent(out) :: status
+        type(window_type), pointer :: w
+        type(handle_type), allocatable :: all(:)
+        type(handle_type) :: other
+        integer :: k
+        integer(int64) :: bi
+        status = status_type()
+        w => selected_window()
+        other = w%prev_buffer
+        if (buffer_live_p(other)) then
+            call resolve_buffer(other, bi, status)
+            if (status%ok() .and. bi /= cur) then
+                call set_buffer(other, status)
+                return
+            end if
+        end if
+        ! switch-to-prev-buffer without history: the newest other buffer
+        ! that is not internal (its name starts with a space).
+        all = buffer_list()
+        do k = size(all), 1, -1
+            call resolve_buffer(all(k), bi, status)
+            if (.not. status%ok() .or. bi == cur) cycle
+            if (buffers(bi)%name(1:min(1, len(buffers(bi)%name))) == " ") cycle
+            call set_buffer(all(k), status)
+            return
+        end do
+        status = status_type()
+    end subroutine quit_window
+
+    subroutine cmd_quit_window(status)
+        type(status_type), intent(out) :: status
+        call quit_window(status)
+    end subroutine cmd_quit_window
+
     module subroutine syms_of_window()
         call defcommand("scroll-up", cmd_scroll_up)
         call defcommand("scroll-down", cmd_scroll_down)
@@ -441,5 +476,6 @@ contains
         call defcommand("recenter-top-bottom", cmd_recenter_top_bottom)
         call defcommand("move-to-window-line", cmd_move_to_window_line)
         call defcommand("move-to-window-line-top-bottom", cmd_move_to_window_line_top_bottom)
+        call defcommand("quit-window", cmd_quit_window)
     end subroutine syms_of_window
 end submodule window_scroll_fm

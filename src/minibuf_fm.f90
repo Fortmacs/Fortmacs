@@ -350,7 +350,7 @@ contains
                                               old_root_buffer%generation)) then
             call resolve_buffer(old_root_buffer, bi, st)
             if (st%ok()) then
-                call set_window_buffer(selected_frame%root_window, old_root_buffer, st)
+                call set_window_buffer(selected_frame%root_window, old_root_buffer, st, record=.false.)
                 call set_window_start(selected_frame%root_window, old_root_start, st, noforce=.true.)
             end if
         end if

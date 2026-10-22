@@ -44,6 +44,8 @@ module bindings_fm
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
+    use help_fm, only: syms_of_help
+    use help_fns_fm, only: syms_of_help_fns
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
     implicit none(type, external)
@@ -60,13 +62,23 @@ module bindings_fm
 
 contains
 
-    !> Port of bindings.el:right-char (left-to-right paragraphs only).
+    !> Move point N characters to the right (to the left if N is negative).
+    !> On reaching beginning or end of buffer, stop and signal error.
+    !>
+    !> In left-to-right text this moves forward in the buffer, like
+    !> \[forward-char].  Port of bindings.el:right-char (left-to-right
+    !> paragraphs only).
     subroutine cmd_right_char(status)
         type(status_type), intent(out) :: status
         call forward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_char
 
-    !> Port of bindings.el:left-char (left-to-right paragraphs only).
+    !> Move point N characters to the left (to the right if N is negative).
+    !> On reaching beginning or end of buffer, stop and signal error.
+    !>
+    !> In left-to-right text this moves backward in the buffer, like
+    !> \[backward-char].  Port of bindings.el:left-char (left-to-right
+    !> paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
@@ -206,6 +218,9 @@ contains
         call bind(minibuffer_local_map, "M-p", "previous-history-element")
         call bind(minibuffer_local_map, "<prior>", "previous-history-element")
         call bind(minibuffer_local_map, "<up>", "previous-history-element")
+        ! Help (help.el, help-fns.el), after the maps it names exist.
+        call syms_of_help(global_map)
+        call syms_of_help_fns()
         ! bindings.el: function-key-map, the parent of every terminal's
         ! local-function-key-map.
         call make_sparse_keymap(function_key_map)

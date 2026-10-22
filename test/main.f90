@@ -25,6 +25,7 @@ program tester
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_fm, only: collect_version_fm
+    use test_help_fm, only: collect_help_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
     use test_character_fm, only: collect_character_fm
@@ -99,7 +100,8 @@ program tester
                  new_testsuite("isearch_fm", collect_isearch_fm), &
                  new_testsuite("window_fm", collect_window_fm), &
                  new_testsuite("undo_fm", collect_undo_fm), &
-                 new_testsuite("simple_fm", collect_simple_fm) &
+                 new_testsuite("simple_fm", collect_simple_fm), &
+                 new_testsuite("help_fm", collect_help_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

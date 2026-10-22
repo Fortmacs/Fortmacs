@@ -1651,7 +1651,8 @@ contains
     end function preferred_sequence_p
 
     !> Return list of keys that invoke DEFINITION.
-    !> The keymaps searched are the currently active ones.  If FIRSTONLY
+    !> The keymaps searched are the currently active ones, or KEYMAP and
+    !> the global map.  If FIRSTONLY
     !> is true, return the first key sequence found, preferring sequences
     !> consisting of characters without modifiers other than Meta, as a
     !> list of events (nil for none); else a list of all of them, each a
@@ -1660,13 +1661,14 @@ contains
     !> by another binding of the same key are left out.  Port of
     !> keymap.c:Fwhere_is_internal (no remapping, advertised bindings,
     !> menus or composed keymaps; character ranges are not searched).
-    subroutine where_is_internal(definition, keys, firstonly)
+    subroutine where_is_internal(definition, keys, firstonly, keymap)
         type(value_type), intent(in) :: definition
         type(value_type), intent(out) :: keys
         logical, intent(in), optional :: firstonly
+        type(handle_type), intent(in), optional :: keymap
         type(key_list_type), allocatable :: queue(:), found(:)
         type(value_type), allocatable :: maps(:), seq(:), elems(:)
-        type(value_type) :: active, binding
+        type(value_type) :: active, binding, one
         type(handle_type) :: km
         type(status_type) :: status
         integer :: qhead, qtail, nfound, k
@@ -1674,7 +1676,15 @@ contains
         first = .false.
         if (present(firstonly)) first = firstonly
         keys = nil()
-        active = current_active_maps()
+        if (present(keymap)) then
+            allocate (maps(2))
+            maps(1) = make_keymap_ref(keymap)
+            maps(2) = make_keymap_ref(current_global_map())
+            active = make_list(maps)
+            deallocate (maps)
+        else
+            active = current_active_maps()
+        end if
         if (keymap_ref_p(active)) then
             maps = [active]
         else
@@ -1712,7 +1722,9 @@ contains
                 end if
                 if (nilp(keys)) keys = make_list(found(k)%keys)
             else
-                elems = [elems, make_list(found(k)%keys)]
+                ! (Not [elems, make_list(...)]: that leaks in gfortran.)
+                one = make_list(found(k)%keys)
+                call append_value(elems, one)
             end if
         end do
         if (.not. first) keys = make_list(elems)
@@ -1739,8 +1751,8 @@ contains
                     i = order(m)
                     ! A prefix key: its map is searched too.
                     if (keymap_ref_p(mp%bindings(i))) then
-                        if (.not. visited(xhandle(mp%bindings(i))) .and. size(prefix) < 10) then
-                            key = [prefix, mp%events(i)]
+                        key = [prefix, mp%events(i)]
+                        if (.not. cycle_p(xhandle(mp%bindings(i)), key) .and. size(prefix) < 10) then
                             call push(queue, qtail, key, xhandle(mp%bindings(i)))
                         end if
                     end if
@@ -1764,17 +1776,24 @@ contains
             end associate
         end subroutine scan_map
 
-        logical function visited(map)
+        !> Whether `map` was reached already through a prefix of `key` (a
+        !> cycle; keymap.c:accessible_keymaps_1).  A map reached through
+        !> other prefixes is searched again.
+        logical function cycle_p(map, key)
             type(handle_type), intent(in) :: map
-            integer :: j
-            visited = .false.
+            type(value_type), intent(in) :: key(:)
+            integer :: j, lim
+            cycle_p = .false.
             do j = 1, qtail
-                if (queue(j)%map%index == map%index .and. queue(j)%map%generation == map%generation) then
-                    visited = .true.
+                if (queue(j)%map%index /= map%index .or. queue(j)%map%generation /= map%generation) cycle
+                lim = size(queue(j)%keys)
+                if (lim > size(key)) cycle
+                if (same_keys(queue(j)%keys, key(1:lim))) then
+                    cycle_p = .true.
                     return
                 end if
             end do
-        end function visited
+        end function cycle_p
     end subroutine where_is_internal
 
     !> The order upstream's map_keymap visits a keymap's entries in: for a
@@ -1820,6 +1839,19 @@ contains
             end if
         end do
     end function same_keys
+
+    !> Append `v` to the array `list`.
+    subroutine append_value(list, v)
+        type(value_type), allocatable, intent(inout) :: list(:)
+        type(value_type), intent(in) :: v
+        type(value_type), allocatable :: grown(:)
+        integer :: n
+        n = size(list)
+        allocate (grown(n + 1))
+        grown(1:n) = list
+        grown(n + 1) = v
+        call move_alloc(grown, list)
+    end subroutine append_value
 
     !> Append (`keys`, `map`) to `list`, which holds `n` entries.
     subroutine push(list, n, keys, map)

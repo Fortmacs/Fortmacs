@@ -38,7 +38,7 @@ module window_fm
               set_window_point, window_body_lines, free_window
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
-              move_to_window_line_top_bottom, syms_of_window
+              move_to_window_line_top_bottom, quit_window, syms_of_window
 
     !> Number of lines of continuity when scrolling by screenfuls.
     !> Port of window.c next-screen-context-lines.
@@ -60,6 +60,9 @@ module window_fm
         !> Position on the frame (0-based rows) and size, in lines and
         !> columns, including the mode line.
         integer :: top_line = 0, total_lines = 0, left_col = 0, total_cols = 0
+        !> The buffer shown before `buffer` (window.el window-prev-buffers,
+        !> one deep); the null handle for none.
+        type(handle_type) :: prev_buffer
         !> The minibuffer window: no mode line.
         logical :: mini = .false.
         !> Where redisplay put the cursor, relative to the window; -1: none.
@@ -219,7 +222,17 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line_top_bottom
 
-        !> Register the scrolling commands.
+        !> Quit WINDOW and bury its buffer.  WINDOW is the selected one: it
+        !> shows the buffer it showed before, or some other buffer.  Port of
+        !> window.el:quit-window (no KILL, burying or quit-restore
+        !> parameters; the selected window shows the current buffer, so this
+        !> makes that buffer current).
+        module subroutine quit_window(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine quit_window
+
+        !> Register the scrolling commands and `quit-window`.
         module subroutine syms_of_window()
             implicit none(type, external)
         end subroutine syms_of_window
@@ -228,15 +241,25 @@ module window_fm
 contains
 
     !> Show buffer `buffer` in `w`, starting at its accessible beginning,
-    !> with the window's point at the buffer's point.  Port of
-    !> window.c:set_window_buffer (no window-local history or hooks).
-    subroutine set_window_buffer(w, buffer, status)
+    !> with the window's point at the buffer's point.  The buffer shown
+    !> before is recorded as `prev_buffer` (window.el
+    !> record-window-buffer) unless `record` is false, as for a temporary
+    !> display.  Port of window.c:set_window_buffer (no hooks).
+    subroutine set_window_buffer(w, buffer, status, record)
         type(window_type), intent(inout) :: w
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: record
         integer(int64) :: i
+        logical :: rec
         call resolve_buffer(buffer, i, status)
         if (.not. status%ok()) return
+        rec = .true.
+        if (present(record)) rec = record
+        if (rec .and. w%buffer%index /= 0 .and. .not. (w%buffer%index == buffer%index .and. &
+                                                       w%buffer%generation == buffer%generation)) then
+            w%prev_buffer = w%buffer
+        end if
         if (w%start%index == 0) call make_marker(w%start)
         if (w%pointm%index == 0) call make_marker(w%pointm)
         w%buffer = buffer
