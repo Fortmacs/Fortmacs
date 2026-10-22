@@ -80,6 +80,8 @@ module fortmacs
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
                          SEARCH_NOERROR, SEARCH_MOVE
     use isearch_fm, only: isearch_forward_command, isearch_backward_command
+    use simple_fm, only: undo, undo_only, undo_redo
+    use undo_fm, only: undo_boundary
     use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
                          region_active_p, deactivate_mark
     ! Settings.
@@ -116,6 +118,7 @@ module fortmacs
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
     public :: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE, &
               isearch_forward_command, isearch_backward_command
+    public :: undo, undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
               set_mark, mark, region_active_p, deactivate_mark
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &

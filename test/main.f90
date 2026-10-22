@@ -55,6 +55,7 @@ program tester
     use test_casetab_fm, only: collect_casetab_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
+    use test_undo_fm, only: collect_undo_fm
     use test_simple_fm, only: collect_simple_fm
     implicit none(type, external)
 
@@ -97,6 +98,7 @@ program tester
                  new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &
+                 new_testsuite("undo_fm", collect_undo_fm), &
                  new_testsuite("simple_fm", collect_simple_fm) &
                  ]
 
