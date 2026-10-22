@@ -76,7 +76,8 @@ module isearch_fm
               isearch_beginning_of_buffer, isearch_end_of_buffer, isearch_ring_advance, &
               isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
               isearch_message_prefix, syms_of_isearch, isearch_forward_regexp_command, &
-              isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace
+              isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
+              isearch_no_upper_case_p, word_search_regexp
 
     !> Values of `isearch_case_fold_search`: nil, t, and `yes` (set by
     !> M-c: fold even when the string has upper-case letters).
@@ -303,6 +304,62 @@ contains
             end if
         end if
     end function isearch_no_upper_case_p
+
+    !> Return a regexp which matches words, ignoring punctuation.
+    !> Given STRING, a string of words separated by word delimiters,
+    !> compute a regexp that matches those exact words separated by
+    !> arbitrary punctuation.  If the string begins or ends in whitespace,
+    !> the beginning or the end of the string matches arbitrary whitespace.
+    !> Otherwise if LAX is non-nil, the beginning or the end of the string
+    !> need not match a word boundary.
+    !>
+    !> Used in `word-search-forward', `word-search-backward',
+    !> `word-search-forward-lax', `word-search-backward-lax'.  Port of
+    !> isearch.el:word-search-regexp.
+    function word_search_regexp(string, lax) result(regexp)
+        character(len=*), intent(in) :: string
+        logical, intent(in), optional :: lax
+        character(len=:), allocatable :: regexp, word
+        integer(int32), allocatable :: chars(:)
+        integer :: k, m, nwords
+        logical :: is_lax
+        is_lax = .false.
+        if (present(lax)) is_lax = lax
+        regexp = ""
+        if (len(string) == 0) return
+        call decode(string, chars, m)
+        if (.not. any([(char_syntax(int(chars(k))) == "w", k=1, m)])) then
+            regexp = "\W+"
+            return
+        end if
+        if (char_syntax(int(chars(1))) /= "w") then
+            regexp = "\W+"
+        else
+            regexp = "\<"
+        end if
+        ! (mapconcat 'regexp-quote (split-string string "\\W+" t) "\\W+")
+        nwords = 0
+        word = ""
+        do k = 1, m + 1
+            if (k <= m) then
+                if (char_syntax(int(chars(k))) == "w") then
+                    word = word//encode(chars(k))
+                    cycle
+                end if
+            end if
+            if (len(word) > 0) then
+                if (nwords > 0) regexp = regexp//"\W+"
+                regexp = regexp//regexp_quote(word)
+                nwords = nwords + 1
+                word = ""
+            end if
+        end do
+        if (char_syntax(int(chars(m))) /= "w") then
+            regexp = regexp//"\W+"
+        else if (.not. is_lax) then
+            regexp = regexp//"\>"
+        end if
+    end function word_search_regexp
 
     ! ------------------------------------------------------------------
     ! The search ring

@@ -111,6 +111,14 @@ module fortmacs
     use isearch_fm, only: isearch_forward_regexp_command, isearch_backward_regexp_command
     use paragraphs_fm, only: forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &
                              mark_end_of_sentence, sentence_end_regexp
+    use search_fm, only: replace_match
+    use subr_fm, only: match_substitute_replacement
+    use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, &
+                             upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &
+                             downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
+                             downcase_word, capitalize_word
+    use replace_fm, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
+                          replace_regexp, perform_replace, replacement_function
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -138,6 +146,10 @@ module fortmacs
                           isearch_regexp_lax_whitespace
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, sentence_end_base, &
                              sentence_end_double_space, sentence_end_without_period, sentence_end_without_space
+    use casefiddle_fm, only: case_symbols_as_words
+    use replace_fm, only: case_replace, replace_lax_whitespace, replace_regexp_lax_whitespace, &
+                          query_replace_skip_read_only, query_replace_show_replacement, &
+                          query_replace_from_to_separator
     implicit none(type, external)
     private
 
@@ -175,7 +187,12 @@ module fortmacs
               posix_looking_at, string_match, posix_string_match, match_data, set_match_data, regexp_quote, &
               match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
               isearch_forward_regexp_command, isearch_backward_regexp_command, forward_sentence, &
-              backward_sentence, kill_sentence, backward_kill_sentence, mark_end_of_sentence, sentence_end_regexp
+              backward_sentence, kill_sentence, backward_kill_sentence, mark_end_of_sentence, sentence_end_regexp, &
+              replace_match, match_substitute_replacement, upcase_string, downcase_string, capitalize_string, &
+              upcase_initials_string, upcase_char, downcase_char, capitalize_char, upcase_initials_char, &
+              upcase_region, downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
+              downcase_word, capitalize_word, query_replace, query_replace_regexp, map_query_replace_regexp, &
+              replace_string, replace_regexp, perform_replace, replacement_function
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
@@ -189,5 +206,7 @@ module fortmacs
               search_spaces_regexp, regexp_search_ring_max, search_whitespace_regexp, isearch_lax_whitespace, &
               isearch_regexp_lax_whitespace, paragraph_start, paragraph_separate, sentence_end, &
               sentence_end_base, sentence_end_double_space, sentence_end_without_period, &
-              sentence_end_without_space
+              sentence_end_without_space, case_symbols_as_words, case_replace, replace_lax_whitespace, &
+              replace_regexp_lax_whitespace, query_replace_skip_read_only, query_replace_show_replacement, &
+              query_replace_from_to_separator
 end module fortmacs

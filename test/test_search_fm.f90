@@ -212,7 +212,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=1), parameter :: pres(4) = [character(len=1) :: "", "a", "", "a"], &
-                                        posts(4) = [character(len=1) :: "", "", "b", "b"]
+                                                  posts(4) = [character(len=1) :: "", "", "b", "b"]
         integer :: k
         integer(int64) :: beg0, beg4, end4, end0
         call enter("", h)

@@ -57,7 +57,7 @@ module search_fm
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, match_in_string_p, syms_of_search, replace_match
+              regexp_quote, match_in_string_p, syms_of_search, replace_match, match_data_translate
     ! For search_regexp_fm (gfortran makes private procedures invisible to
     ! submodules).
     public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow, &
@@ -965,6 +965,22 @@ contains
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_match_data
+
+    !> Add N to all positions of the match data.  Internal.  Port of
+    !> search.c:Fmatch_data__translate (string indices here are 1-based,
+    !> so a match moved to the start of a string is translated by
+    !> 1 - (match-beginning 0)).
+    subroutine match_data_translate(n)
+        integer(int64), intent(in) :: n
+        integer :: i
+        if (.not. allocated(search_regs_start)) return
+        do i = 0, size(search_regs_start) - 1
+            if (search_regs_start(i) >= 0) then
+                search_regs_start(i) = max(0_int64, search_regs_start(i) + n)
+                search_regs_end(i) = max(0_int64, search_regs_end(i) + n)
+            end if
+        end do
+    end subroutine match_data_translate
 
     !> The buffer the match data refer to (last_thing_searched).
     type(handle_type) function match_buffer()
