@@ -42,6 +42,7 @@ module bindings_fm
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple
     use isearch_fm, only: syms_of_isearch
+    use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
@@ -123,6 +124,7 @@ contains
 
         call syms_of_cmds()
         call syms_of_simple()
+        call syms_of_window()
         call defcommand("right-char", cmd_right_char)
         call defcommand("left-char", cmd_left_char)
 
@@ -176,6 +178,15 @@ contains
         call bind(global_map, "<down>", "next-line")
         call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
+        call bind(global_map, "<next>", "scroll-up-command")
+        call bind(global_map, "<prior>", "scroll-down-command")
+        call bind(global_map, "C-v", "scroll-up-command")
+        call bind(esc_map, "v", "scroll-down-command")
+
+        ! window.el
+        call bind(global_map, "C-l", "recenter-top-bottom")
+        call bind(esc_map, "r", "move-to-window-line-top-bottom")
+
         ! Undo (bindings.el).
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
