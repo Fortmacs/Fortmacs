@@ -77,6 +77,7 @@ module fortmacs
     use fns_fm, only: yes_or_no_p
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
+    use window_fm, only: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
     use simple_fm, only: undo, undo_only, undo_redo
     use undo_fm, only: undo_boundary
     use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
@@ -94,6 +95,7 @@ module fortmacs
     use simple_fm, only: kill_ring_max, mark_ring_max, kill_whole_line_option, delete_active_region, &
                          kill_read_only_ok
     use term_fm, only: visible_bell
+    use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
     implicit none(type, external)
     private
 
@@ -110,6 +112,7 @@ module fortmacs
               delete_region, bobp, eobp, bolp, eolp
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
+    public :: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
     public :: undo, undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
               set_mark, mark, region_active_p, deactivate_mark
@@ -117,5 +120,6 @@ module fortmacs
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
               transient_mark_mode, mark_even_if_inactive, kill_ring_max, mark_ring_max, &
-              kill_whole_line_option, delete_active_region, kill_read_only_ok
+              kill_whole_line_option, delete_active_region, kill_read_only_ok, &
+              next_screen_context_lines, scroll_error_top_bottom
 end module fortmacs
