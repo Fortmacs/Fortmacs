@@ -47,7 +47,7 @@ module fns_fm
 
     public :: value_predicate
     public :: value_equal, length, nth, nthcdr, memq, member
-    public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL
+    public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL, schars, substring
 
     !> The value of `compare_strings` for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
@@ -351,6 +351,64 @@ contains
             r = COMPARE_EQUAL
         end if
     end function compare_strings
+
+    !> Number of characters in UTF-8 string `s`.  Port of lisp.h:SCHARS.
+    pure integer(int64) function schars(s)
+        character(len=*), intent(in) :: s
+        integer :: i
+
+        schars = 0
+
+        do i = 1, len(s)
+            ! Count the bytes that start a character.
+            if (iand(iachar(s(i:i)), 192) /= 128) schars = schars + 1
+        end do
+    end function schars
+
+    !> Return a new string whose contents are a substring of STRING.
+    !> The returned string consists of the characters between index FROM
+    !> (inclusive) and index TO (exclusive) of STRING.  FROM and TO are
+    !> zero-indexed: 0 means the first character of STRING.  Negative
+    !> values are counted from the end of STRING.  If TO is absent, the
+    !> substring runs to the end of STRING.  Out-of-range values are
+    !> clipped (upstream signals args-out-of-range).  Port of
+    !> fns.c:Fsubstring.
+    pure function substring(string, from, to) result(r)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: from
+        integer(int64), intent(in), optional :: to
+        character(len=:), allocatable :: r
+        integer(int64) :: n, a, b, count
+        integer :: i, first, last
+
+        n = schars(string)
+        a = from
+        if (a < 0) a = a + n
+        b = n
+        if (present(to)) b = to
+        if (b < 0) b = b + n
+        a = max(0_int64, min(a, n))
+        b = max(a, min(b, n))
+        ! Byte positions of characters a and b.
+        first = len(string) + 1
+        last = len(string) + 1
+        count = 0
+
+        do i = 1, len(string)
+            if (iand(iachar(string(i:i)), 192) /= 128) then
+                if (count == a) first = min(first, i)
+
+                if (count == b) then
+                    last = i
+                    exit
+                end if
+
+                count = count + 1
+            end if
+        end do
+
+        r = string(first:last - 1)
+    end function substring
 
     !> The characters of UTF-8 string `s`.
     pure subroutine string_chars(s, chars)

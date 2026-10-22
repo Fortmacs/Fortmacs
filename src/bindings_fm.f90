@@ -175,6 +175,7 @@ contains
         call bind(global_map, "<down>", "next-line")
         call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
+        call bind(esc_map, "x", "execute-extended-command")
         ! The mark and killing (bindings.el).
         call bind(global_map, "C-@", "set-mark-command")
         call bind(global_map, "C-SPC", "set-mark-command")

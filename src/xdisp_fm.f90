@@ -52,7 +52,7 @@ module xdisp_fm
     use window_fm, only: window_type, set_window_buffer, window_start, &
                          set_window_start, window_body_lines
     use dispnew_fm, only: adjust_frame_glyphs, update_frame
-    use keyboard_fm, only: last_message
+    use keyboard_fm, only: last_message, minibuffer_message_text
     implicit none(type, external)
     private
 
@@ -544,6 +544,8 @@ contains
         integer(int64) :: bi, pos, byte
         integer(int32) :: c
         integer :: x, n, cols, col_of_point
+        integer(int64) :: mpos
+        integer(int32) :: clen
 
         cursor_col = 0
         call resolve_buffer(f%minibuffer_window%buffer, bi, status)
@@ -559,21 +561,23 @@ contains
         do while (pos < buffers(bi)%zv)
             if (pos == buffers(bi)%pt) col_of_point = x
             c = buf_fetch_char(buffers(bi), byte)
-            call produce_char(c, x, cells, n)
-
-            if (x + n > size(line)) then
-                allocate (grown(2*size(line) + n))
-                grown(1:x) = line(1:x)
-                call move_alloc(grown, line)
-            end if
-
-            line(x + 1:x + n) = cells(1:n)
-            x = x + n
+            call put(c)
             byte = byte + buf_next_char_len(buffers(bi), byte)
             pos = pos + 1
         end do
 
         if (col_of_point < 0) col_of_point = x
+
+        ! A minibuffer-message after the text (its overlay at the end).
+        if (allocated(minibuffer_message_text)) then
+            mpos = 1
+
+            do while (mpos <= len(minibuffer_message_text, kind=int64))
+                call string_char_and_length(minibuffer_message_text, mpos, c, clen)
+                call put(c)
+                mpos = mpos + clen
+            end do
+        end if
 
         ! auto-hscroll: recenter point when it would leave the line.
         associate (w => f%minibuffer_window)
@@ -610,6 +614,24 @@ contains
 
             cursor_col = col_of_point - w%hscroll
         end associate
+
+    contains
+
+        !> Lay out character `c` at column x.
+        subroutine put(c)
+            integer(int32), intent(in) :: c
+
+            call produce_char(c, x, cells, n)
+
+            if (x + n > size(line)) then
+                allocate (grown(2*size(line) + n))
+                grown(1:x) = line(1:x)
+                call move_alloc(grown, line)
+            end if
+
+            line(x + 1:x + n) = cells(1:n)
+            x = x + n
+        end subroutine put
     end subroutine display_minibuffer
 
     !> Show `text` in the echo area.  Port of editfns.c:Fmessage (with a

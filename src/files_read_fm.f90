@@ -20,18 +20,26 @@
 !> Part of files_fm.  A submodule can use minibuffer_fm even though it
 !> depends on files_fm, which a module cannot.
 submodule(files_fm) files_read_fm
-    use minibuffer_fm, only: read_file_name
+    use minibuffer_fm, only: read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     implicit none(type, external)
 
 contains
 
     recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
-                                                             default_filename, initial)
+                                                             default_filename, initial, confirm_nonexistent)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: dir, default_filename, initial
+        logical, intent(in), optional :: confirm_nonexistent
+        integer :: mustmatch
 
-        call read_file_name(prompt, result, status, dir, default_filename, initial)
+        mustmatch = REQUIRE_MATCH_NIL
+
+        if (present(confirm_nonexistent)) then
+            if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
+        end if
+
+        call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial=initial)
     end subroutine read_file_name_in_minibuffer
 end submodule files_read_fm

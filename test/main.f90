@@ -52,6 +52,7 @@ program tester
     use test_callproc_fm, only: collect_callproc_fm
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
+    use test_casetab_fm, only: collect_casetab_fm
     use test_simple_fm, only: collect_simple_fm
     implicit none(type, external)
 
@@ -91,6 +92,7 @@ program tester
                  new_testsuite("callproc_fm", collect_callproc_fm), &
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
+                 new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("simple_fm", collect_simple_fm) &
                  ]
 

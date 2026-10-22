@@ -38,7 +38,7 @@ module minibuf_fm
     use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, &
                        make_symbol_ref, stringp, xstring, symbolp, xsymbol, symbols, nsymbols, V_LIST, vtag
     use lread_fm, only: intern_soft
-    use fns_fm, only: compare_strings, COMPARE_EQUAL
+    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
@@ -50,7 +50,7 @@ module minibuf_fm
     use keyboard_fm, only: recursive_edit_1, throw_exit, command_loop_level, post_command_hook, &
                            redisplay_proc, last_message
     use frame_fm, only: selected_frame
-    use window_fm, only: set_window_buffer
+    use window_fm, only: set_window_buffer, window_start, set_window_start
     use subr_fm, only: add_to_history
     implicit none(type, external)
     private
@@ -142,6 +142,11 @@ module minibuf_fm
     type :: string_box
         character(len=:), allocatable :: s
     end type string_box
+
+    !> The buffer that was current when the innermost active minibuffer
+    !> was entered (the buffer of minibuffer-selected-window); the null
+    !> handle when no minibuffer is active.
+    type(handle_type), public, protected :: minibuffer_calling_buffer
 
     !> Vminibuffer_list: the minibuffer of each depth (index depth + 1).
     type(handle_type), allocatable :: minibuffers(:)
@@ -258,7 +263,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
         type(handle_type), intent(in), optional :: keymap
-        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer
+        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
+        integer(int64) :: old_root_start, bi
         type(status_type) :: st, edit_status
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
                                          saved_before
@@ -283,6 +289,8 @@ contains
         call get_minibuffer(minibuf_level + 1, minibuffer, status)
         if (.not. status%ok()) return
         minibuf_level = minibuf_level + 1
+        saved_calling = minibuffer_calling_buffer
+        minibuffer_calling_buffer = calling_buffer
 
         ! minibuf_save_list
         if (allocated(minibuffer_history_variable)) then
@@ -301,12 +309,17 @@ contains
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
         old_selected = selected_frame%minibuffer_selected
         old_mini_buffer = selected_frame%minibuffer_window%buffer
+        ! read-minibuffer-restore-windows: what the root window shows (the
+        ! *Completions* list may replace it while reading).
+        old_root_buffer = selected_frame%root_window%buffer
+        old_root_start = window_start(selected_frame%root_window)
         saved_hook => post_command_hook
 
         call set_buffer(minibuffer, status)
 
         if (.not. status%ok()) then
             minibuf_level = minibuf_level - 1
+            minibuffer_calling_buffer = saved_calling
             return
         end if
 
@@ -358,8 +371,21 @@ contains
         call set(sym("inhibit-read-only"), t_value(), st)
         call erase_buffer(st)
         call set(sym("inhibit-read-only"), nil(), st)
+        minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         selected_frame%minibuffer_window%buffer = old_mini_buffer
+
+        if (old_root_buffer%index /= 0 .and. (selected_frame%root_window%buffer%index /= old_root_buffer%index .or. &
+                                              selected_frame%root_window%buffer%generation /= &
+                                              old_root_buffer%generation)) then
+            call resolve_buffer(old_root_buffer, bi, st)
+
+            if (st%ok()) then
+                call set_window_buffer(selected_frame%root_window, old_root_buffer, st)
+                call set_window_start(selected_frame%root_window, old_root_start, st, noforce=.true.)
+            end if
+        end if
+
         call set_buffer(calling_buffer, st)
         minibuffer_history_variable = saved_histvar
         minibuffer_history_position = saved_histpos
@@ -447,43 +473,6 @@ contains
         table%fn => fn
     end function completion_function_table
 
-    !> Number of characters in UTF-8 `s`.
-    pure integer(int64) function nchars(s)
-        character(len=*), intent(in) :: s
-        integer :: i
-
-        nchars = 0
-
-        do i = 1, len(s)
-            ! Count the bytes that start a character.
-            if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
-        end do
-    end function nchars
-
-    !> The first `n` characters of UTF-8 `s`.
-    pure function char_prefix(s, n) result(p)
-        character(len=*), intent(in) :: s
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: p
-        integer(int64) :: count
-        integer :: i
-
-        count = 0
-
-        do i = 1, len(s)
-            if (iand(iachar(s(i:i)), 192) /= 128) then
-                if (count == n) then
-                    p = s(1:i - 1)
-                    return
-                end if
-
-                count = count + 1
-            end if
-        end do
-
-        p = s
-    end function char_prefix
-
     !> The elements of a non-function table: `elts` (the list elements or
     !> symbols, given to the predicate) and the string each one completes
     !> to (`names`; `ok` is false for elements that are not strings or
@@ -540,8 +529,8 @@ contains
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
 
-        n = nchars(string)
-        prefix_matches = n <= nchars(name)
+        n = schars(string)
+        prefix_matches = n <= schars(name)
         if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case, end1=n) &
                                              == COMPARE_EQUAL
     end function prefix_matches
@@ -606,7 +595,7 @@ contains
         have_best = .false.
         bestmatchsize = 0
         matchcount = 0
-        nstring = nchars(string)
+        nstring = schars(string)
 
         do k = 1, size(elts, kind=int64)
             ! Is this element a possible completion?
@@ -620,7 +609,7 @@ contains
                 if (.not. predicate(elts(k))) cycle
             end if
 
-            neltstring = nchars(eltstring)
+            neltstring = schars(eltstring)
 
             ! Update computation of how much all possible completions match.
             if (.not. have_best) then
@@ -635,7 +624,7 @@ contains
                 matchsize = compare
                 if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
                 old_bestmatch = bestmatch
-                nbest = nchars(bestmatch)
+                nbest = schars(bestmatch)
 
                 if (completion_ignore_case) then
                     ! If this is an exact match except for case, use it as
@@ -681,7 +670,7 @@ contains
         end if
 
         ! Else extract the part in which all completions agree.
-        result = make_string(char_prefix(bestmatch, bestmatchsize))
+        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
     end subroutine try_completion
 
     !> Search for partial matches of STRING in COLLECTION.

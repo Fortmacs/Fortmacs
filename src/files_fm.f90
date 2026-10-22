@@ -63,15 +63,20 @@ module files_fm
     public :: make_directory
 
     interface
-        !> minibuffer.el:read-file-name.  (In submodule files_read_fm, as
-        !> the minibuffer code depends on this module.)
+        !> minibuffer.el:read-file-name.  With `confirm_nonexistent`, a
+        !> name that is not an existing file needs confirming right after
+        !> completion (confirm-nonexistent-file-or-buffer's value
+        !> `after-completion`).  (In submodule files_read_fm, as the
+        !> minibuffer code depends on this module.)
         recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
-                                                                 default_filename, initial)
+                                                                 default_filename, initial, &
+                                                                 confirm_nonexistent)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: dir, default_filename, initial
+            logical, intent(in), optional :: confirm_nonexistent
         end subroutine read_file_name_in_minibuffer
     end interface
 
@@ -790,7 +795,8 @@ contains
 
         dir = "~/"
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
-        call read_file_name_in_minibuffer("Find file: ", filename, status, default_filename=dir)
+        call read_file_name_in_minibuffer("Find file: ", filename, status, default_filename=dir, &
+                                          confirm_nonexistent=.true.)
         if (.not. status%ok()) return
         call find_file(filename, status)
     end subroutine cmd_find_file

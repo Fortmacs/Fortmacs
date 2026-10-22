@@ -92,6 +92,10 @@ module keyboard_fm
     type(value_type), allocatable, public :: this_command_keys(:)
     !> Stand-in for the echo area: the last message shown.
     character(len=:), allocatable, public :: last_message
+    !> Stand-in for minibuffer.el's minibuffer--message-overlay: text shown
+    !> after the active minibuffer's contents until the next command
+    !> (`minibuffer-message`); unallocated for none.
+    character(len=:), allocatable, public :: minibuffer_message_text
 
     !> tty->meta_key: 0 strips the 8th bit, 1 makes it Meta, 2 passes
     !> bytes on to keyboard decoding (UTF-8).
@@ -780,6 +784,8 @@ contains
 
         ! A new command clears the echo area.
         if (allocated(last_message)) last_message = ""
+        ! minibuffer--delete-message-overlay runs from pre-command-hook.
+        if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
         last_command_event = keys(size(keys))

@@ -59,15 +59,25 @@ module simple_fm
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
-                         key_description
+                         key_description, where_is_internal
+    use minibuf_fm, only: completion_obarray_table
+    use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
+    use lread_fm, only: intern_soft
     use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value, mark_even_if_inactive
+                          prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
-                           set_transient_map
+                           set_transient_map, last_message
     implicit none(type, external)
     private
+
+    public :: execute_extended_command, read_extended_command
+
+    !> Non-nil means show the equivalent keybinding when M-x has one.
+    !> (A length of time is not supported: the suggestion shows until the
+    !> next command.)  Port of simple.el suggest-key-bindings.
+    logical, public :: suggest_key_bindings = .true.
 
     public :: newline, open_line, delete_backward_char, &
               prefix_command_preserve_state, universal_argument_map, &
@@ -736,9 +746,125 @@ contains
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
 
+    ! ------------------------------------------------------------------
+    ! M-x
+    ! ------------------------------------------------------------------
+
+    !> Read and return name of command to invoke via
+    !> `execute-extended-command'.  Port of
+    !> simple.el:read-extended-command (with read-extended-command-1; no
+    !> M-X cycling, affixations or default from the buffer).
+    recursive subroutine read_extended_command(name, status)
+        character(len=:), allocatable, intent(out) :: name
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: prompt
+        character(len=24) :: num
+        type(value_type) :: head
+
+        prompt = ""
+
+        if (value_eq(current_prefix_arg, sym("-"))) then
+            prompt = "- "
+        else if (consp(current_prefix_arg)) then
+            head = list_elt(current_prefix_arg, 1_int64)
+
+            if (fixnump(head)) then
+                if (xfixnum(head) == 4) then
+                    prompt = "C-u "
+                else
+                    write (num, "(i0)") xfixnum(head)
+                    prompt = trim(num)//" "
+                end if
+            end if
+        else if (fixnump(current_prefix_arg)) then
+            write (num, "(i0)") xfixnum(current_prefix_arg)
+            prompt = trim(num)//" "
+        end if
+
+        ! Read a string, completing from and restricting to the set of all
+        ! defined commands.  Save the command read on the extended-command
+        ! history list.
+        call completing_read(prompt//"M-x ", completion_obarray_table(), name, status, commandp, &
+                             require_match=REQUIRE_MATCH_T, history="extended-command-history")
+    end subroutine read_extended_command
+
+    !> Read a command name, then read the arguments and call the command.
+    !> To pass a prefix argument to the command you are invoking, give a
+    !> prefix argument to `execute-extended-command'.
+    !>
+    !> This command provides completion when reading the command name.
+    !> Port of simple.el:execute-extended-command (the key binding
+    !> suggestion shows at once, and only when the command left the echo
+    !> area empty; no shorter M-x suggestions).
+    recursive subroutine execute_extended_command(prefixarg, status, command_name)
+        type(value_type), intent(in) :: prefixarg
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: command_name
+        character(len=:), allocatable :: name
+        type(value_type) :: function, binding
+        type(value_type), allocatable :: keys(:)
+        integer(int64) :: id
+
+        if (present(command_name)) then
+            name = command_name
+        else
+            ! For the prompt.
+            current_prefix_arg = prefixarg
+            call read_extended_command(name, status)
+            if (.not. status%ok()) return
+        end if
+
+        id = intern_soft(name)
+        function = nil()
+        if (id /= 0) function = sym(name)
+
+        if (id == 0 .or. .not. commandp(function)) then
+            call set_error(status, FM_GENERIC_ERROR, "`"//name//"' is not a valid command name")
+            return
+        end if
+
+        binding = nil()
+        if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
+        this_command = function
+        ! Normally `real-this-command' should never be changed, but here we
+        ! really want to pretend that M-x <cmd> RET is nothing more than a
+        ! "key binding" for <cmd>.
+        real_this_command = function
+        ! command-execute
+        current_prefix_arg = prefixarg
+        prefix_arg = nil()
+        call call_interactively(function, status)
+        if (.not. status%ok()) return
+
+        if (suggest_key_bindings .and. .not. nilp(binding)) then
+            if (echo_area_empty()) then
+                call list_elements(binding, keys)
+                call message("You can run the command "//char(226)//char(128)//char(152)//name// &
+                             char(226)//char(128)//char(153)//" with "//key_description(keys))
+            end if
+        end if
+    end subroutine execute_extended_command
+
+    !> Whether the echo area shows nothing (current-message is nil).
+    logical function echo_area_empty()
+        echo_area_empty = .true.
+        if (allocated(last_message)) echo_area_empty = len(last_message) == 0
+    end function echo_area_empty
+
+    subroutine cmd_execute_extended_command(status)
+        type(status_type), intent(out) :: status
+        type(value_type) :: arg
+
+        ! A copy: reading the command name runs other commands, which set
+        ! current-prefix-arg.
+        arg = current_prefix_arg
+        call execute_extended_command(arg, status)
+    end subroutine cmd_execute_extended_command
+
     subroutine syms_of_simple()
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
+        call defcommand("execute-extended-command", cmd_execute_extended_command)
         call defcommand("next-line", cmd_next_line)
         call defcommand("previous-line", cmd_previous_line)
         call defcommand("previous-history-element", cmd_previous_history_element)
