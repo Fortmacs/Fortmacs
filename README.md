@@ -22,7 +22,7 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and progress.
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
 <tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.00%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.25%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆5.50%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.25%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">651<br>of 63,999</td><td align="center">651<br>of 56,864</td><td align="center">472<br>of 8,547</td><td align="center">179<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">652<br>of 63,999</td><td align="center">652<br>of 56,864</td><td align="center">473<br>of 8,547</td><td align="center">179<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
 <tr><td align="center">≆1.00%</td><td align="center">≆1.25%</td><td align="center">≆5.50%</td><td align="center">≆0.25%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
@@ -167,10 +167,8 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   end function longest_line
   ```
 
-  [Compare the two side by side](docs/syntax.html) (download the page and
-  open it in a browser; it will be served by GitHub Pages once the
-  repository is public): pointing at any part of either version lights up
-  its counterpart.
+  [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html):
+  pointing at any part of either version lights up its counterpart.
 
   None of this makes Elisp wrong. Preferring Fortran's syntax is simply a
   preference, and more options can never hurt.

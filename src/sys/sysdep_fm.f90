@@ -70,8 +70,8 @@ module sysdep_fm
     public :: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
               sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
               sys_unsetenv, emacs_get_current_dir_name, &
-              passwd_home_by_name, passwd_home_of_user, emacs_geteuid, emacs_getegid, &
-              emacs_strerror
+              passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
+              emacs_geteuid, emacs_getegid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
@@ -713,6 +713,23 @@ contains
 
         call passwd_home(c_getpwuid(c_getuid()), home, found)
     end subroutine passwd_home_of_user
+
+    !> Login name of the real user (getpwuid (getuid ())), as
+    !> editfns.c:Fuser_real_login_name finds it.  `found` is false when the
+    !> user has no passwd entry.
+    subroutine passwd_name_of_user(name, found)
+        character(len=:), allocatable, intent(out) :: name
+        logical, intent(out) :: found
+        type(c_ptr) :: p
+        type(passwd_type), pointer :: pw
+
+        p = c_getpwuid(c_getuid())
+        found = c_associated(p)
+        name = ""
+        if (.not. found) return
+        call c_f_pointer(p, pw)
+        name = c_string_to_fortran(pw%pw_name)
+    end subroutine passwd_name_of_user
 
     subroutine passwd_home(p, home, found)
         type(c_ptr), intent(in) :: p
