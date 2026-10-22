@@ -22,6 +22,7 @@
 !> handlers, the minibuffer and Lisp hooks, none of which exist yet.
 module test_files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use bindings_fm, only: init_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
@@ -103,6 +104,7 @@ contains
         character(len=5), parameter :: names(6) = [character(len=5) :: &
                                                    "a.txt", "b.txt", "c.txt", "new", "ro", "x"]
         integer :: i
+        call init_bindings()
         call init_fileio()
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)

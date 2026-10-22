@@ -98,14 +98,21 @@ contains
 
     subroutine test_done(error)
         type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        ! Emacs always has a current buffer; give the test its own.
+        call enter("", h)
         ! Normal operation.
         call isearch_update()
         call isearch_done()
         call check(error,.not. isearch_active)
-        if (allocated(error)) return
+        if (allocated(error)) then
+            call leave(h)
+            return
+        end if
         ! Bug #21091: let `isearch-done' work without `isearch-update'.
         call isearch_done()
         call check(error,.not. isearch_active .and. overriding_terminal_local_map%index == 0)
+        call leave(h)
     end subroutine test_done
 
     subroutine test_typing(error)
