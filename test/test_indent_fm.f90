@@ -58,7 +58,6 @@ contains
                     ]
     end subroutine collect_indent_fm
 
-
     !> A fresh buffer holding `text`, point at 1, in a window `cols` wide.
     subroutine enter(text, cols, h)
         character(len=*), intent(in) :: text
@@ -76,7 +75,6 @@ contains
         selected_frame%minibuffer_selected = .false.
     end subroutine enter
 
-
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
@@ -84,7 +82,6 @@ contains
         call kill_buffer(h, st)
         selected_frame%root_window%total_cols = 0
     end subroutine leave
-
 
     subroutine test_current_column(error)
         type(error_type), allocatable, intent(out) :: error
@@ -109,7 +106,6 @@ contains
         call leave(h)
     end subroutine test_current_column
 
-
     subroutine test_move_to_column(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -129,7 +125,6 @@ contains
         call leave(h)
     end subroutine test_move_to_column
 
-
     subroutine test_vertical_motion(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -146,7 +141,6 @@ contains
         call check(error, moved == -2 .and. point() == 1)
         call leave(h)
     end subroutine test_vertical_motion
-
 
     !> Lines wider than the window continue on the next screen line.
     subroutine test_wrapped(error)
@@ -175,7 +169,6 @@ contains
         call leave(h)
     end subroutine test_wrapped
 
-
     !> C-n keeps the column across a short line (temporary-goal-column).
     subroutine test_goal_column(error)
         type(error_type), allocatable, intent(out) :: error
@@ -202,7 +195,6 @@ contains
         call leave(h)
     end subroutine test_goal_column
 
-
     subroutine test_errors(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -219,7 +211,6 @@ contains
         call check(error, st%ok())
         call leave(h)
     end subroutine test_errors
-
 
     !> With line-move-visual off (or a goal column), lines are buffer
     !> lines even when wrapped.
@@ -245,5 +236,4 @@ contains
         goal_column = -1
         call leave(h)
     end subroutine test_logical
-
 end module test_indent_fm

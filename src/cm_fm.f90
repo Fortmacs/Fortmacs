@@ -49,7 +49,6 @@ contains
         if (allocated(cap)) c = len(delete_padding(cap))
     end function cost_of
 
-
     !> The minimum cost of parameterized motion `cap`.  cm.c's CMCOST.
     integer function cmcost(cap) result(c)
         character(len=:), allocatable, intent(in) :: cap
@@ -57,7 +56,6 @@ contains
         c = BIG
         if (allocated(cap)) c = len(delete_padding(tgoto(cap, 0_int64, 0_int64)))
     end function cmcost
-
 
     !> (Re)initialize the cost factors.  Port of cm.c:cmcostinit.
     subroutine cmcostinit(tty)
@@ -79,7 +77,6 @@ contains
         end associate
     end subroutine cmcostinit
 
-
     !> Assume the cursor is at `row`, `col`.  cm.h:cmat.
     subroutine cmat(tty, row, col)
         type(tty_display_info), intent(inout) :: tty
@@ -89,7 +86,6 @@ contains
         tty%wcm%cm_curx = col
     end subroutine cmat
 
-
     !> Forget where the cursor is.  cm.h:losecursor.
     subroutine losecursor(tty)
         type(tty_display_info), intent(inout) :: tty
@@ -97,7 +93,6 @@ contains
         tty%wcm%cm_curx = -1
         tty%wcm%cm_cury = -1
     end subroutine losecursor
-
 
     !> Account for `n` columns written.  cm.h:cmplus.
     subroutine cmplus(tty, n)
@@ -120,7 +115,6 @@ contains
         end associate
     end subroutine cmplus
 
-
     !> After writing the last column on a terminal with xn (magic wrap),
     !> move to a known place with CR LF.  Port of cm.c:cmcheckmagic; where
     !> upstream aborts (no magic wrap, or the last row) the position is
@@ -140,7 +134,6 @@ contains
         tty%wcm%cm_cury = tty%wcm%cm_cury + 1
     end subroutine cmcheckmagic
 
-
     !> Output `cap` `n` times.
     subroutine repeat_output(tty, cap, n)
         type(tty_display_info), intent(inout) :: tty
@@ -155,7 +148,6 @@ contains
             call tty_output(tty, s)
         end do
     end subroutine repeat_output
-
 
     !> The cost of moving from (srcy, srcx) to (dsty, dstx) with relative
     !> motions and tabs; with `doit`, also make the motion.  Port of
@@ -249,7 +241,6 @@ contains
             if (doit) call repeat_output(tty, p, deltax)
         end associate
     end function calccost
-
 
     !> Move the cursor to (`row`, `col`) the cheapest way.  Port of
     !> cm.c:cmgoto.
@@ -357,14 +348,12 @@ contains
         call cmat(tty, row, col)
     end subroutine cmgoto
 
-
     !> Forget all cursor-motion capabilities.  Port of cm.c:Wcm_clear.
     subroutine wcm_clear(tty)
         type(tty_display_info), intent(inout) :: tty
 
         tty%wcm = cm_type()
     end subroutine wcm_clear
-
 
     !> 0 if the terminal can position the cursor, -1 if it cannot, -2 if
     !> its size is unknown.  Port of cm.c:Wcm_init.
@@ -383,5 +372,4 @@ contains
             r = -2
         end if
     end function wcm_init
-
 end module cm_fm

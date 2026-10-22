@@ -88,7 +88,6 @@ contains
         call redisplay(selected_frame, status)
     end subroutine do_redisplay
 
-
     !> Whether terminal type `term` gets term/xterm.el's setup, as
     !> faces.el:tty-run-terminal-initialization finds term/xterm.el for
     !> "xterm*" (and term/screen.el and term/tmux.el, which use it).
@@ -98,7 +97,6 @@ contains
         xterm_like = index(term, "xterm") == 1 .or. index(term, "screen") == 1 .or. &
                      index(term, "tmux") == 1
     end function xterm_like
-
 
     !> Whether `s` is "+" followed by digits, then optionally ":" and
     !> digits; `line` gets the first number.
@@ -129,9 +127,7 @@ contains
 
             all_digits = len(t) > 0 .and. verify(t, "0123456789") == 0
         end function all_digits
-
     end function line_arg_p
-
 
     !> Visit the files named in `args`, leaving the last one current:
     !> "+LINE" puts point on that line of the next file, "--" makes the
@@ -202,7 +198,6 @@ contains
         end do
     end subroutine command_line_1
 
-
     !> Visit `name` (relative to `dir`), make its buffer current and go to
     !> line `line` if positive.
     subroutine visit(name, dir, line, status)
@@ -227,7 +222,6 @@ contains
             shortage = forward_line(line - 1)
         end if
     end subroutine visit
-
 
     !> Run the editor on terminal type `terminal_type` at file descriptor
     !> `fd` until the user leaves, visiting the files in `args` first.
@@ -296,7 +290,6 @@ contains
         call set_input_fd(-1_int32)
     end subroutine emacs_main
 
-
     !> Run the init file's `configure`.  An error is shown in the echo area
     !> and sets `init_file_had_error`; startup goes on.  Port of
     !> startup.el:startup--load-user-init-file (the init file is compiled
@@ -313,7 +306,6 @@ contains
             call message("An error occurred while loading the init file: "//format_error(status))
         end if
     end subroutine load_init_file
-
 
     !> Handle the options that come before the files: -q (--no-init-file)
     !> and -Q (--quick) turn off the init file (`init` false); `rest` gets
@@ -349,7 +341,6 @@ contains
 
         rest = args(k + 1:)
     end subroutine command_line
-
 
     !> The program: handle --version, --help and --recompile, check for a
     !> terminal, then run the editor with the user's `configure`.
@@ -460,7 +451,6 @@ contains
         end if
     end subroutine run
 
-
     !> `fortmacs --recompile`: build the init file into the user's own
     !> fortmacs, reporting on standard output and error.
     subroutine do_recompile(installed, install, exit_code)
@@ -492,7 +482,6 @@ contains
         exit_code = 0
     end subroutine do_recompile
 
-
     !> --version in a user build: which configuration it carries.
     subroutine write_configuration()
         integer :: n
@@ -505,7 +494,6 @@ contains
             write (output_unit, "(a)") "With the configuration in "//init_file_name()
         end if
     end subroutine write_configuration
-
 
     !> --list-generations, --rollback and --switch-generation N, reporting
     !> as Guix does ("switched from generation 3 to 2").
@@ -553,7 +541,6 @@ contains
         exit_code = 0
     end subroutine do_generations
 
-
     !> Replace this process with the user's build, if there is one and it
     !> is newer than this fortmacs; otherwise `reminder` says what to do.
     !> Returns only if the build is not run.
@@ -588,5 +575,4 @@ contains
         err = emacs_execv(build, argv)
         reminder = "Can't run "//build//": "//emacs_strerror(err)
     end subroutine run_user_build
-
 end module emacs_fm

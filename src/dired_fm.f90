@@ -113,7 +113,6 @@ contains
         files = make_list(elems)
     end subroutine directory_files
 
-
     !> Whether `a` sorts before `b`, comparing bytes (UTF-8 sorts as its
     !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
     pure logical function lessp(a, b)
@@ -129,5 +128,4 @@ contains
 
         lessp = len(a) < len(b)
     end function lessp
-
 end module dired_fm

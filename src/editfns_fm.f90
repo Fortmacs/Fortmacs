@@ -82,25 +82,21 @@ contains
         point = buffers(cur)%pt
     end function point
 
-
     !> Port of editfns.c:Fpoint_min.
     integer(int64) function point_min()
         point_min = buffers(cur)%begv
     end function point_min
-
 
     !> Port of editfns.c:Fpoint_max.
     integer(int64) function point_max()
         point_max = buffers(cur)%zv
     end function point_max
 
-
     !> Characters in the current buffer, ignoring narrowing.
     !> Port of editfns.c:Fbuffer_size.
     integer(int64) function buffer_size()
         buffer_size = buffers(cur)%text%z - BEG
     end function buffer_size
-
 
     !> Like `buffer_size`, for buffer `h`.  Port of editfns.c:Fbuffer_size.
     subroutine buffer_size_of(h, size, status)
@@ -115,18 +111,15 @@ contains
         size = buffers(i)%text%z - BEG
     end subroutine buffer_size_of
 
-
     !> Port of editfns.c:Fgap_position.
     integer(int64) function gap_position()
         gap_position = buffers(cur)%text%gpt
     end function gap_position
 
-
     !> Port of editfns.c:Fgap_size.
     integer(int64) function gap_size()
         gap_size = buffers(cur)%text%gap_size
     end function gap_size
-
 
     !> Set point to `position`, clipped to the accessible region.
     !> Port of editfns.c:Fgoto_char (integer POSITION).
@@ -138,7 +131,6 @@ contains
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto_char
 
-
     !> Set point to marker `m`.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
     subroutine goto_char_marker(m, status)
@@ -147,7 +139,6 @@ contains
 
         call set_point_from_marker(m, status)
     end subroutine goto_char_marker
-
 
     !> Port of intervals.c:set_point_from_marker.  The marker's byte
     !> position is only trusted if it is in the current buffer.
@@ -177,7 +168,6 @@ contains
         end associate
     end subroutine set_point_from_marker
 
-
     !> A new marker at point; the caller frees it.
     !> Port of editfns.c:Fpoint_marker.
     subroutine point_marker(m)
@@ -186,7 +176,6 @@ contains
         call new_marker_at(buffers(cur)%pt, buffers(cur)%pt_byte, m)
     end subroutine point_marker
 
-
     !> Port of editfns.c:Fpoint_min_marker.
     subroutine point_min_marker(m)
         type(handle_type), intent(out) :: m
@@ -194,14 +183,12 @@ contains
         call new_marker_at(buffers(cur)%begv, buffers(cur)%begv_byte, m)
     end subroutine point_min_marker
 
-
     !> Port of editfns.c:Fpoint_max_marker.
     subroutine point_max_marker(m)
         type(handle_type), intent(out) :: m
 
         call new_marker_at(buffers(cur)%zv, buffers(cur)%zv_byte, m)
     end subroutine point_max_marker
-
 
     !> Port of alloc.c:build_marker (current buffer).
     subroutine new_marker_at(charpos, bytepos, m)
@@ -212,7 +199,6 @@ contains
         call make_marker(m)
         call set_marker_both(m, current_buffer(), charpos, bytepos, st)
     end subroutine new_marker_at
-
 
     !> Byte position of character `position`; `found` is false when it is
     !> outside the buffer.  Port of editfns.c:Fposition_bytes.
@@ -225,7 +211,6 @@ contains
         found = BEG <= position .and. position <= buffers(cur)%text%z
         if (found) bytepos = char_to_byte(position)
     end subroutine position_bytes
-
 
     !> Character position containing byte `bytepos`; `found` is false when
     !> it is outside the buffer.  Port of editfns.c:Fbyte_to_position.
@@ -251,7 +236,6 @@ contains
         position = byte_to_char(pos_byte)
     end subroutine byte_to_position
 
-
     ! ------------------------------------------------------------------
     ! Characters around point
     ! ------------------------------------------------------------------
@@ -265,7 +249,6 @@ contains
             following_char = buf_fetch_char(buffers(cur), buffers(cur)%pt_byte)
         end if
     end function following_char
-
 
     !> Character before point, or 0 at the start of the accessible region.
     !> Port of editfns.c:Fprevious_char.
@@ -286,18 +269,15 @@ contains
         end associate
     end function preceding_char
 
-
     !> Port of editfns.c:Fbobp.
     logical function bobp()
         bobp = buffers(cur)%pt == buffers(cur)%begv
     end function bobp
 
-
     !> Port of editfns.c:Feobp.
     logical function eobp()
         eobp = buffers(cur)%pt == buffers(cur)%zv
     end function eobp
-
 
     !> Port of editfns.c:Fbolp.
     logical function bolp()
@@ -307,7 +287,6 @@ contains
         end associate
     end function bolp
 
-
     !> Port of editfns.c:Feolp.
     logical function eolp()
         associate (b => buffers(cur))
@@ -315,7 +294,6 @@ contains
             if (.not. eolp) eolp = buf_fetch_byte(b, b%pt_byte) == 10
         end associate
     end function eolp
-
 
     !> Character at `pos` (default: point); `found` is false outside the
     !> accessible region.  Port of editfns.c:Fchar_after (integer POS).
@@ -339,7 +317,6 @@ contains
             if (found) c = buf_fetch_char(b, pos_byte)
         end associate
     end subroutine char_after
-
 
     !> Character before `pos` (default: point); `found` is false outside
     !> the accessible region.  Port of editfns.c:Fchar_before (integer POS).
@@ -366,7 +343,6 @@ contains
             end if
         end associate
     end subroutine char_before
-
 
     ! ------------------------------------------------------------------
     ! Inserting, narrowing, extracting, deleting
@@ -416,7 +392,6 @@ contains
         end do
     end subroutine insert_char_n
 
-
     !> Restrict editing to `start`..`end` (in either order); point moves
     !> into the region.  Port of editfns.c:Fnarrow_to_region.
     subroutine narrow_to_region(start, end, status)
@@ -442,7 +417,6 @@ contains
         end associate
     end subroutine narrow_to_region
 
-
     !> Remove narrowing.  Port of editfns.c:Fwiden.
     subroutine widen()
         associate (b => buffers(cur))
@@ -452,7 +426,6 @@ contains
             b%zv_byte = b%text%z_byte
         end associate
     end subroutine widen
-
 
     !> Order `start`, `end` and check they lie in the accessible region.
     !> Port of buffer.c:validate_region.
@@ -473,7 +446,6 @@ contains
         end = e
     end subroutine validate_region
 
-
     subroutine range_error(status, a, b)
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
@@ -483,7 +455,6 @@ contains
         write (sb, "(i0)") b
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
     end subroutine range_error
-
 
     !> Text between `start` and `end` (either order).
     !> Port of editfns.c:Fbuffer_substring (text properties pending).
@@ -500,14 +471,12 @@ contains
         text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
     end subroutine buffer_substring
 
-
     !> The accessible text.  Port of editfns.c:Fbuffer_string.
     function buffer_string() result(text)
         character(len=:), allocatable :: text
 
         text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
     end function buffer_string
-
 
     !> Delete the text between `start` and `end` (either order).
     !> Port of editfns.c:Fdelete_region.
@@ -522,7 +491,6 @@ contains
         if (.not. status%ok()) return
         call del_range(s, e, status)
     end subroutine delete_region
-
 
     !> Delete the text between `start` and `end` and return it.
     !> Port of editfns.c:Fdelete_and_extract_region.
@@ -540,7 +508,6 @@ contains
         if (s == e) return
         call del_range_1(s, e, .true., status, text)
     end subroutine delete_and_extract_region
-
 
     ! ------------------------------------------------------------------
     ! Line positions
@@ -561,7 +528,6 @@ contains
         bol = charpos
     end function bol
 
-
     !> Position of the first character on the current line (after moving
     !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_bol.
     integer(int64) function pos_bol(n)
@@ -569,7 +535,6 @@ contains
 
         pos_bol = bol(n)
     end function pos_bol
-
 
     !> Like `pos_bol`, but constrained to the field point is in (so it
     !> stops after a minibuffer prompt).
@@ -582,7 +547,6 @@ contains
         line_beginning_position = constrain_to_field(charpos, buffers(cur)%pt, count /= 0, .true.)
     end function line_beginning_position
 
-
     !> Port of editfns.c:eol.
     integer(int64) function eol(n)
         integer(int64), intent(in), optional :: n
@@ -594,7 +558,6 @@ contains
         eol = find_before_next_newline(buffers(cur)%pt, cnt)
     end function eol
 
-
     !> Position of the last character on the current line (after moving
     !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_eol.
     integer(int64) function pos_eol(n)
@@ -603,7 +566,6 @@ contains
         pos_eol = eol(n)
     end function pos_eol
 
-
     !> Like `pos_eol`, but constrained to the field point is in.
     !> Port of editfns.c:Fline_end_position.
     integer(int64) function line_end_position(n)
@@ -611,7 +573,6 @@ contains
 
         line_end_position = constrain_to_field(eol(n), buffers(cur)%pt, .false., .true.)
     end function line_end_position
-
 
     ! ------------------------------------------------------------------
     ! Fields: runs of text with the same `field` property (text
@@ -625,7 +586,6 @@ contains
         v = sym("field")
     end function qfield
 
-
     !> `prop` of the current buffer's character at `pos` (nil outside the
     !> accessible text); get_char_property without overlays.
     function char_property(pos, prop) result(v)
@@ -636,7 +596,6 @@ contains
 
         call get_text_property(pos, prop, v, status)
     end function char_property
-
 
     !> The value of `prop` that a character inserted at `position` would
     !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
@@ -657,7 +616,6 @@ contains
             v = nil()
         end if
     end function get_pos_property
-
 
     !> The field around `pos` (default point): `beg` and `end`, limited
     !> by `beg_limit` and `end_limit`.  With `merge_at_boundary`, a
@@ -722,7 +680,6 @@ contains
         end if
     end subroutine find_field
 
-
     !> Start of the field around `pos`.  Port of editfns.c:Ffield_beginning.
     integer(int64) function field_beginning(pos, escape_from_edge, limit)
         integer(int64), intent(in) :: pos
@@ -733,7 +690,6 @@ contains
         call find_field(pos, escape_from_edge, field_beginning, end, beg_limit=limit)
     end function field_beginning
 
-
     !> End of the field around `pos`.  Port of editfns.c:Ffield_end.
     integer(int64) function field_end(pos, escape_from_edge, limit)
         integer(int64), intent(in) :: pos
@@ -743,7 +699,6 @@ contains
 
         call find_field(pos, escape_from_edge, beg, field_end, end_limit=limit)
     end function field_end
-
 
     !> Text of the field around `pos`.  Port of
     !> editfns.c:Ffield_string_no_properties.
@@ -757,7 +712,6 @@ contains
         call buffer_substring(beg, end, text, status)
     end function field_string
 
-
     !> Delete the field around `pos`.  Port of editfns.c:Fdelete_field.
     subroutine delete_field(pos, status)
         integer(int64), intent(in) :: pos
@@ -767,7 +721,6 @@ contains
         call find_field(pos, .false., beg, end)
         if (beg /= end) call del_range(beg, end, status)
     end subroutine delete_field
-
 
     !> `new_pos` moved, if needed, to stay in the field of `old_pos`.  With
     !> `escape_from_edge`, `old_pos` at a field edge may count as in the
@@ -818,5 +771,4 @@ contains
             pos = field_bound
         end if
     end function constrain_to_field
-
 end module editfns_fm

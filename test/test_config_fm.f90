@@ -54,7 +54,6 @@ contains
                     ]
     end subroutine collect_config_fm
 
-
     !> Set (or with `value` absent, unset) an environment variable.
     subroutine setenv(name, value)
         character(len=*), intent(in) :: name
@@ -68,7 +67,6 @@ contains
         end if
     end subroutine setenv
 
-
     !> Make an empty buffer current, for write_region to write empty files.
     subroutine empty_buffer()
         type(handle_type) :: h
@@ -78,7 +76,6 @@ contains
         call set_buffer(h, st)
         call erase_buffer(st)
     end subroutine empty_buffer
-
 
     !> Restore variable `name` to `old` (unset unless `found`).
     subroutine restore(name, old, found)
@@ -91,7 +88,6 @@ contains
             call setenv(name)
         end if
     end subroutine restore
-
 
     subroutine test_directories(error)
         type(error_type), allocatable, intent(out) :: error
@@ -135,7 +131,6 @@ contains
         call restore("XDG_CACHE_HOME", cache, has_cache)
     end subroutine test_directories
 
-
     subroutine test_install_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: prefix, root, exe
@@ -170,7 +165,6 @@ contains
         call delete_directory_internal(root, st)
     end subroutine test_install_prefix
 
-
     subroutine test_driver_source(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text, long
@@ -201,7 +195,6 @@ contains
         call check(error, index(text, '" // &') > 0, "continued")
     end subroutine test_driver_source
 
-
     subroutine test_recompile_errors(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: config, root, log
@@ -231,7 +224,6 @@ contains
         call delete_directory_internal(root, st)
         call restore("XDG_CONFIG_HOME", config, has_config)
     end subroutine test_recompile_errors
-
 
     !> Generations 1, 2 and 10 (stand-in binaries), switched between and
     !> rolled back.
@@ -314,5 +306,4 @@ contains
         call delete_directory_internal(root, st)
         call restore("XDG_STATE_HOME", state, has_state)
     end subroutine test_generations
-
 end module test_config_fm

@@ -59,7 +59,6 @@ contains
                     ]
     end subroutine collect_values_fm
 
-
     !> Copies are independent: there is no shared structure to mutate.
     subroutine test_value_semantics(error)
         type(error_type), allocatable, intent(out) :: error
@@ -78,7 +77,6 @@ contains
         call check(error, consp(a) .and. listp(a) .and. listp(nil()) .and. .not. consp(nil()), "list predicates")
     end subroutine test_value_semantics
 
-
     subroutine test_intern(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -95,7 +93,6 @@ contains
         call symbol_name(sym("tv-foo"), name, st)
         call check(error, name, "tv-foo")
     end subroutine test_intern
-
 
     !> Enough symbols to force several rehashes.
     subroutine test_intern_many(error)
@@ -116,7 +113,6 @@ contains
 
         call check(error, ids(1) /= ids(3000), "distinct names share an id")
     end subroutine test_intern_many
-
 
     subroutine test_eq_equal(error)
         type(error_type), allocatable, intent(out) :: error
@@ -139,7 +135,6 @@ contains
         if (allocated(error)) return
         call check(error,.not. value_equal(make_fixnum(1_int64), make_string("1")), "types differ")
     end subroutine test_eq_equal
-
 
     subroutine test_lists(error)
         type(error_type), allocatable, intent(out) :: error
@@ -184,7 +179,6 @@ contains
         call check(error, list_length(member(make_string("b"), list(make_string("b")))), 1_int64)
     end subroutine test_lists
 
-
     !> fns-tests.el: fns-tests-length (lists, strings, error on t).
     subroutine test_length(error)
         type(error_type), allocatable, intent(out) :: error
@@ -207,7 +201,6 @@ contains
         call length(t_value(), n, st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
     end subroutine test_length
-
 
     subroutine test_symbol_values(error)
         type(error_type), allocatable, intent(out) :: error
@@ -237,7 +230,6 @@ contains
         call check(error, value_eq(v, sym(":kw")) .and. keywordp(v), "keyword evaluates to itself")
     end subroutine test_symbol_values
 
-
     !> data-tests.el: binding-test-set-constant-{t,nil,keyword,itself}.
     subroutine test_set_constant(error)
         type(error_type), allocatable, intent(out) :: error
@@ -259,7 +251,6 @@ contains
         call check(error, st%code, FM_SETTING_CONSTANT)
     end subroutine test_set_constant
 
-
     !> fns-tests.el: plist-get/odd-number-of-elements.
     subroutine test_plist_get_odd(error)
         type(error_type), allocatable, intent(out) :: error
@@ -267,7 +258,6 @@ contains
         call check(error, nilp(plist_get(list(sym(":foo"), make_fixnum(1_int64), sym(":bar")), &
                                          sym(":bar"))), "degenerate plist")
     end subroutine test_plist_get_odd
-
 
     !> fns-tests.el: plist-put/odd-number-of-elements (bug#27726).
     subroutine test_plist_put_odd(error)
@@ -281,7 +271,6 @@ contains
         if (allocated(error)) return
         call check(error, st%detail, "plistp")
     end subroutine test_plist_put_odd
-
 
     !> fns-tests.el: test-plist (all four blocks, predicates included).
     subroutine test_plist(error)
@@ -340,7 +329,6 @@ contains
                    nilp(plist_member(plist, make_string(":c"), string_greaterp)), "block 4 misses")
     end subroutine test_plist
 
-
     subroutine test_get_put(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: v
@@ -356,5 +344,4 @@ contains
         call put(make_fixnum(1_int64), sym("p"), nil(), st)
         call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
     end subroutine test_get_put
-
 end module test_values_fm

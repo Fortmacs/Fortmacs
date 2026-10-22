@@ -51,7 +51,6 @@ contains
         end do
     end function hash_name
 
-
     !> Slot where `name` is, or the empty slot where it would go.
     integer(int64) function find_slot(name)
         character(len=*), intent(in) :: name
@@ -72,7 +71,6 @@ contains
         end do
     end function find_slot
 
-
     !> Create the tables and the symbols nil and t.
     !> Port of lread.c:init_obarray_once.
     subroutine init_obarray()
@@ -91,7 +89,6 @@ contains
         symbols(id)%bound = .true.
         symbols(id)%val = make_symbol_ref(SYM_T)
     end subroutine init_obarray
-
 
     !> Append a new symbol named `name` and index it.
     integer(int64) function add_symbol(name) result(id)
@@ -123,7 +120,6 @@ contains
         end if
     end function add_symbol
 
-
     subroutine rehash(new_size)
         integer(int64), intent(in) :: new_size
         integer(int64) :: id
@@ -137,13 +133,11 @@ contains
         end do
     end subroutine rehash
 
-
     !> Create nil and t if no symbol exists yet.  Anything that indexes
     !> `symbols` without interning first must call this.
     subroutine ensure_obarray()
         if (.not. allocated(slots)) call init_obarray()
     end subroutine ensure_obarray
-
 
     !> Id of the symbol named `name`, creating it if needed.
     !> Port of lread.c:Fintern (initial obarray).
@@ -155,7 +149,6 @@ contains
         if (id == 0) id = add_symbol(name)
     end function intern
 
-
     !> Id of the symbol named `name`, or 0 if there is none.
     !> Port of lread.c:Fintern_soft.
     integer(int64) function intern_soft(name) result(id)
@@ -165,7 +158,6 @@ contains
         id = slots(find_slot(name))
     end function intern_soft
 
-
     !> The symbol named `name` as a value (nil for "nil"); the Fortmacs
     !> spelling of 'name.  Interns it if needed.
     function sym(name) result(v)
@@ -174,5 +166,4 @@ contains
 
         v = make_symbol_ref(intern(name))
     end function sym
-
 end module lread_fm

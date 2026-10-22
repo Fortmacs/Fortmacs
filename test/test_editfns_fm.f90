@@ -70,7 +70,6 @@ contains
                     ]
     end subroutine collect_editfns_fm
 
-
     subroutine enter(name, h, old)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
@@ -81,7 +80,6 @@ contains
         call set_buffer(h, st)
     end subroutine enter
 
-
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
@@ -89,7 +87,6 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
-
 
     subroutine test_bounds(error)
         type(error_type), allocatable, intent(out) :: error
@@ -110,7 +107,6 @@ contains
         call leave(h, old)
     end subroutine test_bounds
 
-
     subroutine test_goto(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -128,7 +124,6 @@ contains
         call check(error, point(), 6_int64)
         call leave(h, old)
     end subroutine test_goto
-
 
     !> As marker-goto-char-from-other-buffer: the byte position must be
     !> recomputed when the marker belongs to another buffer.
@@ -155,7 +150,6 @@ contains
         call leave(mb, old)
     end subroutine test_goto_marker
 
-
     subroutine test_position_bytes(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -178,7 +172,6 @@ contains
         call check(error, found .and. p == 4, "byte-to-position at Z")
         call leave(h, old)
     end subroutine test_position_bytes
-
 
     subroutine test_chars_around(error)
         type(error_type), allocatable, intent(out) :: error
@@ -212,7 +205,6 @@ contains
         call leave(h, old)
     end subroutine test_chars_around
 
-
     subroutine test_lines(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -232,7 +224,6 @@ contains
         call check(error, bobp() .and. bolp(), "beginning")
         call leave(h, old)
     end subroutine test_lines
-
 
     subroutine test_narrow(error)
         type(error_type), allocatable, intent(out) :: error
@@ -260,7 +251,6 @@ contains
         call leave(h, old)
     end subroutine test_narrow
 
-
     subroutine test_narrow_edit(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -286,7 +276,6 @@ contains
         call leave(h, old)
     end subroutine test_narrow_edit
 
-
     subroutine test_substring(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -304,7 +293,6 @@ contains
         call check(error, st%detail, "1, 9")
         call leave(h, old)
     end subroutine test_substring
-
 
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
@@ -324,7 +312,6 @@ contains
         call check(error, buffer_string(), "ello")
         call leave(h, old)
     end subroutine test_delete
-
 
     subroutine test_insert_char(error)
         type(error_type), allocatable, intent(out) :: error
@@ -346,7 +333,6 @@ contains
         call check(error,.not. st%ok(), "invalid character accepted")
         call leave(h, old)
     end subroutine test_insert_char
-
 
     subroutine test_point_markers(error)
         type(error_type), allocatable, intent(out) :: error
@@ -375,7 +361,6 @@ contains
         call leave(h, old)
     end subroutine test_point_markers
 
-
     subroutine test_erase(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -389,7 +374,6 @@ contains
                    "erase-buffer must widen and delete everything")
         call leave(h, old)
     end subroutine test_erase
-
 
     ! editfns-tests.el: find-fields
     subroutine test_find_fields(error)
@@ -418,7 +402,6 @@ contains
         call check(error, buffer_string() == "foozot")
         call leave(h, old)
     end subroutine test_find_fields
-
 
     !> A minibuffer-style prompt (a read-only, front-sticky,
     !> rear-nonsticky field): line motion stops after it.
@@ -449,5 +432,4 @@ contains
         call check(error, line_beginning_position() == 1)
         call leave(h, old)
     end subroutine test_prompt_field
-
 end module test_editfns_fm

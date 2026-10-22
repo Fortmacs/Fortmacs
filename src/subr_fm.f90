@@ -78,7 +78,6 @@ contains
         if (.not. have) call set_error(status, FM_QUIT)
     end subroutine read_key
 
-
     !> What `key` means in replace.el:query-replace-map (the bindings
     !> y-or-n-p and map-y-or-n-p use), or ANSWER_NONE.
     integer function query_replace_answer(key) result(answer)
@@ -109,7 +108,6 @@ contains
             answer = ANSWER_NONE
         end select
     end function query_replace_answer
-
 
     !> Ask a "y or n" question in the echo area: `answer` is true for y
     !> (or SPC), false for n (or DEL); C-g quits.  Other keys ask again,
@@ -168,7 +166,6 @@ contains
         end if
     end subroutine y_or_n_p
 
-
     !> Add `newelt` to the front of history list `history_var` (a symbol
     !> name) unless it is already first, keeping at most history-length
     !> elements.  Port of subr.el:add-to-history
@@ -202,7 +199,6 @@ contains
         call set(sym(history_var), longer, status)
     end subroutine add_to_history
 
-
     !> Give KEY a global binding as COMMAND.
     !> This is a legacy function; see `keymap_global_set` for the
     !> recommended function to use instead.
@@ -221,7 +217,6 @@ contains
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
-
     !> `global_set_key` with the command named COMMAND.
     subroutine global_set_key_command(key, command, status)
         type(value_type), intent(in) :: key(:)
@@ -230,5 +225,4 @@ contains
 
         call define_key(current_global_map(), key, sym(command), status)
     end subroutine global_set_key_command
-
 end module subr_fm

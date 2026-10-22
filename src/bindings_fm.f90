@@ -65,14 +65,12 @@ contains
         call forward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_char
 
-
     !> Port of bindings.el:left-char (left-to-right paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
 
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_char
-
 
     !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
     subroutine bind(map, keys, cmd)
@@ -84,7 +82,6 @@ contains
         call key_parse(keys, key, status)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
-
 
     !> Bind the single event `c` to command `cmd` in `map`.
     subroutine bind_char(map, c, cmd)
@@ -98,7 +95,6 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind_char
 
-
     !> In `map`, translate `from` (kbd syntax) to the event `to`.
     subroutine translate(map, from, to)
         type(handle_type), intent(in) :: map
@@ -110,7 +106,6 @@ contains
         call key_parse(from, key, status)
         call define_key(map, key, list(to), status)
     end subroutine translate
-
 
     !> Register the commands and install the default keymaps.  Safe to
     !> call again (the maps are rebuilt).
@@ -210,5 +205,4 @@ contains
 
         call set_keymap_parent(local_function_key_map, function_key_map, status)
     end subroutine init_bindings
-
 end module bindings_fm

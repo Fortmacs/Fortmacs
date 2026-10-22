@@ -92,7 +92,6 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
-
     !> Insert `n` newlines.  Port of simple.el:newline (no margins,
     !> electric indentation, auto-fill or hard newlines).
     subroutine newline(n, status)
@@ -111,7 +110,6 @@ contains
         call self_insert_command(n, 10_int64, status)
     end subroutine newline
 
-
     !> Insert `n` newlines, leaving point before them.  Port of
     !> simple.el:open-line (no fill prefix or left margin).
     subroutine open_line(n, status)
@@ -125,7 +123,6 @@ contains
         call goto_char(loc)
     end subroutine open_line
 
-
     !> Delete `n` characters before point.  Port of
     !> simple.el:delete-backward-char (no region, untabify or kill).
     subroutine delete_backward_char(n, status)
@@ -134,7 +131,6 @@ contains
 
         call delete_char(-n, status)
     end subroutine delete_backward_char
-
 
     !> Pass the prefix-argument state on to the next command, which keeps
     !> `last_command` too.  Port of simple.el:prefix-command-preserve-state
@@ -145,7 +141,6 @@ contains
         this_command = last_command
         real_this_command = real_last_command
     end subroutine prefix_command_preserve_state
-
 
     !> The keymap active after C-u: digits, minus and C-u build the
     !> argument.  Port of simple.el:universal-argument-map (`-` is a
@@ -181,12 +176,10 @@ contains
         uarg_map = map
     end function universal_argument_map
 
-
     !> simple.el:universal-argument--mode
     subroutine universal_argument_mode()
         call set_transient_map(universal_argument_map())
     end subroutine universal_argument_mode
-
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -198,20 +191,17 @@ contains
         call newline(arg_p(), status)
     end subroutine cmd_newline
 
-
     subroutine cmd_open_line(status)
         type(status_type), intent(out) :: status
 
         call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
-
     subroutine cmd_delete_backward_char(status)
         type(status_type), intent(out) :: status
 
         call delete_backward_char(arg_p(), status)
     end subroutine cmd_delete_backward_char
-
 
     !> Port of simple.el:delete-forward-char (no region).
     subroutine cmd_delete_forward_char(status)
@@ -220,14 +210,12 @@ contains
         call delete_char(arg_p(), status)
     end subroutine cmd_delete_forward_char
 
-
     !> Port of simple.el:keyboard-quit (no mark or kbd macro handling).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
 
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
-
 
     !> Read the next event and insert it ARG times.  Port of
     !> simple.el:quoted-insert (without read-quoted-char's octal codes).
@@ -252,7 +240,6 @@ contains
         call self_insert_command(max(arg_p(), 0_int64), c, status)
     end subroutine cmd_quoted_insert
 
-
     !> Port of simple.el:universal-argument.
     subroutine cmd_universal_argument(status)
         type(status_type), intent(out) :: status
@@ -262,7 +249,6 @@ contains
         prefix_arg = list(make_fixnum(4_int64))
         call universal_argument_mode()
     end subroutine cmd_universal_argument
-
 
     !> Port of simple.el:universal-argument-more.
     subroutine cmd_universal_argument_more(status)
@@ -284,7 +270,6 @@ contains
         if (consp(prefix_arg)) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
-
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
         type(status_type), intent(out) :: status
@@ -304,7 +289,6 @@ contains
 
         call universal_argument_mode()
     end subroutine cmd_negative_argument
-
 
     !> Port of simple.el:digit-argument (character events; keypad digits
     !> need the `ascii-character' property, not ported).
@@ -339,7 +323,6 @@ contains
         call universal_argument_mode()
     end subroutine cmd_digit_argument
 
-
     !> `-` in universal-argument-map: negative-argument, unless digits
     !> were typed already (upstream's menu-item filter), in which case it
     !> inserts itself as the global binding would.
@@ -353,7 +336,6 @@ contains
         end if
     end subroutine cmd_universal_argument_minus
 
-
     !> Register this module's commands.
     ! ------------------------------------------------------------------
     ! Vertical motion
@@ -364,7 +346,6 @@ contains
         after_line_move = value_eq(last_command, sym("next-line")) .or. &
                           value_eq(last_command, sym("previous-line"))
     end function after_line_move
-
 
     !> Move `arg` lines down (up if negative), keeping the goal column; by
     !> screen lines unless a goal column is set or line-move-visual is
@@ -385,7 +366,6 @@ contains
             call line_move_1(arg, quiet, status)
         end if
     end subroutine line_move
-
 
     !> Port of simple.el:line-move-visual: keep the cursor's screen x.
     subroutine line_move_visual_1(arg, noerror, status)
@@ -423,7 +403,6 @@ contains
             end if
         end if
     end subroutine line_move_visual_1
-
 
     !> Port of simple.el:line-move-1: move by buffer lines to the goal
     !> column (no invisible text or selective display yet).
@@ -486,7 +465,6 @@ contains
         end if
     end subroutine line_move_1
 
-
     !> Go to `column` on the line reached, without moving backward when
     !> moving forward, and stay in the field of `opoint`.  Port of
     !> simple.el:line-move-finish (no invisible text).
@@ -548,7 +526,6 @@ contains
         end do
     end subroutine line_move_finish
 
-
     !> Move down `arg` lines (C-n, <down>).  Port of simple.el:next-line
     !> (no next-line-add-newlines).
     subroutine next_line(arg, status)
@@ -558,7 +535,6 @@ contains
         call line_move(arg, status)
     end subroutine next_line
 
-
     !> Move up `arg` lines (C-p, <up>).  Port of simple.el:previous-line.
     subroutine previous_line(arg, status)
         integer(int64), intent(in) :: arg
@@ -567,20 +543,17 @@ contains
         call line_move(-arg, status)
     end subroutine previous_line
 
-
     subroutine cmd_next_line(status)
         type(status_type), intent(out) :: status
 
         call next_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_next_line
 
-
     subroutine cmd_previous_line(status)
         type(status_type), intent(out) :: status
 
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_previous_line
-
 
     ! ------------------------------------------------------------------
     ! Minibuffer history
@@ -597,7 +570,6 @@ contains
         call symbol_value(sym(minibuffer_history_variable), history, status)
         if (.not. status%ok()) history = nil()
     end function history_value
-
 
     !> Put history element `nabs` in the minibuffer: 0 is the input typed
     !> before moving into the history, N > 0 the Nth previous input, -1
@@ -673,7 +645,6 @@ contains
         end if
     end subroutine goto_history_element
 
-
     !> M-p: the previous history element.  Port of
     !> simple.el:previous-history-element.
     subroutine cmd_previous_history_element(status)
@@ -684,7 +655,6 @@ contains
         if (n /= 0) call goto_history_element(minibuffer_history_position + n, status)
     end subroutine cmd_previous_history_element
 
-
     !> M-n: the next history element, then the default.  Port of
     !> simple.el:next-history-element.
     subroutine cmd_next_history_element(status)
@@ -694,7 +664,6 @@ contains
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
-
 
     subroutine syms_of_simple()
         ! (<up> and <down> run previous/next-line-or-history-element
@@ -715,5 +684,4 @@ contains
         call defcommand("negative-argument", cmd_negative_argument)
         call defcommand("digit-argument", cmd_digit_argument)
     end subroutine syms_of_simple
-
 end module simple_fm

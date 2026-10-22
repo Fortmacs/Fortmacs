@@ -93,7 +93,5 @@ contains
                 if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
             end do
         end function downcase_ascii
-
     end subroutine yes_or_no_p
-
 end submodule fns_ask_fm

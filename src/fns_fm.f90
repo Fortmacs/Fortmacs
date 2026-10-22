@@ -90,7 +90,6 @@ contains
         eq = .true.
     end function value_equal
 
-
     logical function atom_equal(x, y) result(eq)
         type(atom_type), intent(in) :: x, y
         integer(int64) :: ix, iy
@@ -124,7 +123,6 @@ contains
         end select
     end function atom_equal
 
-
     !> Elements of a list, or characters of a string.
     !> Port of fns.c:Flength (lists and strings).
     subroutine length(sequence, n, status)
@@ -148,7 +146,6 @@ contains
         end select
     end subroutine length
 
-
     !> The `n`th element (0-based) of `list`, or nil.  Port of fns.c:Fnth.
     subroutine nth(n, list, v, status)
         integer(int64), intent(in) :: n
@@ -164,7 +161,6 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
         end select
     end subroutine nth
-
 
     !> `list` without its first `n` elements.  Port of fns.c:Fnthcdr.
     subroutine nthcdr(n, list, v, status)
@@ -187,7 +183,6 @@ contains
         end select
     end subroutine nthcdr
 
-
     !> The tail of `list` starting with an element `eq` to `elt`, or nil.
     !> Port of fns.c:Fmemq.
     function memq(elt, list) result(tail)
@@ -206,7 +201,6 @@ contains
         end do
     end function memq
 
-
     !> Like `memq`, comparing with `equal`.  Port of fns.c:Fmember.
     function member(elt, list) result(tail)
         type(value_type), intent(in) :: elt, list
@@ -223,7 +217,6 @@ contains
             end if
         end do
     end function member
-
 
     !> Text of a string, or the name of a symbol; `ok` false otherwise.
     subroutine string_or_name(v, text, ok)
@@ -244,7 +237,6 @@ contains
             text = ""
         end select
     end subroutine string_or_name
-
 
     !> True if `a` sorts before `b`, comparing characters by code.
     !> Symbols stand for their names; anything else compares false (the
@@ -281,14 +273,12 @@ contains
         string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
     end function string_lessp
 
-
     !> Port of fns.c:Fstring_greaterp.
     logical function string_greaterp(a, b)
         type(value_type), intent(in) :: a, b
 
         string_greaterp = string_lessp(b, a)
     end function string_greaterp
-
 
     !> Compare with `predicate`, or `eq` by default.
     logical function matches(a, b, predicate)
@@ -301,7 +291,6 @@ contains
             matches = value_eq(a, b)
         end if
     end function matches
-
 
     !> Value of `prop` in property list `plist`, or nil.  Degenerate
     !> plists (odd length) are tolerated.  Port of fns.c:Fplist_get.
@@ -321,7 +310,6 @@ contains
             end if
         end do
     end function plist_get
-
 
     !> Set `prop` to `val` in `plist`, adding the pair at the end if absent.
     !> An odd-length plist is a wrong-type-argument (plistp), as upstream.
@@ -359,7 +347,6 @@ contains
         plist = make_list(elems)
     end subroutine plist_put
 
-
     !> The tail of `plist` starting at `prop`, or nil.
     !> Port of fns.c:Fplist_member.
     function plist_member(plist, prop, predicate) result(tail)
@@ -379,7 +366,6 @@ contains
         end do
     end function plist_member
 
-
     !> Property `prop` of `symbol`.  Port of fns.c:Fget (without
     !> `overriding-plist-environment`).
     subroutine get(symbol, prop, v, status)
@@ -393,7 +379,6 @@ contains
         v = plist_get(symbols(xsymbol(symbol))%plist, prop)
     end subroutine get
 
-
     !> Set property `prop` of `symbol` to `val`.  Port of fns.c:Fput.
     subroutine put(symbol, prop, val, status)
         type(value_type), intent(in) :: symbol, prop, val
@@ -404,5 +389,4 @@ contains
         call ensure_obarray()
         call plist_put(symbols(xsymbol(symbol))%plist, prop, val, status)
     end subroutine put
-
 end module fns_fm

@@ -36,13 +36,11 @@ contains
                     ]
     end subroutine collect_version_fm
 
-
     subroutine test_upstream(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, upstream_version, "31.1")
     end subroutine test_upstream
-
 
     subroutine test_banner(error)
         type(error_type), allocatable, intent(out) :: error
@@ -55,5 +53,4 @@ contains
         call check(error, index(s, "GNU Emacs "//upstream_version) > 0, &
                    "banner lacks upstream version")
     end subroutine test_banner
-
 end module test_version_fm

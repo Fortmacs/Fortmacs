@@ -62,7 +62,6 @@ contains
         end do
     end function current_column
 
-
     !> Move point to column `column` in the current line: after a character
     !> that spans it, or to the end of the line if it is too short.
     !> `reached` is the column point ends up at.  Port of
@@ -88,7 +87,6 @@ contains
         call goto_char(pos)
     end subroutine move_to_column
 
-
     !> The width available for text in the selected window: its columns
     !> less the last, which holds the continuation glyph.
     integer function window_text_width() result(width)
@@ -100,7 +98,6 @@ contains
             if (width < 1) width = DEFAULT_WIDTH - 1
         end if
     end function window_text_width
-
 
     !> Screen rows of the line starting at `bol`, `width` columns wide:
     !> where each row starts, and where the line ends.  Rows continue as
@@ -153,7 +150,6 @@ contains
         eol = pos
     end subroutine line_rows
 
-
     !> The screen row (1-based) of `pos` among `starts(1:nrows)`.
     pure integer function row_of(pos, starts, nrows) result(k)
         integer(int64), intent(in) :: pos
@@ -167,7 +163,6 @@ contains
             k = k - 1
         end do
     end function row_of
-
 
     !> Point's column on its screen line (the cursor's x in the window).
     integer function screen_column() result(x)
@@ -191,7 +186,6 @@ contains
             pos = pos + 1
         end do
     end function screen_column
-
 
     !> Move point `lines` screen lines down (up if negative), to the start
     !> of that screen line or, with `goal`, to the character at column
@@ -268,5 +262,4 @@ contains
 
         call goto_char(pos)
     end subroutine vertical_motion
-
 end module indent_fm

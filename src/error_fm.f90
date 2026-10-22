@@ -126,7 +126,6 @@ contains
         status_ok = self%code == FM_OK
     end function status_ok
 
-
     !> Record an error.  The analogue of upstream `xsignal`.
     pure subroutine set_error(status, code, detail)
         type(status_type), intent(inout) :: status
@@ -142,13 +141,11 @@ contains
         end if
     end subroutine set_error
 
-
     pure logical function valid_code(code)
         integer(int32), intent(in) :: code
 
         valid_code = code >= 0 .and. code <= last_code
     end function valid_code
-
 
     !> Error symbol name of `code` (e.g. "args-out-of-range").
     pure function error_name(code) result(name)
@@ -162,7 +159,6 @@ contains
         end if
     end function error_name
 
-
     !> The `error-message` of `code` (e.g. "Args out of range").
     pure function error_message(code) result(msg)
         integer(int32), intent(in) :: code
@@ -174,7 +170,6 @@ contains
             msg = "error"
         end if
     end function error_message
-
 
     !> True when an error with `code` would be caught by a handler for
     !> `condition`, i.e. `condition` is in its `error-conditions` chain.
@@ -195,7 +190,6 @@ contains
             c = parents(c)
         end do
     end function condition_matches
-
 
     !> Human-readable text for `status`, like `error-message-string`:
     !> "MESSAGE: DETAIL", or just DETAIL for user-error.
@@ -226,5 +220,4 @@ contains
             text = msg//": "//status%detail
         end if
     end function format_error
-
 end module error_fm

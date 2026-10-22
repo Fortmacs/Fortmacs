@@ -82,7 +82,6 @@ contains
         w%window_end_valid = .false.
     end subroutine set_window_buffer
 
-
     !> Where the display of `w` starts (1 if it shows no buffer).  Port of
     !> window.c:Fwindow_start.
     integer(int64) function window_start(w) result(pos)
@@ -94,7 +93,6 @@ contains
         call marker_position(w%start, pos, status)
         if (.not. status%ok()) pos = 1
     end function window_start
-
 
     !> Make `w` start at `pos`; with `noforce`, redisplay may move it to
     !> show point.  Port of window.c:Fset_window_start.
@@ -111,7 +109,6 @@ contains
         w%window_end_valid = .false.
     end subroutine set_window_start
 
-
     !> The window's point marker position.  (The selected window's point
     !> is its buffer's point; see window.c:Fwindow_point.)
     integer(int64) function window_point(w) result(pos)
@@ -124,7 +121,6 @@ contains
         if (.not. status%ok()) pos = 1
     end function window_point
 
-
     !> Port of window.c:Fset_window_point (for a non-selected window).
     subroutine set_window_point(w, pos, status)
         type(window_type), intent(inout) :: w
@@ -135,7 +131,6 @@ contains
         call set_marker(w%pointm, pos, status, w%buffer)
     end subroutine set_window_point
 
-
     !> Lines for text: the total minus the mode line.  Port of
     !> window.c:window_body_height (in lines).
     integer function window_body_lines(w)
@@ -144,7 +139,6 @@ contains
         window_body_lines = w%total_lines
         if (.not. w%mini) window_body_lines = max(0, w%total_lines - 1)
     end function window_body_lines
-
 
     !> Free the window's markers.  Not a port (upstream relies on GC).
     subroutine free_window(w)
@@ -157,5 +151,4 @@ contains
         w%pointm = null_handle()
         w%buffer = null_handle()
     end subroutine free_window
-
 end module window_fm

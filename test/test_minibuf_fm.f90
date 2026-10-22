@@ -70,7 +70,6 @@ contains
                     ]
     end subroutine collect_minibuf_fm
 
-
     !> Queue the keys described by `keys` (kbd syntax).
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
@@ -80,7 +79,6 @@ contains
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
-
 
     !> Queue the characters of `text` as input.
     subroutine type_text(text)
@@ -97,7 +95,6 @@ contains
         call unread_command_events(evs)
     end subroutine type_text
 
-
     subroutine fresh_scratch()
         type(handle_type) :: buf
         type(status_type) :: st
@@ -108,7 +105,6 @@ contains
         call set_buffer(buf, st)
         last_message = ""
     end subroutine fresh_scratch
-
 
     subroutine test_read(error)
         type(error_type), allocatable, intent(out) :: error
@@ -136,7 +132,6 @@ contains
         call check(error, answer == "dflt", answer)
     end subroutine test_read
 
-
     subroutine test_abort(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -156,7 +151,6 @@ contains
         call check(error, st%code == FM_QUIT .and. len(answer) == 0)
     end subroutine test_abort
 
-
     !> C-a stops after the prompt; DEL there and C-b into it don't
     !> change the prompt, and typing still lands in the input.
     subroutine test_prompt(error)
@@ -169,7 +163,6 @@ contains
         call read_from_minibuffer("Say: ", answer, st)
         call check(error, st%ok() .and. answer == "ab", answer)
     end subroutine test_prompt
-
 
     subroutine test_history(error)
         type(error_type), allocatable, intent(out) :: error
@@ -198,7 +191,6 @@ contains
         call check(error, answer == "one", answer)
     end subroutine test_history
 
-
     subroutine test_default(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
@@ -213,7 +205,6 @@ contains
         call read_from_minibuffer("? ", answer, st, history="empty-history")
         call check(error, answer == "a", answer)
     end subroutine test_default
-
 
     subroutine test_add_to_history(error)
         type(error_type), allocatable, intent(out) :: error
@@ -242,7 +233,6 @@ contains
         call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
     end subroutine test_add_to_history
 
-
     subroutine nested_read(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: answer
@@ -250,7 +240,6 @@ contains
         call read_from_minibuffer("Inner: ", answer, nested_status)
         status = status_type()
     end subroutine nested_read
-
 
     subroutine test_no_recursion(error)
         type(error_type), allocatable, intent(out) :: error
@@ -268,7 +257,6 @@ contains
                    format_error(nested_status) == "Command attempted to use minibuffer while in minibuffer", &
                    format_error(nested_status))
     end subroutine test_no_recursion
-
 
     subroutine test_yes_or_no(error)
         type(error_type), allocatable, intent(out) :: error
@@ -288,7 +276,6 @@ contains
         call yes_or_no_p("Really? ", answer, st)
         call check(error, st%code == FM_QUIT)
     end subroutine test_yes_or_no
-
 
     subroutine test_read_file_name(error)
         type(error_type), allocatable, intent(out) :: error
@@ -311,7 +298,6 @@ contains
         call read_file_name("File: ", name, st)
         call check(error, name == "/x/y/a.txt", name)
     end subroutine test_read_file_name
-
 
     subroutine test_find_file_command(error)
         type(error_type), allocatable, intent(out) :: error
@@ -336,7 +322,6 @@ contains
         if (allocated(error)) return
         call kill_buffer(current_buffer(), st)
     end subroutine test_find_file_command
-
 
     subroutine test_write_file(error)
         type(error_type), allocatable, intent(out) :: error
@@ -371,5 +356,4 @@ contains
                    buffers(cur)%text%save_modiff < buffers(cur)%text%modiff, "renamed and modified")
         call kill_buffer(current_buffer(), st)
     end subroutine test_write_file
-
 end module test_minibuf_fm

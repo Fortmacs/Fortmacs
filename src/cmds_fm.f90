@@ -75,7 +75,6 @@ contains
         end if
     end subroutine move_point
 
-
     !> Port of cmds.c:Fforward_char (N defaults to 1).
     subroutine forward_char(status, n)
         type(status_type), intent(out) :: status
@@ -88,7 +87,6 @@ contains
         end if
     end subroutine forward_char
 
-
     !> Port of cmds.c:Fbackward_char (N defaults to 1).
     subroutine backward_char(status, n)
         type(status_type), intent(out) :: status
@@ -100,7 +98,6 @@ contains
             call move_point(1_int64, .false., status)
         end if
     end subroutine backward_char
-
 
     !> Move to the start of the line `n` lines away (default 1) and return
     !> the count of lines left to move (see the forward-line docstring:
@@ -140,7 +137,6 @@ contains
         if (excessive) shortage = shortage - count + n
     end function forward_line
 
-
     !> Move to the start of the line (after moving `n` - 1 lines).
     !> Port of cmds.c:Fbeginning_of_line (fields pending).
     subroutine beginning_of_line(n)
@@ -148,7 +144,6 @@ contains
 
         call goto_char(line_beginning_position(n))
     end subroutine beginning_of_line
-
 
     !> Move to the end of the line (after moving `n` - 1 lines).
     !> Port of cmds.c:Fend_of_line; the intangible-text retry loop is moot
@@ -158,7 +153,6 @@ contains
 
         call goto_char(line_end_position(n))
     end subroutine end_of_line
-
 
     !> Delete `n` characters after point (before, if negative); signals
     !> beginning-/end-of-buffer instead of deleting fewer.
@@ -185,7 +179,6 @@ contains
         end if
     end subroutine delete_char
 
-
     !> Insert character `c` `n` times.  Port of cmds.c:Fself_insert_command
     !> with internal_self_insert reduced to the insertion (no overwrite,
     !> abbrevs, auto-fill or hooks).  A non-character `c` does nothing
@@ -206,7 +199,6 @@ contains
         call insert_char_n(int(c, int32), n, status)
     end subroutine self_insert_command
 
-
     ! ------------------------------------------------------------------
     ! Commands (the interactive side of the DEFUNs)
     ! ------------------------------------------------------------------
@@ -216,20 +208,17 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
-
     subroutine cmd_forward_char(status)
         type(status_type), intent(out) :: status
 
         call forward_char(status, arg_p())
     end subroutine cmd_forward_char
 
-
     subroutine cmd_backward_char(status)
         type(status_type), intent(out) :: status
 
         call backward_char(status, arg_p())
     end subroutine cmd_backward_char
-
 
     subroutine cmd_forward_line(status)
         type(status_type), intent(out) :: status
@@ -239,14 +228,12 @@ contains
         shortage = forward_line(arg_p())
     end subroutine cmd_forward_line
 
-
     subroutine cmd_beginning_of_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call beginning_of_line(arg_p())
     end subroutine cmd_beginning_of_line
-
 
     subroutine cmd_end_of_line(status)
         type(status_type), intent(out) :: status
@@ -255,13 +242,11 @@ contains
         call end_of_line(arg_p())
     end subroutine cmd_end_of_line
 
-
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
         call delete_char(arg_p(), status)
     end subroutine cmd_delete_char
-
 
     subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
@@ -270,7 +255,6 @@ contains
         if (.not. fixnump(last_command_event)) return
         call self_insert_command(arg_p(), xfixnum(last_command_event), status)
     end subroutine cmd_self_insert_command
-
 
     !> Register this module's commands.  Port of the defsubr part of
     !> cmds.c:syms_of_cmds.
@@ -283,5 +267,4 @@ contains
         call defcommand("delete-char", cmd_delete_char)
         call defcommand("self-insert-command", cmd_self_insert_command)
     end subroutine syms_of_cmds
-
 end module cmds_fm

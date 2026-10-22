@@ -143,5 +143,4 @@ contains
         call get_command_argument(idx, arg, status=astat)
         if (astat /= 0) deallocate (arg)
     end subroutine get_argument
-
 end program tester

@@ -69,7 +69,6 @@ contains
         end if
     end subroutine move_gap_both
 
-
     !> Move the gap down to `bytepos`.  With `newgap`, leave the unchanged
     !> bookkeeping alone.  Port of insdel.c:gap_left.
     subroutine gap_left(charpos, bytepos, newgap)
@@ -92,7 +91,6 @@ contains
         end associate
     end subroutine gap_left
 
-
     !> Move the gap up to `bytepos`.  Port of insdel.c:gap_right.
     subroutine gap_right(charpos, bytepos)
         integer(int64), intent(in) :: charpos, bytepos
@@ -113,7 +111,6 @@ contains
         end associate
     end subroutine gap_right
 
-
     !> Grow the gap by `nbytes_added` (plus slack), or shrink it by
     !> `-nbytes_added` (never below GAP_BYTES_MIN).
     !> Port of insdel.c:make_gap, make_gap_larger and make_gap_smaller.
@@ -128,7 +125,6 @@ contains
             call make_gap_smaller(-nbytes_added, status)
         end if
     end subroutine make_gap
-
 
     !> Port of insdel.c:make_gap_larger.  Upstream enlarges the block and
     !> slides the gap; here the text is copied into a larger string with the
@@ -172,7 +168,6 @@ contains
         end associate
     end subroutine make_gap_larger
 
-
     !> Port of insdel.c:make_gap_smaller.
     subroutine make_gap_smaller(nbytes_requested, status)
         integer(int64), intent(in) :: nbytes_requested
@@ -207,7 +202,6 @@ contains
         end associate
     end subroutine make_gap_smaller
 
-
     ! ------------------------------------------------------------------
     ! Insertion
     ! ------------------------------------------------------------------
@@ -221,7 +215,6 @@ contains
         call insert_text(string, .false., status)
     end subroutine insert
 
-
     !> Like `insert`, but markers at point end up after the text.
     !> Port of insdel.c:insert_before_markers.
     subroutine insert_before_markers(string, status)
@@ -230,7 +223,6 @@ contains
 
         call insert_text(string, .true., status)
     end subroutine insert_before_markers
-
 
     subroutine insert_text(string, before_markers, status)
         character(len=*), intent(in) :: string
@@ -244,7 +236,6 @@ contains
         call insert_1_both(string, nchars, len(string, kind=int64), .false., .true., &
                            before_markers, status)
     end subroutine insert_text
-
 
     !> Insert character `c` before point.  Port of insdel.c:insert_char.
     subroutine insert_char(c, status)
@@ -264,7 +255,6 @@ contains
         call insert(str(1:n), status)
     end subroutine insert_char
 
-
     !> Characters in `string` as the current buffer would count them.
     !> Port of character.c:chars_in_text.
     subroutine chars_in_text(string, nchars, status)
@@ -278,7 +268,6 @@ contains
             call multibyte_chars_in_text(string, nchars, status)
         end if
     end subroutine chars_in_text
-
 
     !> Insert `nchars` characters occupying the `nbytes` bytes of `string`
     !> before point.  `prepare` runs the read-only check.  `inherit` (text
@@ -341,7 +330,6 @@ contains
         call adjust_point(nchars, nbytes)
     end subroutine insert_1_both
 
-
     !> Relocate the current buffer's markers for an insertion spanning
     !> `from`..`to`.  Markers at the insertion point advance only if their
     !> insertion type is t or `before_markers` is set.
@@ -372,7 +360,6 @@ contains
         end do
     end subroutine adjust_markers_for_insert
 
-
     !> Relocate the current buffer's markers for a deletion of
     !> `from`..`to`: markers inside move to `from`, markers after shift.
     !> Port of insdel.c:adjust_markers_for_delete.
@@ -397,7 +384,6 @@ contains
         end do
     end subroutine adjust_markers_for_delete
 
-
     !> Move point by `nchars`/`nbytes`.  Port of insdel.c:adjust_point.
     subroutine adjust_point(nchars, nbytes)
         integer(int64), intent(in) :: nchars, nbytes
@@ -405,7 +391,6 @@ contains
         buffers(cur)%pt = buffers(cur)%pt + nchars
         buffers(cur)%pt_byte = buffers(cur)%pt_byte + nbytes
     end subroutine adjust_point
-
 
     ! ------------------------------------------------------------------
     ! Deletion
@@ -419,7 +404,6 @@ contains
 
         call del_range_1(from, to, .true., status)
     end subroutine del_range
-
 
     !> Like `del_range`; `prepare` runs the read-only check.  With
     !> `deleted` present, it receives the deleted text.
@@ -449,7 +433,6 @@ contains
         call del_range_2(from, from_byte, to, to_byte, deleted)
     end subroutine del_range_1
 
-
     !> Like `del_range_1`, with byte positions.  Port of insdel.c:del_range_byte.
     subroutine del_range_byte(from_byte_in, to_byte_in, status)
         integer(int64), intent(in) :: from_byte_in, to_byte_in
@@ -466,7 +449,6 @@ contains
         if (.not. status%ok()) return
         call del_range_2(from, from_byte, to, to_byte)
     end subroutine del_range_byte
-
 
     !> Like `del_range_1`, with both kinds of position given.
     !> Port of insdel.c:del_range_both.
@@ -489,7 +471,6 @@ contains
 
         call del_range_2(from, from_byte, to, to_byte)
     end subroutine del_range_both
-
 
     !> Delete the text between two valid positions, given as both char and
     !> byte positions.  With `deleted` present, it receives the deleted text.
@@ -537,7 +518,6 @@ contains
         end associate
     end subroutine del_range_2
 
-
     ! ------------------------------------------------------------------
     ! Modification bookkeeping
     ! ------------------------------------------------------------------
@@ -558,7 +538,6 @@ contains
         end associate
     end subroutine modify_text
 
-
     !> Check that the region may be modified: the buffer's read-only state
     !> and `read-only` text properties.  Upstream also locks the visited
     !> file, saves the region for `select-active-regions' and runs
@@ -573,5 +552,4 @@ contains
         buffers(cur)%text%redisplay = .true.
         call verify_interval_modification(start, end, status)
     end subroutine prepare_to_modify_buffer
-
 end module insdel_fm

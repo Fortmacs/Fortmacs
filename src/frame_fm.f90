@@ -53,5 +53,4 @@ module frame_fm
 
     !> The terminal frame (frame.c:selected_frame).
     type(frame_type), target, public :: selected_frame
-
 end module frame_fm

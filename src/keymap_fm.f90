@@ -171,7 +171,6 @@ contains
         if (present(prompt)) keymaps(km%index)%prompt = prompt
     end subroutine new_keymap
 
-
     !> A new full keymap.  Port of keymap.c:Fmake_keymap.
     subroutine make_keymap(km, prompt)
         type(handle_type), intent(out) :: km
@@ -180,7 +179,6 @@ contains
         call new_keymap(km, .true., prompt)
     end subroutine make_keymap
 
-
     !> A new sparse keymap.  Port of keymap.c:Fmake_sparse_keymap.
     subroutine make_sparse_keymap(km, prompt)
         type(handle_type), intent(out) :: km
@@ -188,7 +186,6 @@ contains
 
         call new_keymap(km, .false., prompt)
     end subroutine make_sparse_keymap
-
 
     !> Slot of keymap `km`, or a wrong-type-argument error.
     subroutine resolve_keymap(km, i, status)
@@ -203,20 +200,17 @@ contains
         end if
     end subroutine resolve_keymap
 
-
     logical function keymap_live_p(km)
         type(handle_type), intent(in) :: km
 
         keymap_live_p = table%is_live(km)
     end function keymap_live_p
 
-
     logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
-
 
     !> Free keymap `km` and the keymaps it owns.  Not a port: upstream
     !> relies on GC.
@@ -240,7 +234,6 @@ contains
         end do
     end subroutine free_keymap
 
-
     !> The prompt string of `km` (nil if none).
     function keymap_prompt(km) result(v)
         type(handle_type), intent(in) :: km
@@ -249,7 +242,6 @@ contains
         if (table%is_live(km)) v = keymaps(km%index)%prompt
     end function keymap_prompt
 
-
     !> Whether `km` was made by make-keymap (upstream: has a char-table).
     logical function keymap_full_p(km)
         type(handle_type), intent(in) :: km
@@ -257,7 +249,6 @@ contains
         keymap_full_p = .false.
         if (table%is_live(km)) keymap_full_p = keymaps(km%index)%full
     end function keymap_full_p
-
 
     ! ------------------------------------------------------------------
     ! Predicates and parents
@@ -270,7 +261,6 @@ contains
         v = make_symbol_ref(intern("keymap"))
     end function keymap_marker
 
-
     logical function is_marker(v)
         type(value_type), intent(in) :: v
 
@@ -278,14 +268,12 @@ contains
         if (symbolp(v)) is_marker = xsymbol(v) == intern("keymap")
     end function is_marker
 
-
     logical function is_t(v)
         type(value_type), intent(in) :: v
 
         is_t = .false.
         if (symbolp(v)) is_t = xsymbol(v) == SYM_T
     end function is_t
-
 
     !> Whether `v` is a live keymap or a composite (non-empty list of
     !> keymaps and `keymap` markers).  Port of keymap.c:Fkeymapp.
@@ -312,7 +300,6 @@ contains
         end select
     end function keymapp
 
-
     !> Parent of `km`, or the null handle.  Port of keymap.c:Fkeymap_parent.
     function keymap_parent(km) result(parent)
         type(handle_type), intent(in) :: km
@@ -325,7 +312,6 @@ contains
             parent = keymaps(km%index)%parent
         end if
     end function keymap_parent
-
 
     !> Make `parent` (or the null handle for none) the parent of `km`.
     !> Port of keymap.c:Fset_keymap_parent.
@@ -361,7 +347,6 @@ contains
         keymaps(i)%parent = parent
     end subroutine set_keymap_parent
 
-
     ! ------------------------------------------------------------------
     ! Events
     ! ------------------------------------------------------------------
@@ -380,7 +365,6 @@ contains
         if (iand(bits, M_SHIFT) /= 0) s = s//"S-"
         if (iand(bits, M_SUPER) /= 0) s = s//"s-"
     end function modifier_prefix
-
 
     !> Modifier bit for prefix letter `ch`, or 0.
     integer(int64) function modifier_bit(ch)
@@ -403,7 +387,6 @@ contains
             modifier_bit = 0
         end select
     end function modifier_bit
-
 
     !> Split symbol event `v` into modifier bits and base name: `C-M-home`
     !> gives CTL+META and "home".  Port of the modifier part of
@@ -429,7 +412,6 @@ contains
         base = name(i:)
     end subroutine parse_modifiers
 
-
     !> The symbol event for `base` with modifiers `bits`, prefixes in
     !> canonical order.  Port of keyboard.c:apply_modifiers (symbols only).
     function apply_modifiers(bits, base) result(e)
@@ -439,7 +421,6 @@ contains
 
         e = make_symbol_ref(intern(modifier_prefix(bits)//base))
     end function apply_modifiers
-
 
     !> Symbol event `v` with its modifier prefixes in canonical order, so
     !> `M-C-x` and `C-M-x` are the same event.  Port of
@@ -459,7 +440,6 @@ contains
         end if
     end function reorder_modifiers
 
-
     !> Event `c` in the form keymaps store: high bits of characters
     !> cleared, symbol modifiers reordered.
     function normalize_event(c) result(e)
@@ -475,7 +455,6 @@ contains
             e = c
         end select
     end function normalize_event
-
 
     ! ------------------------------------------------------------------
     ! Lookup
@@ -512,7 +491,6 @@ contains
         end if
     end subroutine take_binding
 
-
     !> Append `parts` to the composite being built, starting one if needed.
     subroutine add_parts(st, parts)
         type(access_state), intent(inout) :: st
@@ -534,7 +512,6 @@ contains
         st%retval = make_list(all)
         st%built = .true.
     end subroutine add_parts
-
 
     !> Reached the start of an inherited part, whose bindings are `tail`.
     !> The `EQ (binding, Qkeymap)` case of keymap.c:access_keymap_1.
@@ -574,7 +551,6 @@ contains
 
         stop = .false.
     end subroutine at_parent
-
 
     !> Look up event `idx_in` in `map` (a keymap or composite).  `found`
     !> is false for Qunbound.  Port of keymap.c:access_keymap_1.
@@ -689,7 +665,6 @@ contains
         end if
     end subroutine access_1
 
-
     !> Binding of the single event `idx` in `map`; nil if none.  With
     !> `t_ok`, bindings of t are defaults.  With `noinherit`, inherited
     !> bindings are ignored.  Port of keymap.c:access_keymap.
@@ -701,7 +676,6 @@ contains
 
         call access_1(map, idx, t_ok, noinherit, val, found)
     end function access_keymap
-
 
     !> Binding of key sequence `key` in `map` (a keymap or composite).
     !> `val` is nil if undefined, or the fixnum N if the first N events
@@ -752,7 +726,6 @@ contains
         end do
     end subroutine lookup_key
 
-
     ! ------------------------------------------------------------------
     ! Definition
     ! ------------------------------------------------------------------
@@ -780,7 +753,6 @@ contains
         keymaps(i)%events(keymaps(i)%n) = ev
         keymaps(i)%bindings(keymaps(i)%n) = def
     end subroutine append_entry
-
 
     !> Bind event `c` to `def` in keymap slot `i`, or with `remove` delete
     !> its entry.  Port of keymap.c:store_in_keymap.
@@ -819,7 +791,6 @@ contains
 
         if (.not. remove) call append_entry(i, idx, def)
     end subroutine store_in_keymap
-
 
     !> Bind characters `from`..`to` (without modifiers) to `def` in `km`,
     !> replacing their single-character entries.  Port of the
@@ -890,7 +861,6 @@ contains
         keymaps(i)%range_bindings(keymaps(i)%nranges) = def
     end subroutine define_key_range
 
-
     !> The keymap to define into when the prefix binding is `cmd`: a
     !> keymap, or the first member of a composite (as store_in_keymap
     !> descends into a leading sub-keymap).
@@ -919,7 +889,6 @@ contains
             return
         end do
     end subroutine prefix_target
-
 
     !> In keymap `km`, bind key sequence `key` to `def`; with `remove`,
     !> delete the binding instead (so an inherited one shows through).
@@ -1006,7 +975,6 @@ contains
         end do
     end subroutine define_key
 
-
     !> A copy of `km` whose sub-keymaps (bindings that are keymaps) are
     !> copied too; the parent is shared.  Port of keymap.c:Fcopy_keymap.
     subroutine copy_keymap(km, copy, status)
@@ -1016,7 +984,6 @@ contains
 
         call copy_keymap_1(km, 0, copy, status)
     end subroutine copy_keymap
-
 
     !> Port of keymap.c:copy_keymap_1.
     recursive subroutine copy_keymap_1(km, depth, copy, status)
@@ -1076,7 +1043,6 @@ contains
         end if
     end subroutine copy_keymap_1
 
-
     ! ------------------------------------------------------------------
     ! Active maps
     ! ------------------------------------------------------------------
@@ -1090,7 +1056,6 @@ contains
         km = global_map
     end function current_global_map
 
-
     !> Port of keymap.c:Fuse_global_map.
     subroutine use_global_map(km, status)
         type(handle_type), intent(in) :: km
@@ -1101,7 +1066,6 @@ contains
         if (status%ok()) global_map = km
     end subroutine use_global_map
 
-
     !> The current buffer's local keymap, or the null handle.
     !> Port of keymap.c:Fcurrent_local_map.
     function current_local_map() result(km)
@@ -1111,7 +1075,6 @@ contains
         if (cur == 0) return
         if (table%is_live(buffers(cur)%keymap)) km = buffers(cur)%keymap
     end function current_local_map
-
 
     !> Make `km` (or the null handle for none) the current buffer's local
     !> keymap.  Port of keymap.c:Fuse_local_map.
@@ -1132,7 +1095,6 @@ contains
 
         buffers(cur)%keymap = km
     end subroutine use_local_map
-
 
     !> The active keymaps, highest precedence first, as one composite:
     !> overriding-terminal-local-map, the local map, the global map.  Port
@@ -1169,7 +1131,6 @@ contains
         end if
     end function current_active_maps
 
-
     !> Binding of `key` in the active maps (local, then global); nil if
     !> none.  Port of keymap.c:Fkey_binding without remapping.
     subroutine key_binding(key, val, status, accept_default)
@@ -1184,7 +1145,6 @@ contains
         if (fixnump(val)) val = nil()
     end subroutine key_binding
 
-
     ! ------------------------------------------------------------------
     ! Descriptions
     ! ------------------------------------------------------------------
@@ -1197,7 +1157,6 @@ contains
         write (buf, "(i0)") n
         s = trim(buf)
     end function int_text
-
 
     !> Description of character event `ch`, such as "C-x" or "M-<".
     !> Port of keymap.c:push_key_description.
@@ -1278,7 +1237,6 @@ contains
         end if
     end function push_key_description
 
-
     !> Description of one event: "C-x", "<f1>", "C-s-<home>".  With
     !> `no_angles`, symbols are given by name only.  Port of
     !> keymap.c:Fsingle_key_description; other values give "".
@@ -1321,7 +1279,6 @@ contains
             s = ""
         end select
     end function single_key_description
-
 
     !> Description of key sequence `keys`, preceded by `prefix`, such as
     !> "C-x <right>"; ESC followed by a character reads as M-.  Port of
@@ -1382,9 +1339,7 @@ contains
                 s = word
             end if
         end subroutine add_word
-
     end function key_description
-
 
     ! ------------------------------------------------------------------
     ! kbd
@@ -1396,7 +1351,6 @@ contains
         is_space = ch == " " .or. ch == achar(9) .or. ch == achar(10) .or. &
                    ch == achar(12)
     end function is_space
-
 
     !> Code points of UTF-8 string `s`.
     subroutine decode(s, codes)
@@ -1419,7 +1373,6 @@ contains
         codes = codes(1:n)
     end subroutine decode
 
-
     !> End of a "<as df>" word starting at `wb` in `keys`, or 0.
     integer(int64) function angle_end(keys, wb) result(q)
         character(len=*), intent(in) :: keys
@@ -1439,7 +1392,6 @@ contains
 
         q = 0
     end function angle_end
-
 
     !> Whether `word` ends in one of the names NUL RET LFD TAB ESC SPC DEL
     !> at a word boundary.
@@ -1466,7 +1418,6 @@ contains
         end if
     end function ends_in_name
 
-
     !> Append `n` copies of `key` to `events(1:nev)`.
     subroutine push_events(events, nev, key, n)
         type(value_type), allocatable, intent(inout) :: events(:)
@@ -1490,7 +1441,6 @@ contains
         end do
     end subroutine push_events
 
-
     !> Fixnum events for `codes`.
     subroutine char_events(codes, key)
         integer(int64), intent(in) :: codes(:)
@@ -1503,7 +1453,6 @@ contains
             key(k) = make_fixnum(codes(k))
         end do
     end subroutine char_events
-
 
     !> The key sequence described by `keys`, such as "C-x C-f" or
     !> "C-M-<return>".  Port of keymap.el:key-parse (the kbd parser).
@@ -1702,9 +1651,7 @@ contains
 
             numeric_word = len(w) >= s .and. verify(w(s:), "0123456789") == 0
         end function numeric_word
-
     end subroutine key_parse
-
 
     !> Return non-nil if KEYS, a key sequence, is valid.
     !> This function checks key sequences that are being input to
@@ -1744,7 +1691,6 @@ contains
         key_valid_p = .true.
     end function key_valid_p
 
-
     !> Whether one space-free word of `key_valid_p` input is a valid key.
     pure logical function valid_key(word)
         character(len=*), intent(in) :: word
@@ -1775,7 +1721,6 @@ contains
         end associate
     end function valid_key
 
-
     !> Skip the modifier prefixes "A-C-H-M-S-s-" (each optional, in this
     !> order) starting at `start` of `word`; the position after them.
     pure integer function after_modifiers(word, start) result(s)
@@ -1792,7 +1737,6 @@ contains
         end do
     end function after_modifiers
 
-
     !> Signal an error if KEY doesn't have a valid syntax.  Port of
     !> keymap.el:keymap--check.
     subroutine keymap_check(key, status)
@@ -1804,7 +1748,6 @@ contains
                            """"//key//""" is not a valid key definition; see `key-valid-p'")
         end if
     end subroutine keymap_check
-
 
     !> Set KEY to DEFINITION in KEYMAP.
     !> KEY is a string that satisfies `key_valid_p`.
@@ -1841,7 +1784,6 @@ contains
         end if
     end subroutine keymap_set_value
 
-
     !> Set KEY to the command named COMMAND in KEYMAP: `keymap_set` with
     !> the symbol COMMAND as the definition.
     subroutine keymap_set_command(keymap, key, command, status)
@@ -1851,7 +1793,6 @@ contains
 
         call keymap_set_value(keymap, key, make_symbol_ref(intern(command)), status)
     end subroutine keymap_set_command
-
 
     !> Give KEY a global binding as COMMAND.
     !> KEY is a string that must satisfy `key_valid_p`.
@@ -1870,7 +1811,6 @@ contains
         call keymap_set_value(current_global_map(), key, command, status)
     end subroutine keymap_global_set_value
 
-
     !> Give KEY a global binding as the command named COMMAND, e.g.
     !>
     !>     call keymap_global_set("C-c f", "find-file", status)
@@ -1880,5 +1820,4 @@ contains
 
         call keymap_set_command(current_global_map(), key, command, status)
     end subroutine keymap_global_set_command
-
 end module keymap_fm

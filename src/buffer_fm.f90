@@ -172,14 +172,12 @@ contains
         call table%resolve(h, i, status)
     end subroutine resolve_buffer
 
-
     !> Port of buffer.c:Fbuffer_live_p.
     logical function buffer_live_p(h)
         type(handle_type), intent(in) :: h
 
         buffer_live_p = table%is_live(h)
     end function buffer_live_p
-
 
     !> Port of buffer.c:Fcurrent_buffer.  Null before any buffer exists.
     function current_buffer() result(h)
@@ -196,7 +194,6 @@ contains
         end do
     end function current_buffer
 
-
     !> Handle of the live buffer in slot `i`, or the null handle.
     function buffer_handle(i) result(h)
         integer(int64), intent(in) :: i
@@ -204,7 +201,6 @@ contains
 
         h = table%handle_of(i)
     end function buffer_handle
-
 
     !> Live buffer named `name`, or the null handle.
     !> Port of buffer.c:Fget_buffer (string argument).
@@ -224,7 +220,6 @@ contains
         end do
     end function get_buffer
 
-
     !> True if no live buffer is named `name`.
     logical function name_free(name)
         character(len=*), intent(in) :: name
@@ -233,7 +228,6 @@ contains
         h = get_buffer(name)
         name_free = h%index == 0
     end function name_free
-
 
     !> Live buffer named `name`, created (empty, multibyte) if needed.
     !> The first buffer created becomes current.
@@ -293,7 +287,6 @@ contains
         if (cur == 0) cur = i
     end subroutine get_buffer_create
 
-
     !> The live buffer visiting `filename`, or the null handle.  The caller
     !> passes the expanded name (fileio_fm's `expand_file_name`, which
     !> depends on this module).  Port of buffer.c:Fget_file_buffer (no file
@@ -318,7 +311,6 @@ contains
             end if
         end do
     end function get_file_buffer
-
 
     !> A name, based on `name`, that no live buffer has.  `ignore` is a name
     !> that may be returned even if taken.
@@ -379,9 +371,7 @@ contains
 
             same = len(a) == len(b) .and. a == b
         end function same
-
     end function generate_new_buffer_name
-
 
     !> Port of buffer.c:Fbuffer_name.
     subroutine buffer_name(h, name, status)
@@ -395,7 +385,6 @@ contains
         name = buffers(i)%name
     end subroutine buffer_name
 
-
     !> Port of buffer.c:Fbuffer_last_name.
     subroutine buffer_last_name(h, name, status)
         type(handle_type), intent(in) :: h
@@ -407,7 +396,6 @@ contains
         if (.not. status%ok()) return
         name = buffers(i)%last_name
     end subroutine buffer_last_name
-
 
     !> Rename the current buffer to `newname`; with `unique`, pick a free
     !> variant instead of failing.  `actual` receives the name given.
@@ -452,7 +440,6 @@ contains
         buffers(cur)%name = actual
     end subroutine rename_buffer
 
-
     !> Live buffers in creation order.  Port of buffer.c:Fbuffer_list
     !> (without frame-local ordering).
     function buffer_list() result(list)
@@ -464,7 +451,6 @@ contains
             list = alist(1:alist_count)
         end if
     end function buffer_list
-
 
     !> Make `h` the current buffer.  Port of buffer.c:Fset_buffer.
     subroutine set_buffer(h, status)
@@ -482,7 +468,6 @@ contains
         cur = i
     end subroutine set_buffer
 
-
     subroutine alist_append(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
@@ -498,7 +483,6 @@ contains
         alist_count = alist_count + 1
         alist(alist_count) = h
     end subroutine alist_append
-
 
     ! ------------------------------------------------------------------
     ! Modification state
@@ -521,7 +505,6 @@ contains
         end if
     end subroutine modiff_incr
 
-
     !> Port of buffer.h:BUF_COMPUTE_UNCHANGED.
     pure subroutine buf_compute_unchanged(b, start, end)
         type(buffer_type), intent(inout) :: b
@@ -539,7 +522,6 @@ contains
         end associate
     end subroutine buf_compute_unchanged
 
-
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
     subroutine buffer_modified_p(h, modified, status)
@@ -553,7 +535,6 @@ contains
         if (.not. status%ok()) return
         modified = buffers(i)%text%save_modiff < buffers(i)%text%modiff
     end subroutine buffer_modified_p
-
 
     !> Mark the current buffer modified or unmodified.
     !> Port of buffer.c:Frestore_buffer_modified_p (also the behaviour of
@@ -572,7 +553,6 @@ contains
         end associate
     end subroutine restore_buffer_modified_p
 
-
     !> Port of buffer.c:Fbuffer_modified_tick.
     subroutine buffer_modified_tick(h, tick, status)
         type(handle_type), intent(in) :: h
@@ -585,7 +565,6 @@ contains
         if (.not. status%ok()) return
         tick = buffers(i)%text%modiff
     end subroutine buffer_modified_tick
-
 
     !> Port of buffer.c:Fbuffer_chars_modified_tick.
     subroutine buffer_chars_modified_tick(h, tick, status)
@@ -600,7 +579,6 @@ contains
         tick = buffers(i)%text%chars_modiff
     end subroutine buffer_chars_modified_tick
 
-
     !> Value of the variable `inhibit-read-only' (nil when unbound).
     !> Port of buffer.c:Vinhibit_read_only (global value only).
     function inhibit_read_only() result(v)
@@ -609,7 +587,6 @@ contains
 
         call symbol_value(make_symbol_ref(intern("inhibit-read-only")), v, st)
     end function inhibit_read_only
-
 
     !> Fail with buffer-read-only if the current buffer is read-only,
     !> unless `inhibit-read-only' is non-nil or the text at `position'
@@ -639,7 +616,6 @@ contains
         call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
     end subroutine barf_if_buffer_read_only
 
-
     !> Set BVAR read_only of buffer `h` (the `buffer-read-only' variable).
     subroutine set_buffer_read_only(h, flag, status)
         type(handle_type), intent(in) :: h
@@ -651,7 +627,6 @@ contains
         if (.not. status%ok()) return
         buffers(i)%read_only = flag
     end subroutine set_buffer_read_only
-
 
     ! ------------------------------------------------------------------
     ! Text access (buffer.h macros)
@@ -667,7 +642,6 @@ contains
         if (bytepos >= b%text%gpt_byte) buf_byte_index = bytepos + b%text%gap_size
     end function buf_byte_index
 
-
     !> Byte (0..255) at `bytepos`.  Port of buffer.h:BUF_FETCH_BYTE.
     pure integer(int32) function buf_fetch_byte(b, bytepos)
         type(buffer_type), intent(in) :: b
@@ -677,7 +651,6 @@ contains
         k = buf_byte_index(b, bytepos)
         buf_fetch_byte = ichar(b%text%beg(k:k), kind=int32)
     end function buf_fetch_byte
-
 
     !> Character at `bytepos`.  Port of buffer.h:BUF_FETCH_CHAR.
     pure integer(int32) function buf_fetch_char(b, bytepos)
@@ -692,7 +665,6 @@ contains
         end if
     end function buf_fetch_char
 
-
     !> Byte length of the character at `bytepos`.
     !> Port of buffer.h:buf_next_char_len.
     pure integer(int32) function buf_next_char_len(b, bytepos)
@@ -701,7 +673,6 @@ contains
 
         buf_next_char_len = bytes_by_char_head(buf_fetch_byte(b, bytepos))
     end function buf_next_char_len
-
 
     !> Byte length of the character before `bytepos`.
     !> Port of buffer.h:buf_prev_char_len.
@@ -714,7 +685,6 @@ contains
         if (bytepos > b%text%gpt_byte) k = bytepos + b%text%gap_size
         buf_prev_char_len = raw_prev_char_len(b%text%beg, k)
     end function buf_prev_char_len
-
 
     !> The bytes from `from_byte` up to (not including) `to_byte`, joined
     !> across the gap.  Not a port; the byte-copy core of
@@ -741,7 +711,6 @@ contains
         end associate
     end function buf_bytes
 
-
     !> Set point of `b` without any text-property processing.
     !> Port of intervals.c:temp_set_point_both.
     pure subroutine temp_set_point_both(b, charpos, bytepos)
@@ -751,5 +720,4 @@ contains
         b%pt = charpos
         b%pt_byte = bytepos
     end subroutine temp_set_point_both
-
 end module buffer_fm

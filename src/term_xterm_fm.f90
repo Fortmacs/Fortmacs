@@ -66,7 +66,6 @@ contains
         if (iand(p, 4) /= 0) bits = bits + M_CTL
     end function xterm_modifiers
 
-
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -75,7 +74,6 @@ contains
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
-
 
     !> In `map`, translate byte sequence `seq` to the single event `ev`.
     subroutine def(map, seq, ev)
@@ -95,7 +93,6 @@ contains
         call define_key(map, key, list(ev), status)
     end subroutine def
 
-
     !> Translate `seq` to function key `name` with modifiers `bits`.
     subroutine defkey(map, seq, bits, name)
         type(handle_type), intent(in) :: map
@@ -104,7 +101,6 @@ contains
 
         call def(map, seq, apply_modifiers(bits, name))
     end subroutine defkey
-
 
     !> Escape sequences shared between xterm and rxvt.  Port of
     !> term/xterm.el:xterm-rxvt-function-map.
@@ -140,7 +136,6 @@ contains
 
         rxvt_map = map
     end function xterm_rxvt_function_map
-
 
     !> xterm's escape sequences.  Port of term/xterm.el:xterm-function-map.
     function xterm_function_map() result(map)
@@ -235,7 +230,6 @@ contains
         xterm_map = map
     end function xterm_function_map
 
-
     !> Keys xterm reports with modifyOtherKeys / formatOtherKeys:
     !> CSI 27;M;C~ and CSI C;Mu.  The dolist in xterm-function-map.
     subroutine define_modify_other_keys(map)
@@ -294,9 +288,7 @@ contains
             call def(map, ESC//"[27;"//itoa(m)//";"//itoa(c)//"~", ev)
             call def(map, ESC//"["//itoa(c)//";"//itoa(m)//"u", ev)
         end subroutine other_key
-
     end subroutine define_modify_other_keys
-
 
     !> Make input-decode-map translate xterm's escape sequences, leaving
     !> its own bindings in front.  Port of term/xterm.el:terminal-init-xterm
@@ -314,5 +306,4 @@ contains
 
         call set_keymap_parent(input_decode_map, map, status)
     end subroutine terminal_init_xterm
-
 end module term_xterm_fm

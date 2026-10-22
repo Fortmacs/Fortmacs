@@ -34,5 +34,4 @@ contains
 
         call read_file_name(prompt, result, status, dir, default_filename, initial)
     end subroutine read_file_name_in_minibuffer
-
 end submodule files_read_fm

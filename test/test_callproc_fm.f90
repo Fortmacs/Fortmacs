@@ -56,7 +56,6 @@ contains
                     ]
     end subroutine collect_callproc_fm
 
-
     !> A fresh, current buffer `name` holding `text`.
     subroutine fresh_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
@@ -69,14 +68,12 @@ contains
         if (len(text) > 0) call insert(text, st)
     end subroutine fresh_buffer
 
-
     subroutine done(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         call kill_buffer(h, st)
     end subroutine done
-
 
     !> Check that Bug#40576 is fixed.  (Upstream runs `emacs --version`;
     !> any program that ignores its input will do.)
@@ -93,7 +90,6 @@ contains
         if (.not. allocated(error)) call check(error, buffer_size(), 0_int64)
         call done(h)
     end subroutine test_region_delete
-
 
     !> Output goes into the current buffer before point; text is UTF-8.
     subroutine test_output(error)
@@ -133,7 +129,6 @@ contains
         call done(h)
     end subroutine test_output
 
-
     subroutine test_exit_status(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r
@@ -146,7 +141,6 @@ contains
         call check(error, xfixnum(r), 42_int64)
     end subroutine test_exit_status
 
-
     !> A program killed by a signal gives the signal's description.
     subroutine test_signal(error)
         type(error_type), allocatable, intent(out) :: error
@@ -157,7 +151,6 @@ contains
         call check(error, st%ok() .and. stringp(r), "a string")
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
     end subroutine test_signal
-
 
     subroutine test_missing_program(error)
         type(error_type), allocatable, intent(out) :: error
@@ -172,7 +165,6 @@ contains
                        "Searching for program: No such file or directory, fortmacs-no-such-program")
         end if
     end subroutine test_missing_program
-
 
     subroutine test_infile(error)
         type(error_type), allocatable, intent(out) :: error
@@ -199,7 +191,6 @@ contains
         call done(h)
     end subroutine test_infile
 
-
     subroutine test_buffer_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, out, now
@@ -220,7 +211,6 @@ contains
         call done(out)
         call done(h)
     end subroutine test_buffer_name
-
 
     !> The program runs in the current buffer's default-directory.
     subroutine test_directory(error)
@@ -244,7 +234,6 @@ contains
         call done(h)
     end subroutine test_directory
 
-
     !> Part of the buffer through a filter, the output after it.
     subroutine test_region_filter(error)
         type(error_type), allocatable, intent(out) :: error
@@ -266,5 +255,4 @@ contains
 
         call done(h)
     end subroutine test_region_filter
-
 end module test_callproc_fm

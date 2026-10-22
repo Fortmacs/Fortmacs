@@ -48,7 +48,6 @@ contains
                     ]
     end subroutine collect_term_xterm_fm
 
-
     !> The key sequence read after typing `bytes`, as kbd text.
     function decoded(bytes) result(desc)
         character(len=*), intent(in) :: bytes
@@ -63,7 +62,6 @@ contains
         call read_key_sequence(keys, binding, eof, st)
         desc = key_description(keys)
     end function decoded
-
 
     subroutine test_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
@@ -101,7 +99,6 @@ contains
         call check(error, decoded(ESC//"[13;2u"), "S-<return>")
     end subroutine test_function_keys
 
-
     !> Decoded keys reach their bindings, and ESC still prefixes Meta.
     subroutine test_bound_keys(error)
         type(error_type), allocatable, intent(out) :: error
@@ -131,5 +128,4 @@ contains
         if (allocated(error)) return
         call check(error,.not. eof .and. .not. nilp(binding), "bound")
     end subroutine test_bound_keys
-
 end module test_term_xterm_fm

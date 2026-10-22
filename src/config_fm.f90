@@ -85,14 +85,12 @@ contains
         dir = file_name_as_directory(get_homedir())//fallback//"/fortmacs/"
     end function xdg_directory
 
-
     !> The directory of init.f90.
     function config_directory() result(dir)
         character(len=:), allocatable :: dir
 
         dir = xdg_directory("XDG_CONFIG_HOME", ".config")
     end function config_directory
-
 
     !> The directory of the built binary.
     function state_directory() result(dir)
@@ -101,14 +99,12 @@ contains
         dir = xdg_directory("XDG_STATE_HOME", ".local/state")
     end function state_directory
 
-
     !> The directory `--recompile` builds in.
     function cache_directory() result(dir)
         character(len=:), allocatable :: dir
 
         dir = xdg_directory("XDG_CACHE_HOME", ".cache")
     end function cache_directory
-
 
     !> The user's init file.
     function init_file_name() result(name)
@@ -117,14 +113,12 @@ contains
         name = config_directory()//"init.f90"
     end function init_file_name
 
-
     !> The directory of the generations.
     function generations_directory() result(dir)
         character(len=:), allocatable :: dir
 
         dir = state_directory()//"generations/"
     end function generations_directory
-
 
     !> The binary of the current generation.
     function current_build_name() result(name)
@@ -133,14 +127,12 @@ contains
         name = generations_directory()//"current/fortmacs"
     end function current_build_name
 
-
     !> The file name of the running program ("" if unknown).
     function running_executable() result(name)
         character(len=:), allocatable :: name
 
         if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
-
 
     !> The installation `executable` belongs to: PREFIX when it is
     !> PREFIX/bin/fortmacs and PREFIX/lib/libfortmacs.a exists (`found`).
@@ -158,7 +150,6 @@ contains
         prefix = file_name_directory(bin)
         found = file_exists_p(prefix//"lib/libfortmacs.a")
     end subroutine install_prefix
-
 
     !> The main program of a user build: `run` with the user's
     !> `configure`, knowing the installation it was built against.
@@ -179,7 +170,6 @@ contains
                "    if (exit_code /= 0) stop exit_code, quiet = .true."//nl// &
                "end program fortmacs_user"//nl
     end function driver_source
-
 
     !> `s` as a Fortran string literal, split over continuation lines so
     !> that no line gets too long.
@@ -215,7 +205,6 @@ contains
 
         literal = literal//'"'
     end function fortran_string
-
 
     !> Build the init file against the installation at `prefix` into a new
     !> generation, `generation`, which becomes the current one.  `log` gets
@@ -327,7 +316,6 @@ contains
         if (present(generation)) generation = n
     end subroutine recompile
 
-
     !> `n` in decimal.
     pure function itoa(n) result(s)
         integer, intent(in) :: n
@@ -337,7 +325,6 @@ contains
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
-
 
     !> The number `s` is made of, or 0 if it isn't only digits.
     pure integer function number_of(s) result(n)
@@ -352,7 +339,6 @@ contains
             n = 10*n + iachar(s(k:k)) - iachar("0")
         end do
     end function number_of
-
 
     !> The numbers of the generations, in increasing order (none if the
     !> directory doesn't exist yet).
@@ -391,7 +377,6 @@ contains
         numbers = all(1:n)
     end subroutine generation_numbers
 
-
     !> The generation `current` points at, or 0 if none.
     integer function current_generation() result(n)
         character(len=:), allocatable :: target
@@ -400,7 +385,6 @@ contains
         if (emacs_readlink(generations_directory()//"current", target) /= 0) return
         n = number_of(file_name_nondirectory(directory_file_name(target)))
     end function current_generation
-
 
     !> The generation `executable` belongs to (GENERATIONS/N/fortmacs), or 0.
     integer function generation_of(executable) result(n)
@@ -412,7 +396,6 @@ contains
         if (index(dir, generations_directory()) /= 1) return
         n = number_of(directory_file_name(dir(len(generations_directory()) + 1:)))
     end function generation_of
-
 
     !> Make generation `n` the current one: `current` is replaced in one
     !> step (a new link renamed over it).
@@ -432,7 +415,6 @@ contains
         if (.not. status%ok()) return
         call rename_file(dir//"current.new", dir//"current", status)
     end subroutine switch_generation
-
 
     !> Go back to the generation before the current one: `from` was
     !> current, `to` is now.
@@ -464,7 +446,6 @@ contains
 
         call switch_generation(to, status)
     end subroutine rollback
-
 
     !> One line per generation, as Guix lists them: its number, when it
     !> was built, and "(current)" for the current one.
@@ -501,5 +482,4 @@ contains
             text = text//new_line("a")
         end do
     end subroutine list_generations
-
 end module config_fm

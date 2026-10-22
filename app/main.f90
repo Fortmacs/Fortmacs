@@ -41,5 +41,4 @@ contains
 
         status = status_type()
     end subroutine configure
-
 end program fortmacs_main
