@@ -366,8 +366,9 @@ contains
         integer :: k
         all = buffer_list()
         do k = 1, size(all)
-            if (buffers(all(k)%index)%name == "split-test" .or. buffers(all(k)%index)%name == "other-test") &
+            if (buffers(all(k)%index)%name == "split-test" .or. buffers(all(k)%index)%name == "other-test") then
                 call kill_buffer(all(k), st)
+            end if
         end do
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -525,7 +526,7 @@ contains
         ws = leaves()
         ! Both windows show other-test now; the bottom one is selected.
         call run_keys("C-x k RET")
-        call check(error, .not. buffer_live_p(get_buffer("other-test")), "killed")
+        call check(error,.not. buffer_live_p(get_buffer("other-test")), "killed")
         if (allocated(error)) return
         call check(error, windows(ws(1)%index)%buffer%index == h%index .and. &
                    windows(ws(2)%index)%buffer%index == h%index .and. buffers(cur)%name == "split-test", &
@@ -537,7 +538,7 @@ contains
         call check(error, buffer_live_p(h), "no: kept")
         if (allocated(error)) return
         call run_keys("C-x k RET y e s RET")
-        call check(error, .not. buffer_live_p(h), "yes: killed")
+        call check(error,.not. buffer_live_p(h), "yes: killed")
         call leave_frame()
     end subroutine test_kill_buffer
 end module test_window_fm

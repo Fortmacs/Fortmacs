@@ -59,7 +59,7 @@ module frame_fm
     !> The terminal frame (frame.c:selected_frame).
     type(frame_type), target, public :: selected_frame
 
-    public :: ensure_frame_windows, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
+    public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
 
 contains
 
@@ -79,6 +79,19 @@ contains
             windows(selected_frame%minibuffer_window%index)%mini = .true.
         end if
     end subroutine ensure_frame_windows
+
+    !> Return the selected window.  The selected window is the window in
+    !> which the standard cursor for selected windows appears and to
+    !> which many commands apply.  Port of window.c:Fselected_window.
+    function selected_window() result(h)
+        type(handle_type) :: h
+        call ensure_frame_windows()
+        if (selected_frame%minibuffer_selected) then
+            h = selected_frame%minibuffer_window
+        else
+            h = selected_frame%selected_window
+        end if
+    end function selected_window
 
     !> The selected window of `selected_frame`: the minibuffer window while
     !> it is selected, else `selected_window`.  window.c:selected_window.
