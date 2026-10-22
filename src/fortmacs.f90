@@ -85,6 +85,13 @@ module fortmacs
     use undo_fm, only: undo_boundary
     use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
                          region_active_p, deactivate_mark
+    use minibuf_fm, only: completion_table_type, completion_list_table, completion_obarray_table, &
+                          completion_function_table, completion_predicate, completion_function, &
+                          try_completion, all_completions, test_completion
+    use minibuffer_fm, only: completing_read, read_file_name, REQUIRE_MATCH_NIL, REQUIRE_MATCH_T, &
+                             REQUIRE_MATCH_CONFIRM, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
+    use simple_fm, only: execute_extended_command
+    use keymap_fm, only: where_is_internal
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -98,6 +105,10 @@ module fortmacs
     use simple_fm, only: kill_ring_max, mark_ring_max, kill_whole_line_option, delete_active_region, &
                          kill_read_only_ok
     use term_fm, only: visible_bell
+    use minibuf_fm, only: completion_ignore_case
+    use minibuffer_fm, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
+    use simple_fm, only: suggest_key_bindings
+    use dired_fm, only: completion_ignored_extensions
     use search_fm, only: case_fold_search
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, &
                           search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
@@ -124,6 +135,11 @@ module fortmacs
     public :: undo, undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
               set_mark, mark, region_active_p, deactivate_mark
+    public :: completion_table_type, completion_list_table, completion_obarray_table, &
+              completion_function_table, completion_predicate, completion_function, try_completion, &
+              all_completions, test_completion, completing_read, read_file_name, REQUIRE_MATCH_NIL, &
+              REQUIRE_MATCH_T, REQUIRE_MATCH_CONFIRM, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
+              execute_extended_command, where_is_internal
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
@@ -131,5 +147,7 @@ module fortmacs
               kill_whole_line_option, delete_active_region, kill_read_only_ok, &
               case_fold_search, search_upper_case, search_exit_option, search_nonincremental_instead, &
               search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
-              next_screen_context_lines, scroll_error_top_bottom
+              next_screen_context_lines, scroll_error_top_bottom, completion_ignore_case, &
+              completion_auto_help, completion_show_inline_help, completion_fail_discreetly, &
+              suggest_key_bindings, completion_ignored_extensions
 end module fortmacs

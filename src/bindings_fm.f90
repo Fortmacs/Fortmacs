@@ -178,6 +178,7 @@ contains
         call bind(global_map, "<down>", "next-line")
         call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
+        call bind(esc_map, "x", "execute-extended-command")
         call bind(global_map, "<next>", "scroll-up-command")
         call bind(global_map, "<prior>", "scroll-down-command")
         call bind(global_map, "C-v", "scroll-up-command")

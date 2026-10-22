@@ -24,14 +24,21 @@
 !> frame's minibuffer window, which is selected while a recursive edit
 !> runs; a command throws to `exit` to finish.
 !>
-!> Not yet: completion, minibuffer-only frames, input methods, Lisp
+!> The completion primitives (`try-completion`, `all-completions`,
+!> `test-completion`) are here too; the completion UI is minibuffer_fm's.
+!>
+!> Not yet: `completion-regexp-list` (no regexps), hash-table
+!> collections, minibuffer-only frames, input methods, Lisp
 !> reading (`read-minibuffer`), `minibuffer-setup-hook`, the
 !> minibuffer-prompt face, and restoring window configurations.
 module minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, t_value, list, nilp
+    use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, &
+                       make_symbol_ref, stringp, xstring, symbolp, xsymbol, symbols, nsymbols, V_LIST, vtag
+    use lread_fm, only: intern_soft
+    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use lread_fm, only: sym
     use data_fm, only: set
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
@@ -43,13 +50,69 @@ module minibuf_fm
     use keyboard_fm, only: recursive_edit_1, throw_exit, command_loop_level, post_command_hook, &
                            redisplay_proc, last_message
     use frame_fm, only: selected_frame
-    use window_fm, only: set_window_buffer
+    use window_fm, only: set_window_buffer, window_start, set_window_start
     use subr_fm, only: add_to_history
     implicit none(type, external)
     private
 
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
               minibufferp, abort_minibuffers, init_minibuf
+    public :: try_completion, all_completions, test_completion, completion_list_table, &
+              completion_obarray_table, completion_function_table, completion_predicate, &
+              completion_function
+
+    !> Actions passed to a completion function (programmed completion): as
+    !> `try-completion` (nil), `all-completions` (t), `test-completion`
+    !> (lambda), and `(boundaries . SUFFIX)`.
+    integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
+                                  COMPLETE_BOUNDARIES = 3
+
+    !> Kinds of completion table: a list (of strings, symbols, or lists
+    !> whose first element is one: an alist), the obarray, or a function.
+    integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2
+
+    abstract interface
+        !> A completion predicate: whether the element `elt` (the list
+        !> element or the symbol) is an acceptable completion.
+        logical function completion_predicate(elt)
+            import :: value_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: elt
+        end function completion_predicate
+
+        !> A function completion table.  ACTION says what to compute for
+        !> STRING: COMPLETE_TRY (the `try-completion` value: nil, t or a
+        !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
+        !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
+        !> SUFFIX, or nil for the default).
+        recursive subroutine completion_function(string, action, result, status, pred, suffix)
+            import :: value_type, status_type, completion_predicate
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            integer, intent(in) :: action
+            type(value_type), intent(out) :: result
+            type(status_type), intent(out) :: status
+            procedure(completion_predicate), optional :: pred
+            character(len=*), intent(in), optional :: suffix
+        end subroutine completion_function
+    end interface
+
+    !> A completion table (COLLECTION).
+    type, public :: completion_table_type
+        integer :: kind = TABLE_LIST
+        !> TABLE_LIST: the list.
+        type(value_type) :: list
+        !> TABLE_FUNCTION: the function.
+        procedure(completion_function), pointer, nopass :: fn => null()
+    end type completion_table_type
+
+    !> Non-nil means don't consider case significant in completion.
+    !> For file-name completion, `read-file-name-completion-ignore-case'
+    !> controls the behavior, rather than this variable.
+    !> For buffer name completion, `read-buffer-completion-ignore-case'
+    !> controls the behavior, rather than this variable.  Port of minibuf.c
+    !> completion-ignore-case.
+    logical, public :: completion_ignore_case = .false.
     !> minibuf_level: the depth of active minibuffers.
     integer, public, protected :: minibuf_level = 0
     !> Non-nil means to allow minibuffer commands while in the minibuffer.
@@ -74,6 +137,16 @@ module minibuf_fm
     !> simple.el minibuffer-text-before-history: the input before moving
     !> into the history; unallocated for nil.
     character(len=:), allocatable, public :: minibuffer_text_before_history
+
+    !> A string in an array.
+    type :: string_box
+        character(len=:), allocatable :: s
+    end type string_box
+
+    !> The buffer that was current when the innermost active minibuffer
+    !> was entered (the buffer of minibuffer-selected-window); the null
+    !> handle when no minibuffer is active.
+    type(handle_type), public, protected :: minibuffer_calling_buffer
 
     !> Vminibuffer_list: the minibuffer of each depth (index depth + 1).
     type(handle_type), allocatable :: minibuffers(:)
@@ -190,7 +263,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
         type(handle_type), intent(in), optional :: keymap
-        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer
+        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
+        integer(int64) :: old_root_start, bi
         type(status_type) :: st, edit_status
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
                                          saved_before
@@ -215,6 +289,8 @@ contains
         call get_minibuffer(minibuf_level + 1, minibuffer, status)
         if (.not. status%ok()) return
         minibuf_level = minibuf_level + 1
+        saved_calling = minibuffer_calling_buffer
+        minibuffer_calling_buffer = calling_buffer
 
         ! minibuf_save_list
         if (allocated(minibuffer_history_variable)) then
@@ -233,12 +309,17 @@ contains
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
         old_selected = selected_frame%minibuffer_selected
         old_mini_buffer = selected_frame%minibuffer_window%buffer
+        ! read-minibuffer-restore-windows: what the root window shows (the
+        ! *Completions* list may replace it while reading).
+        old_root_buffer = selected_frame%root_window%buffer
+        old_root_start = window_start(selected_frame%root_window)
         saved_hook => post_command_hook
 
         call set_buffer(minibuffer, status)
 
         if (.not. status%ok()) then
             minibuf_level = minibuf_level - 1
+            minibuffer_calling_buffer = saved_calling
             return
         end if
 
@@ -290,8 +371,21 @@ contains
         call set(sym("inhibit-read-only"), t_value(), st)
         call erase_buffer(st)
         call set(sym("inhibit-read-only"), nil(), st)
+        minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         selected_frame%minibuffer_window%buffer = old_mini_buffer
+
+        if (old_root_buffer%index /= 0 .and. (selected_frame%root_window%buffer%index /= old_root_buffer%index .or. &
+                                              selected_frame%root_window%buffer%generation /= &
+                                              old_root_buffer%generation)) then
+            call resolve_buffer(old_root_buffer, bi, st)
+
+            if (st%ok()) then
+                call set_window_buffer(selected_frame%root_window, old_root_buffer, st)
+                call set_window_start(selected_frame%root_window, old_root_start, st, noforce=.true.)
+            end if
+        end if
+
         call set_buffer(calling_buffer, st)
         minibuffer_history_variable = saved_histvar
         minibuffer_history_position = saved_histpos
@@ -348,4 +442,363 @@ contains
         ! minibuffer-quit-recursive-edit
         call throw_exit(.true.)
     end subroutine abort_minibuffers
+
+    ! ------------------------------------------------------------------
+    ! Completion primitives
+    ! ------------------------------------------------------------------
+
+    !> A completion table holding the list `list` (strings, symbols, or
+    !> lists whose first element is the completion).
+    function completion_list_table(list) result(table)
+        type(value_type), intent(in) :: list
+        type(completion_table_type) :: table
+
+        table%kind = TABLE_LIST
+        table%list = list
+    end function completion_list_table
+
+    !> A completion table holding the names of all interned symbols.
+    function completion_obarray_table() result(table)
+        type(completion_table_type) :: table
+
+        table%kind = TABLE_OBARRAY
+    end function completion_obarray_table
+
+    !> A completion table computed by `fn` (programmed completion).
+    function completion_function_table(fn) result(table)
+        procedure(completion_function) :: fn
+        type(completion_table_type) :: table
+
+        table%kind = TABLE_FUNCTION
+        table%fn => fn
+    end function completion_function_table
+
+    !> The elements of a non-function table: `elts` (the list elements or
+    !> symbols, given to the predicate) and the string each one completes
+    !> to (`names`; `ok` is false for elements that are not strings or
+    !> symbols).
+    subroutine table_elements(table, elts, names, ok)
+        type(completion_table_type), intent(in) :: table
+        type(value_type), allocatable, intent(out) :: elts(:)
+        type(string_box), allocatable, intent(out) :: names(:)
+        logical, allocatable, intent(out) :: ok(:)
+        type(value_type), allocatable :: parts(:)
+        type(value_type) :: eltstring
+        integer(int64) :: k
+
+        if (table%kind == TABLE_OBARRAY) then
+            allocate (elts(nsymbols), names(nsymbols), ok(nsymbols))
+
+            do k = 1, nsymbols
+                elts(k) = make_symbol_ref(k)
+                names(k)%s = symbols(k)%name
+                ok(k) = .true.
+            end do
+
+            return
+        end if
+
+        call list_elements(table%list, elts)
+        allocate (names(size(elts)), ok(size(elts)))
+
+        do k = 1, size(elts, kind=int64)
+            ! An alist element: its car is the completion.
+            eltstring = elts(k)
+
+            if (vtag(elts(k)) == V_LIST) then
+                call list_elements(elts(k), parts)
+                eltstring = nil()
+                if (size(parts) > 0) eltstring = parts(1)
+            end if
+
+            ok(k) = .true.
+
+            if (stringp(eltstring)) then
+                names(k)%s = xstring(eltstring)
+            else if (symbolp(eltstring)) then
+                names(k)%s = symbols(xsymbol(eltstring))%name
+            else
+                ok(k) = .false.
+                names(k)%s = ""
+            end if
+        end do
+    end subroutine table_elements
+
+    !> Whether completion candidate `name` begins with STRING.
+    logical function prefix_matches(string, name)
+        character(len=*), intent(in) :: string, name
+        integer(int64) :: n
+
+        n = schars(string)
+        prefix_matches = n <= schars(name)
+        if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case, end1=n) &
+                                             == COMPARE_EQUAL
+    end function prefix_matches
+
+    !> Return longest common substring of all completions of STRING in
+    !> COLLECTION.
+    !>
+    !> Test each possible completion specified by COLLECTION to see if it
+    !> begins with STRING.  The possible completions may be strings or
+    !> symbols.  Symbols are converted to strings before testing, by using
+    !> `symbol-name'.
+    !>
+    !> If no possible completions match, the function returns nil; if
+    !> there's just one exact match, it returns t; otherwise it returns
+    !> the longest initial substring common to all possible completions
+    !> that begin with STRING.
+    !>
+    !> If COLLECTION is an alist, the keys (cars of elements) are the
+    !> possible completions.  If an element is not a cons cell, then the
+    !> element itself is a possible completion.  If COLLECTION is the
+    !> obarray, the names of all symbols in the obarray are the possible
+    !> completions.
+    !>
+    !> COLLECTION can also be a function to do the completion itself.  It
+    !> receives STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns
+    !> becomes the value of `try-completion'.
+    !>
+    !> If optional argument PREDICATE is present, it is used to test each
+    !> possible completion.  A possible completion is accepted only if
+    !> PREDICATE returns true.  The argument given to PREDICATE is either a
+    !> string or a list (whose first element is a string) from the alist,
+    !> or a symbol from the obarray.
+    !>
+    !> If `completion-ignore-case' is non-nil, possible completions are
+    !> matched while ignoring letter-case, but no guarantee is made about
+    !> the letter-case of the return value, except that it comes either
+    !> from the user's input or from one of the possible completions.
+    !> Port of minibuf.c:Ftry_completion (no `completion-regexp-list`).
+    recursive subroutine try_completion(string, collection, result, status, predicate)
+        character(len=*), intent(in) :: string
+        type(completion_table_type), intent(in) :: collection
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        type(value_type), allocatable :: elts(:)
+        type(string_box), allocatable :: names(:)
+        logical, allocatable :: ok(:)
+        character(len=:), allocatable :: bestmatch, old_bestmatch, eltstring
+        integer(int64) :: bestmatchsize, compare, matchsize, tem, k, nstring, neltstring, nbest
+        integer :: matchcount
+        logical :: have_best
+
+        status = status_type()
+        result = nil()
+
+        if (collection%kind == TABLE_FUNCTION) then
+            call collection%fn(string, COMPLETE_TRY, result, status, predicate)
+            return
+        end if
+
+        call table_elements(collection, elts, names, ok)
+        have_best = .false.
+        bestmatchsize = 0
+        matchcount = 0
+        nstring = schars(string)
+
+        do k = 1, size(elts, kind=int64)
+            ! Is this element a possible completion?
+            if (.not. ok(k)) cycle
+            eltstring = names(k)%s
+            if (.not. prefix_matches(string, eltstring)) cycle
+
+            ! Ignore this element if there is a predicate and the
+            ! predicate doesn't like it.
+            if (present(predicate)) then
+                if (.not. predicate(elts(k))) cycle
+            end if
+
+            neltstring = schars(eltstring)
+
+            ! Update computation of how much all possible completions match.
+            if (.not. have_best) then
+                matchcount = 1
+                bestmatch = eltstring
+                bestmatchsize = neltstring
+                have_best = .true.
+            else
+                compare = min(bestmatchsize, neltstring)
+                tem = compare_strings(bestmatch, eltstring, completion_ignore_case, end1=compare, &
+                                      end2=compare)
+                matchsize = compare
+                if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
+                old_bestmatch = bestmatch
+                nbest = schars(bestmatch)
+
+                if (completion_ignore_case) then
+                    ! If this is an exact match except for case, use it as
+                    ! the best match rather than one that is not an exact
+                    ! match.  This way, we get the case pattern of the
+                    ! actual match.  If there is more than one exact match
+                    ! ignoring case, and one of them is exact including
+                    ! case, prefer that one.  If there is no exact match
+                    ! ignoring case, prefer a match that does not change
+                    ! the case of the input.
+                    if ((matchsize == neltstring .and. matchsize < nbest) .or. &
+                        ((matchsize == neltstring) .eqv. (matchsize == nbest)) .and. &
+                        compare_strings(eltstring, string, end1=nstring) == COMPARE_EQUAL .and. &
+                        compare_strings(bestmatch, string, end1=nstring) /= COMPARE_EQUAL) then
+                        bestmatch = eltstring
+                    end if
+                end if
+
+                ! Don't count the same string multiple times.
+                if (bestmatchsize /= neltstring .or. bestmatchsize /= matchsize) then
+                    if (matchcount <= 1) matchcount = matchcount + 1
+                else if (completion_ignore_case) then
+                    if (compare_strings(old_bestmatch, eltstring, end1=compare, end2=compare) /= COMPARE_EQUAL &
+                        .and. matchcount <= 1) matchcount = matchcount + 1
+                end if
+
+                bestmatchsize = matchsize
+
+                ! No need to look any further (unless ignoring case, to find
+                ! the best possible match *including* case differences).
+                if (matchsize <= nstring .and. .not. completion_ignore_case .and. matchcount > 1) exit
+            end if
+        end do
+
+        ! No completions found.
+        if (.not. have_best) return
+
+        ! Return t if the supplied string is an exact match (counting
+        ! case); it does not require any change to be made.
+        if (matchcount == 1 .and. bestmatch == string .and. len(bestmatch) == len(string)) then
+            result = t_value()
+            return
+        end if
+
+        ! Else extract the part in which all completions agree.
+        result = make_string(substring(bestmatch, 0_int64, bestmatchsize))
+    end subroutine try_completion
+
+    !> Search for partial matches of STRING in COLLECTION.
+    !>
+    !> Test each possible completion specified by COLLECTION to see if it
+    !> begins with STRING.  The possible completions may be strings or
+    !> symbols.  Symbols are converted to strings before testing, by using
+    !> `symbol-name'.
+    !>
+    !> The value is a list of all the possible completions that match
+    !> STRING.
+    !>
+    !> If COLLECTION is an alist, the keys (cars of elements) are the
+    !> possible completions.  If COLLECTION is the obarray, the names of
+    !> all symbols in the obarray are the possible completions.
+    !>
+    !> COLLECTION can also be a function to do the completion itself.  It
+    !> receives STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns
+    !> becomes the value of `all-completions'.
+    !>
+    !> If optional argument PREDICATE is present, it is used to test each
+    !> possible completion.  A possible completion is accepted only if
+    !> PREDICATE returns true.  Port of minibuf.c:Fall_completions (no
+    !> `completion-regexp-list`).
+    recursive subroutine all_completions(string, collection, result, status, predicate)
+        character(len=*), intent(in) :: string
+        type(completion_table_type), intent(in) :: collection
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        type(value_type), allocatable :: elts(:), matches(:)
+        type(string_box), allocatable :: names(:)
+        logical, allocatable :: ok(:)
+        integer(int64) :: k, n
+
+        status = status_type()
+
+        if (collection%kind == TABLE_FUNCTION) then
+            call collection%fn(string, COMPLETE_ALL, result, status, predicate)
+            return
+        end if
+
+        call table_elements(collection, elts, names, ok)
+        allocate (matches(size(elts)))
+        n = 0
+
+        do k = 1, size(elts, kind=int64)
+            ! Is this element a possible completion?
+            if (.not. ok(k)) cycle
+            if (.not. prefix_matches(string, names(k)%s)) cycle
+
+            ! Ignore this element if there is a predicate and the
+            ! predicate doesn't like it.
+            if (present(predicate)) then
+                if (.not. predicate(elts(k))) cycle
+            end if
+
+            ! Ok => put it on the list.
+            n = n + 1
+            matches(n) = make_string(names(k)%s)
+        end do
+
+        result = make_list(matches(1:n))
+    end subroutine all_completions
+
+    !> Return non-nil if STRING is a valid completion.
+    !> For instance, if COLLECTION is a list of strings, STRING is a valid
+    !> completion if it appears in the list and PREDICATE is satisfied.
+    !>
+    !> Takes the same arguments as `all-completions' and `try-completion'.
+    !>
+    !> If COLLECTION is a function, it is called with STRING, PREDICATE and
+    !> COMPLETE_TEST (`lambda').  Port of minibuf.c:Ftest_completion (no
+    !> `completion-regexp-list`).
+    recursive logical function test_completion(string, collection, predicate) result(valid)
+        character(len=*), intent(in) :: string
+        type(completion_table_type), intent(in) :: collection
+        procedure(completion_predicate), optional :: predicate
+        type(value_type), allocatable :: elts(:)
+        type(string_box), allocatable :: names(:)
+        logical, allocatable :: ok(:)
+        type(value_type) :: tem, result
+        type(status_type) :: status
+        integer(int64) :: k, id
+
+        valid = .false.
+
+        select case (collection%kind)
+        case (TABLE_FUNCTION)
+            call collection%fn(string, COMPLETE_TEST, result, status, predicate)
+            valid = status%ok() .and. .not. nilp(result)
+            return
+        case (TABLE_OBARRAY)
+            id = intern_soft(string)
+
+            if (id /= 0) then
+                tem = make_symbol_ref(id)
+            else if (completion_ignore_case) then
+                do k = 1, nsymbols
+                    if (compare_strings(string, symbols(k)%name, .true.) == COMPARE_EQUAL) then
+                        id = k
+                        tem = make_symbol_ref(k)
+                        exit
+                    end if
+                end do
+            end if
+
+            if (id == 0) return
+        case default
+            ! assoc-string
+            call table_elements(collection, elts, names, ok)
+            id = 0
+
+            do k = 1, size(elts, kind=int64)
+                if (.not. ok(k)) cycle
+
+                if (compare_strings(string, names(k)%s, completion_ignore_case) == COMPARE_EQUAL) then
+                    id = k
+                    tem = elts(k)
+                    exit
+                end if
+            end do
+
+            if (id == 0) return
+        end select
+
+        ! Finally, check the predicate.
+        valid = .true.
+        if (present(predicate)) valid = predicate(tem)
+    end function test_completion
 end module minibuf_fm

@@ -57,7 +57,7 @@ module keymap_fm
                        V_KEYMAP, SYM_T, symbols, nil, make_fixnum, &
                        make_symbol_ref, make_keymap_ref, make_list, list, vtag, &
                        nilp, fixnump, symbolp, xfixnum, xsymbol, xstring, &
-                       xhandle, list_length, list_elements, list_tail
+                       xhandle, list_length, list_elements, list_tail, keymap_ref_p
     use lread_fm, only: intern
     use data_fm, only: value_eq
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
@@ -79,6 +79,7 @@ module keymap_fm
     public :: key_parse, key_description, single_key_description, &
               push_key_description
     public :: key_valid_p, keymap_set, keymap_global_set
+    public :: where_is_internal
 
     !> Bind a key given as a `key_valid_p` string.  A character `command`
     !> names a command (a symbol); a value is any key definition.
@@ -135,6 +136,12 @@ module keymap_fm
     !> composes the new map with the old overriding-terminal-local-map
     !> (internal-push-keymap); this is the old one, active below it.
     type(handle_type), public :: pushed_terminal_local_map
+
+    !> A key sequence and the keymap it leads to (where-is).
+    type :: key_list_type
+        type(value_type), allocatable :: keys(:)
+        type(handle_type) :: map
+    end type key_list_type
 
     !> State of one access_keymap_1 scan.
     type :: access_state
@@ -1829,4 +1836,262 @@ contains
 
         call keymap_set_command(current_global_map(), key, command, status)
     end subroutine keymap_global_set_command
+
+    ! ------------------------------------------------------------------
+    ! where-is
+    ! ------------------------------------------------------------------
+
+    !> Return 2 if SEQ uses only chars without modifiers other than Meta
+    !> (where-is-preferred-modifier nil), 1 if it uses only chars, and 0
+    !> otherwise.  Port of keymap.c:preferred_sequence_p.
+    integer function preferred_sequence_p(seq) result(result)
+        type(value_type), intent(in) :: seq(:)
+        integer(int64) :: modifiers
+        integer :: i
+
+        result = 1
+
+        do i = 1, size(seq)
+            if (.not. fixnump(seq(i))) then
+                result = 0
+                return
+            end if
+
+            modifiers = iand(xfixnum(seq(i)), M_ALL - M_META)
+
+            if (modifiers == 0) then
+                result = 2
+            else
+                result = 0
+                return
+            end if
+        end do
+    end function preferred_sequence_p
+
+    !> Return list of keys that invoke DEFINITION.
+    !> The keymaps searched are the currently active ones.  If FIRSTONLY
+    !> is true, return the first key sequence found, preferring sequences
+    !> consisting of characters without modifiers other than Meta, as a
+    !> list of events (nil for none); else a list of all of them, each a
+    !> list of events.  Prefix keys of the meta-prefix-char (ESC) followed
+    !> by a character are given as one Meta character.  Bindings shadowed
+    !> by another binding of the same key are left out.  Port of
+    !> keymap.c:Fwhere_is_internal (no remapping, advertised bindings,
+    !> menus or composed keymaps; character ranges are not searched).
+    subroutine where_is_internal(definition, keys, firstonly)
+        type(value_type), intent(in) :: definition
+        type(value_type), intent(out) :: keys
+        logical, intent(in), optional :: firstonly
+        type(key_list_type), allocatable :: queue(:), found(:)
+        type(value_type), allocatable :: maps(:), seq(:), elems(:)
+        type(value_type) :: active, binding
+        type(handle_type) :: km
+        type(status_type) :: status
+        integer :: qhead, qtail, nfound, k
+        logical :: first
+
+        first = .false.
+        if (present(firstonly)) first = firstonly
+        keys = nil()
+        active = current_active_maps()
+
+        if (keymap_ref_p(active)) then
+            maps = [active]
+        else
+            call list_elements(active, maps)
+        end if
+
+        ! Faccessible_keymaps of each active map, breadth first.
+        allocate (queue(16), found(16))
+        qtail = 0
+
+        do k = 1, size(maps)
+            if (.not. keymap_ref_p(maps(k))) cycle
+            allocate (seq(0))
+            call push(queue, qtail, seq, xhandle(maps(k)))
+            deallocate (seq)
+        end do
+
+        qhead = 0
+        nfound = 0
+
+        do while (qhead < qtail)
+            qhead = qhead + 1
+            km = queue(qhead)%map
+
+            do while (table%is_live(km))
+                call scan_map(km)
+                km = keymaps(km%index)%parent
+            end do
+        end do
+
+        ! Verify that each binding is not shadowed by another binding for
+        ! the same key, then pick the result.
+        allocate (elems(0))
+
+        do k = 1, nfound
+            call lookup_key(active, found(k)%keys, binding, status)
+            if (.not. status%ok() .or. .not. value_eq(binding, definition)) cycle
+
+            if (first) then
+                if (preferred_sequence_p(found(k)%keys) == 2) then
+                    keys = make_list(found(k)%keys)
+                    return
+                end if
+
+                if (nilp(keys)) keys = make_list(found(k)%keys)
+            else
+                elems = [elems, make_list(found(k)%keys)]
+            end if
+        end do
+
+        if (.not. first) keys = make_list(elems)
+
+    contains
+
+        !> Look at the bindings of one map: matches go to `found`, prefix
+        !> maps to the queue.
+        subroutine scan_map(map)
+            type(handle_type), intent(in) :: map
+            type(value_type), allocatable :: prefix(:), key(:)
+            integer, allocatable :: order(:)
+            integer(int64) :: i, n, ev
+            integer :: j, m
+            logical :: last_is_meta
+
+            prefix = queue(qhead)%keys
+            last_is_meta = .false.
+
+            if (size(prefix) > 0) then
+                if (fixnump(prefix(size(prefix)))) last_is_meta = xfixnum(prefix(size(prefix))) == META_PREFIX_CHAR
+            end if
+
+            associate (mp => keymaps(map%index))
+                n = mp%n
+                call entry_order(mp, order)
+
+                do m = 1, size(order)
+                    i = order(m)
+
+                    ! A prefix key: its map is searched too.
+                    if (keymap_ref_p(mp%bindings(i))) then
+                        if (.not. visited(xhandle(mp%bindings(i))) .and. size(prefix) < 10) then
+                            key = [prefix, mp%events(i)]
+                            call push(queue, qtail, key, xhandle(mp%bindings(i)))
+                        end if
+                    end if
+
+                    if (.not. value_eq(mp%bindings(i), definition)) cycle
+
+                    ! We have found a match.  Construct the key sequence
+                    ! where we found it.
+                    if (fixnump(mp%events(i)) .and. last_is_meta) then
+                        ev = ior(xfixnum(mp%events(i)), M_META)
+                        key = prefix
+                        key(size(key)) = make_fixnum(ev)
+                    else
+                        key = [prefix, mp%events(i)]
+                    end if
+
+                    ! Record it, unless it's already been seen (as could
+                    ! happen when inheriting keymaps).
+                    do j = 1, nfound
+                        if (same_keys(found(j)%keys, key)) exit
+                    end do
+
+                    if (j > nfound) call push(found, nfound, key, null_handle())
+                end do
+            end associate
+        end subroutine scan_map
+
+        logical function visited(map)
+            type(handle_type), intent(in) :: map
+            integer :: j
+
+            visited = .false.
+
+            do j = 1, qtail
+                if (queue(j)%map%index == map%index .and. queue(j)%map%generation == map%generation) then
+                    visited = .true.
+                    return
+                end if
+            end do
+        end function visited
+    end subroutine where_is_internal
+
+    !> The order upstream's map_keymap visits a keymap's entries in: for a
+    !> full keymap its char-table first (characters in order), then the
+    !> other entries newest first.
+    subroutine entry_order(mp, order)
+        type(keymap_type), intent(in) :: mp
+        integer, allocatable, intent(out) :: order(:)
+        integer :: i, j, n, key
+
+        n = int(mp%n)
+        allocate (order(0))
+
+        if (mp%full) then
+            do i = 1, n
+                if (fixnump(mp%events(i))) order = [order, i]
+            end do
+
+            ! Insertion sort by character code.
+            do i = 2, size(order)
+                key = order(i)
+                j = i - 1
+
+                do while (j >= 1)
+                    if (xfixnum(mp%events(order(j))) <= xfixnum(mp%events(key))) exit
+                    order(j + 1) = order(j)
+                    j = j - 1
+                end do
+
+                order(j + 1) = key
+            end do
+        end if
+
+        do i = n, 1, -1
+            if (mp%full .and. fixnump(mp%events(i))) cycle
+            order = [order, i]
+        end do
+    end subroutine entry_order
+
+    logical function same_keys(a, b)
+        type(value_type), intent(in) :: a(:), b(:)
+        integer :: i
+
+        same_keys = size(a) == size(b)
+        if (.not. same_keys) return
+
+        do i = 1, size(a)
+            if (.not. value_eq(a(i), b(i))) then
+                same_keys = .false.
+                return
+            end if
+        end do
+    end function same_keys
+
+    !> Append (`keys`, `map`) to `list`, which holds `n` entries.
+    subroutine push(list, n, keys, map)
+        type(key_list_type), allocatable, intent(inout) :: list(:)
+        integer, intent(inout) :: n
+        type(value_type), intent(in) :: keys(:)
+        type(handle_type), intent(in) :: map
+        type(key_list_type), allocatable :: grown(:)
+        integer :: j
+
+        if (n == size(list)) then
+            allocate (grown(2*size(list)))
+
+            do j = 1, n
+                grown(j) = list(j)
+            end do
+
+            call move_alloc(grown, list)
+        end if
+
+        n = n + 1
+        list(n)%keys = keys
+        list(n)%map = map
+    end subroutine push
 end module keymap_fm

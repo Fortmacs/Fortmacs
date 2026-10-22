@@ -18,24 +18,37 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: minibuf-tests.el and minibuffer-tests.el need Lisp.
+!> Ports the minibuf-tests.el completion tests for lists and alists of
+!> strings and symbols (not obarrays of their own, hash tables or
+!> completion-regexp-list); the rest are own tests.
 module test_minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring
+    use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
+                       list, list_elements, stringp, nilp, t_value
+    use data_fm, only: value_eq
+    use fns_fm, only: value_equal
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer
+    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
+                         erase_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: buffer_string
+    use editfns_fm, only: buffer_string, goto_char, point
     use keymap_fm, only: key_parse, define_key
     use callint_fm, only: defcommand
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text
+    use keymap_fm, only: current_global_map
+    use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
+                             last_minibuffer_message
+    use dired_fm, only: file_name_completion, file_name_all_completions
     use frame_fm, only: selected_frame
     use bindings_fm, only: init_bindings
-    use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map
+    use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
+                          completion_table_type, completion_list_table, completion_obarray_table, &
+                          try_completion, all_completions, test_completion, completion_ignore_case, &
+                          completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
     use fns_fm, only: yes_or_no_p
     use subr_fm, only: add_to_history, history_length
@@ -49,6 +62,19 @@ module test_minibuf_fm
 
     !> What the nested-minibuffer command saw.
     type(status_type) :: nested_status
+
+    !> The collection minibuf-tests--memq-of-collection tests membership in.
+    type(completion_table_type) :: member_of
+
+    !> What <f9> recorded: minibuffer messages, contents and whether
+    !> *Completions* was visible.
+    type :: record_type
+        character(len=:), allocatable :: s, contents
+    end type record_type
+
+    type(record_type) :: recorded(10)
+    logical :: recorded_visible(10) = .false.
+    integer :: nrecorded = 0
 
 contains
 
@@ -66,7 +92,39 @@ contains
                     new_unittest("yes-or-no-p", test_yes_or_no), &
                     new_unittest("read-file-name", test_read_file_name), &
                     new_unittest("find-file-command", test_find_file_command), &
-                    new_unittest("write-file", test_write_file) &
+                    new_unittest("write-file", test_write_file), &
+                    new_unittest("try-completion-string-list", test_try_string_list), &
+                    new_unittest("try-completion-string-list-predicate", test_try_string_list_pred), &
+                    new_unittest("try-completion-symbol-list", test_try_symbol_list), &
+                    new_unittest("try-completion-symbol-list-predicate", test_try_symbol_list_pred), &
+                    new_unittest("try-completion-symbol-alist", test_try_symbol_alist), &
+                    new_unittest("try-completion-symbol-alist-predicate", test_try_symbol_alist_pred), &
+                    new_unittest("try-completion-string-alist", test_try_string_alist), &
+                    new_unittest("try-completion-string-alist-predicate", test_try_string_alist_pred), &
+                    new_unittest("all-completions-string-list", test_all_string_list), &
+                    new_unittest("all-completions-string-list-predicate", test_all_string_list_pred), &
+                    new_unittest("all-completions-symbol-list", test_all_symbol_list), &
+                    new_unittest("all-completions-symbol-list-predicate", test_all_symbol_list_pred), &
+                    new_unittest("all-completions-symbol-alist", test_all_symbol_alist), &
+                    new_unittest("all-completions-symbol-alist-predicate", test_all_symbol_alist_pred), &
+                    new_unittest("all-completions-string-alist", test_all_string_alist), &
+                    new_unittest("all-completions-string-alist-predicate", test_all_string_alist_pred), &
+                    new_unittest("test-completion-string-list", test_test_string_list), &
+                    new_unittest("test-completion-string-list-predicate", test_test_string_list_pred), &
+                    new_unittest("test-completion-symbol-list", test_test_symbol_list), &
+                    new_unittest("test-completion-symbol-list-predicate", test_test_symbol_list_pred), &
+                    new_unittest("test-completion-symbol-alist", test_test_symbol_alist), &
+                    new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_alist_pred), &
+                    new_unittest("test-completion-string-alist", test_test_string_alist), &
+                    new_unittest("test-completion-string-alist-predicate", test_test_string_alist_pred), &
+                    new_unittest("completion-obarray", test_obarray), &
+                    new_unittest("test-try-completion-ignore-case", test_try_completion_ignore_case), &
+                    new_unittest("completion-auto-help-test", test_completion_auto_help), &
+                    new_unittest("completions-list-buffer", test_completion_list_buffer), &
+                    new_unittest("minibuffer-complete-and-exit", test_complete_and_exit), &
+                    new_unittest("minibuffer-complete-word", test_complete_word), &
+                    new_unittest("execute-extended-command", test_execute_extended_command), &
+                    new_unittest("file-name-completion", test_file_name_completion) &
                     ]
     end subroutine collect_minibuf_fm
 
@@ -356,4 +414,609 @@ contains
                    buffers(cur)%text%save_modiff < buffers(cur)%text%modiff, "renamed and modified")
         call kill_buffer(current_buffer(), st)
     end subroutine test_write_file
+
+    ! ------------------------------------------------------------------
+    ! Completion primitives (ports of minibuf-tests.el)
+    ! ------------------------------------------------------------------
+
+    !> The test strings as a collection of kind `kind`: 1 a string list, 2
+    !> a symbol list, 3 a symbol alist, 4 a string alist.
+    function collection(kind, strings) result(table)
+        integer, intent(in) :: kind
+        character(len=*), intent(in) :: strings(:)
+        type(completion_table_type) :: table
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+
+        allocate (elts(size(strings)))
+
+        do k = 1, size(strings)
+            select case (kind)
+            case (1)
+                elts(k) = make_string(trim(strings(k)))
+            case (2)
+                elts(k) = sym(trim(strings(k)))
+            case (3)
+                elts(k) = list(sym(trim(strings(k))), make_fixnum(int(k, int64)))
+            case default
+                elts(k) = list(make_string(trim(strings(k))), make_fixnum(int(k, int64)))
+            end select
+        end do
+
+        table = completion_list_table(make_list(elts))
+        member_of = table
+    end function collection
+
+    !> minibuf-tests--memq-of-collection: a member of the last collection.
+    logical function memq_of_collection(elt)
+        type(value_type), intent(in) :: elt
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+
+        call list_elements(member_of%list, elts)
+        memq_of_collection = .false.
+
+        do k = 1, size(elts)
+            if (value_equal(elts(k), elt)) memq_of_collection = .true.
+        end do
+    end function memq_of_collection
+
+    !> #'ignore.
+    logical function ignore(elt)
+        type(value_type), intent(in) :: elt
+
+        ignore = .false.
+        if (nilp(elt)) ignore = .false.
+    end function ignore
+
+    logical function is_string(v, s)
+        type(value_type), intent(in) :: v
+        character(len=*), intent(in) :: s
+
+        is_string = .false.
+        if (stringp(v)) is_string = xstring(v) == s .and. len(xstring(v)) == len(s)
+    end function is_string
+
+    !> minibuf-tests--try-completion and -pred for collection kind `kind`.
+    subroutine check_try(error, kind, pred)
+        type(error_type), allocatable, intent(out) :: error
+        integer, intent(in) :: kind
+        logical, intent(in) :: pred
+        type(completion_table_type) :: abcdef, abba
+        type(value_type) :: r
+        type(status_type) :: st
+
+        abcdef = collection(kind, [character(len=4) :: "abc", "def"])
+
+        if (pred) then
+            call try_completion("a", abcdef, r, st, memq_of_collection)
+        else
+            call try_completion("a", abcdef, r, st)
+        end if
+
+        call check(error, is_string(r, "abc"), "a in abcdef")
+        if (allocated(error)) return
+        abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
+
+        if (pred) then
+            call try_completion("a", abba, r, st, memq_of_collection)
+            call check(error, is_string(r, "ab"), "a in +abba")
+            if (allocated(error)) return
+            call try_completion("abc", abba, r, st, memq_of_collection)
+            call check(error, value_eq(r, t_value()), "abc is exact")
+            if (allocated(error)) return
+            call try_completion("abcd", abba, r, st, memq_of_collection)
+            call check(error, nilp(r), "abcd")
+            if (allocated(error)) return
+            call try_completion("a", abcdef, r, st, ignore)
+            call check(error, nilp(r), "ignore")
+            if (allocated(error)) return
+            call try_completion("abc", abba, r, st, ignore)
+            call check(error, nilp(r), "ignore abc")
+        else
+            call try_completion("a", abba, r, st)
+            call check(error, is_string(r, "ab"), "a in +abba")
+            if (allocated(error)) return
+            call try_completion("abc", abba, r, st)
+            call check(error, value_eq(r, t_value()), "abc is exact")
+            if (allocated(error)) return
+            call try_completion("abcd", abba, r, st)
+            call check(error, nilp(r), "abcd")
+        end if
+    end subroutine check_try
+
+    !> minibuf-tests--all-completions and -pred for collection kind `kind`.
+    subroutine check_all(error, kind, pred)
+        type(error_type), allocatable, intent(out) :: error
+        integer, intent(in) :: kind
+        logical, intent(in) :: pred
+        type(completion_table_type) :: abcdef, abba
+        type(value_type) :: r
+        type(status_type) :: st
+
+        abcdef = collection(kind, [character(len=4) :: "abc", "def"])
+
+        if (pred) then
+            call all_completions("a", abcdef, r, st, memq_of_collection)
+        else
+            call all_completions("a", abcdef, r, st)
+        end if
+
+        call check(error, value_equal(r, list(make_string("abc"))), "a in abcdef")
+        if (allocated(error)) return
+        abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
+
+        if (pred) then
+            call all_completions("a", abba, r, st, memq_of_collection)
+        else
+            call all_completions("a", abba, r, st)
+        end if
+
+        call check(error, value_equal(r, list(make_string("abc"), make_string("abba"))), "a in +abba")
+        if (allocated(error)) return
+
+        if (pred) then
+            call all_completions("abc", abba, r, st, memq_of_collection)
+        else
+            call all_completions("abc", abba, r, st)
+        end if
+
+        call check(error, value_equal(r, list(make_string("abc"))), "abc")
+        if (allocated(error)) return
+        call all_completions("abcd", abba, r, st)
+        call check(error, nilp(r), "abcd")
+        if (allocated(error)) return
+
+        if (pred) then
+            call all_completions("a", abba, r, st, ignore)
+            call check(error, nilp(r), "ignore")
+        end if
+    end subroutine check_all
+
+    !> minibuf-tests--test-completion and -pred for collection kind `kind`.
+    subroutine check_test(error, kind, pred)
+        type(error_type), allocatable, intent(out) :: error
+        integer, intent(in) :: kind
+        logical, intent(in) :: pred
+        type(completion_table_type) :: abcdef, abba
+        logical :: abc, def, ab, abcd
+
+        abcdef = collection(kind, [character(len=4) :: "abc", "def"])
+
+        if (pred) then
+            abc = test_completion("abc", abcdef, memq_of_collection)
+        else
+            abc = test_completion("abc", abcdef)
+        end if
+
+        abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
+
+        if (pred) then
+            def = test_completion("def", abba, memq_of_collection)
+            ab = test_completion("abba", abba, memq_of_collection)
+            abcd = test_completion("abcd", abba, memq_of_collection)
+        else
+            def = test_completion("def", abba)
+            ab = test_completion("abba", abba)
+            abcd = test_completion("abcd", abba)
+        end if
+
+        call check(error, abc .and. def .and. ab .and. .not. abcd)
+        if (allocated(error)) return
+
+        if (pred) then
+            call check(error,.not. test_completion("abc", abcdef, ignore) .and. &
+                       .not. test_completion("def", abba, ignore), "ignore")
+        end if
+    end subroutine check_test
+
+    subroutine test_try_string_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 1, .false.)
+    end subroutine test_try_string_list
+
+    subroutine test_try_string_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 1, .true.)
+    end subroutine test_try_string_list_pred
+
+    subroutine test_try_symbol_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 2, .false.)
+    end subroutine test_try_symbol_list
+
+    subroutine test_try_symbol_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 2, .true.)
+    end subroutine test_try_symbol_list_pred
+
+    subroutine test_try_symbol_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 3, .false.)
+    end subroutine test_try_symbol_alist
+
+    subroutine test_try_symbol_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 3, .true.)
+    end subroutine test_try_symbol_alist_pred
+
+    subroutine test_try_string_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 4, .false.)
+    end subroutine test_try_string_alist
+
+    subroutine test_try_string_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_try(error, 4, .true.)
+    end subroutine test_try_string_alist_pred
+
+    subroutine test_all_string_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 1, .false.)
+    end subroutine test_all_string_list
+
+    subroutine test_all_string_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 1, .true.)
+    end subroutine test_all_string_list_pred
+
+    subroutine test_all_symbol_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 2, .false.)
+    end subroutine test_all_symbol_list
+
+    subroutine test_all_symbol_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 2, .true.)
+    end subroutine test_all_symbol_list_pred
+
+    subroutine test_all_symbol_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 3, .false.)
+    end subroutine test_all_symbol_alist
+
+    subroutine test_all_symbol_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 3, .true.)
+    end subroutine test_all_symbol_alist_pred
+
+    subroutine test_all_string_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 4, .false.)
+    end subroutine test_all_string_alist
+
+    subroutine test_all_string_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_all(error, 4, .true.)
+    end subroutine test_all_string_alist_pred
+
+    subroutine test_test_string_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 1, .false.)
+    end subroutine test_test_string_list
+
+    subroutine test_test_string_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 1, .true.)
+    end subroutine test_test_string_list_pred
+
+    subroutine test_test_symbol_list(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 2, .false.)
+    end subroutine test_test_symbol_list
+
+    subroutine test_test_symbol_list_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 2, .true.)
+    end subroutine test_test_symbol_list_pred
+
+    subroutine test_test_symbol_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 3, .false.)
+    end subroutine test_test_symbol_alist
+
+    subroutine test_test_symbol_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 3, .true.)
+    end subroutine test_test_symbol_alist_pred
+
+    subroutine test_test_string_alist(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 4, .false.)
+    end subroutine test_test_string_alist
+
+    subroutine test_test_string_alist_pred(error)
+        type(error_type), allocatable, intent(out) :: error
+
+        call check_test(error, 4, .true.)
+    end subroutine test_test_string_alist_pred
+
+    !> The global obarray as a collection (upstream's tests make their own
+    !> obarrays): names with a prefix no other symbol has.
+    subroutine test_obarray(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: r, v
+        type(status_type) :: st
+
+        v = sym("zqx-abc")
+        v = sym("zqx-abba")
+        call try_completion("zqx-a", completion_obarray_table(), r, st)
+        call check(error, is_string(r, "zqx-ab"), "try")
+        if (allocated(error)) return
+        call all_completions("zqx-ab", completion_obarray_table(), r, st)
+        call check(error, list_length(r) == 2, "all")
+        if (allocated(error)) return
+        call check(error, test_completion("zqx-abba", completion_obarray_table()) .and. &
+                   .not. test_completion("zqx-ab", completion_obarray_table()), "test")
+    end subroutine test_obarray
+
+    subroutine test_try_completion_ignore_case(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: r1, r2
+        type(status_type) :: st
+
+        completion_ignore_case = .true.
+        call try_completion("bar", collection(1, [character(len=6) :: "bAr", "barfoo"]), r1, st)
+        call check(error, is_string(r1, "bAr"), "bAr")
+
+        if (.not. allocated(error)) then
+            call try_completion("bar", collection(1, [character(len=6) :: "bArfoo", "barbaz"]), r1, st)
+            call try_completion("bar", collection(1, [character(len=6) :: "barbaz", "bArfoo"]), r2, st)
+            call check(error, is_string(r1, "bar") .and. value_equal(r1, r2), "bar either order")
+        end if
+
+        if (.not. allocated(error)) then
+            ! bug#11339
+            call try_completion("baz", collection(1, [character(len=6) :: "baz", "bAz"]), r1, st)
+            call try_completion("baz", collection(1, [character(len=6) :: "bAz", "baz"]), r2, st)
+            call check(error, is_string(r1, "baz") .and. value_equal(r1, r2), "baz, and not t")
+        end if
+
+        completion_ignore_case = .false.
+    end subroutine test_try_completion_ignore_case
+
+    ! ------------------------------------------------------------------
+    ! Completion in the minibuffer (minibuffer-tests.el and own)
+    ! ------------------------------------------------------------------
+
+    !> Record the minibuffer message and whether *Completions* shows.
+    subroutine record_completion_state(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        nrecorded = nrecorded + 1
+        recorded(nrecorded)%s = ""
+        if (allocated(last_minibuffer_message)) recorded(nrecorded)%s = last_minibuffer_message
+        last_minibuffer_message = ""
+        recorded_visible(nrecorded) = showing_completions()
+        recorded(nrecorded)%contents = minibuffer_contents()
+    end subroutine record_completion_state
+
+    logical function showing_completions()
+        type(handle_type) :: c
+
+        c = get_buffer("*Completions*")
+        showing_completions = c%index /= 0 .and. c%index == selected_frame%root_window%buffer%index .and. &
+                              c%generation == selected_frame%root_window%buffer%generation
+    end function showing_completions
+
+    !> Fresh scratch with <f9> recording the completion state.
+    subroutine completion_setup()
+        type(value_type), allocatable :: key(:)
+        type(status_type) :: st
+
+        call fresh_scratch()
+        nrecorded = 0
+        call defcommand("test-record-completion", record_completion_state)
+        call key_parse("<f9>", key, st)
+        call define_key(current_global_map(), key, sym("test-record-completion"), st)
+    end subroutine completion_setup
+
+    function strings(items) result(v)
+        character(len=*), intent(in) :: items(:)
+        type(value_type) :: v
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+
+        allocate (elts(size(items)))
+
+        do k = 1, size(items)
+            elts(k) = make_string(trim(items(k)))
+        end do
+
+        v = make_list(elts)
+    end function strings
+
+    subroutine test_completion_auto_help(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        type(value_type) :: abc
+
+        call completion_setup()
+        abc = strings([character(len=2) :: "a", "ab", "ac"])
+        completion_auto_help = .false.
+        call type_keys("a TAB TAB <f9> b TAB <f9> C-g")
+        call completing_read("Prompt: ", completion_list_table(abc), answer, st)
+        completion_auto_help = .true.
+        call check(error, nrecorded == 2, "recorded")
+        if (allocated(error)) return
+        call check(error, recorded(1)%s == " [Complete, but not unique]" .and. .not. recorded_visible(1), &
+                   recorded(1)%s)
+        if (allocated(error)) return
+        call check(error, recorded(2)%s == " [Sole completion]", recorded(2)%s)
+        if (allocated(error)) return
+        nrecorded = 0
+        call type_keys("a TAB TAB <f9> b TAB <f9> C-g")
+        call completing_read("Prompt: ", completion_list_table(abc), answer, st)
+        call check(error, recorded_visible(1), "visible")
+        if (allocated(error)) return
+        call check(error, recorded(2)%s == " [Sole completion]" .and. .not. recorded_visible(2), recorded(2)%s)
+        if (allocated(error)) return
+        ! The window shows the buffer again after the minibuffer.
+        call check(error,.not. (showing_completions()), "restored")
+    end subroutine test_completion_auto_help
+
+    subroutine test_completion_list_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        type(handle_type) :: buf
+
+        call completion_setup()
+        call type_keys("b ? C-g")
+        call completing_read("Prompt: ", completion_list_table(strings([character(len=6) :: "beta", "bar", "baz", &
+                                                                        "foo"])), answer, st)
+        buf = get_buffer("*Completions*")
+        call set_buffer(buf, st)
+        call check(error, buffer_string() == "3 possible completions:"//achar(10)//"bar"//achar(10)//"baz"//achar(10)//"beta", &
+                   buffer_string())
+    end subroutine test_completion_list_buffer
+
+    subroutine test_complete_and_exit(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        type(value_type) :: foo
+
+        call completion_setup()
+        foo = strings([character(len=6) :: "foobar", "foobaz"])
+        ! TAB completes as far as possible.
+        call type_keys("f TAB <f9> r RET")
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call check(error, recorded(1)%contents == "fooba" .and. answer == "foobar", answer)
+        if (allocated(error)) return
+        ! RET completes first when that makes the input a match.
+        nrecorded = 0
+        call type_keys("foobaz RET")
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call check(error, answer == "foobaz", answer)
+        if (allocated(error)) return
+        ! No match: RET doesn't exit.
+        call type_keys("x RET <f9> C-g")
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_T)
+        call check(error, st%code == FM_QUIT .and. recorded(1)%s == " [No match]", recorded(1)%s)
+        if (allocated(error)) return
+        ! Without REQUIRE-MATCH, RET takes any input; empty gives the default.
+        call type_keys("x RET")
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st)
+        call check(error, answer == "x", answer)
+        if (allocated(error)) return
+        call type_keys("RET")
+        call completing_read("Prompt: ", completion_list_table(foo), answer, st, default="dflt")
+        call check(error, answer == "dflt", answer)
+    end subroutine test_complete_and_exit
+
+    subroutine test_complete_word(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        type(value_type) :: ff
+
+        call completion_setup()
+        ff = strings([character(len=24) :: "find-file", "find-file-other-window", "find-alternate-file"])
+        call type_keys("f i SPC <f9> f SPC <f9> SPC <f9> C-g")
+        call completing_read("Prompt: ", completion_list_table(ff), answer, st)
+        call check(error, recorded(1)%contents == "find-", recorded(1)%contents)
+        if (allocated(error)) return
+        call check(error, recorded(2)%contents == "find-file", recorded(2)%contents)
+        if (allocated(error)) return
+        ! The hyphen, and only up to the next word.
+        call check(error, recorded(3)%contents == "find-file-", recorded(3)%contents)
+    end subroutine test_complete_word
+
+    subroutine test_execute_extended_command(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+
+        call fresh_scratch()
+        call insert("abc", st)
+        call goto_char(1_int64)
+        call type_keys("M-x f o r w a r d - c TAB RET")
+        call command_loop(st)
+        call check(error, point() == 2, "ran forward-char")
+        if (allocated(error)) return
+        call check(error, last_message == "You can run the command "//char(226)//char(128)//char(152)// &
+                   "forward-char"//char(226)//char(128)//char(153)//" with C-f", last_message)
+        if (allocated(error)) return
+        ! A prefix argument goes to the command.
+        call type_keys("C-u 2 M-x f o r w a r d - c h a r RET")
+        call command_loop(st)
+        call check(error, point() == 4, "C-u 2")
+        if (allocated(error)) return
+        ! Not a command.
+        call type_keys("M-x n o - s u c h RET C-g")
+        call command_loop(st)
+        call check(error, last_message == "Quit", last_message)
+        call erase_buffer(st)
+    end subroutine test_execute_extended_command
+
+    subroutine test_file_name_completion(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        type(value_type) :: r
+        character(len=:), allocatable :: dir
+
+        call fresh_scratch()
+        call init_fileio()
+        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-complete")
+        call make_directory_internal(dir, st)
+        call make_directory_internal(dir//"alpine", st)
+        call get_buffer_create(" c-source", buf, st)
+        call set_buffer(buf, st)
+        call insert("data", st)
+        call write_region(dir//"alpha.txt", .false., st)
+        call write_region(dir//"beta.c", .false., st)
+        call write_region(dir//"beta.o", .false., st)
+        call kill_buffer(buf, st)
+        call fresh_scratch()
+        call file_name_completion("al", dir, r, st)
+        call check(error, stringp(r) .and. xstring(r) == "alp", "file-name-completion")
+        if (allocated(error)) return
+        ! completion-ignored-extensions.
+        call file_name_completion("be", dir, r, st)
+        call check(error, stringp(r) .and. xstring(r) == "beta.c", "ignored .o")
+        if (allocated(error)) return
+        call file_name_all_completions("alp", dir, r, st)
+        call check(error, list_length(r) == 2, "all")
+        if (allocated(error)) return
+        ! The minibuffer table: the directory part stays.
+        call try_completion(dir//"alpi", completion_function_table(read_file_name_internal), r, st)
+        call check(error, stringp(r) .and. xstring(r) == dir//"alpine/", "read-file-name-internal")
+        if (allocated(error)) return
+        call check(error, test_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
+                   "exists")
+        if (allocated(error)) return
+        ! C-x C-f with TAB.
+        buffers(cur)%directory = dir
+        call type_keys("C-x C-f a l p h TAB RET")
+        call command_loop(st)
+        call check(error, buffers(cur)%name == "alpha.txt" .and. buffer_string() == "data", buffers(cur)%name)
+        if (allocated(error)) return
+        call kill_buffer(current_buffer(), st)
+    end subroutine test_file_name_completion
 end module test_minibuf_fm
