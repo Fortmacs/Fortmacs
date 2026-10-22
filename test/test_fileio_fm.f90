@@ -30,7 +30,7 @@ module test_fileio_fm
                          buffer_modified_p, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, buffer_string, goto_char
-    use sysdep_fm, only: sys_setenv, sys_unsetenv
+    use sysdep_fm, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
     use fileio_fm, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
                          file_executable_p, file_newer_than_file_p, &
                          make_symbolic_link, file_symlink_p, &
@@ -168,13 +168,16 @@ contains
                    .not. directory_name_p(""))
     end subroutine test_file_name_parts
 
-    ! fileio-tests--file-name-absolute-p (with "root" standing in for
-    ! user-login-name, as every Linux system has it)
+    ! fileio-tests--file-name-absolute-p
     subroutine test_file_name_absolute_p(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=6), parameter :: suffixes(7) = [character(len=6) :: &
                                                       "", "/", "//", "/foo", "/foo/", "/foo//", "/foo/b"]
+        character(len=:), allocatable :: me
         integer :: i
+        logical :: found
+
+        call passwd_name_of_user(me, found)
 
         do i = 1, size(suffixes)
             if (len_trim(suffixes(i)) > 0) then
@@ -184,8 +187,12 @@ contains
 
             call check(error, file_name_absolute_p("~"//trim(suffixes(i))), "~"//trim(suffixes(i)))
             if (allocated(error)) return
-            call check(error, file_name_absolute_p("~root"//trim(suffixes(i))), "~root"//trim(suffixes(i)))
-            if (allocated(error)) return
+
+            if (found) then
+                call check(error, file_name_absolute_p("~"//me//trim(suffixes(i))), "~"//me//trim(suffixes(i)))
+                if (allocated(error)) return
+            end if
+
             call check(error,.not. file_name_absolute_p("~nosuchuser"//trim(suffixes(i))), &
                        "~nosuchuser"//trim(suffixes(i)))
             if (allocated(error)) return
@@ -271,13 +278,30 @@ contains
 
     subroutine tilde_cases(error)
         type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: me, home
+        logical :: found, found_home
+
+        call passwd_name_of_user(me, found)
+        call passwd_home_of_user(home, found_home)
 
         call check_expand(error, "~", "/x/", "/home/someone")
         if (allocated(error)) return
         call check_expand(error, "~/a/../b", "/x/", "/home/someone/b")
         if (allocated(error)) return
-        call check_expand(error, "~root/x", "/x/", "/root/x")
-        if (allocated(error)) return
+
+        ! ~USER takes USER's home from the passwd database, not $HOME.
+        ! A home of "/" gives "//x", a leading "//" being kept (as
+        ! upstream; a build sandbox's user may have that home).
+        if (found .and. found_home) then
+            if (home == "/") then
+                call check_expand(error, "~"//me//"/x", "/x/", "//x")
+            else
+                call check_expand(error, "~"//me//"/x", "/x/", file_name_as_directory(home)//"x")
+            end if
+
+            if (allocated(error)) return
+        end if
+
         ! An unknown user leaves "~nosuchuser" as an ordinary name.
         call check_expand(error, "~nosuchuser/x", "/d/", "/d/~nosuchuser/x")
         if (allocated(error)) return
@@ -597,16 +621,23 @@ contains
 
     subroutine test_substitute(error)
         type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: me
         integer(int32) :: e
+        logical :: found
 
+        call passwd_name_of_user(me, found)
         e = sys_setenv("FM_TEST_DIR", "/opt/x")
         e = sys_unsetenv("FM_TEST_UNSET")
         call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/a/b/~/x") == "~/x")
         if (allocated(error)) return
-        call check(error, substitute_in_file_name("/a/b/~root/x") == "~root/x")
-        if (allocated(error)) return
+
+        if (found) then
+            call check(error, substitute_in_file_name("/a/b/~"//me//"/x") == "~"//me//"/x")
+            if (allocated(error)) return
+        end if
+
         call check(error, substitute_in_file_name("/a/~nosuchuser/x") == "/a/~nosuchuser/x")
         if (allocated(error)) return
         call check(error, substitute_in_file_name("$FM_TEST_DIR/y") == "/opt/x/y")

@@ -22,7 +22,7 @@
 !> handlers, the minibuffer and Lisp hooks, none of which exist yet.
 module test_files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use testdrive, only: new_unittest, unittest_type, error_type, check
+    use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
     use handle_fm, only: handle_type
@@ -317,6 +317,14 @@ contains
 
         body: block
             call setup()
+
+            ! No backups under /tmp or temporary-file-directory, where a
+            ! sandboxed build (Guix, Nix) may run the tests.
+            if (.not. normal_backup_enable_predicate(path("a.txt"))) then
+                call skip_test(error, "test directory is under /tmp, where no backups are made")
+                exit body
+            end if
+
             call set_file_modes(path("a.txt"), int(o'600', int32), st)
             call find_file(path("a.txt"), st)
             call goto_char(point_max())
