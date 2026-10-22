@@ -208,8 +208,8 @@ As the progress block shows, tens of thousands of definitions need
 rewriting in Fortran. That isn't only Elisp but Emacs's internal C as
 well. One person would have to master three languages, and even then it
 would be a monumental undertaking. Emacs is niche as it is; Emacs in
-Fortran would likely never happen. And why should it? Emacs works fine
-as-is. This is for fun; let's see where it goes.
+Fortran would likely never happen. And why should it? Emacs already
+works. This is for fun. Let's see where it goes.
 
 And that is only Emacs itself. Much of what people love about Emacs lives
 in its packages: GNU ELPA, NonGNU ELPA and MELPA hold over 7,000 of them
