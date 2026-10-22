@@ -52,6 +52,7 @@ program tester
     use test_callproc_fm, only: collect_callproc_fm
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
+    use test_window_fm, only: collect_window_fm
     implicit none(type, external)
 
     ! test-drive's interfaces take default integers.
@@ -89,7 +90,8 @@ program tester
                  new_testsuite("emacs_fm", collect_emacs_fm), &
                  new_testsuite("callproc_fm", collect_callproc_fm), &
                  new_testsuite("config_fm", collect_config_fm), &
-                 new_testsuite("dired_fm", collect_dired_fm) &
+                 new_testsuite("dired_fm", collect_dired_fm), &
+                 new_testsuite("window_fm", collect_window_fm) &
                  ]
 
     call get_argument(1, suite_name)
