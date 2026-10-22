@@ -120,6 +120,9 @@ module buffer_fm
         logical :: inhibit_buffer_hooks = .false.
         !> BVAR keymap: the local keymap, or the null handle (keymap_fm).
         type(handle_type) :: keymap
+        !> BVAR syntax_table: the syntax table, or the null handle for the
+        !> standard one (syntax_fm).
+        type(handle_type) :: syntax_table
         !> BVAR filename (`buffer-file-name`): the visited file's expanded
         !> name; unallocated when the buffer visits no file.
         character(len=:), allocatable :: filename

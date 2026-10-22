@@ -40,7 +40,9 @@ module bindings_fm
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: local_function_key_map
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
-    use simple_fm, only: syms_of_simple
+    use simple_fm, only: syms_of_simple, backward_word
+    use syntax_fm, only: syms_of_syntax, forward_word
+    use paragraphs_fm, only: syms_of_paragraphs
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -83,6 +85,42 @@ contains
         type(status_type), intent(out) :: status
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_char
+
+    !> Move point N words to the right (to the left if N is negative).
+    !>
+    !> In left-to-right text this moves forward in the buffer, like
+    !> \[forward-word].
+    !>
+    !> The word boundaries are normally determined by the buffer's syntax
+    !> table and character script (according to `char-script-table').
+    !>
+    !> If an edge of the buffer or a field boundary is reached, point is left there.
+    !> Field boundaries are not noticed if `inhibit-field-text-motion' is
+    !> non-nil.  Port of bindings.el:right-word (left-to-right paragraphs
+    !> only).
+    subroutine cmd_right_word(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call forward_word(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_right_word
+
+    !> Move point N words to the left (to the right if N is negative).
+    !>
+    !> In left-to-right text this moves backward in the buffer, like
+    !> \[backward-word].
+    !>
+    !> The word boundaries are normally determined by the buffer's syntax
+    !> table and character script (according to `char-script-table').
+    !>
+    !> If an edge of the buffer or a field boundary is reached, point is left there.
+    !> Field boundaries are not noticed if `inhibit-field-text-motion' is
+    !> non-nil.  Port of bindings.el:left-word (left-to-right paragraphs
+    !> only).
+    subroutine cmd_left_word(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call backward_word(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_left_word
 
     !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
     subroutine bind(map, keys, cmd)
@@ -132,6 +170,10 @@ contains
         call syms_of_window()
         call defcommand("right-char", cmd_right_char)
         call defcommand("left-char", cmd_left_char)
+        call defcommand("right-word", cmd_right_word)
+        call defcommand("left-word", cmd_left_word)
+        call syms_of_syntax()
+        call syms_of_paragraphs()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -202,6 +244,25 @@ contains
         call bind(global_map, "C-y", "yank")
         call bind(esc_map, "y", "yank-pop")
         call bind(global_map, "<C-S-backspace>", "kill-whole-line")
+        ! Words and paragraphs (bindings.el).
+        call bind(esc_map, "@", "mark-word")
+        call bind(esc_map, "f", "forward-word")
+        call bind(esc_map, "b", "backward-word")
+        call bind(esc_map, "d", "kill-word")
+        call bind(esc_map, "DEL", "backward-kill-word")
+        call bind(global_map, "M-<right>", "right-word")
+        call bind(esc_map, "<right>", "forward-word")
+        call bind(global_map, "M-<left>", "left-word")
+        call bind(esc_map, "<left>", "backward-word")
+        call bind(global_map, "C-<right>", "right-word")
+        call bind(global_map, "C-<left>", "left-word")
+        call bind(global_map, "C-<delete>", "kill-word")
+        call bind(global_map, "C-<backspace>", "backward-kill-word")
+        call bind(global_map, "C-<up>", "backward-paragraph")
+        call bind(global_map, "C-<down>", "forward-paragraph")
+        call bind(esc_map, "{", "backward-paragraph")
+        call bind(esc_map, "}", "forward-paragraph")
+        call bind(esc_map, "h", "mark-paragraph")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)

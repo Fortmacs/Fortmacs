@@ -69,6 +69,7 @@ module simple_fm
     use lread_fm, only: intern_soft
     use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
+    use syntax_fm, only: forward_word
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
@@ -106,6 +107,7 @@ module simple_fm
     public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
               forward_visible_line
+    public :: backward_word, kill_word, backward_kill_word, mark_word
 
     !> Maximum length of kill ring before oldest elements are thrown away.
     !> Port of simple.el kill-ring-max.
@@ -907,6 +909,10 @@ contains
         call defcommand("yank", cmd_yank)
         call defcommand("yank-pop", cmd_yank_pop)
         call defcommand("rotate-yank-pointer", cmd_rotate_yank_pointer)
+        call defcommand("backward-word", cmd_backward_word)
+        call defcommand("kill-word", cmd_kill_word)
+        call defcommand("backward-kill-word", cmd_backward_kill_word)
+        call defcommand("mark-word", cmd_mark_word)
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------
@@ -1944,4 +1950,113 @@ contains
         type(status_type), intent(out) :: status
         call rotate_yank_pointer(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_rotate_yank_pointer
+
+    ! ------------------------------------------------------------------
+    ! Words
+    ! ------------------------------------------------------------------
+
+    !> Move backward until encountering the beginning of a word.
+    !> With argument ARG, do this that many times.
+    !> If ARG is omitted or nil, move point backward one word.
+    !>
+    !> The word boundaries are normally determined by the buffer's
+    !> syntax table and character script (according to
+    !> `char-script-table').  Port of simple.el:backward-word.
+    subroutine backward_word(arg)
+        integer(int64), intent(in) :: arg
+        call forward_word(-arg)
+    end subroutine backward_word
+
+    !> Kill characters forward until encountering the end of a word.
+    !> With argument ARG, do this that many times.
+    !> Port of simple.el:kill-word.
+    subroutine kill_word(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: start
+        start = point()
+        call forward_word(arg)
+        call kill_region(start, point(), status)
+    end subroutine kill_word
+
+    !> Kill characters backward until encountering the beginning of a word.
+    !> With argument ARG, do this that many times.
+    !> Port of simple.el:backward-kill-word.
+    subroutine backward_kill_word(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call kill_word(-arg, status)
+    end subroutine backward_kill_word
+
+    !> Set mark ARG words from point or move mark one word.
+    !> With ALLOW-EXTEND false, mark is set ARG words from point.
+    !> With ARG given (`have_arg`) and ALLOW-EXTEND (interactively, with
+    !> prefix argument), the place to which mark goes is the same place
+    !> \[forward-word] would move to with the same argument; if the mark
+    !> is active, it moves ARG words from its current position, otherwise
+    !> it is set ARG words from point.
+    !> When invoked interactively without a prefix argument and no active
+    !> region, mark moves one word forward.
+    !> When invoked interactively without a prefix argument, and region
+    !> is active, mark moves one word away of point (i.e., forward
+    !> if mark is at or after point, back if mark is before point), thus
+    !> extending the region by one word.  Since the direction of region
+    !> extension depends on the relative position of mark and point, you
+    !> can change the direction by \[exchange-point-and-mark].
+    !> Port of simple.el:mark-word.
+    subroutine mark_word(arg, have_arg, allow_extend)
+        integer(int64), intent(in) :: arg
+        logical, intent(in) :: have_arg, allow_extend
+        integer(int64) :: opoint, n, target
+        opoint = point()
+        if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
+                                region_active_p())) then
+            if (have_arg) then
+                n = arg
+            else if (mark_position() < point()) then
+                n = -1
+            else
+                n = 1
+            end if
+            call goto_char(mark_position())
+            call forward_word(n)
+            target = point()
+            call goto_char(opoint)
+            call set_mark(target)
+        else
+            call forward_word(arg)
+            target = point()
+            call goto_char(opoint)
+            call push_mark(target, nomsg=.false., activate=.true.)
+        end if
+    end subroutine mark_word
+
+    !> Move backward until encountering the beginning of a word.
+    !> With argument ARG, do this that many times.
+    !> If ARG is omitted or nil, move point backward one word.
+    !>
+    !> The word boundaries are normally determined by the buffer's
+    !> syntax table and character script (according to
+    !> `char-script-table').  Port of simple.el:backward-word (the command).
+    subroutine cmd_backward_word(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call backward_word(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_backward_word
+
+    subroutine cmd_kill_word(status)
+        type(status_type), intent(out) :: status
+        call kill_word(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_kill_word
+
+    subroutine cmd_backward_kill_word(status)
+        type(status_type), intent(out) :: status
+        call backward_kill_word(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_backward_kill_word
+
+    subroutine cmd_mark_word(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call mark_word(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true.)
+    end subroutine cmd_mark_word
 end module simple_fm
