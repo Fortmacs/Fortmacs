@@ -77,6 +77,9 @@ module fortmacs
     use fns_fm, only: yes_or_no_p
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
+    use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
+                         SEARCH_NOERROR, SEARCH_MOVE
+    use isearch_fm, only: isearch_forward_command, isearch_backward_command
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -86,6 +89,9 @@ module fortmacs
     use minibuffer_fm, only: insert_default_directory
     use editfns_fm, only: inhibit_field_text_motion
     use term_fm, only: visible_bell
+    use search_fm, only: case_fold_search
+    use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, &
+                          search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     implicit none(type, external)
     private
 
@@ -102,7 +108,11 @@ module fortmacs
               delete_region, bobp, eobp, bolp, eolp
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
+    public :: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE, &
+              isearch_forward_command, isearch_backward_command
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
-              insert_default_directory, inhibit_field_text_motion, visible_bell
+              insert_default_directory, inhibit_field_text_motion, visible_bell, &
+              case_fold_search, search_upper_case, search_exit_option, search_nonincremental_instead, &
+              search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
 end module fortmacs

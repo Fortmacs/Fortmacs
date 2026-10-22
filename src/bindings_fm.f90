@@ -41,6 +41,7 @@ module bindings_fm
     use keyboard_fm, only: local_function_key_map
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple
+    use isearch_fm, only: syms_of_isearch
     use files_fm, only: syms_of_files
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
@@ -177,6 +178,7 @@ contains
         call bind(global_map, "<deletechar>", "delete-forward-char")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
+        call syms_of_isearch(global_map)
 
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its history keys from bindings.el (<up> and <down> are
