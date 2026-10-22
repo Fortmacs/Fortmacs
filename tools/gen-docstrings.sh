@@ -36,7 +36,7 @@
 #
 # Usage: tools/gen-docstrings.sh [OUTPUT]
 #   The default output is src/docstrings_fm.f90.  It is formatted with
-#   fprettify and tools/blank-lines.awk, as tools/check.sh requires.
+#   fprettify, as tools/check.sh requires.
 
 set -eu
 
@@ -261,9 +261,12 @@ END {
     }
     for (name in cmd) {
         proc = cmd[name]
+        # The command's own docstring, else the API function's, else that
+        # of the procedure citing it.
         d = (proc SUBSEP cmdfile[name] in pdoc) ? pdoc[proc SUBSEP cmdfile[name]] : anydoc[proc]
+        if (d == "" && (name in fdoc)) d = fdoc[name]
         if (d == "" && (name in cited)) d = pdoc[cited[name]]
-        if (!(name in fdoc) || fdoc[name] == "") fdoc[name] = d
+        fdoc[name] = d
         if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
         finter[name] = 1
     }
@@ -559,4 +562,4 @@ END {
 if command -v fprettify >/dev/null 2>&1; then
     fprettify --config-file .fprettify.rc "$tmp.f90"
 fi
-awk -f tools/blank-lines.awk "$tmp.f90" >"$out"
+mv "$tmp.f90" "$out"

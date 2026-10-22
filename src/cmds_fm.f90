@@ -212,18 +212,50 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
+    !> Move point N characters forward (backward if N is negative).
+    !> On reaching end or beginning of buffer, stop and signal error.
+    !> Interactively, N is the numeric prefix argument.
+    !> If N is omitted or nil, move point 1 character forward.
+    !>
+    !> Depending on the bidirectional context, the movement may be to the
+    !> right or to the left on the screen.  This is in contrast with
+    !> \\[right-char], which see.  Port of cmds.c:Fforward_char (the command).
     subroutine cmd_forward_char(status)
         type(status_type), intent(out) :: status
 
         call forward_char(status, arg_p())
     end subroutine cmd_forward_char
 
+    !> Move point N characters backward (forward if N is negative).
+    !> On attempt to pass beginning or end of buffer, stop and signal error.
+    !> Interactively, N is the numeric prefix argument.
+    !> If N is omitted or nil, move point 1 character backward.
+    !>
+    !> Depending on the bidirectional context, the movement may be to the
+    !> right or to the left on the screen.  This is in contrast with
+    !> \\[left-char], which see.  Port of cmds.c:Fbackward_char (the command).
     subroutine cmd_backward_char(status)
         type(status_type), intent(out) :: status
 
         call backward_char(status, arg_p())
     end subroutine cmd_backward_char
 
+    !> Move N lines forward (backward if N is negative).
+    !> Precisely, if point is on line I, move to the start of line I + N
+    !> ("start of line" in the logical order).
+    !> If there isn't room, go as far as possible (no error).
+    !> Interactively, N is the numeric prefix argument and defaults to 1.
+    !>
+    !> Returns the count of lines left to move.  If moving forward,
+    !> that is N minus number of lines moved; if backward, N plus number
+    !> moved.
+    !>
+    !> Exception: With positive N, a non-empty line at the end counts as one
+    !> line successfully moved (for the return value).  This means in that case
+    !> it returns one less than the number of lines left to move.
+    !>
+    !> The command C-n (\\[next-line]) can also be used to move to the next
+    !> line.  Port of cmds.c:Fforward_line (the command).
     subroutine cmd_forward_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
@@ -232,6 +264,16 @@ contains
         shortage = forward_line(arg_p())
     end subroutine cmd_forward_line
 
+    !> Move point to beginning of current line (in the logical order).
+    !> With argument N not nil or 1, move forward N - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !>
+    !> This function constrains point to the current field unless this moves
+    !> point to a different line from the original, unconstrained result.
+    !> If N is nil or 1, and a front-sticky field starts at point, the point
+    !> does not move.  To ignore field boundaries set
+    !> `inhibit-field-text-motion' to t, or use the `forward-line' function
+    !> instead.  Port of cmds.c:Fbeginning_of_line (the command).
     subroutine cmd_beginning_of_line(status)
         type(status_type), intent(out) :: status
 
@@ -239,6 +281,15 @@ contains
         call beginning_of_line(arg_p())
     end subroutine cmd_beginning_of_line
 
+    !> Move point to end of current line (in the logical order).
+    !> With argument N not nil or 1, move forward N - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !>
+    !> This function constrains point to the current field unless this moves
+    !> point to a different line from the original, unconstrained result.  If
+    !> N is nil or 1, and a rear-sticky field ends at point, the point does
+    !> not move.  To ignore field boundaries set `inhibit-field-text-motion'
+    !> to t.  Port of cmds.c:Fend_of_line (the command).
     subroutine cmd_end_of_line(status)
         type(status_type), intent(out) :: status
 
@@ -246,12 +297,23 @@ contains
         call end_of_line(arg_p())
     end subroutine cmd_end_of_line
 
+    !> Delete the following N characters (previous if N is negative).
+    !> Interactively, N is the prefix arg.
+    !>
+    !> The command `delete-forward-char' is preferable for interactive use, e.g.
+    !> because it respects values of `delete-active-region'.  Port of
+    !> cmds.c:Fdelete_char (the command; KILLFLAG is not ported).
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
 
         call delete_char(arg_p(), status)
     end subroutine cmd_delete_char
 
+    !> Insert the character you type.
+    !> Whichever character C you type to run this command is inserted.
+    !> The numeric prefix argument N says how many times to repeat the insertion.
+    !> Port of cmds.c:Fself_insert_command (the command; abbrevs, auto-fill and
+    !> post-self-insert-hook are not ported).
     subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
 

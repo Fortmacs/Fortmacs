@@ -250,20 +250,34 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
+    !> Insert a newline, and move to left margin of the new line.
+    !> With prefix argument ARG, insert that many newlines.
+    !> Port of simple.el:newline (the command; electric indentation, auto-fill
+    !> and hard newlines are not ported).
     subroutine cmd_newline(status)
         type(status_type), intent(out) :: status
 
         call newline(arg_p(), status)
     end subroutine cmd_newline
 
+    !> Insert a newline and leave point before it.
+    !> With arg N, insert N newlines.  Port of simple.el:open-line (no fill
+    !> prefix or left margin).
     subroutine cmd_open_line(status)
         type(status_type), intent(out) :: status
 
         call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
-    !> Port of simple.el:delete-backward-char (an active region is deleted;
-    !> with a prefix argument the characters are killed, as KILLFLAG).
+    !> Delete the previous N characters (following if N is negative).
+    !> If Transient Mark mode is enabled, the mark is active, and N is 1,
+    !> delete the text in the region and deactivate the mark instead.
+    !> To disable this, set option `delete-active-region' to nil.
+    !>
+    !> A numeric prefix argument specifies N, and if a prefix argument is
+    !> used, the characters are killed (saved in the kill ring) instead of
+    !> deleted.  Port of simple.el:delete-backward-char (an active region is
+    !> deleted; with a prefix argument the characters are killed, as KILLFLAG).
     subroutine cmd_delete_backward_char(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
@@ -290,8 +304,16 @@ contains
         if (status%ok()) call delete_region(b, e, status)
     end subroutine delete_the_region
 
-    !> Port of simple.el:delete-forward-char (an active region is deleted;
-    !> with a prefix argument the characters are killed, as KILLFLAG).
+    !> Delete the following N characters (previous if N is negative).
+    !> If Transient Mark mode is enabled, the mark is active, and N is 1,
+    !> delete the text in the region and deactivate the mark instead.
+    !> To disable this, set variable `delete-active-region' to nil.
+    !>
+    !> A numeric prefix argument specifies N, and if a prefix argument is
+    !> used, the characters are killed (saved in the kill ring) instead of
+    !> deleted.  Port of simple.el:delete-forward-char (an active region is
+    !> deleted; with a prefix argument the characters are killed, as KILLFLAG;
+    !> no grapheme clusters).
     subroutine cmd_delete_forward_char(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
@@ -308,6 +330,8 @@ contains
         end if
     end subroutine cmd_delete_forward_char
 
+    !> Signal a `quit' condition.
+    !> At top-level, as an editor command, this simply beeps.
     !> Port of simple.el:keyboard-quit (no kbd macro handling).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
@@ -316,7 +340,9 @@ contains
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
 
-    !> Read the next event and insert it ARG times.  Port of
+    !> Read next input character and insert it.
+    !> This is useful for inserting control characters.
+    !> With argument, insert ARG copies of the character.  Port of
     !> simple.el:quoted-insert (without read-quoted-char's octal codes).
     subroutine cmd_quoted_insert(status)
         type(status_type), intent(out) :: status
@@ -339,6 +365,15 @@ contains
         call self_insert_command(max(arg_p(), 0_int64), c, status)
     end subroutine cmd_quoted_insert
 
+    !> Begin a numeric argument for the following command.
+    !> Digits or minus sign following \\[universal-argument] make up the numeric argument.
+    !> \\[universal-argument] following the digits or minus sign ends the argument.
+    !> \\[universal-argument] without digits or minus sign provides 4 as argument.
+    !> Repeating \\[universal-argument] without digits or minus sign
+    !>  multiplies the argument by 4 each time.
+    !> For some commands, just \\[universal-argument] by itself serves as a flag
+    !> that is different in effect from any particular numeric argument.
+    !> These commands include \\[set-mark-command].
     !> Port of simple.el:universal-argument.
     subroutine cmd_universal_argument(status)
         type(status_type), intent(out) :: status
@@ -369,6 +404,8 @@ contains
         if (consp(prefix_arg)) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
+    !> Begin a negative numeric argument for the next command.
+    !> \\[universal-argument] following digits or minus sign ends the argument.
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
         type(status_type), intent(out) :: status
@@ -389,6 +426,8 @@ contains
         call universal_argument_mode()
     end subroutine cmd_negative_argument
 
+    !> Part of the numeric argument for the next command.
+    !> \\[universal-argument] following digits or minus sign ends the argument.
     !> Port of simple.el:digit-argument (character events; keypad digits
     !> need the `ascii-character' property, not ported).
     subroutine cmd_digit_argument(status)
@@ -642,12 +681,48 @@ contains
         call line_move(-arg, status)
     end subroutine previous_line
 
+    !> Move cursor vertically down ARG lines.
+    !> ARG defaults to 1.
+    !>
+    !> If there is no character in the target line exactly under the current column,
+    !> the cursor is positioned after the character in that line that spans this
+    !> column, or at the end of the line if it is not long enough.
+    !> If there is no line in the buffer after this one, the cursor moves to
+    !> the end of the buffer.
+    !>
+    !> If the variable `line-move-visual' is non-nil, this command moves
+    !> by display lines.  Otherwise, it moves by buffer lines, without
+    !> taking variable-width characters or continued lines into account.
+    !>
+    !> If the variable `goal-column' is set, instead of trying to move exactly
+    !> vertically (or as close as possible), this command moves to that goal
+    !> column (or as close as possible).  Note that setting `goal-column'
+    !> overrides `line-move-visual' and causes this command to move by buffer
+    !> lines rather than by display lines.  Port of simple.el:next-line (no
+    !> vscroll, `next-line-add-newlines' or `set-goal-column').
     subroutine cmd_next_line(status)
         type(status_type), intent(out) :: status
 
         call next_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_next_line
 
+    !> Move cursor vertically up ARG lines.
+    !> ARG defaults to 1.
+    !>
+    !> If there is no character in the target line exactly over the current column,
+    !> the cursor is positioned after the character in that line that spans this
+    !> column, or at the end of the line if it is not long enough.
+    !>
+    !> If the variable `line-move-visual' is non-nil, this command moves
+    !> by display lines.  Otherwise, it moves by buffer lines, without
+    !> taking variable-width characters or continued lines into account.
+    !>
+    !> If the variable `goal-column' is set, instead of trying to move exactly
+    !> vertically (or as close as possible), this command moves to that goal
+    !> column (or as close as possible).  Note that setting `goal-column'
+    !> overrides `line-move-visual' and causes this command to move by buffer
+    !> lines rather than by display lines.  Port of simple.el:previous-line (no
+    !> vscroll or `set-goal-column').
     subroutine cmd_previous_line(status)
         type(status_type), intent(out) :: status
 
@@ -744,8 +819,9 @@ contains
         end if
     end subroutine goto_history_element
 
-    !> M-p: the previous history element.  Port of
-    !> simple.el:previous-history-element.
+    !> Insert into the minibuffer the Nth previous element of minibuffer history.
+    !> Interactively, N is the prefix numeric argument and defaults to 1.
+    !> Port of simple.el:previous-history-element.
     subroutine cmd_previous_history_element(status)
         type(status_type), intent(out) :: status
         integer :: n
@@ -754,8 +830,11 @@ contains
         if (n /= 0) call goto_history_element(minibuffer_history_position + n, status)
     end subroutine cmd_previous_history_element
 
-    !> M-n: the next history element, then the default.  Port of
-    !> simple.el:next-history-element.
+    !> Insert into the minibuffer the Nth next element of minibuffer history.
+    !> Interactively, N is the prefix numeric argument and defaults to 1.
+    !> The value N can go beyond the current position in the minibuffer
+    !> history,  and invoke "future history."
+    !> Port of simple.el:next-history-element.
     subroutine cmd_next_history_element(status)
         type(status_type), intent(out) :: status
         integer :: n
