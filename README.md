@@ -9,11 +9,11 @@ in Guix (or checking out an earlier commit in Git). There is no Elisp.
 **Status:** early porting. Fortmacs runs as a bare-bones terminal editor:
 open files (`fortmacs FILE` or `C-x C-f`), type, delete, move by character
 and line, mark a region and kill, copy and yank it (`C-SPC`, `C-w`, `M-w`,
-`C-k`, `C-y`, `M-y`), run commands by name with completion (`M-x`, `TAB`
-also completes file names), and save (`C-x C-s`, with a `FILE~` backup;
-`C-x C-w` to write elsewhere). Most of Emacs is still missing: undo,
-search, scrolling commands and much more. See [PORTING.md](PORTING.md) for
-the roadmap and progress.
+`C-k`, `C-y`, `M-y`), undo (`C-/`, `C-x u`; `C-?` redoes), scroll (`C-v`, `M-v`,
+`C-l`), search incrementally (`C-s`, `C-r`), run commands by name with
+completion (`M-x`; `TAB` also completes file names), and save (`C-x C-s`,
+with a `FILE~` backup; `C-x C-w` to write elsewhere). Most of Emacs is still
+missing. See [PORTING.md](PORTING.md) for the roadmap and progress.
 
 <!-- progress:start -->
 **Progress:**
@@ -21,9 +21,9 @@ the roadmap and progress.
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.00%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.00%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆5.25%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.25%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">570<br>of 63,999</td><td align="center">570<br>of 56,864</td><td align="center">450<br>of 8,547</td><td align="center">120<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆1.00%</td><td align="center">≆1.00%</td><td align="center">≆5.25%</td><td align="center">≆0.25%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
+<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.00%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.25%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆5.50%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.25%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
+<tr><td align="center">651<br>of 63,999</td><td align="center">651<br>of 56,864</td><td align="center">472<br>of 8,547</td><td align="center">179<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">≆1.00%</td><td align="center">≆1.25%</td><td align="center">≆5.50%</td><td align="center">≆0.25%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
 Total is Emacs (its C functions and Elisp definitions) and the packages
@@ -167,8 +167,10 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   end function longest_line
   ```
 
-  [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html):
-  pointing at any part of either version lights up its counterpart.
+  [Compare the two side by side](docs/syntax.html) (download the page and
+  open it in a browser; it will be served by GitHub Pages once the
+  repository is public): pointing at any part of either version lights up
+  its counterpart.
 
   None of this makes Elisp wrong. Preferring Fortran's syntax is simply a
   preference, and more options can never hurt.

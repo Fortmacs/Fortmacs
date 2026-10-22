@@ -41,6 +41,8 @@ module bindings_fm
     use keyboard_fm, only: local_function_key_map
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple
+    use isearch_fm, only: syms_of_isearch
+    use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
@@ -122,6 +124,7 @@ contains
 
         call syms_of_cmds()
         call syms_of_simple()
+        call syms_of_window()
         call defcommand("right-char", cmd_right_char)
         call defcommand("left-char", cmd_left_char)
 
@@ -176,6 +179,22 @@ contains
         call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
         call bind(esc_map, "x", "execute-extended-command")
+        call bind(global_map, "<next>", "scroll-up-command")
+        call bind(global_map, "<prior>", "scroll-down-command")
+        call bind(global_map, "C-v", "scroll-up-command")
+        call bind(esc_map, "v", "scroll-down-command")
+
+        ! window.el
+        call bind(global_map, "C-l", "recenter-top-bottom")
+        call bind(esc_map, "r", "move-to-window-line-top-bottom")
+
+        ! Undo (bindings.el).
+        call bind(global_map, "C-_", "undo")
+        call bind(global_map, "C-/", "undo")
+        call bind(ctl_x_map, "u", "undo")
+        call bind(global_map, "C-?", "undo-redo")
+        call bind(global_map, "C-M-_", "undo-redo")
+
         ! The mark and killing (bindings.el).
         call bind(global_map, "C-@", "set-mark-command")
         call bind(global_map, "C-SPC", "set-mark-command")
@@ -189,6 +208,7 @@ contains
         call bind(global_map, "<C-S-backspace>", "kill-whole-line")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
+        call syms_of_isearch(global_map)
 
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its history keys from bindings.el (<up> and <down> are

@@ -132,6 +132,10 @@ module keymap_fm
     !> KVAR Voverriding_terminal_local_map: a keymap taking precedence
     !> over all others (null: none).  Used for transient maps.
     type(handle_type), public :: overriding_terminal_local_map
+    !> The map a transient map was pushed over: subr.el:set-transient-map
+    !> composes the new map with the old overriding-terminal-local-map
+    !> (internal-push-keymap); this is the old one, active below it.
+    type(handle_type), public :: pushed_terminal_local_map
 
     !> A key sequence and the keymap it leads to (where-is).
     type :: key_list_type
@@ -1113,12 +1117,17 @@ contains
         type(handle_type) :: local
         integer :: n
 
-        allocate (elems(3))
+        allocate (elems(4))
         n = 0
 
         if (table%is_live(overriding_terminal_local_map)) then
             n = n + 1
             elems(n) = make_keymap_ref(overriding_terminal_local_map)
+        end if
+
+        if (table%is_live(pushed_terminal_local_map)) then
+            n = n + 1
+            elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
 
         local = current_local_map()

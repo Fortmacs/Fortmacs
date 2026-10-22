@@ -77,6 +77,12 @@ module fortmacs
     use fns_fm, only: yes_or_no_p
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
+    use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
+                         SEARCH_NOERROR, SEARCH_MOVE
+    use isearch_fm, only: isearch_forward_command, isearch_backward_command
+    use window_fm, only: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
+    use simple_fm, only: undo, undo_only, undo_redo
+    use undo_fm, only: undo_boundary
     use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
                          region_active_p, deactivate_mark
     use minibuf_fm, only: completion_table_type, completion_list_table, completion_obarray_table, &
@@ -103,6 +109,10 @@ module fortmacs
     use minibuffer_fm, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
     use simple_fm, only: suggest_key_bindings
     use dired_fm, only: completion_ignored_extensions
+    use search_fm, only: case_fold_search
+    use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, &
+                          search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
     implicit none(type, external)
     private
 
@@ -119,6 +129,10 @@ module fortmacs
               delete_region, bobp, eobp, bolp, eolp
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
+    public :: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE, &
+              isearch_forward_command, isearch_backward_command
+    public :: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
+    public :: undo, undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
               set_mark, mark, region_active_p, deactivate_mark
     public :: completion_table_type, completion_list_table, completion_obarray_table, &
@@ -130,7 +144,10 @@ module fortmacs
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
               transient_mark_mode, mark_even_if_inactive, kill_ring_max, mark_ring_max, &
-              kill_whole_line_option, delete_active_region, kill_read_only_ok, completion_ignore_case, &
+              kill_whole_line_option, delete_active_region, kill_read_only_ok, &
+              case_fold_search, search_upper_case, search_exit_option, search_nonincremental_instead, &
+              search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
+              next_screen_context_lines, scroll_error_top_bottom, completion_ignore_case, &
               completion_auto_help, completion_show_inline_help, completion_fail_discreetly, &
               suggest_key_bindings, completion_ignored_extensions
 end module fortmacs

@@ -23,9 +23,11 @@
 !> deletion, keyboard-quit, quoted-insert, and the prefix-argument
 !> commands with universal-argument-map.
 !>
-!> The mark and region (Transient Mark mode) and the kill ring are here too.
+!> Undo (`undo`, `undo-only`, `undo-redo`, `primitive-undo`) is here; the
+!> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
+!> kill ring are here too.
 !>
-!> Not ported yet: undo, the global mark ring, shift-selection, the
+!> Not ported yet: undo in a region, the global mark ring, shift-selection, the
 !> interprogram (system clipboard) cut and paste, `yank-from-kill-ring`,
 !> electric indentation, auto-fill and hard newlines, prefix-argument
 !> echoing, octal input in quoted-insert.
@@ -41,7 +43,9 @@ module simple_fm
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
-                         inhibit_read_only
+                         inhibit_read_only, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
+                         UE_POINT, UE_FIRST_CHANGE
+    use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
     use xdisp_fm, only: message
     use subr_fm, only: add_to_history
@@ -82,6 +86,20 @@ module simple_fm
     public :: newline, open_line, delete_backward_char, &
               prefix_command_preserve_state, universal_argument_map, &
               syms_of_simple, goto_history_element, line_move, next_line, previous_line
+    public :: undo, undo_only, undo_redo, undo_more, undo_start, primitive_undo
+
+    !> Within a run of consecutive undo commands, list remaining to be
+    !> undone (a list position); -1 (t) if we undid all the way to the end
+    !> of it.  Port of simple.el pending-undo-list.
+    integer(int64), public :: pending_undo_list = 0
+    !> If t, `undo` doesn't go through redo entries.  Port of simple.el
+    !> undo-no-redo.
+    logical, public :: undo_no_redo = .false.
+    !> Non-nil while performing an undo.  Port of simple.el
+    !> undo-in-progress.
+    logical, public :: undo_in_progress = .false.
+    ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
+    integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_T = -1, EQUIV_EMPTY = -4
     public :: mark, region_active_p, use_region_p, deactivate_mark, activate_mark, set_mark, &
               push_mark, pop_mark, pop_to_mark_command, push_mark_command, set_mark_command, &
               exchange_point_and_mark, mark_whole_buffer
@@ -880,6 +898,9 @@ contains
         call defcommand("universal-argument-minus", cmd_universal_argument_minus)
         call defcommand("negative-argument", cmd_negative_argument)
         call defcommand("digit-argument", cmd_digit_argument)
+        call defcommand("undo", cmd_undo)
+        call defcommand("undo-only", cmd_undo_only)
+        call defcommand("undo-redo", cmd_undo_redo)
         call defcommand("set-mark-command", cmd_set_mark_command)
         call defcommand("exchange-point-and-mark", cmd_exchange_point_and_mark)
         call defcommand("mark-whole-buffer", cmd_mark_whole_buffer)
@@ -893,6 +914,356 @@ contains
         call defcommand("yank-pop", cmd_yank_pop)
         call defcommand("rotate-yank-pointer", cmd_rotate_yank_pointer)
     end subroutine syms_of_simple
+
+    ! ------------------------------------------------------------------
+    ! Undo
+    ! ------------------------------------------------------------------
+
+    !> The undo-equiv-table value of list position `k` in the current
+    !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
+    integer(int64) function equiv_of(k) result(v)
+        integer(int64), intent(in) :: k
+
+        v = EQUIV_NONE
+        if (.not. allocated(buffers(cur)%undo_equiv)) return
+        if (k < 0 .or. k > ubound(buffers(cur)%undo_equiv, 1)) return
+        v = buffers(cur)%undo_equiv(k)
+    end function equiv_of
+
+    !> Map list position `k` to `v` in undo-equiv-table.
+    subroutine set_equiv(k, v)
+        integer(int64), intent(in) :: k, v
+        integer(int64), allocatable :: grown(:)
+
+        associate (b => buffers(cur))
+            if (.not. allocated(b%undo_equiv)) then
+                allocate (b%undo_equiv(0:max(k, 64_int64)))
+                b%undo_equiv = EQUIV_NONE
+            else if (k > ubound(b%undo_equiv, 1)) then
+                allocate (grown(0:2*k))
+                grown = EQUIV_NONE
+                grown(0:ubound(b%undo_equiv, 1)) = b%undo_equiv
+                call move_alloc(grown, b%undo_equiv)
+            end if
+
+            b%undo_equiv(k) = v
+        end associate
+    end subroutine set_equiv
+
+    !> List position `k` without its leading boundaries.
+    integer(int64) function sans_leading_nil(k) result(j)
+        integer(int64), intent(in) :: k
+
+        j = k
+
+        do while (j > 0)
+            if (buffers(cur)%undo_list(j)%kind /= UE_BOUNDARY) exit
+            j = j - 1
+        end do
+    end function sans_leading_nil
+
+    !> Whether the list at position `k` begins with a redo record: its
+    !> undo-equiv-table value.  Port of simple.el:undo--last-change-was-undo-p.
+    integer(int64) function last_change_was_undo(k) result(v)
+        integer(int64), intent(in) :: k
+
+        v = equiv_of(sans_leading_nil(k))
+    end function last_change_was_undo
+
+    !> Undo N records from the front of the list at position LIST.
+    !> Return what remains of the list (its position).  Port of
+    !> simple.el:primitive-undo (no property, apply or marker entries).
+    subroutine primitive_undo(n, list, rest, status)
+        integer(int64), intent(in) :: n, list
+        integer(int64), intent(out) :: rest
+        type(status_type), intent(out) :: status
+        type(undo_entry_type) :: next
+        type(value_type) :: saved
+        type(status_type) :: st
+        integer(int64) :: arg, apos
+
+        rest = list
+        arg = n
+        ! In a writable buffer, enable undoing read-only text that is so
+        ! because of text properties.
+        saved = inhibit_read_only()
+        call set(sym("inhibit-read-only"), t_value(), st)
+
+        undo_records: do while (arg > 0)
+            do while (rest > 0)
+                ! Exit inner loop at undo boundary.
+                next = buffers(cur)%undo_list(rest)
+                rest = rest - 1
+                if (next%kind == UE_BOUNDARY) exit
+
+                select case (next%kind)
+                case (UE_POINT)
+                    call goto_char(next%beg)
+                case (UE_FIRST_CHANGE)
+                    ! If this records an obsolete save (not matching the
+                    ! actual disk file) then don't mark unmodified.
+                    if (time_equal(next)) buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+                case (UE_INSERTION)
+                    if (point_min() > next%beg .or. point_max() < next%end) then
+                        call outside_error(status)
+                        exit undo_records
+                    end if
+
+                    ! Set point first thing, so that undoing this undo does
+                    ! not send point back to where it is now.
+                    call goto_char(next%beg)
+                    call delete_region(next%beg, next%end, status)
+                    if (.not. status%ok()) exit undo_records
+                case (UE_DELETION)
+                    apos = abs(next%beg)
+
+                    if (apos < point_min() .or. apos > point_max()) then
+                        call outside_error(status)
+                        exit undo_records
+                    end if
+
+                    ! Insert string and adjust point.
+                    call goto_char(apos)
+                    call insert(next%text, status)
+                    if (.not. status%ok()) exit undo_records
+                    if (next%beg > 0) call goto_char(apos)
+                case default
+                    call set_error(status, FM_GENERIC_ERROR, "Unrecognized entry in undo list")
+                    exit undo_records
+                end select
+            end do
+
+            arg = arg - 1
+        end do undo_records
+
+        call set(sym("inhibit-read-only"), saved, st)
+    end subroutine primitive_undo
+
+    subroutine outside_error(status)
+        type(status_type), intent(out) :: status
+
+        call set_error(status, FM_GENERIC_ERROR, "Changes to be undone are outside visible portion of buffer")
+    end subroutine outside_error
+
+    !> Whether a (t . TIME) entry records the visited file's current
+    !> modtime (time-equal-p with visited-file-modtime; 0 for none).
+    logical function time_equal(entry)
+        type(undo_entry_type), intent(in) :: entry
+
+        if (.not. (entry%known .or. buffers(cur)%modtime_known)) then
+            time_equal = .true.
+        else
+            time_equal = (entry%known .eqv. buffers(cur)%modtime_known) .and. &
+                         entry%beg == buffers(cur)%modtime_sec .and. entry%end == buffers(cur)%modtime_nsec
+        end if
+    end function time_equal
+
+    !> Set `pending-undo-list` to the front of the undo list.
+    !> The next call to `undo_more` will undo the most recently made
+    !> change.  Port of simple.el:undo-start (not in a region).
+    subroutine undo_start(status)
+        type(status_type), intent(out) :: status
+
+        if (.not. buffers(cur)%undo_enabled) then
+            call set_error(status, FM_USER_ERROR, "No undo information in this buffer")
+            return
+        end if
+
+        pending_undo_list = buffers(cur)%undo_count
+    end subroutine undo_start
+
+    !> Undo back N undo-boundaries beyond what was already undone recently.
+    !> Call `undo_start` to get ready to undo recent changes,
+    !> then call `undo_more` one or more times to undo them.  Port of
+    !> simple.el:undo-more.
+    subroutine undo_more(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        integer(int64) :: rest
+
+        if (pending_undo_list < 0) then
+            call set_error(status, FM_USER_ERROR, "No further undo information")
+            return
+        end if
+
+        undo_in_progress = .true.
+        call primitive_undo(n, pending_undo_list, rest, status)
+        undo_in_progress = .false.
+        pending_undo_list = rest
+        if (pending_undo_list == 0) pending_undo_list = -1
+    end subroutine undo_more
+
+    !> Undo some previous changes.
+    !> Repeat this command to undo more changes.
+    !> A numeric ARG serves as a repeat count (ARG is the raw prefix
+    !> argument).  Port of simple.el:undo (no undo in region).
+    subroutine undo(arg, status)
+        type(value_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: msg
+        integer(int64) :: equiv, next, list
+
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        ! If we get an error in undo-start, the next command should not be
+        ! a "consecutive undo".
+        this_command = sym("undo-start")
+
+        ! If the previous command is `undo`, don't break the undo chain.
+        if (.not. (value_eq(last_command, sym("undo")) .and. &
+                   (pending_undo_list < 0 .or. last_change_was_undo(buffers(cur)%undo_count) /= EQUIV_NONE))) then
+            call undo_start(status)
+            if (.not. status%ok()) return
+            ! Get rid of initial undo boundary.
+            call undo_more(1_int64, status)
+            if (.not. status%ok()) return
+        end if
+
+        ! If we got this far, the next command should be a consecutive undo.
+        this_command = sym("undo")
+        ! Check to see whether we're hitting a redo record.
+        equiv = EQUIV_NONE
+        if (pending_undo_list >= 0) equiv = equiv_of(pending_undo_list)
+
+        if (undo_no_redo .or. equiv == EQUIV_NONE) then
+            msg = "Undo"
+        else
+            msg = "Redo"
+        end if
+
+        if (equiv >= 0 .and. undo_no_redo) then
+            ! The equiv entry might point to another redo record if we have
+            ! done undo-redo-undo-redo-... so skip to the very last equiv.
+            do
+                next = equiv_of(equiv)
+                if (next == EQUIV_NONE) exit
+                equiv = next
+                if (equiv < 0) exit
+            end do
+
+            pending_undo_list = -1
+            if (equiv >= 0) pending_undo_list = equiv
+        end if
+
+        if (fixnump(arg)) then
+            call undo_more(prefix_numeric_value(arg), status)
+        else
+            call undo_more(1_int64, status)
+        end if
+
+        if (.not. status%ok()) return
+        ! Don't specify a position in the undo record for the undo command.
+        ! Instead, undoing this should move point to where the change is.
+        call strip_undo_point()
+        ! Record the fact that the just-generated undo records come from an
+        ! undo operation--that is, they are redo records.
+        list = sans_leading_nil(buffers(cur)%undo_count)
+
+        if (list == pending_undo_list) then
+            ! Prevent identity mapping (consecutive nils in the undo list).
+            next = equiv_of(list)
+            if (next == EQUIV_NONE) next = EQUIV_EMPTY
+            call set_equiv(list, next)
+        else
+            call set_equiv(list, pending_undo_list)
+        end if
+
+        if (minibuf_level == 0) call message(msg)
+    end subroutine undo
+
+    !> Remove from the newest change group the point entry (and the later
+    !> ones for the same position), as `undo` does.
+    subroutine strip_undo_point()
+        integer(int64) :: k, j, pos
+
+        associate (b => buffers(cur))
+            k = b%undo_count
+
+            do while (k > 0)
+                if (b%undo_list(k)%kind == UE_BOUNDARY) return
+
+                if (b%undo_list(k)%kind == UE_POINT) then
+                    pos = b%undo_list(k)%beg
+                    j = k
+
+                    do while (j > 0)
+                        if (b%undo_list(j)%kind == UE_BOUNDARY) exit
+
+                        if (b%undo_list(j)%kind == UE_POINT .and. b%undo_list(j)%beg == pos) then
+                            b%undo_list(j:b%undo_count - 1) = b%undo_list(j + 1:b%undo_count)
+                            b%undo_count = b%undo_count - 1
+                        end if
+
+                        j = j - 1
+                    end do
+
+                    return
+                end if
+
+                k = k - 1
+            end do
+        end associate
+    end subroutine strip_undo_point
+
+    !> Undo some previous changes.
+    !> Repeat this command to undo more changes.
+    !> A numeric ARG serves as a repeat count.
+    !> Contrary to `undo`, this will not redo a previous undo.  Port of
+    !> simple.el:undo-only.
+    subroutine undo_only(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+
+        undo_no_redo = .true.
+        call undo(make_fixnum(n), status)
+        undo_no_redo = .false.
+    end subroutine undo_only
+
+    !> Undo the last ARG undos, i.e., redo the last ARG changes.
+    !> Port of simple.el:undo-redo.
+    subroutine undo_redo(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: ul, new_ul
+
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+
+        if (last_change_was_undo(buffers(cur)%undo_count) == EQUIV_NONE) then
+            call set_error(status, FM_USER_ERROR, "No undone changes to redo")
+            return
+        end if
+
+        ul = sans_leading_nil(buffers(cur)%undo_count)
+        undo_in_progress = .true.
+        call primitive_undo(arg, ul, new_ul, status)
+        undo_in_progress = .false.
+        if (.not. status%ok()) return
+        call message("Redo")
+        this_command = sym("undo")
+        pending_undo_list = last_change_was_undo(new_ul)
+        if (pending_undo_list == EQUIV_NONE) pending_undo_list = 0
+        ! (setq buffer-undo-list new-ul): the redo's own records go too.
+        buffers(cur)%undo_count = new_ul
+    end subroutine undo_redo
+
+    subroutine cmd_undo(status)
+        type(status_type), intent(out) :: status
+
+        call undo(current_prefix_arg, status)
+    end subroutine cmd_undo
+
+    subroutine cmd_undo_only(status)
+        type(status_type), intent(out) :: status
+
+        call undo_only(arg_p(), status)
+    end subroutine cmd_undo_only
+
+    subroutine cmd_undo_redo(status)
+        type(status_type), intent(out) :: status
+
+        call undo_redo(arg_p(), status)
+    end subroutine cmd_undo_redo
 
     ! ------------------------------------------------------------------
     ! The mark and the region

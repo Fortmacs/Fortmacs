@@ -50,10 +50,12 @@ module keyboard_fm
     use keymap_fm, only: keymapp, keymap_live_p, access_keymap, &
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
-                         overriding_terminal_local_map
+                         overriding_terminal_local_map, pushed_terminal_local_map
     use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
+    use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
+                       buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending
     implicit none(type, external)
     private
@@ -128,6 +130,11 @@ module keyboard_fm
     !> Run after each command (keyboard.c's post-command-hook, with one
     !> function); null for none.
     procedure(redisplay_proc), pointer, public :: post_command_hook => null()
+
+    !> Run before each command, after its keys are read and `this_command`
+    !> is set (keyboard.c's pre-command-hook, with one function); null
+    !> for none.
+    procedure(redisplay_proc), pointer, public :: pre_command_hook => null()
 
     !> Set by `request_exit` to end `command_loop`.
     logical :: exit_requested = .false.
@@ -715,6 +722,8 @@ contains
     subroutine set_transient_map(km)
         type(handle_type), intent(in) :: km
 
+        ! internal-push-keymap: the old map stays active below.
+        if (.not. transient_active) pushed_terminal_local_map = overriding_terminal_local_map
         overriding_terminal_local_map = km
         transient_active = .true.
     end subroutine set_transient_map
@@ -795,8 +804,24 @@ contains
 
         ! pre-command-hook: a transient map lasts for one key sequence.
         if (transient_active) then
-            overriding_terminal_local_map = null_handle()
+            overriding_terminal_local_map = pushed_terminal_local_map
+            pushed_terminal_local_map = null_handle()
             transient_active = .false.
+        end if
+
+        if (associated(pre_command_hook)) then
+            call pre_command_hook()
+            ! The hook may have changed the command (command-execute runs
+            ! this-command).
+            cmd = this_command
+        end if
+
+        ! keyboard.c:command_loop_1: undo boundaries for the changes of the
+        ! last command, and where point is for record_point.
+        if (cur /= 0) then
+            call undo_auto_add_boundary()
+            point_before_last_command_or_undo = buffers(cur)%pt
+            buffer_before_last_command_or_undo = buffers(cur)%serial
         end if
 
         vdeactivate_mark = .false.

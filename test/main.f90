@@ -53,6 +53,10 @@ program tester
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
     use test_casetab_fm, only: collect_casetab_fm
+    use test_search_fm, only: collect_search_fm
+    use test_isearch_fm, only: collect_isearch_fm
+    use test_window_fm, only: collect_window_fm
+    use test_undo_fm, only: collect_undo_fm
     use test_simple_fm, only: collect_simple_fm
     implicit none(type, external)
 
@@ -93,6 +97,10 @@ program tester
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
+                 new_testsuite("search_fm", collect_search_fm), &
+                 new_testsuite("isearch_fm", collect_isearch_fm), &
+                 new_testsuite("window_fm", collect_window_fm), &
+                 new_testsuite("undo_fm", collect_undo_fm), &
                  new_testsuite("simple_fm", collect_simple_fm) &
                  ]
 
