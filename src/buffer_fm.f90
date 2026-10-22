@@ -36,7 +36,7 @@
 !> themselves use this module, so they are implemented in the submodule
 !> buffer_ops_fm (buffer_ops_fm.f90).
 !>
-!> Deferred: indirect buffers, buffer-local variables, overlays, undo,
+!> Deferred: indirect buffers, buffer-local variables, overlays,
 !> file visiting and locking, and hooks.
 module buffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -81,6 +81,22 @@ module buffer_fm
     end type buffer_text_type
 
     !> Port of the parts of buffer.h:struct buffer used so far.
+    !> Kinds of `buffer-undo-list` entries (undo.c).
+    integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
+                                  UE_POINT = 3, UE_FIRST_CHANGE = 4
+
+    !> One entry of `buffer-undo-list`: a boundary (nil); an insertion
+    !> (BEG . END); a deletion (TEXT . POSITION), POSITION negative when
+    !> point was at the end of the text; point (POSITION, in `beg`); or the
+    !> first change since the buffer was unmodified, (t . TIME), with the
+    !> visited file's modtime (`beg` seconds, `end` nanoseconds, `known`).
+    type, public :: undo_entry_type
+        integer :: kind = UE_BOUNDARY
+        integer(int64) :: beg = 0, end = 0
+        logical :: known = .false.
+        character(len=:), allocatable :: text
+    end type undo_entry_type
+
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -93,6 +109,14 @@ module buffer_fm
         logical :: read_only = .false.
         !> Upstream sets undo_list to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
+        !> BVAR undo_list (`buffer-undo-list`): entries 1 to `undo_count`,
+        !> the newest last.  A list position k (entries 1 to k, the head
+        !> being entry k) stands for a tail of the Lisp list.
+        type(undo_entry_type), allocatable :: undo_list(:)
+        integer(int64) :: undo_count = 0
+        !> simple.el undo-equiv-table, keyed by list position (0 to
+        !> undo_count): where an undo record leads (simple_fm).
+        integer(int64), allocatable :: undo_equiv(:)
         logical :: inhibit_buffer_hooks = .false.
         !> BVAR keymap: the local keymap, or the null handle (keymap_fm).
         type(handle_type) :: keymap
