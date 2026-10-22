@@ -19,8 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions in the echo area (`read-key`, `y-or-n-p`) and
-!> `add-to-history`.
+!> Questions in the echo area (`read-key`, `y-or-n-p`),
+!> `add-to-history`, and the match data helpers (`match-string`,
+!> `string-match-p`, `looking-at-p`, `looking-back`).
 !>
 !> Without a minibuffer yet, `y-or-n-p` behaves as upstream does with
 !> `y-or-n-p-use-read-key` set: it reads a single key in the echo area.
@@ -34,11 +35,15 @@ module subr_fm
     use keyboard_fm, only: read_event, discard_input
     use xdisp_fm, only: message, cursor_in_echo_area
     use keymap_fm, only: define_key, current_global_map
+    use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
+                         match_in_string_p, string_index_to_offset, SEARCH_NOERROR
+    use editfns_fm, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
     public :: global_set_key
+    public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -219,4 +224,112 @@ contains
         type(status_type), intent(out) :: status
         call define_key(current_global_map(), key, sym(command), status)
     end subroutine global_set_key_command
+    !> Return the string of text matched by the previous search or regexp
+    !> operation.  NUM specifies the number of the parenthesized
+    !> sub-expression in the last regexp whose match to return.  Zero
+    !> means the entire text matched by the whole regexp or whole string.
+    !>
+    !> The return value is nil (`matched` false, an empty string) if NUMth
+    !> pair didn't match, or there were less than NUM pairs.
+    !>
+    !> STRING should be given if the last search was by `string-match' on
+    !> STRING.  If STRING is nil, the current buffer should be the same
+    !> buffer as the one in which the search/match was performed.  Port of
+    !> subr.el:match-string.
+    function match_string(num, string, matched) result(text)
+        integer, intent(in) :: num
+        character(len=*), intent(in), optional :: string
+        logical, intent(out), optional :: matched
+        character(len=:), allocatable :: text
+        integer(int64) :: b, e
+        type(status_type) :: status
+        text = ""
+        if (present(matched)) matched = .false.
+        b = match_beginning(num, status)
+        if (.not. status%ok() .or. b == 0) return
+        e = match_end(num, status)
+        if (present(matched)) matched = .true.
+        if (present(string)) then
+            text = string(string_index_to_offset(string, b) + 1:string_index_to_offset(string, e))
+        else
+            call buffer_substring(b, e, text, status)
+        end if
+    end function match_string
+
+    !> Return string of text matched by last search, without text
+    !> properties.  NUM specifies which parenthesized expression in the
+    !> last regexp.  Value is nil if NUMth pair didn't match, or there
+    !> were less than NUM pairs.  Zero means the entire text matched by
+    !> the whole regexp or whole string.  STRING should be given if the
+    !> last search was by `string-match' on STRING.  If STRING is nil, the
+    !> current buffer should be the same buffer as the one in which the
+    !> search/match was performed.  Port of
+    !> subr.el:match-string-no-properties.
+    function match_string_no_properties(num, string, matched) result(text)
+        integer, intent(in) :: num
+        character(len=*), intent(in), optional :: string
+        logical, intent(out), optional :: matched
+        character(len=:), allocatable :: text
+        text = match_string(num, string, matched)
+    end function match_string_no_properties
+
+    !> Same as `string-match' except this function does not change the
+    !> match data.  Port of subr.el:string-match-p.
+    integer(int64) function string_match_p(regexp, string, status, start) result(idx)
+        character(len=*), intent(in) :: regexp, string
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start
+        idx = string_match(regexp, string, status, start, inhibit_modify=.true.)
+    end function string_match_p
+
+    !> Same as `looking-at' except this function does not change the match
+    !> data.  Port of subr.el:looking-at-p.
+    logical function looking_at_p(regexp, status)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
+    end function looking_at_p
+
+    !> Return non-nil if text before point matches regular expression
+    !> REGEXP.  Like `looking-at' except matches before point, and is
+    !> slower.  LIMIT if non-nil speeds up the search by specifying a
+    !> minimum starting position, to avoid checking matches that would
+    !> start before LIMIT.
+    !>
+    !> If GREEDY is non-nil, extend the match backwards as far as possible,
+    !> stopping when a single additional previous character cannot be part
+    !> of a match for REGEXP.  When the match is extended, its starting
+    !> position is allowed to occur before LIMIT.
+    !>
+    !> As a general recommendation, try to avoid using `looking-back'
+    !> wherever possible, since it is slow.  Port of subr.el:looking-back.
+    logical function looking_back(regexp, status, limit, greedy) result(found)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: limit
+        logical, intent(in), optional :: greedy
+        integer(int64) :: start, pos, saved_begv, saved_zv
+        logical :: ignored
+        start = point()
+        call re_search_backward("\(?:"//regexp//"\)\=", pos, status, bound=limit, noerror=SEARCH_NOERROR)
+        found = status%ok() .and. pos > 0
+        if (found) pos = point()
+        call goto_char(start)
+        if (.not. found) return
+        if (.not. present(greedy)) return
+        if (.not. greedy) return
+        saved_begv = point_min()
+        saved_zv = point_max()
+        call narrow_to_region(point_min(), start, status)
+        do while (pos > point_min())
+            call goto_char(pos - 1)
+            if (.not. looking_at("\(?:"//regexp//"\)\'", status)) exit
+            pos = pos - 1
+        end do
+        call goto_char(pos)
+        ignored = looking_at("\(?:"//regexp//"\)\'", status)
+        call widen()
+        call narrow_to_region(saved_begv, saved_zv, status)
+        call goto_char(start)
+    end function looking_back
 end module subr_fm

@@ -677,6 +677,8 @@ contains
                             normal = .true.
                         case (iachar("\"))
                             normal = p1 + 1 /= pend .and. byte_of(p1 + 1) == iachar("{")
+                        case default
+                            normal = .false.
                         end select
                     end if
                     if (.not. normal) then
@@ -1825,8 +1827,9 @@ contains
                 ! multibyte strings, add their leading bytes to the
                 ! fastmap.
                 do j = 128, nbits - 1
-                    if (btest(buf(p + 2 + j/8), mod(j, 8)) .neqv. inverted) &
+                    if (btest(buf(p + 2 + j/8), mod(j, 8)) .neqv. inverted) then
                         fastmap(char_leading_code(byte8_to_char(j))) = .true.
+                    end if
                 end do
                 if (inverted .or. (charset_range_table_exists_p(buf, p) .and. &
                                    charset_range_table_bits(buf, p) /= 0)) then
@@ -2048,9 +2051,10 @@ contains
             ! character listed in the charset after.
             idx = 0
             do while (idx < buf(p2 + 1))
-                if (.not. (buf(p2 + 2 + idx) == 0 .or. (idx < charset_bitmap_size(buf, p1) .and. &
-                                                        iand(buf(p2 + 2 + idx), not(buf(p1 + 2 + idx))) == 0))) &
-                    exit
+                if (buf(p2 + 2 + idx) /= 0) then
+                    if (idx >= charset_bitmap_size(buf, p1)) exit
+                    if (iand(buf(p2 + 2 + idx), not(buf(p1 + 2 + idx))) /= 0) exit
+                end if
                 idx = idx + 1
             end do
             if (idx == buf(p2 + 1)) excl = .true.

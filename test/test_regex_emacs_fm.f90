@@ -39,6 +39,7 @@ module test_regex_emacs_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, point_max, point_min, buffer_substring, buffer_string, delete_region
     use search_fm, only: string_index_to_offset
+    use subr_fm, only: match_string, string_match_p, looking_at_p, looking_back
     use syntax_fm, only: modify_syntax_entry, make_syntax_table, set_syntax_table, free_syntax_table
     use search_fm, only: string_match, posix_string_match, looking_at, re_search_forward, re_search_backward, &
                          match_beginning, match_end, match_data, set_match_data, regexp_quote, case_fold_search, &
@@ -80,7 +81,9 @@ contains
                     new_unittest("match-data", test_match_data), &
                     new_unittest("regexp-quote", test_regexp_quote), &
                     new_unittest("search-spaces-regexp", test_spaces_regexp), &
-                    new_unittest("posix-string-match", test_posix) &
+                    new_unittest("posix-string-match", test_posix), &
+                    new_unittest("match-string-and-friends", test_match_string), &
+                    new_unittest("looking-back", test_looking_back) &
                     ]
     end subroutine collect_regex_emacs_fm
 
@@ -473,6 +476,8 @@ contains
         allocate (character(len=fsize) :: data)
         read (u, iostat=ios) data
         close (u)
+        call check(error, ios == 0, "can't read "//file)
+        if (allocated(error)) return
         n = count([(data(i:i) == achar(10), i=1, len(data))])
         allocate (lines(n), lengths(n))
         start = 1
@@ -1197,4 +1202,50 @@ contains
         if (allocated(error)) return
         call check(error, string_match("b", "abcb", st, start=-1_int64) == 4, "negative start")
     end subroutine test_posix
+    subroutine test_match_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: pos
+        logical :: matched
+        character(len=:), allocatable :: s
+        call check(error, sm("\(é+\)\(x\)?\(z\)", "aéézb") == 2)
+        if (allocated(error)) return
+        call check(error, match_string(1, "aéézb") == "éé" .and. match_string(0, "aéézb") == "ééz", "string")
+        if (allocated(error)) return
+        s = match_string(2, "aéézb", matched)
+        call check(error,.not. matched .and. s == "", "unmatched group")
+        if (allocated(error)) return
+        call check(error, string_match_p("z", "aéézb", st) == 4 .and. mb(1) == 2, "string-match-p keeps data")
+        if (allocated(error)) return
+        call enter("key = value", h)
+        body: block
+            call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
+            call check(error, match_string(1) == "key" .and. match_string(2) == "value", "buffer")
+            if (allocated(error)) exit body
+            call goto_char(1_int64)
+            call check(error, looking_at_p("key", st) .and. mb(1) == 1, "looking-at-p keeps data")
+        end block body
+        call leave(h)
+    end subroutine test_match_string
+
+    subroutine test_looking_back(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("aaa bbb", h)
+        body: block
+            call goto_char(4_int64)
+            call check(error, looking_back("a+", st) .and. point() == 4, "plain")
+            if (allocated(error)) exit body
+            call check(error, mb(0) == 3, "non-greedy match is short")
+            if (allocated(error)) exit body
+            call check(error, looking_back("a+", st, greedy=.true.) .and. mb(0) == 1, "greedy")
+            if (allocated(error)) exit body
+            call check(error,.not. looking_back("b", st), "no")
+            if (allocated(error)) exit body
+            call check(error,.not. looking_back("a+", st, limit=4_int64), "limit")
+        end block body
+        call leave(h)
+    end subroutine test_looking_back
 end module test_regex_emacs_fm

@@ -43,6 +43,7 @@ module bindings_fm
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
     use paragraphs_fm, only: syms_of_paragraphs
+    use search_fm, only: syms_of_search
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -174,6 +175,7 @@ contains
         call defcommand("left-word", cmd_left_word)
         call syms_of_syntax()
         call syms_of_paragraphs()
+        call syms_of_search()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)

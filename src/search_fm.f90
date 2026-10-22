@@ -57,10 +57,11 @@ module search_fm
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, match_in_string_p
+              regexp_quote, match_in_string_p, syms_of_search
     ! For search_regexp_fm (gfortran makes private procedures invisible to
     ! submodules).
-    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow
+    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow, &
+              search_command
 
     !> Non-nil if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (one global value; not buffer-local yet).
@@ -117,6 +118,11 @@ module search_fm
             type(status_type), intent(inout) :: status
             integer(int64) :: np
         end function search_buffer_re
+
+        !> Register the search commands.  (In search_regexp_fm.)
+        module subroutine syms_of_search()
+            implicit none(type, external)
+        end subroutine syms_of_search
     end interface
 
 contains
@@ -645,6 +651,8 @@ contains
                 if (i == len(regexp)) return
                 i = i + 1
                 if (index("|()`'bB<>wWsS={}_cC123456789", regexp(i:i)) > 0) return
+            case default
+                continue
             end select
             i = i + 1
         end do

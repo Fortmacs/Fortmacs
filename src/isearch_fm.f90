@@ -1179,6 +1179,8 @@ contains
             call isearch_fallback(.true., .true.)
         case (iachar("|"))
             call isearch_fallback(.true., .false., .true.)
+        case default
+            continue
         end select
         one = encode(int(char, int32))
         string = one

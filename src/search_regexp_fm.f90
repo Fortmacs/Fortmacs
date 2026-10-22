@@ -28,6 +28,8 @@ submodule(search_fm) search_regexp_fm
     use regex_emacs_fm, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                               re_search, re_match, subject_from_string, subject_from_buffer
     use syntax_fm, only: syntax_table
+    use minibuf_fm, only: read_string
+    use callint_fm, only: defcommand
     implicit none(type, external)
 
     !> Number of compiled patterns kept (REGEXP_CACHE_SIZE).
@@ -247,4 +249,61 @@ contains
     end do
     np = pos
     end procedure search_buffer_re
+
+    ! ------------------------------------------------------------------
+    ! Commands
+    ! ------------------------------------------------------------------
+
+    !> The search commands read their argument in the minibuffer
+    !> (interactive "MSearch: " and "sRE search: ").
+    subroutine search_cmd(prompt, re, posix, direction, status)
+        character(len=*), intent(in) :: prompt
+        logical, intent(in) :: re, posix
+        integer(int64), intent(in) :: direction
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: string
+        integer(int64) :: found
+        call read_string(prompt, string, status)
+        if (.not. status%ok()) return
+        call search_command(string, direction, re, posix, found, status)
+    end subroutine search_cmd
+
+    subroutine cmd_search_forward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("Search: ", .false., .false., 1_int64, status)
+    end subroutine cmd_search_forward
+
+    subroutine cmd_search_backward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("Search backward: ", .false., .false., -1_int64, status)
+    end subroutine cmd_search_backward
+
+    subroutine cmd_re_search_forward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("RE search: ", .true., .false., 1_int64, status)
+    end subroutine cmd_re_search_forward
+
+    subroutine cmd_re_search_backward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("RE search backward: ", .true., .false., -1_int64, status)
+    end subroutine cmd_re_search_backward
+
+    subroutine cmd_posix_search_forward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("Posix search: ", .true., .true., 1_int64, status)
+    end subroutine cmd_posix_search_forward
+
+    subroutine cmd_posix_search_backward(status)
+        type(status_type), intent(out) :: status
+        call search_cmd("Posix search backward: ", .true., .true., -1_int64, status)
+    end subroutine cmd_posix_search_backward
+
+    module procedure syms_of_search
+    call defcommand("search-forward", cmd_search_forward)
+    call defcommand("search-backward", cmd_search_backward)
+    call defcommand("re-search-forward", cmd_re_search_forward)
+    call defcommand("re-search-backward", cmd_re_search_backward)
+    call defcommand("posix-search-forward", cmd_posix_search_forward)
+    call defcommand("posix-search-backward", cmd_posix_search_backward)
+    end procedure syms_of_search
 end submodule search_regexp_fm
