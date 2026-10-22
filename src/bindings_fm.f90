@@ -175,6 +175,13 @@ contains
         call bind(global_map, "<down>", "next-line")
         call bind(global_map, "<up>", "previous-line")
         call bind(global_map, "<deletechar>", "delete-forward-char")
+        ! Undo (bindings.el).
+        call bind(global_map, "C-_", "undo")
+        call bind(global_map, "C-/", "undo")
+        call bind(ctl_x_map, "u", "undo")
+        call bind(global_map, "C-?", "undo-redo")
+        call bind(global_map, "C-M-_", "undo-redo")
+
         ! The mark and killing (bindings.el).
         call bind(global_map, "C-@", "set-mark-command")
         call bind(global_map, "C-SPC", "set-mark-command")
