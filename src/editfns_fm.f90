@@ -33,16 +33,17 @@
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                        FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR
+                        FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE
     use handle_fm, only: handle_type
     use character_fm, only: char_head_p, char_valid_p, char_string, &
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, BUF_BYTES_MAX, &
                          buf_fetch_byte, buf_fetch_char, buf_prev_char_len, &
                          buf_bytes, temp_set_point_both, current_buffer, &
-                         resolve_buffer
+                         resolve_buffer, transient_mark_mode
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                          markers, resolve_marker, make_marker, set_marker_both
+    use callint_fm, only: mark_even_if_inactive
     use insdel_fm, only: insert, del_range, del_range_1
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
     use lisp_fm, only: value_type, nilp, nil
@@ -57,6 +58,7 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
+    public :: mark_marker, mark_position, region_beginning, region_end
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
@@ -175,6 +177,79 @@ contains
 
         call new_marker_at(buffers(cur)%pt, buffers(cur)%pt_byte, m)
     end subroutine point_marker
+
+    !> Return this buffer's mark, as a marker object.
+    !> Watch out!  Moving this marker changes the mark position.
+    !> If you set the marker not to point anywhere, the buffer will have no
+    !> mark.  Port of editfns.c:Fmark_marker (made on first use here).
+    subroutine mark_marker(m)
+        type(handle_type), intent(out) :: m
+        integer(int64) :: i
+        type(status_type) :: st
+
+        call resolve_marker(buffers(cur)%mark, i, st)
+        if (.not. st%ok()) call make_marker(buffers(cur)%mark)
+        m = buffers(cur)%mark
+    end subroutine mark_marker
+
+    !> The position of the current buffer's mark, or 0 if it has none (nil
+    !> upstream): `(marker-position (mark-marker))`.
+    integer(int64) function mark_position() result(pos)
+        integer(int64) :: i
+        type(status_type) :: st
+
+        pos = 0
+        call resolve_marker(buffers(cur)%mark, i, st)
+        if (.not. st%ok()) return
+        if (markers(i)%buffer /= 0) pos = markers(i)%charpos
+    end function mark_position
+
+    !> Point or the mark, the smaller (`beginningp`) or the larger,
+    !> clipped to the accessible part.  Port of editfns.c:region_limit.
+    subroutine region_limit(beginningp, pos, status)
+        logical, intent(in) :: beginningp
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        integer(int64) :: m
+
+        pos = 0
+
+        if (transient_mark_mode .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+            call set_error(status, FM_MARK_INACTIVE)
+            return
+        end if
+
+        m = mark_position()
+
+        if (m == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+            return
+        end if
+
+        if ((buffers(cur)%pt < m) .eqv. beginningp) then
+            pos = buffers(cur)%pt
+        else
+            pos = min(max(m, buffers(cur)%begv), buffers(cur)%zv)
+        end if
+    end subroutine region_limit
+
+    !> Return the integer value of point or mark, whichever is smaller.
+    !> Port of editfns.c:Fregion_beginning.
+    subroutine region_beginning(pos, status)
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+
+        call region_limit(.true., pos, status)
+    end subroutine region_beginning
+
+    !> Return the integer value of point or mark, whichever is larger.
+    !> Port of editfns.c:Fregion_end.
+    subroutine region_end(pos, status)
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+
+        call region_limit(.false., pos, status)
+    end subroutine region_end
 
     !> Port of editfns.c:Fpoint_min_marker.
     subroutine point_min_marker(m)

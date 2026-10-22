@@ -42,11 +42,11 @@ module xdisp_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
-                         buf_fetch_byte, buf_next_char_len, buffer_modified_p
-    use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos
+                         buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
+    use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
     use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length
     use dispextern_fm, only: glyph_type, glyph_row_type, face_type, &
-                             DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
+                             DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, REGION_FACE_ID, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
     use frame_fm, only: frame_type
     use window_fm, only: window_type, set_window_buffer, window_start, &
@@ -100,13 +100,18 @@ contains
         type(frame_type), intent(inout) :: f
 
         if (allocated(f%faces)) deallocate (f%faces)
-        allocate (f%faces(0:MODE_LINE_ACTIVE_FACE_ID))
+        allocate (f%faces(0:REGION_FACE_ID))
         f%faces(DEFAULT_FACE_ID)%foreground = FACE_TTY_DEFAULT_FG_COLOR
         f%faces(DEFAULT_FACE_ID)%background = FACE_TTY_DEFAULT_BG_COLOR
         ! xfaces.c:realize_tty_face swaps the colors of an inverse face.
         f%faces(MODE_LINE_ACTIVE_FACE_ID)%tty_reverse_p = .true.
         f%faces(MODE_LINE_ACTIVE_FACE_ID)%foreground = FACE_TTY_DEFAULT_BG_COLOR
         f%faces(MODE_LINE_ACTIVE_FACE_ID)%background = FACE_TTY_DEFAULT_FG_COLOR
+        ! The region: faces.el's tty fallback, inverse video (the colors of
+        ! its other specs need tty-colors.el).
+        f%faces(REGION_FACE_ID)%tty_reverse_p = .true.
+        f%faces(REGION_FACE_ID)%foreground = FACE_TTY_DEFAULT_BG_COLOR
+        f%faces(REGION_FACE_ID)%background = FACE_TTY_DEFAULT_FG_COLOR
     end subroutine realize_basic_faces
 
     ! ------------------------------------------------------------------
@@ -190,14 +195,17 @@ contains
     !> whether it reached the end of the accessible text.  The core of
     !> xdisp.c:try_window with display_line.
     subroutine layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, &
-                             end_pos, reached_end)
+                             end_pos, reached_end, region_beg, region_end)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: width
         type(glyph_row_type), intent(inout) :: rows(:)
         integer, intent(out) :: cursor_row, cursor_col
         integer(int64), intent(out) :: end_pos
         logical, intent(out) :: reached_end
+        !> The region to highlight with the region face, [region_beg, region_end).
+        integer(int64), intent(in), optional :: region_beg, region_end
         type(glyph_type) :: cells(8)
+        integer(int64) :: rb, re
         integer(int64) :: pos, pos_byte, zv
         integer(int32) :: c
         integer :: r, col, cont_width, n
@@ -208,6 +216,14 @@ contains
         zv = buffers(bi)%zv
         pos = start
         pos_byte = buf_charpos_to_bytepos(bi, start)
+        rb = 0
+        re = 0
+
+        if (present(region_beg) .and. present(region_end)) then
+            rb = region_beg
+            re = region_end
+        end if
+
         cont_width = 0
 
         do r = 1, size(rows)
@@ -236,6 +252,13 @@ contains
                         cursor_col = col
                     end if
 
+                    ! The region face has :extend t: a newline in the region
+                    ! highlights the rest of the row.
+                    if (pos >= rb .and. pos < re .and. col < width - 1) then
+                        rows(r)%glyphs(col + 1:width - 1)%face_id = REGION_FACE_ID
+                        col = width - 1
+                    end if
+
                     pos = pos + 1
                     pos_byte = pos_byte + 1
                     cont_width = 0
@@ -259,6 +282,7 @@ contains
                 end if
 
                 rows(r)%glyphs(col + 1:col + n) = cells(1:n)
+                if (pos >= rb .and. pos < re) rows(r)%glyphs(col + 1:col + n)%face_id = REGION_FACE_ID
                 col = col + n
                 pos = pos + 1
                 pos_byte = pos_byte + buf_next_char_len(buffers(bi), pos_byte)
@@ -325,6 +349,7 @@ contains
         type(glyph_row_type), allocatable :: rows(:)
         type(status_type) :: status
         integer(int64) :: bi, start, end_pos
+        integer(int64) :: rb, re, m
         integer :: body, width, cursor_row, cursor_col, r
         logical :: reached_end
 
@@ -338,15 +363,32 @@ contains
             allocate (rows(r)%glyphs(width))
         end do
 
+        ! Transient Mark mode highlights an active region, in the selected
+        ! window only (highlight-nonselected-windows nil).
+        rb = 0
+        re = 0
+
+        if (transient_mark_mode .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
+            .not. w%mini) then
+            m = buffers(bi)%mark%index
+
+            if (m > 0) then
+                if (markers(m)%buffer == bi) then
+                    rb = min(pt, markers(m)%charpos)
+                    re = max(pt, markers(m)%charpos)
+                end if
+            end if
+        end if
+
         start = max(buffers(bi)%begv, min(window_start(w), buffers(bi)%zv))
         call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                           reached_end)
+                           reached_end, rb, re)
 
         if (cursor_row < 0 .and. .not. w%force_start) then
             ! Point is not visible: recenter (scroll-conservatively 0).
             start = line_start_above(bi, pt, (body - 1)/2)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
-                               reached_end)
+                               reached_end, rb, re)
         end if
 
         call set_window_start(w, start, status, noforce=.true.)
@@ -593,7 +635,7 @@ contains
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (f%root_window%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
-        if (size(f%faces) < 2) call realize_basic_faces(f)
+        if (size(f%faces) < REGION_FACE_ID + 1) call realize_basic_faces(f)
         ! The selected window shows the current buffer: the root window
         ! unless the minibuffer window is selected.
         cb = current_buffer()

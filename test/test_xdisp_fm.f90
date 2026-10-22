@@ -28,7 +28,7 @@ module test_xdisp_fm
                          erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string
-    use dispextern_fm, only: glyph_row_type, glyph_type
+    use dispextern_fm, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID, REGION_FACE_ID
     use terminfo_fm, only: terminfo_type, builtin_xterm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
@@ -55,6 +55,7 @@ contains
                     new_unittest("layout-tab-control-wide", test_special_chars), &
                     new_unittest("layout-continuation", test_continuation), &
                     new_unittest("layout-end-of-buffer", test_end_of_buffer), &
+                    new_unittest("layout-region-face", test_region), &
                     new_unittest("mode-line-text", test_mode_line), &
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("emacs-main-on-a-pty", test_emacs_main) &
@@ -111,6 +112,32 @@ contains
 
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
+
+    !> The region (here 2 to 6) is drawn in the region face, and a newline
+    !> inside it extends the face to the end of the row.
+    subroutine test_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(glyph_row_type) :: rows(2)
+        integer(int64) :: bi, end_pos
+        integer :: crow, ccol, r
+        logical :: at_end
+        type(status_type) :: st
+
+        call buffer_with("*xdisp-region*", "abc"//achar(10)//"def", h, bi)
+
+        do r = 1, 2
+            allocate (rows(r)%glyphs(8))
+        end do
+
+        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64)
+        call check(error, all(rows(1)%glyphs(1:7)%face_id == [DEFAULT_FACE_ID, (REGION_FACE_ID, r=2, 7)]), &
+                   "abc and the newline")
+        if (allocated(error)) return
+        call check(error, rows(2)%glyphs(1)%face_id == REGION_FACE_ID .and. &
+                   all(rows(2)%glyphs(2:3)%face_id == DEFAULT_FACE_ID), "d only")
+        call kill_buffer(h, st)
+    end subroutine test_region
 
     subroutine test_lines(error)
         type(error_type), allocatable, intent(out) :: error

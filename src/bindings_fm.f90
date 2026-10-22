@@ -181,6 +181,18 @@ contains
         call bind(ctl_x_map, "u", "undo")
         call bind(global_map, "C-?", "undo-redo")
         call bind(global_map, "C-M-_", "undo-redo")
+
+        ! The mark and killing (bindings.el).
+        call bind(global_map, "C-@", "set-mark-command")
+        call bind(global_map, "C-SPC", "set-mark-command")
+        call bind(ctl_x_map, "C-x", "exchange-point-and-mark")
+        call bind(ctl_x_map, "h", "mark-whole-buffer")
+        call bind(global_map, "C-w", "kill-region")
+        call bind(esc_map, "w", "kill-ring-save")
+        call bind(global_map, "C-k", "kill-line")
+        call bind(global_map, "C-y", "yank")
+        call bind(esc_map, "y", "yank-pop")
+        call bind(global_map, "<C-S-backspace>", "kill-whole-line")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
 

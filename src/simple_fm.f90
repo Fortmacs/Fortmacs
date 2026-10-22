@@ -24,27 +24,34 @@
 !> commands with universal-argument-map.
 !>
 !> Undo (`undo`, `undo-only`, `undo-redo`, `primitive-undo`) is here; the
-!> recording is undo_fm's.
+!> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
+!> kill ring are here too.
 !>
-!> Not ported yet: undo in a region, the mark and region (so no
-!> `delete-active-region`), the kill ring, electric indentation, auto-fill and hard
-!> newlines, prefix-argument echoing, octal input in quoted-insert.
+!> Not ported yet: undo in a region, the global mark ring, shift-selection, the
+!> interprogram (system clipboard) cut and paste, `yank-from-kill-ring`,
+!> electric indentation, auto-fill and hard newlines, prefix-argument
+!> echoing, octal input in quoted-insert.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_QUIT, &
-                        FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
+                        FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
+                        FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
-                       nilp, xfixnum, list_elt, t_value
+                       nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
-    use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, inhibit_read_only, undo_entry_type, &
-                         UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, UE_FIRST_CHANGE
+    use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
+                         inhibit_read_only, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
+                         UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
+    use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
     use xdisp_fm, only: message
+    use subr_fm, only: add_to_history
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
-                          bolp, constrain_to_field, pos_eol, point_min, delete_region
+                          bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
+                          delete_region, mark_marker, mark_position, region_beginning, region_end
     use textprop_fm, only: get_text_property
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column
     use insdel_fm, only: insert, del_range
@@ -58,7 +65,7 @@ module simple_fm
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
                          key_description
     use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value
+                          prefix_numeric_value, mark_even_if_inactive
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
@@ -83,6 +90,34 @@ module simple_fm
     logical, public :: undo_in_progress = .false.
     ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
     integer(int64), parameter :: EQUIV_NONE = -2, EQUIV_T = -1, EQUIV_EMPTY = -4
+    public :: mark, region_active_p, use_region_p, deactivate_mark, activate_mark, set_mark, &
+              push_mark, pop_mark, pop_to_mark_command, push_mark_command, set_mark_command, &
+              exchange_point_and_mark, mark_whole_buffer
+    public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
+              kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
+              forward_visible_line
+
+    !> Maximum length of kill ring before oldest elements are thrown away.
+    !> Port of simple.el kill-ring-max.
+    integer(int64), public :: kill_ring_max = 120
+    !> The tail of the kill ring whose car is the last thing yanked, as an
+    !> index into `kill-ring` (1 for its first element).  Port of simple.el
+    !> kill-ring-yank-pointer.
+    integer(int64), public :: kill_ring_yank_pointer = 1
+    !> Maximum size of mark ring.  Start discarding off end if gets this
+    !> big.  Port of simple.el mark-ring-max.
+    integer, public :: mark_ring_max = 16
+    !> Non-nil means don't signal an error for killing read-only text.
+    !> Port of simple.el kill-read-only-ok.
+    logical, public :: kill_read_only_ok = .false.
+    !> If true, `kill_line` with no arg at start of line kills the whole
+    !> line.  Port of simple.el kill-whole-line (the variable).
+    logical, public :: kill_whole_line_option = .false.
+    !> Whether single-char deletion commands delete an active region.
+    !> This has an effect only if Transient Mark mode is enabled, and
+    !> affects `delete-forward-char` and `delete-backward-char`.  Port of
+    !> simple.el delete-active-region (t; `kill` not yet).
+    logical, public :: delete_active_region = .true.
 
     !> Semipermanent goal column for vertical motion, or -1 for none (nil
     !> upstream).  A setting other than -1 overrides the variable
@@ -217,23 +252,57 @@ contains
         call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
+    !> Port of simple.el:delete-backward-char (an active region is deleted;
+    !> with a prefix argument the characters are killed, as KILLFLAG).
     subroutine cmd_delete_backward_char(status)
         type(status_type), intent(out) :: status
+        integer(int64) :: n
 
-        call delete_backward_char(arg_p(), status)
+        n = arg_p()
+
+        if (use_region_p() .and. delete_active_region .and. n == 1) then
+            call delete_the_region(status)
+        else if (.not. nilp(current_prefix_arg)) then
+            ! cmds.c:Fdelete_char's KILLFLAG: simple.el:kill-backward-chars.
+            call kill_region(point(), point() - n, status)
+        else
+            call delete_backward_char(n, status)
+        end if
     end subroutine cmd_delete_backward_char
 
-    !> Port of simple.el:delete-forward-char (no region).
+    !> The default region-extract-function with METHOD `delete-only`.
+    subroutine delete_the_region(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: b, e
+
+        call region_beginning(b, status)
+        if (status%ok()) call region_end(e, status)
+        if (status%ok()) call delete_region(b, e, status)
+    end subroutine delete_the_region
+
+    !> Port of simple.el:delete-forward-char (an active region is deleted;
+    !> with a prefix argument the characters are killed, as KILLFLAG).
     subroutine cmd_delete_forward_char(status)
         type(status_type), intent(out) :: status
+        integer(int64) :: n
 
-        call delete_char(arg_p(), status)
+        n = arg_p()
+
+        if (use_region_p() .and. delete_active_region .and. n == 1) then
+            call delete_the_region(status)
+        else if (.not. nilp(current_prefix_arg)) then
+            ! simple.el:kill-forward-chars.
+            call kill_region(point(), point() + n, status)
+        else
+            call delete_char(n, status)
+        end if
     end subroutine cmd_delete_forward_char
 
-    !> Port of simple.el:keyboard-quit (no mark or kbd macro handling).
+    !> Port of simple.el:keyboard-quit (no kbd macro handling).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
 
+        if (region_active_p()) call deactivate_mark()
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
 
@@ -706,6 +775,18 @@ contains
         call defcommand("undo", cmd_undo)
         call defcommand("undo-only", cmd_undo_only)
         call defcommand("undo-redo", cmd_undo_redo)
+        call defcommand("set-mark-command", cmd_set_mark_command)
+        call defcommand("exchange-point-and-mark", cmd_exchange_point_and_mark)
+        call defcommand("mark-whole-buffer", cmd_mark_whole_buffer)
+        call defcommand("pop-to-mark-command", cmd_pop_to_mark_command)
+        call defcommand("kill-region", cmd_kill_region)
+        call defcommand("copy-region-as-kill", cmd_copy_region_as_kill)
+        call defcommand("kill-ring-save", cmd_kill_ring_save)
+        call defcommand("kill-line", cmd_kill_line)
+        call defcommand("kill-whole-line", cmd_kill_whole_line)
+        call defcommand("yank", cmd_yank)
+        call defcommand("yank-pop", cmd_yank_pop)
+        call defcommand("rotate-yank-pointer", cmd_rotate_yank_pointer)
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------
@@ -1057,4 +1138,827 @@ contains
 
         call undo_redo(arg_p(), status)
     end subroutine cmd_undo_redo
+
+    ! ------------------------------------------------------------------
+    ! The mark and the region
+    ! ------------------------------------------------------------------
+
+    !> Return this buffer's mark value as integer, or 0 (nil) if never set.
+    !>
+    !> In Transient Mark mode, this function signals an error if
+    !> the mark is not active.  However, if `mark_even_if_inactive` is true,
+    !> or the argument FORCE is true, it disregards whether the mark
+    !> is active, and returns an integer or 0 in the usual way.  Port of
+    !> simple.el:mark.
+    subroutine mark(pos, status, force)
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: force
+        logical :: forced
+
+        pos = 0
+        forced = .false.
+        if (present(force)) forced = force
+
+        if (forced .or. .not. transient_mark_mode .or. buffers(cur)%mark_active .or. mark_even_if_inactive) then
+            pos = mark_position()
+        else
+            call set_error(status, FM_MARK_INACTIVE)
+        end if
+    end subroutine mark
+
+    !> Return t if Transient Mark mode is enabled and the mark is active.
+    !> Port of simple.el:region-active-p.
+    logical function region_active_p()
+        region_active_p = transient_mark_mode .and. buffers(cur)%mark_active .and. mark_position() /= 0
+    end function region_active_p
+
+    !> Return t if the region is active and it is appropriate to act on it:
+    !> Transient Mark mode is enabled, the mark is active and the region is
+    !> not empty.  Port of simple.el:use-region-p (use-empty-active-region
+    !> nil).
+    logical function use_region_p()
+        integer(int64) :: m
+
+        use_region_p = region_active_p()
+        if (.not. use_region_p) return
+        m = mark_position()
+        use_region_p = m /= point()
+    end function use_region_p
+
+    !> Deactivate the mark.
+    !> If Transient Mark mode is disabled, this function normally does
+    !> nothing; but if FORCE is true, it deactivates the mark anyway.
+    !> Port of simple.el:deactivate-mark (no hooks or selections).
+    subroutine deactivate_mark(force)
+        logical, intent(in), optional :: force
+        logical :: forced
+
+        forced = .false.
+        if (present(force)) forced = force
+        if (region_active_p() .or. forced) buffers(cur)%mark_active = .false.
+    end subroutine deactivate_mark
+
+    !> Activate the mark.  Port of simple.el:activate-mark.
+    subroutine activate_mark()
+        if (mark_position() == 0) return
+        if (.not. region_active_p()) buffers(cur)%mark_active = .true.
+    end subroutine activate_mark
+
+    !> Set this buffer's mark to POS (0 for none) and activate it.
+    !> Normally, when a new mark is set, the old one should go on the stack.
+    !> This is why most applications should use `push_mark`, not `set_mark`.
+    !> Port of simple.el:set-mark.
+    subroutine set_mark(pos)
+        integer(int64), intent(in) :: pos
+        type(handle_type) :: m
+        type(status_type) :: st
+
+        call mark_marker(m)
+
+        if (pos > 0) then
+            call set_marker(m, pos, st)
+            call activate_mark()
+        else
+            call deactivate_mark(.true.)
+            buffers(cur)%mark_active = .false.
+            call detach_marker(m, st)
+        end if
+    end subroutine set_mark
+
+    !> Set mark at LOCATION (point, by default) and push old mark on mark
+    !> ring.  Display `Mark set' unless the optional second arg NOMSG is
+    !> true.  In Transient Mark mode, activate mark if optional third arg
+    !> ACTIVATE is true.  Port of simple.el:push-mark (no global mark ring).
+    subroutine push_mark(location, nomsg, activate)
+        integer(int64), intent(in), optional :: location
+        logical, intent(in), optional :: nomsg, activate
+        type(handle_type), allocatable :: ring(:)
+        type(handle_type) :: m, copy
+        type(status_type) :: st
+        integer(int64) :: old
+        integer :: n
+
+        call mark_marker(m)
+        old = mark_position()
+
+        if (old /= 0) then
+            ! The old mark goes on the front of the ring, which keeps at most
+            ! mark-ring-max entries.
+            call copy_marker_at(old, copy, .false., st)
+            if (.not. allocated(buffers(cur)%mark_ring)) allocate (buffers(cur)%mark_ring(0))
+            n = size(buffers(cur)%mark_ring)
+
+            if (n >= mark_ring_max) then
+                call free_marker(buffers(cur)%mark_ring(n), st)
+                n = n - 1
+            end if
+
+            allocate (ring(n + 1))
+            ring(1) = copy
+            ring(2:) = buffers(cur)%mark_ring(1:n)
+            call move_alloc(ring, buffers(cur)%mark_ring)
+        end if
+
+        if (present(location)) then
+            call set_marker(m, location, st)
+        else
+            call set_marker(m, point(), st)
+        end if
+
+        if (.not. flag(nomsg) .and. minibuf_level == 0) call message("Mark set")
+        if (flag(activate) .or. .not. transient_mark_mode) call set_mark(mark_position())
+    end subroutine push_mark
+
+    !> Pop off mark ring into the buffer's actual mark.
+    !> Does not set point.  Does nothing if mark ring is empty.  Port of
+    !> simple.el:pop-mark.
+    subroutine pop_mark()
+        type(handle_type), allocatable :: ring(:)
+        type(handle_type) :: m, copy
+        type(status_type) :: st
+        integer(int64) :: pos
+        integer :: n
+
+        if (allocated(buffers(cur)%mark_ring)) then
+            n = size(buffers(cur)%mark_ring)
+
+            if (n > 0) then
+                ! The current mark goes to the back; the front becomes the mark.
+                call mark_marker(m)
+                call copy_marker_at(mark_position(), copy, .false., st)
+                call marker_position(buffers(cur)%mark_ring(1), pos, st)
+                if (st%ok()) call set_marker(m, pos, st)
+                call free_marker(buffers(cur)%mark_ring(1), st)
+                allocate (ring(n))
+                ring(1:n - 1) = buffers(cur)%mark_ring(2:n)
+                ring(n) = copy
+                call move_alloc(ring, buffers(cur)%mark_ring)
+            end if
+        end if
+
+        call deactivate_mark()
+    end subroutine pop_mark
+
+    !> Whether optional logical `x` is present and true.
+    pure logical function flag(x)
+        logical, intent(in), optional :: x
+
+        flag = .false.
+        if (present(x)) flag = x
+    end function flag
+
+    !> Jump to mark, and pop a new position for mark off the ring.
+    !> Port of simple.el:pop-to-mark-command.
+    subroutine pop_to_mark_command(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: m
+
+        m = mark_position()
+
+        if (m == 0) then
+            call set_error(status, FM_USER_ERROR, "No mark set in this buffer")
+            return
+        end if
+
+        if (point() == m) call message("Mark popped")
+        call goto_char(m)
+        call pop_mark()
+    end subroutine pop_to_mark_command
+
+    !> Set mark at where point is.
+    !> If no prefix ARG and mark is already set there, just activate it.
+    !> Display `Mark set' unless the optional second arg NOMSG is true.
+    !> Port of simple.el:push-mark-command.
+    subroutine push_mark_command(arg, nomsg)
+        logical, intent(in) :: arg
+        logical, intent(in), optional :: nomsg
+        integer(int64) :: m
+
+        m = mark_position()
+
+        if (arg .or. m == 0 .or. m /= point()) then
+            call push_mark(nomsg=nomsg, activate=.true.)
+        else
+            call activate_mark()
+            if (.not. flag(nomsg)) call message("Mark activated")
+        end if
+    end subroutine push_mark_command
+
+    !> Set the mark where point is, and activate it; or jump to the mark.
+    !> Setting the mark also alters the region, which is the text
+    !> between point and mark; this is the closest equivalent in
+    !> Emacs to what some editors call the "selection".
+    !>
+    !> With no prefix argument, set the mark at point, and push the
+    !> old mark position on local mark ring.  Repeating the command
+    !> toggles the region on and off.
+    !>
+    !> With prefix argument (e.g., C-u C-SPC), jump to the mark, and set the
+    !> mark from position popped off the local mark ring.
+    !>
+    !> With C-u C-u as prefix argument, unconditionally set mark where point
+    !> is.  Port of simple.el:set-mark-command (set-mark-command-repeat-pop
+    !> nil, no global mark ring).
+    subroutine set_mark_command(arg, status)
+        type(value_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+
+        if (consp(arg)) then
+            if (prefix_numeric_value(arg) > 4) then
+                call push_mark_command(.false.)
+                return
+            end if
+        end if
+
+        if (.not. value_eq(this_command, sym("set-mark-command"))) then
+            if (.not. nilp(arg)) then
+                call pop_to_mark_command(status)
+            else
+                call push_mark_command(.true.)
+            end if
+        else if (.not. nilp(arg)) then
+            this_command = sym("pop-to-mark-command")
+            call pop_to_mark_command(status)
+        else if (value_eq(last_command, sym("set-mark-command"))) then
+            if (region_active_p()) then
+                call deactivate_mark()
+                call message("Mark deactivated")
+            else
+                call activate_mark()
+                call message("Mark activated")
+            end if
+        else
+            call push_mark_command(.false.)
+        end if
+    end subroutine set_mark_command
+
+    !> Put the mark where point is now, and point where the mark is now.
+    !> This command works even when the mark is not active, and it
+    !> reactivates the mark.  If Transient Mark mode is on, a prefix ARG
+    !> deactivates the mark if it is active, and otherwise avoids
+    !> reactivating it.  Port of simple.el:exchange-point-and-mark
+    !> (exchange-point-and-mark-highlight-region t).
+    subroutine exchange_point_and_mark(arg, status)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: omark
+
+        omark = mark_position()
+
+        if (omark == 0) then
+            call set_error(status, FM_USER_ERROR, "No mark set in this buffer")
+            return
+        end if
+
+        call set_mark(point())
+        call goto_char(omark)
+
+        if (arg .neqv. .not. region_active_p()) then
+            call deactivate_mark()
+        else
+            call activate_mark()
+        end if
+    end subroutine exchange_point_and_mark
+
+    !> Put point at beginning and mark at end of buffer.
+    !> Also push mark at point before pushing mark at end of buffer.
+    !> If narrowing is in effect, uses only the accessible part of the
+    !> buffer.  Port of simple.el:mark-whole-buffer.
+    subroutine mark_whole_buffer()
+        call push_mark()
+        call push_mark(point_max(), .false., .true.)
+        call goto_char(minibuffer_prompt_end())
+    end subroutine mark_whole_buffer
+
+    ! ------------------------------------------------------------------
+    ! The kill ring
+    ! ------------------------------------------------------------------
+
+    !> The kill ring (the value of `kill-ring`), newest first.
+    function kill_ring() result(ring)
+        type(value_type) :: ring
+        type(status_type) :: st
+
+        call symbol_value(sym("kill-ring"), ring, st)
+        if (.not. st%ok()) ring = nil()
+    end function kill_ring
+
+    !> Make STRING the latest kill in the kill ring.
+    !> Set `kill_ring_yank_pointer` to point to it.
+    !> REPLACE true means that STRING will replace the front of the kill
+    !> ring, rather than being added to the list.  Port of simple.el:kill-new
+    !> (no interprogram cut and paste yet).
+    subroutine kill_new(string, replace)
+        character(len=*), intent(in) :: string
+        logical, intent(in), optional :: replace
+        type(value_type), allocatable :: elems(:)
+        type(status_type) :: st
+
+        if (flag(replace) .and. list_length(kill_ring()) > 0) then
+            call list_elements(kill_ring(), elems)
+            elems(1) = make_string(string)
+            call set(sym("kill-ring"), make_list(elems), st)
+        else
+            call add_to_history("kill-ring", string, int(kill_ring_max), keep_all=.true.)
+        end if
+
+        kill_ring_yank_pointer = 1
+    end subroutine kill_new
+
+    !> Append STRING to the end of the latest kill in the kill ring.
+    !> If BEFORE_P is true, prepend STRING to the kill instead.  Port of
+    !> simple.el:kill-append.
+    subroutine kill_append(string, before_p)
+        character(len=*), intent(in) :: string
+        logical, intent(in) :: before_p
+        character(len=:), allocatable :: latest
+
+        latest = ""
+        if (list_length(kill_ring()) > 0) latest = xstring(list_elt(kill_ring(), 1_int64))
+
+        if (before_p) then
+            call kill_new(string//latest, .true.)
+        else
+            call kill_new(latest//string, .true.)
+        end if
+    end subroutine kill_append
+
+    !> Rotate the yanking point by N places, and then return that kill.
+    !> If DO_NOT_MOVE is true, then don't actually move the yanking point;
+    !> just return the Nth kill forward.  Port of simple.el:current-kill
+    !> (no interprogram paste).
+    subroutine current_kill(n, text, status, do_not_move)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable, intent(out) :: text
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: do_not_move
+        integer(int64) :: length, k
+
+        text = ""
+        length = list_length(kill_ring())
+
+        if (length == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Kill ring is empty")
+            return
+        end if
+
+        kill_ring_yank_pointer = min(max(kill_ring_yank_pointer, 1_int64), length)
+        ! (nthcdr (mod (- n (length kill-ring-yank-pointer)) (length kill-ring)) kill-ring)
+        k = modulo(n - (length - kill_ring_yank_pointer + 1), length) + 1
+        if (.not. flag(do_not_move)) kill_ring_yank_pointer = k
+        text = xstring(list_elt(kill_ring(), k))
+    end subroutine current_kill
+
+    !> Kill ("cut") text between BEG and END.
+    !> This deletes the text from the buffer and saves it in the kill ring.
+    !> The command `yank` can retrieve it from there.
+    !>
+    !> If the previous command was also a kill command,
+    !> the text killed this time appends to the text killed last time
+    !> to make one entry in the kill ring.
+    !>
+    !> If the buffer is read-only, Emacs will beep and refrain from deleting
+    !> the text, but put the text in the kill ring anyway.  This means that
+    !> you can use the killing commands to copy text from a read-only buffer.
+    !>
+    !> With REGION true, kill the region instead of BEG to END (the
+    !> command always does).  Port of simple.el:kill-region (kill-region-dwim
+    !> nil); READ_ONLY_OK stands for a binding of kill-read-only-ok.
+    subroutine kill_region(beg, end, status, region, read_only_ok)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: region, read_only_ok
+        character(len=:), allocatable :: string
+        integer(int64) :: s, e
+        type(status_type) :: st
+
+        s = beg
+        e = end
+
+        if (flag(region)) then
+            call region_beginning(s, status)
+            if (status%ok()) call region_end(e, status)
+            if (.not. status%ok()) return
+        end if
+
+        call buffer_substring(min(s, e), max(s, e), string, status)
+        if (.not. status%ok()) return
+        call delete_region(min(s, e), max(s, e), status)
+
+        if (status%ok()) then
+            if (value_eq(last_command, sym("kill-region"))) then
+                call kill_append(string, end < beg)
+            else
+                call kill_new(string)
+            end if
+
+            this_command = sym("kill-region")
+            vdeactivate_mark = .true.
+            return
+        end if
+
+        if (.not. (condition_matches(status%code, FM_BUFFER_READ_ONLY) .or. &
+                   condition_matches(status%code, FM_TEXT_READ_ONLY))) return
+        ! The text could not be deleted: copy it to the kill ring anyway.
+        call copy_region_as_kill(beg, end, st, region)
+        this_command = sym("kill-region")
+
+        if (kill_read_only_ok .or. flag(read_only_ok)) then
+            status = status_type()
+            call message("Read only text copied to kill ring")
+        end if
+    end subroutine kill_region
+
+    !> Save the region as if killed, but don't kill it.
+    !> In Transient Mark mode, deactivate the mark.  Save the text between
+    !> BEG and END, or with REGION true the region.  Port of
+    !> simple.el:copy-region-as-kill.
+    subroutine copy_region_as_kill(beg, end, status, region)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: region
+        character(len=:), allocatable :: string
+        integer(int64) :: s, e
+
+        s = beg
+        e = end
+
+        if (flag(region)) then
+            call region_beginning(s, status)
+            if (status%ok()) call region_end(e, status)
+            if (.not. status%ok()) return
+        end if
+
+        call buffer_substring(min(s, e), max(s, e), string, status)
+        if (.not. status%ok()) return
+
+        if (value_eq(last_command, sym("kill-region"))) then
+            call kill_append(string, end < beg)
+        else
+            call kill_new(string)
+        end if
+
+        vdeactivate_mark = .true.
+    end subroutine copy_region_as_kill
+
+    !> Move forward by ARG lines (back for a negative ARG, to the start of
+    !> the line for 0), stopping at the ends of the buffer.  Port of
+    !> simple.el:forward-visible-line (no invisible text yet).
+    subroutine forward_visible_line(arg)
+        integer(int64), intent(in) :: arg
+        integer(int64) :: n
+        logical :: first
+
+        n = arg
+
+        if (n > 0) then
+            do while (n > 0)
+                if (forward_line(1_int64) /= 0) return
+                n = n - 1
+            end do
+        else
+            first = .true.
+
+            do while (first .or. n <= 0)
+                if (first) then
+                    call beginning_of_line()
+                else if (forward_line(-1_int64) /= 0) then
+                    return
+                end if
+
+                if (point() > point_min()) n = n + 1
+                first = .false.
+            end do
+        end if
+    end subroutine forward_visible_line
+
+    !> Kill the rest of the current line; if no nonblanks there, kill thru
+    !> newline.  With prefix argument ARG, kill that many lines from point.
+    !> Negative arguments kill lines backward.  With zero argument, kills
+    !> the text before point on the current line.  `have_arg` false means
+    !> no argument.  Port of simple.el:kill-line.
+    subroutine kill_line(arg, have_arg, status)
+        integer(int64), intent(in) :: arg
+        logical, intent(in) :: have_arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: rest
+        integer(int64) :: start, end
+
+        start = point()
+
+        if (have_arg) then
+            call forward_visible_line(arg)
+        else
+            if (eobp()) then
+                call set_error(status, FM_END_OF_BUFFER)
+                return
+            end if
+
+            end = line_end_position()
+            call buffer_substring(start, end, rest, status)
+
+            if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. bolp())) then
+                call forward_visible_line(1_int64)
+            else
+                call goto_char(end)
+            end if
+        end if
+
+        call kill_region(start, point(), status)
+    end subroutine kill_line
+
+    !> Kill current line.
+    !> With prefix ARG, kill that many lines starting from the current line.
+    !> If ARG is negative, kill backward.  Also kill the preceding newline.
+    !> If ARG is zero, kill current line but exclude the trailing newline.
+    !> Port of simple.el:kill-whole-line.
+    subroutine kill_whole_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        type(handle_type) :: regions_begin, region1_end
+        integer(int64) :: here, b, e1
+        type(status_type) :: st
+
+        here = point()
+
+        if (arg > 0 .and. eobp()) then
+            call forward_visible_line(0_int64)
+            b = point()
+            call goto_char(here)
+
+            if (b == point_max()) then
+                call set_error(status, FM_END_OF_BUFFER)
+                return
+            end if
+        end if
+
+        if (arg < 0 .and. bobp()) then
+            call goto_char(line_end_position())
+            b = point()
+            call goto_char(here)
+
+            if (b == point_min()) then
+                call set_error(status, FM_BEGINNING_OF_BUFFER)
+                return
+            end if
+        end if
+
+        if (.not. value_eq(last_command, sym("kill-region"))) then
+            call kill_new("")
+            last_command = sym("kill-region")
+        end if
+
+        call copy_marker_at(here, regions_begin, .false., st)
+
+        if (arg == 0) then
+            call forward_visible_line(0_int64)
+            call copy_marker_at(point(), region1_end, .false., st)
+            call goto_char(here)
+            call goto_char(line_end_position())
+        else if (arg < 0) then
+            call goto_char(line_end_position())
+            call copy_marker_at(point(), region1_end, .false., st)
+            call goto_char(here)
+            call forward_visible_line(arg + 1)
+            if (.not. bobp()) call goto_char(point() - 1)
+        else
+            call forward_visible_line(0_int64)
+            call copy_marker_at(point(), region1_end, .false., st)
+            call goto_char(here)
+            call forward_visible_line(arg)
+        end if
+
+        call marker_position(regions_begin, b, st)
+        call marker_position(region1_end, e1, st)
+        call kill_region(b, e1, status, read_only_ok=b /= point())
+
+        if (status%ok()) then
+            call marker_position(regions_begin, b, st)
+            call kill_region(b, point(), status)
+        end if
+
+        call free_marker(regions_begin, st)
+        call free_marker(region1_end, st)
+    end subroutine kill_whole_line
+
+    !> Reinsert ("paste") the last stretch of killed text.
+    !> More precisely, reinsert the most recent kill, which is the stretch of
+    !> text most recently killed OR yanked, as returned by `current_kill`.
+    !> Put point at the end, and set mark at the beginning without
+    !> activating it.  With just C-u as argument, put point at beginning, and
+    !> mark at end.  With argument N, reinsert the Nth most recent kill.
+    !> ARG is the raw prefix argument.  Port of simple.el:yank.
+    subroutine yank(arg, status)
+        type(value_type), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer(int64) :: n, m
+
+        this_command = t_value()
+        call push_mark()
+
+        if (nilp(arg) .or. consp(arg)) then
+            n = 0
+        else if (value_eq(arg, sym("-"))) then
+            n = -2
+        else
+            n = prefix_numeric_value(arg) - 1
+        end if
+
+        call current_kill(n, text, status)
+        if (.not. status%ok()) return
+        call insert_for_yank(text, status)
+        if (.not. status%ok()) return
+
+        if (consp(arg)) then
+            ! Like exchange-point-and-mark, without activating the mark.
+            m = mark_position()
+            call set_marker_here()
+            call goto_char(m)
+        end if
+
+        if (value_eq(this_command, t_value())) this_command = sym("yank")
+    end subroutine yank
+
+    !> Replace just-yanked stretch of killed text with a different stretch.
+    !> This command is allowed only immediately after a `yank` or a
+    !> `yank_pop`.  At such a time, the region contains a stretch of
+    !> reinserted previously-killed text.  `yank_pop` deletes that text and
+    !> inserts in its place a different stretch of killed text.
+    !>
+    !> With no argument, the previous kill is inserted.
+    !> With argument N, insert the Nth previous kill.
+    !> If N is negative, it means to use a more recent kill.
+    !>
+    !> The sequence of kills wraps around, so that after the oldest one
+    !> comes the newest one.  Port of simple.el:yank-pop (after other
+    !> commands it is an error, as before Emacs 28, rather than
+    !> yank-from-kill-ring, which needs minibuffer completion).
+    subroutine yank_pop(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer(int64) :: m, here
+        logical :: before
+        type(value_type) :: saved
+        type(status_type) :: st
+
+        if (.not. value_eq(last_command, sym("yank"))) then
+            call set_error(status, FM_USER_ERROR, "Previous command was not a yank")
+            return
+        end if
+
+        this_command = sym("yank")
+        m = mark_position()
+        here = point()
+        before = here < m
+        ! (let ((inhibit-read-only t)) ...)
+        saved = inhibit_read_only()
+        call set(sym("inhibit-read-only"), t_value(), st)
+        call delete_region(min(here, m), max(here, m), status)
+        call set(sym("inhibit-read-only"), saved, st)
+        if (.not. status%ok()) return
+        call set_marker_here()
+        call current_kill(n, text, status)
+        if (.not. status%ok()) return
+        call insert_for_yank(text, status)
+        if (.not. status%ok()) return
+
+        if (before) then
+            m = mark_position()
+            call set_marker_here()
+            call goto_char(m)
+        end if
+    end subroutine yank_pop
+
+    !> Set the mark marker at point (without pushing or activating).
+    subroutine set_marker_here()
+        type(handle_type) :: m
+        type(status_type) :: st
+
+        call mark_marker(m)
+        call set_marker(m, point(), st)
+    end subroutine set_marker_here
+
+    !> Insert STRING at point for the `yank` command.  Port of
+    !> subr.el:insert-for-yank (no yank handlers or excluded properties:
+    !> the kill ring holds plain strings).
+    subroutine insert_for_yank(string, status)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+
+        call insert(string, status)
+    end subroutine insert_for_yank
+
+    !> Rotate the yanking point in the kill ring.
+    !> With ARG, rotate that many kills forward (or backward, if negative).
+    !> Port of simple.el:rotate-yank-pointer.
+    subroutine rotate_yank_pointer(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+
+        call current_kill(arg, text, status)
+    end subroutine rotate_yank_pointer
+
+    ! ------------------------------------------------------------------
+    ! Mark and kill commands
+    ! ------------------------------------------------------------------
+
+    subroutine cmd_set_mark_command(status)
+        type(status_type), intent(out) :: status
+
+        call set_mark_command(current_prefix_arg, status)
+    end subroutine cmd_set_mark_command
+
+    subroutine cmd_exchange_point_and_mark(status)
+        type(status_type), intent(out) :: status
+
+        call exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_exchange_point_and_mark
+
+    subroutine cmd_mark_whole_buffer(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call mark_whole_buffer()
+    end subroutine cmd_mark_whole_buffer
+
+    subroutine cmd_pop_to_mark_command(status)
+        type(status_type), intent(out) :: status
+
+        call pop_to_mark_command(status)
+    end subroutine cmd_pop_to_mark_command
+
+    !> The region's two ends, mark first, for the kill commands; an error if
+    !> there is no mark.
+    subroutine mark_and_point(beg, end, status)
+        integer(int64), intent(out) :: beg, end
+        type(status_type), intent(out) :: status
+
+        call mark(beg, status)
+        if (.not. status%ok()) return
+        end = point()
+
+        if (beg == 0) then
+            call set_error(status, FM_USER_ERROR, "The mark is not set now, so there is no region")
+        end if
+    end subroutine mark_and_point
+
+    subroutine cmd_kill_region(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: beg, end
+
+        call mark_and_point(beg, end, status)
+        if (status%ok()) call kill_region(beg, end, status, region=.true.)
+    end subroutine cmd_kill_region
+
+    subroutine cmd_copy_region_as_kill(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: beg, end
+
+        call mark_and_point(beg, end, status)
+        if (status%ok()) call copy_region_as_kill(beg, end, status, region=.true.)
+    end subroutine cmd_copy_region_as_kill
+
+    !> Save the region as if killed, but don't kill it.
+    !> In Transient Mark mode, deactivate the mark.  Port of
+    !> simple.el:kill-ring-save (no indicate-copied-region yet).
+    subroutine cmd_kill_ring_save(status)
+        type(status_type), intent(out) :: status
+
+        call cmd_copy_region_as_kill(status)
+    end subroutine cmd_kill_ring_save
+
+    subroutine cmd_kill_line(status)
+        type(status_type), intent(out) :: status
+
+        call kill_line(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_kill_line
+
+    subroutine cmd_kill_whole_line(status)
+        type(status_type), intent(out) :: status
+
+        call kill_whole_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_kill_whole_line
+
+    subroutine cmd_yank(status)
+        type(status_type), intent(out) :: status
+
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call yank(current_prefix_arg, status)
+    end subroutine cmd_yank
+
+    subroutine cmd_yank_pop(status)
+        type(status_type), intent(out) :: status
+
+        call yank_pop(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_yank_pop
+
+    subroutine cmd_rotate_yank_pointer(status)
+        type(status_type), intent(out) :: status
+
+        call rotate_yank_pointer(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_rotate_yank_pointer
 end module simple_fm
