@@ -57,7 +57,7 @@ module search_fm
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, match_in_string_p, syms_of_search
+              regexp_quote, match_in_string_p, syms_of_search, replace_match
     ! For search_regexp_fm (gfortran makes private procedures invisible to
     ! submodules).
     public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow, &
@@ -118,6 +118,51 @@ module search_fm
             type(status_type), intent(inout) :: status
             integer(int64) :: np
         end function search_buffer_re
+
+        !> Replace text matched by last search with NEWTEXT.
+        !> Leave point at the end of the replacement text.
+        !>
+        !> If optional second arg FIXEDCASE is non-nil, do not alter the
+        !> case of the replacement text.  Otherwise, maybe capitalize the
+        !> whole text, or maybe just word initials, based on the replaced
+        !> text.  If the replaced text has only capital letters and has at
+        !> least one multiletter word, convert NEWTEXT to all caps.
+        !> Otherwise if all words are capitalized in the replaced text,
+        !> capitalize each word in NEWTEXT.  Note that what exactly is a
+        !> word is determined by the syntax tables in effect in the current
+        !> buffer, and the variable `case-symbols-as-words'.
+        !>
+        !> If optional third arg LITERAL is non-nil, insert NEWTEXT
+        !> literally.  Otherwise treat `\' as special:
+        !>   `\&' in NEWTEXT means substitute original matched text.
+        !>   `\N' means substitute what matched the Nth `\(...\)'.
+        !>        If Nth parens didn't match, substitute nothing.
+        !>   `\\' means insert one `\'.
+        !>   `\?' is treated literally
+        !>        (for compatibility with `query-replace-regexp').
+        !>   Any other character following `\' signals an error.
+        !> Case conversion does not apply to these substitutions.
+        !>
+        !> If optional fourth argument STRING is non-nil, it should be a
+        !> string to act on; this should be the string on which the
+        !> previous match was done via `string-match'.  In this case,
+        !> `replace-match' creates and returns a new string (in RESULT),
+        !> made by copying STRING and replacing the part of STRING that was
+        !> matched (the original STRING itself is not altered).
+        !>
+        !> The optional fifth argument SUBEXP specifies a subexpression;
+        !> it says to replace just that subexpression with NEWTEXT, rather
+        !> than replacing the entire matched text.  Port of
+        !> search.c:Freplace_match.  (In search_regexp_fm.)
+        module subroutine replace_match(newtext, status, fixedcase, literal, string, subexp, result)
+            implicit none(type, external)
+            character(len=*), intent(in) :: newtext
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: fixedcase, literal
+            character(len=*), intent(in), optional :: string
+            integer, intent(in), optional :: subexp
+            character(len=:), allocatable, intent(out), optional :: result
+        end subroutine replace_match
 
         !> Register the search commands.  (In search_regexp_fm.)
         module subroutine syms_of_search()

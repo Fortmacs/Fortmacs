@@ -30,7 +30,7 @@
 !> overlay adjustment, undo recording, change hooks and
 !> `inhibit-modification-hooks`, compositions, tree-sitter, quitting
 !> in the middle of a gap move, `copy_text` conversions, `replace_range`
-!> and `insert_from_buffer`.
+!> with a buffer as the new text, and `insert_from_buffer`.
 module insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_MEMORY_FULL
@@ -38,8 +38,8 @@ module insdel_fm
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
-                         buf_bytes, barf_if_buffer_read_only, vdeactivate_mark
-    use marker_fm, only: char_to_byte, byte_to_char, markers
+                         buf_bytes, barf_if_buffer_read_only, vdeactivate_mark, buf_next_char_len
+    use marker_fm, only: char_to_byte, byte_to_char, markers, clear_charpos_cache
     use undo_fm, only: record_insert, record_delete, record_first_change
     use intervals_fm, only: offset_intervals
     use textprop_fm, only: verify_interval_modification
@@ -51,6 +51,7 @@ module insdel_fm
     public :: del_range, del_range_1, del_range_byte, del_range_both, &
               del_range_2
     public :: modify_text, prepare_to_modify_buffer
+    public :: replace_range, replace_range_2
 
 contains
 
@@ -452,6 +453,229 @@ contains
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
     end subroutine del_range_2
+
+    ! ------------------------------------------------------------------
+    ! Replacement
+    ! ------------------------------------------------------------------
+
+    !> Replace the text from character positions FROM to TO with NEW
+    !> (multibyte text).  With `run_mod_hooks`, check that the text may be
+    !> modified first.  Markers in the replaced text move to FROM; point
+    !> moves as if it were a marker, except that point at TO stays after
+    !> the new text.  The caller updates the match data
+    !> (ADJUST_MATCH_DATA).  Port of insdel.c:replace_range for a string.
+    subroutine replace_range(from_in, to_in, new, run_mod_hooks, status)
+        integer(int64), intent(in) :: from_in, to_in
+        character(len=*), intent(in) :: new
+        logical, intent(in) :: run_mod_hooks
+        type(status_type), intent(out) :: status
+        integer(int64) :: from, to, from_byte, to_byte, nchars_del, nbytes_del, inschars, insbytes
+        character(len=:), allocatable :: deletion
+        logical :: have_deletion
+        status = status_type()
+        from = from_in
+        to = to_in
+        call chars_in_text(new, inschars, status)
+        if (.not. status%ok()) return
+        insbytes = len(new, kind=int64)
+        if (run_mod_hooks) then
+            call prepare_to_modify_buffer(from, to, status)
+            if (.not. status%ok()) return
+        end if
+        ! Make args be valid.
+        from = max(from, buffers(cur)%begv)
+        to = min(to, buffers(cur)%zv)
+        from_byte = char_to_byte(from)
+        to_byte = char_to_byte(to)
+        nchars_del = to - from
+        nbytes_del = to_byte - from_byte
+        if (nbytes_del <= 0 .and. inschars == 0) return
+        ! Make sure the gap is somewhere in or next to what we are deleting.
+        if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
+        if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
+        have_deletion = buffers(cur)%undo_enabled
+        if (have_deletion) deletion = buf_bytes(buffers(cur), from_byte, to_byte)
+        associate (b => buffers(cur), t => buffers(cur)%text)
+            t%gap_size = t%gap_size + nbytes_del
+            b%zv = b%zv - nchars_del
+            t%z = t%z - nchars_del
+            b%zv_byte = b%zv_byte - nbytes_del
+            t%z_byte = t%z_byte - nbytes_del
+            t%gpt = from
+            t%gpt_byte = from_byte
+            if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
+            if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
+        end associate
+        if (buffers(cur)%text%gap_size < insbytes) then
+            call make_gap(insbytes - buffers(cur)%text%gap_size, status)
+            if (.not. status%ok()) return
+        end if
+        ! Copy the string text into the buffer.
+        associate (t => buffers(cur)%text)
+            if (insbytes > 0) t%beg(t%gpt_byte:t%gpt_byte + insbytes - 1) = new
+        end associate
+        ! Record the insertion first, so that when we undo, the deletion
+        ! will be undone first.  Thus, undo will insert before deleting,
+        ! and thus will keep the markers before and after this text
+        ! separate.
+        if (have_deletion) then
+            call record_insert(from + nchars_del, inschars)
+            call record_delete(from, deletion, nchars_del)
+        end if
+        associate (b => buffers(cur), t => buffers(cur)%text)
+            t%gap_size = t%gap_size - insbytes
+            t%gpt = t%gpt + inschars
+            b%zv = b%zv + inschars
+            t%z = t%z + inschars
+            t%gpt_byte = t%gpt_byte + insbytes
+            b%zv_byte = b%zv_byte + insbytes
+            t%z_byte = t%z_byte + insbytes
+        end associate
+        ! Adjust markers for the deletion and the insertion.
+        call adjust_markers_for_replace(from, from_byte, nchars_del, nbytes_del, inschars, insbytes)
+        call offset_intervals(buffers(cur)%text%intervals, from, inschars - nchars_del)
+        ! Relocate point as if it were a marker (mimic insert when
+        ! FROM == TO == PT).
+        associate (b => buffers(cur))
+            if (from < b%pt .or. b%pt == to) then
+                call adjust_point(from + inschars - min(b%pt, to), from_byte + insbytes - min(b%pt_byte, to_byte))
+            end if
+        end associate
+        associate (t => buffers(cur)%text)
+            call modiff_incr(t%modiff, nchars_del + inschars)
+            t%chars_modiff = t%modiff
+        end associate
+    end subroutine replace_range
+
+    !> Replace the text from character positions FROM to TO with the
+    !> INSCHARS characters of INS.  Keep the text properties that applied
+    !> to the old characters.  With `markers`, relocate markers; otherwise
+    !> only their byte positions are corrected.  Unlike most functions at
+    !> this level, this never checks whether the text may be modified and
+    !> records no undo: the caller does that for the whole region.  Port of
+    !> insdel.c:replace_range_2.
+    subroutine replace_range_2(from, from_byte, to, to_byte, ins, inschars, markers, status)
+        integer(int64), intent(in) :: from, from_byte, to, to_byte, inschars
+        character(len=*), intent(in) :: ins
+        logical, intent(in) :: markers
+        type(status_type), intent(out) :: status
+        integer(int64) :: nbytes_del, nchars_del, insbytes
+        status = status_type()
+        nchars_del = to - from
+        nbytes_del = to_byte - from_byte
+        insbytes = len(ins, kind=int64)
+        if (nbytes_del <= 0 .and. insbytes == 0) return
+        ! Make sure the gap is somewhere in or next to what we are deleting.
+        if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
+        if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
+        associate (b => buffers(cur), t => buffers(cur)%text)
+            t%gap_size = t%gap_size + nbytes_del
+            b%zv = b%zv - nchars_del
+            t%z = t%z - nchars_del
+            b%zv_byte = b%zv_byte - nbytes_del
+            t%z_byte = t%z_byte - nbytes_del
+            t%gpt = from
+            t%gpt_byte = from_byte
+            if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
+            if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
+        end associate
+        if (buffers(cur)%text%gap_size < insbytes) then
+            call make_gap(insbytes - buffers(cur)%text%gap_size, status)
+            if (.not. status%ok()) return
+        end if
+        ! Copy the replacement text into the buffer.
+        associate (b => buffers(cur), t => buffers(cur)%text)
+            if (insbytes > 0) t%beg(t%gpt_byte:t%gpt_byte + insbytes - 1) = ins
+            t%gap_size = t%gap_size - insbytes
+            t%gpt = t%gpt + inschars
+            b%zv = b%zv + inschars
+            t%z = t%z + inschars
+            t%gpt_byte = t%gpt_byte + insbytes
+            b%zv_byte = b%zv_byte + insbytes
+            t%z_byte = t%z_byte + insbytes
+        end associate
+        ! Adjust markers for the deletion and the insertion.
+        if (.not. (nchars_del == 1 .and. inschars == 1 .and. nbytes_del == insbytes)) then
+            if (markers) then
+                call adjust_markers_for_replace(from, from_byte, nchars_del, nbytes_del, inschars, insbytes)
+            else
+                ! The character positions of the markers remain intact, but
+                ! we still need to update their byte positions.
+                call adjust_markers_bytepos(from, from_byte)
+            end if
+        end if
+        call offset_intervals(buffers(cur)%text%intervals, from, inschars - nchars_del)
+        ! Relocate point as if it were a marker.
+        associate (b => buffers(cur))
+            if (from < b%pt .and. (nchars_del /= inschars .or. nbytes_del /= insbytes)) then
+                if (b%pt < to) then
+                    ! PT was within the deleted text.  Move it to FROM.
+                    call adjust_point(from - b%pt, from_byte - b%pt_byte)
+                else
+                    call adjust_point(inschars - nchars_del, insbytes - nbytes_del)
+                end if
+            end if
+        end associate
+        associate (t => buffers(cur)%text)
+            call modiff_incr(t%modiff, nchars_del + inschars)
+            t%chars_modiff = t%modiff
+        end associate
+    end subroutine replace_range_2
+
+    !> Recompute the byte position of each marker after FROM from its
+    !> character position.  Port of insdel.c:adjust_markers_bytepos (TO_Z
+    !> true).
+    subroutine adjust_markers_bytepos(from, from_byte)
+        integer(int64), intent(in) :: from, from_byte
+        integer(int64) :: m, pos, pos_byte
+        m = buffers(cur)%text%markers
+        do while (m /= 0)
+            associate (mk => markers(m))
+                if (mk%bytepos > from_byte) then
+                    pos = from
+                    pos_byte = from_byte
+                    do while (pos < mk%charpos .and. pos_byte < buffers(cur)%text%z_byte)
+                        pos_byte = pos_byte + buf_next_char_len(buffers(cur), pos_byte)
+                        pos = pos + 1
+                    end do
+                    mk%bytepos = pos_byte
+                end if
+                m = mk%next
+            end associate
+        end do
+        ! Make sure cached charpos/bytepos is invalid.
+        call clear_charpos_cache(cur)
+    end subroutine adjust_markers_bytepos
+
+    !> Relocate markers for replacing OLD_CHARS characters at FROM with
+    !> NEW_CHARS: markers in the old text move to FROM, markers after it
+    !> shift.  Port of insdel.c:adjust_markers_for_replace.
+    subroutine adjust_markers_for_replace(from, from_byte, old_chars, old_bytes, new_chars, new_bytes)
+        integer(int64), intent(in) :: from, from_byte, old_chars, old_bytes, new_chars, new_bytes
+        integer(int64) :: m, prev_to_byte, diff_chars, diff_bytes
+        if (old_chars == 0) then
+            ! Just an insertion: markers at FROM may need to move or not
+            ! depending on their marker type.
+            call adjust_markers_for_insert(from, from_byte, from + new_chars, from_byte + new_bytes, .false.)
+            return
+        end if
+        prev_to_byte = from_byte + old_bytes
+        diff_chars = new_chars - old_chars
+        diff_bytes = new_bytes - old_bytes
+        m = buffers(cur)%text%markers
+        do while (m /= 0)
+            associate (mk => markers(m))
+                if (mk%bytepos >= prev_to_byte) then
+                    mk%charpos = mk%charpos + diff_chars
+                    mk%bytepos = mk%bytepos + diff_bytes
+                else if (mk%bytepos > from_byte) then
+                    mk%charpos = from
+                    mk%bytepos = from_byte
+                end if
+                m = mk%next
+            end associate
+        end do
+    end subroutine adjust_markers_for_replace
 
     ! ------------------------------------------------------------------
     ! Modification bookkeeping
