@@ -46,7 +46,6 @@ contains
 
     subroutine collect_indent_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("current-column", test_current_column), &
                     new_unittest("move-to-column", test_move_to_column), &
@@ -64,7 +63,6 @@ contains
         integer, intent(in) :: cols
         type(handle_type), intent(out) :: h
         type(status_type) :: st
-
         call get_buffer_create("indent-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -78,7 +76,6 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-
         call kill_buffer(h, st)
         selected_frame%root_window%total_cols = 0
     end subroutine leave
@@ -86,7 +83,6 @@ contains
     subroutine test_current_column(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         ! "a<TAB>b", C-a (^A), a raw byte, then a wide character.
         call enter("a"//achar(9)//"b"//achar(1)//"c"//achar(195)//achar(169)//"x"// &
                    achar(228)//achar(184)//achar(173)//"y", 80, h)
@@ -110,7 +106,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: reached
-
         call enter("ab"//achar(9)//"cd"//nl//"next", 80, h)
         call move_to_column(1_int64, reached)
         call check(error, point() == 2 .and. reached == 1)
@@ -129,7 +124,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: moved
-
         call enter("one"//nl//"two"//nl//"three", 80, h)
         call vertical_motion(1_int64, moved)
         call check(error, moved == 1 .and. point() == 5)
@@ -147,7 +141,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: moved
-
         ! An 11-column window shows 10 characters per row.
         call enter("abcdefghijklmnopqrstuvwxy"//nl//"z", 11, h)
         call goto_char(4_int64)
@@ -175,7 +168,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         type(value_type) :: keys(2)
-
         call init_bindings()
         call discard_input()
         call enter("first line"//nl//"ab"//nl//"third line", 80, h)
@@ -199,7 +191,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter("one"//nl//"two", 80, h)
         call line_move(-1_int64, st)
         call check(error, st%code == FM_BEGINNING_OF_BUFFER)
@@ -218,11 +209,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter("abcdefghijklmnopqrstuvwxy"//nl//"z1234"//nl//"q", 11, h)
         call goto_char(3_int64)
         line_move_visual = .false.
-
         body: block
             call line_move(1_int64, st)
             call check(error, st%ok() .and. point() == 29, "column 2 of the next buffer line")
@@ -231,7 +220,6 @@ contains
             call line_move(-1_int64, st)
             call check(error, point() == 5, "goal-column 4")
         end block body
-
         line_move_visual = .true.
         goal_column = -1
         call leave(h)

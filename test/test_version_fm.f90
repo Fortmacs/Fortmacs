@@ -29,7 +29,6 @@ contains
 
     subroutine collect_version_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("upstream-is-31.1", test_upstream), &
                     new_unittest("banner-contents", test_banner) &
@@ -38,14 +37,12 @@ contains
 
     subroutine test_upstream(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check(error, upstream_version, "31.1")
     end subroutine test_upstream
 
     subroutine test_banner(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
-
         s = version_string()
         call check(error, index(s, fortmacs_version) > 0, &
                    "banner lacks Fortmacs version")

@@ -216,14 +216,12 @@ contains
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
-
         call table%resolve(h, i, status)
     end subroutine resolve_buffer
 
     !> Port of buffer.c:Fbuffer_live_p.
     logical function buffer_live_p(h)
         type(handle_type), intent(in) :: h
-
         buffer_live_p = table%is_live(h)
     end function buffer_live_p
 
@@ -231,9 +229,7 @@ contains
     function current_buffer() result(h)
         type(handle_type) :: h
         integer(int64) :: k
-
         h = null_handle()
-
         do k = 1, alist_count
             if (alist(k)%index == cur) then
                 h = alist(k)
@@ -246,7 +242,6 @@ contains
     function buffer_handle(i) result(h)
         integer(int64), intent(in) :: i
         type(handle_type) :: h
-
         h = table%handle_of(i)
     end function buffer_handle
 
@@ -256,9 +251,7 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type) :: h
         integer(int64) :: k
-
         h = null_handle()
-
         do k = 1, alist_count
             if (buffers(alist(k)%index)%name == name .and. &
                 len(buffers(alist(k)%index)%name) == len(name)) then
@@ -272,7 +265,6 @@ contains
     logical function name_free(name)
         character(len=*), intent(in) :: name
         type(handle_type) :: h
-
         h = get_buffer(name)
         name_free = h%index == 0
     end function name_free
@@ -288,18 +280,14 @@ contains
         integer(int64) :: i
         integer :: astat
         type(buffer_type), allocatable :: grown(:)
-
         h = get_buffer(name)
         if (h%index /= 0) return
-
         if (len(name) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Empty string for buffer name is not allowed")
             return
         end if
-
         call table%acquire(h)
         i = h%index
-
         if (.not. allocated(buffers)) then
             allocate (buffers(table%capacity()))
         else if (size(buffers, kind=int64) < table%capacity()) then
@@ -307,30 +295,24 @@ contains
             grown(1:size(buffers)) = buffers
             call move_alloc(grown, buffers)
         end if
-
         ! A fresh slot value resets every field to its default.
         buffers(i) = buffer_type()
         buffers(i)%text%gap_size = 20
         allocate (character(len=buffers(i)%text%gap_size) :: buffers(i)%text%beg, stat=astat)
-
         if (astat /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Memory exhausted")
             return
         end if
-
         last_serial = last_serial + 1
         buffers(i)%serial = last_serial
         buffers(i)%name = name
         buffers(i)%last_name = name
         buffers(i)%undo_enabled = name(1:1) /= " "
-
         ! reset_buffer: a new buffer starts in the current one's directory.
         if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) buffers(i)%directory = buffers(cur)%directory
         end if
-
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
-
         call alist_append(h)
         if (cur == 0) cur = i
     end subroutine get_buffer_create
@@ -344,14 +326,11 @@ contains
         type(handle_type) :: h
         integer(int64) :: k, i
         type(status_type) :: status
-
         h = handle_type()
-
         do k = 1, alist_count
             call resolve_buffer(alist(k), i, status)
             if (.not. status%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
-
             if (buffers(i)%filename == filename .and. &
                 len(buffers(i)%filename) == len(filename)) then
                 h = alist(k)
@@ -371,19 +350,16 @@ contains
         character(len=24) :: num
         integer(int64) :: count
         real :: r
-
         if (present(ignore)) then
             if (same(name, ignore)) then
                 newname = name
                 return
             end if
         end if
-
         if (name_free(name)) then
             newname = name
             return
         end if
-
         if (len(name) == 0 .or. name(1:1) /= " ") then
             genbase = name
         else
@@ -391,32 +367,25 @@ contains
             call random_number(r)
             write (num, "(i0)") int(r*1000000)
             genbase = name//"-"//trim(num)
-
             if (name_free(genbase)) then
                 newname = genbase
                 return
             end if
         end if
-
         count = 2
-
         do
             write (num, "(i0)") count
             newname = genbase//"<"//trim(num)//">"
-
             if (present(ignore)) then
                 if (same(newname, ignore)) return
             end if
-
             if (name_free(newname)) return
             count = count + 1
         end do
-
     contains
 
         pure logical function same(a, b)
             character(len=*), intent(in) :: a, b
-
             same = len(a) == len(b) .and. a == b
         end function same
     end function generate_new_buffer_name
@@ -427,7 +396,6 @@ contains
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         name = buffers(i)%name
@@ -439,7 +407,6 @@ contains
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         name = buffers(i)%last_name
@@ -455,27 +422,22 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: tem
         character(len=:), allocatable :: oldname
-
         if (cur == 0) then
             call set_error(status, FM_INVALID_HANDLE)
             return
         end if
-
         if (len(newname) == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Empty string is invalid as a buffer name")
             return
         end if
-
         oldname = buffers(cur)%name
         actual = newname
         tem = get_buffer(newname)
-
         if (tem%index /= 0) then
             if (.not. unique .and. tem%index == cur) then
                 actual = oldname
                 return
             end if
-
             if (unique) then
                 actual = generate_new_buffer_name(newname, oldname)
             else
@@ -483,7 +445,6 @@ contains
                 return
             end if
         end if
-
         buffers(cur)%last_name = oldname
         buffers(cur)%name = actual
     end subroutine rename_buffer
@@ -492,7 +453,6 @@ contains
     !> (without frame-local ordering).
     function buffer_list() result(list)
         type(handle_type), allocatable :: list(:)
-
         if (alist_count == 0) then
             allocate (list(0))
         else
@@ -505,29 +465,23 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_buffer(h, i, status)
-
         if (.not. status%ok()) then
             status%detail = "Selecting deleted buffer"
             return
         end if
-
         cur = i
     end subroutine set_buffer
 
     subroutine alist_append(h)
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: grown(:)
-
         if (.not. allocated(alist)) allocate (alist(16))
-
         if (alist_count == size(alist, kind=int64)) then
             allocate (grown(2*size(alist)))
             grown(1:alist_count) = alist(1:alist_count)
             call move_alloc(grown, alist)
         end if
-
         alist_count = alist_count + 1
         alist(alist_count) = h
     end subroutine alist_append
@@ -542,9 +496,7 @@ contains
         integer(int64), intent(inout) :: a
         integer(int64), intent(in) :: len
         integer(int64), intent(out), optional :: old
-
         if (present(old)) old = a
-
         if (len == 0) then
             a = a + 1
         else
@@ -557,7 +509,6 @@ contains
     pure subroutine buf_compute_unchanged(b, start, end)
         type(buffer_type), intent(inout) :: b
         integer(int64), intent(in) :: start, end
-
         associate (t => b%text)
             if (t%unchanged_modified == t%modiff .and. &
                 t%overlay_unchanged_modified == t%overlay_modiff) then
@@ -577,7 +528,6 @@ contains
         logical, intent(out) :: modified
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         modified = .false.
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
@@ -589,9 +539,7 @@ contains
     !> Fset_buffer_modified_p, minus mode-line updates and file locks).
     subroutine restore_buffer_modified_p(flag)
         logical, intent(in) :: flag
-
         if (cur == 0) return
-
         associate (t => buffers(cur)%text)
             if (.not. flag) then
                 t%save_modiff = t%modiff
@@ -607,7 +555,6 @@ contains
         integer(int64), intent(out) :: tick
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         tick = 0
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
@@ -620,7 +567,6 @@ contains
         integer(int64), intent(out) :: tick
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         tick = 0
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
@@ -632,7 +578,6 @@ contains
     function inhibit_read_only() result(v)
         type(value_type) :: v
         type(status_type) :: st
-
         call symbol_value(make_symbol_ref(intern("inhibit-read-only")), v, st)
     end function inhibit_read_only
 
@@ -645,13 +590,11 @@ contains
         integer(int64), intent(in), optional :: position
         integer(int64) :: pos, k
         type(value_type) :: props
-
         if (cur == 0) return
         if (.not. buffers(cur)%read_only) return
         if (.not. nilp(inhibit_read_only())) return
         pos = buffers(cur)%pt
         if (present(position)) pos = position
-
         associate (b => buffers(cur), iv => buffers(cur)%text%intervals)
             ! Fget_text_property (POSITION, Qinhibit_read_only, Qnil)
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
@@ -660,7 +603,6 @@ contains
                 if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit-read-only"))))) return
             end if
         end associate
-
         call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
     end subroutine barf_if_buffer_read_only
 
@@ -670,7 +612,6 @@ contains
         logical, intent(in) :: flag
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
         buffers(i)%read_only = flag
@@ -685,7 +626,6 @@ contains
     pure integer(int64) function buf_byte_index(b, bytepos)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
-
         buf_byte_index = bytepos
         if (bytepos >= b%text%gpt_byte) buf_byte_index = bytepos + b%text%gap_size
     end function buf_byte_index
@@ -695,7 +635,6 @@ contains
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
         integer(int64) :: k
-
         k = buf_byte_index(b, bytepos)
         buf_fetch_byte = ichar(b%text%beg(k:k), kind=int32)
     end function buf_fetch_byte
@@ -705,7 +644,6 @@ contains
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
         integer(int32) :: n
-
         if (b%multibyte) then
             call string_char_and_length(b%text%beg, buf_byte_index(b, bytepos), buf_fetch_char, n)
         else
@@ -718,7 +656,6 @@ contains
     pure integer(int32) function buf_next_char_len(b, bytepos)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
-
         buf_next_char_len = bytes_by_char_head(buf_fetch_byte(b, bytepos))
     end function buf_next_char_len
 
@@ -728,7 +665,6 @@ contains
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: bytepos
         integer(int64) :: k
-
         k = bytepos
         if (bytepos > b%text%gpt_byte) k = bytepos + b%text%gap_size
         buf_prev_char_len = raw_prev_char_len(b%text%beg, k)
@@ -742,13 +678,11 @@ contains
         integer(int64), intent(in) :: from_byte, to_byte
         character(len=:), allocatable :: s
         integer(int64) :: g, n
-
         associate (t => b%text)
             g = t%gpt_byte
             n = max(0_int64, to_byte - from_byte)
             allocate (character(len=n) :: s)
             if (n == 0) return
-
             if (to_byte <= g) then
                 s = t%beg(from_byte:to_byte - 1)
             else if (from_byte >= g) then
@@ -764,7 +698,6 @@ contains
     pure subroutine temp_set_point_both(b, charpos, bytepos)
         type(buffer_type), intent(inout) :: b
         integer(int64), intent(in) :: charpos, bytepos
-
         b%pt = charpos
         b%pt_byte = bytepos
     end subroutine temp_set_point_both

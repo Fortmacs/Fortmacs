@@ -166,9 +166,7 @@ contains
         logical, intent(in) :: full
         type(value_type), intent(in), optional :: prompt
         type(keymap_type), allocatable :: grown(:)
-
         call table%acquire(km)
-
         if (.not. allocated(keymaps)) then
             allocate (keymaps(table%capacity()))
         else if (size(keymaps, kind=int64) < table%capacity()) then
@@ -176,7 +174,6 @@ contains
             grown(1:size(keymaps)) = keymaps
             call move_alloc(grown, keymaps)
         end if
-
         keymaps(km%index) = keymap_type()
         keymaps(km%index)%full = full
         if (present(prompt)) keymaps(km%index)%prompt = prompt
@@ -186,7 +183,6 @@ contains
     subroutine make_keymap(km, prompt)
         type(handle_type), intent(out) :: km
         type(value_type), intent(in), optional :: prompt
-
         call new_keymap(km, .true., prompt)
     end subroutine make_keymap
 
@@ -194,7 +190,6 @@ contains
     subroutine make_sparse_keymap(km, prompt)
         type(handle_type), intent(out) :: km
         type(value_type), intent(in), optional :: prompt
-
         call new_keymap(km, .false., prompt)
     end subroutine make_sparse_keymap
 
@@ -203,9 +198,7 @@ contains
         type(handle_type), intent(in) :: km
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
-
         call table%resolve(km, i, status)
-
         if (.not. status%ok()) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
         end if
@@ -213,13 +206,11 @@ contains
 
     logical function keymap_live_p(km)
         type(handle_type), intent(in) :: km
-
         keymap_live_p = table%is_live(km)
     end function keymap_live_p
 
     logical function same_handle(a, b)
         type(handle_type), intent(in) :: a, b
-
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
 
@@ -231,13 +222,11 @@ contains
         type(handle_type) :: h
         type(status_type) :: ignored
         integer(int64) :: i, k
-
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
         keymaps(i) = keymap_type()
         call table%release(km, status)
         if (.not. status%ok()) return
-
         do k = 1, table%capacity()
             h = table%handle_of(k)
             if (h%index == 0) cycle
@@ -249,14 +238,12 @@ contains
     function keymap_prompt(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
-
         if (table%is_live(km)) v = keymaps(km%index)%prompt
     end function keymap_prompt
 
     !> Whether `km` was made by make-keymap (upstream: has a char-table).
     logical function keymap_full_p(km)
         type(handle_type), intent(in) :: km
-
         keymap_full_p = .false.
         if (table%is_live(km)) keymap_full_p = keymaps(km%index)%full
     end function keymap_full_p
@@ -268,20 +255,17 @@ contains
     !> The symbol `keymap`, which marks inherited parts of composites.
     function keymap_marker() result(v)
         type(value_type) :: v
-
         v = make_symbol_ref(intern("keymap"))
     end function keymap_marker
 
     logical function is_marker(v)
         type(value_type), intent(in) :: v
-
         is_marker = .false.
         if (symbolp(v)) is_marker = xsymbol(v) == intern("keymap")
     end function is_marker
 
     logical function is_t(v)
         type(value_type), intent(in) :: v
-
         is_t = .false.
         if (symbolp(v)) is_t = xsymbol(v) == SYM_T
     end function is_t
@@ -292,15 +276,12 @@ contains
         type(value_type), intent(in) :: v
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
-
         yes = .false.
-
         select case (vtag(v))
         case (V_KEYMAP)
             yes = table%is_live(xhandle(v))
         case (V_LIST)
             call list_elements(v, elems)
-
             do k = 1, size(elems, kind=int64)
                 if (is_marker(elems(k))) cycle
                 if (.not. keymapp(elems(k))) return
@@ -315,10 +296,8 @@ contains
     function keymap_parent(km) result(parent)
         type(handle_type), intent(in) :: km
         type(handle_type) :: parent
-
         parent = null_handle()
         if (.not. table%is_live(km)) return
-
         if (table%is_live(keymaps(km%index)%parent)) then
             parent = keymaps(km%index)%parent
         end if
@@ -331,30 +310,24 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: p
         integer(int64) :: i
-
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
-
         if (parent%index /= 0) then
             if (.not. table%is_live(parent)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
                 return
             end if
-
             ! keymap.c:keymap_memberp
             p = parent
-
             do while (table%is_live(p))
                 if (same_handle(p, km)) then
                     call set_error(status, FM_GENERIC_ERROR, &
                                    "Cyclic keymap inheritance")
                     return
                 end if
-
                 p = keymaps(p%index)%parent
             end do
         end if
-
         keymaps(i)%parent = parent
     end subroutine set_keymap_parent
 
@@ -367,7 +340,6 @@ contains
     function modifier_prefix(bits) result(s)
         integer(int64), intent(in) :: bits
         character(len=:), allocatable :: s
-
         s = ""
         if (iand(bits, M_ALT) /= 0) s = s//"A-"
         if (iand(bits, M_CTL) /= 0) s = s//"C-"
@@ -380,7 +352,6 @@ contains
     !> Modifier bit for prefix letter `ch`, or 0.
     integer(int64) function modifier_bit(ch)
         character, intent(in) :: ch
-
         select case (ch)
         case ("A")
             modifier_bit = M_ALT
@@ -408,18 +379,15 @@ contains
         character(len=:), allocatable, intent(out) :: base
         character(len=:), allocatable :: name
         integer(int64) :: i
-
         name = symbols(xsymbol(v))%name
         bits = 0
         i = 1
-
         do while (i + 2 <= len(name, kind=int64))
             if (name(i + 1:i + 1) /= "-") exit
             if (modifier_bit(name(i:i)) == 0) exit
             bits = ior(bits, modifier_bit(name(i:i)))
             i = i + 2
         end do
-
         base = name(i:)
     end subroutine parse_modifiers
 
@@ -429,7 +397,6 @@ contains
         integer(int64), intent(in) :: bits
         character(len=*), intent(in) :: base
         type(value_type) :: e
-
         e = make_symbol_ref(intern(modifier_prefix(bits)//base))
     end function apply_modifiers
 
@@ -441,11 +408,9 @@ contains
         type(value_type) :: e
         character(len=:), allocatable :: base
         integer(int64) :: bits
-
         e = v
         call parse_modifiers(v, bits, base)
         if (bits == 0) return
-
         if (modifier_prefix(bits)//base /= symbols(xsymbol(v))%name) then
             e = apply_modifiers(bits, base)
         end if
@@ -456,7 +421,6 @@ contains
     function normalize_event(c) result(e)
         type(value_type), intent(in) :: c
         type(value_type) :: e
-
         select case (vtag(c))
         case (V_INT)
             e = make_fixnum(iand(xfixnum(c), ior(M_META, M_META - 1)))
@@ -480,18 +444,15 @@ contains
         logical, intent(out) :: stop
         type(value_type) :: val
         type(value_type) :: parts(1)
-
         stop = .false.
         val = val_in
         ! A t binding is like an explicit nil.
         if (is_t(val)) val = nil()
-
         if (.not. keymapp(val)) then
             if (.not. st%found .or. nilp(st%retval)) then
                 st%retval = val
                 st%found = .true.
             end if
-
             if (.not. nilp(val)) stop = .true.
         else if (.not. st%found .or. nilp(st%retval)) then
             st%retval = val
@@ -508,14 +469,12 @@ contains
         type(value_type), intent(in) :: parts(:)
         type(value_type), allocatable :: elems(:), all(:)
         integer :: n
-
         if (st%built) then
             call list_elements(st%retval, elems)
         else
             allocate (elems(1))
             elems(1) = st%retval
         end if
-
         n = size(elems)
         allocate (all(n + size(parts)))
         all(1:n) = elems
@@ -534,15 +493,12 @@ contains
         type(value_type) :: entry
         type(value_type), allocatable :: members(:), parts(:)
         logical :: found
-
         stop = .true.
         if (noinherit) return
-
         if (st%found) then
             if (nilp(st%retval)) return
             ! A prefix keymap was found: compose it with the parent's.
             call access_1(tail, idx, st%t_ok, .false., entry, found)
-
             if (found .and. keymapp(entry)) then
                 if (vtag(entry) == V_LIST) then
                     call list_elements(entry, members)
@@ -550,16 +506,13 @@ contains
                     allocate (members(1))
                     members(1) = entry
                 end if
-
                 allocate (parts(size(members) + 1))
                 parts(1) = keymap_marker()
                 parts(2:) = members
                 call add_parts(st, parts)
             end if
-
             return
         end if
-
         stop = .false.
     end subroutine at_parent
 
@@ -576,20 +529,16 @@ contains
         type(status_type) :: status
         integer(int64) :: i, j, k, c
         logical :: f, stop, matched
-
         found = .false.
         st%t_ok = t_ok
         idx = normalize_event(idx_in)
         m = map
-
         ! The meta -> ESC mapping.
         if (fixnump(idx)) then
             c = xfixnum(idx)
-
             if (iand(c, M_META) /= 0) then
                 call access_1(map, make_fixnum(META_PREFIX_CHAR), t_ok, &
                               noinherit, meta_binding, f)
-
                 if (f .and. keymapp(meta_binding)) then
                     m = meta_binding
                     idx = make_fixnum(iand(c, not(M_META)))
@@ -602,15 +551,12 @@ contains
                 end if
             end if
         end if
-
         select case (vtag(m))
         case (V_KEYMAP)
             call table%resolve(xhandle(m), i, status)
-
             if (status%ok()) then
                 scan: do
                     matched = .false.
-
                     do j = keymaps(i)%n, 1, -1
                         if (value_eq(keymaps(i)%events(j), idx)) then
                             matched = .true.
@@ -622,11 +568,9 @@ contains
                             st%t_ok = .false.
                         end if
                     end do
-
                     ! The char-table part: plain characters only.
                     if (.not. matched .and. fixnump(idx)) then
                         c = xfixnum(idx)
-
                         if (iand(c, M_ALL) == 0) then
                             do j = keymaps(i)%nranges, 1, -1
                                 if (c < keymaps(i)%range_from(j) .or. &
@@ -637,7 +581,6 @@ contains
                             end do
                         end if
                     end if
-
                     if (.not. table%is_live(keymaps(i)%parent)) exit scan
                     tail = make_keymap_ref(keymaps(i)%parent)
                     call at_parent(st, tail, idx, noinherit, stop)
@@ -647,7 +590,6 @@ contains
             end if
         case (V_LIST)
             call list_elements(m, elems)
-
             do k = 1, size(elems, kind=int64)
                 if (is_marker(elems(k))) then
                     tail = list_tail(m, k)
@@ -655,7 +597,6 @@ contains
                     if (stop) exit
                 else if (keymapp(elems(k))) then
                     call access_1(elems(k), idx, st%t_ok, noinherit, b, f)
-
                     if (f) then
                         call take_binding(st, b, stop)
                         if (stop) exit
@@ -665,7 +606,6 @@ contains
         case default
             ! Nothing to do for other values.
         end select
-
         if (st%found) then
             val = st%retval
             found = .true.
@@ -684,7 +624,6 @@ contains
         logical, intent(in) :: t_ok, noinherit
         type(value_type) :: val
         logical :: found
-
         call access_1(map, idx, t_ok, noinherit, val, found)
     end function access_keymap
 
@@ -702,37 +641,28 @@ contains
         type(value_type) :: keymap, cmd
         logical :: t_ok
         integer(int64) :: k, n
-
         t_ok = .false.
         if (present(accept_default)) t_ok = accept_default
-
         if (.not. (nilp(map) .or. keymapp(map))) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "keymapp")
             return
         end if
-
         n = size(key, kind=int64)
-
         if (n == 0) then
             val = map
             return
         end if
-
         keymap = map
-
         do k = 1, n
             cmd = access_keymap(keymap, key(k), t_ok, .false.)
-
             if (k == n) then
                 val = cmd
                 return
             end if
-
             if (.not. keymapp(cmd)) then
                 val = make_fixnum(k)
                 return
             end if
-
             keymap = cmd
         end do
     end subroutine lookup_key
@@ -747,7 +677,6 @@ contains
         type(value_type), intent(in) :: ev, def
         type(value_type), allocatable :: grown(:)
         integer(int64) :: cap
-
         if (.not. allocated(keymaps(i)%events)) then
             allocate (keymaps(i)%events(8), keymaps(i)%bindings(8))
         else if (keymaps(i)%n == size(keymaps(i)%events, kind=int64)) then
@@ -759,7 +688,6 @@ contains
             grown(1:keymaps(i)%n) = keymaps(i)%bindings
             call move_alloc(grown, keymaps(i)%bindings)
         end if
-
         keymaps(i)%n = keymaps(i)%n + 1
         keymaps(i)%events(keymaps(i)%n) = ev
         keymaps(i)%bindings(keymaps(i)%n) = def
@@ -774,19 +702,15 @@ contains
         type(status_type), intent(out) :: status
         type(value_type) :: idx
         integer(int64) :: j, n
-
         if (is_marker(c)) then
             call set_error(status, FM_GENERIC_ERROR, &
                            "`keymap' is reserved for embedded parent maps")
             return
         end if
-
         idx = normalize_event(c)
         n = keymaps(i)%n
-
         do j = 1, n
             if (.not. value_eq(keymaps(i)%events(j), idx)) cycle
-
             if (remove) then
                 keymaps(i)%events(j:n - 1) = keymaps(i)%events(j + 1:n)
                 keymaps(i)%bindings(j:n - 1) = keymaps(i)%bindings(j + 1:n)
@@ -796,10 +720,8 @@ contains
             else
                 keymaps(i)%bindings(j) = def
             end if
-
             return
         end do
-
         if (.not. remove) call append_entry(i, idx, def)
     end subroutine store_in_keymap
 
@@ -817,39 +739,30 @@ contains
         integer(int64), allocatable :: grown_i(:)
         type(value_type), allocatable :: grown_v(:)
         integer(int64) :: i, j, c, n, cap
-
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
-
         if (from < 0 .or. to > MAX_CHAR .or. from > to) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid character range")
             return
         end if
-
         ! Drop entries for characters in the range.
         n = 0
-
         do j = 1, keymaps(i)%n
             if (fixnump(keymaps(i)%events(j))) then
                 c = xfixnum(keymaps(i)%events(j))
                 if (c >= from .and. c <= to) cycle
             end if
-
             n = n + 1
-
             if (n /= j) then
                 keymaps(i)%events(n) = keymaps(i)%events(j)
                 keymaps(i)%bindings(n) = keymaps(i)%bindings(j)
             end if
         end do
-
         do j = n + 1, keymaps(i)%n
             keymaps(i)%events(j) = nil()
             keymaps(i)%bindings(j) = nil()
         end do
-
         keymaps(i)%n = n
-
         if (.not. allocated(keymaps(i)%range_from)) then
             allocate (keymaps(i)%range_from(4), keymaps(i)%range_to(4), &
                       keymaps(i)%range_bindings(4))
@@ -865,7 +778,6 @@ contains
             grown_v(1:keymaps(i)%nranges) = keymaps(i)%range_bindings
             call move_alloc(grown_v, keymaps(i)%range_bindings)
         end if
-
         keymaps(i)%nranges = keymaps(i)%nranges + 1
         keymaps(i)%range_from(keymaps(i)%nranges) = from
         keymaps(i)%range_to(keymaps(i)%nranges) = to
@@ -881,19 +793,15 @@ contains
         logical, intent(out) :: ok
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
-
         ok = .false.
         km = null_handle()
         if (.not. keymapp(cmd)) return
-
         if (vtag(cmd) == V_KEYMAP) then
             km = xhandle(cmd)
             ok = .true.
             return
         end if
-
         call list_elements(cmd, elems)
-
         do k = 1, size(elems, kind=int64)
             if (is_marker(elems(k))) cycle
             call prefix_target(elems(k), km, ok)
@@ -915,7 +823,6 @@ contains
         integer(int64) :: i, pos, n
         logical :: metized, rm, ok
         character(len=:), allocatable :: trailing
-
         rm = .false.
         if (present(remove)) rm = remove
         call resolve_keymap(km, i, status)
@@ -925,16 +832,13 @@ contains
         target = km
         metized = .false.
         pos = 0
-
         do
             c = key(pos + 1)
-
             if (.not. (fixnump(c) .or. symbolp(c))) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "Key sequence contains invalid event")
                 return
             end if
-
             if (fixnump(c)) then
                 if (iand(xfixnum(c), M_META) /= 0 .and. .not. metized) then
                     c = make_fixnum(META_PREFIX_CHAR)
@@ -948,16 +852,12 @@ contains
                 metized = .false.
                 pos = pos + 1
             end if
-
             i = target%index
-
             if (pos == n) then
                 call store_in_keymap(i, c, def, rm, status)
                 return
             end if
-
             cmd = access_keymap(make_keymap_ref(target), c, .false., .true.)
-
             if (nilp(cmd)) then
                 ! keymap.c:define_as_prefix
                 call make_sparse_keymap(prefix)
@@ -966,17 +866,13 @@ contains
                 call store_in_keymap(i, c, cmd, .false., status)
                 if (.not. status%ok()) return
             end if
-
             call prefix_target(cmd, target, ok)
-
             if (.not. ok) then
                 trailing = ""
-
                 if (metized) then
                     trailing = " ESC"
                     if (pos == 0) trailing = "ESC"
                 end if
-
                 call set_error(status, FM_GENERIC_ERROR, "Key sequence "// &
                                key_description(key)// &
                                " starts with non-prefix key "// &
@@ -992,7 +888,6 @@ contains
         type(handle_type), intent(in) :: km
         type(handle_type), intent(out) :: copy
         type(status_type), intent(out) :: status
-
         call copy_keymap_1(km, 0, copy, status)
     end subroutine copy_keymap
 
@@ -1007,15 +902,12 @@ contains
         type(status_type) :: ignored
         integer(int64) :: i, k
         logical :: full
-
         copy = null_handle()
-
         if (depth > MAX_COPY_DEPTH) then
             call set_error(status, FM_GENERIC_ERROR, &
                            "Possible infinite recursion when copying keymap")
             return
         end if
-
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
         ! Copy fields first: new_keymap may reallocate the registry.
@@ -1023,29 +915,23 @@ contains
         full = keymaps(i)%full
         call new_keymap(copy, full, prompt)
         keymaps(copy%index)%parent = keymaps(i)%parent
-
         do k = 1, keymaps(i)%n
             ev = keymaps(i)%events(k)
             b = keymaps(i)%bindings(k)
-
             if (vtag(b) == V_KEYMAP) then
                 if (table%is_live(xhandle(b))) then
                     call copy_keymap_1(xhandle(b), depth + 1, sub, status)
-
                     if (.not. status%ok()) then
                         call free_keymap(copy, ignored)
                         copy = null_handle()
                         return
                     end if
-
                     keymaps(sub%index)%owner = copy
                     b = make_keymap_ref(sub)
                 end if
             end if
-
             call append_entry(copy%index, ev, b)
         end do
-
         if (keymaps(i)%nranges > 0) then
             keymaps(copy%index)%range_from = keymaps(i)%range_from
             keymaps(copy%index)%range_to = keymaps(i)%range_to
@@ -1062,7 +948,6 @@ contains
     !> Port of keymap.c:Fcurrent_global_map.
     function current_global_map() result(km)
         type(handle_type) :: km
-
         if (.not. table%is_live(global_map)) call make_keymap(global_map)
         km = global_map
     end function current_global_map
@@ -1072,7 +957,6 @@ contains
         type(handle_type), intent(in) :: km
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_keymap(km, i, status)
         if (status%ok()) global_map = km
     end subroutine use_global_map
@@ -1081,7 +965,6 @@ contains
     !> Port of keymap.c:Fcurrent_local_map.
     function current_local_map() result(km)
         type(handle_type) :: km
-
         km = null_handle()
         if (cur == 0) return
         if (table%is_live(buffers(cur)%keymap)) km = buffers(cur)%keymap
@@ -1093,17 +976,14 @@ contains
         type(handle_type), intent(in) :: km
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         if (km%index /= 0) then
             call resolve_keymap(km, i, status)
             if (.not. status%ok()) return
         end if
-
         if (cur == 0) then
             call set_error(status, FM_GENERIC_ERROR, "No current buffer")
             return
         end if
-
         buffers(cur)%keymap = km
     end subroutine use_local_map
 
@@ -1116,30 +996,23 @@ contains
         type(value_type), allocatable :: elems(:)
         type(handle_type) :: local
         integer :: n
-
         allocate (elems(4))
         n = 0
-
         if (table%is_live(overriding_terminal_local_map)) then
             n = n + 1
             elems(n) = make_keymap_ref(overriding_terminal_local_map)
         end if
-
         if (table%is_live(pushed_terminal_local_map)) then
             n = n + 1
             elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
-
         local = current_local_map()
-
         if (local%index /= 0) then
             n = n + 1
             elems(n) = make_keymap_ref(local)
         end if
-
         n = n + 1
         elems(n) = make_keymap_ref(current_global_map())
-
         if (n == 1) then
             maps = elems(1)
         else
@@ -1155,7 +1028,6 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: accept_default
         type(value_type) :: maps
-
         maps = current_active_maps()
         call lookup_key(maps, key, val, status, accept_default)
         if (fixnump(val)) val = nil()
@@ -1169,7 +1041,6 @@ contains
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
         character(len=24) :: buf
-
         write (buf, "(i0)") n
         s = trim(buf)
     end function int_text
@@ -1184,49 +1055,39 @@ contains
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
         integer(int32) :: nbytes
         type(status_type) :: status
-
         c = iand(ch, ior(M_META, M_META - 1))
         c2 = iand(c, not(M_ALL))
-
         if (c2 < 0 .or. c2 > MAX_CHAR) then
             s = "["//int_text(c)//"]"
             return
         end if
-
         tab_as_ci = c2 == 9 .and. iand(c, M_META) /= 0
         s = ""
-
         if (iand(c, M_ALT) /= 0) then
             s = s//"A-"
             c = c - M_ALT
         end if
-
         if (iand(c, M_CTL) /= 0 .or. (c2 < 32 .and. c2 /= 27 .and. c2 /= 9 &
                                       .and. c2 /= 13) .or. tab_as_ci) then
             s = s//"C-"
             c = iand(c, not(M_CTL))
         end if
-
         if (iand(c, M_HYPER) /= 0) then
             s = s//"H-"
             c = c - M_HYPER
         end if
-
         if (iand(c, M_META) /= 0) then
             s = s//"M-"
             c = c - M_META
         end if
-
         if (iand(c, M_SHIFT) /= 0) then
             s = s//"S-"
             c = c - M_SHIFT
         end if
-
         if (iand(c, M_SUPER) /= 0) then
             s = s//"s-"
             c = c - M_SUPER
         end if
-
         if (c < 32) then
             if (c == 27) then
                 s = s//"ESC"
@@ -1263,31 +1124,25 @@ contains
         character(len=:), allocatable :: name
         integer :: i, n
         logical :: bare
-
         bare = .false.
         if (present(no_angles)) bare = no_angles
-
         select case (vtag(key))
         case (V_INT)
             s = push_key_description(xfixnum(key))
         case (V_SYMBOL)
             name = symbols(xsymbol(key))%name
-
             if (bare) then
                 s = name
                 return
             end if
-
             ! Find the modifier prefix, like "C-M-".
             n = len(name)
             i = 1
-
             do while (i <= n - 3)
                 if (name(i + 1:i + 1) /= "-") exit
                 if (index("CMSsHA", name(i:i)) == 0) exit
                 i = i + 2
             end do
-
             s = name(1:i - 1)//"<"//name(i:)//">"
         case (V_STRING)
             s = xstring(key)
@@ -1307,7 +1162,6 @@ contains
         type(value_type) :: key
         integer :: k, np
         logical :: add_meta
-
         np = 0
         if (present(prefix)) np = size(prefix)
         allocate (all(np + size(keys)))
@@ -1315,10 +1169,8 @@ contains
         all(np + 1:) = keys
         s = ""
         add_meta = .false.
-
         do k = 1, size(all)
             key = all(k)
-
             if (add_meta) then
                 if (.not. fixnump(key)) then
                     call add_word(s, "ESC")
@@ -1329,7 +1181,6 @@ contains
                 else
                     key = make_fixnum(ior(xfixnum(key), M_META))
                 end if
-
                 add_meta = .false.
             else if (fixnump(key)) then
                 if (xfixnum(key) == META_PREFIX_CHAR) then
@@ -1337,18 +1188,14 @@ contains
                     cycle
                 end if
             end if
-
             call add_word(s, single_key_description(key))
         end do
-
         if (add_meta) call add_word(s, "ESC")
-
     contains
 
         subroutine add_word(s, word)
             character(len=:), allocatable, intent(inout) :: s
             character(len=*), intent(in) :: word
-
             if (len(s) > 0) then
                 s = s//" "//word
             else
@@ -1363,7 +1210,6 @@ contains
 
     logical function is_space(ch)
         character, intent(in) :: ch
-
         is_space = ch == " " .or. ch == achar(9) .or. ch == achar(10) .or. &
                    ch == achar(12)
     end function is_space
@@ -1374,18 +1220,15 @@ contains
         integer(int64), allocatable, intent(out) :: codes(:)
         integer(int64) :: pos, n
         integer(int32) :: ch, length
-
         allocate (codes(len(s)))
         n = 0
         pos = 1
-
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
             codes(n) = ch
             pos = pos + length
         end do
-
         codes = codes(1:n)
     end subroutine decode
 
@@ -1394,18 +1237,15 @@ contains
         character(len=*), intent(in) :: keys
         integer(int64), intent(in) :: wb
         character :: ch
-
         q = 0
         if (keys(wb:wb) /= "<" .or. wb + 1 > len(keys, kind=int64)) return
         ch = keys(wb + 1:wb + 1)
         if (ch == "<" .or. ch == ">" .or. is_space(ch)) return
-
         do q = wb + 2, len(keys, kind=int64)
             ch = keys(q:q)
             if (ch == ">") return
             if (ch /= " " .and. is_space(ch)) exit
         end do
-
         q = 0
     end function angle_end
 
@@ -1417,12 +1257,10 @@ contains
                                        ["NUL", "RET", "LFD", "TAB", "ESC", "SPC", "DEL"]
         integer :: n
         character :: before
-
         ends_in_name = .false.
         n = len(word)
         if (n < 3) return
         if (all(names /= word(n - 2:n))) return
-
         if (n == 3) then
             ends_in_name = .true.
         else
@@ -1442,15 +1280,12 @@ contains
         integer(int64), intent(in) :: n
         type(value_type), allocatable :: grown(:)
         integer(int64) :: k, need
-
         need = nev + n*size(key, kind=int64)
-
         if (need > size(events, kind=int64)) then
             allocate (grown(max(need, 2*size(events, kind=int64))))
             grown(1:nev) = events(1:nev)
             call move_alloc(grown, events)
         end if
-
         do k = 1, n
             events(nev + 1:nev + size(key)) = key
             nev = nev + size(key)
@@ -1462,9 +1297,7 @@ contains
         integer(int64), intent(in) :: codes(:)
         type(value_type), allocatable, intent(out) :: key(:)
         integer :: k
-
         allocate (key(size(codes)))
-
         do k = 1, size(codes)
             key(k) = make_fixnum(codes(k))
         end do
@@ -1481,29 +1314,23 @@ contains
         integer(int64), allocatable :: codes(:)
         integer(int64) :: pos, n, wb, we, q, times, nev, bits, prefix, k, c
         logical :: is_vector
-
         allocate (events(8))
         nev = 0
         n = len(keys, kind=int64)
         pos = 1
-
         words: do
             do while (pos <= n)
                 if (.not. is_space(keys(pos:pos))) exit
                 pos = pos + 1
             end do
-
             if (pos > n) exit words
             wb = pos
             we = wb
-
             do while (we < n)
                 if (is_space(keys(we + 1:we + 1))) exit
                 we = we + 1
             end do
-
             q = angle_end(keys, wb)
-
             if (q > 0) then
                 word = keys(wb:q)
                 pos = q + 1
@@ -1511,20 +1338,16 @@ contains
                 word = keys(wb:we)
                 pos = we + 1
             end if
-
             ! "N*KEY" repeats KEY.
             times = 1
             k = verify(word, "0123456789")
-
             if (k > 1 .and. k < len(word)) then
                 if (word(k:k) == "*") then
                     read (word(1:k - 1), *) times
                     word = word(k + 1:)
                 end if
             end if
-
             if (allocated(key)) deallocate (key)
-
             if (len(word) >= 5) then
                 if (word(1:2) == "<<" .and. word(len(word) - 1:) == ">>") then
                     ! <<command>>: M-x command RET.
@@ -1535,20 +1358,16 @@ contains
                     cycle words
                 end if
             end if
-
             ! [MODS]<NAME>: a function key, unless NAME is RET etc.
             k = 1
-
             do while (k + 1 <= len(word))
                 if (modifier_bit(word(k:k)) == 0 .or. word(k + 1:k + 1) /= "-") exit
                 k = k + 2
             end do
-
             if (len(word) >= k + 2) then
                 if (word(k:k) == "<" .and. word(len(word):) == ">") then
                     mods = word(1:k - 1)
                     word = mods//word(k + 1:len(word) - 1)
-
                     if (.not. ends_in_name(word)) then
                         allocate (key(1))
                         key(1) = make_symbol_ref(intern(word))
@@ -1557,7 +1376,6 @@ contains
                     end if
                 end if
             end if
-
             ! REM or ;; comments out the rest of the line.
             if (word == "REM" .or. index(word, ";;") == 1) then
                 q = index(keys(pos:), achar(10))
@@ -1565,22 +1383,18 @@ contains
                 pos = pos + q - 1
                 cycle words
             end if
-
             orig = word
             prefix = 0
             bits = 0
-
             do while (len(word) >= 3)
                 if (modifier_bit(word(1:1)) == 0 .or. word(2:2) /= "-") exit
                 bits = bits + modifier_bit(word(1:1))
                 prefix = prefix + 2
                 word = word(3:)
             end do
-
             if (len(word) >= 2) then
                 if (word(1:1) == "^") then
                     call decode(word(2:), codes)
-
                     if (size(codes) == 1) then
                         bits = bits + M_CTL
                         prefix = prefix + 1
@@ -1588,7 +1402,6 @@ contains
                     end if
                 end if
             end if
-
             select case (word)
             case ("NUL")
                 word = achar(0)
@@ -1607,24 +1420,18 @@ contains
             case default
                 ! Nothing to do for other values.
             end select
-
             is_vector = .false.
-
             if (len(word) >= 2) then
                 if (word(1:1) == "\" .and. verify(word(2:), "01234567") == 0) then
                     is_vector = .true.
                     c = 0
-
                     do k = 2, len(word)
                         c = 8*c + iachar(word(k:k)) - 48
                     end do
-
                     codes = [c]
                 end if
             end if
-
             if (.not. is_vector) call decode(word, codes)
-
             if (bits == 0) then
                 call char_events(codes, key)
             else if (bits == M_META .and. .not. is_vector .and. &
@@ -1644,27 +1451,21 @@ contains
                 allocate (key(1))
                 key(1) = make_fixnum(bits + codes(1))
             end if
-
             call push_events(events, nev, key, times)
         end do words
-
         allocate (trimmed(nev))
         trimmed = events(1:nev)
         call move_alloc(trimmed, events)
-
     contains
 
         !> Whether `w` matches ^-?[0-9]+$.
         logical function numeric_word(w)
             character(len=*), intent(in) :: w
             integer :: s
-
             s = 1
-
             if (len(w) > 0) then
                 if (w(1:1) == "-") s = 2
             end if
-
             numeric_word = len(w) >= s .and. verify(w(s:), "0123456789") == 0
         end function numeric_word
     end subroutine key_parse
@@ -1682,7 +1483,6 @@ contains
     pure logical function key_valid_p(keys)
         character(len=*), intent(in) :: keys
         integer :: b, e, n
-
         key_valid_p = .false.
         n = len(keys)
         ! "\`[^ ]+\( [^ ]+\)*\'"
@@ -1690,20 +1490,16 @@ contains
         if (keys(1:1) == " " .or. keys(n:n) == " ") return
         if (index(keys, "  ") > 0) return
         b = 1
-
         do while (b <= n)
             e = index(keys(b:), " ")
-
             if (e == 0) then
                 e = n
             else
                 e = b + e - 2
             end if
-
             if (.not. valid_key(keys(b:e))) return
             b = e + 2
         end do
-
         key_valid_p = .true.
     end function key_valid_p
 
@@ -1711,9 +1507,7 @@ contains
     pure logical function valid_key(word)
         character(len=*), intent(in) :: word
         integer :: s, m
-
         s = after_modifiers(word, 1)
-
         associate (key => word(s:))
             if (len(key) == 1) then
                 ! A printing ASCII character (unibyte 127..255 are Meta'd).
@@ -1744,9 +1538,7 @@ contains
         integer, intent(in) :: start
         character(len=*), parameter :: order = "ACHMSs"
         integer :: k
-
         s = start
-
         do k = 1, len(order)
             if (s + 1 > len(word)) exit
             if (word(s:s) == order(k:k) .and. word(s + 1:s + 1) == "-") s = s + 2
@@ -1758,7 +1550,6 @@ contains
     subroutine keymap_check(key, status)
         character(len=*), intent(in) :: key
         type(status_type), intent(out) :: status
-
         if (.not. key_valid_p(key)) then
             call set_error(status, FM_GENERIC_ERROR, &
                            """"//key//""" is not a valid key definition; see `key-valid-p'")
@@ -1781,12 +1572,10 @@ contains
         type(value_type), intent(in) :: definition
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: events(:), macro(:)
-
         call keymap_check(key, status)
         if (.not. status%ok()) return
         call key_parse(key, events, status)
         if (.not. status%ok()) return
-
         ! If we're binding this key to another key, then parse that other
         ! key, too (a keyboard macro, which is a list of events here).
         if (vtag(definition) == V_STRING) then
@@ -1806,7 +1595,6 @@ contains
         type(handle_type), intent(in) :: keymap
         character(len=*), intent(in) :: key, command
         type(status_type), intent(out) :: status
-
         call keymap_set_value(keymap, key, make_symbol_ref(intern(command)), status)
     end subroutine keymap_set_command
 
@@ -1823,7 +1611,6 @@ contains
         character(len=*), intent(in) :: key
         type(value_type), intent(in) :: command
         type(status_type), intent(out) :: status
-
         call keymap_set_value(current_global_map(), key, command, status)
     end subroutine keymap_global_set_value
 
@@ -1833,7 +1620,6 @@ contains
     subroutine keymap_global_set_command(key, command, status)
         character(len=*), intent(in) :: key, command
         type(status_type), intent(out) :: status
-
         call keymap_set_command(current_global_map(), key, command, status)
     end subroutine keymap_global_set_command
 
@@ -1848,17 +1634,13 @@ contains
         type(value_type), intent(in) :: seq(:)
         integer(int64) :: modifiers
         integer :: i
-
         result = 1
-
         do i = 1, size(seq)
             if (.not. fixnump(seq(i))) then
                 result = 0
                 return
             end if
-
             modifiers = iand(xfixnum(seq(i)), M_ALL - M_META)
-
             if (modifiers == 0) then
                 result = 2
             else
@@ -1889,64 +1671,51 @@ contains
         type(status_type) :: status
         integer :: qhead, qtail, nfound, k
         logical :: first
-
         first = .false.
         if (present(firstonly)) first = firstonly
         keys = nil()
         active = current_active_maps()
-
         if (keymap_ref_p(active)) then
             maps = [active]
         else
             call list_elements(active, maps)
         end if
-
         ! Faccessible_keymaps of each active map, breadth first.
         allocate (queue(16), found(16))
         qtail = 0
-
         do k = 1, size(maps)
             if (.not. keymap_ref_p(maps(k))) cycle
             allocate (seq(0))
             call push(queue, qtail, seq, xhandle(maps(k)))
             deallocate (seq)
         end do
-
         qhead = 0
         nfound = 0
-
         do while (qhead < qtail)
             qhead = qhead + 1
             km = queue(qhead)%map
-
             do while (table%is_live(km))
                 call scan_map(km)
                 km = keymaps(km%index)%parent
             end do
         end do
-
         ! Verify that each binding is not shadowed by another binding for
         ! the same key, then pick the result.
         allocate (elems(0))
-
         do k = 1, nfound
             call lookup_key(active, found(k)%keys, binding, status)
             if (.not. status%ok() .or. .not. value_eq(binding, definition)) cycle
-
             if (first) then
                 if (preferred_sequence_p(found(k)%keys) == 2) then
                     keys = make_list(found(k)%keys)
                     return
                 end if
-
                 if (nilp(keys)) keys = make_list(found(k)%keys)
             else
                 elems = [elems, make_list(found(k)%keys)]
             end if
         end do
-
         if (.not. first) keys = make_list(elems)
-
     contains
 
         !> Look at the bindings of one map: matches go to `found`, prefix
@@ -1958,21 +1727,16 @@ contains
             integer(int64) :: i, n, ev
             integer :: j, m
             logical :: last_is_meta
-
             prefix = queue(qhead)%keys
             last_is_meta = .false.
-
             if (size(prefix) > 0) then
                 if (fixnump(prefix(size(prefix)))) last_is_meta = xfixnum(prefix(size(prefix))) == META_PREFIX_CHAR
             end if
-
             associate (mp => keymaps(map%index))
                 n = mp%n
                 call entry_order(mp, order)
-
                 do m = 1, size(order)
                     i = order(m)
-
                     ! A prefix key: its map is searched too.
                     if (keymap_ref_p(mp%bindings(i))) then
                         if (.not. visited(xhandle(mp%bindings(i))) .and. size(prefix) < 10) then
@@ -1980,9 +1744,7 @@ contains
                             call push(queue, qtail, key, xhandle(mp%bindings(i)))
                         end if
                     end if
-
                     if (.not. value_eq(mp%bindings(i), definition)) cycle
-
                     ! We have found a match.  Construct the key sequence
                     ! where we found it.
                     if (fixnump(mp%events(i)) .and. last_is_meta) then
@@ -1992,13 +1754,11 @@ contains
                     else
                         key = [prefix, mp%events(i)]
                     end if
-
                     ! Record it, unless it's already been seen (as could
                     ! happen when inheriting keymaps).
                     do j = 1, nfound
                         if (same_keys(found(j)%keys, key)) exit
                     end do
-
                     if (j > nfound) call push(found, nfound, key, null_handle())
                 end do
             end associate
@@ -2007,9 +1767,7 @@ contains
         logical function visited(map)
             type(handle_type), intent(in) :: map
             integer :: j
-
             visited = .false.
-
             do j = 1, qtail
                 if (queue(j)%map%index == map%index .and. queue(j)%map%generation == map%generation) then
                     visited = .true.
@@ -2026,30 +1784,24 @@ contains
         type(keymap_type), intent(in) :: mp
         integer, allocatable, intent(out) :: order(:)
         integer :: i, j, n, key
-
         n = int(mp%n)
         allocate (order(0))
-
         if (mp%full) then
             do i = 1, n
                 if (fixnump(mp%events(i))) order = [order, i]
             end do
-
             ! Insertion sort by character code.
             do i = 2, size(order)
                 key = order(i)
                 j = i - 1
-
                 do while (j >= 1)
                     if (xfixnum(mp%events(order(j))) <= xfixnum(mp%events(key))) exit
                     order(j + 1) = order(j)
                     j = j - 1
                 end do
-
                 order(j + 1) = key
             end do
         end if
-
         do i = n, 1, -1
             if (mp%full .and. fixnump(mp%events(i))) cycle
             order = [order, i]
@@ -2059,10 +1811,8 @@ contains
     logical function same_keys(a, b)
         type(value_type), intent(in) :: a(:), b(:)
         integer :: i
-
         same_keys = size(a) == size(b)
         if (.not. same_keys) return
-
         do i = 1, size(a)
             if (.not. value_eq(a(i), b(i))) then
                 same_keys = .false.
@@ -2079,17 +1829,13 @@ contains
         type(handle_type), intent(in) :: map
         type(key_list_type), allocatable :: grown(:)
         integer :: j
-
         if (n == size(list)) then
             allocate (grown(2*size(list)))
-
             do j = 1, n
                 grown(j) = list(j)
             end do
-
             call move_alloc(grown, list)
         end if
-
         n = n + 1
         list(n)%keys = keys
         list(n)%map = map

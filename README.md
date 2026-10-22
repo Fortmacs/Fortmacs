@@ -144,25 +144,20 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   !> The number of the longest line in the buffer.
   integer(int64) function longest_line() result(best_line)
       integer(int64) :: opoint, best, width, line, shortage
-
       opoint = point()
       best = 0
       best_line = 1
       line = 1
       call goto_char(point_min())
-
       do while (.not. eobp())
           width = line_end_position() - line_beginning_position()
-
           if (width > best) then
               best = width
               best_line = line
           end if
-
           shortage = forward_line(1_int64)
           line = line + 1
       end do
-
       call goto_char(opoint)
   end function longest_line
   ```

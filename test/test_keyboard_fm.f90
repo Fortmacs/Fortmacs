@@ -53,7 +53,6 @@ contains
 
     subroutine collect_keyboard_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("input-decoding", test_input_decoding), &
                     new_unittest("unread-command-events", test_unread), &
@@ -73,7 +72,6 @@ contains
 
     subroutine cmd_a(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         count_a = count_a + 1
         seen_prefix = prefix_numeric_value(current_prefix_arg)
@@ -81,20 +79,17 @@ contains
 
     subroutine cmd_b(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         count_b = count_b + 1
     end subroutine cmd_b
 
     subroutine cmd_fail(status)
         type(status_type), intent(out) :: status
-
         call set_error(status, FM_USER_ERROR, "Boom")
     end subroutine cmd_fail
 
     subroutine cmd_exit(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call request_exit()
     end subroutine cmd_exit
@@ -102,7 +97,6 @@ contains
     !> Like simple.el:universal-argument (one C-u).
     subroutine cmd_universal(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         prefix_arg = list(make_fixnum(4_int64))
     end subroutine cmd_universal
@@ -113,7 +107,6 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
-
         call key_parse(text, key, st)
     end function kbd
 
@@ -121,7 +114,6 @@ contains
     subroutine fresh_global(km)
         type(handle_type), intent(out) :: km
         type(status_type) :: st
-
         call discard_input()
         call make_keymap(km)
         call use_global_map(km, st)
@@ -133,7 +125,6 @@ contains
     subroutine free(km)
         type(handle_type), intent(in) :: km
         type(status_type) :: st
-
         call free_keymap(km, st)
     end subroutine free
 
@@ -142,7 +133,6 @@ contains
         type(value_type) :: ev
         type(status_type) :: st
         logical :: have
-
         next_char = -1
         call read_event(ev, have, st)
         if (have .and. fixnump(ev)) next_char = xfixnum(ev)
@@ -150,7 +140,6 @@ contains
 
     subroutine test_input_decoding(error)
         type(error_type), allocatable, intent(out) :: error
-
         call discard_input()
         call set_input_meta_mode(2)
         call kbd_store_bytes("a"//char(195)//char(161)//char(255)//char(195)//"b")
@@ -180,7 +169,6 @@ contains
     subroutine test_unread(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: evs(2)
-
         call discard_input()
         call kbd_store_bytes("z")
         evs(1) = make_fixnum(120_int64)
@@ -199,7 +187,6 @@ contains
 
     subroutine test_prefix_numeric_value(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check(error, prefix_numeric_value(nil()), 1_int64)
         if (allocated(error)) return
         call check(error, prefix_numeric_value(sym("-")), -1_int64)
@@ -218,7 +205,6 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         logical :: eof
-
         call fresh_global(global)
         call define_key(global, kbd("C-x C-f"), sym("find-file"), st)
         call define_key(global, kbd("M-x"), sym("execute-extended-command"), st)
@@ -251,7 +237,6 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         logical :: eof
-
         call fresh_global(global)
         call kbd_store_bytes(char(3)//"z")
         call read_key_sequence(keys, binding, eof, st)
@@ -270,7 +255,6 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding, up(1)
         logical :: eof
-
         call fresh_global(global)
         up(1) = sym("up")
         call define_key(global, up, sym("previous-line"), st)
@@ -299,7 +283,6 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         logical :: eof
-
         call fresh_global(global)
         call define_key(global, kbd("<f1>"), sym("help-command"), st)
         call make_sparse_keymap(fkeys)
@@ -324,7 +307,6 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding, key(1)
         logical :: eof
-
         call fresh_global(global)
         call define_key(global, kbd("a"), sym("cmd-a"), st)
         call define_key(global, kbd("<f2>"), sym("cmd-f2"), st)
@@ -349,7 +331,6 @@ contains
         type(handle_type) :: global
         type(status_type) :: st
         logical :: done
-
         call fresh_global(global)
         call defcommand("cmd-a", cmd_a)
         call defcommand("cmd-b", cmd_b)
@@ -374,7 +355,6 @@ contains
         if (allocated(error)) return
         call check(error, xfixnum(last_command_event), 98_int64)
         if (allocated(error)) return
-
         call kbd_store_bytes("z")
         call command_loop_step(done, st)
         call check(error, last_message, "z is undefined")
@@ -401,7 +381,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global
         type(status_type) :: st
-
         call fresh_global(global)
         call defcommand("cmd-a", cmd_a)
         call defcommand("cmd-b", cmd_b)
@@ -438,13 +417,11 @@ contains
         type(value_type) :: binding
         integer(int32) :: master, slave
         logical :: eof
-
         call fresh_global(global)
         call define_key(global, kbd("C-x C-s"), sym("save-buffer"), st)
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
-
         run: block
             call init_sys_modes(slave, old, st)
             call check(error, st%ok(), "raw mode")
@@ -455,7 +432,6 @@ contains
             call check(error, st%ok() .and. value_eq(binding, sym("save-buffer")), "C-x C-s")
             call reset_sys_modes(slave, old, st)
         end block run
-
         call set_input_fd(-1_int32)
         call close_fd(slave)
         call close_fd(master)

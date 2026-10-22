@@ -41,7 +41,6 @@ contains
 
     subroutine collect_term_xterm_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("xterm-function-keys", test_function_keys), &
                     new_unittest("xterm-bound-keys", test_bound_keys) &
@@ -56,7 +55,6 @@ contains
         type(value_type) :: binding
         type(status_type) :: st
         logical :: eof
-
         call discard_input()
         call kbd_store_bytes(bytes)
         call read_key_sequence(keys, binding, eof, st)
@@ -65,7 +63,6 @@ contains
 
     subroutine test_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
-
         call init_bindings()
         call terminal_init_xterm()
         call check(error, decoded(ESC//"[A"), "<up>")
@@ -106,7 +103,6 @@ contains
         type(value_type) :: binding
         type(status_type) :: st
         logical :: eof
-
         call init_bindings()
         call terminal_init_xterm()
         call discard_input()

@@ -43,7 +43,6 @@ contains
 
     subroutine collect_insdel_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("insert-ascii", test_insert_ascii), &
                     new_unittest("insert-multibyte", test_insert_multibyte), &
@@ -66,7 +65,6 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
-
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -75,7 +73,6 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
-
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
@@ -83,14 +80,12 @@ contains
     !> Whole buffer text.
     function contents() result(s)
         character(len=:), allocatable :: s
-
         s = buf_bytes(buffers(cur), 1_int64, buffers(cur)%text%z_byte)
     end function contents
 
     !> Move point to char position `pos`.
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
-
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto
 
@@ -98,7 +93,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-ascii", h, old)
         call insert("hello", st)
         call check(error, st%ok(), "insert failed")
@@ -118,7 +112,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-mb", h, old)
         call insert("a"//e_acute//euro//"b", st)
         call check(error, contents(), "a"//e_acute//euro//"b")
@@ -140,7 +133,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-mid", h, old)
         call insert("ad", st)
         call goto(2_int64)
@@ -166,7 +158,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-char", h, old)
         call insert_char(int(z'20AC', int32), st)
         call insert_char(int(iachar("x"), int32), st)
@@ -184,16 +175,13 @@ contains
         type(status_type) :: st
         integer :: k
         character(len=:), allocatable :: s
-
         call enter("ti-grow", h, old)
-
         do k = 1, 3000
             call insert("xy", st)
             if (.not. st%ok()) exit
             ! Alternate insertion points to keep moving the gap.
             if (mod(k, 7) == 0) call goto(int(k, int64))
         end do
-
         call check(error, st%ok(), "insert failed while growing")
         if (allocated(error)) return
         call check(error, buffers(cur)%text%z, 6001_int64)
@@ -206,16 +194,13 @@ contains
         call check(error, len(buffers(cur)%text%beg, kind=int64), &
                    buffers(cur)%text%z_byte - 1 + buffers(cur)%text%gap_size)
         call leave(h, old)
-
     contains
 
         pure integer function count_char(str, c)
             character(len=*), intent(in) :: str
             character, intent(in) :: c
             integer :: i
-
             count_char = 0
-
             do i = 1, len(str)
                 if (str(i:i) == c) count_char = count_char + 1
             end do
@@ -227,7 +212,6 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         character(len=:), allocatable :: gone
-
         call enter("ti-del", h, old)
         call insert("a"//e_acute//"bcd"//euro//"e", st)
         call del_range_1(2_int64, 4_int64, .true., st, gone)
@@ -248,7 +232,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-delpt", h, old)
         call insert("abcdefgh", st)
         ! Point after the range: shifts down.
@@ -275,7 +258,6 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: tick
-
         call enter("ti-clamp", h, old)
         call insert("abc", st)
         tick = buffers(cur)%text%modiff
@@ -294,7 +276,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-delb", h, old)
         call insert("x"//euro//"y", st)
         ! Bytes 2..4 are the euro sign.
@@ -311,7 +292,6 @@ contains
         type(status_type) :: st
         integer(int64), parameter :: bytepos(*) = [1, 2, 4, 7, 8, 9]
         integer(int64) :: c
-
         call enter("ti-conv", h, old)
         ! chars: a é € b c  -> bytes 1 2 4 7 8 (and Z_BYTE 9)
         call insert("a"//e_acute//euro//"bc", st)
@@ -319,14 +299,12 @@ contains
         call goto(3_int64)
         call insert("", st)
         call move_gap_both(3_int64, 4_int64)
-
         do c = 1, 6
             call check(error, char_to_byte(c), bytepos(c))
             if (allocated(error)) return
             call check(error, byte_to_char(bytepos(c)), c)
             if (allocated(error)) return
         end do
-
         ! The far end of the buffer, scanning backwards.
         call goto(1_int64)
         call check(error, buf_charpos_to_bytepos(cur, 5_int64), 8_int64)
@@ -337,7 +315,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-ro", h, old)
         call insert("abc", st)
         call set_buffer_read_only(h, .true., st)
@@ -359,7 +336,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         call enter("ti-shrink", h, old)
         call insert("abcdef", st)
         call goto(4_int64)
@@ -380,11 +356,9 @@ contains
         type(handle_type) :: a, b, keep, old, prev
         type(status_type) :: st
         integer(int64) :: slot, tick
-
         ! A live, visible buffer to fall back to, so killing A does not
         ! create *scratch* in A's slot.
         call enter("ti-cache-keep", keep, prev)
-
         call enter("ti-cache-a", a, old)
         call insert(euro//euro//euro//euro//euro//euro, st)
         call check(error, char_to_byte(4_int64), 10_int64)   ! now cached
@@ -392,7 +366,6 @@ contains
         slot = a%index
         tick = buffers(cur)%text%modiff
         call leave(a, old)
-
         call enter("ti-cache-b", b, old)
         call insert("aaaaa"//euro, st)
         call check(error, b%index == slot .and. buffers(cur)%text%modiff == tick, &

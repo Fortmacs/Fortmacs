@@ -69,7 +69,6 @@ contains
         type(value_type), intent(out) :: key
         type(status_type), intent(out) :: status
         logical :: have
-
         call message(prompt)
         cursor_in_echo_area = .true.
         call read_event(key, have, status)
@@ -82,10 +81,8 @@ contains
     !> y-or-n-p and map-y-or-n-p use), or ANSWER_NONE.
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
-
         answer = ANSWER_NONE
         if (.not. fixnump(key)) return
-
         select case (xfixnum(key))
         case (iachar(" "), iachar("y"), iachar("Y"))
             answer = ANSWER_ACT
@@ -121,28 +118,22 @@ contains
         type(value_type) :: key
         integer :: def
         logical :: first
-
         answer = .false.
         padded = prompt
-
         if (len(prompt) > 0) then
             if (prompt(len(prompt):len(prompt)) /= " ") padded = padded//" "
         end if
-
         padded = padded//"(y or n) "
         first = .true.
-
         do
             if (first) then
                 call read_key(padded, key, status)
             else
                 call read_key("Please answer y or n.  "//padded, key, status)
             end if
-
             if (.not. status%ok()) return
             first = .false.
             def = query_replace_answer(key)
-
             select case (def)
             case (ANSWER_ACT, ANSWER_SKIP)
                 exit
@@ -156,9 +147,7 @@ contains
                 call discard_input()
             end select
         end do
-
         answer = def == ANSWER_ACT
-
         if (answer) then
             call message(padded//"y")
         else
@@ -182,7 +171,6 @@ contains
         type(status_type) :: status
         logical :: ok, all
         integer :: limit
-
         limit = history_length
         if (present(maxelt)) limit = maxelt
         all = .false.
@@ -190,25 +178,20 @@ contains
         call symbol_value(sym(history_var), history, status)
         if (.not. status%ok()) history = nil()
         if (.not. all .and. len(newelt) == 0) return
-
         if (.not. all .and. list_length(history) > 0) then
             first = list_elt(history, 1_int64)
-
             if (stringp(first)) then
                 if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
             end if
         end if
-
         call cons(make_string(newelt), history, longer, ok)
         if (.not. ok) return
-
         if (limit <= 0) then
             longer = nil()
         else if (list_length(longer) > limit) then
             call list_elements(longer, elems)
             longer = make_list(elems(1:limit))
         end if
-
         call set(sym(history_var), longer, status)
     end subroutine add_to_history
 
@@ -226,7 +209,6 @@ contains
     subroutine global_set_key_value(key, command, status)
         type(value_type), intent(in) :: key(:), command
         type(status_type), intent(out) :: status
-
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
@@ -235,7 +217,6 @@ contains
         type(value_type), intent(in) :: key(:)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
-
         call define_key(current_global_map(), key, sym(command), status)
     end subroutine global_set_key_command
 end module subr_fm

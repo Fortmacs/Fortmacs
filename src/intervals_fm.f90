@@ -65,7 +65,6 @@ contains
     pure subroutine create_root_interval(iv, beg, length)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: beg, length
-
         if (allocated(iv%runs)) deallocate (iv%runs)
         allocate (iv%runs(8))
         iv%n = 1
@@ -77,7 +76,6 @@ contains
     elemental integer(int64) function interval_end(iv, k)
         type(intervals_type), intent(in) :: iv
         integer(int64), intent(in) :: k
-
         interval_end = iv%runs(k)%position + iv%runs(k)%length
     end function interval_end
 
@@ -87,20 +85,16 @@ contains
         type(intervals_type), intent(in) :: iv
         integer(int64), intent(in) :: pos
         integer(int64) :: lo, hi, mid
-
         lo = 1
         hi = iv%n
-
         do while (lo < hi)
             mid = (lo + hi + 1)/2
-
             if (iv%runs(mid)%position <= pos) then
                 lo = mid
             else
                 hi = mid - 1
             end if
         end do
-
         k = lo
     end function find_interval
 
@@ -110,21 +104,16 @@ contains
         integer(int64), intent(in) :: k
         type(interval_type), allocatable :: grown(:)
         integer(int64) :: j
-
         if (iv%n == size(iv%runs, kind=int64)) then
             allocate (grown(2*iv%n))
-
             do j = 1, iv%n
                 grown(j) = iv%runs(j)
             end do
-
             call move_alloc(grown, iv%runs)
         end if
-
         do j = iv%n, k, -1
             iv%runs(j + 1) = iv%runs(j)
         end do
-
         iv%n = iv%n + 1
     end subroutine open_slot
 
@@ -133,11 +122,9 @@ contains
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k
         integer(int64) :: j
-
         do j = k, iv%n - 1
             iv%runs(j) = iv%runs(j + 1)
         end do
-
         iv%runs(iv%n) = interval_type()
         iv%n = iv%n - 1
     end subroutine close_slot
@@ -149,7 +136,6 @@ contains
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k, offset
         integer(int64), intent(out) :: r
-
         call open_slot(iv, k + 1)
         r = k + 1
         iv%runs(r)%plist = iv%runs(k)%plist
@@ -166,7 +152,6 @@ contains
         integer(int64), intent(in) :: k, length
         integer(int64), intent(out) :: l
         integer(int64) :: r
-
         call split_interval_right(iv, k, length, r)
         l = r - 1
     end subroutine split_interval_left
@@ -179,10 +164,8 @@ contains
         logical, intent(out) :: found
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
-
         found = .false.
         call list_elements(plist, elems)
-
         do k = 1, size(elems, kind=int64) - 1, 2
             if (value_eq(elems(k), prop)) then
                 val = elems(k + 1)
@@ -203,26 +186,21 @@ contains
         type(value_type) :: category, fallback, tem
         logical :: found
         integer(int64) :: k
-
         category = make_symbol_ref(intern("category"))
         call list_elements(plist, elems)
-
         do k = 1, size(elems, kind=int64) - 1, 2
             if (value_eq(elems(k), prop)) then
                 val = elems(k + 1)
                 return
             end if
-
             if (value_eq(elems(k), category)) then
                 tem = elems(k + 1)
-
                 if (symbolp(tem)) then
                     call ensure_obarray()
                     call plist_get_eq(symbols(xsymbol(tem))%plist, prop, fallback, found)
                 end if
             end if
         end do
-
         val = fallback
     end function textget
 
@@ -232,11 +210,9 @@ contains
         type(value_type), intent(in) :: sym, set
         type(value_type), allocatable :: elems(:)
         integer(int64) :: k
-
         if (consp(set)) then
             tmem = .false.
             call list_elements(set, elems)
-
             do k = 1, size(elems, kind=int64)
                 if (value_eq(elems(k), sym)) then
                     tmem = .true.
@@ -256,18 +232,15 @@ contains
         type(value_type) :: val
         logical :: found
         integer(int64) :: k
-
         intervals_equal = .false.
         if (list_length(p0) /= list_length(p1)) return
         if (mod(list_length(p0), 2_int64) /= 0) return
         call list_elements(p0, e0)
-
         do k = 1, size(e0, kind=int64) - 1, 2
             call plist_get_eq(p1, e0(k), val, found)
             if (.not. found) return
             if (.not. value_eq(val, e0(k + 1))) return
         end do
-
         intervals_equal = .true.
     end function intervals_equal
 
@@ -280,24 +253,19 @@ contains
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: start, length
         integer(int64) :: k, j, r, a, b, cut
-
         if (iv%n == 0 .or. length == 0) return
-
         if (length > 0) then
             k = find_interval(iv, start)
-
             if (start == interval_end(iv, k)) then
                 k = k + 1                       ! append after the last run
             else if (start > iv%runs(k)%position) then
                 call split_interval_right(iv, k, start - iv%runs(k)%position, r)
                 k = r
             end if
-
             call open_slot(iv, k)
             iv%runs(k) = interval_type()
             iv%runs(k)%position = start
             iv%runs(k)%length = length
-
             do j = k + 1, iv%n
                 iv%runs(j)%position = iv%runs(j)%position + length
             end do
@@ -305,20 +273,16 @@ contains
             a = start
             b = start - length
             j = 1
-
             do while (j <= iv%n)
                 associate (run => iv%runs(j))
                     cut = max(0_int64, min(b, run%position + run%length) - max(a, run%position))
-
                     if (run%position >= b) then
                         run%position = run%position + length
                     else if (run%position > a) then
                         run%position = a
                     end if
-
                     run%length = run%length - cut
                 end associate
-
                 if (iv%runs(j)%length == 0) then
                     call close_slot(iv, j)
                 else

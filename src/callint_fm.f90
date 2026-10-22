@@ -83,16 +83,13 @@ contains
         procedure(command_proc) :: proc
         type(command_type), allocatable :: grown(:)
         integer(int64) :: id
-
         id = intern(name)
         if (.not. allocated(commands)) allocate (commands(max(256_int64, 2*nsymbols)))
-
         if (id > size(commands, kind=int64)) then
             allocate (grown(max(id, 2*size(commands, kind=int64))))
             grown(1:size(commands)) = commands
             call move_alloc(grown, commands)
         end if
-
         commands(id)%proc => proc
     end subroutine defcommand
 
@@ -100,7 +97,6 @@ contains
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
         integer(int64) :: id
-
         command_defined_p = .false.
         if (.not. symbolp(v) .or. .not. allocated(commands)) return
         id = xsymbol(v)
@@ -113,7 +109,6 @@ contains
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
     logical function commandp(v)
         type(value_type), intent(in) :: v
-
         select case (vtag(v))
         case (V_STRING)
             commandp = .true.
@@ -130,17 +125,14 @@ contains
     recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
-
         if (.not. command_defined_p(cmd)) then
             if (symbolp(cmd)) then
                 call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(cmd))%name)
             else
                 call set_error(status, FM_GENERIC_ERROR, "Not a command")
             end if
-
             return
         end if
-
         call commands(xsymbol(cmd))%proc(status)
     end subroutine call_interactively
 
@@ -149,10 +141,8 @@ contains
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw
         type(value_type) :: head
-
         n = 1
         if (nilp(raw)) return
-
         if (value_eq(raw, sym("-"))) then
             n = -1
         else if (consp(raw)) then

@@ -48,7 +48,6 @@ contains
 
     subroutine collect_isearch_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("isearch--test-done", test_done), &
                     new_unittest("isearch-typing", test_typing), &
@@ -68,7 +67,6 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
-
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
@@ -83,7 +81,6 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-
         if (isearch_active) call isearch_done()
         call kill_buffer(h, st)
     end subroutine leave
@@ -93,7 +90,6 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
-
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -101,7 +97,6 @@ contains
 
     subroutine test_done(error)
         type(error_type), allocatable, intent(out) :: error
-
         ! Normal operation.
         call isearch_update()
         call isearch_done()
@@ -115,7 +110,6 @@ contains
     subroutine test_typing(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s f o")
         call check(error, isearch_active .and. point() == 3, "found as typed")
@@ -130,7 +124,6 @@ contains
     subroutine test_repeat(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s f o o C-s")
         call check(error, point() == 12, "second")
@@ -158,7 +151,6 @@ contains
     subroutine test_abort(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call goto_char(2_int64)
         call type_keys("C-s b a DEL")
@@ -180,7 +172,6 @@ contains
     subroutine test_case(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         ! An upper-case letter makes the search case-sensitive.
         call type_keys("C-s F")
@@ -204,7 +195,6 @@ contains
     subroutine test_backward(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call goto_char(20_int64)
         call type_keys("C-r f o")
@@ -222,7 +212,6 @@ contains
     subroutine test_exit(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s b a r C-f")
         call check(error,.not. isearch_active .and. point() == 9, "C-f ends the search and runs")
@@ -235,7 +224,6 @@ contains
     subroutine test_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         ! C-u 2 C-s skips a match; the prefix argument doesn't end the search.
         call type_keys("C-s f o o C-u 2 C-s")
@@ -253,7 +241,6 @@ contains
     subroutine test_ring(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s b a RET")
         call goto_char(1_int64)
@@ -269,7 +256,6 @@ contains
     subroutine test_nonincremental(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("foo bar foo baz Foo", h)
         ! RET at once reads a string and searches for it.
         call type_keys("C-s RET b a z RET")
@@ -287,7 +273,6 @@ contains
     subroutine test_yank(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter("Foo bar"//achar(10)//"foo bar", h)
         ! C-M-y yanks characters, downcased (search-upper-case not-yanks).
         call type_keys("C-s C-M-y C-M-y")
@@ -313,7 +298,6 @@ contains
     function ring() result(v)
         type(value_type) :: v
         type(status_type) :: st
-
         call symbol_value(sym("search-ring"), v, st)
         if (.not. st%ok()) v = nil()
     end function ring
@@ -321,7 +305,6 @@ contains
     function ring_first() result(s)
         character(len=:), allocatable :: s
         type(value_type) :: v
-
         s = ""
         v = ring()
         if (list_length(v) > 0) s = xstring(list_elt(v, 1_int64))

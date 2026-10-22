@@ -235,7 +235,6 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         call resolve_buffer(buffer, i, status)
         if (.not. status%ok()) return
         if (w%start%index == 0) call make_marker(w%start)
@@ -253,7 +252,6 @@ contains
     integer(int64) function window_start(w) result(pos)
         type(window_type), intent(in) :: w
         type(status_type) :: status
-
         pos = 1
         if (w%start%index == 0) return
         call marker_position(w%start, pos, status)
@@ -267,7 +265,6 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noforce
-
         if (w%start%index == 0) call make_marker(w%start)
         call set_marker(w%start, pos, status, w%buffer)
         w%force_start = .true.
@@ -280,7 +277,6 @@ contains
     integer(int64) function window_point(w) result(pos)
         type(window_type), intent(in) :: w
         type(status_type) :: status
-
         pos = 1
         if (w%pointm%index == 0) return
         call marker_position(w%pointm, pos, status)
@@ -292,7 +288,6 @@ contains
         type(window_type), intent(inout) :: w
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
-
         if (w%pointm%index == 0) call make_marker(w%pointm)
         call set_marker(w%pointm, pos, status, w%buffer)
     end subroutine set_window_point
@@ -301,7 +296,6 @@ contains
     !> window.c:window_body_height (in lines).
     integer function window_body_lines(w)
         type(window_type), intent(in) :: w
-
         window_body_lines = w%total_lines
         if (.not. w%mini) window_body_lines = max(0, w%total_lines - 1)
     end function window_body_lines
@@ -310,7 +304,6 @@ contains
     subroutine free_window(w)
         type(window_type), intent(inout) :: w
         type(status_type) :: status
-
         if (w%start%index /= 0) call free_marker(w%start, status)
         if (w%pointm%index /= 0) call free_marker(w%pointm, status)
         w%start = null_handle()

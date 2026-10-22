@@ -72,65 +72,55 @@ contains
         character(len=:), allocatable :: dir
         character(len=:), allocatable :: value
         logical :: found
-
         call getenv(variable, value, found)
-
         if (found .and. len(value) > 0) then
             if (file_name_absolute_p(value)) then
                 dir = file_name_as_directory(value)//"fortmacs/"
                 return
             end if
         end if
-
         dir = file_name_as_directory(get_homedir())//fallback//"/fortmacs/"
     end function xdg_directory
 
     !> The directory of init.f90.
     function config_directory() result(dir)
         character(len=:), allocatable :: dir
-
         dir = xdg_directory("XDG_CONFIG_HOME", ".config")
     end function config_directory
 
     !> The directory of the built binary.
     function state_directory() result(dir)
         character(len=:), allocatable :: dir
-
         dir = xdg_directory("XDG_STATE_HOME", ".local/state")
     end function state_directory
 
     !> The directory `--recompile` builds in.
     function cache_directory() result(dir)
         character(len=:), allocatable :: dir
-
         dir = xdg_directory("XDG_CACHE_HOME", ".cache")
     end function cache_directory
 
     !> The user's init file.
     function init_file_name() result(name)
         character(len=:), allocatable :: name
-
         name = config_directory()//"init.f90"
     end function init_file_name
 
     !> The directory of the generations.
     function generations_directory() result(dir)
         character(len=:), allocatable :: dir
-
         dir = state_directory()//"generations/"
     end function generations_directory
 
     !> The binary of the current generation.
     function current_build_name() result(name)
         character(len=:), allocatable :: name
-
         name = generations_directory()//"current/fortmacs"
     end function current_build_name
 
     !> The file name of the running program ("" if unknown).
     function running_executable() result(name)
         character(len=:), allocatable :: name
-
         if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
 
@@ -141,7 +131,6 @@ contains
         character(len=:), allocatable, intent(out) :: prefix
         logical, intent(out) :: found
         character(len=:), allocatable :: bin
-
         found = .false.
         prefix = ""
         bin = directory_file_name(file_name_directory(executable))
@@ -157,7 +146,6 @@ contains
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: text
         character(len=*), parameter :: nl = new_line("a")
-
         text = "! Written by fortmacs --recompile."//nl// &
                "program fortmacs_user"//nl// &
                "    use emacs_fm, only: run"//nl// &
@@ -178,9 +166,7 @@ contains
         character(len=:), allocatable :: literal
         character(len=:), allocatable :: quoted
         integer :: k, n
-
         quoted = ""
-
         do k = 1, len(s)
             if (s(k:k) == '"') then
                 quoted = quoted//'""'
@@ -188,21 +174,17 @@ contains
                 quoted = quoted//s(k:k)
             end if
         end do
-
         literal = '"'
         n = 0
-
         do k = 1, len(quoted)
             literal = literal//quoted(k:k)
             n = n + 1
-
             ! Break between characters, never inside a doubled quote.
             if (n >= 60 .and. k < len(quoted) .and. quoted(k:k) /= '"') then
                 literal = literal//'" // &'//new_line("a")//'        "'
                 n = 0
             end if
         end do
-
         literal = literal//'"'
     end function fortran_string
 
@@ -222,23 +204,18 @@ contains
         type(handle_type) :: old, buf
         type(status_type) :: ignore
         integer :: unit, ios
-
         log = ""
         init = init_file_name()
-
         if (.not. file_readable_p(init)) then
             call report_file_errno("Opening init file", init, ENOENT, status)
             return
         end if
-
         library = prefix//"lib/libfortmacs.a"
-
         if (.not. file_exists_p(library)) then
             call set_error(status, FM_GENERIC_ERROR, "Can't find "//library// &
                            "; install Fortmacs with `fpm install`")
             return
         end if
-
         cache = cache_directory()
         call make_directory(cache, status, parents=.true.)
         if (.not. status%ok()) return
@@ -249,18 +226,15 @@ contains
         gen = generations_directory()//itoa(n)//"/"
         call make_directory(gen, status, parents=.true.)
         if (.not. status%ok()) return
-
         driver = cache//"main.f90"
         open (newunit=unit, file=driver, status="replace", action="write", access="stream", &
               form="unformatted", iostat=ios)
         if (ios == 0) write (unit, iostat=ios) driver_source(prefix)
         if (ios == 0) close (unit, iostat=ios)
-
         if (ios /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Can't write "//driver)
             return
         end if
-
         ! gfortran -O2 -J CACHE -I PREFIX/include INIT DRIVER
         !     -L PREFIX/lib -lfortmacs -o GENERATION/fortmacs
         built = gen//"fortmacs"
@@ -278,7 +252,6 @@ contains
         args(12) = make_string("-lfortmacs")
         args(13) = make_string("-fdiagnostics-plain-output")
         args(14) = make_string("-fno-diagnostics-color")
-
         ! The compiler's output goes to a buffer, made in the cache
         ! directory so the compiler runs there.
         old = current_buffer()
@@ -291,24 +264,20 @@ contains
         log = buffer_string()
         call kill_buffer(buf, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)
-
         if (.not. status%ok()) then
             call delete_directory_internal(gen, ignore)
             return
         end if
-
         if (.not. fixnump(result)) then
             call set_error(status, FM_GENERIC_ERROR, compiler//" was killed: "//xstring(result))
         else if (xfixnum(result) /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Compiling "//init//" failed")
         end if
-
         if (.not. status%ok()) then
             if (file_exists_p(built)) call delete_file_internal(built, ignore)
             call delete_directory_internal(gen, ignore)
             return
         end if
-
         ! The init file it was built from stays with it.
         call copy_file(init, gen//"init.f90", status)
         if (.not. status%ok()) return
@@ -321,7 +290,6 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=12) :: buf
-
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
@@ -330,11 +298,9 @@ contains
     pure integer function number_of(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k
-
         n = 0
         if (len(s) == 0 .or. len(s) > 9) return
         if (verify(s, "0123456789") /= 0) return
-
         do k = 1, len(s)
             n = 10*n + iachar(s(k:k)) - iachar("0")
         end do
@@ -349,7 +315,6 @@ contains
         type(value_type), allocatable :: names(:)
         integer, allocatable :: all(:)
         integer :: k, j, n, v
-
         allocate (numbers(0))
         if (.not. file_exists_p(generations_directory())) return
         call directory_files(generations_directory(), files, status)
@@ -357,30 +322,25 @@ contains
         call list_elements(files, names)
         allocate (all(size(names)))
         n = 0
-
         do k = 1, size(names)
             v = number_of(xstring(names(k)))
             if (v == 0) cycle
             ! Sorted by number, not by name ("10" after "9").
             j = n
-
             do while (j >= 1)
                 if (all(j) < v) exit
                 all(j + 1) = all(j)
                 j = j - 1
             end do
-
             all(j + 1) = v
             n = n + 1
         end do
-
         numbers = all(1:n)
     end subroutine generation_numbers
 
     !> The generation `current` points at, or 0 if none.
     integer function current_generation() result(n)
         character(len=:), allocatable :: target
-
         n = 0
         if (emacs_readlink(generations_directory()//"current", target) /= 0) return
         n = number_of(file_name_nondirectory(directory_file_name(target)))
@@ -390,7 +350,6 @@ contains
     integer function generation_of(executable) result(n)
         character(len=*), intent(in) :: executable
         character(len=:), allocatable :: dir
-
         n = 0
         dir = file_name_directory(executable)
         if (index(dir, generations_directory()) /= 1) return
@@ -403,14 +362,11 @@ contains
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: dir
-
         dir = generations_directory()
-
         if (n <= 0 .or. .not. file_executable_p(dir//itoa(n)//"/fortmacs")) then
             call set_error(status, FM_GENERIC_ERROR, "There is no generation "//itoa(n))
             return
         end if
-
         call make_symbolic_link(itoa(n), dir//"current.new", status, ok_if_already_exists=.true.)
         if (.not. status%ok()) return
         call rename_file(dir//"current.new", dir//"current", status)
@@ -423,27 +379,21 @@ contains
         type(status_type), intent(out) :: status
         integer, allocatable :: numbers(:)
         integer :: k
-
         to = 0
         from = current_generation()
-
         if (from == 0) then
             call set_error(status, FM_GENERIC_ERROR, "There are no generations yet; run fortmacs --recompile")
             return
         end if
-
         call generation_numbers(numbers, status)
         if (.not. status%ok()) return
-
         do k = 1, size(numbers)
             if (numbers(k) < from) to = numbers(k)
         end do
-
         if (to == 0) then
             call set_error(status, FM_GENERIC_ERROR, "There is no generation before generation "//itoa(from))
             return
         end if
-
         call switch_generation(to, status)
     end subroutine rollback
 
@@ -459,26 +409,20 @@ contains
         character(len=20) :: when
         integer :: k, current, t(6)
         logical :: found
-
         text = ""
         call generation_numbers(numbers, status)
         if (.not. status%ok()) return
         current = current_generation()
-
         do k = 1, size(numbers)
             call file_attributes(generations_directory()//itoa(numbers(k))//"/fortmacs", st, found)
             when = ""
-
             if (found) then
                 t = emacs_localtime(st%mtime_sec)
                 write (when, "(a3, 1x, i2.2, 1x, i4, 1x, i2.2, ':', i2.2, ':', i2.2)") months(t(2)), t(3), t(1), &
                     t(4), t(5), t(6)
             end if
-
             text = text//"Generation "//itoa(numbers(k))//achar(9)//trim(when)
-
             if (numbers(k) == current) text = text//achar(9)//"(current)"
-
             text = text//new_line("a")
         end do
     end subroutine list_generations
