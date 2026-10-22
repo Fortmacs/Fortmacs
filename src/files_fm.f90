@@ -42,7 +42,8 @@ module files_fm
                          file_directory_p, file_accessible_directory_p, file_attributes, &
                          file_modes, set_file_modes, rename_file, copy_file, &
                          insert_file_contents, write_region, verify_visited_file_modtime, &
-                         file_regular_p, file_symlink_p, user_uid, group_gid
+                         file_regular_p, file_symlink_p, user_uid, group_gid, &
+                         make_directory_internal
     use keymap_fm, only: define_key
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: request_exit
@@ -59,6 +60,7 @@ module files_fm
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
     public :: set_visited_file_name, write_file
+    public :: make_directory
 
     interface
         !> minibuffer.el:read-file-name.  (In submodule files_read_fm, as
@@ -794,5 +796,76 @@ contains
         key(1) = make_fixnum(3_int64)
         call define_key(ctl_x_map, key, sym("save-buffers-kill-terminal"), status)
     end subroutine syms_of_files
+
+    !> Make directory DIR if it is not already a directory.
+    !> `already` is true if DIR is already a directory.  Port of
+    !> files.el:files--ensure-directory.
+    subroutine ensure_directory(dir, already, status)
+        character(len=*), intent(in) :: dir
+        logical, intent(out) :: already
+        type(status_type), intent(out) :: status
+
+        already = .false.
+        call make_directory_internal(dir, status)
+        if (.not. status%ok()) then
+            already = file_directory_p(dir)
+            if (already) status = status_type()
+        end if
+    end subroutine ensure_directory
+
+    !> Create the directory DIR and optionally any nonexistent parent dirs.
+    !>
+    !> PARENTS, if true, says whether to create parent directories that
+    !> don't exist.
+    !>
+    !> ALREADY is true if PARENTS is true and DIR already exists as a
+    !> directory, and false if DIR did not already exist but was created.
+    !> Signal an error if unsuccessful.  Port of files.el:make-directory.
+    subroutine make_directory(dir, status, parents, already)
+        character(len=*), intent(in) :: dir
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: parents
+        logical, intent(out), optional :: already
+        character(len=:), allocatable :: absname, d, parent
+        type(status_type) :: est
+        logical :: already_dir
+        integer :: k, n
+        integer, allocatable :: ends(:)
+
+        if (present(already)) already = .false.
+        call expand_file_name(dir, absname, status)
+        if (.not. status%ok()) return
+        if (.not. present(parents)) then
+            call make_directory_internal(absname, status)
+            return
+        end if
+        if (.not. parents) then
+            call make_directory_internal(absname, status)
+            return
+        end if
+        ! Walk up to the first directory that exists (or can be made),
+        ! remembering the ones to create below it.
+        d = directory_file_name(absname)
+        allocate (ends(0))
+        do
+            parent = directory_file_name(file_name_directory(d))
+            call ensure_directory(d, already_dir, est)
+            if (est%ok()) exit
+            ! Do not loop if root does not exist (Bug#2309).
+            if (d == parent) exit
+            ends = [len(d), ends]
+            d = parent
+        end do
+        n = size(ends)
+        do k = 1, n
+            call ensure_directory(absname(1:ends(k)), already_dir, status)
+            if (.not. status%ok()) return
+        end do
+        if (n == 0 .and. .not. est%ok()) then
+            status = est
+            return
+        end if
+        if (present(already)) already = already_dir
+    end subroutine make_directory
 
 end module files_fm

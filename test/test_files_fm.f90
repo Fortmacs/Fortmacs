@@ -38,7 +38,7 @@ module test_files_fm
     use files_fm, only: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, &
                         save_buffer, basic_save_buffer, make_backup_file_name, &
                         normal_backup_enable_predicate, save_some_buffers, &
-                        save_buffers_kill_emacs, temporary_file_directory
+                        save_buffers_kill_emacs, temporary_file_directory, make_directory
     use subr_fm, only: y_or_n_p
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_fm, only: command_line_1, arg_type
@@ -85,7 +85,8 @@ contains
                     new_unittest("map-y-or-n-p", test_map_ynp), &
                     new_unittest("save-some-buffers", test_save_some_buffers), &
                     new_unittest("save-buffers-kill-emacs", test_kill_emacs), &
-                    new_unittest("command-line-files", test_command_line) &
+                    new_unittest("command-line-files", test_command_line), &
+                    new_unittest("files-tests-make-directory", test_make_directory) &
                     ]
     end subroutine collect_files_fm
 
@@ -582,5 +583,64 @@ contains
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
     end subroutine set_buffer_text_file
+
+    subroutine test_make_directory(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: dir, dirname, file, subdir1, subdir2, a_b
+        type(status_type) :: st
+        logical :: already
+
+        dir = path("mkdir")
+        dirname = dir//"/"
+        file = dirname//"file"
+        subdir1 = dirname//"subdir1"
+        subdir2 = dirname//"subdir2"
+        a_b = dirname//"a/b"
+        call make_directory_internal(dir, st)
+        call write_region(file, .false., st)
+        body: block
+            call make_directory("/", st)
+            call check(error,.not. st%ok(), "/")
+            if (allocated(error)) exit body
+            call make_directory("/", st, parents=.true., already=already)
+            call check(error, st%ok() .and. already, "/ with parents")
+            if (allocated(error)) exit body
+            call make_directory(dir, st)
+            call check(error,.not. st%ok(), "dir")
+            if (allocated(error)) exit body
+            call make_directory(dir, st, parents=.true., already=already)
+            call check(error, st%ok() .and. already, "dir with parents")
+            if (allocated(error)) exit body
+            call make_directory(dirname, st)
+            call check(error,.not. st%ok(), "dirname")
+            if (allocated(error)) exit body
+            call make_directory(dirname, st, parents=.true., already=already)
+            call check(error, st%ok() .and. already, "dirname with parents")
+            if (allocated(error)) exit body
+            call make_directory(file, st)
+            call check(error,.not. st%ok(), "file")
+            if (allocated(error)) exit body
+            call make_directory(file, st, parents=.true.)
+            call check(error,.not. st%ok(), "file with parents")
+            if (allocated(error)) exit body
+            call make_directory(subdir1, st, already=already)
+            call check(error, st%ok() .and. .not. already, "subdir1")
+            if (allocated(error)) exit body
+            call make_directory(subdir2, st, parents=.true., already=already)
+            call check(error, st%ok() .and. .not. already, "subdir2 with parents")
+            if (allocated(error)) exit body
+            call make_directory(a_b, st)
+            call check(error,.not. st%ok(), "a/b")
+            if (allocated(error)) exit body
+            call make_directory(a_b, st, parents=.true., already=already)
+            call check(error, st%ok() .and. .not. already, "a/b with parents")
+        end block body
+        call delete_directory_internal(a_b, st)
+        call delete_directory_internal(dirname//"a", st)
+        call delete_directory_internal(subdir1, st)
+        call delete_directory_internal(subdir2, st)
+        call delete_file_internal(file, st)
+        call delete_directory_internal(dir, st)
+    end subroutine test_make_directory
 
 end module test_files_fm

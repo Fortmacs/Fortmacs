@@ -32,6 +32,7 @@
 !>   why it is used instead of struct stat, whose layout differs)
 !> - struct passwd: glibc pwd.h (pointers and 32-bit ids, the same on both)
 !> - access modes: unistd.h;  AT_FDCWD: linux/fcntl.h
+!> - wait status bits: glibc bits/waitstatus.h
 !>
 !> Variadic functions (`open`, `ioctl`) are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
@@ -188,6 +189,8 @@ module sys_linux_fm
     public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
               c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror
+    public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
+              c_strsignal, c_mkostemp
     public :: errno, c_string_to_fortran
 
     interface
@@ -405,6 +408,73 @@ module sys_linux_fm
             implicit none(type, external)
             integer(c_int), value :: errnum
         end function c_strerror
+
+        integer(c_int32_t) function c_fork() bind(C, name="fork")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_fork
+
+        integer(c_int) function c_dup2(oldfd, newfd) bind(C, name="dup2")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: oldfd, newfd
+        end function c_dup2
+
+        integer(c_int) function c_chdir(path) bind(C, name="chdir")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+        end function c_chdir
+
+        !> _exit(2): leave a forked child without running exit handlers.
+        subroutine c_exit(status) bind(C, name="_exit")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: status
+        end subroutine c_exit
+
+        integer(c_int) function c_pipe2(fds, flags) bind(C, name="pipe2")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), intent(out) :: fds(2)
+            integer(c_int), value :: flags
+        end function c_pipe2
+
+        integer(c_int32_t) function c_waitpid(pid, wstatus, options) bind(C, name="waitpid")
+            import :: c_int, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid
+            integer(c_int), intent(out) :: wstatus
+            integer(c_int), value :: options
+        end function c_waitpid
+
+        integer(c_long) function c_readlink(path, buf, bufsiz) bind(C, name="readlink")
+            import :: c_long, c_size_t, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            character(kind=c_char), intent(out) :: buf(*)
+            integer(c_size_t), value :: bufsiz
+        end function c_readlink
+
+        integer(c_int) function c_execv(path, argv) bind(C, name="execv")
+            import :: c_int, c_char, c_ptr
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            type(c_ptr), intent(in) :: argv(*)
+        end function c_execv
+
+        type(c_ptr) function c_strsignal(sig) bind(C, name="strsignal")
+            import :: c_ptr, c_int
+            implicit none(type, external)
+            integer(c_int), value :: sig
+        end function c_strsignal
+
+        integer(c_int) function c_mkostemp(template, flags) bind(C, name="mkostemp")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(inout) :: template(*)
+            integer(c_int), value :: flags
+        end function c_mkostemp
 
         type(c_ptr) function c_errno_location() bind(C, name="__errno_location")
             import :: c_ptr

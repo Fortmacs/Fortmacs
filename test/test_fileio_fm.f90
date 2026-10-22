@@ -31,6 +31,7 @@ module test_fileio_fm
     use editfns_fm, only: point, buffer_string, goto_char
     use sysdep_fm, only: sys_setenv, sys_unsetenv
     use fileio_fm, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
+                         file_executable_p, file_newer_than_file_p, &
                          directory_file_name, directory_name_p, file_name_absolute_p, &
                          expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists_p, &
                          file_readable_p, file_writable_p, file_directory_p, file_modes, &
@@ -527,6 +528,16 @@ contains
         call check(error, st%ok() .and. file_modes(testdir//"/f6") == int(o'640', int32))
         if (allocated(error)) return
         call check(error, file_modes(testdir//"/missing") == -1)
+        if (allocated(error)) return
+        call check(error,.not. file_executable_p(testdir//"/f6"), "not executable")
+        if (allocated(error)) return
+        call set_file_modes(testdir//"/f6", int(o'750', int32), st)
+        call check(error, file_executable_p(testdir//"/f6") .and. file_executable_p(testdir), "executable")
+        if (allocated(error)) return
+        ! file-newer-than-file-p: a missing file is older than any other.
+        call check(error, file_newer_than_file_p(testdir//"/f6", testdir//"/missing") .and. &
+                   .not. file_newer_than_file_p(testdir//"/missing", testdir//"/f6") .and. &
+                   .not. file_newer_than_file_p(testdir//"/f6", testdir//"/f6"), "file-newer-than-file-p")
         if (allocated(error)) return
         call make_directory_internal(testdir//"/sub", st)
         call check(error, st%ok() .and. file_directory_p(testdir//"/sub/"))
