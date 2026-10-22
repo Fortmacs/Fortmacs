@@ -181,37 +181,65 @@ module charscript_fm
 
     !> The script names, numbered in order of appearance.
     character(len=30), parameter :: script_names(script_count) = [character(len=30) :: &
-                                               "latin", "phonetic", "greek", "coptic", "cyrillic", "armenian", "hebrew", "arabic", &
-                                           "syriac", "thaana", "nko", "samaritan", "mandaic", "devanagari", "bengali", "gurmukhi", &
-                                         "gujarati", "oriya", "tamil", "telugu", "kannada", "malayalam", "sinhala", "thai", "lao", &
-                                        "tibetan", "burmese", "georgian", "hangul", "ethiopic", "cherokee", "canadian-aboriginal", &
-                                       "ogham", "runic", "tagalog", "hanunoo", "buhid", "tagbanwa", "khmer", "mongolian", "limbu", &
-                                          "tai-le", "tai-lue", "buginese", "tai-tham", "balinese", "sundanese", "batak", "lepcha", &
-                                                        "ol-chiki", "vedic", "symbol", "braille", "glagolitic", "tifinagh", "han", &
-                                         "ideographic-description", "cjk-misc", "kana", "bopomofo", "kanbun", "yi", "lisu", "vai", &
-                                              "bamum", "syloti-nagri", "north-indic-number", "phags-pa", "saurashtra", "kayah-li", &
-                                            "rejang", "javanese", "cham", "tai-viet", "meetei-mayek", "vertical-form", "linear-b", &
-                                             "aegean-number", "ancient-greek-number", "ancient-symbol", "phaistos-disc", "lycian", &
-                                             "carian", "old-italic", "gothic", "old-permic", "ugaritic", "old-persian", "deseret", &
-                                             "shavian", "osmanya", "osage", "elbasan", "caucasian-albanian", "vithkuqi", "todhri", &
-                                                   "linear-a", "cypriot-syllabary", "aramaic", "palmyrene", "nabataean", "hatran", &
-                                                 "phoenician", "lydian", "sidetic", "meroitic", "kharoshthi", "old-south-arabian", &
-                                                           "old-north-arabian", "manichaean", "avestan", "inscriptional-parthian", &
-                                                        "inscriptional-pahlavi", "psalter-pahlavi", "old-turkic", "old-hungarian", &
-                                       "hanifi-rohingya", "garay", "yezidi", "old-sogdian", "sogdian", "old-uyghur", "chorasmian", &
-                                         "elymaic", "brahmi", "kaithi", "sora-sompeng", "chakma", "mahajani", "sharada", "khojki", &
-                                         "multani", "khudawadi", "grantha", "tulu-tigalari", "newa", "tirhuta", "siddham", "modi", &
-                                        "takri", "ahom", "dogra", "warang-citi", "dives-akuru", "nandinagari", "zanabazar-square", &
-                                                     "soyombo", "pau-cin-hau", "sunuwar", "bhaiksuki", "marchen", "masaram-gondi", &
-                                       "gunjala-gondi", "tolong-siki", "makasar", "kawi", "cuneiform", "cypro-minoan", "egyptian", &
-                                           "anatolian", "gurung-khema", "mro", "tangsa", "bassa-vah", "pahawh-hmong", "kirat-rai", &
-                                                    "medefaidrin", "beria-erfe", "miao", "tangut", "khitan-small-script", "nushu", &
-                                                    "duployan-shorthand", "znamenny-musical-notation", "byzantine-musical-symbol", &
-                                          "musical-symbol", "ancient-greek-musical-notation", "kaktovik-numeral", "mayan-numeral", &
-                                            "tai-xuan-jing-symbol", "counting-rod-numeral", "mathematical", "sutton-sign-writing", &
-                                                   "nyiakeng-puachue-hmong", "toto", "wancho", "nag-mundari", "ol-onal", "tai-yo", &
-                                           "mende-kikakui", "adlam", "indic-siyaq-number", "ottoman-siyaq-number", "mahjong-tile", &
-                                                                  "domino-tile", "playing-cards", "chess-symbol", "emoji"]
+                                                                  "latin", "phonetic", "greek", "coptic", "cyrillic", &
+                                                                  "armenian", "hebrew", "arabic", "syriac", "thaana", &
+                                                                  "nko", "samaritan", "mandaic", "devanagari", &
+                                                                  "bengali", "gurmukhi", "gujarati", "oriya", &
+                                                                  "tamil", "telugu", "kannada", "malayalam", &
+                                                                  "sinhala", "thai", "lao", "tibetan", "burmese", &
+                                                                  "georgian", "hangul", "ethiopic", "cherokee", &
+                                                                  "canadian-aboriginal", "ogham", "runic", "tagalog", &
+                                                                  "hanunoo", "buhid", "tagbanwa", "khmer", &
+                                                                  "mongolian", "limbu", "tai-le", "tai-lue", &
+                                                                  "buginese", "tai-tham", "balinese", "sundanese", &
+                                                                  "batak", "lepcha", "ol-chiki", "vedic", "symbol", &
+                                                                  "braille", "glagolitic", "tifinagh", "han", &
+                                                                  "ideographic-description", "cjk-misc", "kana", &
+                                                                  "bopomofo", "kanbun", "yi", "lisu", "vai", "bamum", &
+                                                                  "syloti-nagri", "north-indic-number", "phags-pa", &
+                                                                  "saurashtra", "kayah-li", "rejang", "javanese", &
+                                                                  "cham", "tai-viet", "meetei-mayek", &
+                                                                  "vertical-form", "linear-b", "aegean-number", &
+                                                                  "ancient-greek-number", "ancient-symbol", &
+                                                                  "phaistos-disc", "lycian", "carian", "old-italic", &
+                                                                  "gothic", "old-permic", "ugaritic", "old-persian", &
+                                                                  "deseret", "shavian", "osmanya", "osage", &
+                                                                  "elbasan", "caucasian-albanian", "vithkuqi", &
+                                                                  "todhri", "linear-a", "cypriot-syllabary", &
+                                                                  "aramaic", "palmyrene", "nabataean", "hatran", &
+                                                                  "phoenician", "lydian", "sidetic", "meroitic", &
+                                                                  "kharoshthi", "old-south-arabian", &
+                                                                  "old-north-arabian", "manichaean", "avestan", &
+                                                                  "inscriptional-parthian", "inscriptional-pahlavi", &
+                                                                  "psalter-pahlavi", "old-turkic", "old-hungarian", &
+                                                                  "hanifi-rohingya", "garay", "yezidi", &
+                                                                  "old-sogdian", "sogdian", "old-uyghur", &
+                                                                  "chorasmian", "elymaic", "brahmi", "kaithi", &
+                                                                  "sora-sompeng", "chakma", "mahajani", "sharada", &
+                                                                  "khojki", "multani", "khudawadi", "grantha", &
+                                                                  "tulu-tigalari", "newa", "tirhuta", "siddham", &
+                                                                  "modi", "takri", "ahom", "dogra", "warang-citi", &
+                                                                  "dives-akuru", "nandinagari", "zanabazar-square", &
+                                                                  "soyombo", "pau-cin-hau", "sunuwar", "bhaiksuki", &
+                                                                  "marchen", "masaram-gondi", "gunjala-gondi", &
+                                                                  "tolong-siki", "makasar", "kawi", "cuneiform", &
+                                                                  "cypro-minoan", "egyptian", "anatolian", &
+                                                                  "gurung-khema", "mro", "tangsa", "bassa-vah", &
+                                                                  "pahawh-hmong", "kirat-rai", "medefaidrin", &
+                                                                  "beria-erfe", "miao", "tangut", &
+                                                                  "khitan-small-script", "nushu", &
+                                                                  "duployan-shorthand", "znamenny-musical-notation", &
+                                                                  "byzantine-musical-symbol", "musical-symbol", &
+                                                                  "ancient-greek-musical-notation", &
+                                                                  "kaktovik-numeral", "mayan-numeral", &
+                                                                  "tai-xuan-jing-symbol", "counting-rod-numeral", &
+                                                                  "mathematical", "sutton-sign-writing", &
+                                                                  "nyiakeng-puachue-hmong", "toto", "wancho", &
+                                                                  "nag-mundari", "ol-onal", "tai-yo", &
+                                                                  "mende-kikakui", "adlam", "indic-siyaq-number", &
+                                                                  "ottoman-siyaq-number", "mahjong-tile", &
+                                                                  "domino-tile", "playing-cards", "chess-symbol", &
+                                                                  "emoji"]
 
 contains
 

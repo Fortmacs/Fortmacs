@@ -144,7 +144,7 @@ END {
     line = ""
     for (i = 1; i <= nnames; i++) {
         item = "\"" names[i] "\""
-        if (length(line) + length(item) > 90) { printf "        %s &\n", line; line = "" }
+        if (length(line) + length(item) > 50) { printf "        %s &\n", line; line = "" }
         line = line item (i < nnames ? ", " : "")
     }
     printf "        %s]\n\n", line
