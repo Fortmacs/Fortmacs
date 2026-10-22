@@ -33,13 +33,10 @@ contains
         character(len=*), intent(in), optional :: dir, default_filename, initial
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
-
         mustmatch = REQUIRE_MATCH_NIL
-
         if (present(confirm_nonexistent)) then
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
         end if
-
         call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial=initial)
     end subroutine read_file_name_in_minibuffer
 end submodule files_read_fm

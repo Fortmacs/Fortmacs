@@ -108,41 +108,31 @@ contains
         integer(int32) :: fds(2), err, fd, pid, code, sig
         integer(int64) :: n, k
         type(status_type) :: rst
-
         result = nil()
         ! get_current_directory: the current buffer's default-directory.
         dir = ""
-
         if (cur /= 0) then
             if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
         end if
-
         if (len(dir) == 0 .and. allocated(emacs_wd)) dir = file_name_as_directory(emacs_wd)
         if (len(dir) == 0) dir = "/"
-
         if (.not. file_accessible_directory_p(dir)) then
             call report_file_errno("Setting current directory", dir, ENOENT, status)
             return
         end if
-
         input = "/dev/null"
-
         if (present(infile)) then
             call expand_file_name(infile, input, status, dir)
             if (.not. status%ok()) return
             err = emacs_open_read(input, fd)
-
             if (err /= 0) then
                 call report_file_errno("Opening process input file", input, err, status)
                 return
             end if
-
             call close_fd(fd)
         end if
-
         ! The destination: a buffer, or nothing.
         discard = .true.
-
         if (present(destination)) then
             if (fixnump(destination)) then
                 call set_error(status, FM_GENERIC_ERROR, &
@@ -159,7 +149,6 @@ contains
             else if (bufferp(destination)) then
                 discard = .false.
                 buffer = xhandle(destination)
-
                 if (.not. buffer_live_p(buffer)) then
                     call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
                     return
@@ -173,65 +162,50 @@ contains
                 return
             end if
         end if
-
         call locate_program(program, dir, path)
-
         if (len(path) == 0) then
             call report_file_errno("Searching for program", program, ENOENT, status)
             return
         end if
-
         ! The argument vector: PROGRAM, then ARGS.
         if (present(args)) then
             call list_elements(args, elems)
         else
             allocate (elems(0))
         end if
-
         allocate (argv(size(elems) + 1))
         argv(1)%s = program
-
         do k = 1, size(elems, kind=int64)
             call check_string(elems(k), status)
             if (.not. status%ok()) return
             argv(k + 1)%s = xstring(elems(k))
         end do
-
         fds = -1
-
         if (.not. discard) then
             err = emacs_pipe(fds)
-
             if (err /= 0) then
                 call report_file_errno("Creating process pipe", "", err, status)
                 return
             end if
         end if
-
         err = emacs_spawn(path, argv, input, fds(2), dir, pid)
         if (.not. discard) call close_fd(fds(2))
-
         if (err /= 0) then
             if (.not. discard) call close_fd(fds(1))
             call report_file_errno("Doing fork", program, err, status)
             return
         end if
-
         ! Read everything the program writes, then wait for it.
         output = ""
-
         if (.not. discard) then
             do
                 call emacs_read(fds(1), chunk, n, rst)
                 if (.not. rst%ok() .or. n <= 0) exit
                 output = output//chunk(1:n)
             end do
-
             call close_fd(fds(1))
         end if
-
         err = wait_for_termination(pid, code, sig)
-
         if (len(output) > 0) then
             old = current_buffer()
             call set_buffer(buffer, status)
@@ -240,7 +214,6 @@ contains
             call set_buffer(old, rst)
             if (.not. status%ok()) return
         end if
-
         if (sig /= 0) then
             result = make_string(emacs_strsignal(sig))
         else
@@ -259,45 +232,35 @@ contains
         type(status_type) :: st
         logical :: found
         integer :: b, e
-
         path = ""
-
         if (index(program, "/") > 0) then
             call expand_file_name(program, candidate, st, dir)
             if (st%ok() .and. executable_file_p(candidate)) path = candidate
             return
         end if
-
         call getenv("PATH", search, found)
         if (.not. found) return
         b = 1
-
         do while (b <= len(search) + 1)
             e = index(search(b:), ":")
-
             if (e == 0) then
                 e = len(search) + 1
             else
                 e = b + e - 1
             end if
-
             entry = search(b:e - 1)
             if (len(entry) == 0) entry = dir
             call expand_file_name(program, candidate, st, file_name_as_directory(entry))
-
             if (st%ok() .and. executable_file_p(candidate)) then
                 path = candidate
                 return
             end if
-
             b = e + 1
         end do
-
     contains
 
         logical function executable_file_p(name)
             character(len=*), intent(in) :: name
-
             executable_file_p = file_executable_p(name) .and. .not. file_directory_p(name)
         end function executable_file_p
     end subroutine locate_program
@@ -309,7 +272,6 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64) :: nchars
-
         if (buffers(cur)%multibyte) then
             call str_as_multibyte(bytes, text, nchars)
             call insert(text, status)
@@ -350,10 +312,8 @@ contains
         integer(int64) :: s, e
         logical :: whole, empty_input
         type(status_type) :: dst
-
         result = nil()
         whole = .not. (present(start) .and. present(end))
-
         if (whole) then
             empty_input = buffers(cur)%text%z == BEG
         else
@@ -363,22 +323,17 @@ contains
             if (.not. status%ok()) return
             empty_input = s == e
         end if
-
         tempfile = ""
-
         if (.not. empty_input) then
             if (whole) then
                 call create_temp_file(tempfile, status)
             else
                 call create_temp_file(tempfile, status, s, e)
             end if
-
             if (.not. status%ok()) return
         end if
-
         delete_text: if (present(delete)) then
             if (.not. delete) exit delete_text
-
             if (whole) then
                 ! No need to save restrictions since we delete everything
                 ! anyway.
@@ -387,13 +342,11 @@ contains
             else
                 call delete_region(s, e, status)
             end if
-
             if (.not. status%ok()) then
                 if (len(tempfile) > 0) call delete_file_internal(tempfile, dst)
                 return
             end if
         end if delete_text
-
         if (len(tempfile) > 0) then
             call call_process(program, result, status, tempfile, destination, args)
             call delete_file_internal(tempfile, dst)
@@ -412,18 +365,15 @@ contains
         character(len=:), allocatable :: pattern
         integer(int32) :: fd, err
         type(status_type) :: dst
-
         ! temp-file-name-pattern in temporary-file-directory.
         call expand_file_name("emacsXXXXXX", pattern, status, temporary_file_directory())
         if (.not. status%ok()) return
         tempfile = pattern
         err = emacs_mkostemp(tempfile, fd)
-
         if (err /= 0) then
             call report_file_errno("Failed to open temporary file using pattern", pattern, err, status)
             return
         end if
-
         call close_fd(fd)
         call write_region(tempfile, .false., status, start, end)
         if (.not. status%ok()) call delete_file_internal(tempfile, dst)

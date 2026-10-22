@@ -44,7 +44,6 @@ contains
 
     subroutine collect_marker_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("make-marker-points-nowhere", test_nowhere), &
                     new_unittest("set-marker-clips", test_set_clips), &
@@ -64,7 +63,6 @@ contains
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
         type(status_type) :: st
-
         old = current_buffer()
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
@@ -73,21 +71,18 @@ contains
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
-
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
 
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
-
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto
 
     integer(int64) function pos_of(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
-
         call marker_position(m, pos_of, st)
         if (.not. st%ok()) pos_of = -1
     end function pos_of
@@ -95,7 +90,6 @@ contains
     integer(int64) function byte_of(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
-
         call marker_byte_position(m, byte_of, st)
         if (.not. st%ok()) byte_of = -1
     end function byte_of
@@ -105,7 +99,6 @@ contains
         type(handle_type) :: m, b
         type(status_type) :: st
         integer(int64) :: p
-
         call make_marker(m)
         call marker_buffer(m, b, st)
         call check(error, st%ok() .and. b%index == 0, "fresh marker has a buffer")
@@ -121,7 +114,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m, b
         type(status_type) :: st
-
         call enter("tm-clip", h, old)
         call insert("a"//euro//"b", st)
         call make_marker(m)
@@ -146,7 +138,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, before, at_nil, at_t, after
         type(status_type) :: st
-
         call enter("tm-ins", h, old)
         call insert("abcd", st)
         call copy_marker_at(2_int64, before, .false., st)
@@ -173,7 +164,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m
         type(status_type) :: st
-
         call enter("tm-ibm", h, old)
         call insert("ab", st)
         call copy_marker_at(2_int64, m, .false., st)
@@ -188,7 +178,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, inside, after, at_from
         type(status_type) :: st
-
         call enter("tm-del", h, old)
         call insert("ab"//euro//"cdef", st)   ! a b € c d e f
         call copy_marker_at(2_int64, at_from, .false., st)
@@ -211,7 +200,6 @@ contains
         type(handle_type) :: h, old, m, c, nowhere, cn
         type(status_type) :: st
         logical :: itype
-
         call enter("tm-copy", h, old)
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
@@ -242,13 +230,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: mb, ascii, old, old2, m1, m2
         type(status_type) :: st
-
         call enter("tm-mb", mb, old)
         call insert(euro//euro//euro, st)
         call copy_marker_at(4_int64, m1, .false., st)    ! point-max: char 4, byte 10
         call check(error, byte_of(m1), 10_int64)
         if (allocated(error)) return
-
         call enter("tm-ascii", ascii, old2)
         call insert("abcdefgh", st)
         call make_marker(m2)
@@ -269,7 +255,6 @@ contains
         type(handle_type) :: h, old, m, b
         type(status_type) :: st
         integer(int64) :: last
-
         call enter("tm-kill", h, old)
         call insert("abc", st)
         call copy_marker_at(3_int64, m, .false., st)
@@ -289,7 +274,6 @@ contains
         type(handle_type) :: h, old, a, b
         type(status_type) :: st
         integer(int64) :: p
-
         call enter("tm-free", h, old)
         call insert("abc", st)
         call copy_marker_at(1_int64, a, .false., st)
@@ -314,19 +298,15 @@ contains
         type(status_type) :: st
         integer :: k
         integer(int64) :: c
-
         call enter("tm-hint", h, old)
-
         do k = 1, 400
             call insert(euro//"a", st)
         end do
-
         ! A marker in the middle; conversions near it must stay correct.
         call copy_marker_at(401_int64, m, .false., st)
         call check(error, byte_of(m), 801_int64)
         if (allocated(error)) return
         call goto(1_int64)
-
         do c = 395, 405
             ! odd chars are euros (3 bytes), even chars are 'a'
             call check(error, char_to_byte(c), 1 + 4*((c - 1)/2) + 3*mod(c - 1, 2_int64))
@@ -334,7 +314,6 @@ contains
             call check(error, byte_to_char(char_to_byte(c)), c)
             if (allocated(error)) return
         end do
-
         call free_marker(m, st)
         call leave(h, old)
     end subroutine test_hints
@@ -343,7 +322,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m
         type(status_type) :: st
-
         call enter("tm-erase", h, old)
         call insert("hello"//euro, st)
         call copy_marker_at(4_int64, m, .false., st)

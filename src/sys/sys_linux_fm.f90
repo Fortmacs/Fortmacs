@@ -530,7 +530,6 @@ contains
     !> Current value of errno.
     integer(c_int) function errno()
         integer(c_int), pointer :: p
-
         call c_f_pointer(c_errno_location(), p)
         errno = p
     end function errno
@@ -541,21 +540,16 @@ contains
         character(len=:), allocatable :: s
         character(kind=c_char), pointer :: chars(:)
         integer :: n
-
         if (.not. c_associated(p)) then
             s = ""
             return
         end if
-
         call c_f_pointer(p, chars, [huge(0)])
         n = 0
-
         do while (chars(n + 1) /= c_null_char)
             n = n + 1
         end do
-
         allocate (character(len=n) :: s)
-
         do n = 1, len(s)
             s(n:n) = chars(n)
         end do

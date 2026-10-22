@@ -38,7 +38,6 @@ contains
 
     subroutine collect_search_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("search-forward", test_forward), &
                     new_unittest("search-backward", test_backward), &
@@ -52,7 +51,6 @@ contains
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
-
         call get_buffer_create("search-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
@@ -63,7 +61,6 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-
         case_fold_search = .true.
         call kill_buffer(h, st)
     end subroutine leave
@@ -73,7 +70,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
-
         call enter("foo bar foo baz", h)
         call search_forward("foo", pos, st)
         call check(error, st%ok() .and. pos == 4 .and. point() == 4)
@@ -107,7 +103,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
-
         call enter("foo bar foo baz", h)
         call goto_char(16_int64)
         call search_backward("foo", pos, st)
@@ -131,7 +126,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
-
         call enter("Foo FOO foo", h)
         call search_forward("foo", pos, st)
         call check(error, pos == 4, "folding")
@@ -151,7 +145,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: pos
-
         call enter("abc abc abc", h)
         ! The match must end by BOUND.
         call search_forward("abc", pos, st, bound=2_int64, noerror=SEARCH_NOERROR)
@@ -184,7 +177,6 @@ contains
         type(handle_type) :: h
         type(status_type) :: st, mst
         integer(int64) :: pos
-
         ! "Σίσυφος ΣΟΦΟΣ" with final sigmas: σ, ς and Σ all match.
         call enter("Σίσυφος ΣΟΦΟΣ", h)
         call search_forward("σοφος", pos, st)

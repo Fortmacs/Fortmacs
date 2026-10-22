@@ -43,9 +43,7 @@ contains
     pure integer(int64) function hash_name(name)
         character(len=*), intent(in) :: name
         integer :: k
-
         hash_name = 0
-
         do k = 1, len(name)
             hash_name = mod(hash_name*31 + ichar(name(k:k), int64), 2147483647_int64)
         end do
@@ -55,18 +53,14 @@ contains
     integer(int64) function find_slot(name)
         character(len=*), intent(in) :: name
         integer(int64) :: mask, id
-
         mask = size(slots, kind=int64) - 1
         find_slot = iand(hash_name(name), mask) + 1
-
         do
             id = slots(find_slot)
             if (id == 0) return
-
             if (len(symbols(id)%name) == len(name)) then
                 if (symbols(id)%name == name) return
             end if
-
             find_slot = iand(find_slot, mask) + 1
         end do
     end function find_slot
@@ -75,7 +69,6 @@ contains
     !> Port of lread.c:init_obarray_once.
     subroutine init_obarray()
         integer(int64) :: id
-
         allocate (slots(64))
         slots = 0
         allocate (symbols(32))
@@ -94,22 +87,18 @@ contains
     integer(int64) function add_symbol(name) result(id)
         character(len=*), intent(in) :: name
         type(symbol_type), allocatable :: grown(:)
-
         if (nsymbols == size(symbols, kind=int64)) then
             allocate (grown(2*nsymbols))
             grown(1:nsymbols) = symbols(1:nsymbols)
             call move_alloc(grown, symbols)
         end if
-
         ! Keep the table at most half full.
         if (2*(nsymbols + 1) > size(slots, kind=int64)) call rehash(2*size(slots, kind=int64))
-
         nsymbols = nsymbols + 1
         id = nsymbols
         symbols(id) = symbol_type()
         symbols(id)%name = name
         slots(find_slot(name)) = id
-
         ! Keywords are constants that evaluate to themselves.
         if (len(name) > 0) then
             if (name(1:1) == ":") then
@@ -123,11 +112,9 @@ contains
     subroutine rehash(new_size)
         integer(int64), intent(in) :: new_size
         integer(int64) :: id
-
         deallocate (slots)
         allocate (slots(new_size))
         slots = 0
-
         do id = 1, nsymbols
             slots(find_slot(symbols(id)%name)) = id
         end do
@@ -143,7 +130,6 @@ contains
     !> Port of lread.c:Fintern (initial obarray).
     integer(int64) function intern(name) result(id)
         character(len=*), intent(in) :: name
-
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
         if (id == 0) id = add_symbol(name)
@@ -153,7 +139,6 @@ contains
     !> Port of lread.c:Fintern_soft.
     integer(int64) function intern_soft(name) result(id)
         character(len=*), intent(in) :: name
-
         if (.not. allocated(slots)) call init_obarray()
         id = slots(find_slot(name))
     end function intern_soft
@@ -163,7 +148,6 @@ contains
     function sym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
-
         v = make_symbol_ref(intern(name))
     end function sym
 end module lread_fm

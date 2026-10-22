@@ -155,14 +155,12 @@ contains
     !> minibuffer.el:exit-minibuffer.
     subroutine exit_minibuffer(status)
         type(status_type), intent(out) :: status
-
         if (minibufferp()) then
             if (command_loop_level /= minibuf_level) then
                 call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
                 return
             end if
         end if
-
         call throw_exit(.false.)
     end subroutine exit_minibuffer
 
@@ -170,7 +168,6 @@ contains
     !> minibuffer.el:delete-minibuffer-contents.
     subroutine delete_minibuffer_contents(status)
         type(status_type), intent(out) :: status
-
         call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
     end subroutine delete_minibuffer_contents
 
@@ -191,7 +188,6 @@ contains
         character(len=:), allocatable :: d, default, insdef, val
         logical :: have_default, saved_completing
         integer :: match
-
         if (present(dir)) then
             d = dir
         else if (allocated(buffers(cur)%directory)) then
@@ -199,15 +195,12 @@ contains
         else
             d = "~/"
         end if
-
         if (.not. file_name_absolute_p(d)) then
             call expand_file_name(d, val, status)
             if (.not. status%ok()) return
             d = val
         end if
-
         have_default = .true.
-
         if (present(default_filename)) then
             default = default_filename
         else if (.not. present(initial)) then
@@ -219,19 +212,15 @@ contains
             call expand_file_name(initial, default, status, d)
             if (.not. status%ok()) return
         end if
-
         d = abbreviate_file_name(d)
         if (have_default) default = abbreviate_file_name(default)
-
         insdef = ""
         if (insert_default_directory) insdef = d
         if (present(initial)) insdef = insdef//initial
-
         match = REQUIRE_MATCH_NIL
         if (present(mustmatch)) match = mustmatch
         saved_completing = minibuffer_completing_file_name
         minibuffer_completing_file_name = .true.
-
         if (have_default) then
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
                                  require_match=match, initial=insdef, history="file-name-history", default=default)
@@ -239,9 +228,7 @@ contains
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
                                  require_match=match, initial=insdef, history="file-name-history")
         end if
-
         minibuffer_completing_file_name = saved_completing
-
         if (.not. status%ok()) return
         ! completing-read: empty input gives the default.
         if (len(val) == 0 .and. have_default) val = default
@@ -252,38 +239,32 @@ contains
 
     subroutine cmd_exit_minibuffer(status)
         type(status_type), intent(out) :: status
-
         call exit_minibuffer(status)
     end subroutine cmd_exit_minibuffer
 
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
-
         call abort_minibuffers(status)
     end subroutine cmd_abort_minibuffers
 
     subroutine cmd_minibuffer_complete(status)
         type(status_type), intent(out) :: status
-
         call minibuffer_complete(status)
     end subroutine cmd_minibuffer_complete
 
     subroutine cmd_minibuffer_complete_word(status)
         type(status_type), intent(out) :: status
-
         call minibuffer_complete_word(status)
     end subroutine cmd_minibuffer_complete_word
 
     subroutine cmd_minibuffer_completion_help(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call minibuffer_completion_help()
     end subroutine cmd_minibuffer_completion_help
 
     subroutine cmd_minibuffer_complete_and_exit(status)
         type(status_type), intent(out) :: status
-
         call minibuffer_complete_and_exit(status)
     end subroutine cmd_minibuffer_complete_and_exit
 
@@ -291,7 +272,6 @@ contains
     !> first yet).  Port of minibuffer.el:minibuffer-completion-exit.
     subroutine cmd_minibuffer_completion_exit(status)
         type(status_type), intent(out) :: status
-
         call exit_minibuffer(status)
     end subroutine cmd_minibuffer_completion_exit
 
@@ -299,7 +279,6 @@ contains
     !> the completion keymaps.
     subroutine syms_of_minibuffer()
         type(status_type) :: status
-
         call defcommand("exit-minibuffer", cmd_exit_minibuffer)
         call defcommand("abort-minibuffers", cmd_abort_minibuffers)
         call defcommand("minibuffer-complete", cmd_minibuffer_complete)
@@ -313,15 +292,12 @@ contains
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(minibuffer_local_completion_map)) call free_keymap(minibuffer_local_completion_map, status)
         if (keymap_live_p(minibuffer_local_must_match_map)) call free_keymap(minibuffer_local_must_match_map, status)
-
         if (keymap_live_p(minibuffer_local_filename_completion_map)) then
             call free_keymap(minibuffer_local_filename_completion_map, status)
         end if
-
         if (keymap_live_p(minibuffer_local_filename_must_match_map)) then
             call free_keymap(minibuffer_local_filename_must_match_map, status)
         end if
-
         call make_sparse_keymap(minibuffer_local_completion_map)
         call set_keymap_parent(minibuffer_local_completion_map, minibuffer_local_map, status)
         call bind(minibuffer_local_completion_map, "TAB", "minibuffer-complete")
@@ -341,7 +317,6 @@ contains
         call make_sparse_keymap(minibuffer_local_filename_must_match_map)
         call set_keymap_parent(minibuffer_local_filename_must_match_map, minibuffer_local_must_match_map, status)
         call bind_nil(minibuffer_local_filename_must_match_map, "SPC")
-
     contains
 
         subroutine bind(map, keys, command)
@@ -349,7 +324,6 @@ contains
             character(len=*), intent(in) :: keys, command
             type(value_type), allocatable :: seq(:)
             type(status_type) :: st
-
             call key_parse(keys, seq, st)
             if (st%ok()) call define_key(map, seq, sym(command), st)
         end subroutine bind
@@ -359,7 +333,6 @@ contains
             character(len=*), intent(in) :: keys
             type(value_type), allocatable :: seq(:)
             type(status_type) :: st
-
             call key_parse(keys, seq, st)
             if (st%ok()) call define_key(map, seq, nil(), st)
         end subroutine bind_nil
@@ -388,7 +361,6 @@ contains
         procedure(completion_predicate), optional :: pred
         type(value_type) :: boundaries
         type(status_type) :: status
-
         bstart = 0
         bend = schars(suffix)
         if (collection%kind /= TABLE_FUNCTION) return
@@ -406,16 +378,13 @@ contains
         integer(int64), intent(in) :: point
         character(len=:), allocatable :: r, tail
         integer(int64) :: i, n
-
         r = suffix
         if (len(suffix) == 0) return
         n = schars(completion)
-
         ! The leftmost end of COMPLETION (from POINT on) that SUFFIX starts
         ! with; it must not be empty.
         do i = point, n - 1
             tail = substring(completion, i)
-
             if (len(tail) <= len(suffix)) then
                 if (suffix(1:len(tail)) == tail) then
                     r = suffix(len(tail) + 1:)
@@ -439,7 +408,6 @@ contains
         type(value_type) :: completion
         type(status_type) :: status
         integer(int64) :: bstart, bend
-
         beforepoint = substring(string, 0_int64, point)
         afterpoint = substring(string, point)
         call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, pred)
@@ -448,7 +416,6 @@ contains
         ! `all+merge', so try to use it whenever possible.
         call try_completion(beforepoint, table, completion, status, pred)
         call set_try_result(completion, res)
-
         if (res%kind == TRY_STRING) then
             res%point = schars(res%string)
             res%string = res%string//merge_suffix(res%string, point, afterpoint)
@@ -465,11 +432,9 @@ contains
         character(len=:), allocatable :: suffix
         type(value_type) :: completion
         type(status_type) :: status
-
         suffix = substring(string, point)
         call try_completion(substring(string, 0_int64, point), table, completion, status, pred)
         call set_try_result(completion, res)
-
         select case (res%kind)
         case (TRY_EXACT)
             if (len(suffix) > 0) then
@@ -482,7 +447,6 @@ contains
             if (len(res%string) > 0 .and. len(suffix) > 0) then
                 if (res%string(len(res%string):) == "/" .and. suffix(1:1) == "/") suffix = suffix(2:)
             end if
-
             res%point = schars(res%string)
             res%string = res%string//suffix
         case default
@@ -494,7 +458,6 @@ contains
     subroutine set_try_result(v, res)
         type(value_type), intent(in) :: v
         type(try_result_type), intent(out) :: res
-
         if (stringp(v)) then
             res%kind = TRY_STRING
             res%string = xstring(v)
@@ -520,7 +483,6 @@ contains
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_predicate), optional :: pred
-
         call basic_try_completion(string, table, point, res, pred)
         if (res%kind == TRY_NONE) call emacs22_try_completion(string, table, point, res, pred)
     end subroutine completion_try_completion
@@ -541,13 +503,11 @@ contains
         character(len=:), allocatable :: beforepoint, afterpoint
         type(status_type) :: status
         integer(int64) :: bstart, bend
-
         beforepoint = substring(string, 0_int64, point)
         afterpoint = substring(string, point)
         call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, pred)
         base_size = bstart
         all = nil()
-
         ! completion-basic-all-completions: with nothing of the field
         ! after point, the pattern is trivial: all-completions of the
         ! text before point.
@@ -563,7 +523,6 @@ contains
     subroutine mb_boundaries(string, suffix, bstart, bend)
         character(len=*), intent(in) :: string, suffix
         integer(int64), intent(out) :: bstart, bend
-
         if (associated(minibuffer_completion_predicate)) then
             call completion_boundaries(string, minibuffer_completion_table, suffix, bstart, bend, &
                                        minibuffer_completion_predicate)
@@ -576,7 +535,6 @@ contains
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
-
         if (associated(minibuffer_completion_predicate)) then
             call completion_try_completion(string, minibuffer_completion_table, point, res, &
                                            minibuffer_completion_predicate)
@@ -590,7 +548,6 @@ contains
         integer(int64), intent(in) :: point
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
-
         if (associated(minibuffer_completion_predicate)) then
             call completion_all_completions(string, minibuffer_completion_table, point, all, base_size, &
                                             minibuffer_completion_predicate)
@@ -601,7 +558,6 @@ contains
 
     logical function mb_test(string)
         character(len=*), intent(in) :: string
-
         if (associated(minibuffer_completion_predicate)) then
             mb_test = test_completion(string, minibuffer_completion_table, minibuffer_completion_predicate)
         else
@@ -613,7 +569,6 @@ contains
         character(len=*), intent(in) :: string
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-
         if (associated(minibuffer_completion_predicate)) then
             call try_completion(string, minibuffer_completion_table, result, status, minibuffer_completion_predicate)
         else
@@ -638,17 +593,14 @@ contains
     subroutine minibuffer_message(msg)
         character(len=*), intent(in) :: msg
         integer :: k
-
         if (.not. minibufferp()) then
             call message(msg)
             return
         end if
-
         ! Clear out any old echo-area message to make way for our new
         ! thing.
         call message("")
         k = verify(msg, " ")
-
         if (k > 0 .and. len(msg) >= 2) then
             if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) then
                 minibuffer_message_text = msg
@@ -656,7 +608,6 @@ contains
                 return
             end if
         end if
-
         minibuffer_message_text = " ["//msg//"]"
         last_minibuffer_message = minibuffer_message_text
     end subroutine minibuffer_message
@@ -664,14 +615,12 @@ contains
     !> Port of minibuffer.el:completion--message.
     subroutine completion_message(msg)
         character(len=*), intent(in) :: msg
-
         if (completion_show_inline_help) call minibuffer_message(msg)
     end subroutine completion_message
 
     !> Port of minibuffer.el:completion--done (no :exit-function).
     subroutine completion_done(msg)
         character(len=*), intent(in), optional :: msg
-
         if (present(msg)) call completion_message(msg)
     end subroutine completion_done
 
@@ -682,7 +631,6 @@ contains
         integer(int64), intent(in) :: beg, end
         character(len=*), intent(in) :: newtext
         type(status_type) :: status
-
         call goto_char(beg)
         call del_range(beg, end, status)
         call insert(newtext, status)
@@ -695,7 +643,6 @@ contains
         character(len=*), intent(in) :: string, suffix
         integer(int64), intent(in) :: pos
         integer(int64) :: bstart, bend
-
         call mb_boundaries(string, suffix, bstart, bend)
         in_boundaries_p = bstart >= pos .and. pos >= schars(string) + bend
     end function in_boundaries_p
@@ -728,36 +675,29 @@ contains
         type(status_type) :: status
         integer(int64) :: pos, e, comp_pos
         logical :: completed, unchanged, only_changed_boundaries, exact
-
         call buffer_substring(beg, end, string, status)
         pos = point() - beg
-
         if (word) then
             call try_word_completion(string, pos, comp)
         else
             call mb_try_completion(string, pos, comp)
         end if
-
         select case (comp%kind)
         case (TRY_NONE)
             call minibuffer_hide_completions()
-
             if (.not. completion_fail_discreetly) then
                 call ding()
                 call completion_message("No match")
             end if
-
             bits = 0
         case (TRY_EXACT)
             call minibuffer_hide_completions()
             call goto_char(end)
-
             if (expect_exact) then
                 call completion_done()
             else
                 call completion_done("Sole completion")
             end if
-
             ! Exact and unique match.
             bits = 1
         case default
@@ -769,14 +709,11 @@ contains
             completed = compare_strings(comp%string, string, .true.) /= COMPARE_EQUAL
             unchanged = comp%string == string .and. len(comp%string) == len(string)
             only_changed_boundaries = .false.
-
             if (.not. completed .and. comp_pos /= pos) then
                 only_changed_boundaries = .not. in_boundaries_p(substring(string, 0_int64, pos), &
                                                                 substring(string, pos), comp_pos)
             end if
-
             e = end
-
             if (unchanged) then
                 call goto_char(e)
             else
@@ -784,10 +721,8 @@ contains
                 call completion_replace(beg, e, comp%string)
                 e = beg + schars(comp%string)
             end if
-
             ! Move point to its completion-mandated destination.
             call goto_char(point() + comp_pos - schars(comp%string))
-
             if (.not. (unchanged .or. completed)) then
                 ! The case of the string changed, but that's all.  We're
                 ! not sure whether this is a unique completion or not, so
@@ -797,11 +732,9 @@ contains
                 bits = completion_do_completion(beg, e, word, expect_exact)
                 return
             end if
-
             ! It did find a match.  Do we match some possibility exactly
             ! now?
             exact = mb_test(comp%string)
-
             if (completed .or. only_changed_boundaries) then
                 call minibuffer_hide_completions()
                 ! If completion did not put point at end of field, it's a
@@ -822,14 +755,12 @@ contains
                 if (value_eq(this_command, last_command) .and. completion_auto_help) then
                     call minibuffer_completion_help(beg, e)
                 end if
-
                 if (expect_exact) then
                     call completion_done()
                 else
                     call completion_done("Complete, but not unique")
                 end if
             end if
-
             bits = 2
             if (completed) bits = bits + 4
             if (exact) bits = bits + 1
@@ -840,7 +771,6 @@ contains
     !> characters: the standard syntax table's main word characters).
     elemental logical function word_char_p(c)
         integer(int32), intent(in) :: c
-
         word_char_p = (c >= iachar("a") .and. c <= iachar("z")) .or. (c >= iachar("A") .and. c <= iachar("Z")) &
                       .or. (c >= iachar("0") .and. c <= iachar("9")) .or. c >= 128
     end function word_char_p
@@ -858,26 +788,22 @@ contains
         integer(int32) :: c, clen
         integer(int64) :: byte
         integer :: e
-
         call mb_try_completion(string, point, comp)
         if (comp%kind /= TRY_STRING) return
         before = substring(string, 0_int64, point)
         after = substring(string, point)
-
         ! If completion finds next char not unique, consider adding a space
         ! or a hyphen.  If both " " and "-" lead to completions, prefer " "
         ! so SPC behaves a bit more like a self-inserting key (bug#17375).
         if (schars(string) == schars(comp%string)) then
             do e = 1, size(exts)
                 call mb_try_completion(before//exts(e)//after, point + 1, tem)
-
                 if (tem%kind == TRY_STRING) then
                     comp = tem
                     exit
                 end if
             end do
         end if
-
         ! Completing a single word is actually more difficult than
         ! completing as much as possible, because we first have to find the
         ! "current position" in `completion' in order to find the end of
@@ -892,33 +818,27 @@ contains
         if (comppoint /= ncomp) return
         ! The last occurrence of the text before point in the completion.
         j = -1
-
         do k = ncomp - nbefore, 0, -1
             if (substring(completion, k, k + nbefore) == before) then
                 j = k
                 exit
             end if
         end do
-
         if (j < 0) return
         mb1 = j + nbefore
         ! The first non-word character from there: cut after it.
         cutpos = -1
         byte = len(substring(completion, 0_int64, mb1)) + 1
         k = mb1
-
         do while (byte <= len(completion))
             call string_char_and_length(completion, byte, c, clen)
-
             if (.not. word_char_p(c)) then
                 cutpos = k + 1
                 exit
             end if
-
             byte = byte + clen
             k = k + 1
         end do
-
         ! Is there really something to cut?
         if (cutpos < 0 .or. comppoint <= cutpos) return
         comp%string = substring(completion, 0_int64, cutpos)//substring(completion, comppoint)
@@ -929,7 +849,6 @@ contains
     !> Port of minibuffer.el:minibuffer--completion-prompt-end.
     integer(int64) function completion_prompt_end(status) result(pos)
         type(status_type), intent(out) :: status
-
         status = status_type()
         pos = minibuffer_prompt_end()
         if (point() < pos) call set_error(status, FM_USER_ERROR, "Can't complete in prompt")
@@ -946,21 +865,18 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg
         integer :: bits
-
         beg = completion_prompt_end(status)
         if (.not. status%ok()) return
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
         this_command = sym("completion-at-point")
         if (.not. value_eq(last_command, sym("completion-at-point"))) completions_scroll_window = .false.
-
         if (completions_scroll_window .and. completions_visible()) then
             ! If there's a fresh completion window with a live buffer, and
             ! this command is repeated, scroll that window.
             call scroll_completions()
             return
         end if
-
         bits = completion_do_completion(beg, point_max(), .false., .false.)
     end subroutine minibuffer_complete
 
@@ -973,7 +889,6 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: beg
         integer :: bits
-
         beg = completion_prompt_end(status)
         if (.not. status%ok()) return
         bits = completion_do_completion(beg, point_max(), .true., .false.)
@@ -999,36 +914,29 @@ contains
         type(value_type) :: compl
         integer(int64) :: beg, end
         integer :: bits
-
         beg = completion_prompt_end(status)
         if (.not. status%ok()) return
         end = point_max()
-
         ! Allow user to specify null string.
         if (beg == end) then
             call exit_minibuffer(status)
             return
         end if
-
         call buffer_substring(beg, end, string, status)
-
         ! See if we have a completion from the table.
         if (mb_test(string)) then
             if (completion_ignore_case) then
                 ! Fixup case of the field, if necessary.
                 call mb_try(string, compl, status)
-
                 if (stringp(compl)) then
                     if (xstring(compl) /= string .and. schars(xstring(compl)) == schars(string)) then
                         call completion_replace(beg, end, xstring(compl))
                     end if
                 end if
             end if
-
             call exit_minibuffer(status)
             return
         end if
-
         ! The user is permitted to exit with an input that's rejected by
         ! test-completion, after confirming her choice.
         if (minibuffer_completion_confirm == REQUIRE_MATCH_CONFIRM .or. &
@@ -1040,13 +948,10 @@ contains
             else
                 call minibuffer_message("Confirm")
             end if
-
             return
         end if
-
         ! Call do-completion, but ignore errors.
         bits = completion_do_completion(beg, end, .false., .true.)
-
         select case (bits)
         case (1, 3)
             call exit_minibuffer(status)
@@ -1064,7 +969,6 @@ contains
     !> Whether `cmd` is in minibuffer-confirm-exit-commands.
     logical function confirm_exit_command(cmd)
         type(value_type), intent(in) :: cmd
-
         confirm_exit_command = value_eq(cmd, sym("completion-at-point")) .or. &
                                value_eq(cmd, sym("minibuffer-complete")) .or. &
                                value_eq(cmd, sym("minibuffer-complete-word"))
@@ -1077,7 +981,6 @@ contains
     !> Whether the root window shows *Completions* (minibuffer--completions-visible).
     logical function completions_visible()
         type(handle_type) :: buf
-
         buf = get_buffer("*Completions*")
         completions_visible = buf%index /= 0 .and. &
                               selected_frame%root_window%buffer%index == buf%index .and. &
@@ -1089,7 +992,6 @@ contains
     !> completion--in-region-1.
     subroutine scroll_completions()
         type(status_type) :: status
-
         associate (w => selected_frame%root_window)
             if (w%window_end_valid) then
                 call set_window_start(w, 1_int64, status, noforce=.true.)
@@ -1115,7 +1017,6 @@ contains
         character(len=:), allocatable :: string
         integer(int64) :: s, e, base_size
         integer :: k
-
         call message("Making completion list...")
         s = minibuffer_prompt_end()
         if (present(start)) s = start
@@ -1125,21 +1026,17 @@ contains
         call mb_all_completions(string, point() - s, completions, base_size)
         call message("")
         call list_elements(completions, elts)
-
         if (size(elts) == 0) then
             ! If there are no completions, or if the current input is
             ! already the sole completion, then hide (previous&stale)
             ! completions.
             call minibuffer_hide_completions()
-
             if (.not. completion_fail_discreetly) then
                 call ding()
                 call completion_message("No match")
             end if
-
             return
         end if
-
         if (size(elts) == 1) then
             if (xstring(elts(1)) == string .and. len(xstring(elts(1))) == len(string)) then
                 call minibuffer_hide_completions()
@@ -1147,13 +1044,10 @@ contains
                 return
             end if
         end if
-
         allocate (strings(size(elts)))
-
         do k = 1, size(elts)
             strings(k)%s = xstring(elts(k))
         end do
-
         ! minibuffer-sort-alphabetically.
         call sort_strings(strings)
         mini = current_buffer()
@@ -1166,14 +1060,12 @@ contains
         call set_buffer_read_only(buf, .true., status)
         call goto_char(1_int64)
         call set_buffer(mini, status)
-
         if (.not. completions_visible()) then
             completions_previous_buffer = selected_frame%root_window%buffer
             call set_window_buffer(selected_frame%root_window, buf, status)
         else
             call set_window_start(selected_frame%root_window, 1_int64, status, noforce=.true.)
         end if
-
         completions_scroll_window = .true.
     end subroutine minibuffer_completion_help
 
@@ -1182,17 +1074,14 @@ contains
         type(string_box), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
         integer :: i, j
-
         do i = 2, size(strings)
             tmp = strings(i)%s
             j = i - 1
-
             do while (j >= 1)
                 if (.not. string_lessp(make_string(tmp), make_string(strings(j)%s))) exit
                 strings(j + 1)%s = strings(j)%s
                 j = j - 1
             end do
-
             strings(j + 1)%s = tmp
         end do
     end subroutine sort_strings
@@ -1210,18 +1099,15 @@ contains
         integer(int64) :: length, wwidth, columns, colwidth, column, cur_col, width
         integer :: k
         logical :: first
-
         call goto_char(point_max())
         ! completions-header-format
         write (count, "(i0)") size(strings)
         call insert(trim(count)//" possible completions:"//achar(10), status)
         if (size(strings) == 0) return
         length = 0
-
         do k = 1, size(strings)
             length = max(length, schars(strings(k)%s))
         end do
-
         wwidth = 79
         if (selected_frame%root_window%total_cols > 0) wwidth = selected_frame%root_window%total_cols - 1
         ! At least 2 spaces between columns; don't allocate more columns
@@ -1231,16 +1117,13 @@ contains
         column = 0
         cur_col = 0
         first = .true.
-
         do k = 1, size(strings)
             ! Remove (consecutive) duplicates.
             if (.not. first) then
                 if (strings(k)%s == last_string .and. len(strings(k)%s) == len(last_string)) cycle
             end if
-
             last_string = strings(k)%s
             width = schars(strings(k)%s)
-
             if (.not. first) then
                 if (wwidth < column + max(colwidth, width)) then
                     ! No space for `str' at point, move to next line.
@@ -1253,7 +1136,6 @@ contains
                     cur_col = max(cur_col + 1, column)
                 end if
             end if
-
             first = .false.
             call insert(strings(k)%s, status)
             cur_col = cur_col + width
@@ -1268,7 +1150,6 @@ contains
     subroutine minibuffer_hide_completions()
         type(status_type) :: status
         type(handle_type) :: previous
-
         if (.not. completions_visible()) return
         previous = completions_previous_buffer
         if (previous%index == 0) previous = minibuffer_calling_buffer
@@ -1322,10 +1203,8 @@ contains
         type(handle_type) :: keymap
         integer :: saved_confirm, match
         logical :: saved_scroll
-
         match = REQUIRE_MATCH_NIL
         if (present(require_match)) match = require_match
-
         if (match /= REQUIRE_MATCH_NIL) then
             keymap = minibuffer_local_must_match_map
             if (minibuffer_completing_file_name) keymap = minibuffer_local_filename_must_match_map
@@ -1333,7 +1212,6 @@ contains
             keymap = minibuffer_local_completion_map
             if (minibuffer_completing_file_name) keymap = minibuffer_local_filename_completion_map
         end if
-
         ! The minibuffer's local values (minibuffer-with-setup-hook).
         saved_table = minibuffer_completion_table
         saved_pred => minibuffer_completion_predicate
@@ -1345,19 +1223,16 @@ contains
         minibuffer_completion_confirm = match
         if (match == REQUIRE_MATCH_T) minibuffer_completion_confirm = REQUIRE_MATCH_NIL
         completions_scroll_window = .false.
-
         if (present(history)) then
             call read_from_minibuffer(prompt, result, status, initial, keymap, history, default)
         else
             call read_from_minibuffer(prompt, result, status, initial, keymap, default=default)
         end if
-
         minibuffer_completion_table = saved_table
         minibuffer_completion_predicate => saved_pred
         minibuffer_completion_confirm = saved_confirm
         completions_scroll_window = saved_scroll
         if (.not. status%ok()) return
-
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine completing_read
 
@@ -1375,15 +1250,12 @@ contains
         character(len=:), allocatable :: name, specdir, realdir, expanded
         type(status_type) :: st
         integer :: slash
-
         status = status_type()
         result = nil()
-
         select case (action)
         case (COMPLETE_BOUNDARIES)
             slash = 0
             if (present(suffix)) slash = index(suffix, "/")
-
             if (slash > 0) then
                 result = list(make_fixnum(schars(file_name_directory(string))), &
                               make_fixnum(schars(suffix(1:slash - 1))))
@@ -1392,12 +1264,10 @@ contains
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
-
             if (present(pred)) then
                 if (pred(make_string(string))) result = t_value()
             else
                 call expand_file_name(string, expanded, st)
-
                 if (st%ok()) then
                     if (file_exists_p(expanded)) result = t_value()
                 end if
@@ -1406,12 +1276,10 @@ contains
             name = file_name_nondirectory(string)
             specdir = file_name_directory(string)
             realdir = specdir
-
             if (len(specdir) == 0) then
                 realdir = "./"
                 if (allocated(buffers(cur)%directory)) realdir = buffers(cur)%directory
             end if
-
             if (action == COMPLETE_TRY) then
                 call file_name_completion(name, realdir, result, st, pred)
                 if (.not. st%ok()) result = nil()

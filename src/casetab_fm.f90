@@ -42,14 +42,11 @@ contains
         integer, intent(in) :: n
         integer(int32), intent(in) :: keys(n), values(n)
         integer :: lo, hi, mid
-
         v = c
         lo = 1
         hi = n
-
         do while (lo <= hi)
             mid = (lo + hi)/2
-
             if (keys(mid) == c) then
                 v = values(mid)
                 return
@@ -65,7 +62,6 @@ contains
     !> Port of buffer.h:downcase.
     elemental integer(int32) function downcase(c)
         integer(int32), intent(in) :: c
-
         if (c < 128) then
             downcase = c
             if (c >= iachar("A") .and. c <= iachar("Z")) downcase = c + 32
@@ -78,7 +74,6 @@ contains
     !> Port of buffer.h:upcase.
     elemental integer(int32) function upcase(c)
         integer(int32), intent(in) :: c
-
         if (c < 128) then
             upcase = c
             if (c >= iachar("a") .and. c <= iachar("z")) upcase = c - 32
@@ -92,7 +87,6 @@ contains
     !> all compare equal.
     elemental integer(int32) function case_canon(c)
         integer(int32), intent(in) :: c
-
         if (c < 128) then
             case_canon = downcase(c)
         else
@@ -103,14 +97,12 @@ contains
     !> True if C is upper case.  Port of buffer.h:uppercasep.
     elemental logical function uppercasep(c)
         integer(int32), intent(in) :: c
-
         uppercasep = downcase(c) /= c
     end function uppercasep
 
     !> True if C is lower case.  Port of buffer.h:lowercasep.
     elemental logical function lowercasep(c)
         integer(int32), intent(in) :: c
-
         lowercasep = .not. uppercasep(c) .and. upcase(c) /= c
     end function lowercasep
 end module casetab_fm

@@ -49,7 +49,6 @@ contains
 
     subroutine collect_xdisp_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("layout-lines-and-cursor", test_lines), &
                     new_unittest("layout-tab-control-wide", test_special_chars), &
@@ -68,7 +67,6 @@ contains
         type(handle_type), intent(out) :: h
         integer(int64), intent(out) :: bi
         type(status_type) :: st
-
         call get_buffer_create(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -81,12 +79,9 @@ contains
         type(glyph_row_type), intent(in) :: row
         character(len=:), allocatable :: s
         integer :: k
-
         s = ""
-
         do k = 1, row%used
             if (row%glyphs(k)%padding) cycle
-
             if (row%glyphs(k)%ch < 128) then
                 s = s//achar(row%glyphs(k)%ch)
             else
@@ -103,13 +98,10 @@ contains
         integer(int64), intent(out) :: end_pos
         logical, intent(out) :: at_end
         integer :: r
-
         allocate (rows(nrows))
-
         do r = 1, nrows
             allocate (rows(r)%glyphs(width))
         end do
-
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
 
@@ -123,13 +115,10 @@ contains
         integer :: crow, ccol, r
         logical :: at_end
         type(status_type) :: st
-
         call buffer_with("*xdisp-region*", "abc"//achar(10)//"def", h, bi)
-
         do r = 1, 2
             allocate (rows(r)%glyphs(8))
         end do
-
         call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64)
         call check(error, all(rows(1)%glyphs(1:7)%face_id == [DEFAULT_FACE_ID, (REGION_FACE_ID, r=2, 7)]), &
                    "abc and the newline")
@@ -147,7 +136,6 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
-
         call buffer_with("*xdisp-lines*", "ab"//achar(10)//"cd", h, bi)
         call layout(bi, 1_int64, 4_int64, 10, 3, rows, crow, ccol, end_pos, at_end)
         call check(error, row_text(rows(1)) == "ab" .and. row_text(rows(2)) == "cd" .and. &
@@ -167,7 +155,6 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
-
         ! a TAB b, C-a, DEL, then a wide character and x.
         call buffer_with("*xdisp-chars*", "a"//achar(9)//"b"//achar(10)//achar(1)//achar(127)// &
                          achar(10)//char(230)//char(151)//char(165)//"x", h, bi)
@@ -194,7 +181,6 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
-
         call buffer_with("*xdisp-cont*", "abcdefgh", h, bi)
         call layout(bi, 1_int64, 7_int64, 6, 3, rows, crow, ccol, end_pos, at_end)
         ! Five characters and \ in the last column, then the rest.
@@ -215,7 +201,6 @@ contains
         integer :: crow, ccol
         logical :: at_end
         type(status_type) :: st
-
         call buffer_with("*xdisp-eob*", "ab"//achar(10), h, bi)
         call layout(bi, 1_int64, 4_int64, 10, 4, rows, crow, ccol, end_pos, at_end)
         call check(error, crow == 1 .and. ccol == 0 .and. at_end, "cursor after the newline")
@@ -235,7 +220,6 @@ contains
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
-
         s = mode_line_text("*scratch*", .false., .false., "All", 1_int64, 60)
         call check(error, s, "-UUU:----F1  *scratch*      All   L1     (Fundamental) -----")
         if (allocated(error)) return
@@ -257,14 +241,11 @@ contains
         character(len=12) :: line
         integer(int64) :: bi
         integer :: k
-
         text = ""
-
         do k = 1, 100
             write (line, '("line ",i0)') k
             text = text//trim(line)//achar(10)
         end do
-
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
@@ -287,14 +268,12 @@ contains
         last_message = ""
         call free_window(f%root_window)
         call kill_buffer(h, st)
-
     contains
 
         !> Position of the start of line `n` ("line 1" .. "line 9" take 7
         !> characters with the newline, "line 10" .. 8).
         integer(int64) function line_start(n)
             integer, intent(in) :: n
-
             if (n <= 10) then
                 line_start = 1 + 7*(n - 1)
             else
@@ -312,7 +291,6 @@ contains
         character(len=4096) :: buf
         character(len=:), allocatable :: out
         integer(int64) :: n
-
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
@@ -324,18 +302,15 @@ contains
         call check(error, st%ok(), "emacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
-
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, st)
             if (n <= 0) exit
             out = out//buf(1:n)
         end do
-
         if (.not. allocated(error)) then
             call check(error, index(out, achar(27)//"[?1049h") > 0 .and. &
                        index(out, achar(27)//"[?1049l") > 0, "enters and leaves full screen")
         end if
-
         call reset_sys_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)

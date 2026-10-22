@@ -37,7 +37,6 @@ contains
         character(len=:), allocatable, intent(out) :: value
         logical, intent(out) :: found
         integer :: length, stat
-
         call get_environment_variable(variable, length=length, status=stat)
         found = stat == 0
         allocate (character(len=max(length, 0)) :: value)
@@ -55,71 +54,57 @@ contains
         character(len=:), allocatable :: value
         integer :: i, j, rbrace
         logical :: found
-
         out = ""
         i = 1
-
         do while (i <= len(string))
             if (string(i:i) /= "$" .or. i == len(string)) then
                 out = out//string(i:i)
                 i = i + 1
                 cycle
             end if
-
             ! env--substitute-vars-regexp: $NAME, ${NAME} or $$
             if (string(i + 1:i + 1) == "$") then
                 out = out//"$"
                 i = i + 2
             else if (string(i + 1:i + 1) == "{") then
                 rbrace = index(string(i + 2:), "}")
-
                 if (rbrace <= 1 .or. index(string(i + 2:i + rbrace), "{") > 0) then
                     out = out//"$"
                     i = i + 1
                     cycle
                 end if
-
                 call getenv(string(i + 2:i + rbrace), value, found)
-
                 if (found .or. .not. keep_undefined) then
                     out = out//value
                 else
                     out = out//string(i:i + rbrace + 1)
                 end if
-
                 i = i + rbrace + 2
             else
                 j = i + 1
-
                 do while (j <= len(string))
                     if (.not. name_char(string(j:j))) exit
                     j = j + 1
                 end do
-
                 if (j == i + 1) then
                     out = out//"$"
                     i = i + 1
                     cycle
                 end if
-
                 call getenv(string(i + 1:j - 1), value, found)
-
                 if (found .or. .not. keep_undefined) then
                     out = out//value
                 else
                     out = out//string(i:j - 1)
                 end if
-
                 i = j
             end if
         end do
-
     contains
 
         !> [[:alnum:]_] (ASCII).
         pure logical function name_char(c)
             character, intent(in) :: c
-
             name_char = verify(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == 0
         end function name_char
     end function substitute_env_vars

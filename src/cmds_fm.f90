@@ -59,13 +59,11 @@ contains
         logical, intent(in) :: forward
         type(status_type), intent(out) :: status
         integer(int64) :: new_point
-
         if (forward) then
             new_point = buffers(cur)%pt + n
         else
             new_point = buffers(cur)%pt - n
         end if
-
         if (new_point < buffers(cur)%begv) then
             call goto_char(buffers(cur)%begv)
             call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -81,7 +79,6 @@ contains
     subroutine forward_char(status, n)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
-
         if (present(n)) then
             call move_point(n, .true., status)
         else
@@ -93,7 +90,6 @@ contains
     subroutine backward_char(status, n)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
-
         if (present(n)) then
             call move_point(n, .false., status)
         else
@@ -108,21 +104,17 @@ contains
         integer(int64), intent(in), optional :: n
         integer(int64) :: count, opoint, pos, pos_byte, counted
         logical :: excessive
-
         count = 1
         excessive = .false.
-
         if (present(n)) then
             count = max(-BUF_BYTES_MAX, min(n, BUF_BYTES_MAX))
             excessive = count /= n
         end if
-
         opoint = buffers(cur)%pt
         counted = scan_newline_from_point(count, pos, pos_byte)
         call temp_set_point_both(buffers(cur), pos, pos_byte)
         shortage = count - counted
         if (count <= 0) shortage = shortage - 1
-
         if (shortage /= 0) then
             if (count <= 0) then
                 shortage = shortage + 1
@@ -134,7 +126,6 @@ contains
                 end associate
             end if
         end if
-
         ! A count beyond any buffer size reports the shortage relative to N.
         if (excessive) shortage = shortage - count + n
     end function forward_line
@@ -143,7 +134,6 @@ contains
     !> Port of cmds.c:Fbeginning_of_line (fields pending).
     subroutine beginning_of_line(n)
         integer(int64), intent(in), optional :: n
-
         call goto_char(line_beginning_position(n))
     end subroutine beginning_of_line
 
@@ -152,7 +142,6 @@ contains
     !> until text properties exist.
     subroutine end_of_line(n)
         integer(int64), intent(in), optional :: n
-
         call goto_char(line_end_position(n))
     end subroutine end_of_line
 
@@ -163,10 +152,8 @@ contains
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         integer(int64) :: pos
-
         if (abs(n) < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         pos = buffers(cur)%pt + n
-
         if (n < 0) then
             if (pos < buffers(cur)%begv) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -190,14 +177,12 @@ contains
         integer(int64), intent(in) :: n, c
         type(status_type), intent(out) :: status
         character(len=24) :: buf
-
         if (n < 0) then
             write (buf, "(i0)") n
             call set_error(status, FM_GENERIC_ERROR, &
                            "Negative repetition argument "//trim(buf))
             return
         end if
-
         if (n < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         if (c < 0 .or. c > MAX_CHAR) return
         call insert_char_n(int(c, int32), n, status)
@@ -214,47 +199,40 @@ contains
 
     subroutine cmd_forward_char(status)
         type(status_type), intent(out) :: status
-
         call forward_char(status, arg_p())
     end subroutine cmd_forward_char
 
     subroutine cmd_backward_char(status)
         type(status_type), intent(out) :: status
-
         call backward_char(status, arg_p())
     end subroutine cmd_backward_char
 
     subroutine cmd_forward_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
-
         status = status_type()
         shortage = forward_line(arg_p())
     end subroutine cmd_forward_line
 
     subroutine cmd_beginning_of_line(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call beginning_of_line(arg_p())
     end subroutine cmd_beginning_of_line
 
     subroutine cmd_end_of_line(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call end_of_line(arg_p())
     end subroutine cmd_end_of_line
 
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
-
         call delete_char(arg_p(), status)
     end subroutine cmd_delete_char
 
     subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         if (.not. fixnump(last_command_event)) return
         call self_insert_command(arg_p(), xfixnum(last_command_event), status)

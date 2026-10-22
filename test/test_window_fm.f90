@@ -49,7 +49,6 @@ contains
 
     subroutine collect_window_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("scroll-up-and-down", test_scroll), &
                     new_unittest("scroll-point-not-visible", test_not_visible), &
@@ -65,7 +64,6 @@ contains
     !> Line `k` of the test buffer starts here.
     pure integer(int64) function line(k)
         integer, intent(in) :: k
-
         line = 7*k - 6
     end function line
 
@@ -76,15 +74,12 @@ contains
         type(status_type) :: st
         character(len=7) :: text
         integer :: k
-
         call get_buffer_create("window-test", h, st)
         call set_buffer(h, st)
-
         do k = 1, 30
             write (text, '("line", i2.2, a)') k, achar(10)
             call insert(text, st)
         end do
-
         call goto_char(1_int64)
         selected_frame%minibuffer_selected = .false.
         selected_frame%root_window%total_lines = 11
@@ -97,7 +92,6 @@ contains
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-
         call free_window(selected_frame%root_window)
         call kill_buffer(h, st)
         selected_frame%root_window%total_lines = 0
@@ -109,7 +103,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter(h)
         ! A screenful less two lines of context; point follows the top.
         call scroll_up(nil(), st)
@@ -153,7 +146,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter(h)
         ! Point below the window: scroll from point recentered.
         call goto_char(line(20))
@@ -166,7 +158,6 @@ contains
     subroutine test_error_top_bottom(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call enter(h)
         scroll_error_top_bottom = .true.
         call check_error_top_bottom(error)
@@ -177,7 +168,6 @@ contains
     subroutine check_error_top_bottom(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-
         call set_window_start(selected_frame%root_window, line(25), st)
         call goto_char(line(26))
         call scroll_up_command(nil(), st)
@@ -202,7 +192,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter(h)
         goal_column = 3
         call scroll_up_command(nil(), st)
@@ -215,7 +204,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call enter(h)
         call goto_char(line(20) + 2)
         selected_frame%garbaged = .false.
@@ -257,11 +245,9 @@ contains
         type(status_type) :: st
         integer(int64), parameter :: expected(4) = [15, 20, 11, 15]
         integer :: k
-
         call enter(h)
         call goto_char(line(20))
         this_command = sym("recenter-top-bottom")
-
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
             call recenter_top_bottom(nil(), st)
@@ -269,7 +255,6 @@ contains
             if (allocated(error)) return
             last_command = this_command
         end do
-
         ! Another command in between starts over.
         call recenter_top_bottom(nil(), st)
         last_command = nil()
@@ -289,7 +274,6 @@ contains
         integer(int64), parameter :: expected(4) = [6, 1, 10, 6]
         integer(int64) :: vpos
         integer :: k
-
         call enter(h)
         call goto_char(line(4))
         call move_to_window_line(nil(), vpos, st)
@@ -302,14 +286,12 @@ contains
         call check(error, point() == line(3) .and. vpos == 2, "line 2")
         if (allocated(error)) return
         this_command = sym("move-to-window-line-top-bottom")
-
         do k = 1, 4
             call move_to_window_line_top_bottom(nil(), st)
             call check(error, st%ok() .and. point() == line(int(expected(k))))
             if (allocated(error)) return
             last_command = this_command
         end do
-
         call leave(h)
     end subroutine test_move_to_window_line
 
@@ -318,7 +300,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call discard_input()
         prefix_arg = nil()
         call init_bindings()

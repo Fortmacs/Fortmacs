@@ -78,26 +78,21 @@ contains
         type(value_type) :: key
         integer :: k, how, def
         logical :: automatic, done
-
         actions = 0
         automatic = .false.
         k = 0
-
         do while (k < n)
             k = k + 1
             call prompter(k, how, prompt)
             if (how == YNP_SKIP) cycle
-
             if (how == YNP_ACT .or. automatic) then
                 call actor(k, status)
                 if (.not. status%ok()) return
                 actions = actions + 1
                 cycle
             end if
-
             full = prompt//"(y, n, !, ., or q) "
             done = .false.
-
             do while (.not. done)
                 call read_key(full, key, status)
                 if (.not. status%ok()) return
@@ -105,7 +100,6 @@ contains
                 call message(full//single_key_description(key))
                 def = query_replace_answer(key)
                 done = .true.
-
                 select case (def)
                 case (ANSWER_QUIT)
                     call set_error(status, FM_QUIT)

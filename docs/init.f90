@@ -18,7 +18,6 @@ contains
     !> Runs once at startup.
     subroutine configure(status)
         type(status_type), intent(out) :: status
-
         tab_width = 4
         make_backup_files = .false.
         call defcommand("insert-date-stamp", insert_date_stamp)
@@ -29,7 +28,6 @@ contains
     subroutine insert_date_stamp(status)
         type(status_type), intent(out) :: status
         character(len=8) :: date
-
         call date_and_time(date=date)
         call insert(date, status)
     end subroutine insert_date_stamp
