@@ -64,7 +64,6 @@ contains
         v = make_symbol_ref(intern(name))
     end function qsym
 
-
     subroutine range_error(status, a, b)
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
@@ -74,7 +73,6 @@ contains
         write (sb, "(i0)") b
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
     end subroutine range_error
-
 
     !> Order and check a range of the current buffer.  `nonempty` is false
     !> when there is nothing to work on.  Port of the buffer case of
@@ -97,7 +95,6 @@ contains
         nonempty = s /= e .and. buffers(cur)%begv /= buffers(cur)%zv
     end subroutine validate_range
 
-
     !> Give the current buffer intervals if it has none.
     !> Port of intervals.c:create_root_interval (buffer case).
     subroutine ensure_intervals()
@@ -105,7 +102,6 @@ contains
             if (t%intervals%n == 0) call create_root_interval(t%intervals, BEG, t%z - BEG)
         end associate
     end subroutine ensure_intervals
-
 
     !> nil stays nil; an even-length list is kept; an odd-length list is an
     !> error; anything else X becomes (X nil).  Port of textprop.c:validate_plist.
@@ -129,7 +125,6 @@ contains
         end if
     end subroutine validate_plist
 
-
     !> True if `x` is eq to an element of list `set`.
     logical function memq_p(x, set)
         type(value_type), intent(in) :: x, set
@@ -147,7 +142,6 @@ contains
         end do
     end function memq_p
 
-
     !> Signal text-read-only.  Port of textprop.c:text_read_only.
     subroutine text_read_only(status, propval)
         type(status_type), intent(inout) :: status
@@ -159,7 +153,6 @@ contains
             call set_error(status, FM_TEXT_READ_ONLY)
         end if
     end subroutine text_read_only
-
 
     !> Check that the properties of `start`..`end` may change, and record
     !> the modification.  Port of textprop.c:modify_text_properties (with
@@ -175,7 +168,6 @@ contains
         call buf_compute_unchanged(buffers(cur), start - 1, end)
         call modiff_incr(buffers(cur)%text%modiff, 1_int64)
     end subroutine modify_text_properties
-
 
     ! ------------------------------------------------------------------
     ! Per-interval plist edits (textprop.c)
@@ -202,7 +194,6 @@ contains
         has_all_properties = .true.
     end function has_all_properties
 
-
     !> True if interval `k` has any of the properties named in `names`
     !> (every element when `step` is 1, every other one for a plist).
     !> Port of textprop.c:interval_has_some_properties(_list).
@@ -226,7 +217,6 @@ contains
             end if
         end do
     end function has_some_properties
-
 
     !> Set or add each property of `plist` on interval `k`; new properties
     !> go in front, as upstream.  Port of textprop.c:add_properties
@@ -268,7 +258,6 @@ contains
         end do
     end subroutine add_properties
 
-
     !> Remove from interval `k` every property named in `names` (every
     !> element when `step` is 1, every other one for a plist).
     !> Port of textprop.c:remove_properties.
@@ -302,7 +291,6 @@ contains
         end do
     end subroutine remove_properties
 
-
     ! ------------------------------------------------------------------
     ! Queries
     ! ------------------------------------------------------------------
@@ -321,7 +309,6 @@ contains
         end associate
     end function interval_at
 
-
     !> Property list of the character after `position`.
     !> Port of textprop.c:Ftext_properties_at.
     subroutine text_properties_at(position, plist, status)
@@ -339,7 +326,6 @@ contains
         if (k > 0) plist = buffers(cur)%text%intervals%runs(k)%plist
     end subroutine text_properties_at
 
-
     !> Value of `prop` on the character after `position` (via `category`
     !> too).  Port of textprop.c:Fget_text_property.
     subroutine get_text_property(position, prop, val, status)
@@ -352,7 +338,6 @@ contains
         call text_properties_at(position, plist, status)
         if (status%ok()) val = textget(plist, prop)
     end subroutine get_text_property
-
 
     ! ------------------------------------------------------------------
     ! Changing properties
@@ -422,7 +407,6 @@ contains
         end associate
     end subroutine add_text_properties
 
-
     !> Set property `prop` to `val` on the text from `start` to `end`.
     !> Port of textprop.c:Fput_text_property.
     subroutine put_text_property(start, end, prop, val, status)
@@ -433,7 +417,6 @@ contains
 
         call add_text_properties(start, end, list(prop, val), changed, status)
     end subroutine put_text_property
-
 
     !> Replace the properties of the text from `start` to `end` with
     !> `properties`.  Port of textprop.c:Fset_text_properties
@@ -482,7 +465,6 @@ contains
         end associate
     end subroutine set_text_properties
 
-
     !> Remove the properties named in plist `properties` (values ignored)
     !> from the text from `start` to `end`.
     !> Port of textprop.c:Fremove_text_properties.
@@ -495,7 +477,6 @@ contains
         call remove_common(start, end, properties, 2_int64, changed, status)
     end subroutine remove_text_properties
 
-
     !> Remove the properties named in `list` from the text from `start` to
     !> `end`.  Port of textprop.c:Fremove_list_of_text_properties.
     subroutine remove_list_of_text_properties(start, end, list, changed, status)
@@ -506,7 +487,6 @@ contains
 
         call remove_common(start, end, list, 1_int64, changed, status)
     end subroutine remove_list_of_text_properties
-
 
     subroutine remove_common(start, end, names, step, changed, status)
         integer(int64), intent(in) :: start, end, step
@@ -565,7 +545,6 @@ contains
         end associate
     end subroutine remove_common
 
-
     ! ------------------------------------------------------------------
     ! Scanning for changes
     ! ------------------------------------------------------------------
@@ -579,7 +558,6 @@ contains
         end if
     end subroutine check_position
 
-
     !> Return LIMIT: `found` only if a limit was given.
     subroutine give_limit(result, found, limit)
         integer(int64), intent(out) :: result
@@ -590,7 +568,6 @@ contains
         found = present(limit)
         if (found) result = limit
     end subroutine give_limit
-
 
     !> Next position after `position` where any property changes, or
     !> `limit` if none before it; `found` false means nil (no change and no
@@ -605,7 +582,6 @@ contains
         call next_change(position, result, found, status, limit=limit)
     end subroutine next_property_change
 
-
     !> Like `next_property_change`, for the single property `prop`.
     !> Port of textprop.c:Fnext_single_property_change.
     subroutine next_single_property_change(position, prop, result, found, status, limit)
@@ -618,7 +594,6 @@ contains
 
         call next_change(position, result, found, status, prop, limit)
     end subroutine next_single_property_change
-
 
     subroutine next_change(position, result, found, status, prop, limit)
         integer(int64), intent(in) :: position
@@ -663,7 +638,6 @@ contains
         end associate
     end subroutine next_change
 
-
     !> Previous position before `position` where any property changes, or
     !> `limit`.  Port of textprop.c:Fprevious_property_change.
     subroutine previous_property_change(position, result, found, status, limit)
@@ -675,7 +649,6 @@ contains
 
         call previous_change(position, result, found, status, limit=limit)
     end subroutine previous_property_change
-
 
     !> Like `previous_property_change`, for the single property `prop`.
     !> Port of textprop.c:Fprevious_single_property_change.
@@ -689,7 +662,6 @@ contains
 
         call previous_change(position, result, found, status, prop, limit)
     end subroutine previous_single_property_change
-
 
     subroutine previous_change(position, result, found, status, prop, limit)
         integer(int64), intent(in) :: position
@@ -737,7 +709,6 @@ contains
         end associate
     end subroutine previous_change
 
-
     !> First position in `start`..`end` whose `prop` is eq to `value`;
     !> `found` false means nil.  Port of textprop.c:Ftext_property_any.
     subroutine text_property_any(start, end, prop, value, result, found, status)
@@ -750,7 +721,6 @@ contains
         call property_scan(start, end, prop, value, .true., result, found, status)
     end subroutine text_property_any
 
-
     !> First position in `start`..`end` whose `prop` is not eq to `value`.
     !> Port of textprop.c:Ftext_property_not_all.
     subroutine text_property_not_all(start, end, prop, value, result, found, status)
@@ -762,7 +732,6 @@ contains
 
         call property_scan(start, end, prop, value, .false., result, found, status)
     end subroutine text_property_not_all
-
 
     subroutine property_scan(start, end, prop, value, want_eq, result, found, status)
         integer(int64), intent(in) :: start, end
@@ -805,7 +774,6 @@ contains
             end do
         end associate
     end subroutine property_scan
-
 
     !> Whether `prop` at `pos` would be inherited by text inserted there:
     !> -1 from the character before (rear-sticky), 1 from the one after
@@ -870,9 +838,7 @@ contains
             default_nonsticky = value_eq(p, qsym("syntax-table")) .or. value_eq(p, qsym("display")) .or. &
                                 value_eq(p, qsym("composition")) .or. value_eq(p, qsym("cursor"))
         end function default_nonsticky
-
     end function text_property_stickiness
-
 
     !> The next position after `position` where `prop` changes, or
     !> `limit` (default point-max) if it doesn't change before it.  Port of
@@ -899,7 +865,6 @@ contains
         next = min(next, lim)
     end function next_single_char_property_change
 
-
     !> The previous position before `position` where `prop` changes, or
     !> `limit` (default point-min).  Port of
     !> textprop.c:Fprevious_single_char_property_change for the current
@@ -924,7 +889,6 @@ contains
         if (.not. found .or. .not. status%ok()) prev = lim
         prev = max(prev, lim)
     end function previous_single_char_property_change
-
 
     ! ------------------------------------------------------------------
     ! Read-only text
@@ -1059,5 +1023,4 @@ contains
             end if
         end associate
     end subroutine verify_interval_modification
-
 end module textprop_fm

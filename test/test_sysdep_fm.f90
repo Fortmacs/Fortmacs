@@ -53,7 +53,6 @@ contains
                     ]
     end subroutine collect_sysdep_fm
 
-
     !> Sizes must match glibc's on both x86-64 and aarch64.
     subroutine test_layouts(error)
         type(error_type), allocatable, intent(out) :: error
@@ -67,7 +66,6 @@ contains
         if (allocated(error)) return
         call check(error, int(c_sizeof(p)), 8)
     end subroutine test_layouts
-
 
     subroutine test_raw_settings(error)
         type(error_type), allocatable, intent(out) :: error
@@ -114,7 +112,6 @@ contains
         call check(error, int(raw%main%c_cc(VSTOP)), 19)
     end subroutine test_raw_settings
 
-
     subroutine test_pty_roundtrip(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
@@ -152,7 +149,6 @@ contains
         call close_fd(master)
     end subroutine test_pty_roundtrip
 
-
     subroutine test_pty_size(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave, w, h
@@ -176,7 +172,6 @@ contains
         call close_fd(master)
     end subroutine test_pty_size
 
-
     subroutine test_poll(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
@@ -196,7 +191,6 @@ contains
         call close_fd(master)
     end subroutine test_poll
 
-
     subroutine test_winch(error)
         type(error_type), allocatable, intent(out) :: error
         integer(c_int) :: r
@@ -210,7 +204,6 @@ contains
         call check(error,.not. window_change_pending(), "flag not cleared")
     end subroutine test_winch
 
-
     subroutine test_bad_fd(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=4) :: buf
@@ -222,5 +215,4 @@ contains
         if (allocated(error)) return
         call check(error, index(st%detail, "read failed") == 1, "detail: "//st%detail)
     end subroutine test_bad_fd
-
 end module test_sysdep_fm

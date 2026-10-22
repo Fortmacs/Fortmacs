@@ -69,7 +69,6 @@ contains
         if (status%ok()) cur = other%index
     end subroutine kill_buffer
 
-
     module subroutine erase_buffer(status)
         type(status_type), intent(out) :: status
 
@@ -86,7 +85,6 @@ contains
         call del_range(BEG, buffers(cur)%text%z, status)
     end subroutine erase_buffer
 
-
     !> Drop `h` from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.
     subroutine alist_remove(h)
@@ -101,5 +99,4 @@ contains
             end if
         end do
     end subroutine alist_remove
-
 end submodule buffer_ops_fm

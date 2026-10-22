@@ -71,7 +71,6 @@ contains
         call throw_exit(.false.)
     end subroutine exit_minibuffer
 
-
     !> Delete the text after the prompt.  Port of
     !> minibuffer.el:delete-minibuffer-contents.
     subroutine delete_minibuffer_contents(status)
@@ -79,7 +78,6 @@ contains
 
         call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
     end subroutine delete_minibuffer_contents
-
 
     !> Read a file name in the minibuffer, starting with directory `dir`
     !> (default: default-directory) abbreviated as the input to edit.
@@ -146,20 +144,17 @@ contains
         result = substitute_in_file_name(val)
     end subroutine read_file_name
 
-
     subroutine cmd_exit_minibuffer(status)
         type(status_type), intent(out) :: status
 
         call exit_minibuffer(status)
     end subroutine cmd_exit_minibuffer
 
-
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
 
         call abort_minibuffers(status)
     end subroutine cmd_abort_minibuffers
-
 
     !> Register the commands and minibuffer.el's minibuffer-local-map keys.
     subroutine syms_of_minibuffer()
@@ -179,7 +174,5 @@ contains
             call key_parse(keys, seq, status)
             if (status%ok()) call define_key(minibuffer_local_map, seq, sym(command), status)
         end subroutine bind
-
     end subroutine syms_of_minibuffer
-
 end module minibuffer_fm

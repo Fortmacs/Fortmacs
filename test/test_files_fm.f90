@@ -67,7 +67,6 @@ contains
         if (st%ok()) name = buffers(i)%name
     end function bname
 
-
     subroutine collect_files_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
@@ -91,7 +90,6 @@ contains
                     ]
     end subroutine collect_files_fm
 
-
     !> Absolute name of `name` in the test directory.
     function path(name) result(p)
         character(len=*), intent(in) :: name
@@ -99,7 +97,6 @@ contains
 
         p = file_name_as_directory(emacs_wd)//testdir//"/"//name
     end function path
-
 
     !> A clean test directory holding a.txt ("alpha\n") and a scratch
     !> buffer in the working directory.
@@ -133,7 +130,6 @@ contains
         call set_buffer(buf, st)
     end subroutine setup
 
-
     !> Kill every buffer visiting a file in the test directory.
     subroutine kill_file_buffers()
         character(len=5), parameter :: names(5) = [character(len=5) :: "a.txt", "b.txt", "c.txt", &
@@ -147,7 +143,6 @@ contains
             if (st%ok()) call kill_buffer(buf, st)
         end do
     end subroutine kill_file_buffers
-
 
     !> Read file `file` whole.
     function slurp(file) result(text)
@@ -170,7 +165,6 @@ contains
         close (u)
     end function slurp
 
-
     !> Queue `keys` as input events.
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
@@ -185,7 +179,6 @@ contains
 
         call unread_command_events(evs)
     end subroutine type_keys
-
 
     subroutine test_abbreviate(error)
         type(error_type), allocatable, intent(out) :: error
@@ -215,7 +208,6 @@ contains
         end if
     end subroutine test_abbreviate
 
-
     subroutine test_create_file_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: b1, b2, b3
@@ -232,7 +224,6 @@ contains
         call kill_buffer(b2, st)
         call kill_buffer(b3, st)
     end subroutine test_create_file_buffer
-
 
     subroutine test_find_existing(error)
         type(error_type), allocatable, intent(out) :: error
@@ -267,7 +258,6 @@ contains
         call kill_buffer(buf, st)
     end subroutine test_find_existing
 
-
     subroutine test_find_new(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -293,7 +283,6 @@ contains
         call kill_buffer(buf, st)
     end subroutine test_find_new
 
-
     subroutine test_find_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -305,7 +294,6 @@ contains
                    format_error(st) == abbreviate_file_name(file_name_as_directory(emacs_wd)//testdir)// &
                    " is a directory", format_error(st))
     end subroutine test_find_directory
-
 
     subroutine test_find_read_only(error)
         type(error_type), allocatable, intent(out) :: error
@@ -322,7 +310,6 @@ contains
         call kill_buffer(buf, st)
         call set_file_modes(path("ro"), int(o'644', int32), st)
     end subroutine test_find_read_only
-
 
     subroutine test_save_backup(error)
         type(error_type), allocatable, intent(out) :: error
@@ -359,7 +346,6 @@ contains
         call kill_file_buffers()
     end subroutine test_save_backup
 
-
     subroutine test_save_unmodified(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -381,7 +367,6 @@ contains
 
         call kill_file_buffers()
     end subroutine test_save_unmodified
-
 
     subroutine test_save_no_file(error)
         type(error_type), allocatable, intent(out) :: error
@@ -408,7 +393,6 @@ contains
         call delete_file_internal(path("nofile"), st)
     end subroutine test_save_no_file
 
-
     subroutine test_backup_predicate(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -423,7 +407,6 @@ contains
         call check(error, normal_backup_enable_predicate(path("a.txt")) .eqv. &
                    (index(path("a.txt"), temporary_file_directory()) /= 1))
     end subroutine test_backup_predicate
-
 
     subroutine test_y_or_n_p(error)
         type(error_type), allocatable, intent(out) :: error
@@ -448,7 +431,6 @@ contains
         call check(error, st%code == FM_QUIT)
     end subroutine test_y_or_n_p
 
-
     subroutine ask_all(k, how, prompt)
         integer, intent(in) :: k
         integer, intent(out) :: how
@@ -461,7 +443,6 @@ contains
         prompt = "Item "//trim(num)//"? "
     end subroutine ask_all
 
-
     subroutine act(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
@@ -469,7 +450,6 @@ contains
         status = status_type()
         acted(k) = .true.
     end subroutine act
-
 
     subroutine test_map_ynp(error)
         type(error_type), allocatable, intent(out) :: error
@@ -503,7 +483,6 @@ contains
         call check(error, st%code == FM_QUIT)
     end subroutine test_map_ynp
 
-
     subroutine test_save_some_buffers(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -533,7 +512,6 @@ contains
         call kill_file_buffers()
     end subroutine test_save_some_buffers
 
-
     subroutine test_kill_emacs(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -561,7 +539,6 @@ contains
         call reset_exit()
     end subroutine test_kill_emacs
 
-
     !> Clear a pending exit request (command_loop resets it on entry; with
     !> no input it returns at once).
     subroutine reset_exit()
@@ -571,7 +548,6 @@ contains
         call discard_input()
         call command_loop(st)
     end subroutine reset_exit
-
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
@@ -606,7 +582,6 @@ contains
         if (st%ok()) call kill_buffer(current_buffer(), st)
     end subroutine test_command_line
 
-
     !> Make a.txt two lines long.
     subroutine set_buffer_text_file()
         type(handle_type) :: buf
@@ -620,7 +595,6 @@ contains
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
     end subroutine set_buffer_text_file
-
 
     subroutine test_make_directory(error)
         type(error_type), allocatable, intent(out) :: error
@@ -682,5 +656,4 @@ contains
         call delete_file_internal(file, st)
         call delete_directory_internal(dir, st)
     end subroutine test_make_directory
-
 end module test_files_fm

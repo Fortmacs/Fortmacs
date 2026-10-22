@@ -535,7 +535,6 @@ contains
         errno = p
     end function errno
 
-
     !> Copy of the NUL-terminated C string at `p` ("" for a null pointer).
     function c_string_to_fortran(p) result(s)
         type(c_ptr), intent(in) :: p
@@ -561,5 +560,4 @@ contains
             s(n:n) = chars(n)
         end do
     end function c_string_to_fortran
-
 end module sys_linux_fm

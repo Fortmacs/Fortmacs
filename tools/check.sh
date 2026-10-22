@@ -58,20 +58,11 @@ if $style; then
         fortitude check --fix $DIRS >/dev/null 2>&1 || true
     fi
 
-    # fprettify always shrinks runs of blank lines to one, so it checks a
-    # copy without the second blank line between procedures, which
-    # tools/blank-lines.awk puts back below.
     files=$(find src app test -name '*.f90' | sort; echo docs/init.f90)
     if $fix; then
         fprettify --config-file .fprettify.rc --recursive $DIRS
     else
-        copy=$(mktemp -d)
-        for f in $files; do
-            mkdir -p "$copy/$(dirname "$f")"
-            awk 'NF { blank = 0; print; next } !blank++' "$f" >"$copy/$f"
-        done
-        drift=$(cd "$copy" && fprettify --config-file "$OLDPWD/.fprettify.rc" --recursive --diff $DIRS)
-        rm -rf "$copy"
+        drift=$(fprettify --config-file .fprettify.rc --recursive --diff $DIRS)
         if [ -n "$drift" ]; then
             printf '%s\n' "$drift"
             echo "format drift: run tools/check.sh --fix" >&2
@@ -79,7 +70,7 @@ if $style; then
         fi
     fi
 
-    # Blank lines: tools/blank-lines.awk (the Bristol RSE guidelines).
+    # Blank lines: tools/blank-lines.awk.
     drifted=""
     for f in $files; do
         awk -f tools/blank-lines.awk "$f" >"$f.blank" || { rm -f "$f.blank"; exit 1; }

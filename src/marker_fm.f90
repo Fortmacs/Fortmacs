@@ -88,7 +88,6 @@ contains
         if (cached_buffer == buffers(b)%serial) cached_buffer = 0
     end subroutine clear_charpos_cache
 
-
     !> Byte position of `charpos` in buffer slot `b`.
     !> Port of marker.c:buf_charpos_to_bytepos.
     integer(int64) function buf_charpos_to_bytepos(b, charpos) result(bytepos)
@@ -190,7 +189,6 @@ contains
             end if
         end subroutine consider
 
-
         subroutine remember(c, bpos)
             integer(int64), intent(in) :: c, bpos
 
@@ -199,9 +197,7 @@ contains
             cached_charpos = c
             cached_bytepos = bpos
         end subroutine remember
-
     end function buf_charpos_to_bytepos
-
 
     !> Character position of `bytepos` (a character boundary) in buffer
     !> slot `b`.  Port of marker.c:buf_bytepos_to_charpos.
@@ -299,7 +295,6 @@ contains
             end if
         end subroutine consider
 
-
         subroutine remember(c, bpos)
             integer(int64), intent(in) :: c, bpos
 
@@ -308,9 +303,7 @@ contains
             cached_charpos = c
             cached_bytepos = bpos
         end subroutine remember
-
     end function buf_bytepos_to_charpos
-
 
     !> Port of buffer.h:CHAR_TO_BYTE (current buffer).
     integer(int64) function char_to_byte(charpos)
@@ -319,14 +312,12 @@ contains
         char_to_byte = buf_charpos_to_bytepos(cur, charpos)
     end function char_to_byte
 
-
     !> Port of buffer.h:BYTE_TO_CHAR (current buffer).
     integer(int64) function byte_to_char(bytepos)
         integer(int64), intent(in) :: bytepos
 
         byte_to_char = buf_bytepos_to_charpos(cur, bytepos)
     end function byte_to_char
-
 
     ! ------------------------------------------------------------------
     ! Marker objects
@@ -340,7 +331,6 @@ contains
 
         call table%resolve(m, i, status)
     end subroutine resolve_marker
-
 
     !> A new marker that points nowhere.  Port of alloc.c:Fmake_marker.
     subroutine make_marker(m)
@@ -360,7 +350,6 @@ contains
         markers(m%index) = marker_type()
     end subroutine make_marker
 
-
     !> Detach and free marker `m`; its handle becomes stale.  Not a port:
     !> upstream relies on GC.
     subroutine free_marker(m, status)
@@ -373,7 +362,6 @@ contains
         call unchain_marker(i)
         call table%release(m, status)
     end subroutine free_marker
-
 
     !> Buffer `m` points into, or the null handle.
     !> Port of marker.c:Fmarker_buffer.
@@ -388,7 +376,6 @@ contains
         if (.not. status%ok()) return
         if (markers(i)%buffer /= 0) b = buffer_handle(markers(i)%buffer)
     end subroutine marker_buffer
-
 
     !> Character position of `m`; an error if it points nowhere.
     !> Port of marker.c:marker_position (Fmarker_position returns nil
@@ -411,7 +398,6 @@ contains
         pos = markers(i)%charpos
     end subroutine marker_position
 
-
     !> Byte position of `m`.  Port of marker.c:marker_byte_position.
     subroutine marker_byte_position(m, pos, status)
         type(handle_type), intent(in) :: m
@@ -431,7 +417,6 @@ contains
         pos = markers(i)%bytepos
     end subroutine marker_byte_position
 
-
     !> Last character position of `m`, even after its buffer was killed.
     !> Port of marker.c:Fmarker_last_position.
     subroutine marker_last_position(m, pos, status)
@@ -445,7 +430,6 @@ contains
         if (.not. status%ok()) return
         pos = markers(i)%charpos
     end subroutine marker_last_position
-
 
     !> Point marker slot `i` at buffer slot `b`, moving it to `b`'s chain.
     !> Port of marker.c:attach_marker.
@@ -462,7 +446,6 @@ contains
             buffers(b)%text%markers = i
         end if
     end subroutine attach_marker
-
 
     !> Remove marker slot `i` from its buffer's chain; it points nowhere.
     !> Port of marker.c:unchain_marker.
@@ -494,7 +477,6 @@ contains
         markers(i)%next = 0
     end subroutine unchain_marker
 
-
     !> Make every marker of buffer slot `b` point nowhere.  Port of the
     !> marker loop in buffer.c:Fkill_buffer.
     subroutine unchain_all_markers(b)
@@ -513,7 +495,6 @@ contains
         buffers(b)%text%markers = 0
     end subroutine unchain_all_markers
 
-
     !> Number of markers in buffer slot `b`'s chain.
     !> Port of marker.c:count_markers.
     integer(int64) function count_markers(b)
@@ -528,7 +509,6 @@ contains
             m = markers(m)%next
         end do
     end function count_markers
-
 
     !> Shared core of set-marker for an integer position.
     !> Port of marker.c:set_marker_internal (integer POSITION).
@@ -561,7 +541,6 @@ contains
         call attach_marker(i, b, charpos, bytepos)
     end subroutine set_marker_pos
 
-
     !> Position `m` before character `charpos` of `buffer` (default: the
     !> current buffer), clipped to the buffer.  A dead buffer makes `m`
     !> point nowhere.  Port of marker.c:Fset_marker (integer POSITION).
@@ -574,7 +553,6 @@ contains
         call set_marker_pos(m, charpos, buffer, .false., status)
     end subroutine set_marker
 
-
     !> Like `set_marker`, but clipped to the accessible region.
     !> Port of marker.c:set_marker_restricted.
     subroutine set_marker_restricted(m, charpos, status, buffer)
@@ -585,7 +563,6 @@ contains
 
         call set_marker_pos(m, charpos, buffer, .true., status)
     end subroutine set_marker_restricted
-
 
     !> Position `m` where marker `position` is, in `buffer` (default: the
     !> current buffer).  If `position` points nowhere, so does `m`.  The
@@ -621,7 +598,6 @@ contains
         end if
     end subroutine set_marker_to
 
-
     !> Set `m` from both positions, unchecked.  A dead `buffer` makes it
     !> point nowhere.  Port of marker.c:set_marker_both.
     subroutine set_marker_both(m, buffer, charpos, bytepos, status)
@@ -640,7 +616,6 @@ contains
             call unchain_marker(i)
         end if
     end subroutine set_marker_both
-
 
     !> Like `set_marker_both`, clipped to the accessible region.
     !> Port of marker.c:set_marker_restricted_both.
@@ -662,7 +637,6 @@ contains
         end if
     end subroutine set_marker_restricted_both
 
-
     !> Make `m` point nowhere.  Port of marker.c:detach_marker.
     subroutine detach_marker(m, status)
         type(handle_type), intent(in) :: m
@@ -673,7 +647,6 @@ contains
         if (.not. status%ok()) return
         call unchain_marker(i)
     end subroutine detach_marker
-
 
     !> A new marker where `source` is (or nowhere), with insertion type
     !> `insertion_type`.  Port of marker.c:Fcopy_marker (marker argument).
@@ -691,7 +664,6 @@ contains
         markers(new%index)%insertion_type = insertion_type
     end subroutine copy_marker
 
-
     !> A new marker at `charpos` in the current buffer.
     !> Port of marker.c:Fcopy_marker (integer argument).
     subroutine copy_marker_at(charpos, new, insertion_type, status)
@@ -704,7 +676,6 @@ contains
         call set_marker(new, charpos, status)
         markers(new%index)%insertion_type = insertion_type
     end subroutine copy_marker_at
-
 
     !> Port of marker.c:Fmarker_insertion_type.
     subroutine marker_insertion_type(m, itype, status)
@@ -719,7 +690,6 @@ contains
         itype = markers(i)%insertion_type
     end subroutine marker_insertion_type
 
-
     !> Port of marker.c:Fset_marker_insertion_type.
     subroutine set_marker_insertion_type(m, itype, status)
         type(handle_type), intent(in) :: m
@@ -731,7 +701,6 @@ contains
         if (.not. status%ok()) return
         markers(i)%insertion_type = itype
     end subroutine set_marker_insertion_type
-
 
     !> Slot of `buffer` (the current buffer if absent), or 0 if it is dead.
     !> Port of marker.c:live_buffer.
@@ -749,12 +718,10 @@ contains
         if (.not. st%ok()) b = 0
     end subroutine live_buffer
 
-
     !> Port of lisp.h:clip_to_bounds.
     pure integer(int64) function clip(lower, num, upper)
         integer(int64), intent(in) :: lower, num, upper
 
         clip = max(lower, min(num, upper))
     end function clip
-
 end module marker_fm

@@ -75,7 +75,6 @@ contains
         end associate
     end function next_newline_byte
 
-
     !> Byte position of the last newline in [from_byte, to_byte), or 0.
     integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
@@ -105,7 +104,6 @@ contains
             end if
         end associate
     end function prev_newline_byte
-
 
     !> Search for `count` newlines from `start` toward `end` (forward if
     !> count > 0, backward if count < 0; `end` defaults to ZV or BEGV).
@@ -189,9 +187,7 @@ contains
             if (present(bytepos)) bytepos = pbyte
             if (present(counted)) counted = count - left
         end subroutine finish
-
     end function find_newline
-
 
     !> Move point past `count` line boundaries from `start`, or to `limit`
     !> if there are fewer.  Port of search.c:scan_newline.
@@ -207,7 +203,6 @@ contains
             call temp_set_point_both(buffers(cur), charpos, bytepos)
         end if
     end subroutine scan_newline
-
 
     !> Scan `count` lines from point (count <= 0: to the start of the line
     !> |count| lines back) without moving point.  Returns how many newlines
@@ -225,7 +220,6 @@ contains
         end associate
     end function scan_newline_from_point
 
-
     !> Port of search.c:find_newline_no_quit.
     integer(int64) function find_newline_no_quit(from, frombyte, cnt, bytepos)
         integer(int64), intent(in) :: from, frombyte, cnt
@@ -233,7 +227,6 @@ contains
 
         find_newline_no_quit = find_newline(from, count=cnt, bytepos=bytepos, start_byte=frombyte)
     end function find_newline_no_quit
-
 
     !> Like `find_newline`, but returns the position before the newline,
     !> searching no further than `to` (default: ZV/BEGV).
@@ -253,5 +246,4 @@ contains
 
         if (present(bytepos)) bytepos = pbyte
     end function find_before_next_newline
-
 end module search_fm

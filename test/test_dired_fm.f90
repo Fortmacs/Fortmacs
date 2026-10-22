@@ -46,7 +46,6 @@ contains
                     ]
     end subroutine collect_dired_fm
 
-
     !> The names in `files`, joined.
     function joined(files) result(s)
         type(value_type), intent(in) :: files
@@ -61,7 +60,6 @@ contains
             s = s//xstring(names(k))
         end do
     end function joined
-
 
     subroutine test_directory_files(error)
         type(error_type), allocatable, intent(out) :: error
@@ -112,5 +110,4 @@ contains
 
         call delete_directory_internal(testdir, st)
     end subroutine test_directory_files
-
 end module test_dired_fm

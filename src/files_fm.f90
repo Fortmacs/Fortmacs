@@ -122,7 +122,6 @@ contains
         end if
     end function abbreviate_file_name
 
-
     !> A new buffer named after `filename` (sans directory), made unique
     !> with "<N>"; a leading space gets a "|" before it.
     !> Port of files.el:create-file-buffer (no uniquify).
@@ -137,7 +136,6 @@ contains
         if (lastname(1:1) == " ") lastname = "|"//lastname
         call get_buffer_create(generate_new_buffer_name(lastname), h, status)
     end subroutine create_file_buffer
-
 
     !> The buffer visiting `filename`, reading the file into a new buffer
     !> if none does yet.  The buffer is not selected.  A file that doesn't
@@ -206,7 +204,6 @@ contains
         call set_buffer(old, status)
     end subroutine find_file_noselect
 
-
     !> Set up the current buffer after visiting its file: read-only if the
     !> file can't be written, and a message about new or protected files
     !> when `warn`.  Port of files.el:after-find-file (no auto-save, modes,
@@ -252,7 +249,6 @@ contains
         end if
     end subroutine after_find_file
 
-
     !> Visit `filename` and make its buffer current (and so shown in the
     !> selected window).  Port of files.el:find-file for programs (the
     !> interactive file name prompt needs the minibuffer).
@@ -265,7 +261,6 @@ contains
         if (.not. status%ok()) return
         call set_buffer(buf, status)
     end subroutine find_file
-
 
     ! ------------------------------------------------------------------
     ! Backups
@@ -280,7 +275,6 @@ contains
         if (len(file) > 0) backup_file_name_p = file(len(file):len(file)) == "~"
     end function backup_file_name_p
 
-
     !> The backup name of `file`: FILE~.  Port of
     !> files.el:make-backup-file-name (backup-directory-alist nil).
     pure function make_backup_file_name(file) result(backup)
@@ -289,7 +283,6 @@ contains
 
         backup = file//"~"
     end function make_backup_file_name
-
 
     !> The temporary directory, as a directory name: $TMPDIR, else "/tmp".
     !> (callproc.c:init_callproc sets temporary-file-directory.)
@@ -309,7 +302,6 @@ contains
         dir = file_name_as_directory(dir)
     end function temporary_file_directory
 
-
     !> Whether to back up `name`: not for files under the temporary
     !> directory or "/tmp".  Port of files.el:normal-backup-enable-predicate.
     logical function normal_backup_enable_predicate(name)
@@ -326,9 +318,7 @@ contains
             under = len(name) > len(dir)
             if (under) under = name(1:len(dir)) == dir
         end function under
-
     end function normal_backup_enable_predicate
-
 
     !> Whether deleting and rewriting `file` keeps its owner (and with
     !> `group`, its group); true if it doesn't exist.
@@ -356,7 +346,6 @@ contains
         if (group .and. parent%gid /= attr%gid) return
         file_ownership_preserved_p = .true.
     end function file_ownership_preserved_p
-
 
     !> Back up the current buffer's file before its first save, if
     !> appropriate, by renaming it to FILE~ or (to keep its owner, links
@@ -404,7 +393,6 @@ contains
         end if
     end subroutine backup_buffer
 
-
     ! ------------------------------------------------------------------
     ! Saving
     ! ------------------------------------------------------------------
@@ -433,7 +421,6 @@ contains
         if (.not. status%ok()) return
         if (modp .and. (arg == 4 .or. arg == 64)) buffers(cur)%backed_up = .false.
     end subroutine save_buffer
-
 
     !> Save the current buffer in its visited file, if it was modified or
     !> the file doesn't exist; otherwise say so when called interactively.
@@ -554,7 +541,6 @@ contains
         call message(wrote)
     end subroutine basic_save_buffer
 
-
     !> map-y-or-n-p prompter for save_some_buffers.
     subroutine save_prompter(k, how, prompt)
         integer, intent(in) :: k
@@ -579,7 +565,6 @@ contains
         end if
     end subroutine save_prompter
 
-
     !> map-y-or-n-p actor for save_some_buffers: save that buffer.
     subroutine save_actor(k, status)
         integer, intent(in) :: k
@@ -593,7 +578,6 @@ contains
         call save_buffer(1_int64, .false., status)
         call set_buffer(old, st)
     end subroutine save_actor
-
 
     !> Ask about saving each modified file-visiting buffer, then save
     !> those the user accepts (all, without asking, if `arg`).
@@ -639,7 +623,6 @@ contains
         if (n == 0 .and. called_interactively) call message("(No files need saving)")
     end subroutine save_some_buffers
 
-
     !> Whether any live buffer visits a file and is modified.
     logical function modified_file_buffers_exist()
         type(handle_type), allocatable :: all(:)
@@ -660,7 +643,6 @@ contains
             end if
         end do
     end function modified_file_buffers_exist
-
 
     !> Offer to save each modified file buffer, then leave Emacs, asking
     !> first if any stay unsaved.  Port of files.el:save-buffers-kill-emacs
@@ -683,7 +665,6 @@ contains
         call request_exit()
     end subroutine save_buffers_kill_emacs
 
-
     !> `name` in the current buffer's default directory.
     function file_in_default_directory(name) result(file)
         character(len=*), intent(in) :: name
@@ -693,7 +674,6 @@ contains
         call expand_file_name(name, file, status)
         if (.not. status%ok()) file = name
     end function file_in_default_directory
-
 
     !> Make the current buffer visit `filename` (no file if ""): its name,
     !> default directory and backup state follow, and it counts as
@@ -754,7 +734,6 @@ contains
         if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
     end subroutine set_visited_file_name
 
-
     !> Write the current buffer to `filename` and visit it there; a
     !> directory name means the buffer's file (or buffer) name in that
     !> directory.  With `confirm`, ask before overwriting.  Port of
@@ -803,7 +782,6 @@ contains
         call save_buffer(1_int64, .false., status)
     end subroutine write_file
 
-
     !> C-x C-f.  Port of files.el:find-file (interactive), with
     !> find-file-read-args.
     subroutine cmd_find_file(status)
@@ -816,7 +794,6 @@ contains
         if (.not. status%ok()) return
         call find_file(filename, status)
     end subroutine cmd_find_file
-
 
     !> C-x C-w.  Port of files.el:write-file (interactive).
     subroutine cmd_write_file(status)
@@ -833,7 +810,6 @@ contains
         call write_file(filename, .true., status)
     end subroutine cmd_write_file
 
-
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
@@ -845,14 +821,12 @@ contains
         call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
     end subroutine cmd_save_buffer
 
-
     !> C-x s.
     subroutine cmd_save_some_buffers(status)
         type(status_type), intent(out) :: status
 
         call save_some_buffers(.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_save_some_buffers
-
 
     !> C-x C-c: leave Emacs.  Port of files.el:save-buffers-kill-terminal
     !> (no emacsclient frames).
@@ -861,7 +835,6 @@ contains
 
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_save_buffers_kill_terminal
-
 
     !> Register the commands and their keys in `ctl_x_map`.
     subroutine syms_of_files(ctl_x_map)
@@ -891,7 +864,6 @@ contains
         call define_key(ctl_x_map, key, sym("save-buffers-kill-terminal"), status)
     end subroutine syms_of_files
 
-
     !> Make directory DIR if it is not already a directory.
     !> `already` is true if DIR is already a directory.  Port of
     !> files.el:files--ensure-directory.
@@ -908,7 +880,6 @@ contains
             if (already) status = status_type()
         end if
     end subroutine ensure_directory
-
 
     !> Create the directory DIR and optionally any nonexistent parent dirs.
     !>
@@ -972,5 +943,4 @@ contains
 
         if (present(already)) already = already_dir
     end subroutine make_directory
-
 end module files_fm

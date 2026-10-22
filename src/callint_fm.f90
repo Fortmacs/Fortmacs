@@ -89,7 +89,6 @@ contains
         commands(id)%proc => proc
     end subroutine defcommand
 
-
     !> Whether symbol `v` names a registered command.
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
@@ -101,7 +100,6 @@ contains
         if (id > size(commands, kind=int64)) return
         command_defined_p = associated(commands(id)%proc)
     end function command_defined_p
-
 
     !> Whether `v` can be run as a command: a registered command, or a
     !> keyboard macro (a string or a list of events).  Port of
@@ -118,7 +116,6 @@ contains
             commandp = command_defined_p(v)
         end select
     end function commandp
-
 
     !> Run command `cmd`.  Port of callint.c:Fcall_interactively (the
     !> interactive spec is the command's own business here).  Recursive:
@@ -140,7 +137,6 @@ contains
         call commands(xsymbol(cmd))%proc(status)
     end subroutine call_interactively
 
-
     !> The numeric value of raw prefix argument `raw`: nil gives 1, `-`
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
     integer(int64) function prefix_numeric_value(raw) result(n)
@@ -159,5 +155,4 @@ contains
             n = xfixnum(raw)
         end if
     end function prefix_numeric_value
-
 end module callint_fm

@@ -44,7 +44,6 @@ contains
         if (found .and. length > 0) call get_environment_variable(variable, value)
     end subroutine getenv
 
-
     !> `string` with $FOO and ${FOO} replaced by environment variables and
     !> $$ by $.  References to unset variables are left unchanged with
     !> `keep_undefined`, else replaced by "".  Port of
@@ -123,7 +122,5 @@ contains
 
             name_char = verify(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == 0
         end function name_char
-
     end function substitute_env_vars
-
 end module env_fm

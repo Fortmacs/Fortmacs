@@ -1,6 +1,5 @@
-# blank-lines.awk -- blank lines in Fortran sources, after the Bristol RSE
-# Fortran guidelines: "Separate related blocks of code with 1 blank line;
-# separate subroutines and functions with 2 blank lines."
+# blank-lines.awk -- blank lines in Fortran sources: one between blocks of
+# code (after the Bristol RSE Fortran guidelines), and never more than one.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -21,14 +20,14 @@
 
 # The blocks, made mechanical:
 #
-# - Two blank lines between procedures (module, program or internal ones);
-#   one between interface bodies, after `contains` and before the `end`
-#   of a unit that contains procedures.
+# - One blank line between procedures (and interface bodies), before and
+#   after `contains`.
 # - One blank line before and after every multi-line construct (if, do,
 #   select, block, associate, where, forall, critical; type and interface
 #   definitions), and between the declarations and the first statement.
 # - None at the start or end of a body: after a construct or procedure
-#   opens, before `else`, `case` and the like, before an `end`.
+#   opens, before `else`, `case` and the like, before any `end` (of a
+#   procedure, module or program too).
 # - Elsewhere, the author's blank lines between runs of statements stay,
 #   with runs of blank lines shrunk to one.
 #
@@ -146,14 +145,10 @@ function wanted(i, p,   r, pr, frame) {
     if (r == "mid" || r == "close") return 0
     if (r == "contains") return (frame == "type") ? 0 : 1
     if (pr == "contains") return (frame == "type") ? 0 : 1
-    if (r == "unit_end") {
-        if (pr == "unit_end") return 1
-        if (frame == "proc") return 0
-        return keep(i)
-    }
+    if (r == "unit_end") return 0
     if (pr == "open" || pr == "mid") return 0
     if (pr == "unit_start") return (kind_of[p] == "proc") ? 0 : keep(i)
-    if (r == "unit_start" && pr == "unit_end") return (frame == "interface") ? 1 : 2
+    if (r == "unit_start" && pr == "unit_end") return 1
     if ((frame == "proc" || frame == "block") && decl[p] && !decl[i] && r != "unit_start") return 1
     if (pr == "close" || r == "open") return 1
     return keep(i)
@@ -231,10 +226,10 @@ END {
                 w = wanted(j + 1, p)
                 attached = 1
             } else {
-                # A comment on its own (a banner): two blank lines after a
+                # A comment on its own (a banner): one blank line after a
                 # procedure, else the author's choice.
                 w = keep(i)
-                if (p > 0 && role[p] == "unit_end" && ctx[p] != "interface") w = 2
+                if (p > 0 && role[p] == "unit_end") w = 1
                 attached = 0
             }
             if (banner_before) w = keep(i)

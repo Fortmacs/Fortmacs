@@ -87,7 +87,6 @@ contains
         minibuf_level = 0
     end subroutine init_minibuf
 
-
     !> The minibuffer for depth `depth`, " *Minibuf-DEPTH*", made if
     !> needed.  Port of minibuf.c:get_minibuffer.
     subroutine get_minibuffer(depth, buf, status)
@@ -119,7 +118,6 @@ contains
         minibuffers(depth + 1) = buf
     end subroutine get_minibuffer
 
-
     !> Whether `buf` (default: the current buffer) is a minibuffer.
     !> Port of minibuf.c:Fminibufferp.
     logical function minibufferp(buf)
@@ -145,7 +143,6 @@ contains
         end do
     end function minibufferp
 
-
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
     integer(int64) function minibuffer_prompt_end() result(pos)
@@ -162,7 +159,6 @@ contains
         end if
     end function minibuffer_prompt_end
 
-
     !> The text of the current minibuffer after the prompt.  Port of
     !> minibuf.c:Fminibuffer_contents_no_properties.
     function minibuffer_contents() result(text)
@@ -171,7 +167,6 @@ contains
 
         call buffer_substring(minibuffer_prompt_end(), buffers(cur)%zv, text, status)
     end function minibuffer_contents
-
 
     !> Keep point out of the prompt after each command (the prompt's
     !> cursor-intangible property, as cursor-intangible-mode would).
@@ -182,7 +177,6 @@ contains
         pend = minibuffer_prompt_end()
         if (buffers(cur)%pt < pend) call goto_char(pend)
     end subroutine leave_prompt
-
 
     !> Read a string in the minibuffer with `prompt`, starting with
     !> `initial` (point after it), using `keymap` (default
@@ -322,7 +316,6 @@ contains
         end if
     end subroutine read_from_minibuffer
 
-
     !> Read a string; empty input gives `default` if present.
     !> Port of minibuf.c:Fread_string.
     recursive subroutine read_string(prompt, result, status, initial, history, default)
@@ -336,7 +329,6 @@ contains
         if (.not. status%ok()) return
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine read_string
-
 
     !> Abort the current minibuffer (C-g there).  Port of
     !> minibuf.c:Fabort_minibuffers for the innermost minibuffer.
@@ -356,5 +348,4 @@ contains
         ! minibuffer-quit-recursive-edit
         call throw_exit(.true.)
     end subroutine abort_minibuffers
-
 end module minibuf_fm

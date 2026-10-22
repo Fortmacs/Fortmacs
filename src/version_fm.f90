@@ -39,5 +39,4 @@ contains
         s = "Fortmacs "//fortmacs_version//" (port of GNU Emacs "// &
             upstream_version//")"
     end function version_string
-
 end module version_fm

@@ -79,7 +79,6 @@ contains
                     ]
     end subroutine collect_keymap_fm
 
-
     !> kbd: the key sequence for `text`, which must parse.
     function kbd(text) result(key)
         character(len=*), intent(in) :: text
@@ -90,14 +89,12 @@ contains
         if (.not. st%ok()) allocate (key(0))
     end function kbd
 
-
     function ch(c) result(key)
         character, intent(in) :: c
         type(value_type) :: key(1)
 
         key(1) = make_fixnum(int(iachar(c), int64))
     end function ch
-
 
     function lookup(map, key) result(val)
         type(value_type), intent(in) :: map
@@ -108,7 +105,6 @@ contains
         call lookup_key(map, key, val, st)
     end function lookup
 
-
     function ref(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
@@ -116,14 +112,12 @@ contains
         v = make_keymap_ref(km)
     end function ref
 
-
     subroutine free(km)
         type(handle_type), intent(in) :: km
         type(status_type) :: st
 
         call free_keymap(km, st)
     end subroutine free
-
 
     subroutine test_make_keymap(error)
         type(error_type), allocatable, intent(out) :: error
@@ -141,7 +135,6 @@ contains
         call free(sparse)
         call free(prompted)
     end subroutine test_make_keymap
-
 
     subroutine test_keymapp(error)
         type(error_type), allocatable, intent(out) :: error
@@ -161,7 +154,6 @@ contains
         call check(error,.not. keymapp(ref(a)), "freed keymap")
         call free(b)
     end subroutine test_keymapp
-
 
     subroutine test_keymap_parent(error)
         type(error_type), allocatable, intent(out) :: error
@@ -187,7 +179,6 @@ contains
         call free(map)
         call free(parent)
     end subroutine test_keymap_parent
-
 
     subroutine test_copy_keymap(error)
         type(error_type), allocatable, intent(out) :: error
@@ -220,7 +211,6 @@ contains
         call free(map)
     end subroutine test_copy_keymap
 
-
     subroutine test_define_undefined(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
@@ -232,7 +222,6 @@ contains
         call free(map)
     end subroutine test_define_undefined
 
-
     subroutine test_define_macro(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
@@ -243,7 +232,6 @@ contains
         call check(error, value_equal(lookup(ref(map), ch("a")), make_string("abc")))
         call free(map)
     end subroutine test_define_macro
-
 
     subroutine test_define_keymap(error)
         type(error_type), allocatable, intent(out) :: error
@@ -258,7 +246,6 @@ contains
         call free(map)
         call free(map2)
     end subroutine test_define_keymap
-
 
     subroutine test_lookup_key(error)
         type(error_type), allocatable, intent(out) :: error
@@ -281,7 +268,6 @@ contains
         call free(map)
     end subroutine test_lookup_key
 
-
     subroutine test_lookup_list(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map1, map2
@@ -302,7 +288,6 @@ contains
         call free(map2)
     end subroutine test_lookup_list
 
-
     subroutine test_lookup_too_long(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
@@ -317,7 +302,6 @@ contains
         call check(error, xfixnum(v), 2_int64)
         call free(map)
     end subroutine test_lookup_too_long
-
 
     !> Default (t) bindings apply only with accept_default.
     subroutine test_accept_default(error)
@@ -343,7 +327,6 @@ contains
         call check(error, value_eq(v, sym("self-insert-command")), "meta default")
         call free(map)
     end subroutine test_accept_default
-
 
     subroutine test_removal_inherit(error)
         type(error_type), allocatable, intent(out) :: error
@@ -376,7 +359,6 @@ contains
         end do
     end subroutine test_removal_inherit
 
-
     subroutine test_unset_inherit(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, parent
@@ -400,7 +382,6 @@ contains
         call free(map)
         call free(parent)
     end subroutine test_unset_inherit
-
 
     !> A prefix key bound in both child and parent composes the two
     !> prefix maps, and a nil in the child's still shadows the parent's.
@@ -431,7 +412,6 @@ contains
         call free(parent)
     end subroutine test_prefix_composition
 
-
     !> Meta characters live in the ESC prefix map.
     subroutine test_meta(error)
         type(error_type), allocatable, intent(out) :: error
@@ -456,7 +436,6 @@ contains
         call free(map)
     end subroutine test_meta
 
-
     subroutine test_non_prefix(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map
@@ -475,7 +454,6 @@ contains
         call free(map)
     end subroutine test_non_prefix
 
-
     !> Symbol events with modifiers are stored in canonical order.
     subroutine test_modifier_order(error)
         type(error_type), allocatable, intent(out) :: error
@@ -492,7 +470,6 @@ contains
         call check(error, value_eq(lookup(ref(map), kbd("C-M-<home>")), sym("foo")), "kbd")
         call free(map)
     end subroutine test_modifier_order
-
 
     subroutine test_key_parse(error)
         type(error_type), allocatable, intent(out) :: error
@@ -550,7 +527,6 @@ contains
         call check(error, st%detail, "C- must prefix a single character, not xy")
     end subroutine test_key_parse
 
-
     subroutine test_key_description(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: k1(1), k2(2), k3(3), prefix(1)
@@ -598,7 +574,6 @@ contains
         call check(error, key_description(kbd("C-x C-f M-q <f5> DEL")), "C-x C-f M-q <f5> DEL")
     end subroutine test_key_description
 
-
     !> Local maps take precedence over the global map.
     subroutine test_key_binding(error)
         type(error_type), allocatable, intent(out) :: error
@@ -635,7 +610,6 @@ contains
         call kill_buffer(buf, st)
     end subroutine test_key_binding
 
-
     !> free_keymap frees the prefix maps define_key made.
     subroutine test_free(error)
         type(error_type), allocatable, intent(out) :: error
@@ -655,7 +629,6 @@ contains
         call free_keymap(map, st)
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "stale")
     end subroutine test_free
-
 
     subroutine test_key_valid_p(error)
         type(error_type), allocatable, intent(out) :: error
@@ -703,7 +676,6 @@ contains
         end do
     end subroutine test_key_valid_p
 
-
     !> A string definition is a key to type: a keyboard macro, which is a
     !> list of events here.
     subroutine test_keymap_set(error)
@@ -727,7 +699,6 @@ contains
         call free(k)
     end subroutine test_keymap_set
 
-
     subroutine test_keymap_global_set(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: global
@@ -750,5 +721,4 @@ contains
         call define_key(current_global_map(), kbd("C-c y"), nil(), st, remove=.true.)
         call define_key(current_global_map(), kbd("C-c x"), nil(), st, remove=.true.)
     end subroutine test_keymap_global_set
-
 end module test_keymap_fm

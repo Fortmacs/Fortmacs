@@ -93,7 +93,6 @@ contains
         f%minibuffer_window%mini = .true.
     end subroutine init_frame_windows
 
-
     !> The default face and the mode-line face (inverse video) of a
     !> terminal frame.  Port of the terminal part of
     !> xfaces.c:realize_basic_faces.
@@ -109,7 +108,6 @@ contains
         f%faces(MODE_LINE_ACTIVE_FACE_ID)%foreground = FACE_TTY_DEFAULT_BG_COLOR
         f%faces(MODE_LINE_ACTIVE_FACE_ID)%background = FACE_TTY_DEFAULT_FG_COLOR
     end subroutine realize_basic_faces
-
 
     ! ------------------------------------------------------------------
     ! Producing glyphs
@@ -137,7 +135,6 @@ contains
             (c >= int(z'1F900', int32) .and. c <= int(z'1F9FF', int32)) .or. &
             (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
     end function glyph_width
-
 
     !> The cells that show character `c` at logical column `x` (the column
     !> counted from the start of the line, continuation lines included).
@@ -177,7 +174,6 @@ contains
         end if
     end subroutine produce_char
 
-
     !> Columns character `c` takes when displayed at column `x` (for
     !> TAB, the distance to the next tab stop).
     integer function glyph_columns(c, x) result(n)
@@ -187,7 +183,6 @@ contains
 
         call produce_char(c, x, cells, n)
     end function glyph_columns
-
 
     !> Lay out buffer slot `bi` from `start` in `rows` (one per window
     !> body line) `width` columns wide.  Gives the cursor position of `pt`
@@ -276,7 +271,6 @@ contains
         if (pos >= zv) reached_end = .true.
     end subroutine layout_window
 
-
     !> The start of the line `nlines` lines above the one holding `pos`
     !> in buffer slot `bi` (not before the accessible start).  The
     !> logical-line part of xdisp.c's recentering (move_it_vertically_backward).
@@ -303,7 +297,6 @@ contains
         start = buf_bytepos_to_charpos(bi, byte)
     end function line_start_above
 
-
     ! ------------------------------------------------------------------
     ! Windows, mode line, echo area
     ! ------------------------------------------------------------------
@@ -321,7 +314,6 @@ contains
             f%desired_matrix%rows(top + r - 1)%enabled_p = .true.
         end do
     end subroutine put_rows
-
 
     !> Display window `w`: from its start if that shows point (or the
     !> start is forced), else recentered around point; then its mode line.
@@ -366,7 +358,6 @@ contains
         if (.not. w%mini) call display_mode_line(f, w, bi, start, pt)
     end subroutine redisplay_window
 
-
     !> 1 + the number of newlines before `pos` in buffer slot `bi`.
     integer(int64) function line_number(bi, pos) result(n)
         integer(int64), intent(in) :: bi, pos
@@ -381,7 +372,6 @@ contains
             byte = byte + 1
         end do
     end function line_number
-
 
     !> The mode line of window `w`, padded with dashes to `width`.  A
     !> fixed rendering of the default mode-line-format: coding and
@@ -417,7 +407,6 @@ contains
             s = s(1:width)
         end if
     end function mode_line_text
-
 
     !> Port of the terminal part of xdisp.c:display_mode_line.
     subroutine display_mode_line(f, w, bi, start, pt)
@@ -464,7 +453,6 @@ contains
         end associate
     end subroutine display_mode_line
 
-
     !> Show the last message in the minibuffer window, or blank it.  Port
     !> of the display part of xdisp.c:echo_area_display.
     subroutine display_echo_area(f, endcol)
@@ -499,7 +487,6 @@ contains
             endcol = n
         end associate
     end subroutine display_echo_area
-
 
     !> Show the active minibuffer's text on the minibuffer line, scrolled
     !> horizontally to keep point visible ("$" marks text cut off at
@@ -583,7 +570,6 @@ contains
         end associate
     end subroutine display_minibuffer
 
-
     !> Show `text` in the echo area.  Port of editfns.c:Fmessage (with a
     !> plain string; no *Messages* log yet).
     subroutine message(text)
@@ -591,7 +577,6 @@ contains
 
         last_message = text
     end subroutine message
-
 
     !> Redisplay the frame: the root window (showing the current buffer
     !> unless the minibuffer is selected), its mode line, and the echo area
@@ -653,5 +638,4 @@ contains
 
         call update_frame(f, status)
     end subroutine redisplay
-
 end module xdisp_fm

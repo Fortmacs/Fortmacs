@@ -248,7 +248,6 @@ contains
         end if
     end subroutine call_process
 
-
     !> The executable file PROGRAM names: itself if it has a slash (relative
     !> to `dir`), else the first one in a directory of PATH (an empty entry
     !> means `dir`).  `path` is "" if there is none.  Port of the part of
@@ -301,9 +300,7 @@ contains
 
             executable_file_p = file_executable_p(name) .and. .not. file_directory_p(name)
         end function executable_file_p
-
     end subroutine locate_program
-
 
     !> Insert the program output `bytes` at point, decoded as UTF-8 in a
     !> multibyte buffer.
@@ -320,7 +317,6 @@ contains
             call insert(bytes, status)
         end if
     end subroutine insert_output
-
 
     !> Send text from START to END to a synchronous process running
     !> PROGRAM.
@@ -406,7 +402,6 @@ contains
         end if
     end subroutine call_process_region
 
-
     !> Write the text from `start` to `end` (the whole buffer if absent) to
     !> a new temporary file, named `tempfile`.  Port of
     !> callproc.c:create_temp_file.
@@ -433,5 +428,4 @@ contains
         call write_region(tempfile, .false., status, start, end)
         if (.not. status%ok()) call delete_file_internal(tempfile, dst)
     end subroutine create_temp_file
-
 end module callproc_fm

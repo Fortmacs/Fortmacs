@@ -62,7 +62,6 @@ contains
                     ]
     end subroutine collect_cmds_fm
 
-
     subroutine enter(name, h, old)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
@@ -73,7 +72,6 @@ contains
         call set_buffer(h, st)
     end subroutine enter
 
-
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
@@ -81,7 +79,6 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
-
 
     !> Three lines with a multibyte char, gap placed mid-text.
     subroutine fill_lines()
@@ -92,7 +89,6 @@ contains
         call insert("a"//euro//nl//"bb"//nl//"c", st)
         call move_gap_both(5_int64, 7_int64)
     end subroutine fill_lines
-
 
     subroutine test_find_forward(error)
         type(error_type), allocatable, intent(out) :: error
@@ -111,7 +107,6 @@ contains
         call check(error, pos == 8 .and. counted == 2, "too few: stop at ZV")
         call leave(h, old)
     end subroutine test_find_forward
-
 
     subroutine test_find_backward(error)
         type(error_type), allocatable, intent(out) :: error
@@ -132,7 +127,6 @@ contains
         call leave(h, old)
     end subroutine test_find_backward
 
-
     subroutine test_before_next(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -144,7 +138,6 @@ contains
         call check(error, find_before_next_newline(7_int64, 1_int64), 8_int64)
         call leave(h, old)
     end subroutine test_before_next
-
 
     subroutine test_bol_eol(error)
         type(error_type), allocatable, intent(out) :: error
@@ -169,7 +162,6 @@ contains
         call leave(h, old)
     end subroutine test_bol_eol
 
-
     subroutine test_chars(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -190,7 +182,6 @@ contains
         call check(error, st%code == FM_BEGINNING_OF_BUFFER .and. point() == 1, "beginning-of-buffer")
         call leave(h, old)
     end subroutine test_chars
-
 
     subroutine test_forward_line(error)
         type(error_type), allocatable, intent(out) :: error
@@ -218,7 +209,6 @@ contains
         call leave(h, old)
     end subroutine test_forward_line
 
-
     !> cmds-tests.el: forward-line-with-bignum.
     subroutine test_bignum(error)
         type(error_type), allocatable, intent(out) :: error
@@ -232,7 +222,6 @@ contains
         call check(error, forward_line(most_positive_fixnum + 2), most_positive_fixnum + 1)
         call leave(h, old)
     end subroutine test_bignum
-
 
     subroutine test_bol_cmds(error)
         type(error_type), allocatable, intent(out) :: error
@@ -251,7 +240,6 @@ contains
         call check(error, point(), 8_int64)
         call leave(h, old)
     end subroutine test_bol_cmds
-
 
     subroutine test_delete_char(error)
         type(error_type), allocatable, intent(out) :: error
@@ -274,5 +262,4 @@ contains
         call check(error, st%code, FM_BEGINNING_OF_BUFFER)
         call leave(h, old)
     end subroutine test_delete_char
-
 end module test_cmds_fm

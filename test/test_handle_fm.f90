@@ -44,7 +44,6 @@ contains
                     ]
     end subroutine collect_handle_fm
 
-
     subroutine test_acquire_resolve(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -66,7 +65,6 @@ contains
         call check(error, t%capacity() >= 2_int64, "capacity below live count")
     end subroutine test_acquire_resolve
 
-
     subroutine test_null(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -85,7 +83,6 @@ contains
         call check(error, i, 0_int64)
     end subroutine test_null
 
-
     subroutine test_stale(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -101,7 +98,6 @@ contains
         if (allocated(error)) return
         call check(error, t%count(), 0_int64)
     end subroutine test_stale
-
 
     subroutine test_stale_after_reuse(error)
         type(error_type), allocatable, intent(out) :: error
@@ -123,7 +119,6 @@ contains
         call check(error, t%is_live(new), "new handle not live")
     end subroutine test_stale_after_reuse
 
-
     subroutine test_double_release(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -137,7 +132,6 @@ contains
         if (allocated(error)) return
         call check(error, t%count(), 0_int64)
     end subroutine test_double_release
-
 
     subroutine test_growth(error)
         type(error_type), allocatable, intent(out) :: error
@@ -175,7 +169,6 @@ contains
         call check(error, t%capacity() < 200_int64, "freed slots not reused")
     end subroutine test_growth
 
-
     ! A handle from one table must not resolve in an empty one.
     subroutine test_foreign(error)
         type(error_type), allocatable, intent(out) :: error
@@ -185,7 +178,6 @@ contains
         call a%acquire(h)
         call check(error,.not. b%is_live(h), "empty table resolved a handle")
     end subroutine test_foreign
-
 
     subroutine test_handle_of(error)
         type(error_type), allocatable, intent(out) :: error
@@ -204,5 +196,4 @@ contains
         g = t%handle_of(99_int64)
         call check(error, g%index, 0_int64)
     end subroutine test_handle_of
-
 end module test_handle_fm

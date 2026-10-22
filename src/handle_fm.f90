@@ -81,7 +81,6 @@ contains
         h = handle_type(0, 0)
     end function null_handle
 
-
     !> Allocate a slot and return a fresh handle to it.
     subroutine table_acquire(self, h)
         class(slot_table_type), intent(inout) :: self
@@ -107,7 +106,6 @@ contains
         h = handle_type(i, self%generations(i))
     end subroutine table_acquire
 
-
     !> Free the slot `h` refers to.  Fails on a null or stale handle,
     !> including a second release of the same handle.
     subroutine table_release(self, h, status)
@@ -126,7 +124,6 @@ contains
         self%free_list(self%free_count) = i
     end subroutine table_release
 
-
     !> Translate `h` into its payload index, or fail with invalid-handle.
     pure subroutine table_resolve(self, h, i, status)
         class(slot_table_type), intent(in) :: self
@@ -144,7 +141,6 @@ contains
         i = h%index
     end subroutine table_resolve
 
-
     !> True when `h` refers to a live slot of this table.
     elemental logical function table_is_live(self, h)
         class(slot_table_type), intent(in) :: self
@@ -156,7 +152,6 @@ contains
         if (.not. self%live(h%index)) return
         table_is_live = self%generations(h%index) == h%generation
     end function table_is_live
-
 
     !> The current handle of live slot `i`, or the null handle.
     pure function table_handle_of(self, i) result(h)
@@ -171,7 +166,6 @@ contains
         h = handle_type(i, self%generations(i))
     end function table_handle_of
 
-
     !> Number of payload slots the owner must provide (highest index in use
     !> can never exceed this).
     pure integer(int64) function table_capacity(self)
@@ -184,14 +178,12 @@ contains
         end if
     end function table_capacity
 
-
     !> Number of live slots.
     pure integer(int64) function table_count(self)
         class(slot_table_type), intent(in) :: self
 
         table_count = self%live_count
     end function table_count
-
 
     subroutine grow(self, new_size)
         type(slot_table_type), intent(inout) :: self
@@ -217,5 +209,4 @@ contains
         call move_alloc(live, self%live)
         call move_alloc(frees, self%free_list)
     end subroutine grow
-
 end module handle_fm

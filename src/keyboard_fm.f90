@@ -155,14 +155,12 @@ contains
         meta_key = mode
     end subroutine set_input_meta_mode
 
-
     !> Read keyboard input from `fd` (-1 for none).
     subroutine set_input_fd(fd)
         integer(int32), intent(in) :: fd
 
         input_fd = fd
     end subroutine set_input_fd
-
 
     !> Append `ev` to the event queue.  Port of keyboard.c:kbd_buffer_store_event.
     subroutine store_event(ev)
@@ -192,14 +190,12 @@ contains
         events(tail) = ev
     end subroutine store_event
 
-
     !> Store character event `c`.
     subroutine store_char(c)
         integer(int64), intent(in) :: c
 
         call store_event(make_fixnum(c))
     end subroutine store_char
-
 
     !> Flush incomplete UTF-8 bytes as raw-byte characters.
     subroutine flush_pending()
@@ -213,7 +209,6 @@ contains
 
         deallocate (pending_bytes)
     end subroutine flush_pending
-
 
     !> Decode byte `b` with the keyboard coding system (UTF-8): complete
     !> characters become events, invalid bytes raw-byte characters.  The
@@ -257,7 +252,6 @@ contains
         end if
     end subroutine decode_byte
 
-
     !> Turn terminal input `bytes` into events.  The per-byte part of
     !> keyboard.c:tty_read_avail_input.
     subroutine kbd_store_bytes(bytes)
@@ -283,7 +277,6 @@ contains
         end do
     end subroutine kbd_store_bytes
 
-
     !> Read whatever input the terminal has, without waiting; `nread` is
     !> the number of bytes (0 at end of file).  Port of
     !> keyboard.c:tty_read_avail_input.
@@ -300,7 +293,6 @@ contains
         if (nread > 0) call kbd_store_bytes(buf(1:nread))
     end subroutine tty_read_avail_input
 
-
     !> Push `evs` to be read before any other input, in order.
     !> Like setting keyboard.c:Vunread_command_events.
     subroutine unread_command_events(evs)
@@ -316,7 +308,6 @@ contains
         nunread = nunread + n
     end subroutine unread_command_events
 
-
     !> Drop all pending input.  Port of keyboard.c:Fdiscard_input.
     subroutine discard_input()
         nunread = 0
@@ -327,14 +318,12 @@ contains
         if (allocated(pending_bytes)) deallocate (pending_bytes)
     end subroutine discard_input
 
-
     !> Whether input is waiting.  Port of keyboard.c:Finput_pending_p.
     logical function input_pending_p()
         input_pending_p = nunread > 0 .or. tail >= head
         if (input_pending_p .or. input_fd < 0) return
         input_pending_p = input_available(input_fd, 0_int32)
     end function input_pending_p
-
 
     !> The next input event.  Waits for terminal input if there is a
     !> terminal; otherwise `have` is false when the queue is empty (end of
@@ -396,7 +385,6 @@ contains
         end do
     end subroutine read_event
 
-
     ! ------------------------------------------------------------------
     ! Key sequences
     ! ------------------------------------------------------------------
@@ -408,7 +396,6 @@ contains
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
-
     !> Port of keyboard.c:test_undefined (without command remapping).
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
@@ -419,7 +406,6 @@ contains
             test_undefined = xsymbol(binding) == intern("undefined")
         end if
     end function test_undefined
-
 
     !> Events of translation `next` (a list of events or a string).
     subroutine sequence_events(next, seq)
@@ -448,7 +434,6 @@ contains
 
         seq = seq(1:n)
     end subroutine sequence_events
-
 
     !> One step of key remapping: extend `fk`'s scanned key by one event
     !> and, if the map binds it to a key sequence and `doit`, replace the
@@ -511,7 +496,6 @@ contains
         end if
     end subroutine keyremap_step
 
-
     subroutine reset_remap(fk, pos)
         type(keyremap_type), intent(inout) :: fk
         integer, intent(in) :: pos
@@ -520,7 +504,6 @@ contains
         fk%end = pos
         fk%map = fk%parent
     end subroutine reset_remap
-
 
     !> Read a key sequence: events until the active keymaps give a
     !> non-prefix binding (or none), with terminal escape sequences and
@@ -716,7 +699,6 @@ contains
         keys = keybuf(1:t)
     end subroutine read_key_sequence
 
-
     ! ------------------------------------------------------------------
     ! The command loop
     ! ------------------------------------------------------------------
@@ -732,7 +714,6 @@ contains
         transient_active = .true.
     end subroutine set_transient_map
 
-
     !> Redisplay, then wait `ms` milliseconds or until input arrives.
     !> Port of subr.el:sit-for (for a terminal; no wait without one).
     subroutine sit_for(ms)
@@ -743,18 +724,15 @@ contains
         if (input_fd >= 0 .and. .not. input_pending_p()) ready = input_available(input_fd, ms)
     end subroutine sit_for
 
-
     !> Make `command_loop` return after the current command.
     subroutine request_exit()
         exit_requested = .true.
     end subroutine request_exit
 
-
     !> Whether a command asked the command loop to stop.
     logical function exit_requested_p()
         exit_requested_p = exit_requested
     end function exit_requested_p
-
 
     !> Run keyboard macro `macro` (a string or list of events): its events
     !> are read before other input.  A count from the prefix argument
@@ -771,7 +749,6 @@ contains
             call unread_command_events(seq)
         end do
     end subroutine execute_kbd_macro
-
 
     !> Read one key sequence and run its command.  `done` at end of input.
     !> Errors from the command are reported in `last_message` (as the
@@ -837,7 +814,6 @@ contains
         done = eof
     end subroutine command_loop_step
 
-
     !> Run commands until input ends or `request_exit` is called.  Command
     !> errors don't stop the loop.  Port of keyboard.c:command_loop_1.
     subroutine command_loop(status)
@@ -854,7 +830,6 @@ contains
 
         exit_requested = .false.
     end subroutine command_loop
-
 
     !> Run a command loop until a command throws to `exit`: return when
     !> it throws nil, signal quit when it throws t.  End of input, or a
@@ -879,7 +854,6 @@ contains
         command_loop_level = command_loop_level - 1
     end subroutine recursive_edit_1
 
-
     !> (throw 'exit nil), or with `abort` (throw 'exit t): end the
     !> innermost recursive edit once the current command returns.
     subroutine throw_exit(abort)
@@ -888,7 +862,6 @@ contains
         exit_pending = .true.
         exit_abort = abort
     end subroutine throw_exit
-
 
     !> Leave the innermost recursive edit or minibuffer.
     !> Port of keyboard.c:Fexit_recursive_edit.
@@ -902,7 +875,6 @@ contains
         end if
     end subroutine exit_recursive_edit
 
-
     !> Abort the command that started the innermost recursive edit or
     !> minibuffer.  Port of keyboard.c:Fabort_recursive_edit.
     subroutine abort_recursive_edit(status)
@@ -914,5 +886,4 @@ contains
             call set_error(status, FM_USER_ERROR, "No recursive edit is in progress")
         end if
     end subroutine abort_recursive_edit
-
 end module keyboard_fm

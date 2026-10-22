@@ -233,13 +233,11 @@ contains
         if (stat /= 0) v = ""
     end function getenv_str
 
-
     logical function file_exists(path)
         character(len=*), intent(in) :: path
 
         inquire (file=path, exist=file_exists)
     end function file_exists
-
 
     !> The file holding entry `term` in directory `dir`, or "".
     function entry_path(dir, term) result(path)
@@ -255,7 +253,6 @@ contains
         path = ""
     end function entry_path
 
-
     function to_lower(s) result(t)
         character(len=*), intent(in) :: s
         character(len=len(s)) :: t
@@ -267,7 +264,6 @@ contains
             if (s(k:k) >= "A" .and. s(k:k) <= "Z") t(k:k) = achar(iachar(s(k:k)) + 32)
         end do
     end function to_lower
-
 
     !> Where entry `term` lives, searching as ncurses does; "" if nowhere.
     function find_entry(term) result(path)
@@ -321,7 +317,6 @@ contains
         end do
     end function find_entry
 
-
     !> Load the description of terminal type `term`.  Port of the tgetent
     !> call in term.c:init_tty (the library side is reimplemented); the
     !> error text is term.c's.
@@ -351,7 +346,6 @@ contains
 
         call set_error(status, FM_GENERIC_ERROR, "Terminal type "//term//" is not defined")
     end subroutine tgetent
-
 
     !> Load the compiled entry in file `path`.
     subroutine read_terminfo(path, ti, status)
@@ -389,7 +383,6 @@ contains
         call parse_terminfo(data, ti, status)
     end subroutine read_terminfo
 
-
     !> Little-endian signed 16-bit integer at 0-based offset `off`.
     integer(int32) function get16(data, off) result(v)
         character(len=*), intent(in) :: data
@@ -398,7 +391,6 @@ contains
         v = ichar(data(off + 1:off + 1), int32) + 256*ichar(data(off + 2:off + 2), int32)
         if (v >= 32768) v = v - 65536
     end function get16
-
 
     !> Little-endian signed 32-bit integer at 0-based offset `off`.
     integer(int32) function get32(data, off) result(v)
@@ -417,7 +409,6 @@ contains
         v = int(u, int32)
     end function get32
 
-
     !> The NUL-terminated string at 0-based `off` within `table`.
     function cstring(table, off) result(s)
         character(len=*), intent(in) :: table
@@ -433,7 +424,6 @@ contains
             s = table(off + 1:off + e - 1)
         end if
     end function cstring
-
 
     !> Decode a compiled terminfo entry (term(5)).
     subroutine parse_terminfo(data, ti, status)
@@ -606,9 +596,7 @@ contains
 
             call set_error(status, FM_GENERIC_ERROR, "Invalid terminfo entry")
         end subroutine bad
-
     end subroutine parse_terminfo
-
 
     ! ------------------------------------------------------------------
     ! Capabilities by name
@@ -624,7 +612,6 @@ contains
         k = 0
     end function find_name
 
-
     integer function find_ext(names, name) result(k)
         type(cap_string), intent(in) :: names(:)
         character(len=*), intent(in) :: name
@@ -636,7 +623,6 @@ contains
 
         k = 0
     end function find_ext
-
 
     !> Boolean capability `name` (terminfo name).  Port of the terminfo
     !> library's tigetflag, as term.c uses it.
@@ -656,7 +642,6 @@ contains
         end if
     end function tigetflag
 
-
     !> Numeric capability `name`, or -1.
     integer(int32) function tigetnum(ti, name) result(v)
         type(terminfo_type), intent(in) :: ti
@@ -673,7 +658,6 @@ contains
             if (k > 0) v = ti%ext_nums(k)
         end if
     end function tigetnum
-
 
     !> String capability `name`; "" (and `found` false) if absent.
     function tigetstr(ti, name, found) result(s)
@@ -701,7 +685,6 @@ contains
         if (present(found)) found = .true.
     end function tigetstr
 
-
     !> Boolean capability by termcap code ("am"), falling back to an
     !> extended capability of that name.
     logical function tgetflag(ti, code) result(v)
@@ -719,7 +702,6 @@ contains
         end if
     end function tgetflag
 
-
     !> Numeric capability by termcap code ("co"), or -1.
     integer(int32) function tgetnum(ti, code) result(v)
         type(terminfo_type), intent(in) :: ti
@@ -735,7 +717,6 @@ contains
             v = tigetnum(ti, code)
         end if
     end function tgetnum
-
 
     !> String capability by termcap code ("cm"); "" if absent.
     function tgetstr(ti, code, found) result(s)
@@ -755,7 +736,6 @@ contains
         end if
     end function tgetstr
 
-
     ! ------------------------------------------------------------------
     ! The built-in fallback
     ! ------------------------------------------------------------------
@@ -769,7 +749,6 @@ contains
         if (k > 0) ti%flags(k) = .true.
     end subroutine set_flag
 
-
     subroutine set_num(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
@@ -779,7 +758,6 @@ contains
         k = find_name(NUM_NAMES, name)
         if (k > 0) ti%numbers(k) = v
     end subroutine set_num
-
 
     subroutine set_str(ti, name, v)
         type(terminfo_type), intent(inout) :: ti
@@ -803,7 +781,6 @@ contains
         call move_alloc(names, ti%ext_str_names)
         call move_alloc(values, ti%ext_strs)
     end subroutine set_str
-
 
     !> A built-in xterm-256color description: the capabilities term.c uses,
     !> plus cursor and function keys (generated from ncurses 6.4's entry).
@@ -905,7 +882,6 @@ contains
         call set_str(ti, "smxx", achar(27)//"[9m")
     end subroutine builtin_xterm
 
-
     ! ------------------------------------------------------------------
     ! Parameterized strings
     ! ------------------------------------------------------------------
@@ -938,7 +914,6 @@ contains
 
         if (len(s) < mindigits) s = repeat("0", mindigits - len(s))//s
     end function int_digits
-
 
     !> printf-style formatting of `v` for conversion `conv` (d o x X) with
     !> `flags` (- + # space), `width` and `precision` (-1: none), and
@@ -1001,7 +976,6 @@ contains
             end if
         end if
     end function format_int
-
 
     !> Instantiate parameterized string `str` with integer parameters
     !> `p1`..`p9` (absent ones are 0).  The terminfo(5) language: %p %d %c
@@ -1158,7 +1132,6 @@ contains
             end if
         end subroutine push
 
-
         integer(int64) function pop() result(x)
             x = 0
 
@@ -1167,7 +1140,6 @@ contains
                 sp = sp - 1
             end if
         end function pop
-
 
         subroutine set_var(name, x)
             character, intent(in) :: name
@@ -1179,7 +1151,6 @@ contains
                 static_vars(iachar(name) - iachar("A") + 1) = x
             end if
         end subroutine set_var
-
 
         integer(int64) function get_var(name) result(x)
             character, intent(in) :: name
@@ -1193,7 +1164,6 @@ contains
             end if
         end function get_var
 
-
         integer function read_int() result(x)
             x = 0
 
@@ -1203,7 +1173,6 @@ contains
                 i = i + 1
             end do
         end function read_int
-
 
         !> Skip to after the matching %e (if `to_else`) or %;.
         subroutine skip(to_else)
@@ -1242,9 +1211,7 @@ contains
 
             i = n + 1
         end subroutine skip
-
     end function tparm
-
 
     integer(int64) function binary(op, a, b) result(v)
         character, intent(in) :: op
@@ -1282,7 +1249,6 @@ contains
         end select
     end function binary
 
-
     !> Port of terminfo.c:tparam: tparm with up to four arguments.
     function tparam(str, arg1, arg2, arg3, arg4) result(out)
         character(len=*), intent(in) :: str
@@ -1291,7 +1257,6 @@ contains
 
         out = tparm(str, arg1, arg2, arg3, arg4)
     end function tparam
-
 
     !> Cursor motion to `col`, `row` (0-based): the terminfo library's
     !> tgoto, which takes its arguments column first.
@@ -1303,7 +1268,6 @@ contains
 
         out = tparm(cm, row, col)
     end function tgoto
-
 
     !> `s` without $<...> padding specifications.  Modern terminals need no
     !> padding (the terminfo library's tputs would delay instead).
@@ -1331,5 +1295,4 @@ contains
             i = i + 1
         end do
     end function delete_padding
-
 end module terminfo_fm

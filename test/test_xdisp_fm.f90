@@ -61,7 +61,6 @@ contains
                     ]
     end subroutine collect_xdisp_fm
 
-
     !> A buffer holding `text`, current; its slot is `bi`.
     subroutine buffer_with(name, text, h, bi)
         character(len=*), intent(in) :: name, text
@@ -75,7 +74,6 @@ contains
         call insert(text, st)
         call resolve_buffer(h, bi, st)
     end subroutine buffer_with
-
 
     !> The text of a laid-out row (wide-character padding left out).
     function row_text(row) result(s)
@@ -96,7 +94,6 @@ contains
         end do
     end function row_text
 
-
     subroutine layout(bi, start, pt, width, nrows, rows, crow, ccol, end_pos, at_end)
         integer(int64), intent(in) :: bi, start, pt
         integer, intent(in) :: width, nrows
@@ -114,7 +111,6 @@ contains
 
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
-
 
     subroutine test_lines(error)
         type(error_type), allocatable, intent(out) :: error
@@ -135,7 +131,6 @@ contains
         call check(error, at_end .and. end_pos == 6, "end")
         call kill_buffer(h, st)
     end subroutine test_lines
-
 
     subroutine test_special_chars(error)
         type(error_type), allocatable, intent(out) :: error
@@ -164,7 +159,6 @@ contains
         call kill_buffer(h, st)
     end subroutine test_special_chars
 
-
     subroutine test_continuation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -184,7 +178,6 @@ contains
         call check(error, crow == 1 .and. ccol == 1, "cursor on g")
         call kill_buffer(h, st)
     end subroutine test_continuation
-
 
     !> After a final newline there is one more (empty) line for the cursor.
     subroutine test_end_of_buffer(error)
@@ -212,7 +205,6 @@ contains
         call kill_buffer(h, st)
     end subroutine test_end_of_buffer
 
-
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
@@ -226,7 +218,6 @@ contains
         s = mode_line_text("x", .true., .true., "Bot", 3_int64, 9)
         call check(error, s, "-UUU:%*--")
     end subroutine test_mode_line
-
 
     !> Point far below the window start: the window recenters on it.
     subroutine test_redisplay(error)
@@ -283,9 +274,7 @@ contains
                 line_start = 1 + 7*9 + 8*(n - 10)
             end if
         end function line_start
-
     end subroutine test_redisplay
-
 
     !> The whole editor on a pty: type, then C-x C-c.
     subroutine test_emacs_main(error)
@@ -324,5 +313,4 @@ contains
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_emacs_main
-
 end module test_xdisp_fm

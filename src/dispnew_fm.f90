@@ -67,7 +67,6 @@ contains
         m%ncols = ncols
     end subroutine allocate_matrix
 
-
     !> Give `f` matrices of its terminal's size (contents unknown, so the
     !> next update redraws everything), and a default face if it has none.
     !> Port of the frame part of dispnew.c:adjust_frame_glyphs.
@@ -94,7 +93,6 @@ contains
         f%glyphs_initialized_p = .true.
     end subroutine adjust_frame_glyphs
 
-
     !> Port of dispnew.c:clear_current_matrices.
     subroutine clear_current_matrices(f)
         type(frame_type), intent(inout) :: f
@@ -106,7 +104,6 @@ contains
         end do
     end subroutine clear_current_matrices
 
-
     !> Port of dispnew.c:clear_desired_matrices.
     subroutine clear_desired_matrices(f)
         type(frame_type), intent(inout) :: f
@@ -117,7 +114,6 @@ contains
             f%desired_matrix%rows(r)%used = 0
         end do
     end subroutine clear_desired_matrices
-
 
     !> Make row `vpos` of the desired matrix show `glyphs` (at most a
     !> line; the rest of the line is blank).  What redisplay does through
@@ -137,7 +133,6 @@ contains
         end associate
     end subroutine set_desired_row
 
-
     !> Copy the desired rows that were updated into the current matrix.
     !> Port of dispnew.c:make_matrix_current.
     subroutine make_matrix_current(f)
@@ -152,7 +147,6 @@ contains
             f%desired_matrix%rows(r)%enabled_p = .false.
         end do
     end subroutine make_matrix_current
-
 
     ! ------------------------------------------------------------------
     ! Updating
@@ -169,7 +163,6 @@ contains
         f%garbaged = .false.
     end subroutine redraw_frame
 
-
     !> Leading blanks of `r(1:len)`.  Port of dispnew.c:count_blanks.
     integer function count_blanks(r, len) result(i)
         type(glyph_type), intent(in) :: r(:)
@@ -181,7 +174,6 @@ contains
 
         i = len
     end function count_blanks
-
 
     !> Length of the common prefix of `a` and `b`.  Port of
     !> dispnew.c:count_match.
@@ -195,7 +187,6 @@ contains
             n = n + 1
         end do
     end function count_match
-
 
     !> Write `body(first+1:first+n)` at column `first` of row `vpos`.
     subroutine write_at(f, vpos, first, body, n)
@@ -211,7 +202,6 @@ contains
             call tty_write_glyphs(f%tty, body(first + 1:first + n), f%faces)
         end if
     end subroutine write_at
-
 
     !> Make row `vpos` of the screen show the desired row, sending as
     !> little as possible.  Port of dispnew.c:write_row.
@@ -426,7 +416,6 @@ contains
         end if
     end subroutine write_row
 
-
     !> dispnew.c's char_ins_del_cost (f)[k].
     integer function ins_del_cost(f, k)
         type(frame_type), intent(in) :: f
@@ -437,7 +426,6 @@ contains
         if (k < lbound(f%tty%char_ins_del_cost, 1) .or. k > ubound(f%tty%char_ins_del_cost, 1)) return
         ins_del_cost = f%tty%char_ins_del_cost(k)
     end function ins_del_cost
-
 
     !> Write the changed rows, the last (echo area) row first.  Port of
     !> dispnew.c:write_matrix (without line scrolling).
@@ -454,7 +442,6 @@ contains
         end do
     end subroutine write_matrix
 
-
     !> Leave the cursor where the frame wants it.  Port of
     !> dispnew.c:tty_set_cursor (the selected-window case).
     subroutine tty_set_cursor(f)
@@ -465,7 +452,6 @@ contains
             call tty_cursor_to(f%tty, f%cursor_vpos, min(f%cursor_hpos, f%tty%wcm%cm_cols - 1))
         end if
     end subroutine tty_set_cursor
-
 
     !> Make the screen show the desired matrix, then flush.  Port of
     !> dispnew.c:combine_updates_for_frame for a root terminal frame
@@ -483,5 +469,4 @@ contains
         call tty_flush(f%tty, status)
         call clear_desired_matrices(f)
     end subroutine update_frame
-
 end module dispnew_fm

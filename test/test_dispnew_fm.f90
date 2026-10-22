@@ -58,7 +58,6 @@ contains
                     ]
     end subroutine collect_dispnew_fm
 
-
     function g(text) result(glyphs)
         character(len=*), intent(in) :: text
         type(glyph_type) :: glyphs(len(text))
@@ -68,7 +67,6 @@ contains
             glyphs(k)%ch = iachar(text(k:k))
         end do
     end function g
-
 
     !> A built-in xterm 80x24 frame already showing `line` in row 0 (the
     !> first update's output is discarded).
@@ -87,7 +85,6 @@ contains
         discarded = tty_take_output(f%tty)
     end subroutine frame_showing
 
-
     !> Output of updating `f` with row 0 changed to `line`.
     function update_row0(f, line) result(out)
         type(frame_type), intent(inout) :: f
@@ -99,7 +96,6 @@ contains
         call update_frame(f, st)
         out = tty_take_output(f%tty)
     end function update_row0
-
 
     subroutine test_first_update(error)
         type(error_type), allocatable, intent(out) :: error
@@ -120,7 +116,6 @@ contains
         call check(error,.not. f%garbaged .and. f%current_matrix%rows(0)%used == 5, "current")
     end subroutine test_first_update
 
-
     subroutine test_unchanged(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
@@ -128,7 +123,6 @@ contains
         call frame_showing(f, "hello")
         call check(error, update_row0(f, "hello"), "")
     end subroutine test_unchanged
-
 
     subroutine test_changed_tail(error)
         type(error_type), allocatable, intent(out) :: error
@@ -138,7 +132,6 @@ contains
         ! Only "p!" is new; the cursor backs up two columns to write it.
         call check(error, update_row0(f, "help!"), achar(8)//achar(8)//HIDE//"p!"//SHOW)
     end subroutine test_changed_tail
-
 
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
@@ -150,7 +143,6 @@ contains
         call check(error, update_row0(f, "abX"//tail), ESC//"[1;3H"//HIDE//ESC//"[1@X"//SHOW)
     end subroutine test_insert
 
-
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
@@ -159,7 +151,6 @@ contains
         call frame_showing(f, "abX"//tail)
         call check(error, update_row0(f, "ab"//tail), ESC//"[1;3H"//HIDE//ESC//"[1P"//SHOW)
     end subroutine test_delete
-
 
     !> A suffix shorter than the cost of insertion is simply rewritten.
     subroutine test_short_suffix(error)
@@ -170,7 +161,6 @@ contains
         call check(error, update_row0(f, "abXcdefgh"), ESC//"[1;3H"//HIDE//"Xcdefgh"//SHOW)
     end subroutine test_short_suffix
 
-
     subroutine test_shorter(error)
         type(error_type), allocatable, intent(out) :: error
         type(frame_type) :: f
@@ -178,7 +168,6 @@ contains
         call frame_showing(f, "hello")
         call check(error, update_row0(f, "he"), achar(8)//achar(8)//achar(8)//ESC//"[K")
     end subroutine test_shorter
-
 
     !> Without character insertion, each differing run is rewritten.
     subroutine test_no_ins_del(error)
@@ -191,7 +180,6 @@ contains
         call check(error, update_row0(f, "aXcdYf"), achar(13)//ESC//"[C"//HIDE//"X"// &
                    ESC//"[1;5HY"//SHOW)
     end subroutine test_no_ins_del
-
 
     subroutine test_order_cursor(error)
         type(error_type), allocatable, intent(out) :: error
@@ -209,7 +197,6 @@ contains
         call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//"echo"//ESC//"[K"// &
                    ESC//"[H"//achar(10)//"top"//ESC//"[K"//SHOW//achar(8)//achar(8))
     end subroutine test_order_cursor
-
 
     !> A full last row: its bottom-right cell is inserted, not written.
     subroutine test_bottom_right(error)
@@ -230,5 +217,4 @@ contains
         call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//line(2:80)//achar(13)// &
                    ESC//"[1@"//line(1:1)//achar(8)//SHOW)
     end subroutine test_bottom_right
-
 end module test_dispnew_fm

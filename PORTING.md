@@ -182,18 +182,19 @@ Copy the FSF year range exactly from the upstream file.
   FORD `!>` comments on public entities, 4-space indentation; but 132
   columns (stdlib's hard limit) rather than 80.
 - Blank lines: neither guide above sets a rule, so they follow the
-  [Bristol RSE Fortran guidelines](https://bristolcompositesinstitute.github.io/RSE-Guide/abaqus-user-subroutines/fortran-style-guidelines.html):
-  "Separate related blocks of code with 1 blank line; separate subroutines
-  and functions with 2 blank lines." `tools/blank-lines.awk` makes that
-  mechanical: one blank line around every multi-line construct (if, do,
-  select, block, associate, where; type and interface definitions) and
-  after the declarations, none at the start or end of a body, two between
-  procedures, one between interface bodies and around `contains`; other
-  blank lines between runs of statements are the author's (at most one).
+  [Bristol RSE Fortran guidelines](https://bristolcompositesinstitute.github.io/RSE-Guide/abaqus-user-subroutines/fortran-style-guidelines.html)
+  ("Separate related blocks of code with 1 blank line"), but never more
+  than one blank line, and none at the start or end of a body.
+  `tools/blank-lines.awk` makes that mechanical: one blank line around
+  every multi-line construct (if, do, select, block, associate, where;
+  type and interface definitions), after the declarations, between
+  procedures and around `contains`; none after a procedure or construct
+  opens, before `else` or `case`, or before any `end`. Similar statements
+  (the declarations, a run of calls) stay together; other blank lines
+  between runs of statements are the author's.
   Comments directly above a statement move with it.
 - Enforced by `tools/check.sh` (and so CI): fprettify for layout
-  (`.fprettify.rc`; it always shrinks blank-line runs to one, so it
-  checks a copy without the second blank line between procedures),
+  (`.fprettify.rc`),
   `tools/blank-lines.awk` for blank lines, Fortitude 0.9.2 with its default rules for the rest
   (`[extra.fortitude.check]` in fpm.toml). Notable rules: double-quoted
   strings, `use ..., only:` everywhere, `implicit none` in interface
@@ -288,6 +289,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-22 — Style: one blank line at most (none between a procedure's start or end and its body, one between procedures), as the user asked; `check.sh` no longer needs a copy for fprettify. On `style-single-blank` (based on main after PR #32). Next: features, in whatever order the user asks for.
 - 2026-10-22 — Phase 5.1: generations of the configuration (`config_fm`: numbered builds with their init.f90, `current` link, `--list-generations`, `--rollback`, `--switch-generation N`; `dired_fm` `directory-files`; `make-symbolic-link` and the `file-already-exists` error; opendir/readdir, symlink and localtime_r bindings), on `phase5-generations` (based on main after PR #31). Next: features, in whatever order the user asks for.
 - 2026-10-22 — Style: blank lines after the Bristol RSE Fortran guidelines (`tools/blank-lines.awk`, checked and fixed by `tools/check.sh`), applied to all code; the README example too, with a link to `docs/syntax.html` (the two versions side by side, each part lighting up its counterpart; served by GitHub Pages from docs/); the repository is now vermi-culous/Fortmacs. On `style-blank-lines-bristol` (based on main after PR #30). Next: Phase 5, generations and `--rollback`.
 - 2026-10-22 — Phase 4.2: `fortmacs --recompile` (`config_fm`, `callproc_fm`; `make-directory` with parents, `file-executable-p`, `file-newer-than-file-p`; the library and module files are installed, `tools/test-recompile.sh` checks a real build), README "Configuring" section and "similar to Guix" wording, on `phase4-recompile` (based on main after PR #29). Phase 4 is complete. Next: Phase 5, generations and `--rollback`; a blank-line style question is open with the user.

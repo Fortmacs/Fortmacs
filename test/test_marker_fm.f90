@@ -60,7 +60,6 @@ contains
                     ]
     end subroutine collect_marker_fm
 
-
     subroutine enter(name, h, old)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
@@ -71,7 +70,6 @@ contains
         call set_buffer(h, st)
     end subroutine enter
 
-
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
@@ -80,13 +78,11 @@ contains
         call kill_buffer(h, st)
     end subroutine leave
 
-
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
 
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto
-
 
     integer(int64) function pos_of(m)
         type(handle_type), intent(in) :: m
@@ -96,7 +92,6 @@ contains
         if (.not. st%ok()) pos_of = -1
     end function pos_of
 
-
     integer(int64) function byte_of(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
@@ -104,7 +99,6 @@ contains
         call marker_byte_position(m, byte_of, st)
         if (.not. st%ok()) byte_of = -1
     end function byte_of
-
 
     subroutine test_nowhere(error)
         type(error_type), allocatable, intent(out) :: error
@@ -122,7 +116,6 @@ contains
         call check(error, st%detail, "Marker does not point anywhere")
         call free_marker(m, st)
     end subroutine test_nowhere
-
 
     subroutine test_set_clips(error)
         type(error_type), allocatable, intent(out) :: error
@@ -148,7 +141,6 @@ contains
         call free_marker(m, st)
         call leave(h, old)
     end subroutine test_set_clips
-
 
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
@@ -177,7 +169,6 @@ contains
         call leave(h, old)
     end subroutine test_insert
 
-
     subroutine test_insert_before_markers(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m
@@ -192,7 +183,6 @@ contains
         call free_marker(m, st)
         call leave(h, old)
     end subroutine test_insert_before_markers
-
 
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
@@ -215,7 +205,6 @@ contains
         call free_marker(after, st)
         call leave(h, old)
     end subroutine test_delete
-
 
     subroutine test_copy(error)
         type(error_type), allocatable, intent(out) :: error
@@ -246,7 +235,6 @@ contains
         call leave(h, old)
     end subroutine test_copy
 
-
     !> The Bug#24368 scenario of marker-tests.el: a marker taken from a
     !> buffer whose char and byte positions differ, set into an ASCII
     !> buffer, must get a byte position computed in the target buffer.
@@ -276,7 +264,6 @@ contains
         call leave(mb, old)
     end subroutine test_other_buffer
 
-
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m, b
@@ -296,7 +283,6 @@ contains
         call check(error, last, 3_int64)
         call free_marker(m, st)
     end subroutine test_kill
-
 
     subroutine test_free(error)
         type(error_type), allocatable, intent(out) :: error
@@ -321,7 +307,6 @@ contains
         call check(error, count_markers(cur), 0_int64)
         call leave(h, old)
     end subroutine test_free
-
 
     subroutine test_hints(error)
         type(error_type), allocatable, intent(out) :: error
@@ -354,7 +339,6 @@ contains
         call leave(h, old)
     end subroutine test_hints
 
-
     subroutine test_erase(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old, m
@@ -372,5 +356,4 @@ contains
         call free_marker(m, st)
         call leave(h, old)
     end subroutine test_erase
-
 end module test_marker_fm
