@@ -111,10 +111,34 @@ module buffer_fm
         logical :: modtime_known = .false.
         integer(int64) :: modtime_sec = 0, modtime_size = -1
         integer(int32) :: modtime_nsec = 0
+        !> BVAR mark: the mark marker (marker_fm), made on first use; the null
+        !> handle until then.
+        type(handle_type) :: mark
+        !> BVAR mark_active (`mark-active`): Non-nil means the mark and region
+        !> are currently active in this buffer.
+        logical :: mark_active = .false.
+        !> simple.el `mark-ring` (buffer-local): former marks, newest first.
+        type(handle_type), allocatable :: mark_ring(:)
         !> Unique per buffer ever created, so caches keyed by slot (which is
         !> reused after kill-buffer) can tell buffers apart.
         integer(int64) :: serial = 0
     end type buffer_type
+
+    !> Non-nil if Transient Mark mode is enabled.
+    !> Non-nil also enables highlighting of the region whenever the mark is
+    !> active.  The region is highlighted with the `region` face.  Port of
+    !> buffer.c transient-mark-mode (on by default, as simple.el makes it).
+    logical, public :: transient_mark_mode = .true.
+    !> Whether to deactivate the mark after an editing command.
+    !> The command loop sets this to nil before each command,
+    !> and tests the value when the command returns.
+    !> If an editing command sets this non-nil, deactivate the mark after
+    !> the command returns.
+    !>
+    !> Buffer modifications store t in this variable.  Port of keyboard.c
+    !> Vdeactivate_mark, the variable `deactivate-mark` (here because
+    !> insdel_fm sets it; the function is simple_fm's `deactivate_mark`).
+    logical, public :: vdeactivate_mark = .false.
 
     !> Registry storage; slot `i` is valid while its handle is live.
     type(buffer_type), allocatable, public :: buffers(:)

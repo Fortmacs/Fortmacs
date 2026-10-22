@@ -71,7 +71,7 @@ module fortmacs
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, buffer_name
     use insdel_fm, only: insert
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, &
-                          delete_region, bobp, eobp, bolp, eolp
+                          delete_region, bobp, eobp, bolp, eolp, region_beginning, region_end
     use cmds_fm, only: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     use files_fm, only: find_file, save_buffer
     use fns_fm, only: yes_or_no_p
@@ -80,6 +80,8 @@ module fortmacs
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
                          SEARCH_NOERROR, SEARCH_MOVE
     use isearch_fm, only: isearch_forward_command, isearch_backward_command
+    use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
+                         region_active_p, deactivate_mark
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -88,6 +90,10 @@ module fortmacs
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
     use minibuffer_fm, only: insert_default_directory
     use editfns_fm, only: inhibit_field_text_motion
+    use buffer_fm, only: transient_mark_mode
+    use callint_fm, only: mark_even_if_inactive
+    use simple_fm, only: kill_ring_max, mark_ring_max, kill_whole_line_option, delete_active_region, &
+                         kill_read_only_ok
     use term_fm, only: visible_bell
     use search_fm, only: case_fold_search
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, &
@@ -110,9 +116,13 @@ module fortmacs
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
     public :: search_forward, search_backward, match_beginning, match_end, SEARCH_NOERROR, SEARCH_MOVE, &
               isearch_forward_command, isearch_backward_command
+    public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
+              set_mark, mark, region_active_p, deactivate_mark
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
+              transient_mark_mode, mark_even_if_inactive, kill_ring_max, mark_ring_max, &
+              kill_whole_line_option, delete_active_region, kill_read_only_ok, &
               case_fold_search, search_upper_case, search_exit_option, search_nonincremental_instead, &
               search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
 end module fortmacs

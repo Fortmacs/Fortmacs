@@ -32,7 +32,8 @@ module test_isearch_fm
     use data_fm, only: set, symbol_value
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
-    use editfns_fm, only: goto_char, point
+    use editfns_fm, only: goto_char, point, mark_position
+    use simple_fm, only: kill_new
     use keymap_fm, only: key_parse, overriding_terminal_local_map
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use callint_fm, only: prefix_arg
@@ -295,6 +296,17 @@ contains
         ! M-s C-e yanks the rest of the line.
         call type_keys("M-s C-e")
         call check(error, isearch_string == "foo bar" .and. point() == 8, isearch_string)
+        if (allocated(error)) return
+        call type_keys("RET")
+        call goto_char(1_int64)
+        ! C-y yanks the last kill; M-y replaces it with the one before.
+        call kill_new("BAR")
+        call kill_new("oo b")
+        call type_keys("C-s C-y")
+        call check(error, isearch_string == "oo b" .and. point() == 6, isearch_string)
+        if (allocated(error)) return
+        call type_keys("M-y")
+        call check(error, isearch_string == "bar" .and. point() == 8, isearch_string)
         call leave(h)
     end subroutine test_yank
 

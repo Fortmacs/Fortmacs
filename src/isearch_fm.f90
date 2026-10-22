@@ -27,12 +27,11 @@
 !> Literal search only: no regexp, word, symbol or char-fold search, and
 !> no lax whitespace matching (they need regexp search).  Not ported yet:
 !> highlighting the match and lazy highlighting (faces from overlays),
-!> C-w and C-M-w (word and symbol syntax), C-y and M-y (the kill ring),
-!> search through invisible text, scrolling during search
+!> C-w and C-M-w (word and symbol syntax), reading a kill with the
+!> minibuffer (`isearch-yank-from-kill-ring`, C-u M-y), search through invisible text, scrolling during search
 !> (`isearch-allow-scroll`), `isearch-allow-motion`, query-replace and
 !> occur from isearch, the help map, input methods, completion, the
-!> minibuffer's own isearch keys while editing the string, and pushing
-!> the mark when the search ends.
+!> minibuffer's own isearch keys while editing the string.
 module isearch_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR
@@ -44,7 +43,7 @@ module isearch_fm
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                             CHAR_SHIFT
     use casetab_fm, only: downcase
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, cur, transient_mark_mode
     use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, eolp, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_char
@@ -57,9 +56,10 @@ module isearch_fm
                            read_event
     use callint_fm, only: defcommand, commandp, current_prefix_arg, prefix_numeric_value
     use subr_fm, only: add_to_history
-    use minibuf_fm, only: read_from_minibuffer, history_add_new_input
+    use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
+    use simple_fm, only: push_mark, current_kill
     implicit none(type, external)
     private
 
@@ -67,7 +67,7 @@ module isearch_fm
               isearch_update, isearch_exit, isearch_cancel, isearch_abort, &
               isearch_repeat_forward, isearch_repeat_backward, isearch_delete_char, &
               isearch_del_char, isearch_printing_char, isearch_process_search_string, &
-              isearch_yank_string, isearch_yank_char, isearch_yank_line, &
+              isearch_yank_string, isearch_yank_char, isearch_yank_line, isearch_yank_kill, isearch_yank_pop_only, &
               isearch_beginning_of_buffer, isearch_end_of_buffer, isearch_ring_advance, &
               isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
               isearch_message_prefix, syms_of_isearch
@@ -490,7 +490,7 @@ contains
     !> For going to the minibuffer to edit the search string,
     !> NOPUSH is t and EDIT is t.
     !> If NOPUSH is non-nil, we don't push the string on the search ring.
-    !> Port of isearch.el:isearch-done (the mark is not pushed yet).
+    !> Port of isearch.el:isearch-done (no intangible text or hooks).
     subroutine isearch_done(nopush, edit)
         logical, intent(in), optional :: nopush, edit
 
@@ -506,6 +506,15 @@ contains
         if (len(isearch_string) > 0 .and. .not. flag(nopush)) then
             ! Update the ring data.
             call isearch_update_ring(isearch_string)
+        end if
+
+        ! If there was movement, mark the starting position.  Maybe should
+        ! test difference between and set mark only if > threshold.
+        if (point() /= isearch_opoint) then
+            if (.not. (transient_mark_mode .and. buffers(cur)%mark_active)) then
+                call push_mark(isearch_opoint, nomsg=.true.)
+                if (minibuf_level == 0 .and. .not. flag(edit)) call message("Mark saved where search started")
+            end if
         end if
     end subroutine isearch_done
 
@@ -1152,6 +1161,37 @@ contains
         call isearch_yank_internal(2, arg)
     end subroutine isearch_yank_line
 
+    !> Pull string from kill ring into search string.  Port of
+    !> isearch.el:isearch-yank-kill.
+    subroutine isearch_yank_kill(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+
+        if (.not. isearch_active) call isearch_mode(.true.)
+        call current_kill(0_int64, text, status)
+        if (status%ok()) call isearch_yank_string(text)
+    end subroutine isearch_yank_kill
+
+    !> Replace just-yanked search string with previously killed string.
+    !> When this command is called not immediately after a
+    !> `isearch-yank-kill' or a `isearch-yank-pop-only', it only pops the
+    !> last killed string.  Port of isearch.el:isearch-yank-pop-only (no
+    !> C-u: reading from the kill ring needs the minibuffer completion).
+    subroutine isearch_yank_pop_only(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+
+        if (.not. (value_eq(last_command, sym("isearch-yank-kill")) .or. &
+                   value_eq(last_command, sym("isearch-yank-pop")) .or. &
+                   value_eq(last_command, sym("isearch-yank-pop-only")))) then
+            call isearch_yank_kill(status)
+        else
+            call isearch_pop_state()
+            call current_kill(1_int64, text, status)
+            if (status%ok()) call isearch_yank_string(text)
+        end if
+    end subroutine isearch_yank_pop_only
+
     !> Toggle case folding in searching on or off.
     !> Toggles the value of the variable `isearch-case-fold-search'.
     !> Port of isearch.el:isearch-toggle-case-fold.
@@ -1408,6 +1448,18 @@ contains
         call isearch_end_of_buffer(arg_p())
     end subroutine cmd_isearch_end_of_buffer
 
+    subroutine cmd_isearch_yank_kill(status)
+        type(status_type), intent(out) :: status
+
+        call isearch_yank_kill(status)
+    end subroutine cmd_isearch_yank_kill
+
+    subroutine cmd_isearch_yank_pop_only(status)
+        type(status_type), intent(out) :: status
+
+        call isearch_yank_pop_only(status)
+    end subroutine cmd_isearch_yank_pop_only
+
     subroutine cmd_isearch_toggle_case_fold(status)
         type(status_type), intent(out) :: status
 
@@ -1472,6 +1524,8 @@ contains
         call defcommand("isearch-edit-string", cmd_isearch_edit_string)
         call defcommand("isearch-ring-advance", cmd_isearch_ring_advance)
         call defcommand("isearch-ring-retreat", cmd_isearch_ring_retreat)
+        call defcommand("isearch-yank-kill", cmd_isearch_yank_kill)
+        call defcommand("isearch-yank-pop-only", cmd_isearch_yank_pop_only)
 
         if (keymap_live_p(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
         call make_keymap(isearch_mode_map)
@@ -1510,6 +1564,8 @@ contains
         call bind(isearch_mode_map, "M-s M->", "isearch-end-of-buffer")
         call bind(isearch_mode_map, "M-n", "isearch-ring-advance")
         call bind(isearch_mode_map, "M-p", "isearch-ring-retreat")
+        call bind(isearch_mode_map, "C-y", "isearch-yank-kill")
+        call bind(isearch_mode_map, "M-y", "isearch-yank-pop-only")
         call bind(isearch_mode_map, "M-c", "isearch-toggle-case-fold")
         call bind(isearch_mode_map, "M-s c", "isearch-toggle-case-fold")
         call bind(isearch_mode_map, "M-e", "isearch-edit-string")

@@ -44,7 +44,8 @@ module dispextern_fm
 
     !> enum face_id: the default face.
     integer(int32), parameter, public :: DEFAULT_FACE_ID = 0, &
-                                         MODE_LINE_ACTIVE_FACE_ID = 1
+                                         MODE_LINE_ACTIVE_FACE_ID = 1, &
+                                         REGION_FACE_ID = 2
 
     !> The parts of struct glyph a character cell needs.
     type, public :: glyph_type
