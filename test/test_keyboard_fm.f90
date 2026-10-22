@@ -69,6 +69,7 @@ contains
                     ]
     end subroutine collect_keyboard_fm
 
+
     ! Test commands.
 
     subroutine cmd_a(status)
@@ -79,6 +80,7 @@ contains
         seen_prefix = prefix_numeric_value(current_prefix_arg)
     end subroutine cmd_a
 
+
     subroutine cmd_b(status)
         type(status_type), intent(out) :: status
 
@@ -86,11 +88,13 @@ contains
         count_b = count_b + 1
     end subroutine cmd_b
 
+
     subroutine cmd_fail(status)
         type(status_type), intent(out) :: status
 
         call set_error(status, FM_USER_ERROR, "Boom")
     end subroutine cmd_fail
+
 
     subroutine cmd_exit(status)
         type(status_type), intent(out) :: status
@@ -99,6 +103,7 @@ contains
         call request_exit()
     end subroutine cmd_exit
 
+
     !> Like simple.el:universal-argument (one C-u).
     subroutine cmd_universal(status)
         type(status_type), intent(out) :: status
@@ -106,6 +111,7 @@ contains
         status = status_type()
         prefix_arg = list(make_fixnum(4_int64))
     end subroutine cmd_universal
+
 
     ! Helpers.
 
@@ -116,6 +122,7 @@ contains
 
         call key_parse(text, key, st)
     end function kbd
+
 
     !> A fresh global map, made current.
     subroutine fresh_global(km)
@@ -130,12 +137,14 @@ contains
         key_translation_map = null_handle()
     end subroutine fresh_global
 
+
     subroutine free(km)
         type(handle_type), intent(in) :: km
         type(status_type) :: st
 
         call free_keymap(km, st)
     end subroutine free
+
 
     !> The next event as a fixnum (-1 if none or not a fixnum).
     integer(int64) function next_char()
@@ -147,6 +156,7 @@ contains
         call read_event(ev, have, st)
         if (have .and. fixnump(ev)) next_char = xfixnum(ev)
     end function next_char
+
 
     subroutine test_input_decoding(error)
         type(error_type), allocatable, intent(out) :: error
@@ -177,6 +187,7 @@ contains
         call set_input_meta_mode(2)
     end subroutine test_input_decoding
 
+
     subroutine test_unread(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: evs(2)
@@ -197,6 +208,7 @@ contains
         call check(error,.not. input_pending_p(), "drained")
     end subroutine test_unread
 
+
     subroutine test_prefix_numeric_value(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -210,6 +222,7 @@ contains
         if (allocated(error)) return
         call check(error, prefix_numeric_value(sym("foo")), 1_int64)
     end subroutine test_prefix_numeric_value
+
 
     subroutine test_read_key_sequence(error)
         type(error_type), allocatable, intent(out) :: error
@@ -243,6 +256,7 @@ contains
         call free(global)
     end subroutine test_read_key_sequence
 
+
     !> An unbound prefix ends the sequence; the rest is a new sequence.
     subroutine test_undefined_prefix(error)
         type(error_type), allocatable, intent(out) :: error
@@ -260,6 +274,7 @@ contains
         call check(error, next_char(), 122_int64)
         call free(global)
     end subroutine test_undefined_prefix
+
 
     !> Terminal escape sequences become function keys, while other
     !> sequences sharing the ESC prefix still work.
@@ -291,6 +306,7 @@ contains
         call free(global)
     end subroutine test_input_decode_map
 
+
     !> local-function-key-map applies only when the sequence is undefined.
     subroutine test_function_key_map(error)
         type(error_type), allocatable, intent(out) :: error
@@ -316,6 +332,7 @@ contains
         call free(fkeys)
         call free(global)
     end subroutine test_function_key_map
+
 
     subroutine test_shift_translation(error)
         type(error_type), allocatable, intent(out) :: error
@@ -343,6 +360,7 @@ contains
         call check(error, value_eq(binding, sym("cmd-f2")) .and. value_eq(keys(1), sym("f2")), "S-<f2>")
         call free(global)
     end subroutine test_shift_translation
+
 
     subroutine test_command_loop(error)
         type(error_type), allocatable, intent(out) :: error
@@ -397,6 +415,7 @@ contains
         call free(global)
     end subroutine test_command_loop
 
+
     subroutine test_prefix_and_macro(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global
@@ -428,6 +447,7 @@ contains
         call free(global)
     end subroutine test_prefix_and_macro
 
+
     !> Input read from a terminal (a pty in raw mode).
     subroutine test_tty(error)
         type(error_type), allocatable, intent(out) :: error
@@ -444,6 +464,7 @@ contains
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
+
         run: block
             call init_sys_modes(slave, old, st)
             call check(error, st%ok(), "raw mode")
@@ -454,6 +475,7 @@ contains
             call check(error, st%ok() .and. value_eq(binding, sym("save-buffer")), "C-x C-s")
             call reset_sys_modes(slave, old, st)
         end block run
+
         call set_input_fd(-1_int32)
         call close_fd(slave)
         call close_fd(master)

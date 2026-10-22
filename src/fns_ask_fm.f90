@@ -41,36 +41,46 @@ contains
         logical :: saved_enable
 
         answer = .false.
+
         if (use_short_answers) then
             call y_or_n_p(prompt, answer, status)
             return
         end if
+
         full = prompt
+
         if (len(prompt) > 0) then
             if (prompt(len(prompt):len(prompt)) /= " " .and. prompt(len(prompt):len(prompt)) /= achar(9)) then
                 full = full//" "
             end if
         end if
+
         ! yes-or-no-prompt
         full = full//"(yes or no) "
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
+
         do
             call read_from_minibuffer(full, ans, status, history="yes-or-no-p-history")
             if (.not. status%ok()) exit
             ans = downcase_ascii(ans)
+
             if (ans == "yes" .and. len(ans) == 3) then
                 answer = .true.
                 exit
             end if
+
             if (ans == "no" .and. len(ans) == 2) exit
             ! (Fding is not ported.)
             call discard_input()
             call message("Please answer yes or no.")
             call sit_for(2000)
         end do
+
         enable_recursive_minibuffers = saved_enable
+
     contains
+
         !> ASCII-only Fdowncase.
         pure function downcase_ascii(s) result(d)
             character(len=*), intent(in) :: s
@@ -78,10 +88,12 @@ contains
             integer :: i
 
             d = s
+
             do i = 1, len(s)
                 if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
             end do
         end function downcase_ascii
+
     end subroutine yes_or_no_p
 
 end submodule fns_ask_fm

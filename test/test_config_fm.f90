@@ -49,6 +49,7 @@ contains
                     ]
     end subroutine collect_config_fm
 
+
     !> Set (or with `value` absent, unset) an environment variable.
     subroutine setenv(name, value)
         character(len=*), intent(in) :: name
@@ -62,6 +63,7 @@ contains
         end if
     end subroutine setenv
 
+
     !> Restore variable `name` to `old` (unset unless `found`).
     subroutine restore(name, old, found)
         character(len=*), intent(in) :: name, old
@@ -74,6 +76,7 @@ contains
         end if
     end subroutine restore
 
+
     subroutine test_directories(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: config, state, cache, home
@@ -83,6 +86,7 @@ contains
         call getenv("XDG_STATE_HOME", state, has_state)
         call getenv("XDG_CACHE_HOME", cache, has_cache)
         home = file_name_as_directory(get_homedir())
+
         body: block
             call setenv("XDG_CONFIG_HOME", "/xdg/config")
             call setenv("XDG_STATE_HOME", "/xdg/state/")
@@ -107,10 +111,12 @@ contains
             if (allocated(error)) exit body
             call check(error, cache_directory(), home//".cache/fortmacs/")
         end block body
+
         call restore("XDG_CONFIG_HOME", config, has_config)
         call restore("XDG_STATE_HOME", state, has_state)
         call restore("XDG_CACHE_HOME", cache, has_cache)
     end subroutine test_directories
+
 
     subroutine test_install_prefix(error)
         type(error_type), allocatable, intent(out) :: error
@@ -133,15 +139,18 @@ contains
         call make_directory(root//"lib", st, parents=.true.)
         call install_prefix(root//"bin/fortmacs", prefix, found)
         call check(error,.not. found .and. prefix == root, "no library")
+
         if (.not. allocated(error)) then
             call write_region(root//"lib/libfortmacs.a", .false., st)
             call install_prefix(root//"bin/fortmacs", prefix, found)
             call check(error, found .and. prefix == root, "installed")
         end if
+
         call delete_file_internal(root//"lib/libfortmacs.a", st)
         call delete_directory_internal(root//"lib", st)
         call delete_directory_internal(root, st)
     end subroutine test_install_prefix
+
 
     subroutine test_driver_source(error)
         type(error_type), allocatable, intent(out) :: error
@@ -161,6 +170,7 @@ contains
         long = "/"//repeat("abcdefghi/", 30)
         text = driver_source(long)
         b = 1
+
         do while (b <= len(text))
             e = index(text(b:), new_line("a"))
             if (e == 0) exit
@@ -168,8 +178,10 @@ contains
             if (allocated(error)) return
             b = b + e
         end do
+
         call check(error, index(text, '" // &') > 0, "continued")
     end subroutine test_driver_source
+
 
     subroutine test_recompile_errors(error)
         type(error_type), allocatable, intent(out) :: error
@@ -181,6 +193,7 @@ contains
         root = file_name_as_directory(emacs_wd)//testdir//"/xdg/"
         call getenv("XDG_CONFIG_HOME", config, has_config)
         call setenv("XDG_CONFIG_HOME", root)
+
         body: block
             call recompile("/fortmacs-no-such-prefix/", log, st)
             call check(error, format_error(st), "Opening init file: No such file or directory, "// &
@@ -192,6 +205,7 @@ contains
             call check(error, format_error(st), "Can't find /fortmacs-no-such-prefix/lib/libfortmacs.a; "// &
                        "install Fortmacs with `fpm install`")
         end block body
+
         call delete_file_internal(root//"fortmacs/init.f90", st)
         call delete_directory_internal(root//"fortmacs", st)
         call delete_directory_internal(root, st)

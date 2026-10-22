@@ -53,6 +53,7 @@ contains
                     ]
     end subroutine collect_sysdep_fm
 
+
     !> Sizes must match glibc's on both x86-64 and aarch64.
     subroutine test_layouts(error)
         type(error_type), allocatable, intent(out) :: error
@@ -67,6 +68,7 @@ contains
         call check(error, int(c_sizeof(p)), 8)
     end subroutine test_layouts
 
+
     subroutine test_raw_settings(error)
         type(error_type), allocatable, intent(out) :: error
         type(emacs_tty_type) :: old, raw
@@ -78,6 +80,7 @@ contains
         old%main%c_cc(VSUSP) = 26
 
         raw = tty_raw_settings(old, .false., .true., .true.)
+
         associate (m => raw%main)
             call check(error, iand(m%c_iflag, ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))), 0_c_int)
             if (allocated(error)) return
@@ -111,6 +114,7 @@ contains
         call check(error, int(raw%main%c_cc(VSTOP)), 19)
     end subroutine test_raw_settings
 
+
     subroutine test_pty_roundtrip(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
@@ -124,7 +128,6 @@ contains
         if (allocated(error)) return
 
         run: block
-
             call init_sys_modes(slave, old, st)
             call check(error, st%ok(), "init_sys_modes failed")
             if (allocated(error)) exit run
@@ -144,9 +147,11 @@ contains
             call emacs_get_tty(slave, now, st)
             call check(error, iand(now%main%c_lflag, ICANON), ICANON)
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_pty_roundtrip
+
 
     subroutine test_pty_size(error)
         type(error_type), allocatable, intent(out) :: error
@@ -166,9 +171,11 @@ contains
             if (allocated(error)) exit run
             call check(error, h, 43_int32)
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_pty_size
+
 
     subroutine test_poll(error)
         type(error_type), allocatable, intent(out) :: error
@@ -184,9 +191,11 @@ contains
             if (allocated(error)) exit run
             call check(error,.not. input_available(slave, 50_int32), "phantom input after wait")
         end block run
+
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_poll
+
 
     subroutine test_winch(error)
         type(error_type), allocatable, intent(out) :: error
@@ -200,6 +209,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. window_change_pending(), "flag not cleared")
     end subroutine test_winch
+
 
     subroutine test_bad_fd(error)
         type(error_type), allocatable, intent(out) :: error

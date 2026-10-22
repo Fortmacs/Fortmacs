@@ -103,7 +103,7 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   only inside GNU Emacs.
 - **Configuration is real code.** Your `init.f90` is compiled with the
   editor and type-checked, and every rebuild is kept so you can roll back.
-- **Readable syntax.** Lisp's parentheses have devoted fans, but for some
+- **Syntax.** Lisp's parentheses have devoted fans, but for some
   people the sea of them is easy to get lost in. Every form nests
   inside another, so meaning hides in nesting depth, a block ends wherever
   its parentheses happen to balance, and one misplaced paren silently
@@ -142,18 +142,25 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
       best_line = 1
       line = 1
       call goto_char(point_min())
+
       do while (.not. eobp())
           width = line_end_position() - line_beginning_position()
+
           if (width > best) then
               best = width
               best_line = line
           end if
+
           shortage = forward_line(1_int64)
           line = line + 1
       end do
+
       call goto_char(opoint)
   end function longest_line
   ```
+
+  [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html):
+  pointing at any part of either version lights up its counterpart.
 
   None of this makes Elisp wrong. Preferring Fortran's syntax is simply a
   preference, and more options can never hurt.

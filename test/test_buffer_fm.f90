@@ -58,6 +58,7 @@ contains
                     ]
     end subroutine collect_buffer_fm
 
+
     subroutine make(name, h, error)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h
@@ -68,12 +69,14 @@ contains
         call check(error, st%ok(), "get_buffer_create failed: "//name)
     end subroutine make
 
+
     subroutine discard(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         call kill_buffer(h, st)
     end subroutine discard
+
 
     subroutine test_create(error)
         type(error_type), allocatable, intent(out) :: error
@@ -101,6 +104,7 @@ contains
         call discard(a)
     end subroutine test_create
 
+
     subroutine test_empty_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -109,6 +113,7 @@ contains
         call get_buffer_create("", h, st)
         call check(error, st%code, FM_GENERIC_ERROR)
     end subroutine test_empty_name
+
 
     subroutine test_generate_name(error)
         type(error_type), allocatable, intent(out) :: error
@@ -132,6 +137,7 @@ contains
         call discard(b)
     end subroutine test_generate_name
 
+
     !> buffer-tests.el: test-generate-new-buffer-name-bug27966.
     subroutine test_bug27966(error)
         type(error_type), allocatable, intent(out) :: error
@@ -142,6 +148,7 @@ contains
         call check(error, generate_new_buffer_name("nil") /= "nil", "returned a taken name")
         call discard(h)
     end subroutine test_bug27966
+
 
     subroutine test_rename(error)
         type(error_type), allocatable, intent(out) :: error
@@ -181,6 +188,7 @@ contains
         call discard(b)
     end subroutine test_rename
 
+
     subroutine test_kill(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, again, found
@@ -206,6 +214,7 @@ contains
         call check(error,.not. buffer_live_p(h), "stale handle revived")
         call discard(again)
     end subroutine test_kill
+
 
     subroutine test_kill_current(error)
         type(error_type), allocatable, intent(out) :: error
@@ -237,6 +246,7 @@ contains
         call discard(hidden)
     end subroutine test_kill_current
 
+
     !> The file-independent part of buffer-tests.el: test-buffer-modifications
     !> and test-restore-buffer-modified-p.
     subroutine test_modified(error)
@@ -267,6 +277,7 @@ contains
         call discard(h)
     end subroutine test_modified
 
+
     !> The file-independent part of buffer-tests.el:
     !> test-buffer-chars-modified-ticks.
     subroutine test_chars_ticks(error)
@@ -295,6 +306,7 @@ contains
         call discard(h)
     end subroutine test_chars_ticks
 
+
     subroutine test_modiff_incr(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: a, old
@@ -311,6 +323,7 @@ contains
         call modiff_incr(a, 1000_int64)
         call check(error, a, 20_int64)      ! elogb(1000) + 1 = 10
     end subroutine test_modiff_incr
+
 
     subroutine test_read_only(error)
         type(error_type), allocatable, intent(out) :: error

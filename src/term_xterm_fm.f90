@@ -66,6 +66,7 @@ contains
         if (iand(p, 4) /= 0) bits = bits + M_CTL
     end function xterm_modifiers
 
+
     function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -74,6 +75,7 @@ contains
         write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
+
 
     !> In `map`, translate byte sequence `seq` to the single event `ev`.
     subroutine def(map, seq, ev)
@@ -85,11 +87,14 @@ contains
         integer :: k
 
         allocate (key(len(seq)))
+
         do k = 1, len(seq)
             key(k) = make_fixnum(int(iachar(seq(k:k)), int64))
         end do
+
         call define_key(map, key, list(ev), status)
     end subroutine def
+
 
     !> Translate `seq` to function key `name` with modifiers `bits`.
     subroutine defkey(map, seq, bits, name)
@@ -99,6 +104,7 @@ contains
 
         call def(map, seq, apply_modifiers(bits, name))
     end subroutine defkey
+
 
     !> Escape sequences shared between xterm and rxvt.  Port of
     !> term/xterm.el:xterm-rxvt-function-map.
@@ -116,19 +122,25 @@ contains
             map = rxvt_map
             return
         end if
+
         call make_sparse_keymap(map)
+
         do k = 1, size(tilde_codes)
             call defkey(map, ESC//"["//itoa(tilde_codes(k))//"~", 0_int64, trim(tilde_names(k)))
         end do
+
         call defkey(map, ESC//"[12~", 0_int64, "f2")
         call defkey(map, ESC//"[13~", 0_int64, "f3")
         call defkey(map, ESC//"[14~", 0_int64, "f4")
         call defkey(map, ESC//"[2;2~", M_SHIFT, "insert")
+
         do k = 1, 4
             call defkey(map, ESC//"["//arrow_finals(k:k), 0_int64, trim(arrows(k)))
         end do
+
         rxvt_map = map
     end function xterm_rxvt_function_map
+
 
     !> xterm's escape sequences.  Port of term/xterm.el:xterm-function-map.
     function xterm_function_map() result(map)
@@ -155,6 +167,7 @@ contains
             map = xterm_map
             return
         end if
+
         call make_sparse_keymap(map)
         call set_keymap_parent(map, xterm_rxvt_function_map(), status)
 
@@ -163,15 +176,19 @@ contains
             write (fname, '("f",i0)') k
             call defkey(map, ESC//"O"//pf_finals(k:k), 0_int64, trim(fname))
             call defkey(map, ESC//"[1;2"//pf_finals(k:k), M_SHIFT, trim(fname))
+
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
                 call defkey(map, ESC//"O"//itoa(m)//pf_finals(k:k), xterm_modifiers(m), trim(fname))
             end do
         end do
+
         call defkey(map, ESC//"[23~", 0_int64, "f11")
         call defkey(map, ESC//"[24~", 0_int64, "f12")
+
         do k = 1, size(fkey_codes)
             write (fname, '("f",i0)') k + 4
+
             do j = 1, size(fkey_mods)
                 m = fkey_mods(j)
                 call defkey(map, ESC//"["//itoa(fkey_codes(k))//";"//itoa(m)//"~", &
@@ -182,10 +199,12 @@ contains
         ! Cursor keys: SS3 form, and CSI 1;M with modifiers.
         do k = 1, 6
             call defkey(map, ESC//"O"//cursor_finals(k:k), 0_int64, trim(cursor_names(k)))
+
             do m = 2, 8
                 call defkey(map, ESC//"[1;"//itoa(m)//cursor_finals(k:k), &
                             xterm_modifiers(m), trim(cursor_names(k)))
             end do
+
             call defkey(map, ESC//"O2"//cursor_finals(k:k), M_SHIFT, trim(cursor_names(k)))
             call defkey(map, ESC//"O5"//cursor_finals(k:k), M_CTL, trim(cursor_names(k)))
         end do
@@ -197,6 +216,7 @@ contains
                             xterm_modifiers(m), trim(edit_names(k)))
             end do
         end do
+
         call defkey(map, ESC//"[29~", 0_int64, "menu")
         call defkey(map, ESC//"[1~", 0_int64, "home")
 
@@ -204,6 +224,7 @@ contains
         do k = 1, 16
             call defkey(map, ESC//"O"//kp_finals(k:k), 0_int64, trim(kp_names(k)))
             if (k == 16) cycle
+
             do m = 2, 8, 2
                 call defkey(map, ESC//"O"//itoa(m)//kp_finals(k:k), xterm_modifiers(m), &
                             trim(kp_names(k)))
@@ -213,6 +234,7 @@ contains
         call define_modify_other_keys(map)
         xterm_map = map
     end function xterm_function_map
+
 
     !> Keys xterm reports with modifyOtherKeys / formatOtherKeys:
     !> CSI 27;M;C~ and CSI C;Mu.  The dolist in xterm-function-map.
@@ -232,8 +254,10 @@ contains
         do k = 1, size(ctl_chars)
             call other_key(5, ctl_chars(k), make_fixnum(M_CTL + ctl_chars(k)))
         end do
+
         do j = 1, 2
             m = merge(13, 7, j == 1)
+
             do k = 1, size(ctl_meta_chars)
                 ! C-M-SPC is only reported with M = 7.
                 if (ctl_meta_chars(k) == 32 .and. m == 13) cycle
@@ -241,22 +265,28 @@ contains
                                make_fixnum(M_CTL + M_META + ctl_meta_chars(k)))
             end do
         end do
+
         do j = 1, 3
             m = shift_mods(j)
             bits = M_CTL
             if (m /= 6) bits = M_CTL + M_META
+
             do k = 1, size(ctl_shift_chars)
                 call other_key(m, ctl_shift_chars(k), make_fixnum(bits + ctl_shift_chars(k)))
             end do
         end do
+
         call other_key(3, 32, make_fixnum(M_META + 32))
+
         ! TAB and RET with modifiers become function keys.
         do j = 1, size(tab_mods)
             m = tab_mods(j)
             call other_key(m, 9, apply_modifiers(xterm_modifiers(m), "tab"))
             call other_key(m, 13, apply_modifiers(xterm_modifiers(m), "return"))
         end do
+
     contains
+
         subroutine other_key(m, c, ev)
             integer, intent(in) :: m, c
             type(value_type), intent(in) :: ev
@@ -264,7 +294,9 @@ contains
             call def(map, ESC//"[27;"//itoa(m)//";"//itoa(c)//"~", ev)
             call def(map, ESC//"["//itoa(c)//";"//itoa(m)//"u", ev)
         end subroutine other_key
+
     end subroutine define_modify_other_keys
+
 
     !> Make input-decode-map translate xterm's escape sequences, leaving
     !> its own bindings in front.  Port of term/xterm.el:terminal-init-xterm
@@ -275,9 +307,11 @@ contains
         type(handle_type) :: map
 
         map = xterm_function_map()
+
         if (.not. keymap_live_p(input_decode_map)) then
             call make_sparse_keymap(input_decode_map)
         end if
+
         call set_keymap_parent(input_decode_map, map, status)
     end subroutine terminal_init_xterm
 

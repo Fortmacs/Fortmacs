@@ -57,20 +57,24 @@ contains
 
         if (.not. was_current) return
         cur = 0
+
         do k = alist_count, 1, -1
             if (buffers(alist(k)%index)%name(1:1) /= " ") then
                 cur = alist(k)%index
                 return
             end if
         end do
+
         call get_buffer_create("*scratch*", other, status)
         if (status%ok()) cur = other%index
     end subroutine kill_buffer
+
 
     module subroutine erase_buffer(status)
         type(status_type), intent(out) :: status
 
         if (cur == 0) return
+
         ! Fwiden (editfns.c), inline until editfns_fm exists.
         associate (b => buffers(cur))
             b%begv = BEG
@@ -78,8 +82,10 @@ contains
             b%zv = b%text%z
             b%zv_byte = b%text%z_byte
         end associate
+
         call del_range(BEG, buffers(cur)%text%z, status)
     end subroutine erase_buffer
+
 
     !> Drop `h` from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.

@@ -74,17 +74,22 @@ contains
 
         eq = .false.
         if (vtag(a) /= vtag(b)) return
+
         if (vtag(a) == V_NIL) then
             eq = .true.
             return
         end if
+
         ! Same preorder atoms <=> same tree.
         if (size(a%a) /= size(b%a)) return
+
         do k = 1, size(a%a, kind=int64)
             if (.not. atom_equal(a%a(k), b%a(k))) return
         end do
+
         eq = .true.
     end function value_equal
+
 
     logical function atom_equal(x, y) result(eq)
         type(atom_type), intent(in) :: x, y
@@ -93,6 +98,7 @@ contains
 
         eq = .false.
         if (x%tag /= y%tag) return
+
         select case (x%tag)
         case (V_NIL)
             eq = .true.
@@ -106,6 +112,7 @@ contains
         case (V_MARKER)
             call resolve_marker(x%h, ix, sx)
             call resolve_marker(y%h, iy, sy)
+
             if (.not. (sx%ok() .and. sy%ok())) then
                 eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
             else
@@ -117,6 +124,7 @@ contains
         end select
     end function atom_equal
 
+
     !> Elements of a list, or characters of a string.
     !> Port of fns.c:Flength (lists and strings).
     subroutine length(sequence, n, status)
@@ -126,6 +134,7 @@ contains
         type(status_type) :: st
 
         n = 0
+
         select case (vtag(sequence))
         case (V_NIL)
             n = 0
@@ -138,6 +147,7 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep")
         end select
     end subroutine length
+
 
     !> The `n`th element (0-based) of `list`, or nil.  Port of fns.c:Fnth.
     subroutine nth(n, list, v, status)
@@ -155,6 +165,7 @@ contains
         end select
     end subroutine nth
 
+
     !> `list` without its first `n` elements.  Port of fns.c:Fnthcdr.
     subroutine nthcdr(n, list, v, status)
         integer(int64), intent(in) :: n
@@ -166,6 +177,7 @@ contains
             v = list
             return
         end if
+
         select case (vtag(list))
         case (V_NIL)
         case (V_LIST)
@@ -174,6 +186,7 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "listp")
         end select
     end subroutine nthcdr
+
 
     !> The tail of `list` starting with an element `eq` to `elt`, or nil.
     !> Port of fns.c:Fmemq.
@@ -184,6 +197,7 @@ contains
         integer(int64) :: k
 
         call list_elements(list, elems)
+
         do k = 1, size(elems, kind=int64)
             if (value_eq(elems(k), elt)) then
                 tail = list_tail(list, k - 1)
@@ -191,6 +205,7 @@ contains
             end if
         end do
     end function memq
+
 
     !> Like `memq`, comparing with `equal`.  Port of fns.c:Fmember.
     function member(elt, list) result(tail)
@@ -200,6 +215,7 @@ contains
         integer(int64) :: k
 
         call list_elements(list, elems)
+
         do k = 1, size(elems, kind=int64)
             if (value_equal(elems(k), elt)) then
                 tail = list_tail(list, k - 1)
@@ -208,6 +224,7 @@ contains
         end do
     end function member
 
+
     !> Text of a string, or the name of a symbol; `ok` false otherwise.
     subroutine string_or_name(v, text, ok)
         type(value_type), intent(in) :: v
@@ -215,6 +232,7 @@ contains
         logical, intent(out) :: ok
 
         ok = .true.
+
         select case (vtag(v))
         case (V_STRING)
             text = v%a(1)%s
@@ -226,6 +244,7 @@ contains
             text = ""
         end select
     end subroutine string_or_name
+
 
     !> True if `a` sorts before `b`, comparing characters by code.
     !> Symbols stand for their names; anything else compares false (the
@@ -244,19 +263,24 @@ contains
         if (.not. (oka .and. okb)) return
         pa = 1
         pb = 1
+
         do while (pa <= len(sa, kind=int64) .and. pb <= len(sb, kind=int64))
             call string_char_and_length(sa, pa, ca, na)
             call string_char_and_length(sb, pb, cb, nb)
+
             if (ca /= cb) then
                 string_lessp = ca < cb
                 return
             end if
+
             pa = pa + na
             pb = pb + nb
         end do
+
         ! Equal up to the shorter length: the shorter one is less.
         string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
     end function string_lessp
+
 
     !> Port of fns.c:Fstring_greaterp.
     logical function string_greaterp(a, b)
@@ -264,6 +288,7 @@ contains
 
         string_greaterp = string_lessp(b, a)
     end function string_greaterp
+
 
     !> Compare with `predicate`, or `eq` by default.
     logical function matches(a, b, predicate)
@@ -277,6 +302,7 @@ contains
         end if
     end function matches
 
+
     !> Value of `prop` in property list `plist`, or nil.  Degenerate
     !> plists (odd length) are tolerated.  Port of fns.c:Fplist_get.
     function plist_get(plist, prop, predicate) result(v)
@@ -287,6 +313,7 @@ contains
         integer(int64) :: k
 
         call list_elements(plist, elems)
+
         do k = 1, size(elems, kind=int64) - 1, 2
             if (matches(elems(k), prop, predicate)) then
                 v = elems(k + 1)
@@ -294,6 +321,7 @@ contains
             end if
         end do
     end function plist_get
+
 
     !> Set `prop` to `val` in `plist`, adding the pair at the end if absent.
     !> An odd-length plist is a wrong-type-argument (plistp), as upstream.
@@ -310,8 +338,10 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
             return
         end if
+
         call list_elements(plist, elems)
         n = size(elems, kind=int64)
+
         do k = 1, n - 1, 2
             if (matches(elems(k), prop, predicate)) then
                 elems(k + 1) = val
@@ -319,13 +349,16 @@ contains
                 return
             end if
         end do
+
         if (mod(n, 2_int64) /= 0) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "plistp")
             return
         end if
+
         elems = [elems, prop, val]
         plist = make_list(elems)
     end subroutine plist_put
+
 
     !> The tail of `plist` starting at `prop`, or nil.
     !> Port of fns.c:Fplist_member.
@@ -337,6 +370,7 @@ contains
         integer(int64) :: k
 
         call list_elements(plist, elems)
+
         do k = 1, size(elems, kind=int64), 2
             if (matches(elems(k), prop, predicate)) then
                 tail = list_tail(plist, k - 1)
@@ -344,6 +378,7 @@ contains
             end if
         end do
     end function plist_member
+
 
     !> Property `prop` of `symbol`.  Port of fns.c:Fget (without
     !> `overriding-plist-environment`).
@@ -357,6 +392,7 @@ contains
         call ensure_obarray()
         v = plist_get(symbols(xsymbol(symbol))%plist, prop)
     end subroutine get
+
 
     !> Set property `prop` of `symbol` to `val`.  Port of fns.c:Fput.
     subroutine put(symbol, prop, val, status)

@@ -67,6 +67,7 @@ contains
                     ]
     end subroutine collect_term_fm
 
+
     !> An xterm (the built-in entry, so the bytes don't depend on the
     !> installed terminfo database), 80x24, cursor position unknown.
     subroutine xterm(tty)
@@ -77,6 +78,7 @@ contains
         call builtin_xterm(ti)
         call init_tty_entry(tty, ti, "xterm-256color", -1_int32, st)
     end subroutine xterm
+
 
     function glyphs(text, face_id) result(g)
         character(len=*), intent(in) :: text
@@ -89,6 +91,7 @@ contains
             g(k)%face_id = face_id
         end do
     end function glyphs
+
 
     subroutine test_init(error)
         type(error_type), allocatable, intent(out) :: error
@@ -110,6 +113,7 @@ contains
         call init_tty(tty, "no-such-terminal", -1_int32, st)
         call check(error, st%detail, "Terminal type no-such-terminal is not defined")
     end subroutine test_init
+
 
     subroutine test_cursor_motion(error)
         type(error_type), allocatable, intent(out) :: error
@@ -144,6 +148,7 @@ contains
         call check(error, tty%wcm%cm_cury == 20 .and. tty%wcm%cm_curx == 0, "position")
     end subroutine test_cursor_motion
 
+
     subroutine test_clearing(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
@@ -170,6 +175,7 @@ contains
         call check(error, tty%wcm%cm_curx, 80)
     end subroutine test_clearing
 
+
     subroutine test_write_glyphs(error)
         type(error_type), allocatable, intent(out) :: error
         type(tty_display_info) :: tty
@@ -192,6 +198,7 @@ contains
         call check(error, tty_take_output(tty), ESC//"[?12l"//ESC//"[?25h"//ESC//"[?12;25h")
     end subroutine test_write_glyphs
 
+
     !> Writing the bottom-right cell would scroll an autowrapping terminal.
     subroutine test_last_cell(error)
         type(error_type), allocatable, intent(out) :: error
@@ -210,6 +217,7 @@ contains
         call tty_write_glyphs(tty, glyphs("z", 0), faces)
         call check(error, tty_take_output(tty), "")
     end subroutine test_last_cell
+
 
     subroutine test_insert_delete(error)
         type(error_type), allocatable, intent(out) :: error
@@ -235,6 +243,7 @@ contains
         call check(error, tty_take_output(tty), "")
     end subroutine test_insert_delete
 
+
     !> Without insert/delete-line, lines scroll within a scroll region.
     subroutine test_scroll_region(error)
         type(error_type), allocatable, intent(out) :: error
@@ -250,6 +259,7 @@ contains
         if (allocated(error)) return
         call check(error, tty%wcm%cm_cury, -1)
     end subroutine test_scroll_region
+
 
     subroutine test_modes(error)
         type(error_type), allocatable, intent(out) :: error
@@ -270,6 +280,7 @@ contains
                    ESC//"[39;49m"//achar(13))
     end subroutine test_modes
 
+
     !> init_tty registers the terminal's function keys in input-decode-map.
     subroutine test_fkeys(error)
         type(error_type), allocatable, intent(out) :: error
@@ -285,6 +296,7 @@ contains
         call check(error, value_equal(v, list(sym("up"))), "ESC O A")
     end subroutine test_fkeys
 
+
     subroutine test_encode(error)
         type(error_type), allocatable, intent(out) :: error
         type(glyph_type) :: g(4)
@@ -297,6 +309,7 @@ contains
         call check(error, encode_terminal_code(g), char(195)//char(161)// &
                    char(230)//char(151)//char(165)//char(195))
     end subroutine test_encode
+
 
     !> Output reaches a real terminal (a pty) on flush.
     subroutine test_pty(error)
@@ -316,15 +329,18 @@ contains
         call init_tty_entry(tty, ti, "xterm-256color", slave, st)
         call check(error, st%ok() .and. tty%wcm%cm_cols == 100 .and. tty%wcm%cm_rows == 30, &
                    "size from the pty")
+
         if (.not. allocated(error)) then
             call tty_cursor_to(tty, 0, 0)
             call tty_flush(tty, st)
             call check(error, input_available(master, 2000_int32), "output")
+
             if (.not. allocated(error)) then
                 call emacs_read(master, buf, n, st)
                 call check(error, buf(1:n), ESC//"[1;1H")
             end if
         end if
+
         call delete_tty(tty, st)
         call close_fd(slave)
         call close_fd(master)

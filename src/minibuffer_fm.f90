@@ -67,8 +67,10 @@ contains
                 return
             end if
         end if
+
         call throw_exit(.false.)
     end subroutine exit_minibuffer
+
 
     !> Delete the text after the prompt.  Port of
     !> minibuffer.el:delete-minibuffer-contents.
@@ -77,6 +79,7 @@ contains
 
         call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
     end subroutine delete_minibuffer_contents
+
 
     !> Read a file name in the minibuffer, starting with directory `dir`
     !> (default: default-directory) abbreviated as the input to edit.
@@ -100,12 +103,15 @@ contains
         else
             d = "~/"
         end if
+
         if (.not. file_name_absolute_p(d)) then
             call expand_file_name(d, val, status)
             if (.not. status%ok()) return
             d = val
         end if
+
         have_default = .true.
+
         if (present(default_filename)) then
             default = default_filename
         else if (.not. present(initial)) then
@@ -117,18 +123,21 @@ contains
             call expand_file_name(initial, default, status, d)
             if (.not. status%ok()) return
         end if
+
         d = abbreviate_file_name(d)
         if (have_default) default = abbreviate_file_name(default)
 
         insdef = ""
         if (insert_default_directory) insdef = d
         if (present(initial)) insdef = insdef//initial
+
         if (have_default) then
             call read_from_minibuffer(prompt, val, status, initial=insdef, history="file-name-history", &
                                       default=default)
         else
             call read_from_minibuffer(prompt, val, status, initial=insdef, history="file-name-history")
         end if
+
         if (.not. status%ok()) return
         ! completing-read: empty input gives the default.
         if (len(val) == 0 .and. have_default) val = default
@@ -137,17 +146,20 @@ contains
         result = substitute_in_file_name(val)
     end subroutine read_file_name
 
+
     subroutine cmd_exit_minibuffer(status)
         type(status_type), intent(out) :: status
 
         call exit_minibuffer(status)
     end subroutine cmd_exit_minibuffer
 
+
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
 
         call abort_minibuffers(status)
     end subroutine cmd_abort_minibuffers
+
 
     !> Register the commands and minibuffer.el's minibuffer-local-map keys.
     subroutine syms_of_minibuffer()
@@ -156,7 +168,9 @@ contains
         call bind("C-g", "abort-minibuffers")
         call bind("C-j", "exit-minibuffer")
         call bind("RET", "exit-minibuffer")
+
     contains
+
         subroutine bind(keys, command)
             character(len=*), intent(in) :: keys, command
             type(value_type), allocatable :: seq(:)
@@ -165,6 +179,7 @@ contains
             call key_parse(keys, seq, status)
             if (status%ok()) call define_key(minibuffer_local_map, seq, sym(command), status)
         end subroutine bind
+
     end subroutine syms_of_minibuffer
 
 end module minibuffer_fm

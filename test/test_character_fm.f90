@@ -57,6 +57,7 @@ contains
                     ]
     end subroutine collect_character_fm
 
+
     !> String made of the given byte values.
     pure function bytes(b) result(s)
         integer, intent(in) :: b(:)
@@ -67,6 +68,7 @@ contains
             s(i:i) = char(b(i))
         end do
     end function bytes
+
 
     !> Encode `c`; empty string on error.
     function enc(c) result(s)
@@ -80,6 +82,7 @@ contains
         s = buf(1:n)
     end function enc
 
+
     subroutine test_known(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -91,6 +94,7 @@ contains
         if (allocated(error)) return
         call check(error, string_char(bytes([226, 130, 172]), 1_int64), int(z'20AC', int32))
     end subroutine test_known
+
 
     subroutine test_roundtrip(error)
         type(error_type), allocatable, intent(out) :: error
@@ -122,6 +126,7 @@ contains
         end do
     end subroutine test_roundtrip
 
+
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -140,6 +145,7 @@ contains
         if (allocated(error)) return
         call check(error, char_byte8_head_p(193_int32), "C1 not a byte8 head")
     end subroutine test_raw_bytes
+
 
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
@@ -160,6 +166,7 @@ contains
         call check(error, multibyte_length("a", 2_int64, .true.), 0_int32)
     end subroutine test_invalid
 
+
     subroutine test_invalid_code(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=MAX_MULTIBYTE_LENGTH) :: buf
@@ -179,6 +186,7 @@ contains
         call char_string(-1_int32, buf, n, st)
         call check(error,.not. st%ok(), "negative code accepted")
     end subroutine test_invalid_code
+
 
     subroutine test_chars_in_text(error)
         type(error_type), allocatable, intent(out) :: error
@@ -201,6 +209,7 @@ contains
         call check(error, nbytes, 5_int64)
     end subroutine test_chars_in_text
 
+
     subroutine test_conversion(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: nchars
@@ -220,6 +229,7 @@ contains
                    bytes([233])//"a"//bytes([195, 169]), "str_as_unibyte")
     end subroutine test_conversion
 
+
     subroutine test_prev_len(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
@@ -231,6 +241,7 @@ contains
         if (allocated(error)) return
         call check(error, raw_prev_char_len(s, 2_int64), 1_int32)
     end subroutine test_prev_len
+
 
     subroutine test_modifiers(error)
         type(error_type), allocatable, intent(out) :: error
@@ -259,6 +270,7 @@ contains
         ! char_string drops what cannot be folded.
         call check(error, enc(CHAR_META + iachar("a")) == "a", "M-a not stored as a")
     end subroutine test_modifiers
+
 
     subroutine test_predicates(error)
         type(error_type), allocatable, intent(out) :: error

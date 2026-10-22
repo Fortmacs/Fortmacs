@@ -121,6 +121,7 @@ contains
         v%a(1) = atom
     end function scalar
 
+
     !> The empty list / false.  Port of lisp.h:Qnil.
     pure function nil() result(v)
         type(value_type) :: v
@@ -128,12 +129,14 @@ contains
         if (allocated(v%a)) deallocate (v%a)
     end function nil
 
+
     !> The symbol t.  Port of lisp.h:Qt.
     pure function t_value() result(v)
         type(value_type) :: v
 
         v = make_symbol_ref(SYM_T)
     end function t_value
+
 
     !> Port of lisp.h:make_fixnum.
     pure function make_fixnum(n) result(v)
@@ -146,6 +149,7 @@ contains
         v = scalar(atom)
     end function make_fixnum
 
+
     !> A string value holding `text` (already in the internal encoding).
     !> Port of alloc.c:build_string.
     pure function make_string(text) result(v)
@@ -157,6 +161,7 @@ contains
         atom%s = text
         v = scalar(atom)
     end function make_string
+
 
     !> The symbol with id `id`; id SYM_NIL gives nil.
     !> Port of lisp.h:make_lisp_symbol.
@@ -171,6 +176,7 @@ contains
         v = scalar(atom)
     end function make_symbol_ref
 
+
     !> A value referring to buffer `h`.
     pure function make_buffer_ref(h) result(v)
         type(handle_type), intent(in) :: h
@@ -181,6 +187,7 @@ contains
         atom%h = h
         v = scalar(atom)
     end function make_buffer_ref
+
 
     !> A value referring to marker `h`.
     pure function make_marker_ref(h) result(v)
@@ -193,6 +200,7 @@ contains
         v = scalar(atom)
     end function make_marker_ref
 
+
     !> A value referring to keymap `h`.
     pure function make_keymap_ref(h) result(v)
         type(handle_type), intent(in) :: h
@@ -203,6 +211,7 @@ contains
         atom%h = h
         v = scalar(atom)
     end function make_keymap_ref
+
 
     !> The atoms of `v` as an element of a list (nil becomes an explicit
     !> V_NIL atom).
@@ -217,6 +226,7 @@ contains
         end if
     end subroutine element_atoms
 
+
     !> A list of `elements`; nil when there are none.  Port of alloc.c:Flist.
     !> Pass variables, not function results (see the module note).
     pure function make_list(elements) result(v)
@@ -229,13 +239,16 @@ contains
         allocate (atoms(1))
         atoms(1)%tag = V_LIST
         atoms(1)%i = size(elements)
+
         do k = 1, size(elements)
             call element_atoms(elements(k), part)
             atoms = [atoms, part]
         end do
+
         atoms(1)%span = size(atoms)
         call move_alloc(atoms, v%a)
     end function make_list
+
 
     !> A list of up to eight values.  Port of lisp.h:list1 ... list5 and
     !> alloc.c:Flist; safe to call with function results.
@@ -248,36 +261,45 @@ contains
 
         n = 1
         parts(1) = v1
+
         if (present(v2)) then
             n = n + 1
             parts(n) = v2
         end if
+
         if (present(v3)) then
             n = n + 1
             parts(n) = v3
         end if
+
         if (present(v4)) then
             n = n + 1
             parts(n) = v4
         end if
+
         if (present(v5)) then
             n = n + 1
             parts(n) = v5
         end if
+
         if (present(v6)) then
             n = n + 1
             parts(n) = v6
         end if
+
         if (present(v7)) then
             n = n + 1
             parts(n) = v7
         end if
+
         if (present(v8)) then
             n = n + 1
             parts(n) = v8
         end if
+
         v = make_list(parts(1:n))
     end function list
+
 
     !> `elt` prepended to `list` (nil or a list).  Anything else would be a
     !> dotted pair, which this model does not have: `ok` is then false.
@@ -290,6 +312,7 @@ contains
 
         ok = .true.
         call element_atoms(elt, head)
+
         select case (vtag(list))
         case (V_NIL)
             allocate (v%a(1))
@@ -303,8 +326,10 @@ contains
             ok = .false.
             return
         end select
+
         v%a(1)%span = size(v%a)
     end subroutine cons
+
 
     ! ------------------------------------------------------------------
     ! Predicates and accessors (lisp.h)
@@ -318,12 +343,14 @@ contains
         if (allocated(v%a)) vtag = v%a(1)%tag
     end function vtag
 
+
     !> Port of lisp.h:NILP.
     elemental logical function nilp(v)
         type(value_type), intent(in) :: v
 
         nilp = vtag(v) == V_NIL
     end function nilp
+
 
     !> Port of lisp.h:FIXNUMP.
     elemental logical function fixnump(v)
@@ -332,12 +359,14 @@ contains
         fixnump = vtag(v) == V_INT
     end function fixnump
 
+
     !> Port of lisp.h:SYMBOLP (nil is a symbol).
     elemental logical function symbolp(v)
         type(value_type), intent(in) :: v
 
         symbolp = vtag(v) == V_SYMBOL .or. vtag(v) == V_NIL
     end function symbolp
+
 
     !> Port of lisp.h:STRINGP.
     elemental logical function stringp(v)
@@ -346,12 +375,14 @@ contains
         stringp = vtag(v) == V_STRING
     end function stringp
 
+
     !> A non-empty list.  Port of lisp.h:CONSP.
     elemental logical function consp(v)
         type(value_type), intent(in) :: v
 
         consp = vtag(v) == V_LIST
     end function consp
+
 
     !> nil or a list.  Port of data.c:Flistp.
     elemental logical function listp(v)
@@ -360,12 +391,14 @@ contains
         listp = vtag(v) == V_LIST .or. vtag(v) == V_NIL
     end function listp
 
+
     !> Port of lisp.h:BUFFERP.
     elemental logical function bufferp(v)
         type(value_type), intent(in) :: v
 
         bufferp = vtag(v) == V_BUFFER
     end function bufferp
+
 
     !> Port of lisp.h:MARKERP.
     elemental logical function markerp(v)
@@ -374,12 +407,14 @@ contains
         markerp = vtag(v) == V_MARKER
     end function markerp
 
+
     !> True for a single keymap (not a list of keymaps); see keymap_fm.
     elemental logical function keymap_ref_p(v)
         type(value_type), intent(in) :: v
 
         keymap_ref_p = vtag(v) == V_KEYMAP
     end function keymap_ref_p
+
 
     !> The integer in `v`, unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
@@ -389,6 +424,7 @@ contains
         if (vtag(v) == V_INT) xfixnum = v%a(1)%i
     end function xfixnum
 
+
     !> The symbol id of `v` (SYM_NIL for nil), unchecked.
     !> Port of lisp.h:XSYMBOL.
     elemental integer(int64) function xsymbol(v)
@@ -397,6 +433,7 @@ contains
         xsymbol = SYM_NIL
         if (vtag(v) == V_SYMBOL) xsymbol = v%a(1)%i
     end function xsymbol
+
 
     !> The text of string `v` ("" if not a string).  Port of lisp.h:SSDATA.
     pure function xstring(v) result(s)
@@ -410,6 +447,7 @@ contains
         end if
     end function xstring
 
+
     !> The handle in a buffer, marker or keymap value.
     elemental function xhandle(v) result(h)
         type(value_type), intent(in) :: v
@@ -417,6 +455,7 @@ contains
 
         if (allocated(v%a)) h = v%a(1)%h
     end function xhandle
+
 
     !> Number of elements of list `v` (0 for nil and non-lists).
     elemental integer(int64) function list_length(v)
@@ -426,6 +465,7 @@ contains
         if (vtag(v) == V_LIST) list_length = v%a(1)%i
     end function list_length
 
+
     !> Atom index where element `k` (1-based) of list `v` starts.
     pure integer(int64) function elt_start(v, k) result(p)
         type(value_type), intent(in) :: v
@@ -433,10 +473,12 @@ contains
         integer(int64) :: j
 
         p = 2
+
         do j = 1, k - 1
             p = p + v%a(p)%span
         end do
     end function elt_start
+
 
     !> Element `k` (1-based) of list `v`; nil if out of range.
     pure function list_elt(v, k) result(e)
@@ -451,6 +493,7 @@ contains
         end if
     end function list_elt
 
+
     !> All elements of list `v` as an array (size 0 for nil).
     pure subroutine list_elements(v, elems)
         type(value_type), intent(in) :: v
@@ -459,11 +502,13 @@ contains
 
         allocate (elems(list_length(v)))
         p = 2
+
         do k = 1, size(elems, kind=int64)
             if (v%a(p)%tag /= V_NIL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
             p = p + v%a(p)%span
         end do
     end subroutine list_elements
+
 
     !> List `v` without its first `n` elements (nil if none remain).
     !> The core of data.c:Fcdr and fns.c:Fnthcdr.
@@ -475,10 +520,12 @@ contains
         integer(int64) :: p, len
 
         len = list_length(v)
+
         if (n <= 0) then
             tail = v
             return
         end if
+
         if (n >= len) return
         p = elt_start(v, n + 1)
         atoms = [v%a(1:1), v%a(p:)]

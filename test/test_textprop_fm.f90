@@ -65,6 +65,7 @@ contains
                     ]
     end subroutine collect_textprop_fm
 
+
     subroutine enter(name, h, old)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: h, old
@@ -75,6 +76,7 @@ contains
         call set_buffer(h, st)
     end subroutine enter
 
+
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
@@ -82,6 +84,7 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, st)
         call kill_buffer(h, st)
     end subroutine leave
+
 
     function prop_at(pos, name) result(v)
         integer(int64), intent(in) :: pos
@@ -91,6 +94,7 @@ contains
 
         call get_text_property(pos, sym(name), v, st)
     end function prop_at
+
 
     subroutine test_put_get(error)
         type(error_type), allocatable, intent(out) :: error
@@ -122,6 +126,7 @@ contains
         call leave(h, old)
     end subroutine test_put_get
 
+
     subroutine test_add_change(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -143,6 +148,7 @@ contains
         call check(error,.not. changed, "empty range changed")
         call leave(h, old)
     end subroutine test_add_change
+
 
     subroutine test_set_remove(error)
         type(error_type), allocatable, intent(out) :: error
@@ -175,6 +181,7 @@ contains
                    "set to nil clears")
         call leave(h, old)
     end subroutine test_set_remove
+
 
     subroutine test_changes(error)
         type(error_type), allocatable, intent(out) :: error
@@ -218,6 +225,7 @@ contains
         call leave(h, old)
     end subroutine test_changes
 
+
     subroutine test_any_not_all(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -245,6 +253,7 @@ contains
         call leave(h, old)
     end subroutine test_any_not_all
 
+
     subroutine test_category(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -260,6 +269,7 @@ contains
         call check(error, value_eq(prop_at(1_int64, "face"), sym("bold")), "own property wins")
         call leave(h, old)
     end subroutine test_category
+
 
     !> Properties follow their text through insertions and deletions;
     !> inserted text has none.
@@ -292,6 +302,7 @@ contains
         call leave(h, old)
     end subroutine test_edits
 
+
     subroutine test_modifies(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -309,6 +320,7 @@ contains
         call leave(h, old)
     end subroutine test_modifies
 
+
     subroutine test_errors(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -324,6 +336,7 @@ contains
         call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
         call leave(h, old)
     end subroutine test_errors
+
 
     !> Insertion next to read-only text obeys stickiness: read-only is
     !> rear-sticky by default, so inserting after it fails, before it works.
@@ -359,6 +372,7 @@ contains
         call leave(h, old)
     end subroutine test_read_only_insert
 
+
     !> textprop-tests.el: textprop-interval-immutability.  `propertize`
     !> strings are replaced by inserting text and putting properties on it.
     subroutine test_immutability(error)
@@ -368,6 +382,7 @@ contains
         character(len=:), allocatable :: s
 
         call enter("tt-immutable", h, old)
+
         run: block
             call fill(st)
             call check(error, st%ok(), "building the template failed")
@@ -411,6 +426,7 @@ contains
             call delete_and_extract_region(26_int64, 37_int64, s, st)
             call check(error, st%code, FM_TEXT_READ_ONLY)
         end block run
+
         call set(sym("inhibit-read-only"), nil(), st)
         call leave(h, old)
 
@@ -427,6 +443,7 @@ contains
             call put_text_property(26_int64, 31_int64, sym("inhibit-read-only"), t_value(), st)
             call put_text_property(31_int64, 37_int64, sym("read-only"), sym("not-suppressed"), st)
         end subroutine fill
+
 
         !> (let ((inhibit-read-only t)) (erase-buffer) (insert template))
         subroutine refill()

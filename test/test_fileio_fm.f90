@@ -74,6 +74,7 @@ contains
                     ]
     end subroutine collect_fileio_fm
 
+
     !> Make the scratch directory (empty) and a fresh current buffer.
     subroutine setup(buf)
         type(handle_type), intent(out) :: buf
@@ -81,13 +82,16 @@ contains
         integer :: i
 
         call new_buffer(buf)
+
         do i = 1, 6
             call delete_file_internal(testdir//"/f"//achar(iachar("0") + i), st)
         end do
+
         call delete_file_internal(testdir//"/missing", st)
         call delete_directory_internal(testdir//"/sub", st)
         call make_directory_internal(testdir, st)
     end subroutine setup
+
 
     !> A fresh current buffer in the working directory.
     subroutine new_buffer(buf)
@@ -100,12 +104,14 @@ contains
         buffers(cur)%directory = file_name_as_directory(emacs_wd)
     end subroutine new_buffer
 
+
     subroutine teardown(buf)
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
 
         call kill_buffer(buf, st)
     end subroutine teardown
+
 
     ! fileio-tests--directory-file-name
     subroutine test_directory_file_name(error)
@@ -125,6 +131,7 @@ contains
         if (allocated(error)) return
         call check(error, len(directory_file_name("/abc//")) == 4)
     end subroutine test_directory_file_name
+
 
     ! fileio-tests--file-name-as-directory
     subroutine test_file_name_as_directory(error)
@@ -147,6 +154,7 @@ contains
         call check(error, len(file_name_as_directory("/abc//")) == 6)
     end subroutine test_file_name_as_directory
 
+
     subroutine test_file_name_parts(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -164,6 +172,7 @@ contains
                    .not. directory_name_p(""))
     end subroutine test_file_name_parts
 
+
     ! fileio-tests--file-name-absolute-p (with "root" standing in for
     ! user-login-name, as every Linux system has it)
     subroutine test_file_name_absolute_p(error)
@@ -177,6 +186,7 @@ contains
                 call check(error, file_name_absolute_p(trim(suffixes(i))), trim(suffixes(i)))
                 if (allocated(error)) return
             end if
+
             call check(error, file_name_absolute_p("~"//trim(suffixes(i))), "~"//trim(suffixes(i)))
             if (allocated(error)) return
             call check(error, file_name_absolute_p("~root"//trim(suffixes(i))), "~root"//trim(suffixes(i)))
@@ -185,8 +195,10 @@ contains
                        "~nosuchuser"//trim(suffixes(i)))
             if (allocated(error)) return
         end do
+
         call check(error,.not. file_name_absolute_p("foo") .and. .not. file_name_absolute_p(""))
     end subroutine test_file_name_absolute_p
+
 
     !> expand(name, dir) == want.
     subroutine check_expand(error, name, dir, want)
@@ -201,6 +213,7 @@ contains
         call check(error, got == want .and. len(got) == len(want), &
                    "expand-file-name """//name//""" """//dir//""" gave """//got//""", want """//want//"""")
     end subroutine check_expand
+
 
     subroutine test_expand_file_name(error)
         type(error_type), allocatable, intent(out) :: error
@@ -239,6 +252,7 @@ contains
         call relative_default(error)
     end subroutine test_expand_file_name
 
+
     !> A relative default directory is itself expanded, against the
     !> buffer's default-directory.
     subroutine relative_default(error)
@@ -251,6 +265,7 @@ contains
         call teardown(buf)
     end subroutine relative_default
 
+
     subroutine test_expand_tilde(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: home
@@ -262,6 +277,7 @@ contains
         call tilde_cases(error)
         call restore_home(home, had_home)
     end subroutine test_expand_tilde
+
 
     subroutine tilde_cases(error)
         type(error_type), allocatable, intent(out) :: error
@@ -278,6 +294,7 @@ contains
         call check(error, get_homedir() == "/home/someone")
     end subroutine tilde_cases
 
+
     subroutine save_home(home, had_home)
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: had_home
@@ -288,6 +305,7 @@ contains
         allocate (character(len=max(length, 0)) :: home)
         if (had_home .and. length > 0) call get_environment_variable("HOME", home)
     end subroutine save_home
+
 
     subroutine restore_home(home, had_home)
         character(len=*), intent(in) :: home
@@ -300,6 +318,7 @@ contains
             e = sys_unsetenv("HOME")
         end if
     end subroutine restore_home
+
 
     ! fileio-tests--relative-HOME
     subroutine test_relative_home(error)
@@ -318,6 +337,7 @@ contains
         call check(error, a == b .and. len(a) == len(b), a//" vs "//b)
     end subroutine test_relative_home
 
+
     ! fileio-tests--relative-default-directory
     subroutine test_relative_default_directory(error)
         type(error_type), allocatable, intent(out) :: error
@@ -335,6 +355,7 @@ contains
         call check(error, file_name_absolute_p(name) .and. name(1:1) /= "~", name)
         call teardown(buf)
     end subroutine test_relative_default_directory
+
 
     ! fileio-tests--expand-file-name-null-bytes
     subroutine test_null_bytes(error)
@@ -355,6 +376,7 @@ contains
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
         call teardown(buf)
     end subroutine test_null_bytes
+
 
     subroutine test_write_and_insert(error)
         type(error_type), allocatable, intent(out) :: error
@@ -401,6 +423,7 @@ contains
         call teardown(buf)
     end subroutine test_write_and_insert
 
+
     !> Invalid UTF-8 survives a visit and save byte for byte.
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
@@ -433,6 +456,7 @@ contains
         call teardown(buf)
     end subroutine test_raw_bytes
 
+
     subroutine test_visit_nonexistent(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -458,6 +482,7 @@ contains
         call teardown(buf)
     end subroutine test_visit_nonexistent
 
+
     subroutine test_insert_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -472,6 +497,7 @@ contains
         call teardown(buf)
     end subroutine test_insert_directory
 
+
     subroutine test_visit_non_empty(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -484,6 +510,7 @@ contains
         call check(error, format_error(st) == "Cannot do file visiting in a non-empty buffer", format_error(st))
         call teardown(buf)
     end subroutine test_visit_non_empty
+
 
     subroutine test_modtime(error)
         type(error_type), allocatable, intent(out) :: error
@@ -505,6 +532,7 @@ contains
         call check(error,.not. verify_visited_file_modtime(), "changed on disk")
         call teardown(buf)
     end subroutine test_modtime
+
 
     subroutine test_predicates(error)
         type(error_type), allocatable, intent(out) :: error
@@ -550,6 +578,7 @@ contains
         call teardown(buf)
     end subroutine test_predicates
 
+
     subroutine test_rename_copy(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -576,6 +605,7 @@ contains
                    format_error(st))
         call teardown(buf)
     end subroutine test_rename_copy
+
 
     subroutine test_substitute(error)
         type(error_type), allocatable, intent(out) :: error

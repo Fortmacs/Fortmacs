@@ -56,6 +56,7 @@ contains
                     ]
     end subroutine collect_callproc_fm
 
+
     !> A fresh, current buffer `name` holding `text`.
     subroutine fresh_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
@@ -68,12 +69,14 @@ contains
         if (len(text) > 0) call insert(text, st)
     end subroutine fresh_buffer
 
+
     subroutine done(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
         call kill_buffer(h, st)
     end subroutine done
+
 
     !> Check that Bug#40576 is fixed.  (Upstream runs `emacs --version`;
     !> any program that ignores its input will do.)
@@ -91,6 +94,7 @@ contains
         call done(h)
     end subroutine test_region_delete
 
+
     !> Output goes into the current buffer before point; text is UTF-8.
     subroutine test_output(error)
         type(error_type), allocatable, intent(out) :: error
@@ -103,11 +107,14 @@ contains
                           args=list(make_string("hello"), make_string("w"//char(195)//char(182)//"rld")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, xfixnum(r) == 0, "status 0")
+
         if (.not. allocated(error)) then
             call check(error, buffer_string(), "hello w"//char(195)//char(182)//"rld"//new_line("a"))
         end if
+
         if (.not. allocated(error)) call check(error, buffer_size(), 12_int64)
         if (.not. allocated(error)) call check(error, point(), 13_int64)
+
         ! Standard error is mixed with the output; discarded with no
         ! destination.
         if (.not. allocated(error)) then
@@ -116,13 +123,16 @@ contains
                               args=list(make_string("-c"), make_string("echo out; echo err >&2")))
             call check(error, buffer_string(), "out"//new_line("a")//"err"//new_line("a"))
         end if
+
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call call_process("echo", r, st, args=list(make_string("discarded")))
             call check(error, st%ok() .and. buffer_size() == 0, "discarded")
         end if
+
         call done(h)
     end subroutine test_output
+
 
     subroutine test_exit_status(error)
         type(error_type), allocatable, intent(out) :: error
@@ -136,6 +146,7 @@ contains
         call check(error, xfixnum(r), 42_int64)
     end subroutine test_exit_status
 
+
     !> A program killed by a signal gives the signal's description.
     subroutine test_signal(error)
         type(error_type), allocatable, intent(out) :: error
@@ -147,6 +158,7 @@ contains
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
     end subroutine test_signal
 
+
     subroutine test_missing_program(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r
@@ -154,11 +166,13 @@ contains
 
         call call_process("fortmacs-no-such-program", r, st)
         call check(error, st%code == FM_FILE_MISSING, "file-missing")
+
         if (.not. allocated(error)) then
             call check(error, format_error(st), &
                        "Searching for program: No such file or directory, fortmacs-no-such-program")
         end if
     end subroutine test_missing_program
+
 
     subroutine test_infile(error)
         type(error_type), allocatable, intent(out) :: error
@@ -175,13 +189,16 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "from a file")
         call delete_file_internal(file, st)
+
         if (.not. allocated(error)) then
             call call_process("cat", r, st, infile=file)
             call check(error, format_error(st), &
                        "Opening process input file: No such file or directory, "//file)
         end if
+
         call done(h)
     end subroutine test_infile
+
 
     subroutine test_buffer_name(error)
         type(error_type), allocatable, intent(out) :: error
@@ -204,6 +221,7 @@ contains
         call done(h)
     end subroutine test_buffer_name
 
+
     !> The program runs in the current buffer's default-directory.
     subroutine test_directory(error)
         type(error_type), allocatable, intent(out) :: error
@@ -215,14 +233,17 @@ contains
         buffers(cur)%directory = "/"
         call call_process("pwd", r, st, destination=t_value())
         call check(error, buffer_string(), "/"//new_line("a"))
+
         if (.not. allocated(error)) then
             buffers(cur)%directory = "/fortmacs-no-such-directory/"
             call call_process("pwd", r, st)
             call check(error, format_error(st), &
                        "Setting current directory: No such file or directory, /fortmacs-no-such-directory/")
         end if
+
         call done(h)
     end subroutine test_directory
+
 
     !> Part of the buffer through a filter, the output after it.
     subroutine test_region_filter(error)
@@ -236,11 +257,13 @@ contains
                                  args=list(make_string("a-z"), make_string("A-Z")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hello worldHELLO")
+
         if (.not. allocated(error)) then
             call call_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=t_value(), &
                                      args=list(make_string("a-z"), make_string("A-Z")))
             call check(error, buffer_string(), " worldHELLOHELLO")
         end if
+
         call done(h)
     end subroutine test_region_filter
 

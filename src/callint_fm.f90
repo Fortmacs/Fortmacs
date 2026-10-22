@@ -79,13 +79,16 @@ contains
 
         id = intern(name)
         if (.not. allocated(commands)) allocate (commands(max(256_int64, 2*nsymbols)))
+
         if (id > size(commands, kind=int64)) then
             allocate (grown(max(id, 2*size(commands, kind=int64))))
             grown(1:size(commands)) = commands
             call move_alloc(grown, commands)
         end if
+
         commands(id)%proc => proc
     end subroutine defcommand
+
 
     !> Whether symbol `v` names a registered command.
     logical function command_defined_p(v)
@@ -98,6 +101,7 @@ contains
         if (id > size(commands, kind=int64)) return
         command_defined_p = associated(commands(id)%proc)
     end function command_defined_p
+
 
     !> Whether `v` can be run as a command: a registered command, or a
     !> keyboard macro (a string or a list of events).  Port of
@@ -115,6 +119,7 @@ contains
         end select
     end function commandp
 
+
     !> Run command `cmd`.  Port of callint.c:Fcall_interactively (the
     !> interactive spec is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
@@ -128,10 +133,13 @@ contains
             else
                 call set_error(status, FM_GENERIC_ERROR, "Not a command")
             end if
+
             return
         end if
+
         call commands(xsymbol(cmd))%proc(status)
     end subroutine call_interactively
+
 
     !> The numeric value of raw prefix argument `raw`: nil gives 1, `-`
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
@@ -141,6 +149,7 @@ contains
 
         n = 1
         if (nilp(raw)) return
+
         if (value_eq(raw, sym("-"))) then
             n = -1
         else if (consp(raw)) then

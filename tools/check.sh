@@ -24,7 +24,7 @@
 #               of failing on format drift.
 #   --valgrind  also run the tests under valgrind and fail on any definite
 #               leak or memory error (see tools/valgrind.supp).
-#   --no-style  skip the format and lint checks (for distro jobs that only
+#   --no-style  skip the format, blank-line and lint checks (for distro jobs that only
 #               need the build and tests; style is checked elsewhere).
 
 set -eu
@@ -58,15 +58,44 @@ if $style; then
         fortitude check --fix $DIRS >/dev/null 2>&1 || true
     fi
 
+    # fprettify always shrinks runs of blank lines to one, so it checks a
+    # copy without the second blank line between procedures, which
+    # tools/blank-lines.awk puts back below.
+    files=$(find src app test -name '*.f90' | sort; echo docs/init.f90)
     if $fix; then
         fprettify --config-file .fprettify.rc --recursive $DIRS
     else
-        drift=$(fprettify --config-file .fprettify.rc --recursive --diff $DIRS)
+        copy=$(mktemp -d)
+        for f in $files; do
+            mkdir -p "$copy/$(dirname "$f")"
+            awk 'NF { blank = 0; print; next } !blank++' "$f" >"$copy/$f"
+        done
+        drift=$(cd "$copy" && fprettify --config-file "$OLDPWD/.fprettify.rc" --recursive --diff $DIRS)
+        rm -rf "$copy"
         if [ -n "$drift" ]; then
             printf '%s\n' "$drift"
             echo "format drift: run tools/check.sh --fix" >&2
             exit 1
         fi
+    fi
+
+    # Blank lines: tools/blank-lines.awk (the Bristol RSE guidelines).
+    drifted=""
+    for f in $files; do
+        awk -f tools/blank-lines.awk "$f" >"$f.blank" || { rm -f "$f.blank"; exit 1; }
+        if cmp -s "$f" "$f.blank"; then
+            rm -f "$f.blank"
+        elif $fix; then
+            mv "$f.blank" "$f"
+        else
+            diff -u "$f" "$f.blank" || true
+            rm -f "$f.blank"
+            drifted="$drifted $f"
+        fi
+    done
+    if [ -n "$drifted" ]; then
+        echo "blank-line drift in:$drifted; run tools/check.sh --fix" >&2
+        exit 1
     fi
 
     fortitude check $DIRS
