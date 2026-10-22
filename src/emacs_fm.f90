@@ -48,7 +48,8 @@ module emacs_fm
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
-    use config_fm, only: install_prefix, running_executable, recompile, init_file_name, user_build_name
+    use config_fm, only: install_prefix, running_executable, recompile, init_file_name, current_build_name, &
+                         generation_of, current_generation, switch_generation, rollback, list_generations
     implicit none(type, external)
     private
 
@@ -112,10 +113,10 @@ contains
         if (s(1:1) /= "+") return
         colon = index(s, ":")
         if (colon == 0) colon = len(s) + 1
-        if (.not. digits(s(2:colon - 1))) return
+        if (.not. all_digits(s(2:colon - 1))) return
 
         if (colon <= len(s)) then
-            if (.not. digits(s(colon + 1:))) return
+            if (.not. all_digits(s(colon + 1:))) return
         end if
 
         read (s(2:colon - 1), *, iostat=stat) line
@@ -123,11 +124,11 @@ contains
 
     contains
 
-        pure logical function digits(t)
+        pure logical function all_digits(t)
             character(len=*), intent(in) :: t
 
-            digits = len(t) > 0 .and. verify(t, "0123456789") == 0
-        end function digits
+            all_digits = len(t) > 0 .and. verify(t, "0123456789") == 0
+        end function all_digits
 
     end function line_arg_p
 
@@ -361,8 +362,7 @@ contains
         procedure(init_proc) :: configure
         integer, intent(out) :: exit_code
         character(len=*), intent(in), optional :: prefix
-        character(len=*), parameter :: usage = &
-                                       "Usage: fortmacs [--version | --help | --recompile] [-q] [+LINE] [FILE]..."
+        character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."
         character(len=:), allocatable :: term, install, reminder
         type(arg_type), allocatable :: args(:)
         type(status_type) :: status
@@ -393,6 +393,15 @@ contains
                 call do_recompile(installed, install, exit_code)
                 return
             end if
+
+            select case (args(1)%s)
+            case ("--list-generations", "-list-generations", "--rollback", "-rollback", &
+                  "--switch-generation", "-switch-generation")
+                call do_generations(args, exit_code)
+                return
+            case default
+                ! Not a generation command.
+            end select
         end if
 
         reminder = ""
@@ -408,14 +417,17 @@ contains
             select case (args(1)%s)
             case ("--version", "-version")
                 write (output_unit, "(a)") version_string()
-                if (present(prefix)) write (output_unit, "(a)") "With the configuration in "//init_file_name()
+                if (present(prefix)) call write_configuration()
                 return
             case ("--help", "-help")
                 write (output_unit, "(a)") usage
+                write (output_unit, "(a)") "       fortmacs --recompile | --list-generations | --rollback | --switch-generation N"
                 write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
                 write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
                 write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
-                write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into your own fortmacs."
+                write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into a new generation of your own"
+                write (output_unit, "(a)") "fortmacs, which an installed fortmacs runs; --rollback goes back to the generation"
+                write (output_unit, "(a)") "before, --switch-generation N to generation N."
                 return
             case default
                 ! Everything else is for startup.el:command-line.
@@ -457,6 +469,7 @@ contains
         integer, intent(out) :: exit_code
         character(len=:), allocatable :: log
         type(status_type) :: status
+        integer :: generation
 
         exit_code = 1
 
@@ -467,7 +480,7 @@ contains
         end if
 
         call init_fileio()
-        call recompile(install, log, status)
+        call recompile(install, log, status, generation)
         if (len(log) > 0) write (error_unit, "(a)", advance="no") log
 
         if (.not. status%ok()) then
@@ -475,9 +488,70 @@ contains
             return
         end if
 
-        write (output_unit, "(a)") "fortmacs: built "//user_build_name()
+        write (output_unit, "(a, i0)") "fortmacs: built and switched to generation ", generation
         exit_code = 0
     end subroutine do_recompile
+
+
+    !> --version in a user build: which configuration it carries.
+    subroutine write_configuration()
+        integer :: n
+
+        n = generation_of(running_executable())
+
+        if (n > 0) then
+            write (output_unit, "(a, i0, a)") "With generation ", n, " of the configuration in "//init_file_name()
+        else
+            write (output_unit, "(a)") "With the configuration in "//init_file_name()
+        end if
+    end subroutine write_configuration
+
+
+    !> --list-generations, --rollback and --switch-generation N, reporting
+    !> as Guix does ("switched from generation 3 to 2").
+    subroutine do_generations(args, exit_code)
+        type(arg_type), intent(in) :: args(:)
+        integer, intent(out) :: exit_code
+        character(len=:), allocatable :: text, command
+        type(status_type) :: status
+        integer :: from, to, stat
+
+        exit_code = 1
+        call init_fileio()
+        command = args(1)%s
+        if (command(1:2) == "--") command = command(2:)
+
+        select case (command)
+        case ("-list-generations")
+            call list_generations(text, status)
+            if (status%ok()) write (output_unit, "(a)", advance="no") text
+        case ("-rollback")
+            call rollback(from, to, status)
+        case default
+            to = 0
+            stat = 1
+            if (size(args) >= 2) read (args(2)%s, *, iostat=stat) to
+
+            if (stat /= 0 .or. to <= 0) then
+                write (error_unit, "(a)") "fortmacs: --switch-generation needs a generation number"
+                return
+            end if
+
+            from = current_generation()
+            call switch_generation(to, status)
+        end select
+
+        if (.not. status%ok()) then
+            write (error_unit, "(a)") "fortmacs: "//format_error(status)
+            return
+        end if
+
+        if (command /= "-list-generations") then
+            write (output_unit, "(a, i0, a, i0)") "switched from generation ", from, " to ", to
+        end if
+
+        exit_code = 0
+    end subroutine do_generations
 
 
     !> Replace this process with the user's build, if there is one and it
@@ -491,7 +565,7 @@ contains
         integer(int32) :: err
         integer :: k
 
-        build = user_build_name()
+        build = current_build_name()
         init = init_file_name()
 
         if (.not. file_executable_p(build)) then

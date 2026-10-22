@@ -20,7 +20,7 @@ roadmap and progress.
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
 <tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆0.75%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆0.75%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆5.00%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.25%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">492<br>of 63,999</td><td align="center">492<br>of 56,864</td><td align="center">425<br>of 8,547</td><td align="center">67<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">494<br>of 63,999</td><td align="center">494<br>of 56,864</td><td align="center">427<br>of 8,547</td><td align="center">67<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
 <tr><td align="center">≆0.75%</td><td align="center">≆0.75%</td><td align="center">≆5.00%</td><td align="center">≆0.25%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
@@ -53,9 +53,12 @@ and build it:
 
 ```sh
 fpm install --profile release   # fortmacs, its library and modules, in ~/.local
-fortmacs --recompile            # builds init.f90 into your own fortmacs
-fortmacs                        # now runs your build
+fortmacs --recompile            # builds init.f90 into a new generation
+fortmacs                        # now runs that generation
 fortmacs -q                     # starts without your configuration
+fortmacs --list-generations     # every build, with the current one marked
+fortmacs --rollback             # back to the generation before
+fortmacs --switch-generation 3  # or to any generation
 ```
 
 The module is named `user_config`; its `configure` subroutine runs at
@@ -63,8 +66,11 @@ startup. It uses the `fortmacs` module: settings are variables
 (`tab_width = 4`), commands are subroutines registered with `defcommand`,
 and keys are bound with `keymap_global_set("C-c d", "my-command", status)`.
 If the build fails, the compiler's errors are shown and your last good
-build keeps running. Numbered generations with `--list-generations` and
-`--rollback` come next.
+build keeps running. As in Guix, every successful build is a numbered
+generation kept in `~/.local/state/fortmacs/generations`, together with the
+`init.f90` it was built from, so a configuration that turns out badly is one
+`--rollback` away from the one before, much like checking out an earlier
+commit in Git.
 
 ## Reference source
 

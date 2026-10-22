@@ -34,7 +34,7 @@
 !> ported yet.
 module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, &
+    use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only
     use character_fm, only: str_as_multibyte, str_as_unibyte
@@ -46,7 +46,7 @@ module fileio_fm
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
                          close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, F_OK, R_OK, &
-                         W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
+                         W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST
     implicit none(type, external)
     private
 
@@ -57,6 +57,7 @@ module fileio_fm
     public :: file_exists_p, file_readable_p, file_writable_p, file_directory_p, &
               file_accessible_directory_p, file_attributes, file_modes, set_file_modes, &
               file_executable_p, file_newer_than_file_p, &
+              make_symbolic_link, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
               user_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal
@@ -1081,5 +1082,49 @@ contains
             buffers(cur)%modtime_size = -1
         end if
     end subroutine set_visited_file_modtime
+
+
+    !> Make a symbolic link to TARGET, named LINKNAME.
+    !> If LINKNAME is a directory name, make a like-named symbolic link
+    !> under LINKNAME.
+    !>
+    !> Signal a `file-already-exists` error if a file LINKNAME already exists
+    !> unless OK_IF_ALREADY_EXISTS is true.  Port of
+    !> fileio.c:Fmake_symbolic_link (without the interactive query).
+    subroutine make_symbolic_link(target, linkname, status, ok_if_already_exists)
+        character(len=*), intent(in) :: target, linkname
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: ok_if_already_exists
+        character(len=:), allocatable :: name
+        integer(int32) :: err
+        logical :: ok
+
+        ok = .false.
+        if (present(ok_if_already_exists)) ok = ok_if_already_exists
+
+        ! expand_cp_target: a directory name gets TARGET's own name.
+        if (directory_name_p(linkname)) then
+            call expand_file_name(file_name_nondirectory(target), name, status, linkname)
+        else
+            call expand_file_name(linkname, name, status)
+        end if
+
+        if (.not. status%ok()) return
+        err = sys_symlink(target, name)
+        if (err == 0) return
+
+        if (err == EEXIST) then
+            if (.not. ok) then
+                call set_error(status, FM_FILE_ALREADY_EXISTS, "File already exists: "//name)
+                return
+            end if
+
+            err = sys_unlink(name)
+            err = sys_symlink(target, name)
+            if (err == 0) return
+        end if
+
+        call report_file_errno("Making symbolic link", target//", "//name, err, status)
+    end subroutine make_symbolic_link
 
 end module fileio_fm

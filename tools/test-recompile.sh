@@ -49,21 +49,44 @@ fail() {
 if "$fm" --recompile >"$out" 2>&1; then fail "--recompile without an init file succeeded"; fi
 grep -q "Opening init file: No such file or directory, $init" "$out" || fail "wrong error without an init file"
 
-# The example builds, and the installed fortmacs runs the build.
+# The example builds generation 1, and the installed fortmacs runs it.
+gens=$XDG_STATE_HOME/fortmacs/generations
 mkdir -p "$XDG_CONFIG_HOME/fortmacs"
 cp docs/init.f90 "$init"
 "$fm" --recompile >"$out" 2>&1 || fail "--recompile of docs/init.f90 failed"
-[ -x "$XDG_STATE_HOME/fortmacs/fortmacs" ] || fail "no build in $XDG_STATE_HOME/fortmacs"
+grep -q "built and switched to generation 1" "$out" || fail "not generation 1"
+[ -x "$gens/1/fortmacs" ] || fail "no build in $gens/1"
+[ "$(cat "$gens/1/init.f90")" = "$(cat "$init")" ] || fail "generation 1 lacks its init.f90"
 "$fm" --version >"$out" 2>&1 || fail "--version failed"
-grep -q "With the configuration in $init" "$out" || fail "the installed fortmacs did not run the build"
+grep -q "With generation 1 of the configuration in $init" "$out" || fail "the installed fortmacs did not run the build"
 
-# A broken init file: the compiler's errors are shown and the last good
-# build stays.
+# A second build is generation 2; rolling back and switching move between
+# them, as in Guix.
+printf '! changed\n' >>"$init"
+"$fm" --recompile >"$out" 2>&1 || fail "second --recompile failed"
+grep -q "built and switched to generation 2" "$out" || fail "not generation 2"
+"$fm" --list-generations >"$out" 2>&1 || fail "--list-generations failed"
+[ "$(grep -c '^Generation [12]	' "$out")" = 2 ] || fail "not two generations listed"
+grep -q '^Generation 2	.*(current)$' "$out" || fail "generation 2 is not current"
+"$fm" --version >"$out" 2>&1 || fail "--version failed"
+grep -q "With generation 2 of" "$out" || fail "not running generation 2"
+"$fm" --rollback >"$out" 2>&1 || fail "--rollback failed"
+grep -q "switched from generation 2 to 1" "$out" || fail "rollback message"
+"$fm" --version >"$out" 2>&1 || fail "--version failed"
+grep -q "With generation 1 of" "$out" || fail "rollback did not take effect"
+if "$fm" --rollback >"$out" 2>&1; then fail "rolled back past generation 1"; fi
+grep -q "There is no generation before generation 1" "$out" || fail "wrong error rolling back past 1"
+"$fm" --switch-generation 2 >"$out" 2>&1 || fail "--switch-generation 2 failed"
+grep -q "switched from generation 1 to 2" "$out" || fail "switch message"
+
+# A broken init file: the compiler's errors are shown, no generation is
+# made and generation 2 stays current.
 printf 'module user_config\n' >"$init"
 if "$fm" --recompile >"$out" 2>&1; then fail "--recompile of a broken init file succeeded"; fi
 grep -q "Compiling $init failed" "$out" || fail "no failure message"
 grep -q "Error:" "$out" || fail "no compiler errors shown"
+[ ! -e "$gens/3" ] || fail "a failed build left generation 3"
 "$fm" --version >"$out" 2>&1 || fail "--version failed"
-grep -q "With the configuration in $init" "$out" || fail "the last good build was lost"
+grep -q "With generation 2 of" "$out" || fail "the last good build was lost"
 
 echo "test-recompile: ok"
