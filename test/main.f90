@@ -28,6 +28,7 @@ program tester
     use test_help_fm, only: collect_help_fm
     use test_syntax_fm, only: collect_syntax_fm
     use test_paragraphs_fm, only: collect_paragraphs_fm
+    use test_regex_emacs_fm, only: collect_regex_emacs_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
     use test_character_fm, only: collect_character_fm
@@ -105,7 +106,8 @@ program tester
                  new_testsuite("simple_fm", collect_simple_fm), &
                  new_testsuite("help_fm", collect_help_fm), &
                  new_testsuite("syntax_fm", collect_syntax_fm), &
-                 new_testsuite("paragraphs_fm", collect_paragraphs_fm) &
+                 new_testsuite("paragraphs_fm", collect_paragraphs_fm), &
+                 new_testsuite("regex_emacs_fm", collect_regex_emacs_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

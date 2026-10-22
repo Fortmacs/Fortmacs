@@ -93,6 +93,10 @@ module regex_emacs_fm
     integer, parameter :: INIT_BUF_SIZE = 32
     integer, parameter :: MAX_REGNUM = 255
     integer, parameter :: RE_DUP_MAX = int(z'ffff')
+    !> RE_DUP_MAX / 10 and RE_DUP_MAX % 10, for overflow checks.
+    integer, parameter :: RE_DUP_MAX_TENTH = 6553, RE_DUP_MAX_LAST_DIGIT = 5
+    !> The largest explicit group number that can take one more digit.
+    integer, parameter :: REGNUM_LIMIT = 214748363
 
     !> Roughly the maximum number of failure points on the stack.
     integer(int64), parameter :: EMACS_RE_MAX_FAILURES = 40000
@@ -687,18 +691,18 @@ contains
                     end if
                 end if
             case (iachar("^"))
-                if (.not. (p == 2 .or. at_begline_loc_p(src, p))) then
-                    normal = .true.
-                else
+                normal = p /= 2
+                if (normal) normal = .not. at_begline_loc_p(src, p)
+                if (.not. normal) then
                     ! Special case for compatibility: postfix ops after ^
                     ! become literals.
                     laststart = -1
                     call buf_push(BEGLINE)
                 end if
             case (iachar("$"))
-                if (.not. (p == pend .or. at_endline_loc_p(src, p, pend))) then
-                    normal = .true.
-                else
+                normal = p /= pend
+                if (normal) normal = .not. at_endline_loc_p(src, p, pend)
+                if (.not. normal) then
                     laststart = b
                     call buf_push(ENDLINE)
                 end if
@@ -1184,7 +1188,7 @@ contains
                                     err = REG_BADPAT
                                     return
                                 end if
-                                if (regnum > (huge(regnum) - 9)/10) then
+                                if (regnum > REGNUM_LIMIT) then
                                     err = REG_ESIZE
                                     return
                                 end if
@@ -1457,8 +1461,8 @@ contains
             do while (c >= iachar("0") .and. c <= iachar("9"))
                 if (num < 0) num = 0
                 kp = 0
-                if (mod(RE_DUP_MAX, 10) < c - iachar("0")) kp = 1
-                if (RE_DUP_MAX/10 - kp < num) then
+                if (RE_DUP_MAX_LAST_DIGIT < c - iachar("0")) kp = 1
+                if (RE_DUP_MAX_TENTH - kp < num) then
                     err = REG_ESIZEBR
                     return
                 end if
@@ -2045,7 +2049,7 @@ contains
             idx = 0
             do while (idx < buf(p2 + 1))
                 if (.not. (buf(p2 + 2 + idx) == 0 .or. (idx < charset_bitmap_size(buf, p1) .and. &
-                                                       iand(buf(p2 + 2 + idx), not(buf(p1 + 2 + idx))) == 0))) &
+                                                        iand(buf(p2 + 2 + idx), not(buf(p1 + 2 + idx))) == 0))) &
                     exit
                 idx = idx + 1
             end do
@@ -2274,7 +2278,7 @@ contains
         ! Where we are in the data, and where we were before an operator.
         integer(int64) :: d, dfail, d2, dend2, match_end, str
         ! Where we are in the pattern, and the end of the pattern.
-        integer :: p, pend, pat, mcnt, num_regs, reg, regno, op, p1, p2, p3
+        integer :: p, pend, pat, mcnt, num_regs, regno, op, p1, p2, p3
         ! The failure stack (fail_stack_type).
         integer(int64), allocatable :: fs(:)
         integer(int64) :: fs_avail, fs_frame

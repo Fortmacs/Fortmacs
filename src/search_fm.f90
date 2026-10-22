@@ -29,13 +29,21 @@
 !> known, so the "-1 = unknown" convention is replaced by optional
 !> arguments.
 !>
-!> Literal string search (`search-forward`, `search-backward`) with the
-!> case table and the match data; regexp search comes later.
+!> String and regexp search (`search-forward`, `re-search-forward`,
+!> `looking-at`, `string-match` and their relatives) with the case table,
+!> a cache of compiled patterns and the match data.  regex_emacs_fm does
+!> the matching.
+!>
+!> Positions in strings are 1-based character indices, as Fortran's
+!> `index` (Emacs counts from 0), so that 0 can stand for nil.
+!>
+!> Deferred: `replace-match` (with query-replace), `match-data` markers,
+!> `inhibit-changing-match-data`, Boyer-Moore search, the newline cache.
 module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
-    use character_fm, only: string_char_and_length, char_bytes
+    use character_fm, only: string_char_and_length, char_bytes, char_head_p
     use casetab_fm, only: case_canon
     use buffer_fm, only: buffers, cur, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
                          buf_next_char_len, current_buffer
@@ -47,6 +55,12 @@ module search_fm
               find_newline_no_quit, find_before_next_newline
     public :: search_forward, search_backward, search_buffer, match_beginning, match_end, &
               match_buffer
+    public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
+              looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
+              regexp_quote, match_in_string_p
+    ! For search_regexp_fm (gfortran makes private procedures invisible to
+    ! submodules).
+    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow
 
     !> Non-nil if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (one global value; not buffer-local yet).
@@ -57,13 +71,53 @@ module search_fm
     !> the limit of the search, return nil).
     integer, parameter, public :: SEARCH_SIGNAL = 0, SEARCH_NOERROR = 1, SEARCH_MOVE = 2
 
-    !> The match data of the last search (search.c:search_regs and
-    !> last_thing_searched): group 0 only, as there is no regexp search
-    !> yet; character positions, -1 when unset.
-    integer(int64) :: regs_start = -1, regs_end = -1
+    !> If a string, the regexp that replaces spaces in a regexp being
+    !> compiled; unallocated is nil.  Port of search.c
+    !> search-spaces-regexp.
+    character(len=:), allocatable, public :: search_spaces_regexp
+
+    !> The match data of the last search (search.c:search_regs), indexed
+    !> by group: buffer positions or string indices, -1 when unset.
+    integer(int64), allocatable :: search_regs_start(:), search_regs_end(:)
+    !> The buffer of the last search (last_thing_searched), unless it was
+    !> on a string.
     type(handle_type) :: last_thing_searched
+    logical :: last_search_in_string = .false.
 
     character(len=*), parameter :: newline = achar(10)
+
+    interface
+        !> Port of search.c:looking_at_1.  (In search_regexp_fm.)
+        module function looking_at_1(regexp, posix, modify_data, status) result(matched)
+            implicit none(type, external)
+            character(len=*), intent(in) :: regexp
+            logical, intent(in) :: posix, modify_data
+            type(status_type), intent(out) :: status
+            logical :: matched
+        end function looking_at_1
+
+        !> Port of search.c:string_match_1.  (In search_regexp_fm.)
+        module function string_match_1(regexp, string, start, posix, modify_data, status) result(idx)
+            implicit none(type, external)
+            character(len=*), intent(in) :: regexp, string
+            integer(int64), intent(in), optional :: start
+            logical, intent(in) :: posix, modify_data
+            type(status_type), intent(out) :: status
+            integer(int64) :: idx
+        end function string_match_1
+
+        !> Regexp search for `search_buffer`.  Port of
+        !> search.c:search_buffer_re.  (In search_regexp_fm.)
+        module function search_buffer_re(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
+            result(np)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            integer(int64), intent(in) :: pos_in, pos_byte_in, lim, lim_byte, n_in
+            logical, intent(in) :: fold, posix
+            type(status_type), intent(inout) :: status
+            integer(int64) :: np
+        end function search_buffer_re
+    end interface
 
 contains
 
@@ -243,6 +297,150 @@ contains
     end function find_before_next_newline
 
     ! ------------------------------------------------------------------
+    ! Compiled patterns
+    ! ------------------------------------------------------------------
+
+    !> The 1-based character index in STR of the byte offset `off`.
+    pure integer(int64) function string_offset_to_index(str, off) result(idx)
+        character(len=*), intent(in) :: str
+        integer(int64), intent(in) :: off
+        integer(int64) :: i
+        ! Each character before OFF has one head byte.
+        idx = 1
+        do i = 1, off
+            if (char_head_p(ichar(str(i:i), int32))) idx = idx + 1
+        end do
+    end function string_offset_to_index
+
+    !> The byte offset in STR of the 1-based character index `idx`.
+    pure integer(int64) function string_index_to_offset(str, idx) result(off)
+        character(len=*), intent(in) :: str
+        integer(int64), intent(in) :: idx
+        integer(int64) :: n
+        integer(int32) :: c, clen
+        off = 0
+        n = 1
+        do while (n < idx .and. off < len(str, kind=int64))
+            call string_char_and_length(str, off + 1, c, clen)
+            off = off + clen
+            n = n + 1
+        end do
+    end function string_index_to_offset
+
+    !> Number of characters in STR.
+    pure integer(int64) function string_chars(str) result(n)
+        character(len=*), intent(in) :: str
+        integer(int64) :: off
+        integer(int32) :: c, clen
+        n = 0
+        off = 0
+        do while (off < len(str, kind=int64))
+            call string_char_and_length(str, off + 1, c, clen)
+            off = off + clen
+            n = n + 1
+        end do
+    end function string_chars
+
+    !> Make the match data `n` empty registers.
+    subroutine clear_search_regs(n)
+        integer, intent(in) :: n
+        if (allocated(search_regs_start)) deallocate (search_regs_start)
+        if (allocated(search_regs_end)) deallocate (search_regs_end)
+        allocate (search_regs_start(0:n - 1), search_regs_end(0:n - 1))
+        search_regs_start = -1
+        search_regs_end = -1
+    end subroutine clear_search_regs
+
+    ! ------------------------------------------------------------------
+    ! Matching at point and in strings
+    ! ------------------------------------------------------------------
+
+    !> Return t if text after point matches regular expression REGEXP.
+    !> By default, this function modifies the match data that
+    !> `match-beginning', `match-end' and `match-data' access.  If
+    !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
+    !> search.c:Flooking_at.
+    logical function looking_at(regexp, status, inhibit_modify) result(matched)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_modify
+        matched = looking_at_1(regexp, .false.,.not. opt(inhibit_modify), status)
+    end function looking_at
+
+    !> Return t if text after point matches REGEXP according to Posix rules.
+    !> Find the longest match, in accordance with Posix regular expression
+    !> rules.
+    !>
+    !> By default, this function modifies the match data that
+    !> `match-beginning', `match-end' and `match-data' access.  If
+    !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
+    !> search.c:Fposix_looking_at.
+    logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: inhibit_modify
+        matched = looking_at_1(regexp, .true.,.not. opt(inhibit_modify), status)
+    end function posix_looking_at
+
+    !> The value of an optional logical, false if absent.
+    pure logical function opt(flag)
+        logical, intent(in), optional :: flag
+        opt = .false.
+        if (present(flag)) opt = flag
+    end function opt
+
+    !> Return index of start of first match for REGEXP in STRING, or nil
+    !> (0).  Matching ignores case if `case-fold-search' is non-nil.  If
+    !> START is present, start search at that index in STRING.
+    !>
+    !> If INHIBIT-MODIFY is non-nil, match data is not changed.
+    !>
+    !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
+    !> `match-end' and `match-beginning' give indices of substrings matched
+    !> by parenthesis constructs in the pattern.  You can use the function
+    !> `match-string' to extract the substrings matched by the parenthesis
+    !> constructions in REGEXP.  For index of first char beyond the match,
+    !> do (match-end 0).
+    !>
+    !> Indices are 1-based character indices, as Fortran's `index` (Emacs
+    !> counts from 0); a negative START counts from the end.  Port of
+    !> search.c:Fstring_match.
+    integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(idx)
+        character(len=*), intent(in) :: regexp, string
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start
+        logical, intent(in), optional :: inhibit_modify
+        idx = string_match_1(regexp, string, start, .false.,.not. opt(inhibit_modify), status)
+    end function string_match
+
+    !> Return index of start of first match for Posix REGEXP in STRING, or
+    !> nil (0).  Find the longest match, in accord with Posix regular
+    !> expression rules.  Case is ignored if `case-fold-search' is non-nil
+    !> in the current buffer.
+    !>
+    !> If INHIBIT-MODIFY is non-nil, match data is not changed.
+    !>
+    !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
+    !> `match-end' and `match-beginning' give indices of substrings matched
+    !> by parenthesis constructs in the pattern.  You can use the function
+    !> `match-string' to extract the substrings matched by the parenthesis
+    !> constructions in REGEXP.  For index of first char beyond the match,
+    !> do (match-end 0).  Port of search.c:Fposix_string_match.
+    integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
+        character(len=*), intent(in) :: regexp, string
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start
+        logical, intent(in), optional :: inhibit_modify
+        idx = string_match_1(regexp, string, start, .true.,.not. opt(inhibit_modify), status)
+    end function posix_string_match
+
+    !> Signal that the matcher's stack overflowed (matcher_overflow).
+    subroutine matcher_overflow(status)
+        type(status_type), intent(inout) :: status
+        call set_error(status, FM_GENERIC_ERROR, "Stack overflow in regexp matcher")
+    end subroutine matcher_overflow
+
+    ! ------------------------------------------------------------------
     ! String search
     ! ------------------------------------------------------------------
 
@@ -268,15 +466,15 @@ contains
     !> Search case-sensitivity is determined by the value of the variable
     !> `case-fold-search', which see.
     !>
-    !> See also the functions `match-beginning' and `match-end'.  Port of
-    !> search.c:Fsearch_forward.
+    !> See also the functions `match-beginning', `match-end', `match-string',
+    !> and `replace-match'.  Port of search.c:Fsearch_forward.
     subroutine search_forward(string, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
-        call search_command(string, 1_int64, found, status, bound, noerror, count)
+        call search_command(string, 1_int64, .false., .false., found, status, bound, noerror, count)
     end subroutine search_forward
 
     !> Search backward from point for STRING.
@@ -290,13 +488,95 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
-        call search_command(string, -1_int64, found, status, bound, noerror, count)
+        call search_command(string, -1_int64, .false., .false., found, status, bound, noerror, count)
     end subroutine search_backward
 
-    !> Port of search.c:search_command (literal strings only).
-    subroutine search_command(string, direction, found, status, bound, noerror, count)
+    !> Search forward from point for regular expression REGEXP.
+    !> Set point to the end of the occurrence found, and return point
+    !> in `found` (0 for nil).
+    !> The optional argument BOUND is a buffer position that bounds the
+    !> search.  The match found must not end after that position.  Absent
+    !> means search to the end of the accessible portion of the buffer.
+    !> The optional argument NOERROR indicates how errors are handled
+    !> when the search fails: if it is SEARCH_SIGNAL or absent, emit an
+    !> error; if it is SEARCH_NOERROR, simply return nil and do nothing;
+    !> if it is SEARCH_MOVE, move to the limit of search and return nil.
+    !> The optional argument COUNT is a number that indicates the search
+    !> direction and the number of occurrences to search for.  If it is
+    !> positive, search forward for COUNT successive occurrences; if it is
+    !> negative, search backward, instead of forward, for -COUNT
+    !> occurrences.  Absent means the same as 1.
+    !> With COUNT positive/negative, the match found is the
+    !> COUNTth/-COUNTth one in the buffer located entirely after/before
+    !> the origin of the search.
+    !>
+    !> Search case-sensitivity is determined by the value of the variable
+    !> `case-fold-search', which see.
+    !>
+    !> See also the functions `match-beginning', `match-end', `match-string',
+    !> and `replace-match'.  Port of search.c:Fre_search_forward.
+    subroutine re_search_forward(regexp, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound, count
+        integer, intent(in), optional :: noerror
+        call search_command(regexp, 1_int64, .true., .false., found, status, bound, noerror, count)
+    end subroutine re_search_forward
+
+    !> Search backward from point for regular expression REGEXP.
+    !> This function is almost identical to `re-search-forward', except that
+    !> by default it searches backward instead of forward, and the sign of
+    !> COUNT also indicates exactly the opposite searching direction.
+    !> See `re-search-forward' for details.
+    !>
+    !> Note that searching backwards may give a shorter match than expected,
+    !> because REGEXP is still matched in the forward direction.  Port of
+    !> search.c:Fre_search_backward.
+    subroutine re_search_backward(regexp, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound, count
+        integer, intent(in), optional :: noerror
+        call search_command(regexp, -1_int64, .true., .false., found, status, bound, noerror, count)
+    end subroutine re_search_backward
+
+    !> Search forward from point for REGEXP according to Posix rules.
+    !> Find the longest match in accord with Posix regular expression rules.
+    !> Set point to the end of the occurrence found, and return point.
+    !> BOUND, NOERROR and COUNT are as for `re-search-forward'.  Port of
+    !> search.c:Fposix_search_forward.
+    subroutine posix_search_forward(regexp, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound, count
+        integer, intent(in), optional :: noerror
+        call search_command(regexp, 1_int64, .true., .true., found, status, bound, noerror, count)
+    end subroutine posix_search_forward
+
+    !> Search backward from point for match for REGEXP according to Posix
+    !> rules.  Find the longest match in accord with Posix regular
+    !> expression rules.  This function is almost identical to
+    !> `posix-search-forward', except that by default it searches backward
+    !> instead of forward, and the sign of COUNT also indicates exactly the
+    !> opposite searching direction.  Port of
+    !> search.c:Fposix_search_backward.
+    subroutine posix_search_backward(regexp, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound, count
+        integer, intent(in), optional :: noerror
+        call search_command(regexp, -1_int64, .true., .true., found, status, bound, noerror, count)
+    end subroutine posix_search_backward
+
+    !> Port of search.c:search_command.
+    subroutine search_command(string, direction, re, posix, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: direction
+        logical, intent(in) :: re, posix
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
@@ -334,35 +614,64 @@ contains
                     lim_byte = char_to_byte(lim)
                 end if
             end if
-            np = search_buffer(string, b%pt, b%pt_byte, lim, lim_byte, n, case_fold_search)
-            if (np <= 0) then
-                if (mode == SEARCH_SIGNAL) then
-                    call set_error(status, FM_SEARCH_FAILED, '"'//string//'"')
-                else if (mode == SEARCH_MOVE) then
-                    call temp_set_point_both(b, lim, lim_byte)
-                end if
-                return
-            end if
-            call temp_set_point_both(b, np, char_to_byte(np))
         end associate
+        np = search_buffer(string, buffers(cur)%pt, buffers(cur)%pt_byte, lim, lim_byte, n, case_fold_search, &
+                           status, re, posix)
+        if (.not. status%ok()) return
+        if (np <= 0) then
+            if (mode == SEARCH_SIGNAL) then
+                call set_error(status, FM_SEARCH_FAILED, '"'//string//'"')
+            else if (mode == SEARCH_MOVE) then
+                call temp_set_point_both(buffers(cur), lim, lim_byte)
+            end if
+            return
+        end if
+        call temp_set_point_both(buffers(cur), np, char_to_byte(np))
         found = np
     end subroutine search_command
 
+    !> Return true if REGEXP matches just one constant string.  Port of
+    !> search.c:trivial_regexp_p.
+    pure logical function trivial_regexp_p(regexp)
+        character(len=*), intent(in) :: regexp
+        integer :: i
+        trivial_regexp_p = .false.
+        i = 1
+        do while (i <= len(regexp))
+            select case (regexp(i:i))
+            case (".", "*", "+", "?", "[", "^", "$")
+                return
+            case ("\")
+                if (i == len(regexp)) return
+                i = i + 1
+                if (index("|()`'bB<>wWsS={}_cC123456789", regexp(i:i)) > 0) return
+            end select
+            i = i + 1
+        end do
+        trivial_regexp_p = .true.
+    end function trivial_regexp_p
+
     !> Search for the `n`th occurrence of STRING in the current buffer,
-    !> starting at position `pos` and stopping at position `lim`, treating
-    !> STRING as a literal string; with `fold`, through the case canon
-    !> table.  `n` negative searches backward.  The value is the position
-    !> after the match (forward) or of its start (backward), or -M when M
-    !> matches remained to be found.  Port of search.c:search_buffer and
-    !> search_buffer_non_re (no Boyer-Moore: simple_search, which works
-    !> for any pattern).
-    integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold) result(np)
+    !> starting at position `pos` and stopping at position `lim`; with
+    !> `re`, STRING is a regexp (a Posix one with `posix`); with `fold`,
+    !> case is folded through the case canon table.  `n` negative searches
+    !> backward.  The value is the position after the match (forward) or
+    !> of its start (backward), or -M when M matches remained to be found.
+    !> Port of search.c:search_buffer and search_buffer_non_re (no
+    !> Boyer-Moore: simple_search, which works for any pattern).
+    integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, re, posix) &
+        result(np)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos, pos_byte, lim, lim_byte, n
         logical, intent(in) :: fold
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: re, posix
         integer(int32), allocatable :: pat(:)
         integer(int64) :: i, k, len_byte
         integer(int32) :: c, clen
+        logical :: is_re
+        status = status_type()
+        is_re = opt(re)
         ! Searching 0 times means don't move.  Null string is found at
         ! starting position.
         if (n == 0 .or. len(string) == 0) then
@@ -370,12 +679,18 @@ contains
             np = pos
             return
         end if
+        if (is_re .and. .not. (trivial_regexp_p(string) .and. .not. allocated(search_spaces_regexp))) then
+            np = search_buffer_re(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
+            return
+        end if
         ! The pattern as characters, translated as the buffer text will be.
+        ! In a trivial regexp, a backslash just quotes the next character.
         allocate (pat(len(string)))
         i = 1
         k = 0
         len_byte = 0
         do while (i <= len(string))
+            if (is_re .and. string(i:i) == "\") i = i + 1
             call string_char_and_length(string, i, c, clen)
             if (fold) c = case_canon(c)
             k = k + 1
@@ -478,9 +793,16 @@ contains
     !> buffer as the match data.  Port of search.c:set_search_regs.
     subroutine set_search_regs(beg_byte, nbytes)
         integer(int64), intent(in) :: beg_byte, nbytes
-        regs_start = byte_to_char(beg_byte)
-        regs_end = byte_to_char(beg_byte + nbytes)
+        integer :: n
+        ! Make sure we have registers in which to store the match position,
+        ! and clear out the other registers.
+        n = 2
+        if (allocated(search_regs_start)) n = max(n, size(search_regs_start))
+        call clear_search_regs(n)
+        search_regs_start(0) = byte_to_char(beg_byte)
+        search_regs_end(0) = byte_to_char(beg_byte + nbytes)
         last_thing_searched = current_buffer()
+        last_search_in_string = .false.
     end subroutine set_search_regs
 
     !> Return position of start of text matched by last search.
@@ -527,20 +849,90 @@ contains
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             return
         end if
-        if (regs_start < 0) then
+        if (.not. allocated(search_regs_start)) then
             call set_error(status, FM_GENERIC_ERROR, "No match data, because no search succeeded")
             return
         end if
-        if (n > 0) return
+        if (n >= size(search_regs_start)) return
+        if (search_regs_start(n) < 0) return
         if (beginningp) then
-            pos = regs_start
+            pos = search_regs_start(n)
         else
-            pos = regs_end
+            pos = search_regs_end(n)
         end if
     end subroutine match_limit
+
+    !> Return a list of positions that record text matched by the last
+    !> search.  Element 2N of the returned list is the position of the
+    !> beginning of the match of the Nth subexpression; it corresponds to
+    !> `(match-beginning N)'; element 2N + 1 is the position of the end of
+    !> the match of the Nth subexpression; it corresponds to `(match-end
+    !> N)'.  See `match-beginning' and `match-end'.  Positions are
+    !> integers, 0 (nil) when the Nth pair didn't match; trailing nils are
+    !> left out.
+    !>
+    !> Use `set-match-data' to reinstate the match data from the elements
+    !> of this list.  Port of search.c:Fmatch_data (INTEGERS t, without the
+    !> buffer).
+    function match_data() result(data)
+        integer(int64), allocatable :: data(:)
+        integer :: i, n
+        allocate (data(0))
+        if (.not. allocated(search_regs_start)) return
+        n = 0
+        do i = 0, size(search_regs_start) - 1
+            if (search_regs_start(i) >= 0) n = i + 1
+        end do
+        deallocate (data)
+        allocate (data(2*n))
+        do i = 0, n - 1
+            if (search_regs_start(i) >= 0) then
+                data(2*i + 1) = search_regs_start(i)
+                data(2*i + 2) = search_regs_end(i)
+            else
+                data(2*i + 1:2*i + 2) = 0
+            end if
+        end do
+    end function match_data
+
+    !> Set internal data on last search match from elements of LIST.
+    !> LIST should have been created by calling `match-data' previously;
+    !> nil (0) elements mark groups that didn't match.  The positions are
+    !> taken to be in the current buffer.  Port of search.c:Fset_match_data.
+    subroutine set_match_data(data)
+        integer(int64), intent(in) :: data(:)
+        integer :: i
+        call clear_search_regs(max(2, size(data)/2))
+        do i = 0, size(data)/2 - 1
+            if (data(2*i + 1) > 0 .and. data(2*i + 2) > 0) then
+                search_regs_start(i) = data(2*i + 1)
+                search_regs_end(i) = data(2*i + 2)
+            end if
+        end do
+        last_thing_searched = current_buffer()
+        last_search_in_string = .false.
+    end subroutine set_match_data
 
     !> The buffer the match data refer to (last_thing_searched).
     type(handle_type) function match_buffer()
         match_buffer = last_thing_searched
     end function match_buffer
+
+    !> Whether the last search was on a string.
+    logical function match_in_string_p()
+        match_in_string_p = last_search_in_string
+    end function match_in_string_p
+
+    !> Return a regexp string which matches exactly STRING and nothing
+    !> else.  Port of search.c:Fregexp_quote.
+    pure function regexp_quote(string) result(quoted)
+        character(len=*), intent(in) :: string
+        character(len=:), allocatable :: quoted
+        integer :: i
+        quoted = ""
+        do i = 1, len(string)
+            if (index("[*.\?+^$", string(i:i)) > 0) quoted = quoted//"\"
+            quoted = quoted//string(i:i)
+        end do
+    end function regexp_quote
 end module search_fm
