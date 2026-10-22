@@ -92,6 +92,13 @@ module fortmacs
                              REQUIRE_MATCH_CONFIRM, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
     use simple_fm, only: execute_extended_command
     use keymap_fm, only: where_is_internal
+    use syntax_fm, only: forward_word, modify_syntax_entry, char_syntax, standard_syntax_table, make_syntax_table, &
+                         copy_syntax_table, set_syntax_table, syntax_table
+    use simple_fm, only: backward_word, kill_word, backward_kill_word, mark_word
+    use paragraphs_fm, only: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
+                             backward_kill_paragraph
+    use help_fns_fm, only: describe_function, describe_variable
+    use help_fm, only: substitute_command_keys
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -113,6 +120,7 @@ module fortmacs
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, &
                           search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
+    use syntax_fm, only: words_include_escapes
     implicit none(type, external)
     private
 
@@ -140,6 +148,10 @@ module fortmacs
               all_completions, test_completion, completing_read, read_file_name, REQUIRE_MATCH_NIL, &
               REQUIRE_MATCH_T, REQUIRE_MATCH_CONFIRM, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION, &
               execute_extended_command, where_is_internal
+    public :: forward_word, backward_word, kill_word, backward_kill_word, mark_word, modify_syntax_entry, &
+              char_syntax, standard_syntax_table, make_syntax_table, copy_syntax_table, set_syntax_table, &
+              syntax_table, forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
+              backward_kill_paragraph, describe_function, describe_variable, substitute_command_keys
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
@@ -149,5 +161,5 @@ module fortmacs
               search_ring_max, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
               next_screen_context_lines, scroll_error_top_bottom, completion_ignore_case, &
               completion_auto_help, completion_show_inline_help, completion_fail_discreetly, &
-              suggest_key_bindings, completion_ignored_extensions
+              suggest_key_bindings, completion_ignored_extensions, words_include_escapes
 end module fortmacs

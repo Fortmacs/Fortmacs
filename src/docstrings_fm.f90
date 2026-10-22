@@ -42,6 +42,7 @@ module docstrings_fm
     use simple_fm, only: delete_active_region, goal_column, kill_read_only_ok, kill_ring_max, &
                          kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
     use subr_fm, only: history_length
+    use syntax_fm, only: words_include_escapes
     use term_fm, only: visible_bell
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
     use xdisp_fm, only: tab_width
@@ -67,21 +68,27 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(152) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(173) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
+                                                                   "backward-kill-paragraph", &
+                                                                   "backward-kill-word", &
+                                                                   "backward-paragraph", &
+                                                                   "backward-word", &
                                                                    "beginning-of-line", &
                                                                    "bobp", &
                                                                    "bolp", &
                                                                    "buffer-name", &
                                                                    "buffer-substring", &
                                                                    "call-interactively", &
+                                                                   "char-syntax", &
                                                                    "completing-read", &
                                                                    "completion-function-table", &
                                                                    "completion-list-table", &
                                                                    "completion-obarray-table", &
                                                                    "copy-region-as-kill", &
+                                                                   "copy-syntax-table", &
                                                                    "current-buffer", &
                                                                    "current-global-map", &
                                                                    "current-kill", &
@@ -107,6 +114,8 @@ module docstrings_fm
                                                                    "format-error", &
                                                                    "forward-char", &
                                                                    "forward-line", &
+                                                                   "forward-paragraph", &
+                                                                   "forward-word", &
                                                                    "get-buffer-create", &
                                                                    "global-set-key", &
                                                                    "goto-char", &
@@ -133,6 +142,7 @@ module docstrings_fm
                                                                    "isearch-yank-kill", &
                                                                    "isearch-yank-line", &
                                                                    "isearch-yank-pop-only", &
+                                                                   "isearch-yank-word-or-char", &
                                                                    "key-description", &
                                                                    "key-parse", &
                                                                    "key-valid-p", &
@@ -141,16 +151,22 @@ module docstrings_fm
                                                                    "keymap-set", &
                                                                    "kill-line", &
                                                                    "kill-new", &
+                                                                   "kill-paragraph", &
                                                                    "kill-region", &
                                                                    "kill-ring-save", &
                                                                    "kill-whole-line", &
+                                                                   "kill-word", &
                                                                    "left-char", &
+                                                                   "left-word", &
                                                                    "list", &
                                                                    "make-fixnum", &
                                                                    "make-sparse-keymap", &
                                                                    "make-string", &
+                                                                   "make-syntax-table", &
                                                                    "mark", &
+                                                                   "mark-paragraph", &
                                                                    "mark-whole-buffer", &
+                                                                   "mark-word", &
                                                                    "match-beginning", &
                                                                    "match-end", &
                                                                    "message", &
@@ -159,6 +175,7 @@ module docstrings_fm
                                                                    "minibuffer-complete-word", &
                                                                    "minibuffer-completion-exit", &
                                                                    "minibuffer-completion-help", &
+                                                                   "modify-syntax-entry", &
                                                                    "move-to-window-line", &
                                                                    "move-to-window-line-top-bottom", &
                                                                    "negative-argument", &
@@ -185,6 +202,7 @@ module docstrings_fm
                                                                    "region-beginning", &
                                                                    "region-end", &
                                                                    "right-char", &
+                                                                   "right-word", &
                                                                    "rotate-yank-pointer", &
                                                                    "save-buffer", &
                                                                    "save-buffers-kill-terminal", &
@@ -201,8 +219,12 @@ module docstrings_fm
                                                                    "set-error", &
                                                                    "set-mark", &
                                                                    "set-mark-command", &
+                                                                   "set-syntax-table", &
+                                                                   "standard-syntax-table", &
+                                                                   "substitute-command-keys", &
                                                                    "sym", &
                                                                    "symbol-value", &
+                                                                   "syntax-table", &
                                                                    "t-value", &
                                                                    "test-completion", &
                                                                    "try-completion", &
@@ -222,7 +244,7 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=29), parameter, public :: variable_names(31) = [character(len=29) :: &
+    character(len=29), parameter, public :: variable_names(32) = [character(len=29) :: &
                                                                   "case-fold-search", &
                                                                   "completion-auto-help", &
                                                                   "completion-fail-discreetly", &
@@ -253,7 +275,8 @@ module docstrings_fm
                                                                   "suggest-key-bindings", &
                                                                   "tab-width", &
                                                                   "transient-mark-mode", &
-                                                                  "visible-bell"]
+                                                                  "visible-bell", &
+                                                                  "words-include-escapes"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -312,6 +335,45 @@ contains
                         "Depending on the bidirectional context, the movement may be to the"//LF// &
                         "right or to the left on the screen.  This is in contrast with"//LF// &
                         "\[left-char], which see."
+        case ("backward-kill-paragraph")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call backward_kill_paragraph(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill back to start of paragraph."//LF// &
+                        "With ARG N, kill back to Nth start of paragraph;"//LF// &
+                        "negative ARG -N means kill forward to Nth end of paragraph."
+        case ("backward-kill-word")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call backward_kill_word(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill characters backward until encountering the beginning of a word."//LF// &
+                        "With argument ARG, do this that many times."
+        case ("backward-paragraph")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call backward_paragraph(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move backward to start of paragraph."//LF// &
+                        "With argument ARG, do it ARG times;"//LF// &
+                        "a negative argument ARG = -N means move forward N paragraphs."//LF// &
+                        ""//LF// &
+                        "A paragraph start is the beginning of a line which is a"//LF// &
+                        "`paragraph-start' or which is ordinary text and follows a"//LF// &
+                        "`paragraph-separate'ing line; except: if the first real line of a"//LF// &
+                        "paragraph is preceded by a blank line, the paragraph starts at that"//LF// &
+                        "blank line."//LF// &
+                        ""//LF// &
+                        "See `forward-paragraph' for more information."
+        case ("backward-word")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call backward_word(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move backward until encountering the beginning of a word."//LF// &
+                        "With argument ARG, do this that many times."//LF// &
+                        "If ARG is omitted or nil, move point backward one word."//LF// &
+                        ""//LF// &
+                        "The word boundaries are normally determined by the buffer's"//LF// &
+                        "syntax table and character script (according to"//LF// &
+                        "`char-script-table')."
         case ("beginning-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call beginning_of_line(n)"
@@ -346,6 +408,14 @@ contains
             entry%file = "callint_fm.f90"
             entry%fortran = "call call_interactively(cmd, status)"
             entry%doc = "Run command `cmd`."
+        case ("char-syntax")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "char_syntax(c)"
+            entry%doc = "Return the syntax code of CHARACTER, described by a character."//LF// &
+                        "For example, if CHARACTER is a word constituent, the"//LF// &
+                        "character `w' (119) is returned."//LF// &
+                        "The characters that correspond to various syntax codes"//LF// &
+                        "are listed in the documentation of `modify-syntax-entry'."
         case ("completing-read")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call completing_read(prompt, collection, result, status, predicate, require_match, initial"// &
@@ -395,6 +465,11 @@ contains
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark.  Save the text between"//LF// &
                         "BEG and END, or with REGION true the region."
+        case ("copy-syntax-table")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call copy_syntax_table(copy, status, from)"
+            entry%doc = "Construct a new syntax table and return it."//LF// &
+                        "It is a copy of the TABLE, which defaults to the standard syntax table."
         case ("current-buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
@@ -462,6 +537,7 @@ contains
             entry%doc = "Delete the text between `start` and `end` (either order)."
         case ("describe-function")
             entry%file = "help_fns_fm.f90"
+            entry%fortran = "call describe_function(function, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of FUNCTION (a symbol)."
         case ("describe-key")
@@ -476,6 +552,7 @@ contains
             entry%doc = "Print the name of the function KEY-LIST invokes."
         case ("describe-variable")
             entry%file = "help_fns_fm.f90"
+            entry%fortran = "call describe_variable(variable, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of VARIABLE (a symbol)."
         case ("digit-argument")
@@ -572,6 +649,29 @@ contains
                         ""//LF// &
                         "The command C-n (\[next-line]) can also be used to move to the next"//LF// &
                         "line."
+        case ("forward-paragraph")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "forward_paragraph(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move forward to end of paragraph."//LF// &
+                        "With argument ARG, do it ARG times;"//LF// &
+                        "a negative argument ARG = -N means move backward N paragraphs."//LF// &
+                        ""//LF// &
+                        "A line which `paragraph-start' matches either separates paragraphs"//LF// &
+                        "(if `paragraph-separate' matches it also) or is the first line of a paragraph."//LF// &
+                        "A paragraph end is the beginning of a line which is not part of the paragraph"//LF// &
+                        "to which the end of the previous line belongs, or the end of the buffer."
+        case ("forward-word")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call forward_word(arg, ok)"
+            entry%interactive = .true.
+            entry%doc = "Move point forward ARG words (backward if ARG is negative)."//LF// &
+                        "If ARG is omitted or nil, move point forward one word."//LF// &
+                        "If an edge of the buffer or a field boundary is reached, point is"//LF// &
+                        "left there."//LF// &
+                        ""//LF// &
+                        "The word boundaries are normally determined by the buffer's syntax"//LF// &
+                        "table and character script (according to `char-script-table')."
         case ("get-buffer-create")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
@@ -725,6 +825,11 @@ contains
                         "When this command is called not immediately after a"//LF// &
                         "`isearch-yank-kill' or a `isearch-yank-pop-only', it only pops the"//LF// &
                         "last killed string."
+        case ("isearch-yank-word-or-char")
+            entry%file = "isearch_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Pull next character or word from buffer into search string."//LF// &
+                        "If optional ARG is non-nil, pull in the next ARG characters/words."
         case ("key-description")
             entry%file = "keymap_fm.f90"
             entry%fortran = "key_description(keys, prefix)"
@@ -775,6 +880,13 @@ contains
                         "Set `kill_ring_yank_pointer` to point to it."//LF// &
                         "REPLACE true means that STRING will replace the front of the kill"//LF// &
                         "ring, rather than being added to the list."
+        case ("kill-paragraph")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call kill_paragraph(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill forward to end of paragraph."//LF// &
+                        "With ARG N, kill forward to Nth end of paragraph;"//LF// &
+                        "negative ARG -N means kill backward to Nth start of paragraph."
         case ("kill-region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_region(beg, end, status, region, read_only_ok)"
@@ -805,6 +917,12 @@ contains
                         "With prefix ARG, kill that many lines starting from the current line."//LF// &
                         "If ARG is negative, kill backward.  Also kill the preceding newline."//LF// &
                         "If ARG is zero, kill current line but exclude the trailing newline."
+        case ("kill-word")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call kill_word(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill characters forward until encountering the end of a word."//LF// &
+                        "With argument ARG, do this that many times."
         case ("left-char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -813,6 +931,20 @@ contains
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
                         "\[backward-char]."
+        case ("left-word")
+            entry%file = "bindings_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point N words to the left (to the right if N is negative)."//LF// &
+                        ""//LF// &
+                        "In left-to-right text this moves backward in the buffer, like"//LF// &
+                        "\[backward-word]."//LF// &
+                        ""//LF// &
+                        "The word boundaries are normally determined by the buffer's syntax"//LF// &
+                        "table and character script (according to `char-script-table')."//LF// &
+                        ""//LF// &
+                        "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
+                        "Field boundaries are not noticed if `inhibit-field-text-motion' is"//LF// &
+                        "non-nil."
         case ("list")
             entry%file = "lisp_fm.f90"
             entry%fortran = "list(v1, v2, v3, v4, v5, v6, v7, v8)"
@@ -829,6 +961,12 @@ contains
             entry%file = "lisp_fm.f90"
             entry%fortran = "make_string(text)"
             entry%doc = "A string value holding `text` (already in the internal encoding)."
+        case ("make-syntax-table")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call make_syntax_table(h, status, oldtable)"
+            entry%doc = "Return a new syntax table."//LF// &
+                        "Create a syntax table that inherits from OLDTABLE (if non-nil) or"//LF// &
+                        "from `standard-syntax-table' otherwise."
         case ("mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call mark(pos, status, force)"
@@ -838,6 +976,22 @@ contains
                         "the mark is not active.  However, if `mark_even_if_inactive` is true,"//LF// &
                         "or the argument FORCE is true, it disregards whether the mark"//LF// &
                         "is active, and returns an integer or 0 in the usual way."
+        case ("mark-paragraph")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call mark_paragraph(arg, allow_extend, status)"
+            entry%interactive = .true.
+            entry%doc = "Put point at beginning of this paragraph, mark at end."//LF// &
+                        "The paragraph marked is the one that contains point or follows point."//LF// &
+                        ""//LF// &
+                        "With argument ARG, puts mark at end of a following paragraph, so that"//LF// &
+                        "the number of paragraphs marked equals ARG."//LF// &
+                        ""//LF// &
+                        "If ARG is negative, point is put at end of this paragraph, mark is put"//LF// &
+                        "at beginning of this or a previous paragraph."//LF// &
+                        ""//LF// &
+                        "Interactively (or if ALLOW-EXTEND is non-nil), if this command is"//LF// &
+                        "repeated or (in Transient Mark mode) if the mark is active,"//LF// &
+                        "it marks the next ARG paragraphs after the ones already marked."
         case ("mark-whole-buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -845,6 +999,25 @@ contains
                         "Also push mark at point before pushing mark at end of buffer."//LF// &
                         "If narrowing is in effect, uses only the accessible part of the"//LF// &
                         "buffer."
+        case ("mark-word")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call mark_word(arg, have_arg, allow_extend)"
+            entry%interactive = .true.
+            entry%doc = "Set mark ARG words from point or move mark one word."//LF// &
+                        "With ALLOW-EXTEND false, mark is set ARG words from point."//LF// &
+                        "With ARG given (`have_arg`) and ALLOW-EXTEND (interactively, with"//LF// &
+                        "prefix argument), the place to which mark goes is the same place"//LF// &
+                        "\[forward-word] would move to with the same argument; if the mark"//LF// &
+                        "is active, it moves ARG words from its current position, otherwise"//LF// &
+                        "it is set ARG words from point."//LF// &
+                        "When invoked interactively without a prefix argument and no active"//LF// &
+                        "region, mark moves one word forward."//LF// &
+                        "When invoked interactively without a prefix argument, and region"//LF// &
+                        "is active, mark moves one word away of point (i.e., forward"//LF// &
+                        "if mark is at or after point, back if mark is before point), thus"//LF// &
+                        "extending the region by one word.  Since the direction of region"//LF// &
+                        "extension depends on the relative position of mark and point, you"//LF// &
+                        "can change the direction by \[exchange-point-and-mark]."
         case ("match-beginning")
             entry%file = "search_fm.f90"
             entry%fortran = "match_beginning(subexp, status)"
@@ -915,6 +1088,26 @@ contains
                         "contents.  The list goes in buffer *Completions*, shown in the"//LF// &
                         "frame's root window until the minibuffer is done (there is no"//LF// &
                         "window splitting yet)."
+        case ("modify-syntax-entry")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call modify_syntax_entry(from, to, newentry, status, syntax_table_h)"
+            entry%doc = "Set syntax for character CHAR according to string NEWENTRY."//LF// &
+                        "The syntax is changed only for table SYNTAX-TABLE, which defaults to"//LF// &
+                        " the current buffer's syntax table."//LF// &
+                        "The characters `from` to `to` (one character if equal) are changed."//LF// &
+                        "The first character of NEWENTRY should be one of the following:"//LF// &
+                        "  Space or -  whitespace syntax.    w   word constituent."//LF// &
+                        "  _           symbol constituent.   .   punctuation."//LF// &
+                        "  (           open-parenthesis.     )   close-parenthesis."//LF// &
+                        "  ""           string quote.         \   escape."//LF// &
+                        "  $           paired delimiter.     \='   expression quote or prefix operator."//LF// &
+                        "  <           comment starter.      >   comment ender."//LF// &
+                        "  /           character-quote.      @   inherit from parent table."//LF// &
+                        "  |           generic string fence. !   generic comment fence."//LF// &
+                        "The second character of NEWENTRY is the matching parenthesis,"//LF// &
+                        " used only if the first character is `(' or `)'."//LF// &
+                        "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
+                        "(comment sequences and prefix characters; see the Emacs manual)."
         case ("move-to-window-line")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -1111,6 +1304,20 @@ contains
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
                         "\[forward-char]."
+        case ("right-word")
+            entry%file = "bindings_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point N words to the right (to the left if N is negative)."//LF// &
+                        ""//LF// &
+                        "In left-to-right text this moves forward in the buffer, like"//LF// &
+                        "\[forward-word]."//LF// &
+                        ""//LF// &
+                        "The word boundaries are normally determined by the buffer's syntax"//LF// &
+                        "table and character script (according to `char-script-table')."//LF// &
+                        ""//LF// &
+                        "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
+                        "Field boundaries are not noticed if `inhibit-field-text-motion' is"//LF// &
+                        "non-nil."
         case ("rotate-yank-pointer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1294,6 +1501,37 @@ contains
                         ""//LF// &
                         "With C-u C-u as prefix argument, unconditionally set mark where point"//LF// &
                         "is."
+        case ("set-syntax-table")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call set_syntax_table(h, status)"
+            entry%doc = "Select a new syntax table for the current buffer."//LF// &
+                        "One argument, a syntax table."
+        case ("standard-syntax-table")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "standard_syntax_table()"
+            entry%doc = "Return the standard syntax table."//LF// &
+                        "This is the one used for new buffers."
+        case ("substitute-command-keys")
+            entry%file = "help_fm.f90"
+            entry%fortran = "substitute_command_keys(string)"
+            entry%doc = "Substitute key descriptions for command names in STRING."//LF// &
+                        "Each substring of the form \[COMMAND] is replaced by either a"//LF// &
+                        "keystroke sequence that invokes COMMAND, or ""M-x COMMAND"" if COMMAND"//LF// &
+                        "is not on any keys."//LF// &
+                        ""//LF// &
+                        "Each substring of the form \`KEYBINDING' will be replaced by"//LF// &
+                        "KEYBINDING."//LF// &
+                        ""//LF// &
+                        "Each substring of the form \<MAPVAR> specifies the use of MAPVAR"//LF// &
+                        "as the keymap for future \[COMMAND] substrings."//LF// &
+                        ""//LF// &
+                        "Each grave accent ` is replaced by left quote, and each apostrophe '"//LF// &
+                        "is replaced by right quote.  A grave accent that closes a quotation"//LF// &
+                        "opened by another (as in FORD comments) is a right quote too."//LF// &
+                        ""//LF// &
+                        "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
+                        "into the output, \=\[ puts \[ into the output, and \=` puts ` into the"//LF// &
+                        "output."
         case ("sym")
             entry%file = "lread_fm.f90"
             entry%fortran = "sym(name)"
@@ -1303,6 +1541,11 @@ contains
             entry%file = "data_fm.f90"
             entry%fortran = "call symbol_value(symbol, v, status)"
             entry%doc = "The value of `symbol`; void-variable if unbound."
+        case ("syntax-table")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "syntax_table()"
+            entry%doc = "Return the current syntax table."//LF// &
+                        "This is the one specified by the current buffer."
         case ("t-value")
             entry%file = "lisp_fm.f90"
             entry%fortran = "t_value()"
@@ -1758,6 +2001,12 @@ contains
             entry%value = repr(visible_bell)
             entry%doc = "term.c's Lisp variables visible-bell, inverse-video and"//LF// &
                         "visible-cursor."
+        case ("words-include-escapes")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "words_include_escapes"
+            entry%original = ".false."
+            entry%value = repr(words_include_escapes)
+            entry%doc = "Non-nil means `forward-word', etc., should treat escape chars part of words."
         case default
             found = .false.
         end select

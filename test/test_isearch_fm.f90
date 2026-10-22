@@ -59,7 +59,8 @@ contains
                     new_unittest("isearch-prefix-argument", test_prefix), &
                     new_unittest("isearch-search-ring", test_ring), &
                     new_unittest("isearch-nonincremental", test_nonincremental), &
-                    new_unittest("isearch-yank", test_yank) &
+                    new_unittest("isearch-yank", test_yank), &
+                    new_unittest("isearch-yank-word-or-char", test_yank_word) &
                     ]
     end subroutine collect_isearch_fm
 
@@ -97,14 +98,21 @@ contains
 
     subroutine test_done(error)
         type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        ! Emacs always has a current buffer; give the test its own.
+        call enter("", h)
         ! Normal operation.
         call isearch_update()
         call isearch_done()
         call check(error,.not. isearch_active)
-        if (allocated(error)) return
+        if (allocated(error)) then
+            call leave(h)
+            return
+        end if
         ! Bug #21091: let `isearch-done' work without `isearch-update'.
         call isearch_done()
         call check(error,.not. isearch_active .and. overriding_terminal_local_map%index == 0)
+        call leave(h)
     end subroutine test_done
 
     subroutine test_typing(error)
@@ -294,6 +302,24 @@ contains
         call check(error, isearch_string == "bar" .and. point() == 8, isearch_string)
         call leave(h)
     end subroutine test_yank
+
+    !> C-w yanks a word, or a character when no word follows.
+    subroutine test_yank_word(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("Foo bar, baz", h)
+        call type_keys("C-s C-w")
+        call check(error, isearch_string == "foo" .and. point() == 4, isearch_string)
+        if (allocated(error)) return
+        ! A space, then a word: the word comes too.
+        call type_keys("C-w")
+        call check(error, isearch_string == "foo bar" .and. point() == 8, isearch_string)
+        if (allocated(error)) return
+        ! A comma and a space: one character.
+        call type_keys("C-w")
+        call check(error, isearch_string == "foo bar," .and. point() == 9, isearch_string)
+        call leave(h)
+    end subroutine test_yank_word
 
     function ring() result(v)
         type(value_type) :: v

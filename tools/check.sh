@@ -91,6 +91,14 @@ fi
 fpm build --profile debug --flag "$FFLAGS"
 fpm test --profile debug --flag "$FFLAGS"
 
+# Each suite alone too, so none depends on state an earlier one left.
+for suite in $(sed -n 's/.*new_testsuite("\([a-z_]*\)".*/\1/p' test/main.f90); do
+    if ! fpm test --profile debug --flag "$FFLAGS" -- "$suite" >/dev/null 2>&1; then
+        echo "test suite $suite fails when run alone: fpm test -- $suite" >&2
+        exit 1
+    fi
+done
+
 if $memcheck; then
     fpm test --profile debug --flag "$FFLAGS" --runner \
         "valgrind -q --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=9 --suppressions=tools/valgrind.supp"

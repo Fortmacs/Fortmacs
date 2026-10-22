@@ -27,7 +27,7 @@
 !> Literal search only: no regexp, word, symbol or char-fold search, and
 !> no lax whitespace matching (they need regexp search).  Not ported yet:
 !> highlighting the match and lazy highlighting (faces from overlays),
-!> C-w and C-M-w (word and symbol syntax), reading a kill with the
+!> C-M-w (symbol syntax: forward-symbol), reading a kill with the
 !> minibuffer (`isearch-yank-from-kill-ring`, C-u M-y), search through invisible text, scrolling during search
 !> (`isearch-allow-scroll`), `isearch-allow-motion`, query-replace and
 !> occur from isearch, the help map, input methods, completion, the
@@ -43,7 +43,9 @@ module isearch_fm
     use character_fm, only: string_char_and_length, char_string, MAX_CHAR, MAX_MULTIBYTE_LENGTH, &
                             CHAR_SHIFT
     use casetab_fm, only: downcase
-    use buffer_fm, only: buffers, cur, transient_mark_mode
+    use buffer_fm, only: buffers, cur, transient_mark_mode, buf_fetch_char
+    use marker_fm, only: char_to_byte
+    use syntax_fm, only: char_syntax, forward_word
     use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, eolp, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_char
@@ -67,7 +69,8 @@ module isearch_fm
               isearch_update, isearch_exit, isearch_cancel, isearch_abort, &
               isearch_repeat_forward, isearch_repeat_backward, isearch_delete_char, &
               isearch_del_char, isearch_printing_char, isearch_process_search_string, &
-              isearch_yank_string, isearch_yank_char, isearch_yank_line, isearch_yank_kill, isearch_yank_pop_only, &
+              isearch_yank_string, isearch_yank_char, isearch_yank_word_or_char, isearch_yank_line, &
+              isearch_yank_kill, isearch_yank_pop_only, &
               isearch_beginning_of_buffer, isearch_end_of_buffer, isearch_ring_advance, &
               isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
               isearch_message_prefix, syms_of_isearch
@@ -1016,19 +1019,28 @@ contains
 
     !> Pull the text from point to the point reached by `jump`: 1 moves
     !> forward `arg` characters, 2 to the end of the line (`arg` lines
-    !> on).  Port of isearch.el:isearch-yank-internal.
+    !> on), 3 over `arg` words or characters (isearch--yank-char-or-syntax
+    !> with word syntax).  Port of isearch.el:isearch-yank-internal.
     subroutine isearch_yank_internal(jump, arg)
         integer, intent(in) :: jump
         integer(int64), intent(in) :: arg
         character(len=:), allocatable :: text
         type(status_type) :: status
-        integer(int64) :: saved, from
+        integer(int64) :: saved, from, k
         saved = point()
         if (.not. isearch_forward .and. isearch_other_end /= 0) call goto_char(isearch_other_end)
         if (.not. isearch_success .and. isearch_yank_prev_point /= 0) call goto_char(isearch_yank_prev_point)
         from = point()
         if (jump == 1) then
             call forward_char(status, arg)
+        else if (jump == 3) then
+            do k = 1, arg
+                if (char_syntax(char_after(point())) == "w" .or. char_syntax(char_after(point() + 1)) == "w") then
+                    call forward_word(1_int64)
+                else
+                    call forward_char(status, 1_int64)
+                end if
+            end do
         else
             call goto_char(pos_eol(merge(arg + 1, arg, eolp())))
         end if
@@ -1046,6 +1058,24 @@ contains
         integer(int64), intent(in) :: arg
         call isearch_yank_internal(1, arg)
     end subroutine isearch_yank_char
+
+    !> Pull next character or word from buffer into search string.
+    !> If optional ARG is non-nil, pull in the next ARG characters/words.
+    !> Port of isearch.el:isearch-yank-word-or-char.
+    subroutine isearch_yank_word_or_char(arg)
+        integer(int64), intent(in) :: arg
+        call isearch_yank_internal(3, arg)
+    end subroutine isearch_yank_word_or_char
+
+    !> The character at `pos`, or 0 at the end of the accessible region
+    !> ((or (char-after POS) 0)).
+    integer function char_after(pos)
+        integer(int64), intent(in) :: pos
+        char_after = 0
+        if (pos >= buffers(cur)%begv .and. pos < buffers(cur)%zv) then
+            char_after = buf_fetch_char(buffers(cur), char_to_byte(pos))
+        end if
+    end function char_after
 
     !> Pull rest of line from buffer into search string.
     !> If optional ARG is non-nil, yank the next ARG lines.  Port of
@@ -1294,6 +1324,12 @@ contains
         call isearch_yank_char(arg_p())
     end subroutine cmd_isearch_yank_char
 
+    subroutine cmd_isearch_yank_word_or_char(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call isearch_yank_word_or_char(arg_p())
+    end subroutine cmd_isearch_yank_word_or_char
+
     subroutine cmd_isearch_yank_line(status)
         type(status_type), intent(out) :: status
         status = status_type()
@@ -1374,6 +1410,7 @@ contains
         call defcommand("isearch-quote-char", cmd_isearch_quote_char)
         call defcommand("isearch-yank-char", cmd_isearch_yank_char)
         call defcommand("isearch-yank-line", cmd_isearch_yank_line)
+        call defcommand("isearch-yank-word-or-char", cmd_isearch_yank_word_or_char)
         call defcommand("isearch-beginning-of-buffer", cmd_isearch_beginning_of_buffer)
         call defcommand("isearch-end-of-buffer", cmd_isearch_end_of_buffer)
         call defcommand("isearch-toggle-case-fold", cmd_isearch_toggle_case_fold)
@@ -1413,6 +1450,7 @@ contains
         call bind(isearch_mode_map, "TAB", "isearch-printing-char")
         call bind(isearch_mode_map, "S-SPC", "isearch-printing-char")
         call bind(isearch_mode_map, "C-M-d", "isearch-del-char")
+        call bind(isearch_mode_map, "C-w", "isearch-yank-word-or-char")
         call bind(isearch_mode_map, "C-M-y", "isearch-yank-char")
         call bind(isearch_mode_map, "M-s C-e", "isearch-yank-line")
         call bind(isearch_mode_map, "M-s M-<", "isearch-beginning-of-buffer")
