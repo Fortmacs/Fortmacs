@@ -33,6 +33,8 @@
 !> - struct passwd: glibc pwd.h (pointers and 32-bit ids, the same on both)
 !> - access modes: unistd.h;  AT_FDCWD: linux/fcntl.h
 !> - wait status bits: glibc bits/waitstatus.h
+!> - struct dirent: glibc bits/dirent.h (d_name at byte 19 on both);  struct
+!>   tm: glibc bits/types/struct_tm.h (nine ints, then tm_gmtoff and tm_zone)
 !>
 !> Variadic functions (`open`, `ioctl`) are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
@@ -175,6 +177,14 @@ module sys_linux_fm
         integer(c_int64_t) :: spare2(14) = 0
     end type statx_type
 
+    !> struct tm (56 bytes).
+    type, bind(C), public :: tm_type
+        integer(c_int) :: tm_sec = 0, tm_min = 0, tm_hour = 0, tm_mday = 0, tm_mon = 0, &
+                          tm_year = 0, tm_wday = 0, tm_yday = 0, tm_isdst = 0
+        integer(c_long) :: tm_gmtoff = 0
+        type(c_ptr) :: tm_zone
+    end type tm_type
+
     !> struct passwd.
     type, bind(C), public :: passwd_type
         type(c_ptr) :: pw_name, pw_passwd
@@ -190,7 +200,7 @@ module sys_linux_fm
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
               c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
-              c_strsignal, c_mkostemp
+              c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
     public :: errno, c_string_to_fortran
 
     interface
@@ -408,6 +418,39 @@ module sys_linux_fm
             implicit none(type, external)
             integer(c_int), value :: errnum
         end function c_strerror
+
+        type(c_ptr) function c_opendir(path) bind(C, name="opendir")
+            import :: c_ptr, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+        end function c_opendir
+
+        !> The next struct dirent, or null at the end (or on error, with
+        !> errno set).
+        type(c_ptr) function c_readdir(dirp) bind(C, name="readdir")
+            import :: c_ptr
+            implicit none(type, external)
+            type(c_ptr), value :: dirp
+        end function c_readdir
+
+        integer(c_int) function c_closedir(dirp) bind(C, name="closedir")
+            import :: c_int, c_ptr
+            implicit none(type, external)
+            type(c_ptr), value :: dirp
+        end function c_closedir
+
+        integer(c_int) function c_symlink(target, linkpath) bind(C, name="symlink")
+            import :: c_int, c_char
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: target(*), linkpath(*)
+        end function c_symlink
+
+        type(c_ptr) function c_localtime_r(time, result) bind(C, name="localtime_r")
+            import :: c_ptr, c_int64_t, tm_type
+            implicit none(type, external)
+            integer(c_int64_t), intent(in) :: time
+            type(tm_type), intent(out) :: result
+        end function c_localtime_r
 
         integer(c_int32_t) function c_fork() bind(C, name="fork")
             import :: c_int32_t

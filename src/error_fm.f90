@@ -63,8 +63,9 @@ module error_fm
     integer(int32), parameter, public :: FM_INVALID_HANDLE = 17
     integer(int32), parameter, public :: FM_VOID_FUNCTION = 18
     integer(int32), parameter, public :: FM_FILE_MISSING = 19
+    integer(int32), parameter, public :: FM_FILE_ALREADY_EXISTS = 20
 
-    integer(int32), parameter :: last_code = FM_FILE_MISSING
+    integer(int32), parameter :: last_code = FM_FILE_ALREADY_EXISTS
     integer, parameter :: name_len = 24, msg_len = 40
 
     !> `error-conditions` symbol names, indexed by code.
@@ -76,7 +77,8 @@ module error_fm
                                                                 "beginning-of-buffer", "end-of-buffer", &
                                                                 "buffer-read-only", "text-read-only", &
                                                                 "file-error", "memory-full", "invalid-handle", &
-                                                                "void-function", "file-missing"]
+                                                                "void-function", "file-missing", &
+                                                                "file-already-exists"]
 
     !> `error-message` strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -91,7 +93,7 @@ module error_fm
                                                                   "File error", "Memory exhausted", &
                                                                   "Object has been deleted", &
                                                                   "Symbol's function definition is void", &
-                                                                  "File is missing"]
+                                                                  "File is missing", "File already exists"]
 
     !> Parent condition of each code (the next element of its
     !> `error-conditions` list); -1 ends the chain.  `quit` is deliberately
@@ -104,7 +106,7 @@ module error_fm
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_BUFFER_READ_ONLY, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, &
-                                 FM_GENERIC_ERROR, FM_FILE_ERROR]
+                                 FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR]
 
     !> Outcome of a fallible operation.  `detail` plays the role of the
     !> signal's DATA (e.g. the offending arguments).

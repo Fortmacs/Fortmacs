@@ -23,6 +23,7 @@ module test_fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, condition_matches, format_error, FM_FILE_ERROR, &
+                        FM_FILE_ALREADY_EXISTS, &
                         FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, &
@@ -32,6 +33,7 @@ module test_fileio_fm
     use sysdep_fm, only: sys_setenv, sys_unsetenv
     use fileio_fm, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
                          file_executable_p, file_newer_than_file_p, &
+                         make_symbolic_link, file_symlink_p, &
                          directory_file_name, directory_name_p, file_name_absolute_p, &
                          expand_file_name, get_homedir, init_fileio, emacs_wd, file_exists_p, &
                          file_readable_p, file_writable_p, file_directory_p, file_modes, &
@@ -567,6 +569,18 @@ contains
                    .not. file_newer_than_file_p(testdir//"/missing", testdir//"/f6") .and. &
                    .not. file_newer_than_file_p(testdir//"/f6", testdir//"/f6"), "file-newer-than-file-p")
         if (allocated(error)) return
+        ! make-symbolic-link: once, then again only when allowed.
+        call make_symbolic_link("f6", testdir//"/link", st)
+        call check(error, st%ok() .and. file_symlink_p(testdir//"/link"), "symbolic link")
+        if (allocated(error)) return
+        call make_symbolic_link("f6", testdir//"/link", st)
+        call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. condition_matches(st%code, FM_FILE_ERROR), &
+                   format_error(st))
+        if (allocated(error)) return
+        call make_symbolic_link("f6", testdir//"/link", st, ok_if_already_exists=.true.)
+        call check(error, st%ok(), "replaced")
+        if (allocated(error)) return
+        call delete_file_internal(testdir//"/link", st)
         call make_directory_internal(testdir//"/sub", st)
         call check(error, st%ok() .and. file_directory_p(testdir//"/sub/"))
         if (allocated(error)) return

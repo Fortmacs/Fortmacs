@@ -23,12 +23,16 @@ module test_config_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, get_homedir, write_region, &
-                         delete_file_internal, delete_directory_internal
+                         delete_file_internal, delete_directory_internal, set_file_modes
     use files_fm, only: make_directory
     use env_fm, only: getenv
+    use handle_fm, only: handle_type
+    use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use sysdep_fm, only: sys_setenv, sys_unsetenv
     use config_fm, only: config_directory, state_directory, cache_directory, init_file_name, &
-                         user_build_name, running_executable, install_prefix, driver_source, recompile
+                         generations_directory, current_build_name, running_executable, install_prefix, &
+                         driver_source, recompile, generation_numbers, current_generation, generation_of, &
+                         switch_generation, rollback, list_generations
     implicit none(type, external)
     private
 
@@ -45,7 +49,8 @@ contains
                     new_unittest("config-xdg-directories", test_directories), &
                     new_unittest("config-install-prefix", test_install_prefix), &
                     new_unittest("config-driver-source", test_driver_source), &
-                    new_unittest("config-recompile-errors", test_recompile_errors) &
+                    new_unittest("config-recompile-errors", test_recompile_errors), &
+                    new_unittest("config-generations", test_generations) &
                     ]
     end subroutine collect_config_fm
 
@@ -62,6 +67,17 @@ contains
             err = sys_unsetenv(name)
         end if
     end subroutine setenv
+
+
+    !> Make an empty buffer current, for write_region to write empty files.
+    subroutine empty_buffer()
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call get_buffer_create(" *config-test*", h, st)
+        call set_buffer(h, st)
+        call erase_buffer(st)
+    end subroutine empty_buffer
 
 
     !> Restore variable `name` to `old` (unset unless `found`).
@@ -99,7 +115,9 @@ contains
             if (allocated(error)) exit body
             call check(error, init_file_name(), "/xdg/config/fortmacs/init.f90")
             if (allocated(error)) exit body
-            call check(error, user_build_name(), "/xdg/state/fortmacs/fortmacs")
+            call check(error, generations_directory(), "/xdg/state/fortmacs/generations/")
+            if (allocated(error)) exit body
+            call check(error, current_build_name(), "/xdg/state/fortmacs/generations/current/fortmacs")
             if (allocated(error)) exit body
             ! Unset, empty or relative: the defaults under the home directory.
             call setenv("XDG_CONFIG_HOME")
@@ -135,6 +153,7 @@ contains
         call check(error,.not. found .and. prefix == "", "not in a bin directory")
         if (allocated(error)) return
         call init_fileio()
+        call empty_buffer()
         root = file_name_as_directory(emacs_wd)//testdir//"/prefix/"
         call make_directory(root//"lib", st, parents=.true.)
         call install_prefix(root//"bin/fortmacs", prefix, found)
@@ -190,6 +209,7 @@ contains
         type(status_type) :: st
 
         call init_fileio()
+        call empty_buffer()
         root = file_name_as_directory(emacs_wd)//testdir//"/xdg/"
         call getenv("XDG_CONFIG_HOME", config, has_config)
         call setenv("XDG_CONFIG_HOME", root)
@@ -211,5 +231,88 @@ contains
         call delete_directory_internal(root, st)
         call restore("XDG_CONFIG_HOME", config, has_config)
     end subroutine test_recompile_errors
+
+
+    !> Generations 1, 2 and 10 (stand-in binaries), switched between and
+    !> rolled back.
+    subroutine test_generations(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: state, root, gens, text
+        character(len=2), parameter :: made(3) = ["1 ", "2 ", "10"]
+        integer, allocatable :: numbers(:)
+        integer :: k, from, to
+        logical :: has_state
+        type(status_type) :: st
+
+        call init_fileio()
+        call empty_buffer()
+        root = file_name_as_directory(emacs_wd)//testdir//"/state/"
+        call getenv("XDG_STATE_HOME", state, has_state)
+        call setenv("XDG_STATE_HOME", root)
+        gens = generations_directory()
+
+        do k = 1, size(made)
+            call make_directory(gens//trim(made(k)), st, parents=.true.)
+            call write_region(gens//trim(made(k))//"/fortmacs", .false., st)
+            call set_file_modes(gens//trim(made(k))//"/fortmacs", int(o'755'), st)
+        end do
+
+        body: block
+            call generation_numbers(numbers, st)
+            call check(error, st%ok() .and. size(numbers) == 3, "three generations")
+            if (allocated(error)) exit body
+            call check(error, all(numbers == [1, 2, 10]), "in numeric order")
+            if (allocated(error)) exit body
+            call check(error, current_generation(), 0)
+            if (allocated(error)) exit body
+            call rollback(from, to, st)
+            call check(error, format_error(st), "There are no generations yet; run fortmacs --recompile")
+            if (allocated(error)) exit body
+
+            call switch_generation(2, st)
+            call check(error, st%ok() .and. current_generation() == 2, "switched to 2")
+            if (allocated(error)) exit body
+            call switch_generation(3, st)
+            call check(error, format_error(st), "There is no generation 3")
+            if (allocated(error)) exit body
+            call check(error, current_generation(), 2)
+            if (allocated(error)) exit body
+
+            call rollback(from, to, st)
+            call check(error, st%ok() .and. from == 2 .and. to == 1, "rolled back from 2 to 1")
+            if (allocated(error)) exit body
+            call rollback(from, to, st)
+            call check(error, format_error(st), "There is no generation before generation 1")
+            if (allocated(error)) exit body
+
+            ! Rolling back skips missing numbers.
+            call switch_generation(10, st)
+            call rollback(from, to, st)
+            call check(error, st%ok() .and. from == 10 .and. to == 2, "rolled back from 10 to 2")
+            if (allocated(error)) exit body
+
+            call list_generations(text, st)
+            call check(error, index(text, "Generation 1"//achar(9)) == 1, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "(current)"//new_line("a")//"Generation 10"//achar(9)) > 0, text)
+            if (allocated(error)) exit body
+
+            call check(error, generation_of(gens//"2/fortmacs"), 2)
+            if (allocated(error)) exit body
+            call check(error, generation_of("/usr/bin/fortmacs"), 0)
+        end block body
+
+        call delete_file_internal(gens//"current", st)
+
+        do k = 1, size(made)
+            call delete_file_internal(gens//trim(made(k))//"/fortmacs", st)
+            call delete_directory_internal(gens//trim(made(k)), st)
+        end do
+
+        call delete_directory_internal(gens, st)
+        call delete_directory_internal(root//"fortmacs", st)
+        call delete_directory_internal(root, st)
+        call restore("XDG_STATE_HOME", state, has_state)
+    end subroutine test_generations
 
 end module test_config_fm

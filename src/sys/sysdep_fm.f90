@@ -48,7 +48,8 @@ module sysdep_fm
                             ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
                             S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                             c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
-                            O_WRONLY
+                            O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
+                            tm_type
     implicit none(type, external)
     private
 
@@ -74,7 +75,8 @@ module sysdep_fm
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
-              emacs_readlink, emacs_execv, emacs_mkostemp
+              emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
+              emacs_localtime
 
     !> A string of any length, for argument vectors.
     type :: sys_string_type
@@ -1000,5 +1002,82 @@ contains
             template = buf(1:len(template))
         end if
     end function emacs_mkostemp
+
+
+    !> The names of the entries of directory `dir`, "." and ".." included,
+    !> in the order the file system gives them.  Cf. dired.c's use of
+    !> opendir and readdir.
+    integer(int32) function emacs_directory_entries(dir, names) result(err)
+        character(len=*), intent(in) :: dir
+        type(sys_string_type), allocatable, intent(out) :: names(:)
+        ! struct dirent: d_ino (8), d_off (8), d_reclen (2), d_type (1), then
+        ! d_name (256).
+        integer, parameter :: name_offset = 19, dirent_size = 280
+        type(sys_string_type), allocatable :: grown(:)
+        character(kind=c_char), pointer :: entry(:)
+        type(c_ptr) :: dirp, p
+        integer(c_int) :: r
+        integer :: n, k, e
+
+        err = 0
+        allocate (names(0))
+        dirp = c_opendir(c_path(dir))
+
+        if (.not. c_associated(dirp)) then
+            err = errno()
+            return
+        end if
+
+        n = 0
+
+        do
+            p = c_readdir(dirp)
+            if (.not. c_associated(p)) exit
+            call c_f_pointer(p, entry, [dirent_size])
+            e = name_offset
+
+            do while (entry(e + 1) /= c_null_char)
+                e = e + 1
+            end do
+
+            if (n == size(names)) then
+                allocate (grown(max(16, 2*n)))
+                grown(1:n) = names
+                call move_alloc(grown, names)
+            end if
+
+            n = n + 1
+            names(n)%s = repeat(" ", e - name_offset)
+
+            do k = 1, e - name_offset
+                names(n)%s(k:k) = entry(name_offset + k)
+            end do
+        end do
+
+        r = c_closedir(dirp)
+        names = names(1:n)
+    end function emacs_directory_entries
+
+
+    !> symlink(2): make `link` a symbolic link to `target`.
+    integer(int32) function sys_symlink(target, link) result(err)
+        character(len=*), intent(in) :: target, link
+
+        err = 0
+        if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
+    end function sys_symlink
+
+
+    !> The local time of `seconds` since the epoch: year, month (1-12),
+    !> day, hour, minute and second.
+    function emacs_localtime(seconds) result(parts)
+        integer(int64), intent(in) :: seconds
+        integer :: parts(6)
+        type(tm_type) :: tm
+        type(c_ptr) :: p
+
+        p = c_localtime_r(seconds, tm)
+        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
+    end function emacs_localtime
 
 end module sysdep_fm
