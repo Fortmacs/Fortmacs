@@ -290,8 +290,15 @@ contains
         if (allocated(error)) return
 
         ! ~USER takes USER's home from the passwd database, not $HOME.
+        ! A home of "/" gives "//x", a leading "//" being kept (as
+        ! upstream; a build sandbox's user may have that home).
         if (found .and. found_home) then
-            call check_expand(error, "~"//me//"/x", "/x/", file_name_as_directory(home)//"x")
+            if (home == "/") then
+                call check_expand(error, "~"//me//"/x", "/x/", "//x")
+            else
+                call check_expand(error, "~"//me//"/x", "/x/", file_name_as_directory(home)//"x")
+            end if
+
             if (allocated(error)) return
         end if
 
