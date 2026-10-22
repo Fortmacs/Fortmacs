@@ -169,25 +169,20 @@
 <pre><code><span class="t" data-p="doc">!&gt; The number of the longest line in the buffer.</span>
 <span class="t" data-p="ret">integer(int64)</span> <span class="t" data-p="def">function</span> <span class="t" data-p="name">longest_line</span><span class="t" data-p="args">()</span> <span class="t" data-p="ret">result(best_line)</span>
     <span class="t" data-p="let">integer(int64) ::</span> <span class="t" data-p="save">opoint</span>, <span class="t" data-p="let">best</span>, <span class="t" data-p="width">width</span>, <span class="t" data-p="let">line</span>, <span class="t" data-p="fwd">shortage</span>
-
     <span class="t" data-p="save">opoint = point()</span>
     <span class="t" data-p="init">best = 0</span>
     <span class="t" data-p="init">best_line = 1</span>
     <span class="t" data-p="init">line = 1</span>
     <span class="t" data-p="goto">call goto_char(point_min())</span>
-
     <span class="t" data-p="while">do while (.not. eobp())</span>
         <span class="t" data-p="width">width = line_end_position() - line_beginning_position()</span>
-
         <span class="t" data-p="when">if (width &gt; best) then</span>
             <span class="t" data-p="setq">best = width</span>
             <span class="t" data-p="setq">best_line = line</span>
         <span class="t" data-p="when">end if</span>
-
         <span class="t" data-p="fwd">shortage = forward_line(1_int64)</span>
         <span class="t" data-p="incr">line = line + 1</span>
     <span class="t" data-p="while">end do</span>
-
     <span class="t" data-p="save">call goto_char(opoint)</span>
 <span class="t" data-p="def">end function</span> <span class="t" data-p="name">longest_line</span></code></pre>
     </figure>

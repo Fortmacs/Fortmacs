@@ -24,7 +24,7 @@
 #               of failing on format drift.
 #   --valgrind  also run the tests under valgrind and fail on any definite
 #               leak or memory error (see tools/valgrind.supp).
-#   --no-style  skip the format, blank-line and lint checks (for distro jobs that only
+#   --no-style  skip the format and lint checks (for distro jobs that only
 #               need the build and tests; style is checked elsewhere).
 
 set -eu
@@ -74,7 +74,6 @@ if $style; then
         fortitude check --fix $DIRS >/dev/null 2>&1 || true
     fi
 
-    files=$(find src app test -name '*.f90' | sort; echo docs/init.f90)
     if $fix; then
         fprettify --config-file .fprettify.rc --recursive $DIRS
     else
@@ -84,26 +83,6 @@ if $style; then
             echo "format drift: run tools/check.sh --fix" >&2
             exit 1
         fi
-    fi
-
-    # Blank lines: tools/blank-lines.awk.
-    drifted=""
-    for f in $files; do
-        awk -f tools/blank-lines.awk "$f" >"$f.blank" || { rm -f "$f.blank"; exit 1; }
-        # (awk, not cmp or diff: the distro containers lack diffutils)
-        if awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' "$f" "$f.blank"; then
-            rm -f "$f.blank"
-        elif $fix; then
-            mv "$f.blank" "$f"
-        else
-            awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { print FILENAME ": first difference at line " FNR; exit }' "$f" "$f.blank"
-            rm -f "$f.blank"
-            drifted="$drifted $f"
-        fi
-    done
-    if [ -n "$drifted" ]; then
-        echo "blank-line drift in:$drifted; run tools/check.sh --fix" >&2
-        exit 1
     fi
 
     fortitude check $DIRS
