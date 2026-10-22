@@ -289,6 +289,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-22 — README: the side-by-side syntax link points at `docs/syntax.html` in the repository, since GitHub Pages is not enabled while the repository is private (the Pages URL gave a 404). On `docs-syntax-link`.
 - 2026-10-22 — Style: one blank line at most (none between a procedure's start or end and its body, one between procedures), as the user asked; `check.sh` no longer needs a copy for fprettify. On `style-single-blank` (based on main after PR #32). Next: features, in whatever order the user asks for.
 - 2026-10-22 — Phase 5.1: generations of the configuration (`config_fm`: numbered builds with their init.f90, `current` link, `--list-generations`, `--rollback`, `--switch-generation N`; `dired_fm` `directory-files`; `make-symbolic-link` and the `file-already-exists` error; opendir/readdir, symlink and localtime_r bindings), on `phase5-generations` (based on main after PR #31). Next: features, in whatever order the user asks for.
 - 2026-10-22 — Style: blank lines after the Bristol RSE Fortran guidelines (`tools/blank-lines.awk`, checked and fixed by `tools/check.sh`), applied to all code; the README example too, with a link to `docs/syntax.html` (the two versions side by side, each part lighting up its counterpart; served by GitHub Pages from docs/); the repository is now vermi-culous/Fortmacs. On `style-blank-lines-bristol` (based on main after PR #30). Next: Phase 5, generations and `--rollback`.

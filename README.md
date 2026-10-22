@@ -165,8 +165,10 @@ it became clear that Fortran brings real benefits over Emacs Lisp:
   end function longest_line
   ```
 
-  [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html):
-  pointing at any part of either version lights up its counterpart.
+  [Compare the two side by side](docs/syntax.html) (download the page and
+  open it in a browser; it will be served by GitHub Pages once the
+  repository is public): pointing at any part of either version lights up
+  its counterpart.
 
   None of this makes Elisp wrong. Preferring Fortran's syntax is simply a
   preference, and more options can never hurt.
