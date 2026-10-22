@@ -39,9 +39,9 @@ module print_fm
 contains
 
     !> Return a string containing the printed representation of OBJECT.
-    !> OBJECT can be any Lisp object.  Strings are quoted, with " and \
-    !> escaped by a backslash.  Port of print.c:Fprin1_to_string
-    !> (NOESCAPE nil).
+    !> OBJECT can be any Lisp object.  Strings are quoted, a backslash
+    !> escaping each double quote and backslash in them.  Port of
+    !> print.c:Fprin1_to_string (NOESCAPE nil).
     recursive function prin1_to_string(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s

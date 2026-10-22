@@ -47,7 +47,7 @@ module help_fm
     use keyboard_fm, only: read_key_sequence
     use callint_fm, only: defcommand, commandp
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
-                         buffers, cur
+                         restore_buffer_modified_p, buffers, cur
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use xdisp_fm, only: message
@@ -306,7 +306,8 @@ contains
     subroutine with_help_window(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf
+        type(handle_type) :: buf, previous
+        previous = current_buffer()
         call get_buffer_create(help_buffer_name, buf, status)
         if (.not. status%ok()) return
         call set_buffer(buf, status)
@@ -317,14 +318,19 @@ contains
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
+        call restore_buffer_modified_p(.false.)
         call goto_char(1_int64)
         call help_mode(status)
         if (.not. status%ok()) return
         ! display-buffer: the selected window (the root window, unless the
         ! minibuffer is active) shows it, recording the buffer it showed.
         if (.not. selected_frame%minibuffer_selected) then
-            call set_window_buffer(selected_frame%root_window, buf, status)
+            call set_window_buffer(selected_frame%root_window, buf, status, record=.false.)
             if (.not. status%ok()) return
+            ! The window showed the buffer that was current.
+            if (previous%index /= buf%index .or. previous%generation /= buf%generation) then
+                selected_frame%root_window%prev_buffer = previous
+            end if
         end if
         call message(substitute_command_keys("Type \<help-mode-map>\[quit-window] to restore previous buffer"))
     end subroutine with_help_window

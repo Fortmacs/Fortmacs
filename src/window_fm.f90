@@ -257,7 +257,7 @@ contains
         rec = .true.
         if (present(record)) rec = record
         if (rec .and. w%buffer%index /= 0 .and. .not. (w%buffer%index == buffer%index .and. &
-                                                      w%buffer%generation == buffer%generation)) then
+                                                       w%buffer%generation == buffer%generation)) then
             w%prev_buffer = w%buffer
         end if
         if (w%start%index == 0) call make_marker(w%start)

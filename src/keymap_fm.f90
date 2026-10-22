@@ -1668,7 +1668,7 @@ contains
         type(handle_type), intent(in), optional :: keymap
         type(key_list_type), allocatable :: queue(:), found(:)
         type(value_type), allocatable :: maps(:), seq(:), elems(:)
-        type(value_type) :: active, binding
+        type(value_type) :: active, binding, one
         type(handle_type) :: km
         type(status_type) :: status
         integer :: qhead, qtail, nfound, k
@@ -1722,7 +1722,9 @@ contains
                 end if
                 if (nilp(keys)) keys = make_list(found(k)%keys)
             else
-                elems = [elems, make_list(found(k)%keys)]
+                ! (Not [elems, make_list(...)]: that leaks in gfortran.)
+                one = make_list(found(k)%keys)
+                call append_value(elems, one)
             end if
         end do
         if (.not. first) keys = make_list(elems)
@@ -1837,6 +1839,19 @@ contains
             end if
         end do
     end function same_keys
+
+    !> Append `v` to the array `list`.
+    subroutine append_value(list, v)
+        type(value_type), allocatable, intent(inout) :: list(:)
+        type(value_type), intent(in) :: v
+        type(value_type), allocatable :: grown(:)
+        integer :: n
+        n = size(list)
+        allocate (grown(n + 1))
+        grown(1:n) = list
+        grown(n + 1) = v
+        call move_alloc(grown, list)
+    end subroutine append_value
 
     !> Append (`keys`, `map`) to `list`, which holds `n` entries.
     subroutine push(list, n, keys, map)

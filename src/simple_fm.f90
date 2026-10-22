@@ -1660,8 +1660,8 @@ contains
     !> Kill the rest of the current line; if no nonblanks there, kill thru
     !> newline.  With prefix argument ARG, kill that many lines from point.
     !> Negative arguments kill lines backward.  With zero argument, kills
-    !> the text before point on the current line.  `have_arg` false means
-    !> no argument.  Port of simple.el:kill-line.
+    !> the text before point on the current line.  Port of simple.el:kill-line.
+    !> `have_arg` false means no argument.
     subroutine kill_line(arg, have_arg, status)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: have_arg

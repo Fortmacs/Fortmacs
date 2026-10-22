@@ -478,8 +478,6 @@ END {
             print "            entry%original = " q(init)
         }
         if (venum[i] != "") {
-            print "            entry%value = repr(" vfort[i] ")"
-            print ""
             print "            select case (" vfort[i] ")"
             n = split(venum[i], defs, ",")
             for (k = 1; k <= n; k++) {
@@ -487,8 +485,9 @@ END {
                 print "            case (" d ")"
                 print "                entry%value = " q(d)
             }
+            print "            case default"
+            print "                entry%value = repr(" vfort[i] ")"
             print "            end select"
-            print ""
         } else {
             if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
             else print "            entry%value = repr(" vfort[i] ")"

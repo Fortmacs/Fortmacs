@@ -26,7 +26,7 @@ module test_help_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
+    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, buffer_modified_p
     use editfns_fm, only: buffer_string
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
@@ -272,19 +272,23 @@ contains
         call check(error, index(text, "Its value is nil"//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
-        call check(error, .not. found)
+        call check(error,.not. found)
     end subroutine test_describe_variable
 
     !> *Help* is read-only, in Help mode; q goes back.
     subroutine test_help_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+        logical :: modified
         call fresh_scratch()
         call with_help_window("Some help."//LF, st)
         call check(error, st%ok() .and. buffers(cur)%name == "*Help*" .and. buffers(cur)%read_only .and. &
                    buffer_string() == "Some help."//LF, buffers(cur)%name)
         if (allocated(error)) return
         call check(error, last_message == "Type q to restore previous buffer", last_message)
+        if (allocated(error)) return
+        call buffer_modified_p(current_buffer(), modified, st)
+        call check(error,.not. modified, "*Help* is unmodified")
         if (allocated(error)) return
         call type_keys("q")
         call command_loop(st)

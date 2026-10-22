@@ -767,8 +767,7 @@ contains
             entry%doc = "Kill the rest of the current line; if no nonblanks there, kill thru"//LF// &
                         "newline.  With prefix argument ARG, kill that many lines from point."//LF// &
                         "Negative arguments kill lines backward.  With zero argument, kills"//LF// &
-                        "the text before point on the current line.  `have_arg` false means"//LF// &
-                        "no argument."
+                        "the text before point on the current line."
         case ("kill-new")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_new(string, replace)"
@@ -1712,7 +1711,6 @@ contains
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_upper_case"
             entry%original = "UPPER_CASE_NOT_YANKS"
-            entry%value = repr(search_upper_case)
             select case (search_upper_case)
             case (UPPER_CASE_NIL)
                 entry%value = "UPPER_CASE_NIL"
@@ -1720,6 +1718,8 @@ contains
                 entry%value = "UPPER_CASE_T"
             case (UPPER_CASE_NOT_YANKS)
                 entry%value = "UPPER_CASE_NOT_YANKS"
+            case default
+                entry%value = repr(search_upper_case)
             end select
             entry%doc = "If non-nil, upper case chars disable case fold searching."//LF// &
                         "That is, upper and lower case chars must match exactly."//LF// &
