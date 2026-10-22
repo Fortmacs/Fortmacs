@@ -19,7 +19,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Ports test/lisp/isearch-tests.el isearch--test-done (the others need
-!> invisible text, outlines or regexp search); the rest drive isearch
+!> invisible text, outlines or text properties); the rest drive isearch
 !> through the command loop.  The buffer is "foo bar foo baz Foo"
 !> unless a test says otherwise.
 module test_isearch_fm
@@ -38,7 +38,8 @@ module test_isearch_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use isearch_fm, only: isearch_done, isearch_update, isearch_active, isearch_string
+    use isearch_fm, only: isearch_done, isearch_update, isearch_active, isearch_string, isearch_regexp, &
+                          isearch_lax_whitespace
     implicit none(type, external)
     private
 
@@ -60,7 +61,11 @@ contains
                     new_unittest("isearch-search-ring", test_ring), &
                     new_unittest("isearch-nonincremental", test_nonincremental), &
                     new_unittest("isearch-yank", test_yank), &
-                    new_unittest("isearch-yank-word-or-char", test_yank_word) &
+                    new_unittest("isearch-yank-word-or-char", test_yank_word), &
+                    new_unittest("isearch-regexp", test_regexp), &
+                    new_unittest("isearch-regexp-incomplete-and-fallback", test_regexp_fallback), &
+                    new_unittest("isearch-toggle-regexp", test_toggle_regexp), &
+                    new_unittest("isearch-lax-whitespace", test_lax_whitespace) &
                     ]
     end subroutine collect_isearch_fm
 
@@ -335,4 +340,83 @@ contains
         v = ring()
         if (list_length(v) > 0) s = xstring(list_elt(v, 1_int64))
     end function ring_first
+    subroutine test_regexp(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(value_type) :: ring
+        type(status_type) :: st
+        call enter("abc 123 x45", h)
+        call type_keys("C-M-s [ 0 - 9 ] +")
+        call check(error, isearch_active .and. isearch_regexp .and. point() == 8, "found")
+        if (allocated(error)) return
+        call check(error, last_message == "Regexp I-search: [0-9]+", last_message)
+        if (allocated(error)) return
+        call type_keys("C-s")
+        call check(error, point() == 12, "repeat")
+        if (allocated(error)) return
+        call type_keys("RET")
+        call symbol_value(sym("regexp-search-ring"), ring, st)
+        call check(error, st%ok() .and. list_length(ring) == 1, "regexp ring")
+        if (allocated(error)) return
+        call check(error, xstring(list_elt(ring, 1_int64)) == "[0-9]+", "ring element")
+        if (allocated(error)) return
+        ! C-u C-s is a regexp search too; backward with C-M-r.
+        call type_keys("C-M-r [ a - c ] + RET")
+        call check(error, point() == 3, "backward regexp: "//isearch_string)
+        if (allocated(error)) return
+        call type_keys("C-u C-s x . RET")
+        call check(error, point() == 11, "C-u C-s")
+        call leave(h)
+    end subroutine test_regexp
+
+    subroutine test_regexp_fallback(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("ac abbc", h)
+        call type_keys("C-M-s \ (")
+        call check(error, last_message == "Regexp I-search: \( [incomplete input]", last_message)
+        if (allocated(error)) return
+        call type_keys("DEL DEL a b")
+        call check(error, point() == 6, "ab")
+        if (allocated(error)) return
+        ! * makes the regexp more liberal: go back to where the previous
+        ! successful search started.
+        call type_keys("*")
+        call check(error, point() == 2 .and. isearch_string == "ab*", "ab*")
+        call type_keys("RET")
+        call leave(h)
+    end subroutine test_regexp_fallback
+
+    subroutine test_toggle_regexp(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("f.o foo", h)
+        call type_keys("C-s f . o")
+        call check(error, point() == 4, "literal f.o")
+        if (allocated(error)) return
+        call type_keys("M-r C-s")
+        call check(error, isearch_regexp .and. point() == 8, "regexp f.o")
+        if (allocated(error)) return
+        call check(error, last_message == "Regexp I-search: f.o", last_message)
+        call type_keys("RET")
+        call leave(h)
+    end subroutine test_toggle_regexp
+
+    subroutine test_lax_whitespace(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("foo   bar foo bar", h)
+        call type_keys("C-s f o o SPC b")
+        call check(error, point() == 8, "lax: spaces match a run of whitespace")
+        if (allocated(error)) return
+        call type_keys("M-s SPC")
+        call check(error,.not. isearch_lax_whitespace, "toggled")
+        if (allocated(error)) return
+        call type_keys("C-s")
+        call check(error, point() == 16, "literal space")
+        call type_keys("RET M-s SPC")
+        call type_keys("C-s M-s SPC RET")
+        call check(error, isearch_lax_whitespace, "toggled back")
+        call leave(h)
+    end subroutine test_lax_whitespace
 end module test_isearch_fm
