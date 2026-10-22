@@ -193,21 +193,8 @@ Copy the FSF year range exactly from the upstream file.
   `intent` on every dummy, named `end` statements, one module per file,
   FORD `!>` comments on public entities, 4-space indentation; but 132
   columns (stdlib's hard limit) rather than 80.
-- Blank lines: neither guide above sets a rule, so they follow the
-  [Bristol RSE Fortran guidelines](https://bristolcompositesinstitute.github.io/RSE-Guide/abaqus-user-subroutines/fortran-style-guidelines.html)
-  ("Separate related blocks of code with 1 blank line"), but never more
-  than one blank line, and none at the start or end of a body.
-  `tools/blank-lines.awk` makes that mechanical: one blank line around
-  every multi-line construct (if, do, select, block, associate, where;
-  type and interface definitions), after the declarations, between
-  procedures and around `contains`; none after a procedure or construct
-  opens, before `else` or `case`, or before any `end`. Similar statements
-  (the declarations, a run of calls) stay together; other blank lines
-  between runs of statements are the author's.
-  Comments directly above a statement move with it.
 - Enforced by `tools/check.sh` (and so CI): fprettify for layout
-  (`.fprettify.rc`),
-  `tools/blank-lines.awk` for blank lines, Fortitude 0.9.2 with its default rules for the rest
+  (`.fprettify.rc`), Fortitude 0.9.2 with its default rules for the rest
   (`[extra.fortitude.check]` in fpm.toml). Notable rules: double-quoted
   strings, `use ..., only:` everywhere, `implicit none` in interface
   bodies, a `case default` in every `select case`, no misleading one-line
@@ -301,6 +288,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-22 — Style: the blank-line rule is dropped (no Fortran style guide sets one): `tools/blank-lines.awk` and its check in `tools/check.sh` are gone; blank lines are the author's. On `style-drop-blank-lines`.
 - 2026-10-22 — README: the "Why AI assistance?" section says the project is for fun; the package counts say "respectively". On `readme-for-fun`.
 - 2026-10-22 — Tests that assumed a normal machine now pass in a Guix build sandbox: the `~root` cases in `test_fileio_fm` use the real user (new `passwd_name_of_user` in `sysdep_fm`; upstream uses `user-login-name` too), and `save-buffer-backup` is skipped when the test directory is under /tmp, where `normal-backup-enable-predicate` refuses backups. The README links the side-by-side page on GitHub Pages again, now that the repository is public. On `fix-sandbox-tests`.
 - 2026-10-22 — Phase 5.2, feature 5: M-x and minibuffer completion (`try-completion`, `all-completions`, `test-completion` in minibuf_fm; `completing-read`, the basic and emacs22 styles, TAB, SPC, ?, RET with REQUIRE-MATCH, `minibuffer-message`, *Completions* in the root window, file name completion in `read-file-name` and C-x C-f in minibuffer_fm; `file-name-completion` in dired_fm; `execute-extended-command` in simple_fm; `where-is-internal` in keymap_fm; `compare-strings`, `substring` in fns_fm; the case tables from #38 for `completion-ignore-case`), on `phase5-completion` (based on main after PR #34, then merged with main after #38). Next: built-in help (C-h f, C-h k, C-h v).
