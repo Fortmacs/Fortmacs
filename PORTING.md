@@ -92,6 +92,21 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    6. Built-in help (C-h f, C-h k, C-h v) with the docstrings compiled in. — done
    7. Word and paragraph motion (syntax tables). — done
    8. Buffers and windows (C-x b, C-x k, C-x 2, C-x 3, C-x o). — done
+   9. Regular expressions (regex-emacs.c; `re-search-forward`,
+      `re-search-backward`, `looking-at`, `string-match`, the match data,
+      C-M-s and C-M-r; paragraph-start and -separate as regexps).
+   10. Query replace (M-%, C-M-%, `replace-string`, `replace-regexp`).
+   11. Case, transposition and whitespace (M-u, M-l, M-c, C-x C-u, C-x C-l,
+       C-t, M-t, C-x C-t, M-SPC, M-\, C-o, C-x C-o, M-^).
+   12. Indentation and filling (TAB, `indent-rigidly`, M-q, `auto-fill-mode`,
+       `fill-column`).
+   13. Major and minor modes (buffer-local variables, mode hooks,
+       `fundamental-mode`, `text-mode`, `prog-mode`).
+   14. Text properties and faces in redisplay (font-lock core).
+   15. Rectangles and registers (C-x r).
+   16. Keyboard macros (C-x (, C-x ), C-x e).
+   17. Dired.
+   18. Processes on worker threads (M-!, M-|, `compile`).
 
 ## Per-module workflow (definition of done)
 
