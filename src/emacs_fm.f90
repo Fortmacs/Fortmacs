@@ -35,11 +35,12 @@ module emacs_fm
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
     use editfns_fm, only: goto_char, point_min
     use cmds_fm, only: forward_line
-    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_name_absolute_p
+    use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_name_absolute_p, &
+                         file_exists_p, file_executable_p, file_newer_than_file_p
     use files_fm, only: find_file_noselect
     use frame_fm, only: selected_frame
     use window_fm, only: free_window
-    use sysdep_fm, only: install_interrupt_handler, emacs_isatty
+    use sysdep_fm, only: install_interrupt_handler, emacs_isatty, sys_string_type, emacs_execv, emacs_strerror
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
     use dispnew_fm, only: adjust_frame_glyphs
@@ -47,6 +48,7 @@ module emacs_fm
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
+    use config_fm, only: install_prefix, running_executable, recompile, init_file_name, user_build_name
     implicit none(type, external)
     private
 
@@ -72,6 +74,9 @@ module emacs_fm
     !> `configure` failed at startup.
     public :: init_file_had_error
     logical, protected :: init_file_had_error = .false.
+
+    !> A message for the echo area once the editor is up ("" for none).
+    character(len=:), allocatable :: startup_message
 
 contains
 
@@ -248,6 +253,11 @@ contains
             allocate (rest(0))
             init = .true.
         end if
+        ! A reminder from `run`; errors from what follows replace it.
+        if (allocated(startup_message)) then
+            if (len(startup_message) > 0) call message(startup_message)
+            startup_message = ""
+        end if
         init_file_had_error = .false.
         if (init .and. present(configure)) call load_init_file(configure)
         call command_line_1(rest, st)
@@ -308,18 +318,24 @@ contains
         rest = args(k + 1:)
     end subroutine command_line
 
-    !> The program: handle --version and --help, check for a terminal,
-    !> then run the editor with the user's `configure`.  `exit_code` is
-    !> the process's exit status (the main program stops with it).  Port
-    !> of the startup part of emacs.c:main.
-    subroutine run(configure, exit_code)
+    !> The program: handle --version, --help and --recompile, check for a
+    !> terminal, then run the editor with the user's `configure`.
+    !> `exit_code` is the process's exit status (the main program stops
+    !> with it).  An installed fortmacs runs the user's build instead, if
+    !> there is an up-to-date one; a user build passes `prefix`, the
+    !> installation it was built against.  Port of the startup part of
+    !> emacs.c:main.
+    subroutine run(configure, exit_code, prefix)
         procedure(init_proc) :: configure
         integer, intent(out) :: exit_code
-        character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."
-        character(len=:), allocatable :: term
+        character(len=*), intent(in), optional :: prefix
+        character(len=*), parameter :: usage = &
+                                       "Usage: fortmacs [--version | --help | --recompile] [-q] [+LINE] [FILE]..."
+        character(len=:), allocatable :: term, install, reminder
         type(arg_type), allocatable :: args(:)
         type(status_type) :: status
         integer :: nargs, arglen, stat, k
+        logical :: installed
 
         exit_code = 0
         nargs = command_argument_count()
@@ -330,16 +346,42 @@ contains
             call get_command_argument(k, value=args(k)%s)
         end do
 
+        ! Which installation this is: a user build knows; an installed
+        ! fortmacs finds out from where it is.
+        if (present(prefix)) then
+            install = prefix
+            installed = .true.
+        else
+            call install_prefix(running_executable(), install, installed)
+        end if
+
+        if (nargs > 0) then
+            if (args(1)%s == "--recompile" .or. args(1)%s == "-recompile") then
+                call do_recompile(installed, install, exit_code)
+                return
+            end if
+        end if
+
+        reminder = ""
+        if (.not. present(prefix) .and. installed) call run_user_build(args, reminder)
+        if (present(prefix)) then
+            if (file_newer_than_file_p(init_file_name(), running_executable())) then
+                reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
+            end if
+        end if
+
         if (nargs > 0) then
             select case (args(1)%s)
             case ("--version", "-version")
                 write (output_unit, "(a)") version_string()
+                if (present(prefix)) write (output_unit, "(a)") "With the configuration in "//init_file_name()
                 return
             case ("--help", "-help")
                 write (output_unit, "(a)") usage
                 write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
                 write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
                 write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
+                write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into your own fortmacs."
                 return
             case default
                 ! Everything else is for startup.el:command-line.
@@ -360,11 +402,68 @@ contains
         end if
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
+        startup_message = reminder
         call emacs_main(term, 0_int32, status, args, configure)
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
         end if
     end subroutine run
+
+    !> `fortmacs --recompile`: build the init file into the user's own
+    !> fortmacs, reporting on standard output and error.
+    subroutine do_recompile(installed, install, exit_code)
+        logical, intent(in) :: installed
+        character(len=*), intent(in) :: install
+        integer, intent(out) :: exit_code
+        character(len=:), allocatable :: log
+        type(status_type) :: status
+
+        exit_code = 1
+        if (.not. installed) then
+            write (error_unit, "(a)") "fortmacs: --recompile needs an installed Fortmacs "// &
+                "(fpm install puts PREFIX/bin/fortmacs next to PREFIX/lib/libfortmacs.a)"
+            return
+        end if
+        call init_fileio()
+        call recompile(install, log, status)
+        if (len(log) > 0) write (error_unit, "(a)", advance="no") log
+        if (.not. status%ok()) then
+            write (error_unit, "(a)") "fortmacs: "//format_error(status)
+            return
+        end if
+        write (output_unit, "(a)") "fortmacs: built "//user_build_name()
+        exit_code = 0
+    end subroutine do_recompile
+
+    !> Replace this process with the user's build, if there is one and it
+    !> is newer than this fortmacs; otherwise `reminder` says what to do.
+    !> Returns only if the build is not run.
+    subroutine run_user_build(args, reminder)
+        type(arg_type), intent(in) :: args(:)
+        character(len=:), allocatable, intent(inout) :: reminder
+        type(sys_string_type), allocatable :: argv(:)
+        character(len=:), allocatable :: build, init
+        integer(int32) :: err
+        integer :: k
+
+        build = user_build_name()
+        init = init_file_name()
+        if (.not. file_executable_p(build)) then
+            if (file_exists_p(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
+            return
+        end if
+        if (file_newer_than_file_p(running_executable(), build)) then
+            reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
+            return
+        end if
+        allocate (argv(size(args) + 1))
+        argv(1)%s = build
+        do k = 1, size(args)
+            argv(k + 1)%s = args(k)%s
+        end do
+        err = emacs_execv(build, argv)
+        reminder = "Can't run "//build//": "//emacs_strerror(err)
+    end subroutine run_user_build
 
 end module emacs_fm

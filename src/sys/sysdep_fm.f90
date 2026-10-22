@@ -30,8 +30,7 @@
 module sysdep_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use, intrinsic :: iso_c_binding, only: c_int, c_long, c_size_t, c_char, c_ptr, c_null_char, &
-                                                                              c_associated, c_f_pointer, &
-                                                                              c_signed_char, c_funloc, c_funptr
+                                          c_associated, c_f_pointer, c_signed_char, c_funloc, c_funptr, c_loc, c_null_ptr, c_int32_t
     use error_fm, only: status_type, set_error, FM_FILE_ERROR
     use sys_linux_fm, only: c_close, c_grantpt, c_ioctl_winsize, c_isatty, c_open, c_poll, c_posix_openpt, &
                             c_ptsname, c_read, c_signal, sigint, c_string_to_fortran, c_tcgetattr, &
@@ -47,7 +46,9 @@ module sysdep_fm
                             c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
                             at_statx_sync_as_stat, statx_basic_stats, ENOENT, EACCES, EEXIST, &
                             ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
-                            S_IFREG
+                            S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
+                            c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
+                            O_WRONLY
     implicit none(type, external)
     private
 
@@ -72,6 +73,20 @@ module sysdep_fm
               emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
+    public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
+              emacs_readlink, emacs_execv, emacs_mkostemp
+
+    !> A string of any length, for argument vectors.
+    type :: sys_string_type
+        character(len=:), allocatable :: s
+    end type sys_string_type
+
+    !> A C argument vector: the strings, NUL-terminated, in `buf`, and a
+    !> null-terminated array of pointers to them.
+    type :: c_argv_type
+        character(kind=c_char), allocatable :: buf(:)
+        type(c_ptr), allocatable :: ptrs(:)
+    end type c_argv_type
 
     !> What fileio.c reads from struct stat: the file's type and permission
     !> bits, link count, owner, size and modification time.
@@ -689,5 +704,197 @@ contains
 
         text = c_string_to_fortran(c_strerror(err))
     end function emacs_strerror
+
+    ! ------------------------------------------------------------------
+    ! Processes.  Like the file calls, each returns 0 or the errno value.
+    ! ------------------------------------------------------------------
+
+    !> Fill `argv` (which must be a target) from `args`.
+    subroutine make_argv(args, argv)
+        type(sys_string_type), intent(in) :: args(:)
+        type(c_argv_type), intent(out), target :: argv
+        integer :: k, j, off, n
+
+        allocate (argv%buf(sum([(len(args(k)%s) + 1, k=1, size(args))])))
+        allocate (argv%ptrs(size(args) + 1))
+        off = 1
+        do k = 1, size(args)
+            n = len(args(k)%s)
+            do j = 1, n
+                argv%buf(off + j - 1) = args(k)%s(j:j)
+            end do
+            argv%buf(off + n) = c_null_char
+            argv%ptrs(k) = c_loc(argv%buf(off))
+            off = off + n + 1
+        end do
+        argv%ptrs(size(args) + 1) = c_null_ptr
+    end subroutine make_argv
+
+    !> Start the program `path` (a file name, found by the caller) with
+    !> arguments `args` (args(1) is its name), standard input from file
+    !> `infile`, standard output and error to `out_fd` (or /dev/null if it
+    !> is negative), in directory `dir` (unless empty), with the editor's
+    !> environment.  `pid` is the child.  The caller checks that `path`,
+    !> `infile` and `dir` can be used first; if the child still fails to
+    !> start, it exits with status 127.  Port of callproc.c:emacs_spawn
+    !> (the fork path, without a pty).
+    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid) result(err)
+        character(len=*), intent(in) :: path, infile, dir
+        type(sys_string_type), intent(in) :: args(:)
+        integer(int32), intent(in) :: out_fd
+        integer(int32), intent(out) :: pid
+        type(c_argv_type), target :: argv
+        character(len=:), allocatable :: c_file, c_infile, c_null, c_dir
+        integer(c_int) :: fd, r
+
+        ! Everything the child needs is made before forking: between fork
+        ! and exec it only makes system calls.
+        call make_argv(args, argv)
+        c_file = c_path(path)
+        c_infile = c_path(infile)
+        c_null = c_path("/dev/null")
+        c_dir = c_path(dir)
+        err = 0
+        pid = c_fork()
+        if (pid < 0) then
+            err = errno()
+            return
+        end if
+        if (pid /= 0) return
+
+        ! The child.
+        fd = c_open(c_infile, ior(O_RDONLY, O_CLOEXEC))
+        if (fd < 0) call c_exit(127)
+        r = c_dup2(fd, 0)
+        if (out_fd >= 0) then
+            r = c_dup2(out_fd, 1)
+            r = c_dup2(out_fd, 2)
+        else
+            fd = c_open(c_null, ior(O_WRONLY, O_CLOEXEC))
+            if (fd < 0) call c_exit(127)
+            r = c_dup2(fd, 1)
+            r = c_dup2(fd, 2)
+        end if
+        if (len(dir) > 0) then
+            if (c_chdir(c_dir) /= 0) call c_exit(127)
+        end if
+        r = c_execv(c_file, argv%ptrs)
+        call c_exit(127)
+    end function emacs_spawn
+
+    !> Wait for child `pid` to exit.  `code` is its exit status, or -1 if
+    !> it was killed by signal `sig` (0 otherwise).  Port of
+    !> sysdep.c:wait_for_termination (get_child_status, blocking).
+    integer(int32) function wait_for_termination(pid, code, sig) result(err)
+        integer(int32), intent(in) :: pid
+        integer(int32), intent(out) :: code, sig
+        integer(c_int) :: wstatus
+        integer(c_int32_t) :: r
+
+        code = -1
+        sig = 0
+        err = 0
+        do
+            r = c_waitpid(pid, wstatus, 0)
+            if (r == pid) exit
+            err = errno()
+            if (err /= EINTR) return
+            err = 0
+        end do
+        ! bits/waitstatus.h: WIFEXITED, WEXITSTATUS, WTERMSIG.
+        if (iand(wstatus, 127) == 0) then
+            code = iand(ishft(wstatus, -8), 255)
+        else
+            sig = iand(wstatus, 127)
+        end if
+    end function wait_for_termination
+
+    !> A pipe: `fds(1)` reads what is written to `fds(2)`; both are
+    !> close-on-exec.  Port of sysdep.c:emacs_pipe.
+    integer(int32) function emacs_pipe(fds) result(err)
+        integer(int32), intent(out) :: fds(2)
+        integer(c_int) :: cfds(2)
+
+        err = 0
+        fds = -1
+        if (c_pipe2(cfds, O_CLOEXEC) /= 0) then
+            err = errno()
+        else
+            fds = cfds
+        end if
+    end function emacs_pipe
+
+    !> The description of signal `sig` ("Killed"), as strsignal gives it.
+    function emacs_strsignal(sig) result(text)
+        integer(int32), intent(in) :: sig
+        character(len=:), allocatable :: text
+
+        text = c_string_to_fortran(c_strsignal(sig))
+        if (len(text) == 0) text = "unknown"
+    end function emacs_strsignal
+
+    !> The target of symbolic link `path`.  Cf. sysdep.c:emacs_readlinkat.
+    integer(int32) function emacs_readlink(path, target) result(err)
+        character(len=*), intent(in) :: path
+        character(len=:), allocatable, intent(out) :: target
+        character(kind=c_char), allocatable :: buf(:)
+        integer(c_long) :: n
+        integer(c_size_t) :: size
+        integer :: k
+
+        err = 0
+        target = ""
+        size = 256
+        do
+            allocate (buf(size))
+            n = c_readlink(c_path(path), buf, size)
+            if (n < 0) then
+                err = errno()
+                return
+            end if
+            if (n < size) exit
+            ! Truncated: try again with more room.
+            deallocate (buf)
+            size = 2*size
+        end do
+        target = repeat(" ", int(n))
+        do k = 1, int(n)
+            target(k:k) = buf(k)
+        end do
+    end function emacs_readlink
+
+    !> Replace this process with the program `path`, given arguments
+    !> `args` (args(1) is its name) and the same environment.  Returns
+    !> only on failure.
+    integer(int32) function emacs_execv(path, args) result(err)
+        character(len=*), intent(in) :: path
+        type(sys_string_type), intent(in) :: args(:)
+        type(c_argv_type), target :: argv
+        integer(c_int) :: r
+
+        call make_argv(args, argv)
+        r = c_execv(c_path(path), argv%ptrs)
+        err = errno()
+    end function emacs_execv
+
+    !> Create a new file from `template`, whose last six characters are
+    !> "XXXXXX" (replaced to make the name unique); `fd` is open for
+    !> writing, close-on-exec.  Cf. sysdep.c's use of mkostemp.
+    integer(int32) function emacs_mkostemp(template, fd) result(err)
+        ! The name is filled in, so its length is the caller's.
+        ! allow(assumed-size-character-intent)
+        character(len=*), intent(inout) :: template
+        integer(int32), intent(out) :: fd
+        character(len=len(template) + 1) :: buf
+
+        err = 0
+        buf = c_path(template)
+        fd = c_mkostemp(buf, O_CLOEXEC)
+        if (fd < 0) then
+            err = errno()
+        else
+            template = buf(1:len(template))
+        end if
+    end function emacs_mkostemp
 
 end module sysdep_fm

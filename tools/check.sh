@@ -1,6 +1,6 @@
 #!/bin/sh
 # check.sh -- the single gate run locally and in CI: format, lint, build,
-# test.
+# test, and --recompile against an installed copy.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -32,7 +32,7 @@ set -eu
 FFLAGS="-std=f2018 -Wall -Wextra -fcheck=all -g"
 # The linter version CI installs (tools/check.sh only reports it).
 FORTITUDE_VERSION=0.9.2
-DIRS="src app test"
+DIRS="src app test docs/init.f90"
 fix=false
 memcheck=false
 style=true
@@ -79,3 +79,6 @@ if $memcheck; then
     fpm test --profile debug --flag "$FFLAGS" --runner \
         "valgrind -q --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=9 --suppressions=tools/valgrind.supp"
 fi
+
+# fortmacs --recompile against an installed copy.
+tools/test-recompile.sh

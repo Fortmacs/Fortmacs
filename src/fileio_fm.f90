@@ -56,6 +56,7 @@ module fileio_fm
               get_homedir, init_fileio, emacs_wd, substitute_in_file_name
     public :: file_exists_p, file_readable_p, file_writable_p, file_directory_p, &
               file_accessible_directory_p, file_attributes, file_modes, set_file_modes, &
+              file_executable_p, file_newer_than_file_p, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
               user_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal
@@ -467,6 +468,36 @@ contains
         file_exists_p = len(absname) > 0
         if (file_exists_p) file_exists_p = sys_access(absname, F_OK) == 0
     end function file_exists_p
+
+    !> Return t if FILENAME can be executed by you.
+    !> For a directory, this means you can access files in that directory.
+    !> (It is generally better to use `file_accessible_directory_p` for that
+    !> purpose, though.)  Port of fileio.c:Ffile_executable_p.
+    logical function file_executable_p(filename)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: absname
+
+        absname = expand_quietly(filename)
+        file_executable_p = len(absname) > 0
+        if (file_executable_p) file_executable_p = sys_access(absname, X_OK) == 0
+    end function file_executable_p
+
+    !> Return t if file FILE1 is newer than file FILE2.
+    !> If FILE1 does not exist, the return value is nil;
+    !> if FILE2 does not exist, the return value is t.
+    !> For existing files, this compares their last-modified times.
+    !> Port of fileio.c:Ffile_newer_than_file_p.
+    logical function file_newer_than_file_p(file1, file2)
+        character(len=*), intent(in) :: file1, file2
+        type(file_stat_type) :: st1, st2
+
+        file_newer_than_file_p = .false.
+        if (sys_stat(expand_quietly(file1), st1) /= 0) return
+        file_newer_than_file_p = .true.
+        if (sys_stat(expand_quietly(file2), st2) /= 0) return
+        file_newer_than_file_p = st1%mtime_sec > st2%mtime_sec .or. &
+                                 (st1%mtime_sec == st2%mtime_sec .and. st1%mtime_nsec > st2%mtime_nsec)
+    end function file_newer_than_file_p
 
     !> Whether `filename` exists and can be read.
     !> Port of fileio.c:Ffile_readable_p.
