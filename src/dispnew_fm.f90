@@ -29,21 +29,21 @@
 !> writes frame rows), line insertion/deletion optimization (scroll.c),
 !> child frames, menus, pausing for input, frame size changes.
 module dispnew_fm
-    use frame_fm, only: frame_type
+    use frame_fm, only: frame_type, selected_frame
     use dispextern_fm, only: glyph_type, glyph_matrix_type, &
                              glyph_equal_p, char_glyph_space_p, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
     use termchar_fm, only: tty_flush
     use term_fm, only: tty_cursor_to, tty_write_glyphs, tty_insert_glyphs, &
                        tty_delete_glyphs, tty_clear_end_of_line, tty_clear_frame, &
-                       tty_update_end
+                       tty_update_end, tty_ring_bell
     use error_fm, only: status_type
     implicit none(type, external)
     private
 
     public :: adjust_frame_glyphs, clear_current_matrices, clear_desired_matrices, &
               redraw_frame, update_frame, write_row, make_matrix_current, &
-              set_desired_row
+              set_desired_row, ding
 
 contains
 
@@ -469,4 +469,12 @@ contains
         call tty_flush(f%tty, status)
         call clear_desired_matrices(f)
     end subroutine update_frame
+
+    !> Beep, or flash the screen.  Port of dispnew.c:Fding (with
+    !> bitch_at_user; no keyboard macro termination), for the selected
+    !> frame's terminal; nothing without one.
+    subroutine ding()
+        if (selected_frame%tty%output < 0) return
+        call tty_ring_bell(selected_frame%tty)
+    end subroutine ding
 end module dispnew_fm
