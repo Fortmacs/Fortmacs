@@ -26,6 +26,7 @@ module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
+    use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
                        make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
                        v_string, v_symbol, value_type, vtag, xsymbol
@@ -46,7 +47,10 @@ module fns_fm
 
     public :: value_predicate
     public :: value_equal, length, nth, nthcdr, memq, member
-    public :: string_lessp, string_greaterp
+    public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL
+
+    !> The value of `compare_strings` for strings that match (t).
+    integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
     public :: yes_or_no_p
 
@@ -272,6 +276,104 @@ contains
         ! Equal up to the shorter length: the shorter one is less.
         string_lessp = pa > len(sa, kind=int64) .and. pb <= len(sb, kind=int64)
     end function string_lessp
+
+    !> Compare the contents of two strings.
+    !> In string STR1, compare the part between START1 (inclusive) and END1
+    !> (exclusive); START1 defaults to 0, the beginning of the string, END1
+    !> to the length of the string.  Likewise, in string STR2, compare the
+    !> part between START2 and END2.  Positions count characters from 0.
+    !>
+    !> The strings are compared by the numeric values of their characters.
+    !> For instance, STR1 is "less than" STR2 if its first differing
+    !> character has a smaller numeric value.  If IGNORE-CASE is true,
+    !> characters are converted to upper-case before comparing them.
+    !>
+    !> The value is COMPARE_EQUAL (t) if the strings (or specified
+    !> portions) match.  If string STR1 is less, the value is a negative
+    !> number N; - 1 - N is the number of characters that match at the
+    !> beginning.  If string STR1 is greater, the value is a positive
+    !> number N; N - 1 is the number of characters that match at the
+    !> beginning.  Port of fns.c:Fcompare_strings (positions too large
+    !> are brought into range; no negative positions).
+    integer(int64) function compare_strings(str1, str2, ignore_case, start1, end1, start2, end2) result(r)
+        character(len=*), intent(in) :: str1, str2
+        logical, intent(in), optional :: ignore_case
+        integer(int64), intent(in), optional :: start1, end1, start2, end2
+        integer(int32), allocatable :: c1(:), c2(:)
+        integer(int64) :: from1, to1, from2, to2, i1, i2
+        integer(int32) :: a, b
+        logical :: fold
+
+        call string_chars(str1, c1)
+        call string_chars(str2, c2)
+        fold = .false.
+        if (present(ignore_case)) fold = ignore_case
+        from1 = 0
+        if (present(start1)) from1 = start1
+        to1 = size(c1, kind=int64)
+        if (present(end1)) to1 = min(end1, to1)
+        from2 = 0
+        if (present(start2)) from2 = start2
+        to2 = size(c2, kind=int64)
+        if (present(end2)) to2 = min(end2, to2)
+        i1 = from1
+        i2 = from2
+
+        do while (i1 < to1 .and. i2 < to2)
+            a = c1(i1 + 1)
+            b = c2(i2 + 1)
+            i1 = i1 + 1
+            i2 = i2 + 1
+            if (a == b) cycle
+
+            if (fold) then
+                a = upcase(a)
+                b = upcase(b)
+            end if
+
+            if (a == b) cycle
+
+            ! I1 has already been incremented past the character compared.
+            if (a < b) then
+                r = -(i1 - from1)
+            else
+                r = i1 - from1
+            end if
+
+            return
+        end do
+
+        if (i1 < to1) then
+            r = i1 - from1 + 1
+        else if (i2 < to2) then
+            r = -(i1 - from1 + 1)
+        else
+            r = COMPARE_EQUAL
+        end if
+    end function compare_strings
+
+    !> The characters of UTF-8 string `s`.
+    pure subroutine string_chars(s, chars)
+        character(len=*), intent(in) :: s
+        integer(int32), allocatable, intent(out) :: chars(:)
+        integer(int32), allocatable :: tmp(:)
+        integer(int64) :: i
+        integer(int32) :: c, clen
+        integer :: n
+
+        allocate (tmp(len(s)))
+        n = 0
+        i = 1
+
+        do while (i <= len(s, kind=int64))
+            call string_char_and_length(s, i, c, clen)
+            n = n + 1
+            tmp(n) = c
+            i = i + clen
+        end do
+
+        chars = tmp(1:n)
+    end subroutine string_chars
 
     !> Port of fns.c:Fstring_greaterp.
     logical function string_greaterp(a, b)
