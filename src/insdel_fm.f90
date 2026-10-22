@@ -38,7 +38,7 @@ module insdel_fm
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
-                         buf_bytes, barf_if_buffer_read_only
+                         buf_bytes, barf_if_buffer_read_only, vdeactivate_mark
     use marker_fm, only: char_to_byte, byte_to_char, markers
     use intervals_fm, only: offset_intervals
     use textprop_fm, only: verify_interval_modification
@@ -551,5 +551,7 @@ contains
         if (.not. status%ok()) return
         buffers(cur)%text%redisplay = .true.
         call verify_interval_modification(start, end, status)
+        ! insdel.c:prepare_to_modify_buffer_1 sets deactivate-mark.
+        if (status%ok()) vdeactivate_mark = .true.
     end subroutine prepare_to_modify_buffer
 end module insdel_fm
