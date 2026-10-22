@@ -33,7 +33,7 @@ module test_xdisp_fm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
-    use window_fm, only: free_window
+    use window_fm, only: delete_window_tree, delete_window_object
     use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width
     use keyboard_fm, only: last_message
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
@@ -266,7 +266,8 @@ contains
         call redisplay(f, st)
         call check(error, row_text(f%current_matrix%rows(23)), "Hello")
         last_message = ""
-        call free_window(f%root_window)
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
         call kill_buffer(h, st)
     contains
 

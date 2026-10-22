@@ -54,8 +54,8 @@ module help_fm
     use minibuf_fm, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use help_mode_fm, only: help_mode, help_mode_map, init_help_mode
-    use frame_fm, only: selected_frame
-    use window_fm, only: set_window_buffer
+    use frame_fm, only: selected_frame, frame_selected_window_ref
+    use window_fm, only: window_type, set_window_buffer
     implicit none(type, external)
     private
 
@@ -307,6 +307,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
         type(handle_type) :: buf, previous
+        type(window_type), pointer :: sw
         previous = current_buffer()
         call get_buffer_create(help_buffer_name, buf, status)
         if (.not. status%ok()) return
@@ -325,11 +326,12 @@ contains
         ! display-buffer: the selected window (the root window, unless the
         ! minibuffer is active) shows it, recording the buffer it showed.
         if (.not. selected_frame%minibuffer_selected) then
-            call set_window_buffer(selected_frame%root_window, buf, status, record=.false.)
+            sw => frame_selected_window_ref()
+            call set_window_buffer(sw, buf, status, record=.false.)
             if (.not. status%ok()) return
             ! The window showed the buffer that was current.
             if (previous%index /= buf%index .or. previous%generation /= buf%generation) then
-                selected_frame%root_window%prev_buffer = previous
+                sw%prev_buffer = previous
             end if
         end if
         call message(substitute_command_keys("Type \<help-mode-map>\[quit-window] to restore previous buffer"))

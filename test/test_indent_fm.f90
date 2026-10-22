@@ -29,7 +29,8 @@ module test_indent_fm
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point
-    use frame_fm, only: selected_frame
+    use frame_fm, only: selected_frame, frame_selected_window_ref
+    use window_fm, only: window_type
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column
     use simple_fm, only: line_move, goal_column, line_move_visual
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
@@ -63,21 +64,26 @@ contains
         integer, intent(in) :: cols
         type(handle_type), intent(out) :: h
         type(status_type) :: st
+        type(window_type), pointer :: sw
         call get_buffer_create("indent-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
         last_command = nil()
-        selected_frame%root_window%total_cols = cols
         selected_frame%minibuffer_selected = .false.
+        sw => frame_selected_window_ref()
+        sw%total_cols = cols
+        sw%divider = .false.
     end subroutine enter
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
+        type(window_type), pointer :: sw
         call kill_buffer(h, st)
-        selected_frame%root_window%total_cols = 0
+        sw => frame_selected_window_ref()
+        sw%total_cols = 0
     end subroutine leave
 
     subroutine test_current_column(error)

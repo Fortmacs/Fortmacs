@@ -36,7 +36,7 @@ submodule(window_fm) window_scroll_fm
     use editfns_fm, only: point, goto_char, eobp, bobp, point_min, point_max
     use cmds_fm, only: forward_line
     use indent_fm, only: vertical_motion, move_to_column
-    use frame_fm, only: selected_frame
+    use frame_fm, only: selected_frame, selected_window_ref
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use simple_fm, only: goal_column, line_move_visual
@@ -56,14 +56,10 @@ submodule(window_fm) window_scroll_fm
 contains
 
     !> The selected window: the minibuffer window while it is active,
-    !> else the frame's root window.
+    !> else the frame's selected window.
     function selected_window() result(w)
         type(window_type), pointer :: w
-        if (selected_frame%minibuffer_selected) then
-            w => selected_frame%minibuffer_window
-        else
-            w => selected_frame%root_window
-        end if
+        w => selected_window_ref()
     end function selected_window
 
     !> Whether `w` shows the current buffer.
@@ -477,5 +473,6 @@ contains
         call defcommand("move-to-window-line", cmd_move_to_window_line)
         call defcommand("move-to-window-line-top-bottom", cmd_move_to_window_line_top_bottom)
         call defcommand("quit-window", cmd_quit_window)
+        call syms_of_window_cmds()
     end subroutine syms_of_window
 end submodule window_scroll_fm

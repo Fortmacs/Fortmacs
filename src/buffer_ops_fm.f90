@@ -41,6 +41,8 @@ contains
         logical :: was_current
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
+        ! Make this buffer not be displayed.
+        if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         was_current = i == cur
         buffers(i)%last_name = buffers(i)%name
         call alist_remove(h)

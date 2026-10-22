@@ -33,7 +33,8 @@ module indent_fm
     use marker_fm, only: char_to_byte
     use editfns_fm, only: goto_char, pos_bol
     use xdisp_fm, only: glyph_columns
-    use frame_fm, only: selected_frame
+    use frame_fm, only: selected_frame, frame_selected_window_ref
+    use window_fm, only: window_type, window_text_cols
     implicit none(type, external)
     private
 
@@ -85,11 +86,13 @@ contains
     !> The width available for text in the selected window: its columns
     !> less the last, which holds the continuation glyph.
     integer function window_text_width() result(width)
+        type(window_type), pointer :: sw
         if (selected_frame%minibuffer_selected) then
             ! The minibuffer scrolls horizontally instead of continuing.
             width = huge(0)/2
         else
-            width = selected_frame%root_window%total_cols - 1
+            sw => frame_selected_window_ref()
+            width = window_text_cols(sw) - 1
             if (width < 1) width = DEFAULT_WIDTH - 1
         end if
     end function window_text_width

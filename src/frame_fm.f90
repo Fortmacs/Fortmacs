@@ -22,12 +22,14 @@
 !> One frame per terminal, so a frame holds its terminal directly.  The
 !> current matrix is what the screen shows; redisplay fills the desired
 !> matrix, and update_frame (dispnew_fm) makes the screen match it.
-!> The frame has a root window (no splitting yet) and a minibuffer window
-!> on its last line; child frames are not ported.
+!> The frame has a window tree (its root window), the selected window (a
+!> live window of the tree) and a minibuffer window on its last line, all
+!> windows of window_fm's registry; child frames are not ported.
 module frame_fm
     use termchar_fm, only: tty_display_info
     use dispextern_fm, only: glyph_matrix_type, face_type
-    use window_fm, only: window_type
+    use handle_fm, only: handle_type
+    use window_fm, only: window_type, window_ref, window_valid_p, make_window, windows
     implicit none(type, external)
     private
 
@@ -35,7 +37,10 @@ module frame_fm
     type, public :: frame_type
         type(tty_display_info) :: tty
         type(glyph_matrix_type) :: current_matrix, desired_matrix
-        type(window_type) :: root_window, minibuffer_window
+        !> The root of the window tree, the minibuffer window and the
+        !> selected window (frame.h root_window, minibuffer_window,
+        !> selected_window).
+        type(handle_type) :: root_window, minibuffer_window, selected_window
         !> The realized faces, indexed by face id (FRAME_FACE_CACHE).
         type(face_type), allocatable :: faces(:)
         !> Where to leave the cursor after an update (set by redisplay from
@@ -43,8 +48,8 @@ module frame_fm
         integer :: cursor_vpos = -1, cursor_hpos = -1
         !> Hide the cursor after the update (cursor_off_p).
         logical :: cursor_off_p = .false.
-        !> The minibuffer window is the selected window (window.c's
-        !> selected_window, which is otherwise the root window).
+        !> The minibuffer window is the selected window (while a minibuffer
+        !> is active; `selected_window` is the window it was entered from).
         logical :: minibuffer_selected = .false.
         !> The screen contents are unknown and must be redrawn.
         logical :: garbaged = .true.
@@ -53,4 +58,52 @@ module frame_fm
 
     !> The terminal frame (frame.c:selected_frame).
     type(frame_type), target, public :: selected_frame
+
+    public :: ensure_frame_windows, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
+
+contains
+
+    !> Make `selected_frame`'s windows if they don't exist yet: one window
+    !> (the root, selected) and the minibuffer window, sized later by
+    !> xdisp_fm:init_frame_windows.
+    subroutine ensure_frame_windows()
+        if (.not. window_valid_p(selected_frame%root_window)) then
+            call make_window(selected_frame%root_window)
+            selected_frame%selected_window = selected_frame%root_window
+        end if
+        if (.not. window_valid_p(selected_frame%selected_window)) then
+            selected_frame%selected_window = selected_frame%root_window
+        end if
+        if (.not. window_valid_p(selected_frame%minibuffer_window)) then
+            call make_window(selected_frame%minibuffer_window)
+            windows(selected_frame%minibuffer_window%index)%mini = .true.
+        end if
+    end subroutine ensure_frame_windows
+
+    !> The selected window of `selected_frame`: the minibuffer window while
+    !> it is selected, else `selected_window`.  window.c:selected_window.
+    function selected_window_ref() result(w)
+        type(window_type), pointer :: w
+        if (selected_frame%minibuffer_selected) then
+            w => minibuffer_window_ref()
+        else
+            w => frame_selected_window_ref()
+        end if
+    end function selected_window_ref
+
+    !> The frame's selected window (not the minibuffer window): the one
+    !> showing the current buffer, or that the minibuffer was entered from.
+    !> Valid until a window is made.
+    function frame_selected_window_ref() result(w)
+        type(window_type), pointer :: w
+        call ensure_frame_windows()
+        w => window_ref(selected_frame%selected_window)
+    end function frame_selected_window_ref
+
+    !> The minibuffer window.  Valid until a window is made.
+    function minibuffer_window_ref() result(w)
+        type(window_type), pointer :: w
+        call ensure_frame_windows()
+        w => window_ref(selected_frame%minibuffer_window)
+    end function minibuffer_window_ref
 end module frame_fm

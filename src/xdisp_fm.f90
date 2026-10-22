@@ -50,7 +50,9 @@ module xdisp_fm
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
     use frame_fm, only: frame_type
     use window_fm, only: window_type, set_window_buffer, window_start, &
-                         set_window_start, window_body_lines
+                         set_window_start, window_body_lines, window_point, window_text_cols, windows, &
+                         window_valid_p, make_window, resize_window_tree, window_leaves, same_window, &
+                         set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame
     use keyboard_fm, only: last_message, minibuffer_message_text
     implicit none(type, external)
@@ -75,21 +77,25 @@ contains
     ! Frames, windows and faces
     ! ------------------------------------------------------------------
 
-    !> Lay out the frame's windows: the root window above, the one-line
-    !> minibuffer window at the bottom.  The window part of
-    !> frame.c:make_terminal_frame and window.c:make_frame_without_minibuffer.
+    !> Lay out the frame's windows, making them if need be: the window
+    !> tree above (at first one window, selected), the one-line minibuffer
+    !> window at the bottom.  The window part of frame.c:make_terminal_frame
+    !> and window.c:make_frame_without_minibuffer.
     subroutine init_frame_windows(f)
         type(frame_type), intent(inout) :: f
         integer :: rows, cols
         rows = f%tty%wcm%cm_rows
         cols = f%tty%wcm%cm_cols
-        f%root_window%top_line = 0
-        f%root_window%total_lines = rows - 1
-        f%root_window%total_cols = cols
-        f%minibuffer_window%top_line = rows - 1
-        f%minibuffer_window%total_lines = 1
-        f%minibuffer_window%total_cols = cols
-        f%minibuffer_window%mini = .true.
+        if (.not. window_valid_p(f%root_window)) then
+            call make_window(f%root_window)
+            f%selected_window = f%root_window
+        end if
+        if (.not. window_valid_p(f%minibuffer_window)) then
+            call make_window(f%minibuffer_window)
+            windows(f%minibuffer_window%index)%mini = .true.
+        end if
+        call resize_window_tree(f%root_window, 0, 0, rows - 1, cols, cols)
+        call resize_window_tree(f%minibuffer_window, rows - 1, 0, 1, cols, cols)
     end subroutine init_frame_windows
 
     !> The default face and the mode-line face (inverse video) of a
@@ -299,26 +305,55 @@ contains
     ! Windows, mode line, echo area
     ! ------------------------------------------------------------------
 
-    !> Copy window rows into the frame's desired matrix.
-    subroutine put_rows(f, top, rows)
+    !> Make row `vpos` of the desired matrix a full-width blank row, to be
+    !> filled by the windows on it.
+    subroutine blank_row(f, vpos)
         type(frame_type), intent(inout) :: f
-        integer, intent(in) :: top
+        integer, intent(in) :: vpos
+        integer :: cols
+        cols = f%desired_matrix%ncols
+        associate (m => f%desired_matrix%rows(vpos))
+            if (allocated(m%glyphs)) then
+                if (size(m%glyphs) /= cols) deallocate (m%glyphs)
+            end if
+            if (.not. allocated(m%glyphs)) allocate (m%glyphs(cols))
+            m%glyphs = glyph_type()
+            m%used = cols
+            m%enabled_p = .true.
+        end associate
+    end subroutine blank_row
+
+    !> Copy window rows into the frame's desired matrix, from column
+    !> `left` (0-based), with the vertical border after them if `divider`.
+    subroutine put_rows(f, top, left, rows, divider)
+        type(frame_type), intent(inout) :: f
+        integer, intent(in) :: top, left
         type(glyph_row_type), intent(in) :: rows(:)
-        integer :: r
+        logical, intent(in) :: divider
+        integer :: r, n, cols
+        cols = f%desired_matrix%ncols
         do r = 1, size(rows)
-            f%desired_matrix%rows(top + r - 1)%glyphs = rows(r)%glyphs
-            f%desired_matrix%rows(top + r - 1)%used = rows(r)%used
-            f%desired_matrix%rows(top + r - 1)%enabled_p = .true.
+            associate (m => f%desired_matrix%rows(top + r - 1))
+                n = min(size(rows(r)%glyphs), cols - left)
+                if (n > 0) m%glyphs(left + 1:left + n) = rows(r)%glyphs(1:n)
+                ! The border between side-by-side windows (vertical-border).
+                if (divider .and. left + n + 1 <= cols) then
+                    m%glyphs(left + n + 1) = glyph_type()
+                    m%glyphs(left + n + 1)%ch = iachar("|")
+                end if
+            end associate
         end do
     end subroutine put_rows
 
     !> Display window `w`: from its start if that shows point (or the
     !> start is forced), else recentered around point; then its mode line.
-    !> Port of the core of xdisp.c:redisplay_window.
-    subroutine redisplay_window(f, w, pt)
+    !> `pt` is the window's point; `selected` says whether it is the
+    !> selected window.  Port of the core of xdisp.c:redisplay_window.
+    subroutine redisplay_window(f, w, pt, selected)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(inout) :: w
         integer(int64), intent(in) :: pt
+        logical, intent(in) :: selected
         type(glyph_row_type), allocatable :: rows(:)
         type(status_type) :: status
         integer(int64) :: bi, start, end_pos
@@ -328,7 +363,7 @@ contains
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
         body = window_body_lines(w)
-        width = w%total_cols
+        width = window_text_cols(w)
         allocate (rows(body))
         do r = 1, body
             allocate (rows(r)%glyphs(width))
@@ -338,7 +373,7 @@ contains
         rb = 0
         re = 0
         if (transient_mark_mode .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
-            .not. w%mini) then
+            .not. w%mini .and. selected) then
             m = buffers(bi)%mark%index
             if (m > 0) then
                 if (markers(m)%buffer == bi) then
@@ -361,7 +396,7 @@ contains
         w%window_end_valid = reached_end
         w%cursor_vpos = cursor_row
         w%cursor_hpos = cursor_col
-        call put_rows(f, w%top_line, rows)
+        call put_rows(f, w%top_line, w%left_col, rows, w%divider .and. .not. w%mini)
         if (.not. w%mini) call display_mode_line(f, w, bi, start, pt)
     end subroutine redisplay_window
 
@@ -444,9 +479,7 @@ contains
             row(k)%face_id = MODE_LINE_ACTIVE_FACE_ID
         end do
         associate (m => f%desired_matrix%rows(w%top_line + w%total_lines - 1))
-            m%glyphs = row
-            m%used = w%total_cols
-            m%enabled_p = .true.
+            m%glyphs(w%left_col + 1:w%left_col + w%total_cols) = row
         end associate
     end subroutine display_mode_line
 
@@ -459,9 +492,9 @@ contains
         integer :: n, cols
         integer(int64) :: pos
         integer(int32) :: ch, length
-        cols = f%minibuffer_window%total_cols
+        cols = windows(f%minibuffer_window%index)%total_cols
         endcol = 0
-        associate (m => f%desired_matrix%rows(f%minibuffer_window%top_line))
+        associate (m => f%desired_matrix%rows(windows(f%minibuffer_window%index)%top_line))
             m%glyphs = glyph_type()
             m%used = 0
             m%enabled_p = .true.
@@ -498,9 +531,9 @@ contains
         integer(int64) :: mpos
         integer(int32) :: clen
         cursor_col = 0
-        call resolve_buffer(f%minibuffer_window%buffer, bi, status)
+        call resolve_buffer(windows(f%minibuffer_window%index)%buffer, bi, status)
         if (.not. status%ok()) return
-        cols = f%minibuffer_window%total_cols
+        cols = windows(f%minibuffer_window%index)%total_cols
         allocate (line(max(2*cols, 16)))
         ! Lay out the whole accessible text as one long line.
         x = 0
@@ -525,7 +558,7 @@ contains
             end do
         end if
         ! auto-hscroll: recenter point when it would leave the line.
-        associate (w => f%minibuffer_window)
+        associate (w => windows(f%minibuffer_window%index))
             if (col_of_point < w%hscroll .or. col_of_point - w%hscroll >= cols - 1) then
                 w%hscroll = max(0, col_of_point - cols/2)
             end if
@@ -577,56 +610,80 @@ contains
         last_message = text
     end subroutine message
 
-    !> Redisplay the frame: the root window (showing the current buffer
-    !> unless the minibuffer is selected), its mode line, and the echo area
-    !> or active minibuffer, then update the terminal.  Port of the core
-    !> of xdisp.c:redisplay_internal.
+    !> Redisplay the frame: each window with its mode line (the selected
+    !> one showing the current buffer unless the minibuffer is selected),
+    !> and the echo area or active minibuffer, then update the terminal.
+    !> Port of the core of xdisp.c:redisplay_internal.
     subroutine redisplay(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
         type(handle_type) :: cb
-        integer(int64) :: bi
-        integer :: endcol, mini_col
-        logical :: showing_message, mini_active
+        type(handle_type), allocatable :: leaves(:)
+        integer(int64) :: bi, pt
+        integer :: endcol, mini_col, k, r
+        logical :: showing_message, mini_active, selected
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
-        if (f%root_window%total_lines == 0) call init_frame_windows(f)
+        if (.not. window_valid_p(f%root_window)) call init_frame_windows(f)
+        if (windows(f%root_window%index)%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
         if (size(f%faces) < REGION_FACE_ID + 1) call realize_basic_faces(f)
-        ! The selected window shows the current buffer: the root window
-        ! unless the minibuffer window is selected.
+        ! The selected window shows the current buffer (unless the
+        ! minibuffer window is selected).
         cb = current_buffer()
         if (.not. f%minibuffer_selected) then
-            if (cb%index /= f%root_window%buffer%index .or. &
-                cb%generation /= f%root_window%buffer%generation) then
-                call set_window_buffer(f%root_window, cb, status)
-                if (.not. status%ok()) return
-            end if
+            associate (sw => windows(f%selected_window%index))
+                if (cb%index /= sw%buffer%index .or. cb%generation /= sw%buffer%generation) then
+                    call set_window_buffer(sw, cb, status)
+                    if (.not. status%ok()) return
+                end if
+            end associate
         end if
-        call resolve_buffer(f%root_window%buffer, bi, status)
-        if (.not. status%ok()) return
-        call redisplay_window(f, f%root_window, buffers(bi)%pt)
+        do r = 0, windows(f%minibuffer_window%index)%top_line - 1
+            call blank_row(f, r)
+        end do
+        ! Each live window, at its point: the buffer's point for the
+        ! selected one, its own (pointm) for the others.
+        call window_leaves(f%root_window, leaves)
+        do k = 1, size(leaves)
+            associate (w => windows(leaves(k)%index))
+                call resolve_buffer(w%buffer, bi, status)
+                if (.not. status%ok()) cycle
+                selected = same_window(leaves(k), f%selected_window)
+                if (selected) then
+                    pt = buffers(bi)%pt
+                    ! Keep the window's own point current too.
+                    call set_window_point(w, pt, status)
+                else
+                    pt = window_point(w)
+                end if
+                call redisplay_window(f, w, pt, selected)
+            end associate
+        end do
+        status = status_type()
         ! The minibuffer line: a message if there is one, else the active
         ! minibuffer, else blank.
         showing_message = .false.
         if (allocated(last_message)) showing_message = len(last_message) > 0
-        mini_active = f%minibuffer_selected .and. f%minibuffer_window%buffer%index /= 0
-        mini_col = 0
-        if (mini_active .and. .not. showing_message) then
-            call display_minibuffer(f, mini_col)
-        else
-            call display_echo_area(f, endcol)
-        end if
-        f%cursor_vpos = -1
-        if (mini_active .and. .not. showing_message) then
-            f%cursor_vpos = f%minibuffer_window%top_line
-            f%cursor_hpos = min(mini_col, f%minibuffer_window%total_cols - 1)
-        else if (cursor_in_echo_area .or. (mini_active .and. showing_message)) then
-            f%cursor_vpos = f%minibuffer_window%top_line
-            f%cursor_hpos = min(endcol, f%minibuffer_window%total_cols - 1)
-        else if (f%root_window%cursor_vpos >= 0) then
-            f%cursor_vpos = f%root_window%top_line + f%root_window%cursor_vpos
-            f%cursor_hpos = f%root_window%cursor_hpos
-        end if
+        associate (mw => windows(f%minibuffer_window%index), sw => windows(f%selected_window%index))
+            mini_active = f%minibuffer_selected .and. mw%buffer%index /= 0
+            mini_col = 0
+            if (mini_active .and. .not. showing_message) then
+                call display_minibuffer(f, mini_col)
+            else
+                call display_echo_area(f, endcol)
+            end if
+            f%cursor_vpos = -1
+            if (mini_active .and. .not. showing_message) then
+                f%cursor_vpos = mw%top_line
+                f%cursor_hpos = min(mini_col, mw%total_cols - 1)
+            else if (cursor_in_echo_area .or. (mini_active .and. showing_message)) then
+                f%cursor_vpos = mw%top_line
+                f%cursor_hpos = min(endcol, mw%total_cols - 1)
+            else if (sw%cursor_vpos >= 0) then
+                f%cursor_vpos = sw%top_line + sw%cursor_vpos
+                f%cursor_hpos = sw%left_col + sw%cursor_hpos
+            end if
+        end associate
         call update_frame(f, status)
     end subroutine redisplay
 end module xdisp_fm
