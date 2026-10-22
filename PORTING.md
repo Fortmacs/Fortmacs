@@ -301,6 +301,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-22 — README wording: "Emacs already works. This is for fun. Let's see where it goes." On `readme-already-works`.
 - 2026-10-22 — README: the "Why AI assistance?" section says the project is for fun; the package counts say "respectively". On `readme-for-fun`.
 - 2026-10-22 — Tests that assumed a normal machine now pass in a Guix build sandbox: the `~root` cases in `test_fileio_fm` use the real user (new `passwd_name_of_user` in `sysdep_fm`; upstream uses `user-login-name` too), and `save-buffer-backup` is skipped when the test directory is under /tmp, where `normal-backup-enable-predicate` refuses backups. The README links the side-by-side page on GitHub Pages again, now that the repository is public. On `fix-sandbox-tests`.
 - 2026-10-22 — Phase 5.2, feature 5: M-x and minibuffer completion (`try-completion`, `all-completions`, `test-completion` in minibuf_fm; `completing-read`, the basic and emacs22 styles, TAB, SPC, ?, RET with REQUIRE-MATCH, `minibuffer-message`, *Completions* in the root window, file name completion in `read-file-name` and C-x C-f in minibuffer_fm; `file-name-completion` in dired_fm; `execute-extended-command` in simple_fm; `where-is-internal` in keymap_fm; `compare-strings`, `substring` in fns_fm; the case tables from #38 for `completion-ignore-case`), on `phase5-completion` (based on main after PR #34, then merged with main after #38). Next: built-in help (C-h f, C-h k, C-h v).
