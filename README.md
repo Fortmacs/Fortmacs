@@ -218,9 +218,9 @@ as-is. This is for fun; let's see where it goes.
 
 And that is only Emacs itself. Much of what people love about Emacs lives
 in its packages: GNU ELPA, NonGNU ELPA and MELPA hold over 7,000 of them
-(509, 293 and 6,333, respectively), every one written in Elisp. For Fortmacs to be
-usable, everyone's favorite package has to be available too, so they all
-need translating as well. It simply isn't realistic.
+(509, 293 and 6,333, respectively), every one written in Elisp. For
+Fortmacs to be usable, everyone's favorite package has to be available
+too, so they all need translating as well. It simply isn't realistic.
 
 An AI assistant changes the math:
 
