@@ -66,14 +66,17 @@ contains
         logical :: found
 
         call getenv(variable, value, found)
+
         if (found .and. len(value) > 0) then
             if (file_name_absolute_p(value)) then
                 dir = file_name_as_directory(value)//"fortmacs/"
                 return
             end if
         end if
+
         dir = file_name_as_directory(get_homedir())//fallback//"/fortmacs/"
     end function xdg_directory
+
 
     !> The directory of init.f90.
     function config_directory() result(dir)
@@ -82,12 +85,14 @@ contains
         dir = xdg_directory("XDG_CONFIG_HOME", ".config")
     end function config_directory
 
+
     !> The directory of the built binary.
     function state_directory() result(dir)
         character(len=:), allocatable :: dir
 
         dir = xdg_directory("XDG_STATE_HOME", ".local/state")
     end function state_directory
+
 
     !> The directory `--recompile` builds in.
     function cache_directory() result(dir)
@@ -96,12 +101,14 @@ contains
         dir = xdg_directory("XDG_CACHE_HOME", ".cache")
     end function cache_directory
 
+
     !> The user's init file.
     function init_file_name() result(name)
         character(len=:), allocatable :: name
 
         name = config_directory()//"init.f90"
     end function init_file_name
+
 
     !> The binary `--recompile` makes.
     function user_build_name() result(name)
@@ -110,12 +117,14 @@ contains
         name = state_directory()//"fortmacs"
     end function user_build_name
 
+
     !> The file name of the running program ("" if unknown).
     function running_executable() result(name)
         character(len=:), allocatable :: name
 
         if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
+
 
     !> The installation `executable` belongs to: PREFIX when it is
     !> PREFIX/bin/fortmacs and PREFIX/lib/libfortmacs.a exists (`found`).
@@ -133,6 +142,7 @@ contains
         prefix = file_name_directory(bin)
         found = file_exists_p(prefix//"lib/libfortmacs.a")
     end subroutine install_prefix
+
 
     !> The main program of a user build: `run` with the user's
     !> `configure`, knowing the installation it was built against.
@@ -154,6 +164,7 @@ contains
                "end program fortmacs_user"//nl
     end function driver_source
 
+
     !> `s` as a Fortran string literal, split over continuation lines so
     !> that no line gets too long.
     function fortran_string(s) result(literal)
@@ -163,6 +174,7 @@ contains
         integer :: k, n
 
         quoted = ""
+
         do k = 1, len(s)
             if (s(k:k) == '"') then
                 quoted = quoted//'""'
@@ -170,19 +182,24 @@ contains
                 quoted = quoted//s(k:k)
             end if
         end do
+
         literal = '"'
         n = 0
+
         do k = 1, len(quoted)
             literal = literal//quoted(k:k)
             n = n + 1
+
             ! Break between characters, never inside a doubled quote.
             if (n >= 60 .and. k < len(quoted) .and. quoted(k:k) /= '"') then
                 literal = literal//'" // &'//new_line("a")//'        "'
                 n = 0
             end if
         end do
+
         literal = literal//'"'
     end function fortran_string
+
 
     !> Build the init file against the installation at `prefix` into
     !> `user_build_name()`.  `log` gets the compiler's output.  Errors: no
@@ -199,16 +216,20 @@ contains
 
         log = ""
         init = init_file_name()
+
         if (.not. file_readable_p(init)) then
             call report_file_errno("Opening init file", init, ENOENT, status)
             return
         end if
+
         library = prefix//"lib/libfortmacs.a"
+
         if (.not. file_exists_p(library)) then
             call set_error(status, FM_GENERIC_ERROR, "Can't find "//library// &
                            "; install Fortmacs with `fpm install`")
             return
         end if
+
         cache = cache_directory()
         call make_directory(cache, status, parents=.true.)
         if (.not. status%ok()) return
@@ -220,6 +241,7 @@ contains
               form="unformatted", iostat=ios)
         if (ios == 0) write (unit, iostat=ios) driver_source(prefix)
         if (ios == 0) close (unit, iostat=ios)
+
         if (ios /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Can't write "//driver)
             return
@@ -262,10 +284,12 @@ contains
         else if (xfixnum(result) /= 0) then
             call set_error(status, FM_GENERIC_ERROR, "Compiling "//init//" failed")
         end if
+
         if (.not. status%ok()) then
             if (file_exists_p(built//".new")) call delete_file_internal(built//".new", ignore)
             return
         end if
+
         call rename_file(built//".new", built, status)
     end subroutine recompile
 

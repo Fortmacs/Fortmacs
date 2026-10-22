@@ -116,14 +116,17 @@ contains
         n = len(bytes, kind=int64)
         if (n == 0) return
         if (.not. allocated(tty%obuf)) allocate (character(len=max(4096_int64, 2*n)) :: tty%obuf)
+
         if (tty%olen + n > len(tty%obuf, kind=int64)) then
             allocate (character(len=max(2*len(tty%obuf, kind=int64), tty%olen + n)) :: grown)
             grown(1:tty%olen) = tty%obuf(1:tty%olen)
             call move_alloc(grown, tty%obuf)
         end if
+
         tty%obuf(tty%olen + 1:tty%olen + n) = bytes
         tty%olen = tty%olen + n
     end subroutine tty_put_bytes
+
 
     !> Output capability string `cap` if the terminal has it.  The OUTPUT
     !> macros of term.c (emacs_tputs with cm.c:cmputc); padding is dropped.
@@ -135,6 +138,7 @@ contains
         call tty_put_bytes(tty, delete_padding(cap))
     end subroutine tty_output
 
+
     !> The pending output, which is then discarded.
     function tty_take_output(tty) result(s)
         type(tty_display_info), intent(inout) :: tty
@@ -144,6 +148,7 @@ contains
         if (tty%olen > 0) s = tty%obuf(1:tty%olen)
         tty%olen = 0
     end function tty_take_output
+
 
     !> Write the pending output to the terminal (fflush of tty->output).
     !> Without an output descriptor the output stays pending.

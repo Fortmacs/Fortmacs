@@ -49,20 +49,25 @@ contains
         integer(int64) :: a, b, k
 
         found = 0
+
         associate (t => buffers(cur)%text)
             ! Before the gap: string index = byte position.
             a = from_byte
             b = min(to_byte, t%gpt_byte) - 1
+
             if (a <= b) then
                 k = index(t%beg(a:b), newline, kind=int64)
+
                 if (k > 0) then
                     found = a + k - 1
                     return
                 end if
             end if
+
             ! After the gap: string index = byte position + gap_size.
             a = max(from_byte, t%gpt_byte)
             b = to_byte - 1
+
             if (a <= b) then
                 k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, kind=int64)
                 if (k > 0) found = a + k - 1
@@ -70,30 +75,37 @@ contains
         end associate
     end function next_newline_byte
 
+
     !> Byte position of the last newline in [from_byte, to_byte), or 0.
     integer(int64) function prev_newline_byte(from_byte, to_byte) result(found)
         integer(int64), intent(in) :: from_byte, to_byte
         integer(int64) :: a, b, k
 
         found = 0
+
         associate (t => buffers(cur)%text)
             a = max(from_byte, t%gpt_byte)
             b = to_byte - 1
+
             if (a <= b) then
                 k = index(t%beg(a + t%gap_size:b + t%gap_size), newline, back=.true., kind=int64)
+
                 if (k > 0) then
                     found = a + k - 1
                     return
                 end if
             end if
+
             a = from_byte
             b = min(to_byte, t%gpt_byte) - 1
+
             if (a <= b) then
                 k = index(t%beg(a:b), newline, back=.true., kind=int64)
                 if (k > 0) found = a + k - 1
             end if
         end associate
     end function prev_newline_byte
+
 
     !> Search for `count` newlines from `start` toward `end` (forward if
     !> count > 0, backward if count < 0; `end` defaults to ZV or BEGV).
@@ -111,6 +123,7 @@ contains
         associate (b => buffers(cur))
             if (present(end)) then
                 lim = end
+
                 if (present(end_byte)) then
                     lim_byte = end_byte
                 else
@@ -124,6 +137,7 @@ contains
                 lim_byte = b%begv_byte
             end if
         end associate
+
         if (present(start_byte)) then
             pos_byte = start_byte
         else
@@ -131,12 +145,14 @@ contains
         end if
 
         left = count
+
         if (count > 0) then
             do while (pos_byte < lim_byte)
                 nl = next_newline_byte(pos_byte, lim_byte)
                 if (nl == 0) exit
                 pos_byte = nl + 1
                 left = left - 1
+
                 if (left == 0) then
                     call finish(byte_to_char(pos_byte), pos_byte)
                     return
@@ -147,10 +163,12 @@ contains
                 nl = prev_newline_byte(lim_byte, pos_byte)
                 if (nl == 0) exit
                 left = left + 1
+
                 if (left >= 0) then
                     call finish(byte_to_char(nl + 1), nl + 1)
                     return
                 end if
+
                 pos_byte = nl
             end do
         else
@@ -174,6 +192,7 @@ contains
 
     end function find_newline
 
+
     !> Move point past `count` line boundaries from `start`, or to `limit`
     !> if there are fewer.  Port of search.c:scan_newline.
     subroutine scan_newline(start, start_byte, limit, limit_byte, count)
@@ -181,12 +200,14 @@ contains
         integer(int64) :: charpos, bytepos, counted
 
         charpos = find_newline(start, limit, count, counted, bytepos, start_byte, limit_byte)
+
         if (counted /= count) then
             call temp_set_point_both(buffers(cur), limit, limit_byte)
         else
             call temp_set_point_both(buffers(cur), charpos, bytepos)
         end if
     end subroutine scan_newline
+
 
     !> Scan `count` lines from point (count <= 0: to the start of the line
     !> |count| lines back) without moving point.  Returns how many newlines
@@ -204,6 +225,7 @@ contains
         end associate
     end function scan_newline_from_point
 
+
     !> Port of search.c:find_newline_no_quit.
     integer(int64) function find_newline_no_quit(from, frombyte, cnt, bytepos)
         integer(int64), intent(in) :: from, frombyte, cnt
@@ -211,6 +233,7 @@ contains
 
         find_newline_no_quit = find_newline(from, count=cnt, bytepos=bytepos, start_byte=frombyte)
     end function find_newline_no_quit
+
 
     !> Like `find_newline`, but returns the position before the newline,
     !> searching no further than `to` (default: ZV/BEGV).
@@ -222,10 +245,12 @@ contains
         integer(int64) :: counted, pbyte
 
         pos = find_newline(from, to, cnt, counted, pbyte)
+
         if (counted == cnt) then
             pos = pos - 1
             pbyte = pbyte - buf_prev_char_len(buffers(cur), pbyte)
         end if
+
         if (present(bytepos)) bytepos = pbyte
     end function find_before_next_newline
 

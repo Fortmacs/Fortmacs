@@ -78,6 +78,7 @@ contains
         if (.not. have) call set_error(status, FM_QUIT)
     end subroutine read_key
 
+
     !> What `key` means in replace.el:query-replace-map (the bindings
     !> y-or-n-p and map-y-or-n-p use), or ANSWER_NONE.
     integer function query_replace_answer(key) result(answer)
@@ -85,6 +86,7 @@ contains
 
         answer = ANSWER_NONE
         if (.not. fixnump(key)) return
+
         select case (xfixnum(key))
         case (iachar(" "), iachar("y"), iachar("Y"))
             answer = ANSWER_ACT
@@ -108,6 +110,7 @@ contains
         end select
     end function query_replace_answer
 
+
     !> Ask a "y or n" question in the echo area: `answer` is true for y
     !> (or SPC), false for n (or DEL); C-g quits.  Other keys ask again,
     !> with "Please answer y or n.".  Port of subr.el:y-or-n-p, the
@@ -123,20 +126,25 @@ contains
 
         answer = .false.
         padded = prompt
+
         if (len(prompt) > 0) then
             if (prompt(len(prompt):len(prompt)) /= " ") padded = padded//" "
         end if
+
         padded = padded//"(y or n) "
         first = .true.
+
         do
             if (first) then
                 call read_key(padded, key, status)
             else
                 call read_key("Please answer y or n.  "//padded, key, status)
             end if
+
             if (.not. status%ok()) return
             first = .false.
             def = query_replace_answer(key)
+
             select case (def)
             case (ANSWER_ACT, ANSWER_SKIP)
                 exit
@@ -150,13 +158,16 @@ contains
                 call discard_input()
             end select
         end do
+
         answer = def == ANSWER_ACT
+
         if (answer) then
             call message(padded//"y")
         else
             call message(padded//"n")
         end if
     end subroutine y_or_n_p
+
 
     !> Add `newelt` to the front of history list `history_var` (a symbol
     !> name) unless it is already first, keeping at most history-length
@@ -171,20 +182,26 @@ contains
 
         call symbol_value(sym(history_var), history, status)
         if (.not. status%ok()) history = nil()
+
         if (list_length(history) > 0) then
             first = list_elt(history, 1_int64)
+
             if (stringp(first)) then
                 if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
             end if
         end if
+
         call cons(make_string(newelt), history, longer, ok)
         if (.not. ok) return
+
         if (list_length(longer) > history_length) then
             call list_elements(longer, elems)
             longer = make_list(elems(1:history_length))
         end if
+
         call set(sym(history_var), longer, status)
     end subroutine add_to_history
+
 
     !> Give KEY a global binding as COMMAND.
     !> This is a legacy function; see `keymap_global_set` for the
@@ -203,6 +220,7 @@ contains
 
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
+
 
     !> `global_set_key` with the command named COMMAND.
     subroutine global_set_key_command(key, command, status)

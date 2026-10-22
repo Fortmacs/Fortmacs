@@ -155,12 +155,14 @@ contains
         meta_key = mode
     end subroutine set_input_meta_mode
 
+
     !> Read keyboard input from `fd` (-1 for none).
     subroutine set_input_fd(fd)
         integer(int32), intent(in) :: fd
 
         input_fd = fd
     end subroutine set_input_fd
+
 
     !> Append `ev` to the event queue.  Port of keyboard.c:kbd_buffer_store_event.
     subroutine store_event(ev)
@@ -169,8 +171,10 @@ contains
         integer(int64) :: n
 
         if (.not. allocated(events)) allocate (events(64))
+
         if (tail == size(events, kind=int64)) then
             n = tail - head + 1
+
             if (head > 1 .and. n < size(events, kind=int64)/2) then
                 ! Compact in place.
                 events(1:n) = events(head:tail)
@@ -179,12 +183,15 @@ contains
                 grown(1:n) = events(head:tail)
                 call move_alloc(grown, events)
             end if
+
             head = 1
             tail = n
         end if
+
         tail = tail + 1
         events(tail) = ev
     end subroutine store_event
+
 
     !> Store character event `c`.
     subroutine store_char(c)
@@ -193,16 +200,20 @@ contains
         call store_event(make_fixnum(c))
     end subroutine store_char
 
+
     !> Flush incomplete UTF-8 bytes as raw-byte characters.
     subroutine flush_pending()
         integer(int64) :: k
 
         if (.not. allocated(pending_bytes)) return
+
         do k = 1, len(pending_bytes, kind=int64)
             call store_char(int(byte8_to_char(ichar(pending_bytes(k:k), int32)), int64))
         end do
+
         deallocate (pending_bytes)
     end subroutine flush_pending
+
 
     !> Decode byte `b` with the keyboard coding system (UTF-8): complete
     !> characters become events, invalid bytes raw-byte characters.  The
@@ -217,21 +228,26 @@ contains
                 call flush_pending()
             end if
         end if
+
         if (.not. allocated(pending_bytes)) then
             if (b < 128) then
                 call store_char(int(b, int64))
                 return
             end if
+
             if (iand(b, int(z'C0', int32)) == int(z'80', int32)) then
                 call store_char(int(byte8_to_char(b), int64))
                 return
             end if
+
             pending_bytes = char(b)
             return
         end if
+
         pending_bytes = pending_bytes//char(b)
         need = bytes_by_char_head(ichar(pending_bytes(1:1), int32))
         if (len(pending_bytes) < need) return
+
         if (multibyte_length(pending_bytes, 1_int64, .false.) == need) then
             call string_char_and_length(pending_bytes, 1_int64, ch, length)
             call store_char(int(ch, int64))
@@ -240,6 +256,7 @@ contains
             call flush_pending()
         end if
     end subroutine decode_byte
+
 
     !> Turn terminal input `bytes` into events.  The per-byte part of
     !> keyboard.c:tty_read_avail_input.
@@ -250,6 +267,7 @@ contains
 
         do k = 1, len(bytes, kind=int64)
             b = ichar(bytes(k:k), int32)
+
             select case (meta_key)
             case (1)
                 if (b >= 128) then
@@ -264,6 +282,7 @@ contains
             end select
         end do
     end subroutine kbd_store_bytes
+
 
     !> Read whatever input the terminal has, without waiting; `nread` is
     !> the number of bytes (0 at end of file).  Port of
@@ -281,6 +300,7 @@ contains
         if (nread > 0) call kbd_store_bytes(buf(1:nread))
     end subroutine tty_read_avail_input
 
+
     !> Push `evs` to be read before any other input, in order.
     !> Like setting keyboard.c:Vunread_command_events.
     subroutine unread_command_events(evs)
@@ -296,6 +316,7 @@ contains
         nunread = nunread + n
     end subroutine unread_command_events
 
+
     !> Drop all pending input.  Port of keyboard.c:Fdiscard_input.
     subroutine discard_input()
         nunread = 0
@@ -306,12 +327,14 @@ contains
         if (allocated(pending_bytes)) deallocate (pending_bytes)
     end subroutine discard_input
 
+
     !> Whether input is waiting.  Port of keyboard.c:Finput_pending_p.
     logical function input_pending_p()
         input_pending_p = nunread > 0 .or. tail >= head
         if (input_pending_p .or. input_fd < 0) return
         input_pending_p = input_available(input_fd, 0_int32)
     end function input_pending_p
+
 
     !> The next input event.  Waits for terminal input if there is a
     !> terminal; otherwise `have` is false when the queue is empty (end of
@@ -323,6 +346,7 @@ contains
         integer(int64) :: nread
 
         have = .false.
+
         do
             if (nunread > 0) then
                 ev = unread(1)
@@ -332,18 +356,23 @@ contains
                 have = .true.
                 return
             end if
+
             if (tail >= head) then
                 ev = events(head)
                 events(head) = nil()
                 head = head + 1
+
                 if (head > tail) then
                     head = 1
                     tail = 0
                 end if
+
                 have = .true.
                 return
             end if
+
             if (input_fd < 0) return
+
             ! C-g on the terminal arrives as SIGINT; while waiting for
             ! input it reads as the quit character (keyboard.c:
             ! handle_interrupt's quit_throw_to_read_char).
@@ -352,11 +381,13 @@ contains
                 have = .true.
                 return
             end if
+
             ! Nothing typed yet: show the screen before waiting (read_char's
             ! redisplay).
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
+
             if (.not. input_available(input_fd, -1_int32)) cycle
             call tty_read_avail_input(nread, status)
             if (.not. status%ok()) return
@@ -364,6 +395,7 @@ contains
             if (nread == 0) return
         end do
     end subroutine read_event
+
 
     ! ------------------------------------------------------------------
     ! Key sequences
@@ -376,15 +408,18 @@ contains
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
+
     !> Port of keyboard.c:test_undefined (without command remapping).
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
 
         test_undefined = nilp(binding)
+
         if (.not. test_undefined .and. symbolp(binding)) then
             test_undefined = xsymbol(binding) == intern("undefined")
         end if
     end function test_undefined
+
 
     !> Events of translation `next` (a list of events or a string).
     subroutine sequence_events(next, seq)
@@ -398,18 +433,22 @@ contains
             call list_elements(next, seq)
             return
         end if
+
         s = xstring(next)
         allocate (seq(len(s)))
         n = 0
         pos = 1
+
         do while (pos <= len(s, kind=int64))
             call string_char_and_length(s, pos, ch, length)
             n = n + 1
             seq(n) = make_fixnum(int(ch, int64))
             pos = pos + length
         end do
+
         seq = seq(1:n)
     end subroutine sequence_events
+
 
     !> One step of key remapping: extend `fk`'s scanned key by one event
     !> and, if the map binds it to a key sequence and `doit`, replace the
@@ -433,15 +472,18 @@ contains
         key = keybuf(fk%end + 1)
         fk%end = fk%end + 1
         if (keymapp(fk%parent)) next = access_keymap(fk%map, key, .true., .false.)
+
         if (doit .and. (stringp(next) .or. (vtag(next) == V_LIST .and. &
                                             .not. keymapp(next)))) then
             call sequence_events(next, seq)
             n = size(seq)
             diff = n - (fk%end - fk%start)
+
             if (READ_KEY_ELTS - input <= diff) then
                 call set_error(status, FM_GENERIC_ERROR, "Key sequence too long")
                 return
             end if
+
             if (diff < 0) then
                 do i = fk%end, input - 1
                     keybuf(i + diff + 1) = keybuf(i + 1)
@@ -451,6 +493,7 @@ contains
                     keybuf(i + diff + 1) = keybuf(i + 1)
                 end do
             end if
+
             keybuf(fk%start + 1:fk%start + n) = seq
             fk%end = fk%end + diff
             fk%start = fk%end
@@ -458,6 +501,7 @@ contains
             done = .true.
             return
         end if
+
         if (keymapp(next)) then
             fk%map = next
         else
@@ -467,6 +511,7 @@ contains
         end if
     end subroutine keyremap_step
 
+
     subroutine reset_remap(fk, pos)
         type(keyremap_type), intent(inout) :: fk
         integer, intent(in) :: pos
@@ -475,6 +520,7 @@ contains
         fk%end = pos
         fk%map = fk%parent
     end subroutine reset_remap
+
 
     !> Read a key sequence: events until the active keymaps give a
     !> non-prefix binding (or none), with terminal escape sequences and
@@ -513,6 +559,7 @@ contains
             first_unbound = READ_KEY_ELTS + 1
             current_binding = current_active_maps()
             t = 0
+
             keyloop: do
                 if (nilp(current_binding)) then
                     if (keytran%start >= t) exit replay
@@ -526,6 +573,7 @@ contains
                     do i = first_unbound + 1, t - 1
                         keybuf(i - first_unbound) = keybuf(i + 1)
                     end do
+
                     mock_input = t - first_unbound - 1
                     call reset_remap(indec, indec%start - (first_unbound + 1))
                     call reset_remap(fkey, fkey%start - (first_unbound + 1))
@@ -543,6 +591,7 @@ contains
                 else
                     call read_event(key, have, status)
                     if (.not. status%ok()) return
+
                     if (.not. have) then
                         eof = .true.
                         exit replay
@@ -551,11 +600,13 @@ contains
 
                 ! keyboard.c:follow_key
                 new_binding = access_keymap(current_binding, key, .true., .false.)
+
                 if (.not. nilp(new_binding)) then
                     first_unbound = max(t + 1, first_unbound)
                 else
                     first_unbound = min(t, first_unbound)
                 end if
+
                 current_binding = new_binding
                 keybuf(t + 1) = key
                 t = t + 1
@@ -565,6 +616,7 @@ contains
                     call keyremap_step(keybuf, indec, max(t, mock_input), .true., &
                                        diff, done, status)
                     if (.not. status%ok()) return
+
                     if (done) then
                         mock_input = diff + max(t, mock_input)
                         cycle replay
@@ -582,6 +634,7 @@ contains
                                            test_undefined(current_binding), &
                                            diff, done, status)
                         if (.not. status%ok()) return
+
                         if (done) then
                             mock_input = diff + max(t, mock_input)
                             indec%end = indec%end + diff
@@ -596,6 +649,7 @@ contains
                     call keyremap_step(keybuf, keytran, max(t, mock_input), .true., &
                                        diff, done, status)
                     if (.not. status%ok()) return
+
                     if (done) then
                         mock_input = diff + max(t, mock_input)
                         indec%end = indec%end + diff
@@ -612,6 +666,7 @@ contains
                     fixnump(key)) then
                     k = xfixnum(key)
                     c = iand(k, not(M_MASK))
+
                     if (iand(k, M_SHIFT) /= 0) then
                         k = k - M_SHIFT
                     else if (c >= iachar("A") .and. c <= iachar("Z")) then
@@ -619,6 +674,7 @@ contains
                     else
                         cycle keyloop
                     end if
+
                     original_uppercase = key
                     original_uppercase_position = t - 1
                     keybuf(t) = make_fixnum(k)
@@ -631,6 +687,7 @@ contains
                 if (nilp(current_binding) .and. keytran%start >= t .and. &
                     symbolp(key)) then
                     call parse_modifiers(key, bits, base)
+
                     if (iand(bits, M_SHIFT) /= 0) then
                         original_uppercase = key
                         original_uppercase_position = t - 1
@@ -651,12 +708,14 @@ contains
             keybuf(t) = original_uppercase
             shift_translated = .false.
         end if
+
         this_command_keys_shift_translated = shift_translated
         binding = current_binding
         if (keymapp(binding)) binding = nil()
         allocate (keys(t))
         keys = keybuf(1:t)
     end subroutine read_key_sequence
+
 
     ! ------------------------------------------------------------------
     ! The command loop
@@ -673,6 +732,7 @@ contains
         transient_active = .true.
     end subroutine set_transient_map
 
+
     !> Redisplay, then wait `ms` milliseconds or until input arrives.
     !> Port of subr.el:sit-for (for a terminal; no wait without one).
     subroutine sit_for(ms)
@@ -683,15 +743,18 @@ contains
         if (input_fd >= 0 .and. .not. input_pending_p()) ready = input_available(input_fd, ms)
     end subroutine sit_for
 
+
     !> Make `command_loop` return after the current command.
     subroutine request_exit()
         exit_requested = .true.
     end subroutine request_exit
 
+
     !> Whether a command asked the command loop to stop.
     logical function exit_requested_p()
         exit_requested_p = exit_requested
     end function exit_requested_p
+
 
     !> Run keyboard macro `macro` (a string or list of events): its events
     !> are read before other input.  A count from the prefix argument
@@ -703,10 +766,12 @@ contains
         integer(int64) :: k
 
         call sequence_events(macro, seq)
+
         do k = 1, max(count, 1_int64)
             call unread_command_events(seq)
         end do
     end subroutine execute_kbd_macro
+
 
     !> Read one key sequence and run its command.  `done` at end of input.
     !> Errors from the command are reported in `last_message` (as the
@@ -724,14 +789,17 @@ contains
         this_command = nil()
         real_this_command = nil()
         call read_key_sequence(keys, cmd, eof, status)
+
         if (.not. status%ok()) then
             last_message = format_error(status)
             return
         end if
+
         if (eof .and. size(keys) == 0) then
             done = .true.
             return
         end if
+
         ! A new command clears the echo area.
         if (allocated(last_message)) last_message = ""
         ! Input ended in the middle of a key sequence: it is unbound.
@@ -750,6 +818,7 @@ contains
         ! simple.el:command-execute
         current_prefix_arg = prefix_arg
         prefix_arg = nil()
+
         if (test_undefined(cmd)) then
             ! subr.el:undefined
             last_message = key_description(keys)//" is undefined"
@@ -768,6 +837,7 @@ contains
         done = eof
     end subroutine command_loop_step
 
+
     !> Run commands until input ends or `request_exit` is called.  Command
     !> errors don't stop the loop.  Port of keyboard.c:command_loop_1.
     subroutine command_loop(status)
@@ -776,12 +846,15 @@ contains
         logical :: done
 
         exit_requested = .false.
+
         do
             call command_loop_step(done, step_status)
             if (done .or. exit_requested) exit
         end do
+
         exit_requested = .false.
     end subroutine command_loop
+
 
     !> Run a command loop until a command throws to `exit`: return when
     !> it throws nil, signal quit when it throws t.  End of input, or a
@@ -794,15 +867,18 @@ contains
 
         command_loop_level = command_loop_level + 1
         exit_pending = .false.
+
         do
             call command_loop_step(done, step_status)
             if (exit_pending .or. done .or. exit_requested) exit
         end do
+
         if (.not. exit_pending .or. exit_abort) call set_error(status, FM_QUIT)
         exit_pending = .false.
         exit_abort = .false.
         command_loop_level = command_loop_level - 1
     end subroutine recursive_edit_1
+
 
     !> (throw 'exit nil), or with `abort` (throw 'exit t): end the
     !> innermost recursive edit once the current command returns.
@@ -812,6 +888,7 @@ contains
         exit_pending = .true.
         exit_abort = abort
     end subroutine throw_exit
+
 
     !> Leave the innermost recursive edit or minibuffer.
     !> Port of keyboard.c:Fexit_recursive_edit.
@@ -824,6 +901,7 @@ contains
             call set_error(status, FM_USER_ERROR, "No recursive edit is in progress")
         end if
     end subroutine exit_recursive_edit
+
 
     !> Abort the command that started the innermost recursive edit or
     !> minibuffer.  Port of keyboard.c:Fabort_recursive_edit.

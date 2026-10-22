@@ -36,11 +36,13 @@ contains
                     ]
     end subroutine collect_version_fm
 
+
     subroutine test_upstream(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, upstream_version, "31.1")
     end subroutine test_upstream
+
 
     subroutine test_banner(error)
         type(error_type), allocatable, intent(out) :: error

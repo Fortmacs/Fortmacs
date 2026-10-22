@@ -65,12 +65,14 @@ contains
         call forward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_char
 
+
     !> Port of bindings.el:left-char (left-to-right paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
 
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_char
+
 
     !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
     subroutine bind(map, keys, cmd)
@@ -82,6 +84,7 @@ contains
         call key_parse(keys, key, status)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
+
 
     !> Bind the single event `c` to command `cmd` in `map`.
     subroutine bind_char(map, c, cmd)
@@ -95,6 +98,7 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind_char
 
+
     !> In `map`, translate `from` (kbd syntax) to the event `to`.
     subroutine translate(map, from, to)
         type(handle_type), intent(in) :: map
@@ -106,6 +110,7 @@ contains
         call key_parse(from, key, status)
         call define_key(map, key, list(to), status)
     end subroutine translate
+
 
     !> Register the commands and install the default keymaps.  Safe to
     !> call again (the maps are rebuilt).
@@ -134,9 +139,11 @@ contains
         key(1) = make_fixnum(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
         call bind_char(global_map, 9_int64, "self-insert-command")
+
         do c = 32, 126
             call bind_char(global_map, c, "self-insert-command")
         end do
+
         ! mule-conf.el: all non-ASCII characters self-insert (this covers
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
@@ -154,11 +161,13 @@ contains
         call bind(global_map, "C-o", "open-line")
         call bind(global_map, "C-q", "quoted-insert")
         call bind(global_map, "C-u", "universal-argument")
+
         do c = 0, 9
             call bind_char(esc_map, iachar("0") + c, "digit-argument")
             call bind_char(global_map, M_CTL + iachar("0") + c, "digit-argument")
             call bind_char(global_map, M_CTL + M_META + iachar("0") + c, "digit-argument")
         end do
+
         call bind(esc_map, "-", "negative-argument")
         call bind_char(global_map, M_CTL + iachar("-"), "negative-argument")
         call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative-argument")
@@ -194,9 +203,11 @@ contains
         call translate(function_key_map, "<backspace>", make_fixnum(127_int64))
         call translate(function_key_map, "<delete>", make_fixnum(127_int64))
         call translate(function_key_map, "<kp-delete>", make_fixnum(127_int64))
+
         if (.not. keymap_live_p(local_function_key_map)) then
             call make_sparse_keymap(local_function_key_map)
         end if
+
         call set_keymap_parent(local_function_key_map, function_key_map, status)
     end subroutine init_bindings
 

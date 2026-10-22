@@ -61,6 +61,7 @@ contains
                     ]
     end subroutine collect_insdel_fm
 
+
     !> Make and select a fresh buffer; remember the old current buffer.
     subroutine enter(name, h, old)
         character(len=*), intent(in) :: name
@@ -72,6 +73,7 @@ contains
         call set_buffer(h, st)
     end subroutine enter
 
+
     subroutine leave(h, old)
         type(handle_type), intent(in) :: h, old
         type(status_type) :: st
@@ -80,6 +82,7 @@ contains
         call kill_buffer(h, st)
     end subroutine leave
 
+
     !> Whole buffer text.
     function contents() result(s)
         character(len=:), allocatable :: s
@@ -87,12 +90,14 @@ contains
         s = buf_bytes(buffers(cur), 1_int64, buffers(cur)%text%z_byte)
     end function contents
 
+
     !> Move point to char position `pos`.
     subroutine goto(pos)
         integer(int64), intent(in) :: pos
 
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto
+
 
     subroutine test_insert_ascii(error)
         type(error_type), allocatable, intent(out) :: error
@@ -113,6 +118,7 @@ contains
         call check(error, contents(), "hello")
         call leave(h, old)
     end subroutine test_insert_ascii
+
 
     subroutine test_insert_multibyte(error)
         type(error_type), allocatable, intent(out) :: error
@@ -135,6 +141,7 @@ contains
         call check(error,.not. st%ok(), "invalid text accepted")
         call leave(h, old)
     end subroutine test_insert_multibyte
+
 
     subroutine test_insert_middle(error)
         type(error_type), allocatable, intent(out) :: error
@@ -162,6 +169,7 @@ contains
         call leave(h, old)
     end subroutine test_insert_middle
 
+
     subroutine test_insert_char(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -178,6 +186,7 @@ contains
         call leave(h, old)
     end subroutine test_insert_char
 
+
     subroutine test_gap_growth(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -186,12 +195,14 @@ contains
         character(len=:), allocatable :: s
 
         call enter("ti-grow", h, old)
+
         do k = 1, 3000
             call insert("xy", st)
             if (.not. st%ok()) exit
             ! Alternate insertion points to keep moving the gap.
             if (mod(k, 7) == 0) call goto(int(k, int64))
         end do
+
         call check(error, st%ok(), "insert failed while growing")
         if (allocated(error)) return
         call check(error, buffers(cur)%text%z, 6001_int64)
@@ -213,12 +224,14 @@ contains
             integer :: i
 
             count_char = 0
+
             do i = 1, len(str)
                 if (str(i:i) == c) count_char = count_char + 1
             end do
         end function count_char
 
     end subroutine test_gap_growth
+
 
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
@@ -241,6 +254,7 @@ contains
         call check(error, buffers(cur)%text%z_byte, 5_int64)
         call leave(h, old)
     end subroutine test_delete
+
 
     subroutine test_delete_point(error)
         type(error_type), allocatable, intent(out) :: error
@@ -268,6 +282,7 @@ contains
         call leave(h, old)
     end subroutine test_delete_point
 
+
     subroutine test_delete_clamp(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -288,6 +303,7 @@ contains
         call leave(h, old)
     end subroutine test_delete_clamp
 
+
     subroutine test_delete_bytes(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -303,6 +319,7 @@ contains
         call leave(h, old)
     end subroutine test_delete_bytes
 
+
     subroutine test_conversion(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -317,17 +334,20 @@ contains
         call goto(3_int64)
         call insert("", st)
         call move_gap_both(3_int64, 4_int64)
+
         do c = 1, 6
             call check(error, char_to_byte(c), bytepos(c))
             if (allocated(error)) return
             call check(error, byte_to_char(bytepos(c)), c)
             if (allocated(error)) return
         end do
+
         ! The far end of the buffer, scanning backwards.
         call goto(1_int64)
         call check(error, buf_charpos_to_bytepos(cur, 5_int64), 8_int64)
         call leave(h, old)
     end subroutine test_conversion
+
 
     subroutine test_read_only(error)
         type(error_type), allocatable, intent(out) :: error
@@ -351,6 +371,7 @@ contains
         call leave(h, old)
     end subroutine test_read_only
 
+
     subroutine test_gap_shrink(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
@@ -368,6 +389,7 @@ contains
         call check(error, contents(), "abcdef")
         call leave(h, old)
     end subroutine test_gap_shrink
+
 
     !> The char/byte cache must not leak from a killed buffer to a new one
     !> that reuses its registry slot with the same modiff.

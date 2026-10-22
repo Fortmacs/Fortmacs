@@ -42,6 +42,7 @@ contains
                     ]
     end subroutine collect_error_fm
 
+
     subroutine test_default_ok(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -54,9 +55,11 @@ contains
         call check(error, st%detail, "5, 10")
     end subroutine test_default_ok
 
+
     subroutine fail_then_return(status)
         type(status_type), intent(out) :: status
     end subroutine fail_then_return
+
 
     subroutine test_intent_out_resets(error)
         type(error_type), allocatable, intent(out) :: error
@@ -68,6 +71,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. allocated(st%detail), "detail survived reset")
     end subroutine test_intent_out_resets
+
 
     subroutine test_names(error)
         type(error_type), allocatable, intent(out) :: error
@@ -82,6 +86,7 @@ contains
         if (allocated(error)) return
         call check(error, error_name(999), "error")
     end subroutine test_names
+
 
     ! Mirrors the error-conditions lists built in data.c:syms_of_data.
     subroutine test_hierarchy(error)
@@ -105,6 +110,7 @@ contains
         call check(error,.not. condition_matches(FM_OK, FM_GENERIC_ERROR), &
                    "success matched a condition")
     end subroutine test_hierarchy
+
 
     subroutine test_format(error)
         type(error_type), allocatable, intent(out) :: error

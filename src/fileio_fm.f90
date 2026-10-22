@@ -83,6 +83,7 @@ contains
         emacs_wd = emacs_get_current_dir_name()
     end subroutine init_fileio
 
+
     !> The directory part of `filename`, ending in a slash, or "" if it has
     !> none.  Port of fileio.c:file_name_directory.
     pure function file_name_directory(filename) result(dir)
@@ -92,6 +93,7 @@ contains
         dir = filename(1:index(filename, "/", back=.true.))
     end function file_name_directory
 
+
     !> `filename` without its directory part.
     !> Port of fileio.c:Ffile_name_nondirectory.
     pure function file_name_nondirectory(filename) result(name)
@@ -100,6 +102,7 @@ contains
 
         name = filename(index(filename, "/", back=.true.) + 1:)
     end function file_name_nondirectory
+
 
     !> `file` as a directory name: with a trailing slash ("./" for "").
     !> Port of fileio.c:file_name_as_directory.
@@ -116,6 +119,7 @@ contains
         end if
     end function file_name_as_directory
 
+
     !> The file name of directory `directory`: without trailing slashes,
     !> except that "/" and "//" stay and "///..." becomes "/".
     !> Port of fileio.c:directory_file_name.
@@ -125,14 +129,17 @@ contains
         integer :: n
 
         n = len(directory)
+
         if (.not. (n == 2 .and. directory(1:1) == "/")) then
             do while (n > 1)
                 if (directory(n:n) /= "/") exit
                 n = n - 1
             end do
         end if
+
         file = directory(1:n)
     end function directory_file_name
+
 
     !> Whether `name` ends in a slash.  Port of fileio.c:Fdirectory_name_p.
     pure logical function directory_name_p(name)
@@ -142,6 +149,7 @@ contains
         if (len(name) > 0) directory_name_p = name(len(name):len(name)) == "/"
     end function directory_name_p
 
+
     !> Whether `filename` is absolute: it starts with "/", "~", "~/" or
     !> "~USER" for an existing USER.  Port of fileio.c:file_name_absolute_p.
     logical function file_name_absolute_p(filename)
@@ -150,6 +158,7 @@ contains
 
         file_name_absolute_p = .false.
         if (len(filename) == 0) return
+
         if (filename(1:1) == "/") then
             file_name_absolute_p = .true.
         else if (filename(1:1) == "~") then
@@ -162,6 +171,7 @@ contains
             end if
         end if
     end function file_name_absolute_p
+
 
     !> Home directory of the user named at the start of `name` (up to a
     !> slash); false if there is no such user or the home directory is
@@ -183,6 +193,7 @@ contains
         user_homedir = home(1:1) == "/"
     end function user_homedir
 
+
     !> The user's home directory: $HOME, or the password entry of $LOGNAME,
     !> $USER or the real user; a relative $HOME is taken relative to the
     !> starting directory.  Port of fileio.c:get_homedir.
@@ -194,11 +205,13 @@ contains
         logical :: found
 
         call get_environment_variable("HOME", length=length, status=stat)
+
         if (stat == 0) then
             allocate (character(len=length) :: home)
             if (length > 0) call get_environment_variable("HOME", home)
         else
             found = .false.
+
             do i = 1, size(userenv)
                 call get_environment_variable(trim(userenv(i)), length=length, status=stat)
                 if (stat /= 0) cycle
@@ -208,17 +221,21 @@ contains
                 call passwd_home_by_name(user, home, found)
                 if (found) exit
             end do
+
             if (.not. found) call passwd_home_of_user(home, found)
             if (.not. found) home = ""
             if (len(home) == 0) return
         end if
+
         if (len(home) > 0) then
             if (home(1:1) == "/") return
         end if
+
         if (.not. allocated(emacs_wd)) call init_fileio()
         ! splice_dir_file
         home = file_name_as_directory(emacs_wd)//home
     end function get_homedir
+
 
     !> Whether `s` holds a NUL byte (CHECK_STRING_NULL_BYTES).
     pure logical function has_null_byte(s)
@@ -226,6 +243,7 @@ contains
 
         has_null_byte = index(s, achar(0)) > 0
     end function has_null_byte
+
 
     !> `name` made absolute and canonical: relative names are taken
     !> relative to `default_directory` (or the current buffer's
@@ -249,6 +267,7 @@ contains
 
         ! The default directory: the argument, else the buffer's.
         have_defdir = present(default_directory)
+
         if (have_defdir) then
             defdir = default_directory
         else if (cur /= 0) then
@@ -257,7 +276,9 @@ contains
                     call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
                     return
                 end if
+
                 have_defdir = .true.
+
                 if (len(buffers(cur)%directory) > 0 .and. buffers(cur)%directory(1:1) == "/") then
                     defdir = buffers(cur)%directory
                 else
@@ -268,11 +289,14 @@ contains
                 end if
             end if
         end if
+
         if (.not. have_defdir) defdir = "/"
+
         if (has_null_byte(defdir)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "filenamep")
             return
         end if
+
         ! Make sure the default directory is itself absolute.
         if (len(defdir) == 0) then
             call expand_file_name(defdir, tmp, status)
@@ -285,12 +309,15 @@ contains
         end if
 
         nm = name
+
         ! An absolute name with nothing to simplify is returned as is.
         if (len(nm) > 0) then
             if (nm(1:1) == "/") then
                 lose = .false.
+
                 do p = 1, len(nm)
                     if (nm(p:p) /= "/") cycle
+
                     if (at(nm, p + 1) == "." .and. &
                         (at(nm, p + 2) == "/" .or. at(nm, p + 2) == "" .or. &
                          (at(nm, p + 2) == "." .and. (at(nm, p + 3) == "/" .or. at(nm, p + 3) == "")))) then
@@ -298,8 +325,10 @@ contains
                     else if (at(nm, p + 1) == "/" .and. (p /= 1 .or. at(nm, p + 2) == "/")) then
                         lose = .true.
                     end if
+
                     if (lose) exit
                 end do
+
                 if (.not. lose) then
                     expanded = nm
                     return
@@ -310,6 +339,7 @@ contains
         ! The prefix: a home directory for ~ or ~USER, else the default
         ! directory for a relative name.
         have_newdir = .false.
+
         if (at(nm, 1) == "~") then
             if (at(nm, 2) == "/" .or. at(nm, 2) == "") then
                 newdir = get_homedir()
@@ -324,20 +354,24 @@ contains
             end if
             ! An unknown user leaves the name unchanged.
         end if
+
         if (.not. have_newdir .and. at(nm, 1) /= "/") then
             newdir = defdir
             have_newdir = .true.
         end if
 
         target = ""
+
         if (have_newdir) then
             ! Ignore a trailing slash of newdir, unless it is "/" or "//".
             length = len(newdir)
+
             do while (length > 1)
                 if (newdir(length:length) /= "/") exit
                 if (length == 2 .and. newdir(1:1) == "/") exit
                 length = length - 1
             end do
+
             if (len(nm) == 0) then
                 target = newdir(1:length)
             else if (nm(1:1) == "/") then
@@ -346,10 +380,12 @@ contains
                 target = file_name_as_directory(newdir(1:length))
             end if
         end if
+
         target = target//nm
 
         expanded = canonicalize(target)
     end subroutine expand_file_name
+
 
     !> The byte of `s` at `i`, or "" past the end (C's NUL terminator).
     pure function at(s, i) result(c)
@@ -364,6 +400,7 @@ contains
         end if
     end function at
 
+
     !> Remove "//", "/." and "/FOO/.." from `target`: the last step of
     !> Fexpand_file_name.
     pure function canonicalize(target) result(out)
@@ -375,6 +412,7 @@ contains
         n = len(target)
         p = 1
         o = 0
+
         do while (p <= n)
             if (target(p:p) /= "/") then
                 o = o + 1
@@ -386,6 +424,7 @@ contains
                     o = 1
                     buf(1:1) = "/"
                 end if
+
                 p = p + 2
             else if (at(target, p + 1) == "." .and. at(target, p + 2) == "." .and. o /= 0 .and. &
                      (at(target, p + 3) == "/" .or. at(target, p + 3) == "")) then
@@ -394,6 +433,7 @@ contains
                     o = o - 1
                     if (buf(o + 1:o + 1) == "/") exit
                 end do
+
                 ! Keep the initial slash only if this is the whole name.
                 if (o == 0 .and. buf(1:1) == "/" .and. p + 3 > n) o = 1
                 p = p + 3
@@ -406,8 +446,10 @@ contains
                 p = p + 1
             end if
         end do
+
         out = buf(1:o)
     end function canonicalize
+
 
     !> Where an absolute file name ("//...", "/~...", "/~user...") starts
     !> after a slash inside `nm`, or 0.  Port of
@@ -418,8 +460,10 @@ contains
         do p = 2, len(nm)
             if (nm(p - 1:p - 1) == "/" .and. file_name_absolute_p(nm(p:))) return
         end do
+
         p = 0
     end function search_embedded_absfilename
+
 
     !> `filename` with environment variables substituted ($FOO, ${FOO},
     !> $$; unset ones stay), and everything before an embedded "//" or
@@ -432,18 +476,22 @@ contains
         integer :: p
 
         p = search_embedded_absfilename(filename)
+
         if (p > 0) then
             name = substitute_in_file_name(filename(p:))
             return
         end if
+
         name = substitute_env_vars(filename, .true.)
         if (name == filename .and. len(name) == len(filename)) return
+
         do
             p = search_embedded_absfilename(name)
             if (p == 0) exit
             name = name(p:)
         end do
     end function substitute_in_file_name
+
 
     ! ------------------------------------------------------------------
     ! File predicates and attributes
@@ -459,6 +507,7 @@ contains
         if (.not. status%ok()) absname = ""
     end function expand_quietly
 
+
     !> Whether `filename` exists.  Port of fileio.c:Ffile_exists_p.
     logical function file_exists_p(filename)
         character(len=*), intent(in) :: filename
@@ -468,6 +517,7 @@ contains
         file_exists_p = len(absname) > 0
         if (file_exists_p) file_exists_p = sys_access(absname, F_OK) == 0
     end function file_exists_p
+
 
     !> Return t if FILENAME can be executed by you.
     !> For a directory, this means you can access files in that directory.
@@ -481,6 +531,7 @@ contains
         file_executable_p = len(absname) > 0
         if (file_executable_p) file_executable_p = sys_access(absname, X_OK) == 0
     end function file_executable_p
+
 
     !> Return t if file FILE1 is newer than file FILE2.
     !> If FILE1 does not exist, the return value is nil;
@@ -499,6 +550,7 @@ contains
                                  (st1%mtime_sec == st2%mtime_sec .and. st1%mtime_nsec > st2%mtime_nsec)
     end function file_newer_than_file_p
 
+
     !> Whether `filename` exists and can be read.
     !> Port of fileio.c:Ffile_readable_p.
     logical function file_readable_p(filename)
@@ -509,6 +561,7 @@ contains
         file_readable_p = len(absname) > 0
         if (file_readable_p) file_readable_p = sys_access(absname, R_OK) == 0
     end function file_readable_p
+
 
     !> Whether `filename` can be written or created.
     !> Port of fileio.c:Ffile_writable_p.
@@ -521,13 +574,16 @@ contains
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
         err = sys_access(absname, W_OK)
+
         if (err == 0) then
             file_writable_p = .true.
             return
         end if
+
         if (err /= ENOENT) return
         file_writable_p = sys_access(file_name_directory(absname), ior(W_OK, X_OK)) == 0
     end function file_writable_p
+
 
     !> Whether `filename` names a directory.  Port of
     !> fileio.c:Ffile_directory_p via file_directory_p's portable path
@@ -540,13 +596,16 @@ contains
         file_directory_p = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
+
         if (file_accessible_directory_p(absname)) then
             file_directory_p = .true.
             return
         end if
+
         if (sys_stat(absname, st) /= 0) return
         file_directory_p = iand(st%mode, S_IFMT) == S_IFDIR
     end function file_directory_p
+
 
     !> Whether `filename` is a directory whose files can be accessed (a
     !> "/." appended to it exists).
@@ -560,6 +619,7 @@ contains
         if (len(absname) == 0) return
         file_accessible_directory_p = sys_access(file_name_as_directory(absname)//".", F_OK) == 0
     end function file_accessible_directory_p
+
 
     !> Status of `filename` (following links); `found` is false if it
     !> can't be read.  The parts of dired.c:Ffile_attributes in use.
@@ -575,6 +635,7 @@ contains
         found = sys_stat(absname, st) == 0
     end subroutine file_attributes
 
+
     !> Whether `filename` is a regular file (following links).
     !> Port of fileio.c:Ffile_regular_p.
     logical function file_regular_p(filename)
@@ -586,6 +647,7 @@ contains
         file_regular_p = found
         if (found) file_regular_p = iand(st%mode, S_IFMT) == S_IFREG
     end function file_regular_p
+
 
     !> Whether `filename` is a symbolic link.  Like
     !> fileio.c:Ffile_symlink_p, but a truth value instead of the target.
@@ -601,15 +663,18 @@ contains
         file_symlink_p = iand(st%mode, S_IFMT) == S_IFLNK
     end function file_symlink_p
 
+
     !> The effective user id.  Port of editfns.c:Fuser_uid.
     integer(int32) function user_uid()
         user_uid = emacs_geteuid()
     end function user_uid
 
+
     !> The effective group id.  Port of editfns.c:Fgroup_gid.
     integer(int32) function group_gid()
         group_gid = emacs_getegid()
     end function group_gid
+
 
     !> Permission bits of `filename`, or -1 if it doesn't exist.
     !> Port of fileio.c:Ffile_modes.
@@ -622,6 +687,7 @@ contains
         file_modes = -1
         if (found) file_modes = iand(st%mode, int(o'7777', int32))
     end function file_modes
+
 
     !> Set the permission bits of `filename`.
     !> Port of fileio.c:Fset_file_modes.
@@ -637,6 +703,7 @@ contains
         err = sys_chmod(absname, mode)
         if (err /= 0) call report_file_errno("Doing chmod", absname, err, status)
     end subroutine set_file_modes
+
 
     !> Rename `file` to `newname`, replacing it if it exists.  Port of
     !> fileio.c:Frename_file with OK-IF-ALREADY-EXISTS non-nil, for files
@@ -654,6 +721,7 @@ contains
         err = sys_rename(from, to)
         if (err /= 0) call report_file_errno("Renaming", from//", "//to, err, status)
     end subroutine rename_file
+
 
     !> Copy `file` to `newname`, replacing it, with the same permission
     !> bits.  Port of fileio.c:Fcopy_file with OK-IF-ALREADY-EXISTS
@@ -675,19 +743,24 @@ contains
         mode = file_modes(from)
         if (mode < 0) mode = int(o'666', int32)
         err = emacs_creat(to, mode, fd)
+
         if (err /= 0) then
             call report_file_errno("Opening output file", to, err, status)
             return
         end if
+
         call emacs_full_write(fd, data, written, st, err)
         call close_fd(fd)
+
         if (.not. st%ok()) then
             call report_file_errno("Write error", to, err, status)
             return
         end if
+
         ! creat applied the umask; give the copy the original's bits.
         err = sys_chmod(to, mode)
     end subroutine copy_file
+
 
     !> Create directory `directory` (its parent must exist).
     !> Port of fileio.c:Fmake_directory_internal.
@@ -704,6 +777,7 @@ contains
         if (err /= 0) call report_file_errno("Creating directory", dir, err, status)
     end subroutine make_directory_internal
 
+
     !> Delete the empty directory `directory`.
     !> Port of fileio.c:Fdelete_directory_internal.
     subroutine delete_directory_internal(directory, status)
@@ -719,6 +793,7 @@ contains
         if (err /= 0) call report_file_errno("Removing directory", dir, err, status)
     end subroutine delete_directory_internal
 
+
     !> Delete file `filename`.  Port of fileio.c:Fdelete_file_internal.
     subroutine delete_file_internal(filename, status)
         character(len=*), intent(in) :: filename
@@ -732,6 +807,7 @@ contains
         if (err /= 0 .and. err /= ENOENT) call report_file_errno("Removing old name", absname, err, status)
     end subroutine delete_file_internal
 
+
     !> A file error for `name` from errno `err`: "STRING: <strerror>, NAME",
     !> file-missing for ENOENT.  Port of fileio.c:report_file_errno.
     subroutine report_file_errno(string, name, err, status)
@@ -744,6 +820,7 @@ contains
         if (err == ENOENT) code = FM_FILE_MISSING
         call set_error(status, code, string//": "//emacs_strerror(err)//", "//name)
     end subroutine report_file_errno
+
 
     ! ------------------------------------------------------------------
     ! Reading and writing
@@ -768,42 +845,53 @@ contains
         data = ""
         if (present(opened)) opened = .false.
         err = emacs_open_read(absname, fd)
+
         if (err /= 0) then
             call report_file_errno(what, absname, err, status)
             return
         end if
+
         if (present(opened)) opened = .true.
         err = sys_stat(absname, fst)
         if (present(st)) st = fst
+
         ! POSIX lets read succeed on a directory; refuse it here.
         if (err == 0 .and. iand(fst%mode, S_IFMT) == S_IFDIR) then
             call close_fd(fd)
             call report_file_errno("Read error", absname, EISDIR, status)
             return
         end if
+
         deallocate (data)
         allocate (character(len=max(int(fst%size, int64), 1_int64)) :: data)
         n = 0
+
         do
             call emacs_read(fd, chunk, nread, status, err)
+
             if (.not. status%ok()) then
                 call close_fd(fd)
                 status = status_type()
                 call report_file_errno("Read error", absname, err, status)
                 return
             end if
+
             if (nread == 0) exit
+
             if (n + nread > len(data, kind=int64)) then
                 allocate (character(len=max(2*len(data, kind=int64), n + nread)) :: grown)
                 grown(1:n) = data(1:n)
                 call move_alloc(grown, data)
             end if
+
             data(n + 1:n + nread) = chunk(1:nread)
             n = n + nread
         end do
+
         call close_fd(fd)
         data = data(1:n)
     end subroutine read_file
+
 
     !> Insert the contents of file `filename` after point, leaving point
     !> before them.  With `visit`, the buffer (which must be empty) visits
@@ -823,18 +911,22 @@ contains
         logical :: opened
 
         inserted = 0
+
         if (buffers(cur)%read_only) then
             call barf_if_buffer_read_only(status)
             if (.not. status%ok()) return
         end if
+
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
+
         if (visit .and. buffers(cur)%text%z > BEG) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot do file visiting in a non-empty buffer")
             return
         end if
 
         call read_file(absname, "Opening input file", data, status, st, opened)
+
         if (.not. status%ok()) then
             ! notfound: a visit still records the file, as nonexistent.
             if (visit .and. .not. opened) then
@@ -845,6 +937,7 @@ contains
                 buffers(cur)%filename = absname
                 buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
             end if
+
             return
         end if
 
@@ -854,12 +947,15 @@ contains
             text = data
             nchars = len(data, kind=int64)
         end if
+
         opoint = point()
+
         if (len(text) > 0) then
             call insert(text, status)
             if (.not. status%ok()) return
             call goto_char(opoint)
         end if
+
         inserted = nchars
 
         if (visit) then
@@ -871,6 +967,7 @@ contains
             buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
         end if
     end subroutine insert_file_contents
+
 
     !> Write the text between `start` and `end` (default: the whole
     !> buffer, ignoring narrowing) to file `filename`, replacing it.  With
@@ -892,6 +989,7 @@ contains
 
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
+
         if (present(start) .and. present(end)) then
             s = start
             e = end
@@ -901,15 +999,19 @@ contains
         else
             text = buf_bytes(buffers(cur), BEG_BYTE, buffers(cur)%text%z_byte)
         end if
+
         if (buffers(cur)%multibyte) text = str_as_unibyte(text)
 
         err = emacs_creat(absname, int(o'666', int32), fd)
+
         if (err /= 0) then
             call report_file_errno("Opening output file", absname, err, status)
             return
         end if
+
         call emacs_full_write(fd, text, written, wst, err)
         call close_fd(fd)
+
         if (.not. wst%ok()) then
             call report_file_errno("Write error", absname, err, status)
             return
@@ -918,6 +1020,7 @@ contains
         if (visit) then
             buffers(cur)%filename = absname
             buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+
             if (sys_stat(absname, st) == 0) then
                 buffers(cur)%modtime_known = .true.
                 buffers(cur)%modtime_sec = st%mtime_sec
@@ -927,8 +1030,10 @@ contains
                 buffers(cur)%modtime_known = .false.
             end if
         end if
+
         if (present(message)) message = "Wrote "//absname
     end subroutine write_region
+
 
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time
@@ -941,6 +1046,7 @@ contains
         verify_visited_file_modtime = .true.
         if (.not. allocated(buffers(cur)%filename)) return
         if (.not. buffers(cur)%modtime_known) return
+
         if (sys_stat(buffers(cur)%filename, st) == 0) then
             sec = st%mtime_sec
             nsec = st%mtime_nsec
@@ -948,12 +1054,14 @@ contains
             sec = 0
             nsec = NONEXISTENT_MODTIME_NSECS
         end if
+
         verify_visited_file_modtime = sec == buffers(cur)%modtime_sec .and. &
                                       nsec == buffers(cur)%modtime_nsec .and. &
                                       (buffers(cur)%modtime_size < 0 .or. &
                                        nsec == NONEXISTENT_MODTIME_NSECS .or. &
                                        st%size == buffers(cur)%modtime_size)
     end function verify_visited_file_modtime
+
 
     !> Record the visited file's current modification time as the
     !> buffer's.  Port of fileio.c:Fset_visited_file_modtime (no argument).
@@ -962,6 +1070,7 @@ contains
 
         if (.not. allocated(buffers(cur)%filename)) return
         buffers(cur)%modtime_known = .true.
+
         if (sys_stat(buffers(cur)%filename, st) == 0) then
             buffers(cur)%modtime_sec = st%mtime_sec
             buffers(cur)%modtime_nsec = st%mtime_nsec

@@ -92,6 +92,7 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
+
     !> Insert `n` newlines.  Port of simple.el:newline (no margins,
     !> electric indentation, auto-fill or hard newlines).
     subroutine newline(n, status)
@@ -100,13 +101,16 @@ contains
 
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
+
         if (n < 0) then
             call set_error(status, FM_GENERIC_ERROR, &
                            "Repetition argument has to be non-negative")
             return
         end if
+
         call self_insert_command(n, 10_int64, status)
     end subroutine newline
+
 
     !> Insert `n` newlines, leaving point before them.  Port of
     !> simple.el:open-line (no fill prefix or left margin).
@@ -121,6 +125,7 @@ contains
         call goto_char(loc)
     end subroutine open_line
 
+
     !> Delete `n` characters before point.  Port of
     !> simple.el:delete-backward-char (no region, untabify or kill).
     subroutine delete_backward_char(n, status)
@@ -129,6 +134,7 @@ contains
 
         call delete_char(-n, status)
     end subroutine delete_backward_char
+
 
     !> Pass the prefix-argument state on to the next command, which keeps
     !> `last_command` too.  Port of simple.el:prefix-command-preserve-state
@@ -139,6 +145,7 @@ contains
         this_command = last_command
         real_this_command = real_last_command
     end subroutine prefix_command_preserve_state
+
 
     !> The keymap active after C-u: digits, minus and C-u build the
     !> argument.  Port of simple.el:universal-argument-map (`-` is a
@@ -154,6 +161,7 @@ contains
             map = uarg_map
             return
         end if
+
         call make_sparse_keymap(map)
         key(1) = make_fixnum(21_int64)
         call define_key(map, key, sym("universal-argument-more"), status)
@@ -161,6 +169,7 @@ contains
         call define_key(map, key, sym("universal-argument-minus"), status)
         key(1) = sym("kp-subtract")
         call define_key(map, key, sym("universal-argument-minus"), status)
+
         do d = 0, 9
             key(1) = make_fixnum(int(iachar("0") + d, int64))
             call define_key(map, key, sym("digit-argument"), status)
@@ -168,13 +177,16 @@ contains
             key(1) = sym(name)
             call define_key(map, key, sym("digit-argument"), status)
         end do
+
         uarg_map = map
     end function universal_argument_map
+
 
     !> simple.el:universal-argument--mode
     subroutine universal_argument_mode()
         call set_transient_map(universal_argument_map())
     end subroutine universal_argument_mode
+
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -186,17 +198,20 @@ contains
         call newline(arg_p(), status)
     end subroutine cmd_newline
 
+
     subroutine cmd_open_line(status)
         type(status_type), intent(out) :: status
 
         call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
+
     subroutine cmd_delete_backward_char(status)
         type(status_type), intent(out) :: status
 
         call delete_backward_char(arg_p(), status)
     end subroutine cmd_delete_backward_char
+
 
     !> Port of simple.el:delete-forward-char (no region).
     subroutine cmd_delete_forward_char(status)
@@ -205,12 +220,14 @@ contains
         call delete_char(arg_p(), status)
     end subroutine cmd_delete_forward_char
 
+
     !> Port of simple.el:keyboard-quit (no mark or kbd macro handling).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
 
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
+
 
     !> Read the next event and insert it ARG times.  Port of
     !> simple.el:quoted-insert (without read-quoted-char's octal codes).
@@ -224,14 +241,17 @@ contains
         if (.not. status%ok() .or. .not. have) return
         c = -1
         if (fixnump(ev)) c = xfixnum(ev)
+
         if (c < 0 .or. c > MAX_CHAR) then
             key(1) = ev
             call set_error(status, FM_USER_ERROR, key_description(key)// &
                            " is not a valid character")
             return
         end if
+
         call self_insert_command(max(arg_p(), 0_int64), c, status)
     end subroutine cmd_quoted_insert
+
 
     !> Port of simple.el:universal-argument.
     subroutine cmd_universal_argument(status)
@@ -243,6 +263,7 @@ contains
         call universal_argument_mode()
     end subroutine cmd_universal_argument
 
+
     !> Port of simple.el:universal-argument-more.
     subroutine cmd_universal_argument_more(status)
         type(status_type), intent(out) :: status
@@ -251,6 +272,7 @@ contains
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
+
         if (consp(arg)) then
             prefix_arg = list(make_fixnum(4*xfixnum(list_elt(arg, 1_int64))))
         else if (value_eq(arg, sym("-"))) then
@@ -258,8 +280,10 @@ contains
         else
             prefix_arg = arg
         end if
+
         if (consp(prefix_arg)) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
+
 
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
@@ -269,6 +293,7 @@ contains
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
+
         if (fixnump(arg)) then
             prefix_arg = make_fixnum(-xfixnum(arg))
         else if (value_eq(arg, sym("-"))) then
@@ -276,8 +301,10 @@ contains
         else
             prefix_arg = sym("-")
         end if
+
         call universal_argument_mode()
     end subroutine cmd_negative_argument
+
 
     !> Port of simple.el:digit-argument (character events; keypad digits
     !> need the `ascii-character' property, not ported).
@@ -291,6 +318,7 @@ contains
         arg = current_prefix_arg
         call prefix_command_preserve_state()
         digit = iand(xfixnum(last_command_event), 127_int64) - iachar("0")
+
         if (fixnump(arg)) then
             if (xfixnum(arg) < 0) then
                 prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
@@ -307,8 +335,10 @@ contains
         else
             prefix_arg = make_fixnum(digit)
         end if
+
         call universal_argument_mode()
     end subroutine cmd_digit_argument
+
 
     !> `-` in universal-argument-map: negative-argument, unless digits
     !> were typed already (upstream's menu-item filter), in which case it
@@ -323,6 +353,7 @@ contains
         end if
     end subroutine cmd_universal_argument_minus
 
+
     !> Register this module's commands.
     ! ------------------------------------------------------------------
     ! Vertical motion
@@ -333,6 +364,7 @@ contains
         after_line_move = value_eq(last_command, sym("next-line")) .or. &
                           value_eq(last_command, sym("previous-line"))
     end function after_line_move
+
 
     !> Move `arg` lines down (up if negative), keeping the goal column; by
     !> screen lines unless a goal column is set or line-move-visual is
@@ -346,12 +378,14 @@ contains
 
         quiet = .false.
         if (present(noerror)) quiet = noerror
+
         if (line_move_visual .and. goal_column < 0) then
             call line_move_visual_1(arg, quiet, status)
         else
             call line_move_1(arg, quiet, status)
         end if
     end subroutine line_move
+
 
     !> Port of simple.el:line-move-visual: keep the cursor's screen x.
     subroutine line_move_visual_1(arg, noerror, status)
@@ -362,20 +396,25 @@ contains
         logical :: ok
 
         opoint = point()
+
         if (.not. (tgc_visual .and. after_line_move())) then
             temporary_goal_column = screen_column()
             tgc_visual = .true.
         end if
+
         call vertical_motion(arg, moved, int(temporary_goal_column))
+
         if (arg >= 0) then
             ok = moved >= arg
         else
             ok = moved <= arg
+
             if (ok .and. point() == opoint) then
                 call vertical_motion(arg, moved)
                 ok = moved == arg
             end if
         end if
+
         if (.not. ok .and. .not. noerror) then
             if (arg < 0) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -384,6 +423,7 @@ contains
             end if
         end if
     end subroutine line_move_visual_1
+
 
     !> Port of simple.el:line-move-1: move by buffer lines to the goal
     !> column (no invisible text or selective display yet).
@@ -395,17 +435,21 @@ contains
         logical :: done
 
         opoint = point()
+
         if (tgc_visual) then
             ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
             tgc_visual = .false.
         end if
+
         if (.not. after_line_move()) temporary_goal_column = current_column()
 
         n = arg
         done = .false.
+
         if (n > 0) then
             if (n > 1) shortage = forward_line(n - 1)
             call end_of_line()
+
             if (forward_line(1_int64) == 0) then
                 n = 0
                 done = .true.
@@ -418,6 +462,7 @@ contains
                 end if
             end if
         end if
+
         if (.not. done .and. .not. noerror) then
             if (n < 0) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -441,6 +486,7 @@ contains
         end if
     end subroutine line_move_1
 
+
     !> Go to `column` on the line reached, without moving backward when
     !> moving forward, and stay in the field of `opoint`.  Port of
     !> simple.el:line-move-finish (no invisible text).
@@ -453,12 +499,14 @@ contains
         logical :: repeat
 
         repeat = .true.
+
         do while (repeat)
             repeat = .false.
             old = point()
             line_beg = line_beginning_position()
             ! (skip-chars-forward "^\n"), ignoring fields
             line_end = pos_eol()
+
             if (line_move_visual) then
                 call vertical_motion(0_int64, moved, int(column))
             else if (column == 0) then
@@ -466,10 +514,13 @@ contains
             else
                 call move_to_column(column, reached)
             end if
+
             if (forward .and. point() < old) call goto_char(old)
             new = point()
+
             if (new > line_end) then
                 call backward_char(st)
+
                 if (forward) then
                     if (line_beg < point()) then
                         new = point()
@@ -482,17 +533,21 @@ contains
                     new = line_end
                 end if
             end if
+
             call goto_char(opoint)
             call get_text_property(new, sym("field"), new_field, st)
             call get_text_property(opoint, sym("field"), old_field, st)
+
             if (value_eq(new_field, old_field)) then
                 call goto_char(new)
             else
                 call goto_char(constrain_to_field(new, opoint, .true., .true.))
             end if
+
             if (point() < line_beg .or. point() > line_end) repeat = .true.
         end do
     end subroutine line_move_finish
+
 
     !> Move down `arg` lines (C-n, <down>).  Port of simple.el:next-line
     !> (no next-line-add-newlines).
@@ -503,6 +558,7 @@ contains
         call line_move(arg, status)
     end subroutine next_line
 
+
     !> Move up `arg` lines (C-p, <up>).  Port of simple.el:previous-line.
     subroutine previous_line(arg, status)
         integer(int64), intent(in) :: arg
@@ -511,17 +567,20 @@ contains
         call line_move(-arg, status)
     end subroutine previous_line
 
+
     subroutine cmd_next_line(status)
         type(status_type), intent(out) :: status
 
         call next_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_next_line
 
+
     subroutine cmd_previous_line(status)
         type(status_type), intent(out) :: status
 
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_previous_line
+
 
     ! ------------------------------------------------------------------
     ! Minibuffer history
@@ -538,6 +597,7 @@ contains
         call symbol_value(sym(minibuffer_history_variable), history, status)
         if (.not. status%ok()) history = nil()
     end function history_value
+
 
     !> Put history element `nabs` in the minibuffer: 0 is the input typed
     !> before moving into the history, N > 0 the Nth previous input, -1
@@ -556,36 +616,45 @@ contains
         minimum = 0
         if (allocated(minibuffer_default)) minimum = -1
         history = history_value()
+
         if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
             minibuffer_text_before_history = minibuffer_contents()
         end if
+
         if (nabs < minimum) then
             if (allocated(minibuffer_default)) then
                 call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
             else
                 call set_error(status, FM_USER_ERROR, "End of history; no default available")
             end if
+
             return
         end if
+
         if (nabs > list_length(history)) then
             call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
             return
         end if
+
         ! minibuffer-temporary-goal-position
         pend = minibuffer_prompt_end()
         goal = -1
+
         if (point() <= pend) then
             goal = pend
         else if (point() /= point_max()) then
             goal = point()
         end if
+
         call del_range(pend, buffers(cur)%zv, status)
         if (.not. status%ok()) return
         minibuffer_history_position = nabs
+
         if (nabs < 0) then
             text = minibuffer_default
         else if (nabs == 0) then
             text = ""
+
             if (allocated(minibuffer_text_before_history)) then
                 call move_alloc(minibuffer_text_before_history, text)
             end if
@@ -594,13 +663,16 @@ contains
             text = ""
             if (stringp(elt)) text = xstring(elt)
         end if
+
         call insert(text, status)
+
         if (goal >= 0) then
             call goto_char(goal)
         else
             call goto_char(point_max())
         end if
     end subroutine goto_history_element
+
 
     !> M-p: the previous history element.  Port of
     !> simple.el:previous-history-element.
@@ -612,6 +684,7 @@ contains
         if (n /= 0) call goto_history_element(minibuffer_history_position + n, status)
     end subroutine cmd_previous_history_element
 
+
     !> M-n: the next history element, then the default.  Port of
     !> simple.el:next-history-element.
     subroutine cmd_next_history_element(status)
@@ -621,6 +694,7 @@ contains
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
+
 
     subroutine syms_of_simple()
         ! (<up> and <down> run previous/next-line-or-history-element

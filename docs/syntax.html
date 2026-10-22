@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elisp and Fortran, Side by Side</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+  /* Layout: a short header, the two versions side by side (stacked on phones), and one note under them that explains the part in focus. */
+  :root {
+    --bg: #f6f6f9;
+    --panel: #ffffff;
+    --fg: #1d1b26;
+    --muted: #5e5a6e;
+    --rule: #dcdae5;
+    --accent: #6b4fa0;
+    --mark: rgba(107, 79, 160, 0.16);
+    --mark-edge: rgba(107, 79, 160, 0.55);
+    --dim: 0.42;
+    --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+    --font-body: "IBM Plex Sans", system-ui, sans-serif;
+    --font-code: "IBM Plex Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15141b;
+      --panel: #1d1b25;
+      --fg: #e8e6f0;
+      --muted: #a29db5;
+      --rule: #34313f;
+      --accent: #b79cf0;
+      --mark: rgba(183, 156, 240, 0.2);
+      --mark-edge: rgba(183, 156, 240, 0.6);
+      --dim: 0.45;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15141b;
+    --panel: #1d1b25;
+    --fg: #e8e6f0;
+    --muted: #a29db5;
+    --rule: #34313f;
+    --accent: #b79cf0;
+    --mark: rgba(183, 156, 240, 0.2);
+    --mark-edge: rgba(183, 156, 240, 0.6);
+    --dim: 0.45;
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 var(--font-body);
+  }
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-block: 32px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid;
+    gap: 24px;
+  }
+  header { display: grid; gap: 6px; }
+  h1 {
+    font: 600 clamp(1.7rem, 4vw, 2.4rem)/1.1 var(--font-display);
+    margin: 0;
+    text-wrap: balance;
+  }
+  header p { margin: 0; color: var(--muted); max-width: 65ch; }
+  a { color: var(--accent); }
+
+  .versions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: 16px;
+  }
+  figure {
+    margin: 0;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule);
+    font: 600 0.78rem/1 var(--font-body);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  figcaption span:last-child { letter-spacing: 0.02em; text-transform: none; font-weight: 400; }
+  pre {
+    margin: 0;
+    padding: 14px 16px 18px;
+    overflow-x: auto;
+    font: 0.86rem/1.6 var(--font-code);
+    tab-size: 4;
+  }
+
+  .t {
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+  }
+  .t:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .versions.focused .t { opacity: var(--dim); }
+  .versions.focused .t.on {
+    opacity: 1;
+    background: var(--mark);
+    box-shadow: 0 0 0 1px var(--mark-edge);
+  }
+  .c { color: var(--muted); }
+
+  .note {
+    border-top: 2px solid var(--accent);
+    padding-top: 12px;
+    display: grid;
+    gap: 4px;
+    max-width: 75ch;
+    min-height: 7.5em;
+  }
+  .note h2 { margin: 0; font: 600 1.15rem/1.3 var(--font-display); }
+  .note p { margin: 0; }
+  code { font-family: var(--font-code); font-size: 0.92em; }
+  .hint { color: var(--muted); font-size: 0.9rem; }
+
+  @media (prefers-reduced-motion: reduce) { .t { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <h1>Elisp and Fortran, side by side</h1>
+    <p>The same function in both: the number of the longest line in the buffer. Hover over (or tap) any part of either version to see its counterpart in the other.</p>
+    <p><a href="https://github.com/vermi-culous/Fortmacs">Fortmacs</a> is GNU Emacs rewritten in Fortran.</p>
+  </header>
+
+  <div class="versions focused" id="versions">
+    <figure>
+      <figcaption><span>Emacs Lisp</span><span>13 lines</span></figcaption>
+<pre><code><span class="t" data-p="def">(defun</span> <span class="t" data-p="name">longest-line</span> <span class="t" data-p="args">()</span>
+  <span class="t" data-p="doc">"Return the number of the longest line in the buffer."</span>
+  <span class="t" data-p="save">(save-excursion</span>
+    <span class="t" data-p="goto">(goto-char (point-min))</span>
+    <span class="t" data-p="let">(let (</span><span class="t" data-p="init">(best 0)</span> <span class="t" data-p="init">(best-line 1)</span> <span class="t" data-p="init">(line 1)</span><span class="t" data-p="let">)</span>
+      <span class="t" data-p="while">(while (not (eobp))</span>
+        <span class="t" data-p="width">(let ((width (- (line-end-position) (line-beginning-position))))</span>
+          <span class="t" data-p="when">(when (&gt; width best)</span>
+            <span class="t" data-p="setq">(setq best width</span>
+                  <span class="t" data-p="setq">best-line line)</span><span class="t" data-p="when">)</span><span class="t" data-p="width">)</span>
+        <span class="t" data-p="fwd">(forward-line 1)</span>
+        <span class="t" data-p="incr">(setq line (1+ line))</span><span class="t" data-p="while">)</span>
+      <span class="t" data-p="ret">best-line</span><span class="t" data-p="let">)</span><span class="t" data-p="save">)</span><span class="t" data-p="def">)</span></code></pre>
+    </figure>
+
+    <figure>
+      <figcaption><span>Fortran</span><span>24 lines</span></figcaption>
+<pre><code><span class="t" data-p="doc">!&gt; The number of the longest line in the buffer.</span>
+<span class="t" data-p="ret">integer(int64)</span> <span class="t" data-p="def">function</span> <span class="t" data-p="name">longest_line</span><span class="t" data-p="args">()</span> <span class="t" data-p="ret">result(best_line)</span>
+    <span class="t" data-p="let">integer(int64) ::</span> <span class="t" data-p="save">opoint</span>, <span class="t" data-p="let">best</span>, <span class="t" data-p="width">width</span>, <span class="t" data-p="let">line</span>, <span class="t" data-p="fwd">shortage</span>
+
+    <span class="t" data-p="save">opoint = point()</span>
+    <span class="t" data-p="init">best = 0</span>
+    <span class="t" data-p="init">best_line = 1</span>
+    <span class="t" data-p="init">line = 1</span>
+    <span class="t" data-p="goto">call goto_char(point_min())</span>
+
+    <span class="t" data-p="while">do while (.not. eobp())</span>
+        <span class="t" data-p="width">width = line_end_position() - line_beginning_position()</span>
+
+        <span class="t" data-p="when">if (width &gt; best) then</span>
+            <span class="t" data-p="setq">best = width</span>
+            <span class="t" data-p="setq">best_line = line</span>
+        <span class="t" data-p="when">end if</span>
+
+        <span class="t" data-p="fwd">shortage = forward_line(1_int64)</span>
+        <span class="t" data-p="incr">line = line + 1</span>
+    <span class="t" data-p="while">end do</span>
+
+    <span class="t" data-p="save">call goto_char(opoint)</span>
+<span class="t" data-p="def">end function</span> <span class="t" data-p="name">longest_line</span></code></pre>
+    </figure>
+  </div>
+
+  <section class="note" aria-live="polite">
+    <h2 id="note-title"></h2>
+    <p id="note-text"></p>
+    <p class="hint">Every closing parenthesis on the left lights up with the construct it closes.</p>
+  </section>
+</div>
+
+<script>
+  const notes = {
+    def: ["Defining a function",
+      "<code>(defun …)</code> ends wherever its parenthesis is closed: here the last of the three on the final line. Fortran says <code>function</code> and ends at <code>end function longest_line</code>."],
+    name: ["The name",
+      "Lisp names join words with hyphens; Fortran names use underscores. Fortran repeats the name at the end."],
+    args: ["The arguments",
+      "None in either version."],
+    ret: ["The return value",
+      "Elisp returns the value of the last expression in the body, here <code>best-line</code>. Fortran names its result variable with <code>result(best_line)</code> and gives its type up front: <code>integer(int64)</code>, a 64-bit integer. Whatever <code>best_line</code> holds when the function ends is returned."],
+    doc: ["Documentation",
+      "Elisp's docstring is the first string in the body. Fortran's is a <code>!&gt;</code> comment above the function, which the FORD documentation tool reads."],
+    save: ["Coming back to where you were",
+      "<code>save-excursion</code> puts point back when its body finishes, at its closing parenthesis on the last line. Fortran saves point in <code>opoint</code> and moves back to it at the end."],
+    goto: ["Go to the start",
+      "Move point to the beginning of the buffer."],
+    let: ["Local variables",
+      "<code>let</code> creates variables that exist until its closing parenthesis (second-to-last on the final line). Fortran declares every variable with its type at the top of the function."],
+    init: ["Starting values",
+      "Each <code>(name value)</code> pair in the <code>let</code> becomes an assignment: <code>(best 0)</code> is <code>best = 0</code>."],
+    while: ["The loop",
+      "Repeat until the end of the buffer. In Elisp the loop ends at the last parenthesis of <code>(setq line (1+ line)))</code>; in Fortran at <code>end do</code>. <code>(not …)</code> is <code>.not.</code>"],
+    width: ["The width of this line",
+      "Elisp binds <code>width</code> with an inner <code>let</code>, which closes three lines later at the end of <code>best-line line)))</code>. Fortran assigns a variable declared at the top. Subtraction is prefix in Lisp, <code>(- a b)</code>, and infix in Fortran, <code>a - b</code>."],
+    when: ["The test",
+      "<code>when</code> runs its body if the test holds; Fortran writes <code>if (…) then … end if</code>. The comparison <code>(&gt; width best)</code> is written <code>width &gt; best</code>."],
+    setq: ["Assignment",
+      "One <code>setq</code> can set several variables in turn. Fortran uses one <code>=</code> per variable."],
+    fwd: ["Next line",
+      "Move to the start of the next line. In Fortmacs, <code>forward_line</code> is a function that returns how many lines it fell short, so the result goes into <code>shortage</code>. <code>1_int64</code> is the number 1 as a 64-bit integer."],
+    incr: ["Counting lines",
+      "<code>(1+ line)</code> is <code>line + 1</code>."]
+  };
+
+  const versions = document.getElementById("versions");
+  const parts = [...document.querySelectorAll(".t")];
+  const title = document.getElementById("note-title");
+  const text = document.getElementById("note-text");
+  let current = null;
+
+  function show(p) {
+    if (!notes[p] || p === current) return;
+    current = p;
+    for (const el of parts) el.classList.toggle("on", el.dataset.p === p);
+    title.textContent = notes[p][0];
+    text.innerHTML = notes[p][1];
+  }
+
+  for (const el of parts) {
+    el.tabIndex = 0;
+    el.addEventListener("pointerenter", () => show(el.dataset.p));
+    el.addEventListener("focus", () => show(el.dataset.p));
+    el.addEventListener("click", () => show(el.dataset.p));
+  }
+
+  // Open on the part the comparison is most often asked about.
+  show("ret");
+</script>
+</body>
+</html>

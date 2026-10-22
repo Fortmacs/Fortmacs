@@ -87,6 +87,7 @@ contains
         minibuf_level = 0
     end subroutine init_minibuf
 
+
     !> The minibuffer for depth `depth`, " *Minibuf-DEPTH*", made if
     !> needed.  Port of minibuf.c:get_minibuffer.
     subroutine get_minibuffer(depth, buf, status)
@@ -98,21 +99,26 @@ contains
         integer(int64) :: i
 
         if (.not. allocated(minibuffers)) allocate (minibuffers(4))
+
         if (depth + 1 > size(minibuffers)) then
             allocate (grown(2*(depth + 1)))
             grown(1:size(minibuffers)) = minibuffers
             call move_alloc(grown, minibuffers)
         end if
+
         call resolve_buffer(minibuffers(depth + 1), i, status)
+
         if (status%ok()) then
             buf = minibuffers(depth + 1)
             return
         end if
+
         write (num, "(i0)") depth
         call get_buffer_create(" *Minibuf-"//trim(num)//"*", buf, status)
         if (.not. status%ok()) return
         minibuffers(depth + 1) = buf
     end subroutine get_minibuffer
+
 
     !> Whether `buf` (default: the current buffer) is a minibuffer.
     !> Port of minibuf.c:Fminibufferp.
@@ -126,8 +132,10 @@ contains
         else
             b = current_buffer()
         end if
+
         minibufferp = .false.
         if (.not. allocated(minibuffers)) return
+
         do k = 1, size(minibuffers)
             if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation .and. &
                 b%index /= 0) then
@@ -136,6 +144,7 @@ contains
             end if
         end do
     end function minibufferp
+
 
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
@@ -146,11 +155,13 @@ contains
         pos = buffers(cur)%begv
         if (.not. minibufferp()) return
         pos = field_end(buffers(cur)%begv, .false.)
+
         if (pos == buffers(cur)%zv) then
             call get_text_property(buffers(cur)%begv, sym("field"), field, status)
             if (nilp(field)) pos = buffers(cur)%begv
         end if
     end function minibuffer_prompt_end
+
 
     !> The text of the current minibuffer after the prompt.  Port of
     !> minibuf.c:Fminibuffer_contents_no_properties.
@@ -161,6 +172,7 @@ contains
         call buffer_substring(minibuffer_prompt_end(), buffers(cur)%zv, text, status)
     end function minibuffer_contents
 
+
     !> Keep point out of the prompt after each command (the prompt's
     !> cursor-intangible property, as cursor-intangible-mode would).
     subroutine leave_prompt()
@@ -170,6 +182,7 @@ contains
         pend = minibuffer_prompt_end()
         if (buffers(cur)%pt < pend) call goto_char(pend)
     end subroutine leave_prompt
+
 
     !> Read a string in the minibuffer with `prompt`, starting with
     !> `initial` (point after it), using `keymap` (default
@@ -193,10 +206,12 @@ contains
         procedure(redisplay_proc), pointer :: saved_hook
 
         result = ""
+
         if (.not. enable_recursive_minibuffers .and. minibuf_level > 0) then
             call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
             return
         end if
+
         histvar = "minibuffer-history"
         if (present(history)) histvar = history
 
@@ -213,6 +228,7 @@ contains
         else
             saved_histvar = ""
         end if
+
         saved_histpos = minibuffer_history_position
         minibuffer_history_variable = histvar
         minibuffer_history_position = 0
@@ -226,10 +242,12 @@ contains
         saved_hook => post_command_hook
 
         call set_buffer(minibuffer, status)
+
         if (.not. status%ok()) then
             minibuf_level = minibuf_level - 1
             return
         end if
+
         ! The minibuffer works in the caller's directory.
         if (have_dir) buffers(cur)%directory = ambient_dir
         call set_window_buffer(selected_frame%minibuffer_window, minibuffer, st)
@@ -241,6 +259,7 @@ contains
         call erase_buffer(st)
         call set(sym("inhibit-read-only"), nil(), st)
         buffers(cur)%multibyte = .true.
+
         if (len(prompt) > 0) then
             call insert(prompt, st)
             ! front-sticky, rear-nonsticky and field, then
@@ -252,12 +271,15 @@ contains
             call add_text_properties(1_int64, buffers(cur)%pt, list(sym("cursor-intangible"), t_value()), &
                                      changed, st)
         end if
+
         if (present(initial)) call insert(initial, st)
+
         if (present(keymap)) then
             call use_local_map(keymap, st)
         else
             call use_local_map(minibuffer_local_map, st)
         end if
+
         post_command_hook => leave_prompt
         ! The minibuffer replaces whatever the echo area showed.
         if (allocated(last_message)) last_message = ""
@@ -289,6 +311,7 @@ contains
             result = ""
             return
         end if
+
         ! Add the value (or the default, for empty input) to the history.
         if (history_add_new_input) then
             if (len(result) > 0) then
@@ -298,6 +321,7 @@ contains
             end if
         end if
     end subroutine read_from_minibuffer
+
 
     !> Read a string; empty input gives `default` if present.
     !> Port of minibuf.c:Fread_string.
@@ -313,6 +337,7 @@ contains
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine read_string
 
+
     !> Abort the current minibuffer (C-g there).  Port of
     !> minibuf.c:Fabort_minibuffers for the innermost minibuffer.
     subroutine abort_minibuffers(status)
@@ -322,10 +347,12 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Not in a minibuffer")
             return
         end if
+
         if (command_loop_level < minibuf_level) then
             call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
             return
         end if
+
         ! minibuffer-quit-recursive-edit
         call throw_exit(.true.)
     end subroutine abort_minibuffers

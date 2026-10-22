@@ -81,6 +81,7 @@ contains
         h = handle_type(0, 0)
     end function null_handle
 
+
     !> Allocate a slot and return a fresh handle to it.
     subroutine table_acquire(self, h)
         class(slot_table_type), intent(inout) :: self
@@ -96,6 +97,7 @@ contains
             if (self%used == size(self%generations, kind=int64)) then
                 call grow(self, 2*size(self%generations, kind=int64))
             end if
+
             self%used = self%used + 1
             i = self%used
         end if
@@ -104,6 +106,7 @@ contains
         self%live_count = self%live_count + 1
         h = handle_type(i, self%generations(i))
     end subroutine table_acquire
+
 
     !> Free the slot `h` refers to.  Fails on a null or stale handle,
     !> including a second release of the same handle.
@@ -123,6 +126,7 @@ contains
         self%free_list(self%free_count) = i
     end subroutine table_release
 
+
     !> Translate `h` into its payload index, or fail with invalid-handle.
     pure subroutine table_resolve(self, h, i, status)
         class(slot_table_type), intent(in) :: self
@@ -131,12 +135,15 @@ contains
         type(status_type), intent(out) :: status
 
         i = 0
+
         if (.not. self%is_live(h)) then
             call set_error(status, FM_INVALID_HANDLE)
             return
         end if
+
         i = h%index
     end subroutine table_resolve
+
 
     !> True when `h` refers to a live slot of this table.
     elemental logical function table_is_live(self, h)
@@ -149,6 +156,7 @@ contains
         if (.not. self%live(h%index)) return
         table_is_live = self%generations(h%index) == h%generation
     end function table_is_live
+
 
     !> The current handle of live slot `i`, or the null handle.
     pure function table_handle_of(self, i) result(h)
@@ -163,16 +171,19 @@ contains
         h = handle_type(i, self%generations(i))
     end function table_handle_of
 
+
     !> Number of payload slots the owner must provide (highest index in use
     !> can never exceed this).
     pure integer(int64) function table_capacity(self)
         class(slot_table_type), intent(in) :: self
 
         table_capacity = 0
+
         if (allocated(self%generations)) then
             table_capacity = size(self%generations, kind=int64)
         end if
     end function table_capacity
+
 
     !> Number of live slots.
     pure integer(int64) function table_count(self)
@@ -180,6 +191,7 @@ contains
 
         table_count = self%live_count
     end function table_count
+
 
     subroutine grow(self, new_size)
         type(slot_table_type), intent(inout) :: self
@@ -194,11 +206,13 @@ contains
         allocate (gens(new_size), live(new_size), frees(new_size))
         gens = 1
         live = .false.
+
         if (old > 0) then
             gens(1:old) = self%generations
             live(1:old) = self%live
             frees(1:self%free_count) = self%free_list(1:self%free_count)
         end if
+
         call move_alloc(gens, self%generations)
         call move_alloc(live, self%live)
         call move_alloc(frees, self%free_list)

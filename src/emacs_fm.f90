@@ -87,6 +87,7 @@ contains
         call redisplay(selected_frame, status)
     end subroutine do_redisplay
 
+
     !> Whether terminal type `term` gets term/xterm.el's setup, as
     !> faces.el:tty-run-terminal-initialization finds term/xterm.el for
     !> "xterm*" (and term/screen.el and term/tmux.el, which use it).
@@ -96,6 +97,7 @@ contains
         xterm_like = index(term, "xterm") == 1 .or. index(term, "screen") == 1 .or. &
                      index(term, "tmux") == 1
     end function xterm_like
+
 
     !> Whether `s` is "+" followed by digits, then optionally ":" and
     !> digits; `line` gets the first number.
@@ -111,18 +113,24 @@ contains
         colon = index(s, ":")
         if (colon == 0) colon = len(s) + 1
         if (.not. digits(s(2:colon - 1))) return
+
         if (colon <= len(s)) then
             if (.not. digits(s(colon + 1:))) return
         end if
+
         read (s(2:colon - 1), *, iostat=stat) line
         line_arg_p = stat == 0
+
     contains
+
         pure logical function digits(t)
             character(len=*), intent(in) :: t
 
             digits = len(t) > 0 .and. verify(t, "0123456789") == 0
         end function digits
+
     end function line_arg_p
+
 
     !> Visit the files named in `args`, leaving the last one current:
     !> "+LINE" puts point on that line of the next file, "--" makes the
@@ -141,29 +149,35 @@ contains
         line = 0
         just_files = .false.
         k = 0
+
         do while (k < size(args))
             k = k + 1
             argi = args(k)%s
+
             if (.not. just_files .and. line_arg_p(argi, n)) then
                 line = n
                 cycle
             end if
+
             if (.not. just_files .and. len(argi) > 0) then
                 if (argi == "--") then
                     just_files = .true.
                     cycle
                 end if
+
                 if (argi(1:1) == "-") then
                     ! --foo is the same as -foo.
                     if (len(argi) > 2) then
                         if (argi(1:2) == "--") argi = argi(2:)
                     end if
+
                     select case (argi)
                     case ("-file", "-find-file", "-visit")
                         if (k == size(args)) then
                             call set_error(status, FM_GENERIC_ERROR, "File name omitted from `"//argi//"' option")
                             return
                         end if
+
                         k = k + 1
                         argi = args(k)%s
                     case default
@@ -172,17 +186,21 @@ contains
                     end select
                 end if
             end if
+
             ! process-file-arg
             dir = file_name_as_directory(emacs_wd)
+
             if (len(emacs_wd) == 0 .and. .not. file_name_absolute_p(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to nil default-directory")
                 cycle
             end if
+
             call visit(argi, dir, line, status)
             if (.not. status%ok()) return
             line = 0
         end do
     end subroutine command_line_1
+
 
     !> Visit `name` (relative to `dir`), make its buffer current and go to
     !> line `line` if positive.
@@ -198,14 +216,17 @@ contains
         else
             call find_file_noselect(dir//name, buf, status)
         end if
+
         if (.not. status%ok()) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
+
         if (line /= 0) then
             call goto_char(point_min())
             shortage = forward_line(line - 1)
         end if
     end subroutine visit
+
 
     !> Run the editor on terminal type `terminal_type` at file descriptor
     !> `fd` until the user leaves, visiting the files in `args` first.
@@ -253,11 +274,13 @@ contains
             allocate (rest(0))
             init = .true.
         end if
+
         ! A reminder from `run`; errors from what follows replace it.
         if (allocated(startup_message)) then
             if (len(startup_message) > 0) call message(startup_message)
             startup_message = ""
         end if
+
         init_file_had_error = .false.
         if (init .and. present(configure)) call load_init_file(configure)
         call command_line_1(rest, st)
@@ -272,6 +295,7 @@ contains
         call set_input_fd(-1_int32)
     end subroutine emacs_main
 
+
     !> Run the init file's `configure`.  An error is shown in the echo area
     !> and sets `init_file_had_error`; startup goes on.  Port of
     !> startup.el:startup--load-user-init-file (the init file is compiled
@@ -282,11 +306,13 @@ contains
 
         init_file_had_error = .false.
         call configure(status)
+
         if (.not. status%ok()) then
             init_file_had_error = .true.
             call message("An error occurred while loading the init file: "//format_error(status))
         end if
     end subroutine load_init_file
+
 
     !> Handle the options that come before the files: -q (--no-init-file)
     !> and -Q (--quick) turn off the init file (`init` false); `rest` gets
@@ -301,22 +327,28 @@ contains
 
         init = .true.
         k = 0
+
         options: do while (k < size(args))
             argi = args(k + 1)%s
+
             ! --foo is the same as -foo.
             if (len(argi) > 2) then
                 if (argi(1:2) == "--") argi = argi(2:)
             end if
+
             select case (argi)
             case ("-q", "-no-init-file", "-Q", "-quick")
                 init = .false.
             case default
                 exit options
             end select
+
             k = k + 1
         end do options
+
         rest = args(k + 1:)
     end subroutine command_line
+
 
     !> The program: handle --version, --help and --recompile, check for a
     !> terminal, then run the editor with the user's `configure`.
@@ -340,6 +372,7 @@ contains
         exit_code = 0
         nargs = command_argument_count()
         allocate (args(nargs))
+
         do k = 1, nargs
             call get_command_argument(k, length=arglen)
             allocate (character(len=arglen) :: args(k)%s)
@@ -364,6 +397,7 @@ contains
 
         reminder = ""
         if (.not. present(prefix) .and. installed) call run_user_build(args, reminder)
+
         if (present(prefix)) then
             if (file_newer_than_file_p(init_file_name(), running_executable())) then
                 reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
@@ -394,21 +428,26 @@ contains
             exit_code = 1
             return
         end if
+
         call get_environment_variable("TERM", length=arglen, status=stat)
+
         if (stat /= 0 .or. arglen == 0) then
             write (error_unit, "(a)") "fortmacs: please set the environment variable TERM"
             exit_code = 1
             return
         end if
+
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
         startup_message = reminder
         call emacs_main(term, 0_int32, status, args, configure)
+
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
         end if
     end subroutine run
+
 
     !> `fortmacs --recompile`: build the init file into the user's own
     !> fortmacs, reporting on standard output and error.
@@ -420,21 +459,26 @@ contains
         type(status_type) :: status
 
         exit_code = 1
+
         if (.not. installed) then
             write (error_unit, "(a)") "fortmacs: --recompile needs an installed Fortmacs "// &
                 "(fpm install puts PREFIX/bin/fortmacs next to PREFIX/lib/libfortmacs.a)"
             return
         end if
+
         call init_fileio()
         call recompile(install, log, status)
         if (len(log) > 0) write (error_unit, "(a)", advance="no") log
+
         if (.not. status%ok()) then
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             return
         end if
+
         write (output_unit, "(a)") "fortmacs: built "//user_build_name()
         exit_code = 0
     end subroutine do_recompile
+
 
     !> Replace this process with the user's build, if there is one and it
     !> is newer than this fortmacs; otherwise `reminder` says what to do.
@@ -449,19 +493,24 @@ contains
 
         build = user_build_name()
         init = init_file_name()
+
         if (.not. file_executable_p(build)) then
             if (file_exists_p(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
             return
         end if
+
         if (file_newer_than_file_p(running_executable(), build)) then
             reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
             return
         end if
+
         allocate (argv(size(args) + 1))
         argv(1)%s = build
+
         do k = 1, size(args)
             argv(k + 1)%s = args(k)%s
         end do
+
         err = emacs_execv(build, argv)
         reminder = "Can't run "//build//": "//emacs_strerror(err)
     end subroutine run_user_build

@@ -44,6 +44,7 @@ contains
                     ]
     end subroutine collect_handle_fm
 
+
     subroutine test_acquire_resolve(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -65,6 +66,7 @@ contains
         call check(error, t%capacity() >= 2_int64, "capacity below live count")
     end subroutine test_acquire_resolve
 
+
     subroutine test_null(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -83,6 +85,7 @@ contains
         call check(error, i, 0_int64)
     end subroutine test_null
 
+
     subroutine test_stale(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -98,6 +101,7 @@ contains
         if (allocated(error)) return
         call check(error, t%count(), 0_int64)
     end subroutine test_stale
+
 
     subroutine test_stale_after_reuse(error)
         type(error_type), allocatable, intent(out) :: error
@@ -119,6 +123,7 @@ contains
         call check(error, t%is_live(new), "new handle not live")
     end subroutine test_stale_after_reuse
 
+
     subroutine test_double_release(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -133,6 +138,7 @@ contains
         call check(error, t%count(), 0_int64)
     end subroutine test_double_release
 
+
     subroutine test_growth(error)
         type(error_type), allocatable, intent(out) :: error
         type(slot_table_type) :: t
@@ -143,26 +149,32 @@ contains
         do k = 1, size(hs, kind=int64)
             call t%acquire(hs(k))
         end do
+
         call check(error, t%count(), 100_int64)
         if (allocated(error)) return
         call check(error, t%capacity() >= 100_int64, "capacity did not grow")
         if (allocated(error)) return
+
         do k = 1, size(hs, kind=int64)
             call t%resolve(hs(k), i, st)
             call check(error, st%ok(), "handle lost after growth")
             if (allocated(error)) return
         end do
+
         ! Releasing every other handle and reacquiring reuses slots.
         do k = 1, size(hs, kind=int64), 2
             call t%release(hs(k), st)
         end do
+
         do k = 1, size(hs, kind=int64), 2
             call t%acquire(hs(k))
         end do
+
         call check(error, t%count(), 100_int64)
         if (allocated(error)) return
         call check(error, t%capacity() < 200_int64, "freed slots not reused")
     end subroutine test_growth
+
 
     ! A handle from one table must not resolve in an empty one.
     subroutine test_foreign(error)
@@ -173,6 +185,7 @@ contains
         call a%acquire(h)
         call check(error,.not. b%is_live(h), "empty table resolved a handle")
     end subroutine test_foreign
+
 
     subroutine test_handle_of(error)
         type(error_type), allocatable, intent(out) :: error

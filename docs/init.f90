@@ -25,6 +25,7 @@ contains
         call keymap_global_set("C-c d", "insert-date-stamp", status)
     end subroutine configure
 
+
     !> Insert today's date, as YYYYMMDD.
     subroutine insert_date_stamp(status)
         type(status_type), intent(out) :: status

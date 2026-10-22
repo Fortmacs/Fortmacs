@@ -50,6 +50,7 @@ contains
                     ]
     end subroutine collect_emacs_fm
 
+
     !> An init file's `configure`: a setting, a command and a key.
     subroutine sample_configure(status)
         type(status_type), intent(out) :: status
@@ -59,6 +60,7 @@ contains
         call keymap_global_set("C-c d", "insert-config-stamp", status)
     end subroutine sample_configure
 
+
     !> The command bound by `sample_configure`.
     subroutine insert_config_stamp(status)
         type(status_type), intent(out) :: status
@@ -66,12 +68,14 @@ contains
         call insert("configured", status)
     end subroutine insert_config_stamp
 
+
     !> An init file whose `configure` fails.
     subroutine failing_configure(status)
         type(status_type), intent(out) :: status
 
         call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
     end subroutine failing_configure
+
 
     !> Run the editor on a pty with `keys` typed (they must end with
     !> C-x C-c), *scratch* emptied first.
@@ -97,14 +101,17 @@ contains
         call init_sys_modes(slave, old, ignore)
         call emacs_write(master, keys, ignore)
         call emacs_main("xterm-256color", slave, st, args, configure)
+
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, ignore)
             if (n <= 0) exit
         end do
+
         call reset_sys_modes(slave, old, ignore)
         call close_fd(slave)
         call close_fd(master)
     end subroutine run_on_pty
+
 
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
@@ -140,6 +147,7 @@ contains
         call check(error, init .and. size(rest) == 0, "no arguments")
     end subroutine test_command_line
 
+
     subroutine test_configure(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -151,6 +159,7 @@ contains
         if (.not. allocated(error)) call check(error,.not. init_file_had_error, "no error")
         tab_width = 8
     end subroutine test_configure
+
 
     subroutine test_no_init_file(error)
         type(error_type), allocatable, intent(out) :: error
@@ -164,6 +173,7 @@ contains
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
         if (.not. allocated(error)) call check(error, tab_width, 8)
     end subroutine test_no_init_file
+
 
     subroutine test_init_error(error)
         type(error_type), allocatable, intent(out) :: error

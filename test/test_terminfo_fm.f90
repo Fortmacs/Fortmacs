@@ -50,6 +50,7 @@ contains
                     ]
     end subroutine collect_terminfo_fm
 
+
     function le16(v) result(s)
         integer, intent(in) :: v
         character(len=2) :: s
@@ -60,12 +61,14 @@ contains
         s = char(mod(u, 256))//char(u/256)
     end function le16
 
+
     function le32(v) result(s)
         integer, intent(in) :: v
         character(len=4) :: s
 
         s = le16(mod(v, 65536))//le16(v/65536)
     end function le32
+
 
     !> A compiled entry: "test|Test terminal", am, cols#80, bel, cup, and
     !> extended Tc and smxx.  With `wide`, numbers are 32-bit.
@@ -76,19 +79,23 @@ contains
 
         names = "test|Test terminal"//NUL
         strtab = achar(7)//NUL//ESC//"[%i%p1%d;%p2%dH"//NUL
+
         if (wide) then
             data = le16(int(o'01036'))
         else
             data = le16(int(o'0432'))
         end if
+
         data = data//le16(len(names))//le16(2)//le16(1)//le16(11)//le16(len(strtab))
         data = data//names//char(0)//char(1)
         if (mod(len(data), 2) == 1) data = data//NUL
+
         if (wide) then
             data = data//le32(80)
         else
             data = data//le16(80)
         end if
+
         ! bel (2) at 0, cup (11) at 2, the rest absent.
         do k = 1, 11
             select case (k)
@@ -100,6 +107,7 @@ contains
                 data = data//le16(-1)
             end select
         end do
+
         data = data//strtab
         if (mod(len(data), 2) == 1) data = data//NUL
         ! Extended: one boolean (Tc), one string (smxx).
@@ -108,6 +116,7 @@ contains
         data = data//char(1)//NUL
         data = data//le16(0)//le16(0)//le16(3)//ext
     end function sample_entry
+
 
     subroutine test_tparm_xterm(error)
         type(error_type), allocatable, intent(out) :: error
@@ -129,6 +138,7 @@ contains
         call check(error, tparam(ESC//"[%i%p1%d;%p2%dr", 0_int64, 23_int64, 0_int64, 0_int64), &
                    ESC//"[1;24r")
     end subroutine test_tparm_xterm
+
 
     subroutine test_tparm_language(error)
         type(error_type), allocatable, intent(out) :: error
@@ -164,6 +174,7 @@ contains
         call check(error, tparm("%p1%{0}%/%d %d", 7_int64), "0 0")
     end subroutine test_tparm_language
 
+
     subroutine test_tparm_formats(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -181,6 +192,7 @@ contains
         if (allocated(error)) return
         call check(error, tparm("%p1%.3d", 7_int64), "007")
     end subroutine test_tparm_formats
+
 
     subroutine test_builtin(error)
         type(error_type), allocatable, intent(out) :: error
@@ -207,6 +219,7 @@ contains
         call check(error, tgetnum(ti, "sg"), -1_int32)
     end subroutine test_builtin
 
+
     subroutine test_parse(error)
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
@@ -232,6 +245,7 @@ contains
         call check(error, tigetstr(ti, "smxx"), ESC//"[9m")
     end subroutine test_parse
 
+
     subroutine test_parse_32(error)
         type(error_type), allocatable, intent(out) :: error
         type(terminfo_type) :: ti
@@ -242,6 +256,7 @@ contains
         if (allocated(error)) return
         call check(error, tigetstr(ti, "smxx"), ESC//"[9m")
     end subroutine test_parse_32
+
 
     subroutine test_parse_invalid(error)
         type(error_type), allocatable, intent(out) :: error
@@ -257,6 +272,7 @@ contains
         call parse_terminfo(data(1:40), ti, st)
         call check(error,.not. st%ok(), "truncated")
     end subroutine test_parse_invalid
+
 
     !> The real database when installed (CI has ncurses-base), else the
     !> built-in entry: either way xterm-256color works.
@@ -277,6 +293,7 @@ contains
         call tgetent("no-such-terminal-type", ti, st)
         call check(error, st%detail, "Terminal type no-such-terminal-type is not defined")
     end subroutine test_tgetent
+
 
     subroutine test_delete_padding(error)
         type(error_type), allocatable, intent(out) :: error

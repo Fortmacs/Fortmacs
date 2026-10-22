@@ -53,6 +53,7 @@ contains
         pos = pos_bol()
         byte = char_to_byte(pos)
         col = 0
+
         do while (pos < buffers(cur)%pt)
             c = buf_fetch_char(buffers(cur), byte)
             col = col + glyph_columns(c, int(col))
@@ -60,6 +61,7 @@ contains
             pos = pos + 1
         end do
     end function current_column
+
 
     !> Move point to column `column` in the current line: after a character
     !> that spans it, or to the end of the line if it is too short.
@@ -74,6 +76,7 @@ contains
         pos = pos_bol()
         byte = char_to_byte(pos)
         reached = 0
+
         do while (pos < buffers(cur)%zv .and. reached < column)
             c = buf_fetch_char(buffers(cur), byte)
             if (c == 10) exit
@@ -81,8 +84,10 @@ contains
             byte = byte + buf_next_char_len(buffers(cur), byte)
             pos = pos + 1
         end do
+
         call goto_char(pos)
     end subroutine move_to_column
+
 
     !> The width available for text in the selected window: its columns
     !> less the last, which holds the continuation glyph.
@@ -95,6 +100,7 @@ contains
             if (width < 1) width = DEFAULT_WIDTH - 1
         end if
     end function window_text_width
+
 
     !> Screen rows of the line starting at `bol`, `width` columns wide:
     !> where each row starts, and where the line ends.  Rows continue as
@@ -117,29 +123,36 @@ contains
         byte = char_to_byte(pos)
         col = 0
         cont = 0
+
         do
             if (pos >= buffers(cur)%zv) exit
             c = buf_fetch_char(buffers(cur), byte)
             if (c == 10) exit
             n = glyph_columns(c, col + cont)
+
             if (col + n > width .and. col > 0) then
                 nrows = nrows + 1
+
                 if (nrows > size(starts)) then
                     allocate (grown(2*size(starts)))
                     grown(1:size(starts)) = starts
                     call move_alloc(grown, starts)
                 end if
+
                 starts(nrows) = pos
                 cont = cont + width
                 col = 0
                 cycle
             end if
+
             col = col + n
             byte = byte + buf_next_char_len(buffers(cur), byte)
             pos = pos + 1
         end do
+
         eol = pos
     end subroutine line_rows
+
 
     !> The screen row (1-based) of `pos` among `starts(1:nrows)`.
     pure integer function row_of(pos, starts, nrows) result(k)
@@ -148,11 +161,13 @@ contains
         integer, intent(in) :: nrows
 
         k = nrows
+
         do while (k > 1)
             if (starts(k) <= pos) exit
             k = k - 1
         end do
     end function row_of
+
 
     !> Point's column on its screen line (the cursor's x in the window).
     integer function screen_column() result(x)
@@ -168,6 +183,7 @@ contains
         pos = starts(k)
         byte = char_to_byte(pos)
         x = 0
+
         do while (pos < buffers(cur)%pt)
             c = buf_fetch_char(buffers(cur), byte)
             x = x + glyph_columns(c, x + cont)
@@ -175,6 +191,7 @@ contains
             pos = pos + 1
         end do
     end function screen_column
+
 
     !> Move point `lines` screen lines down (up if negative), to the start
     !> of that screen line or, with `goal`, to the character at column
@@ -196,6 +213,7 @@ contains
         call line_rows(bol, width, starts, nrows, eol)
         target = row_of(buffers(cur)%pt, starts, nrows) + lines
         moved = lines
+
         ! Walk whole lines until the target row is in the current one.
         do while (target > nrows)
             if (eol >= buffers(cur)%zv) then
@@ -203,16 +221,19 @@ contains
                 target = nrows
                 exit
             end if
+
             target = target - nrows
             bol = eol + 1
             call line_rows(bol, width, starts, nrows, eol)
         end do
+
         do while (target < 1)
             if (bol <= buffers(cur)%begv) then
                 moved = moved + (1 - target)
                 target = 1
                 exit
             end if
+
             call goto_char(bol - 1)
             bol = pos_bol()
             call line_rows(bol, width, starts, nrows, eol)
@@ -220,15 +241,18 @@ contains
         end do
 
         pos = starts(target)
+
         if (present(goal)) then
             if (target < nrows) then
                 row_end = starts(target + 1)
             else
                 row_end = eol
             end if
+
             cont = int(target - 1)*width
             byte = char_to_byte(pos)
             x = 0
+
             do while (pos < row_end)
                 c = buf_fetch_char(buffers(cur), byte)
                 n = glyph_columns(c, x + cont)
@@ -237,9 +261,11 @@ contains
                 byte = byte + buf_next_char_len(buffers(cur), byte)
                 pos = pos + 1
             end do
+
             ! The end of a continued row belongs to the next one.
             if (target < nrows .and. pos == row_end) pos = row_end - 1
         end if
+
         call goto_char(pos)
     end subroutine vertical_motion
 

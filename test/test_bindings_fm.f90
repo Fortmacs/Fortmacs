@@ -55,6 +55,7 @@ contains
                     ]
     end subroutine collect_bindings_fm
 
+
     !> A fresh buffer with the default bindings, holding `keys` typed.
     subroutine type_into(name, bytes, buf)
         character(len=*), intent(in) :: name, bytes
@@ -70,12 +71,14 @@ contains
         call command_loop(st)
     end subroutine type_into
 
+
     subroutine done_with(buf)
         type(handle_type), intent(in) :: buf
         type(status_type) :: st
 
         call kill_buffer(buf, st)
     end subroutine done_with
+
 
     function binding_of(keys) result(v)
         character(len=*), intent(in) :: keys
@@ -86,6 +89,7 @@ contains
         call key_parse(keys, key, st)
         call key_binding(key, v, st)
     end function binding_of
+
 
     subroutine test_global_map(error)
         type(error_type), allocatable, intent(out) :: error
@@ -112,6 +116,7 @@ contains
         call check(error, value_eq(binding_of("C-é"), nil()), "C-é")
     end subroutine test_global_map
 
+
     subroutine test_typing(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -127,6 +132,7 @@ contains
         call done_with(buf)
     end subroutine test_typing
 
+
     subroutine test_newline(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -138,6 +144,7 @@ contains
         call check(error, point(), 4_int64)
         call done_with(buf)
     end subroutine test_newline
+
 
     subroutine test_universal_argument(error)
         type(error_type), allocatable, intent(out) :: error
@@ -153,6 +160,7 @@ contains
         call check(error, value_eq(last_command, sym("self-insert-command")), "last-command")
         call done_with(buf)
     end subroutine test_universal_argument
+
 
     subroutine test_digit_argument(error)
         type(error_type), allocatable, intent(out) :: error
@@ -174,6 +182,7 @@ contains
         call check(error, buffer_string(), "a"//repeat("c", 10))
         call done_with(buf)
     end subroutine test_digit_argument
+
 
     subroutine test_quoted_insert(error)
         type(error_type), allocatable, intent(out) :: error

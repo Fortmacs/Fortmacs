@@ -69,6 +69,7 @@ contains
         end if
     end subroutine move_gap_both
 
+
     !> Move the gap down to `bytepos`.  With `newgap`, leave the unchanged
     !> bookkeeping alone.  Port of insdel.c:gap_left.
     subroutine gap_left(charpos, bytepos, newgap)
@@ -77,16 +78,20 @@ contains
         integer(int64) :: n
 
         if (.not. newgap) call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
+
         associate (t => buffers(cur)%text)
             ! Bytes [bytepos, gpt_byte) move up to the end of the gap.
             n = t%gpt_byte - bytepos
+
             if (n > 0) then
                 t%beg(bytepos + t%gap_size:t%gpt_byte - 1 + t%gap_size) = t%beg(bytepos:t%gpt_byte - 1)
             end if
+
             t%gpt_byte = bytepos
             t%gpt = charpos
         end associate
     end subroutine gap_left
+
 
     !> Move the gap up to `bytepos`.  Port of insdel.c:gap_right.
     subroutine gap_right(charpos, bytepos)
@@ -94,16 +99,20 @@ contains
         integer(int64) :: n
 
         call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
+
         associate (t => buffers(cur)%text)
             ! Bytes [gpt_byte, bytepos) move down from after the gap.
             n = bytepos - t%gpt_byte
+
             if (n > 0) then
                 t%beg(t%gpt_byte:bytepos - 1) = t%beg(t%gpt_byte + t%gap_size:bytepos - 1 + t%gap_size)
             end if
+
             t%gpt = charpos
             t%gpt_byte = bytepos
         end associate
     end subroutine gap_right
+
 
     !> Grow the gap by `nbytes_added` (plus slack), or shrink it by
     !> `-nbytes_added` (never below GAP_BYTES_MIN).
@@ -120,6 +129,7 @@ contains
         end if
     end subroutine make_gap
 
+
     !> Port of insdel.c:make_gap_larger.  Upstream enlarges the block and
     !> slides the gap; here the text is copied into a larger string with the
     !> gap already in place, which gives the same layout.
@@ -132,29 +142,36 @@ contains
 
         associate (t => buffers(cur)%text)
             current_size = t%z_byte - BEG + t%gap_size
+
             if (BUF_BYTES_MAX - current_size < nbytes_requested) then
                 call set_error(status, FM_GENERIC_ERROR, "Maximum buffer size exceeded")
                 return
             end if
+
             ! Get enough to last a while.
             nbytes_added = min(nbytes_requested + GAP_BYTES_DFL, BUF_BYTES_MAX - current_size)
 
             allocate (character(len=current_size + nbytes_added) :: grown, stat=astat)
+
             if (astat /= 0) then
                 call set_error(status, FM_MEMORY_FULL)
                 return
             end if
+
             new_gap = t%gap_size + nbytes_added
             after = t%z_byte - t%gpt_byte
             if (t%gpt_byte > 1) grown(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
+
             if (after > 0) then
                 grown(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
                     t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
+
             call move_alloc(grown, t%beg)
             t%gap_size = new_gap
         end associate
     end subroutine make_gap_larger
+
 
     !> Port of insdel.c:make_gap_smaller.
     subroutine make_gap_smaller(nbytes_requested, status)
@@ -171,20 +188,25 @@ contains
 
             new_gap = t%gap_size - nbytes_removed
             allocate (character(len=len(t%beg, kind=int64) - nbytes_removed) :: shrunk, stat=astat)
+
             if (astat /= 0) then
                 call set_error(status, FM_MEMORY_FULL)
                 return
             end if
+
             after = t%z_byte - t%gpt_byte
             if (t%gpt_byte > 1) shrunk(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
+
             if (after > 0) then
                 shrunk(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
                     t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
+
             call move_alloc(shrunk, t%beg)
             t%gap_size = new_gap
         end associate
     end subroutine make_gap_smaller
+
 
     ! ------------------------------------------------------------------
     ! Insertion
@@ -199,6 +221,7 @@ contains
         call insert_text(string, .false., status)
     end subroutine insert
 
+
     !> Like `insert`, but markers at point end up after the text.
     !> Port of insdel.c:insert_before_markers.
     subroutine insert_before_markers(string, status)
@@ -207,6 +230,7 @@ contains
 
         call insert_text(string, .true., status)
     end subroutine insert_before_markers
+
 
     subroutine insert_text(string, before_markers, status)
         character(len=*), intent(in) :: string
@@ -220,6 +244,7 @@ contains
         call insert_1_both(string, nchars, len(string, kind=int64), .false., .true., &
                            before_markers, status)
     end subroutine insert_text
+
 
     !> Insert character `c` before point.  Port of insdel.c:insert_char.
     subroutine insert_char(c, status)
@@ -235,8 +260,10 @@ contains
             n = 1
             str(1:1) = char(iand(c, 255_int32))
         end if
+
         call insert(str(1:n), status)
     end subroutine insert_char
+
 
     !> Characters in `string` as the current buffer would count them.
     !> Port of character.c:chars_in_text.
@@ -251,6 +278,7 @@ contains
             call multibyte_chars_in_text(string, nchars, status)
         end if
     end subroutine chars_in_text
+
 
     !> Insert `nchars` characters occupying the `nbytes` bytes of `string`
     !> before point.  `prepare` runs the read-only check.  `inherit` (text
@@ -275,6 +303,7 @@ contains
         if (buffers(cur)%pt /= buffers(cur)%text%gpt) then
             call move_gap_both(buffers(cur)%pt, buffers(cur)%pt_byte)
         end if
+
         if (buffers(cur)%text%gap_size < nbytes) then
             call make_gap(nbytes - buffers(cur)%text%gap_size, status)
             if (.not. status%ok()) return
@@ -312,6 +341,7 @@ contains
         call adjust_point(nchars, nbytes)
     end subroutine insert_1_both
 
+
     !> Relocate the current buffer's markers for an insertion spanning
     !> `from`..`to`.  Markers at the insertion point advance only if their
     !> insertion type is t or `before_markers` is set.
@@ -324,6 +354,7 @@ contains
         nchars = to - from
         nbytes = to_byte - from_byte
         m = buffers(cur)%text%markers
+
         do while (m /= 0)
             associate (mk => markers(m))
                 if (mk%bytepos == from_byte) then
@@ -335,10 +366,12 @@ contains
                     mk%bytepos = mk%bytepos + nbytes
                     mk%charpos = mk%charpos + nchars
                 end if
+
                 m = mk%next
             end associate
         end do
     end subroutine adjust_markers_for_insert
+
 
     !> Relocate the current buffer's markers for a deletion of
     !> `from`..`to`: markers inside move to `from`, markers after shift.
@@ -348,6 +381,7 @@ contains
         integer(int64) :: m
 
         m = buffers(cur)%text%markers
+
         do while (m /= 0)
             associate (mk => markers(m))
                 if (mk%charpos > to) then
@@ -357,10 +391,12 @@ contains
                     mk%charpos = from
                     mk%bytepos = from_byte
                 end if
+
                 m = mk%next
             end associate
         end do
     end subroutine adjust_markers_for_delete
+
 
     !> Move point by `nchars`/`nbytes`.  Port of insdel.c:adjust_point.
     subroutine adjust_point(nchars, nbytes)
@@ -369,6 +405,7 @@ contains
         buffers(cur)%pt = buffers(cur)%pt + nchars
         buffers(cur)%pt_byte = buffers(cur)%pt_byte + nbytes
     end subroutine adjust_point
+
 
     ! ------------------------------------------------------------------
     ! Deletion
@@ -383,6 +420,7 @@ contains
         call del_range_1(from, to, .true., status)
     end subroutine del_range
 
+
     !> Like `del_range`; `prepare` runs the read-only check.  With
     !> `deleted` present, it receives the deleted text.
     !> Port of insdel.c:del_range_1.
@@ -395,6 +433,7 @@ contains
 
         from = max(from_in, buffers(cur)%begv)
         to = min(to_in, buffers(cur)%zv)
+
         if (to <= from) then
             if (present(deleted)) deleted = ""
             return
@@ -409,6 +448,7 @@ contains
         to_byte = char_to_byte(to)
         call del_range_2(from, from_byte, to, to_byte, deleted)
     end subroutine del_range_1
+
 
     !> Like `del_range_1`, with byte positions.  Port of insdel.c:del_range_byte.
     subroutine del_range_byte(from_byte_in, to_byte_in, status)
@@ -426,6 +466,7 @@ contains
         if (.not. status%ok()) return
         call del_range_2(from, from_byte, to, to_byte)
     end subroutine del_range_byte
+
 
     !> Like `del_range_1`, with both kinds of position given.
     !> Port of insdel.c:del_range_both.
@@ -445,8 +486,10 @@ contains
             call prepare_to_modify_buffer(from, to, status)
             if (.not. status%ok()) return
         end if
+
         call del_range_2(from, from_byte, to, to_byte)
     end subroutine del_range_both
+
 
     !> Delete the text between two valid positions, given as both char and
     !> byte positions.  With `deleted` present, it receives the deleted text.
@@ -494,6 +537,7 @@ contains
         end associate
     end subroutine del_range_2
 
+
     ! ------------------------------------------------------------------
     ! Modification bookkeeping
     ! ------------------------------------------------------------------
@@ -507,11 +551,13 @@ contains
         call prepare_to_modify_buffer(start, end, status)
         if (.not. status%ok()) return
         call buf_compute_unchanged(buffers(cur), start - 1, end)
+
         associate (t => buffers(cur)%text)
             call modiff_incr(t%modiff, end - start)
             t%chars_modiff = t%modiff
         end associate
     end subroutine modify_text
+
 
     !> Check that the region may be modified: the buffer's read-only state
     !> and `read-only` text properties.  Upstream also locks the visited

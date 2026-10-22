@@ -492,6 +492,7 @@ contains
         errno = p
     end function errno
 
+
     !> Copy of the NUL-terminated C string at `p` ("" for a null pointer).
     function c_string_to_fortran(p) result(s)
         type(c_ptr), intent(in) :: p
@@ -503,12 +504,16 @@ contains
             s = ""
             return
         end if
+
         call c_f_pointer(p, chars, [huge(0)])
         n = 0
+
         do while (chars(n + 1) /= c_null_char)
             n = n + 1
         end do
+
         allocate (character(len=n) :: s)
+
         do n = 1, len(s)
             s(n:n) = chars(n)
         end do

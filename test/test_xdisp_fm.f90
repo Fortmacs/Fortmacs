@@ -61,6 +61,7 @@ contains
                     ]
     end subroutine collect_xdisp_fm
 
+
     !> A buffer holding `text`, current; its slot is `bi`.
     subroutine buffer_with(name, text, h, bi)
         character(len=*), intent(in) :: name, text
@@ -75,6 +76,7 @@ contains
         call resolve_buffer(h, bi, st)
     end subroutine buffer_with
 
+
     !> The text of a laid-out row (wide-character padding left out).
     function row_text(row) result(s)
         type(glyph_row_type), intent(in) :: row
@@ -82,8 +84,10 @@ contains
         integer :: k
 
         s = ""
+
         do k = 1, row%used
             if (row%glyphs(k)%padding) cycle
+
             if (row%glyphs(k)%ch < 128) then
                 s = s//achar(row%glyphs(k)%ch)
             else
@@ -91,6 +95,7 @@ contains
             end if
         end do
     end function row_text
+
 
     subroutine layout(bi, start, pt, width, nrows, rows, crow, ccol, end_pos, at_end)
         integer(int64), intent(in) :: bi, start, pt
@@ -102,11 +107,14 @@ contains
         integer :: r
 
         allocate (rows(nrows))
+
         do r = 1, nrows
             allocate (rows(r)%glyphs(width))
         end do
+
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
+
 
     subroutine test_lines(error)
         type(error_type), allocatable, intent(out) :: error
@@ -127,6 +135,7 @@ contains
         call check(error, at_end .and. end_pos == 6, "end")
         call kill_buffer(h, st)
     end subroutine test_lines
+
 
     subroutine test_special_chars(error)
         type(error_type), allocatable, intent(out) :: error
@@ -155,6 +164,7 @@ contains
         call kill_buffer(h, st)
     end subroutine test_special_chars
 
+
     subroutine test_continuation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -174,6 +184,7 @@ contains
         call check(error, crow == 1 .and. ccol == 1, "cursor on g")
         call kill_buffer(h, st)
     end subroutine test_continuation
+
 
     !> After a final newline there is one more (empty) line for the cursor.
     subroutine test_end_of_buffer(error)
@@ -201,6 +212,7 @@ contains
         call kill_buffer(h, st)
     end subroutine test_end_of_buffer
 
+
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
@@ -215,6 +227,7 @@ contains
         call check(error, s, "-UUU:%*--")
     end subroutine test_mode_line
 
+
     !> Point far below the window start: the window recenters on it.
     subroutine test_redisplay(error)
         type(error_type), allocatable, intent(out) :: error
@@ -228,10 +241,12 @@ contains
         integer :: k
 
         text = ""
+
         do k = 1, 100
             write (line, '("line ",i0)') k
             text = text//trim(line)//achar(10)
         end do
+
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
@@ -254,7 +269,9 @@ contains
         last_message = ""
         call free_window(f%root_window)
         call kill_buffer(h, st)
+
     contains
+
         !> Position of the start of line `n` ("line 1" .. "line 9" take 7
         !> characters with the newline, "line 10" .. 8).
         integer(int64) function line_start(n)
@@ -266,7 +283,9 @@ contains
                 line_start = 1 + 7*9 + 8*(n - 10)
             end if
         end function line_start
+
     end subroutine test_redisplay
+
 
     !> The whole editor on a pty: type, then C-x C-c.
     subroutine test_emacs_main(error)
@@ -289,15 +308,18 @@ contains
         call check(error, st%ok(), "emacs_main: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
         out = ""
+
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, st)
             if (n <= 0) exit
             out = out//buf(1:n)
         end do
+
         if (.not. allocated(error)) then
             call check(error, index(out, achar(27)//"[?1049h") > 0 .and. &
                        index(out, achar(27)//"[?1049l") > 0, "enters and leaves full screen")
         end if
+
         call reset_sys_modes(slave, old, st)
         call close_fd(slave)
         call close_fd(master)

@@ -53,6 +53,7 @@ contains
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, predicate)
     end subroutine wrong_type
 
+
     !> Port of lisp.h:CHECK_FIXNUM.
     subroutine check_fixnum(v, status)
         type(value_type), intent(in) :: v
@@ -60,6 +61,7 @@ contains
 
         if (.not. fixnump(v)) call wrong_type(status, "fixnump")
     end subroutine check_fixnum
+
 
     !> Port of lisp.h:CHECK_SYMBOL.
     subroutine check_symbol(v, status)
@@ -69,6 +71,7 @@ contains
         if (.not. symbolp(v)) call wrong_type(status, "symbolp")
     end subroutine check_symbol
 
+
     !> Port of lisp.h:CHECK_STRING.
     subroutine check_string(v, status)
         type(value_type), intent(in) :: v
@@ -77,6 +80,7 @@ contains
         if (.not. stringp(v)) call wrong_type(status, "stringp")
     end subroutine check_string
 
+
     !> Port of lisp.h:CHECK_LIST.
     subroutine check_list(v, status)
         type(value_type), intent(in) :: v
@@ -84,6 +88,7 @@ contains
 
         if (.not. listp(v)) call wrong_type(status, "listp")
     end subroutine check_list
+
 
     ! ------------------------------------------------------------------
     ! Identity and lists
@@ -97,6 +102,7 @@ contains
 
         value_eq = .false.
         if (vtag(a) /= vtag(b)) return
+
         select case (vtag(a))
         case (V_NIL)
             value_eq = .true.
@@ -109,6 +115,7 @@ contains
             ! Nothing to do for other values.
         end select
     end function value_eq
+
 
     !> First element of a list; nil for nil.  Port of data.c:Fcar.
     subroutine car(list, v, status)
@@ -125,6 +132,7 @@ contains
             call wrong_type(status, "listp")
         end select
     end subroutine car
+
 
     !> The list without its first element; nil for nil.
     !> Port of data.c:Fcdr.
@@ -143,6 +151,7 @@ contains
         end select
     end subroutine cdr
 
+
     !> Like `car`, but nil for a non-list.  Port of data.c:Fcar_safe.
     pure function car_safe(list) result(v)
         type(value_type), intent(in) :: list
@@ -151,6 +160,7 @@ contains
         if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
     end function car_safe
 
+
     !> Like `cdr`, but nil for a non-list.  Port of data.c:Fcdr_safe.
     pure function cdr_safe(list) result(v)
         type(value_type), intent(in) :: list
@@ -158,6 +168,7 @@ contains
 
         if (vtag(list) == V_LIST) v = list_tail(list, 1_int64)
     end function cdr_safe
+
 
     ! ------------------------------------------------------------------
     ! Symbols
@@ -175,6 +186,7 @@ contains
         name = symbols(xsymbol(symbol))%name
     end subroutine symbol_name
 
+
     !> True for symbols whose name starts with ':'.  Port of data.c:Fkeywordp.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
@@ -182,10 +194,12 @@ contains
         keywordp = .false.
         if (vtag(v) /= V_SYMBOL) return
         call ensure_obarray()
+
         associate (name => symbols(xsymbol(v))%name)
             if (len(name) > 0) keywordp = name(1:1) == ":"
         end associate
     end function keywordp
+
 
     !> Port of data.c:Fboundp (global value only).
     subroutine boundp(symbol, bound, status)
@@ -200,6 +214,7 @@ contains
         bound = symbols(xsymbol(symbol))%bound
     end subroutine boundp
 
+
     !> The value of `symbol`; void-variable if unbound.
     !> Port of data.c:Fsymbol_value (global value only).
     subroutine symbol_value(symbol, v, status)
@@ -212,12 +227,15 @@ contains
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+
         if (.not. symbols(id)%bound) then
             call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
         end if
+
         v = symbols(id)%val
     end subroutine symbol_value
+
 
     !> Give `symbol` the value `newval`.  Constants (nil, t, keywords)
     !> signal setting-constant, except a keyword set to itself.
@@ -231,15 +249,19 @@ contains
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+
         if (symbols(id)%constant) then
             if (.not. (keywordp(symbol) .and. value_eq(newval, symbols(id)%val))) then
                 call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             end if
+
             return
         end if
+
         symbols(id)%val = newval
         symbols(id)%bound = .true.
     end subroutine set
+
 
     !> Make `symbol` unbound.  Port of data.c:Fmakunbound.
     subroutine makunbound(symbol, status)
@@ -251,10 +273,12 @@ contains
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+
         if (symbols(id)%constant) then
             call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             return
         end if
+
         symbols(id)%val = nil()
         symbols(id)%bound = .false.
     end subroutine makunbound
