@@ -54,6 +54,8 @@ module keyboard_fm
     use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
+    use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
+                       buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending
     implicit none(type, external)
     private
@@ -791,6 +793,14 @@ contains
         if (transient_active) then
             overriding_terminal_local_map = null_handle()
             transient_active = .false.
+        end if
+
+        ! keyboard.c:command_loop_1: undo boundaries for the changes of the
+        ! last command, and where point is for record_point.
+        if (cur /= 0) then
+            call undo_auto_add_boundary()
+            point_before_last_command_or_undo = buffers(cur)%pt
+            buffer_before_last_command_or_undo = buffers(cur)%serial
         end if
 
         vdeactivate_mark = .false.

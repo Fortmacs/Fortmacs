@@ -40,7 +40,9 @@ module cmds_fm
     use lisp_fm, only: value_type, fixnump, xfixnum
     use character_fm, only: MAX_CHAR
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
-    use keyboard_fm, only: last_command_event
+    use keyboard_fm, only: last_command_event, this_command, last_command
+    use data_fm, only: value_eq
+    use undo_fm, only: undo_auto_amalgamate
     implicit none(type, external)
     private
 
@@ -162,6 +164,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: pos
 
+        if (abs(n) < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         pos = buffers(cur)%pt + n
 
         if (n < 0) then
@@ -195,6 +198,7 @@ contains
             return
         end if
 
+        if (n < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         if (c < 0 .or. c > MAX_CHAR) return
         call insert_char_n(int(c, int32), n, status)
     end subroutine self_insert_command

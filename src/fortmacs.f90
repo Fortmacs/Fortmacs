@@ -78,6 +78,8 @@ module fortmacs
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use window_fm, only: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
+    use simple_fm, only: undo, undo_only, undo_redo
+    use undo_fm, only: undo_boundary
     use simple_fm, only: kill_new, current_kill, kill_region, yank, push_mark, set_mark, mark, &
                          region_active_p, deactivate_mark
     ! Settings.
@@ -111,6 +113,7 @@ module fortmacs
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
     public :: scroll_up_command, scroll_down_command, recenter, recenter_top_bottom
+    public :: undo, undo_only, undo_redo, undo_boundary
     public :: region_beginning, region_end, kill_new, current_kill, kill_region, yank, push_mark, &
               set_mark, mark, region_active_p, deactivate_mark
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
