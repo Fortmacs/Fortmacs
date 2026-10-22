@@ -40,6 +40,7 @@ module insdel_fm
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
                          buf_bytes, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte, byte_to_char, markers
+    use undo_fm, only: record_insert, record_delete, record_first_change
     use intervals_fm, only: offset_intervals
     use textprop_fm, only: verify_interval_modification
     implicit none(type, external)
@@ -298,6 +299,8 @@ contains
             if (.not. status%ok()) return
         end if
 
+        call record_insert(buffers(cur)%pt, nchars)
+
         associate (b => buffers(cur), t => buffers(cur)%text)
             call modiff_incr(t%modiff, nchars)
             t%chars_modiff = t%modiff
@@ -488,8 +491,8 @@ contains
         if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
 
         if (present(deleted)) deleted = buf_bytes(buffers(cur), from_byte, to_byte)
+        if (buffers(cur)%undo_enabled) call record_delete(from, buf_bytes(buffers(cur), from_byte, to_byte), nchars_del)
 
-        ! record_delete: pending (no undo yet).
         ! Relocate all markers pointing into the new, larger gap.
         call adjust_markers_for_delete(from, from_byte, to, to_byte)
 
@@ -531,6 +534,7 @@ contains
         call prepare_to_modify_buffer(start, end, status)
         if (.not. status%ok()) return
         call buf_compute_unchanged(buffers(cur), start - 1, end)
+        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
 
         associate (t => buffers(cur)%text)
             call modiff_incr(t%modiff, end - start)

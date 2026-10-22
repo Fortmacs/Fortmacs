@@ -77,6 +77,8 @@ module fortmacs
     use fns_fm, only: yes_or_no_p
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
+    use simple_fm, only: undo, undo_only, undo_redo
+    use undo_fm, only: undo_boundary
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -102,6 +104,7 @@ module fortmacs
               delete_region, bobp, eobp, bolp, eolp
     public :: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     public :: find_file, save_buffer, yes_or_no_p, y_or_n_p, read_string, message
+    public :: undo, undo_only, undo_redo, undo_boundary
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell
