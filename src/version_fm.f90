@@ -35,7 +35,6 @@ contains
     !> One-line version banner, as printed by `fortmacs --version`.
     pure function version_string() result(s)
         character(len=:), allocatable :: s
-
         s = "Fortmacs "//fortmacs_version//" (port of GNU Emacs "// &
             upstream_version//")"
     end function version_string

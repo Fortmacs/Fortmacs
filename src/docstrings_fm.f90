@@ -26,6 +26,7 @@
 !> read here, so their current values can be shown.
 module docstrings_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use print_fm, only: prin1_to_string
     use buffer_fm, only: transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use dired_fm, only: completion_ignored_extensions
@@ -66,7 +67,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(145) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(152) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
@@ -91,6 +92,10 @@ module docstrings_fm
                                                                    "delete-char", &
                                                                    "delete-forward-char", &
                                                                    "delete-region", &
+                                                                   "describe-function", &
+                                                                   "describe-key", &
+                                                                   "describe-key-briefly", &
+                                                                   "describe-variable", &
                                                                    "digit-argument", &
                                                                    "end-of-line", &
                                                                    "eobp", &
@@ -105,6 +110,7 @@ module docstrings_fm
                                                                    "get-buffer-create", &
                                                                    "global-set-key", &
                                                                    "goto-char", &
+                                                                   "help-quit", &
                                                                    "insert", &
                                                                    "isearch-abort", &
                                                                    "isearch-backward", &
@@ -169,6 +175,7 @@ module docstrings_fm
                                                                    "previous-history-element", &
                                                                    "previous-line", &
                                                                    "push-mark", &
+                                                                   "quit-window", &
                                                                    "quoted-insert", &
                                                                    "read-file-name-default", &
                                                                    "read-string", &
@@ -206,6 +213,7 @@ module docstrings_fm
                                                                    "universal-argument", &
                                                                    "universal-argument-minus", &
                                                                    "universal-argument-more", &
+                                                                   "where-is", &
                                                                    "where-is-internal", &
                                                                    "write-file", &
                                                                    "y-or-n-p", &
@@ -261,15 +269,13 @@ contains
         character(len=*), intent(in) :: name
         type(doc_entry_type), intent(out) :: entry
         logical, intent(out) :: found
-
         found = .true.
         entry%fortran = ""
-
         select case (name)
         case ("abort-minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Abort the current minibuffer (C-g there)."
+            entry%doc = "Abort the current minibuffer."
         case ("all-completions")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call all_completions(string, collection, result, status, predicate)"
@@ -298,12 +304,28 @@ contains
             entry%file = "cmds_fm.f90"
             entry%fortran = "call backward_char(status, n)"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move point N characters backward (forward if N is negative)."//LF// &
+                        "On attempt to pass beginning or end of buffer, stop and signal error."//LF// &
+                        "Interactively, N is the numeric prefix argument."//LF// &
+                        "If N is omitted or nil, move point 1 character backward."//LF// &
+                        ""//LF// &
+                        "Depending on the bidirectional context, the movement may be to the"//LF// &
+                        "right or to the left on the screen.  This is in contrast with"//LF// &
+                        "\[left-char], which see."
         case ("beginning-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call beginning_of_line(n)"
             entry%interactive = .true.
-            entry%doc = "Move to the start of the line (after moving `n` - 1 lines)."
+            entry%doc = "Move point to beginning of current line (in the logical order)."//LF// &
+                        "With argument N not nil or 1, move forward N - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        ""//LF// &
+                        "This function constrains point to the current field unless this moves"//LF// &
+                        "point to a different line from the original, unconstrained result."//LF// &
+                        "If N is nil or 1, and a front-sticky field starts at point, the point"//LF// &
+                        "does not move.  To ignore field boundaries set"//LF// &
+                        "`inhibit-field-text-motion' to t, or use the `forward-line' function"//LF// &
+                        "instead."
         case ("bobp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "bobp()"
@@ -407,29 +429,73 @@ contains
         case ("delete-backward-char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Delete `n` characters before point."
+            entry%doc = "Delete the previous N characters (following if N is negative)."//LF// &
+                        "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
+                        "delete the text in the region and deactivate the mark instead."//LF// &
+                        "To disable this, set option `delete-active-region' to nil."//LF// &
+                        ""//LF// &
+                        "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
+                        "used, the characters are killed (saved in the kill ring) instead of"//LF// &
+                        "deleted."
         case ("delete-char")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Delete `n` characters after point (before, if negative); signals"//LF// &
-                        "beginning-/end-of-buffer instead of deleting fewer."
+            entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
+                        "Interactively, N is the prefix arg."//LF// &
+                        ""//LF// &
+                        "The command `delete-forward-char' is preferable for interactive use, e.g."//LF// &
+                        "because it respects values of `delete-active-region'."
         case ("delete-forward-char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
+                        "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
+                        "delete the text in the region and deactivate the mark instead."//LF// &
+                        "To disable this, set variable `delete-active-region' to nil."//LF// &
+                        ""//LF// &
+                        "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
+                        "used, the characters are killed (saved in the kill ring) instead of"//LF// &
+                        "deleted."
         case ("delete-region")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call delete_region(start, end, status)"
             entry%doc = "Delete the text between `start` and `end` (either order)."
+        case ("describe-function")
+            entry%file = "help_fns_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the full documentation of FUNCTION (a symbol)."
+        case ("describe-key")
+            entry%file = "help_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display documentation of the function invoked by KEY-LIST."//LF// &
+                        "Interactively, this command can't describe prefix commands, but"//LF// &
+                        "will always wait for the user to type the complete key sequence."
+        case ("describe-key-briefly")
+            entry%file = "help_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Print the name of the function KEY-LIST invokes."
+        case ("describe-variable")
+            entry%file = "help_fns_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the full documentation of VARIABLE (a symbol)."
         case ("digit-argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Part of the numeric argument for the next command."//LF// &
+                        "\[universal-argument] following digits or minus sign ends the argument."
         case ("end-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
             entry%interactive = .true.
-            entry%doc = "Move to the end of the line (after moving `n` - 1 lines)."
+            entry%doc = "Move point to end of current line (in the logical order)."//LF// &
+                        "With argument N not nil or 1, move forward N - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        ""//LF// &
+                        "This function constrains point to the current field unless this moves"//LF// &
+                        "point to a different line from the original, unconstrained result.  If"//LF// &
+                        "N is nil or 1, and a rear-sticky field ends at point, the point does"//LF// &
+                        "not move.  To ignore field boundaries set `inhibit-field-text-motion'"//LF// &
+                        "to t."
         case ("eobp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "eobp()"
@@ -458,13 +524,17 @@ contains
         case ("exit-minibuffer")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Finish the minibuffer input (RET)."
+            entry%doc = "Terminate this minibuffer argument."
         case ("find-file")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file(filename, status)"
             entry%interactive = .true.
-            entry%doc = "Visit `filename` and make its buffer current (and so shown in the"//LF// &
-                        "selected window)."
+            entry%doc = "Edit file FILENAME."//LF// &
+                        "\<minibuffer-local-map>Switch to a buffer visiting file FILENAME, creating one if none"//LF// &
+                        "already exists."//LF// &
+                        "Interactively, the default if you just type RET is the current directory,"//LF// &
+                        "but the visited file name is available through the minibuffer history:"//LF// &
+                        "type \[next-history-element] to pull it into the minibuffer."
         case ("format-error")
             entry%file = "error_fm.f90"
             entry%fortran = "format_error(status)"
@@ -474,14 +544,34 @@ contains
             entry%file = "cmds_fm.f90"
             entry%fortran = "call forward_char(status, n)"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move point N characters forward (backward if N is negative)."//LF// &
+                        "On reaching end or beginning of buffer, stop and signal error."//LF// &
+                        "Interactively, N is the numeric prefix argument."//LF// &
+                        "If N is omitted or nil, move point 1 character forward."//LF// &
+                        ""//LF// &
+                        "Depending on the bidirectional context, the movement may be to the"//LF// &
+                        "right or to the left on the screen.  This is in contrast with"//LF// &
+                        "\[right-char], which see."
         case ("forward-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "forward_line(n)"
             entry%interactive = .true.
-            entry%doc = "Move to the start of the line `n` lines away (default 1) and return"//LF// &
-                        "the count of lines left to move (see the forward-line docstring:"//LF// &
-                        "a non-empty last line counts as moved)."
+            entry%doc = "Move N lines forward (backward if N is negative)."//LF// &
+                        "Precisely, if point is on line I, move to the start of line I + N"//LF// &
+                        "(""start of line"" in the logical order)."//LF// &
+                        "If there isn't room, go as far as possible (no error)."//LF// &
+                        "Interactively, N is the numeric prefix argument and defaults to 1."//LF// &
+                        ""//LF// &
+                        "Returns the count of lines left to move.  If moving forward,"//LF// &
+                        "that is N minus number of lines moved; if backward, N plus number"//LF// &
+                        "moved."//LF// &
+                        ""//LF// &
+                        "Exception: With positive N, a non-empty line at the end counts as one"//LF// &
+                        "line successfully moved (for the return value).  This means in that case"//LF// &
+                        "it returns one less than the number of lines left to move."//LF// &
+                        ""//LF// &
+                        "The command C-n (\[next-line]) can also be used to move to the next"//LF// &
+                        "line."
         case ("get-buffer-create")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
@@ -496,6 +586,10 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call goto_char(position)"
             entry%doc = "Set point to `position`, clipped to the accessible region."
+        case ("help-quit")
+            entry%file = "help_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Just exit from the Help command's command loop."
         case ("insert")
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
@@ -656,7 +750,8 @@ contains
         case ("keyboard-quit")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Signal a `quit' condition."//LF// &
+                        "At top-level, as an editor command, this simply beeps."
         case ("keymap-global-set")
             entry%file = "keymap_fm.f90"
             entry%fortran = "call keymap_global_set(key, command, status)"
@@ -714,7 +809,11 @@ contains
         case ("left-char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move point N characters to the left (to the right if N is negative)."//LF// &
+                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        ""//LF// &
+                        "In left-to-right text this moves backward in the buffer, like"//LF// &
+                        "\[backward-char]."
         case ("list")
             entry%file = "lisp_fm.f90"
             entry%fortran = "list(v1, v2, v3, v4, v5, v6, v7, v8)"
@@ -842,19 +941,41 @@ contains
         case ("negative-argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Begin a negative numeric argument for the next command."//LF// &
+                        "\[universal-argument] following digits or minus sign ends the argument."
         case ("newline")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Insert `n` newlines."
+            entry%doc = "Insert a newline, and move to left margin of the new line."//LF// &
+                        "With prefix argument ARG, insert that many newlines."
         case ("next-history-element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "M-n: the next history element, then the default."
+            entry%doc = "Insert into the minibuffer the Nth next element of minibuffer history."//LF// &
+                        "Interactively, N is the prefix numeric argument and defaults to 1."//LF// &
+                        "The value N can go beyond the current position in the minibuffer"//LF// &
+                        "history,  and invoke ""future history."""
         case ("next-line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Move down `arg` lines (C-n, <down>)."
+            entry%doc = "Move cursor vertically down ARG lines."//LF// &
+                        "ARG defaults to 1."//LF// &
+                        ""//LF// &
+                        "If there is no character in the target line exactly under the current column,"//LF// &
+                        "the cursor is positioned after the character in that line that spans this"//LF// &
+                        "column, or at the end of the line if it is not long enough."//LF// &
+                        "If there is no line in the buffer after this one, the cursor moves to"//LF// &
+                        "the end of the buffer."//LF// &
+                        ""//LF// &
+                        "If the variable `line-move-visual' is non-nil, this command moves"//LF// &
+                        "by display lines.  Otherwise, it moves by buffer lines, without"//LF// &
+                        "taking variable-width characters or continued lines into account."//LF// &
+                        ""//LF// &
+                        "If the variable `goal-column' is set, instead of trying to move exactly"//LF// &
+                        "vertically (or as close as possible), this command moves to that goal"//LF// &
+                        "column (or as close as possible).  Note that setting `goal-column'"//LF// &
+                        "overrides `line-move-visual' and causes this command to move by buffer"//LF// &
+                        "lines rather than by display lines."
         case ("nil")
             entry%file = "lisp_fm.f90"
             entry%fortran = "nil()"
@@ -862,7 +983,8 @@ contains
         case ("open-line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Insert `n` newlines, leaving point before them."
+            entry%doc = "Insert a newline and leave point before it."//LF// &
+                        "With arg N, insert N newlines."
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
@@ -887,11 +1009,27 @@ contains
         case ("previous-history-element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "M-p: the previous history element."
+            entry%doc = "Insert into the minibuffer the Nth previous element of minibuffer history."//LF// &
+                        "Interactively, N is the prefix numeric argument and defaults to 1."
         case ("previous-line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Move up `arg` lines (C-p, <up>)."
+            entry%doc = "Move cursor vertically up ARG lines."//LF// &
+                        "ARG defaults to 1."//LF// &
+                        ""//LF// &
+                        "If there is no character in the target line exactly over the current column,"//LF// &
+                        "the cursor is positioned after the character in that line that spans this"//LF// &
+                        "column, or at the end of the line if it is not long enough."//LF// &
+                        ""//LF// &
+                        "If the variable `line-move-visual' is non-nil, this command moves"//LF// &
+                        "by display lines.  Otherwise, it moves by buffer lines, without"//LF// &
+                        "taking variable-width characters or continued lines into account."//LF// &
+                        ""//LF// &
+                        "If the variable `goal-column' is set, instead of trying to move exactly"//LF// &
+                        "vertically (or as close as possible), this command moves to that goal"//LF// &
+                        "column (or as close as possible).  Note that setting `goal-column'"//LF// &
+                        "overrides `line-move-visual' and causes this command to move by buffer"//LF// &
+                        "lines rather than by display lines."
         case ("push-mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
@@ -899,10 +1037,17 @@ contains
                         "ring.  Display `Mark set' unless the optional second arg NOMSG is"//LF// &
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
+        case ("quit-window")
+            entry%file = "window_scroll_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Quit WINDOW and bury its buffer.  WINDOW is the selected one: it"//LF// &
+                        "shows the buffer it showed before, or some other buffer."
         case ("quoted-insert")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Read the next event and insert it ARG times."
+            entry%doc = "Read next input character and insert it."//LF// &
+                        "This is useful for inserting control characters."//LF// &
+                        "With argument, insert ARG copies of the character."
         case ("read-file-name-default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
@@ -962,7 +1107,11 @@ contains
         case ("right-char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move point N characters to the right (to the left if N is negative)."//LF// &
+                        "On reaching beginning or end of buffer, stop and signal error."//LF// &
+                        ""//LF// &
+                        "In left-to-right text this moves forward in the buffer, like"//LF// &
+                        "\[forward-char]."
         case ("rotate-yank-pointer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -972,17 +1121,44 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
             entry%interactive = .true.
-            entry%doc = "Save the current buffer in its visited file if modified.  `arg` is"//LF// &
-                        "the numeric prefix: 4 (C-u) backs up the previous version on the"//LF// &
-                        "next save, 16 (C-u C-u) now, 64 both; 0 never."
+            entry%doc = "Save current buffer in visited file if modified."//LF// &
+                        "Variations are described below."//LF// &
+                        ""//LF// &
+                        "By default, makes the previous version into a backup file"//LF// &
+                        " if previously requested or if this is the first save."//LF// &
+                        "Prefixed with one \[universal-argument], marks this version"//LF// &
+                        " to become a backup when the next save is done."//LF// &
+                        "Prefixed with two \[universal-argument]'s,"//LF// &
+                        " makes the previous version into a backup file."//LF// &
+                        "Prefixed with three \[universal-argument]'s, marks this version"//LF// &
+                        " to become a backup when the next save is done,"//LF// &
+                        " and makes the previous version into a backup file."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument of 0, never make the previous version"//LF// &
+                        "into a backup file."//LF// &
+                        ""//LF// &
+                        "Note that `make-backup-files' and `backup-enable-predicate' still"//LF// &
+                        "control whether a backup will actually be produced, even when you"//LF// &
+                        "invoke this command prefixed with two or three \[universal-argument]'s."//LF// &
+                        ""//LF// &
+                        "If a file's name is FOO, its backup file is called FOO~."
         case ("save-buffers-kill-terminal")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
-            entry%doc = "C-x C-c: leave Emacs."
+            entry%doc = "Offer to save each buffer, then kill Emacs."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, silently save all file-visiting buffers, then kill."
         case ("save-some-buffers")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
-            entry%doc = "C-x s."
+            entry%doc = "Save some modified file-visiting buffers.  Asks user about each one."//LF// &
+                        "You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,"//LF// &
+                        "\`!' to save the buffer and all remaining"//LF// &
+                        "buffers without any further querying, \`.' to save only the"//LF// &
+                        "current buffer and skip the remaining ones and \`q' or \`RET' to exit"//LF// &
+                        "the function without saving any more buffers."//LF// &
+                        ""//LF// &
+                        "A prefix argument means save all with no questions."
         case ("scroll-down")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -1080,7 +1256,9 @@ contains
         case ("self-insert-command")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Insert character `c` `n` times."
+            entry%doc = "Insert the character you type."//LF// &
+                        "Whichever character C you type to run this command is inserted."//LF// &
+                        "The numeric prefix argument N says how many times to repeat the insertion."
         case ("set")
             entry%file = "data_fm.f90"
             entry%fortran = "call set(symbol, newval, status)"
@@ -1207,7 +1385,15 @@ contains
         case ("universal-argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Begin a numeric argument for the following command."//LF// &
+                        "Digits or minus sign following \[universal-argument] make up the numeric argument."//LF// &
+                        "\[universal-argument] following the digits or minus sign ends the argument."//LF// &
+                        "\[universal-argument] without digits or minus sign provides 4 as argument."//LF// &
+                        "Repeating \[universal-argument] without digits or minus sign"//LF// &
+                        " multiplies the argument by 4 each time."//LF// &
+                        "For some commands, just \[universal-argument] by itself serves as a flag"//LF// &
+                        "that is different in effect from any particular numeric argument."//LF// &
+                        "These commands include \[set-mark-command]."
         case ("universal-argument-minus")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1218,11 +1404,16 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("where-is")
+            entry%file = "help_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Print message listing key sequences that invoke the command DEFINITION."
         case ("where-is-internal")
             entry%file = "keymap_fm.f90"
-            entry%fortran = "call where_is_internal(definition, keys, firstonly)"
+            entry%fortran = "call where_is_internal(definition, keys, firstonly, keymap)"
             entry%doc = "Return list of keys that invoke DEFINITION."//LF// &
-                        "The keymaps searched are the currently active ones.  If FIRSTONLY"//LF// &
+                        "The keymaps searched are the currently active ones, or KEYMAP and"//LF// &
+                        "the global map.  If FIRSTONLY"//LF// &
                         "is true, return the first key sequence found, preferring sequences"//LF// &
                         "consisting of characters without modifiers other than Meta, as a"//LF// &
                         "list of events (nil for none); else a list of all of them, each a"//LF// &
@@ -1232,7 +1423,21 @@ contains
         case ("write-file")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
-            entry%doc = "C-x C-w."
+            entry%doc = "Write current buffer into file FILENAME."//LF// &
+                        "This makes the buffer visit that file, and marks it as not modified."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for FILENAME."//LF// &
+                        "If you specify just a directory name as FILENAME, that means to write"//LF// &
+                        "to a file in that directory.  In this case, the base name of the file"//LF// &
+                        "is the same as that of the file visited in the buffer, or the buffer"//LF// &
+                        "name sans leading directories, if any, if the buffer is not already"//LF// &
+                        "visiting a file."//LF// &
+                        ""//LF// &
+                        "You can also yank the file name into the minibuffer to edit it,"//LF// &
+                        "using \<minibuffer-local-map>\[next-history-element]."//LF// &
+                        ""//LF// &
+                        "Confirmation is required before overwriting an existing file, unless"//LF// &
+                        "you supply a prefix argument."
         case ("y-or-n-p")
             entry%file = "subr_fm.f90"
             entry%fortran = "call y_or_n_p(prompt, answer, status)"
@@ -1281,10 +1486,8 @@ contains
         character(len=*), intent(in) :: name
         type(doc_entry_type), intent(out) :: entry
         logical, intent(out) :: found
-
         found = .true.
         entry%original = ""
-
         select case (name)
         case ("case-fold-search")
             entry%file = "search_fm.f90"
@@ -1335,7 +1538,7 @@ contains
         case ("current-prefix-arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
-            entry%value = repr(current_prefix_arg)
+            entry%value = prin1_to_string(current_prefix_arg)
             entry%doc = "callint.c:Vcurrent_prefix_arg: the raw prefix argument of the"//LF// &
                         "command being run."
         case ("delete-active-region")
@@ -1510,7 +1713,6 @@ contains
             entry%fortran = "search_upper_case"
             entry%original = "UPPER_CASE_NOT_YANKS"
             entry%value = repr(search_upper_case)
-
             select case (search_upper_case)
             case (UPPER_CASE_NIL)
                 entry%value = "UPPER_CASE_NIL"
@@ -1519,7 +1721,6 @@ contains
             case (UPPER_CASE_NOT_YANKS)
                 entry%value = "UPPER_CASE_NOT_YANKS"
             end select
-
             entry%doc = "If non-nil, upper case chars disable case fold searching."//LF// &
                         "That is, upper and lower case chars must match exactly."//LF// &
                         "This applies no matter where the chars come from, but does not"//LF// &
@@ -1565,7 +1766,6 @@ contains
     function repr_logical(v) result(s)
         logical, intent(in) :: v
         character(len=:), allocatable :: s
-
         s = merge(".true. ", ".false.", v)
         s = trim(s)
     end function repr_logical
@@ -1574,7 +1774,6 @@ contains
         integer, intent(in) :: v
         character(len=:), allocatable :: s
         character(len=12) :: buf
-
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_integer
@@ -1583,7 +1782,6 @@ contains
         integer(int64), intent(in) :: v
         character(len=:), allocatable :: s
         character(len=21) :: buf
-
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_int64
@@ -1593,14 +1791,11 @@ contains
         character(len=*), intent(in) :: v
         character(len=:), allocatable :: s
         integer :: i
-
         s = """"
-
         do i = 1, len_trim(v)
             s = s//v(i:i)
             if (v(i:i) == """") s = s//""""
         end do
-
         s = s//""""
     end function repr_string
 
@@ -1609,14 +1804,11 @@ contains
         character(len=*), intent(in) :: v(:)
         character(len=:), allocatable :: s
         integer :: i
-
         s = "["
-
         do i = 1, size(v)
             if (i > 1) s = s//", "
             s = s//repr_string(v(i))
         end do
-
         s = s//"]"
     end function repr_strings
 end module docstrings_fm

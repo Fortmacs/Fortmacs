@@ -126,7 +126,6 @@ contains
     !> True when no error is recorded.
     elemental logical function status_ok(self)
         class(status_type), intent(in) :: self
-
         status_ok = self%code == FM_OK
     end function status_ok
 
@@ -135,9 +134,7 @@ contains
         type(status_type), intent(inout) :: status
         integer(int32), intent(in) :: code
         character(len=*), intent(in), optional :: detail
-
         status%code = code
-
         if (present(detail)) then
             status%detail = detail
         else if (allocated(status%detail)) then
@@ -147,7 +144,6 @@ contains
 
     pure logical function valid_code(code)
         integer(int32), intent(in) :: code
-
         valid_code = code >= 0 .and. code <= last_code
     end function valid_code
 
@@ -155,7 +151,6 @@ contains
     pure function error_name(code) result(name)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: name
-
         if (valid_code(code)) then
             name = trim(names(code))
         else
@@ -167,7 +162,6 @@ contains
     pure function error_message(code) result(msg)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: msg
-
         if (valid_code(code)) then
             msg = trim(messages(code))
         else
@@ -180,17 +174,14 @@ contains
     pure logical function condition_matches(code, condition)
         integer(int32), intent(in) :: code, condition
         integer(int32) :: c
-
         condition_matches = .false.
         if (.not. valid_code(code) .or. code == FM_OK) return
         c = code
-
         do while (c >= 0)
             if (c == condition) then
                 condition_matches = .true.
                 return
             end if
-
             c = parents(c)
         end do
     end function condition_matches
@@ -202,14 +193,11 @@ contains
         type(status_type), intent(in) :: status
         character(len=:), allocatable :: text
         character(len=:), allocatable :: msg
-
         if (status%code == FM_OK) then
             text = ""
             return
         end if
-
         msg = error_message(status%code)
-
         if (.not. allocated(status%detail)) then
             text = msg
         else if (len(msg) == 0 .or. status%code == FM_GENERIC_ERROR) then

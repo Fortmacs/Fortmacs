@@ -25,6 +25,7 @@ program tester
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_fm, only: collect_version_fm
+    use test_help_fm, only: collect_help_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
     use test_character_fm, only: collect_character_fm
@@ -59,13 +60,11 @@ program tester
     use test_undo_fm, only: collect_undo_fm
     use test_simple_fm, only: collect_simple_fm
     implicit none(type, external)
-
     ! test-drive's interfaces take default integers.
     integer :: stat, is
     character(len=:), allocatable :: suite_name, test_name
     type(testsuite_type), allocatable :: testsuites(:)
     character(len=*), parameter :: fmt = '("#", *(1x, a))'
-
     stat = 0
     testsuites = [ &
                  new_testsuite("version_fm", collect_version_fm), &
@@ -101,15 +100,13 @@ program tester
                  new_testsuite("isearch_fm", collect_isearch_fm), &
                  new_testsuite("window_fm", collect_window_fm), &
                  new_testsuite("undo_fm", collect_undo_fm), &
-                 new_testsuite("simple_fm", collect_simple_fm) &
+                 new_testsuite("simple_fm", collect_simple_fm), &
+                 new_testsuite("help_fm", collect_help_fm) &
                  ]
-
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
-
     if (allocated(suite_name)) then
         is = select_suite(testsuites, suite_name)
-
         if (is > 0 .and. is <= size(testsuites)) then
             if (allocated(test_name)) then
                 write (error_unit, fmt) "Suite:", testsuites(is)%name
@@ -122,11 +119,9 @@ program tester
             end if
         else
             write (error_unit, fmt) "Available testsuites"
-
             do is = 1, size(testsuites)
                 write (error_unit, fmt) "-", testsuites(is)%name
             end do
-
             error stop 1
         end if
     else
@@ -135,12 +130,10 @@ program tester
             call run_testsuite(testsuites(is)%collect, error_unit, stat)
         end do
     end if
-
     if (stat > 0) then
         write (error_unit, "(i0, 1x, a)") stat, "test(s) failed!"
         error stop 1
     end if
-
 contains
 
     !> Fetch command-line argument `idx`, leaving `arg` unallocated if absent.
@@ -148,7 +141,6 @@ contains
         integer, intent(in) :: idx
         character(len=:), allocatable, intent(out) :: arg
         integer :: length, astat
-
         call get_command_argument(idx, length=length, status=astat)
         if (astat /= 0 .or. length == 0) return
         allocate (character(len=length) :: arg)

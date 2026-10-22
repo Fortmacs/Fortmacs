@@ -27,18 +27,14 @@ program fortmacs_main
     ! pruning the `fortmacs` module out of an install).
     use fortmacs, only: status_type
     implicit none(type, external)
-
     integer :: exit_code
-
     call run(configure, exit_code)
     if (exit_code /= 0) stop exit_code, quiet = .true.
-
 contains
 
     !> The default configuration: leave every default alone.
     subroutine configure(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
     end subroutine configure
 end program fortmacs_main

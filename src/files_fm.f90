@@ -111,7 +111,6 @@ contains
         character(len=:), allocatable :: abbrev
         character(len=:), allocatable :: home
         integer :: n
-
         abbrev = filename
         home = directory_file_name(get_homedir())
         n = len(home)
@@ -119,7 +118,6 @@ contains
         if (n <= 1) return
         if (len(filename) < n) return
         if (filename(1:n) /= home) return
-
         if (len(filename) == n) then
             abbrev = "~"
         else if (filename(n + 1:n + 1) == "/") then
@@ -135,7 +133,6 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: lastname
-
         lastname = file_name_nondirectory(directory_file_name(filename))
         if (len(lastname) == 0) lastname = filename
         if (lastname(1:1) == " ") lastname = "|"//lastname
@@ -157,18 +154,14 @@ contains
         type(status_type) :: st
         integer(int64) :: inserted
         logical :: error
-
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
-
         if (file_directory_p(absname)) then
             call set_error(status, FM_GENERIC_ERROR, abbreviate_file_name(absname)//" is a directory")
             return
         end if
-
         buf = get_file_buffer(absname)
         if (buf%index /= 0) return
-
         call create_file_buffer(absname, buf, status)
         if (.not. status%ok()) return
         old = current_buffer()
@@ -179,31 +172,25 @@ contains
         if (.not. status%ok()) return
         error = .false.
         call insert_file_contents(absname, .true., inserted, status)
-
         if (.not. status%ok()) then
             if (.not. condition_matches(status%code, FM_FILE_ERROR)) then
                 call set_buffer(old, st)
                 return
             end if
-
             if (file_exists_p(absname)) then
                 ! The file is there but couldn't be read.
                 call set_buffer(old, st)
                 call kill_buffer(buf, st)
                 buf = handle_type()
-
                 if (.not. file_readable_p(absname)) then
                     status = status_type()
                     call set_error(status, FM_FILE_ERROR, "File is not readable: "//absname)
                 end if
-
                 return
             end if
-
             status = status_type()
             error = .true.
         end if
-
         buffers(cur)%directory = file_name_directory(buffers(cur)%filename)
         call after_find_file(error, .true.)
         call set_buffer(old, status)
@@ -218,11 +205,9 @@ contains
         character(len=:), allocatable :: msg, file
         integer(int32) :: modes
         type(status_type) :: st
-
         file = buffers(cur)%filename
         buffers(cur)%read_only = .not. file_writable_p(file)
         msg = ""
-
         if (error .and. file_exists_p(file)) then
             buffers(cur)%read_only = .true.
             msg = "File exists, but cannot be read"
@@ -236,18 +221,14 @@ contains
             msg = "File not found and directory write-protected"
         else
             buffers(cur)%read_only = .false.
-
             if (.not. file_directory_p(buffers(cur)%directory)) then
                 msg = "Use M-x make-directory RET RET to create the directory and its parents"
             end if
         end if
-
         if (warn .and. len(msg) > 0) call message(msg)
-
         ! A backup file, or one with no write bits, starts read-only.
         if (.not. buffers(cur)%read_only) then
             modes = file_modes(file)
-
             if (backup_file_name_p(file) .or. (modes >= 0 .and. iand(modes, int(o'222', int32)) == 0)) then
                 call set_buffer_read_only(current_buffer(), .true., st)
             end if
@@ -261,7 +242,6 @@ contains
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
-
         call find_file_noselect(filename, buf, status)
         if (.not. status%ok()) return
         call set_buffer(buf, status)
@@ -275,7 +255,6 @@ contains
     !> files.el:backup-file-name-p (without numbered versions).
     pure logical function backup_file_name_p(file)
         character(len=*), intent(in) :: file
-
         backup_file_name_p = .false.
         if (len(file) > 0) backup_file_name_p = file(len(file):len(file)) == "~"
     end function backup_file_name_p
@@ -285,7 +264,6 @@ contains
     pure function make_backup_file_name(file) result(backup)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: backup
-
         backup = file//"~"
     end function make_backup_file_name
 
@@ -294,16 +272,13 @@ contains
     function temporary_file_directory() result(dir)
         character(len=:), allocatable :: dir
         integer :: length, stat
-
         call get_environment_variable("TMPDIR", length=length, status=stat)
-
         if (stat == 0 .and. length > 0) then
             allocate (character(len=length) :: dir)
             call get_environment_variable("TMPDIR", dir)
         else
             dir = "/tmp"
         end if
-
         dir = file_name_as_directory(dir)
     end function temporary_file_directory
 
@@ -311,15 +286,12 @@ contains
     !> directory or "/tmp".  Port of files.el:normal-backup-enable-predicate.
     logical function normal_backup_enable_predicate(name)
         character(len=*), intent(in) :: name
-
         normal_backup_enable_predicate = .not. (under(temporary_file_directory()) .or. under("/tmp"))
-
     contains
 
         !> compare-strings says `name` extends `dir`.
         logical function under(dir)
             character(len=*), intent(in) :: dir
-
             under = len(name) > len(dir)
             if (under) under = name(1:len(dir)) == dir
         end function under
@@ -334,7 +306,6 @@ contains
         type(file_stat_type) :: attr, parent
         character(len=:), allocatable :: dir
         logical :: found
-
         call file_attributes(file, attr, found)
         file_ownership_preserved_p = .true.
         if (.not. found) return
@@ -365,7 +336,6 @@ contains
         type(status_type) :: status
         integer(int32) :: modes
         logical :: found, make_copy
-
         setmodes = -1
         if (.not. make_backup_files .or. buffers(cur)%backed_up) return
         if (.not. allocated(buffers(cur)%filename)) return
@@ -381,14 +351,12 @@ contains
                     (modes >= 0 .and. iand(modes, int(o'6000', int32)) /= 0) .or. &
                     .not. file_writable_p(file_name_directory(file)) .or. &
                     .not. file_ownership_preserved_p(file, .true.)
-
         if (make_copy) then
             call copy_file(file, backupname, status)
         else
             call rename_file(file, backupname, status)
             if (status%ok()) setmodes = modes
         end if
-
         ! A failed backup is ignored (condition-case file-error), and the
         ! fallback to %backup%~ in user-emacs-directory is not ported.
         if (status%ok()) then
@@ -411,16 +379,13 @@ contains
         logical, intent(in) :: called_interactively
         type(status_type), intent(out) :: status
         logical :: modp, saved_make_backup_files
-
         modp = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
         saved_make_backup_files = make_backup_files
         make_backup_files = (make_backup_files .and. arg /= 0) .or. arg == 16 .or. arg == 64
         if (modp .and. (arg == 16 .or. arg == 64)) buffers(cur)%backed_up = .false.
-
         if (modp .and. allocated(buffers(cur)%filename)) then
             call message("Saving file "//buffers(cur)%filename//"...")
         end if
-
         call basic_save_buffer(called_interactively, status)
         make_backup_files = saved_make_backup_files
         if (.not. status%ok()) return
@@ -438,18 +403,14 @@ contains
         integer(int32) :: setmodes
         logical :: modified, ok, tempsetmodes
         type(status_type) :: st
-
         modified = buffers(cur)%text%save_modiff < buffers(cur)%text%modiff
-
         if (.not. modified .and. allocated(buffers(cur)%filename)) then
             modified = .not. file_exists_p(buffers(cur)%filename)
         end if
-
         if (.not. modified) then
             if (called_interactively) call message("(No changes need to be saved)")
             return
         end if
-
         if (.not. allocated(buffers(cur)%filename)) then
             call read_file_name_in_minibuffer("File to save in: ", file, status, &
                                               default_filename=file_in_default_directory(buffers(cur)%name))
@@ -457,51 +418,40 @@ contains
             call expand_file_name(file, dir, status)
             if (.not. status%ok()) return
             file = dir
-
             if (file_exists_p(file)) then
                 if (file_directory_p(file)) then
                     call set_error(status, FM_GENERIC_ERROR, file//" is a directory")
                     return
                 end if
-
                 call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
                 if (.not. status%ok()) return
-
                 if (.not. ok) then
                     call set_error(status, FM_GENERIC_ERROR, "Canceled")
                     return
                 end if
             end if
-
             call set_visited_file_name(file, status)
             if (.not. status%ok()) return
         end if
-
         file = buffers(cur)%filename
-
         if (.not. verify_visited_file_modtime() .and. file_exists_p(file)) then
             call yes_or_no_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
                              ok, status)
             if (.not. status%ok()) return
-
             if (.not. ok) then
                 call set_error(status, FM_USER_ERROR, "Save not confirmed")
                 return
             end if
         end if
-
         ! basic-save-buffer offers to create a missing directory
         ! (make-directory is not ported yet).
         dir = file_name_directory(file)
-
         if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
             call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
             return
         end if
-
         ! basic-save-buffer-2
         tempsetmodes = .false.
-
         if (.not. file_writable_p(file)) then
             if (.not. file_directory_p(dir)) then
                 if (file_exists_p(dir)) then
@@ -509,37 +459,29 @@ contains
                 else
                     call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
                 end if
-
                 return
             end if
-
             if (.not. file_exists_p(file)) then
                 call set_error(status, FM_GENERIC_ERROR, "Directory "//dir//" write-protected")
                 return
             end if
-
             call yes_or_no_p("File "//file_name_nondirectory(file)// &
                              " is write-protected; try to save anyway? ", ok, status)
             if (.not. status%ok()) return
-
             if (.not. ok) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "Attempt to save to a file that you aren't allowed to write")
                 return
             end if
-
             tempsetmodes = .true.
         end if
-
         call backup_buffer(setmodes)
-
         ! Make a write-protected file writable while writing it; its bits
         ! are restored below.
         if (tempsetmodes .and. setmodes < 0) then
             setmodes = file_modes(file)
             if (.not. file_writable_p(file)) call set_file_modes(file, ior(setmodes, int(o'200', int32)), st)
         end if
-
         call write_region(file, .true., status, message=wrote)
         if (setmodes >= 0) call set_file_modes(file, setmodes, st)
         if (.not. status%ok()) return
@@ -553,13 +495,11 @@ contains
         character(len=:), allocatable, intent(out) :: prompt
         integer(int64) :: i
         type(status_type) :: status
-
         how = YNP_SKIP
         prompt = ""
         call resolve_buffer(pending(k), i, status)
         if (.not. status%ok()) return
         how = YNP_ASK
-
         if (.not. allocated(buffers(i)%filename)) then
             prompt = "Save buffer "//buffers(i)%name//"? "
         else if (buffers(i)%name == file_name_nondirectory(buffers(i)%filename) .or. &
@@ -576,7 +516,6 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
-
         old = current_buffer()
         call set_buffer(pending(k), status)
         if (.not. status%ok()) return
@@ -595,12 +534,10 @@ contains
         type(handle_type), allocatable :: all(:)
         integer(int64) :: k, i, n
         integer :: done
-
         ! files--buffers-needing-to-be-saved
         all = buffer_list()
         allocate (pending(size(all)))
         n = 0
-
         do k = 1, size(all, kind=int64)
             call resolve_buffer(all(k), i, status)
             if (.not. status%ok()) cycle
@@ -609,10 +546,8 @@ contains
             n = n + 1
             pending(n) = all(k)
         end do
-
         status = status_type()
         done = 0
-
         if (arg) then
             do k = 1, n
                 call save_actor(int(k), status)
@@ -622,7 +557,6 @@ contains
         else
             call map_y_or_n_p(int(n), save_prompter, save_actor, done, status)
         end if
-
         deallocate (pending)
         if (.not. status%ok()) return
         if (n == 0 .and. called_interactively) call message("(No files need saving)")
@@ -633,15 +567,12 @@ contains
         type(handle_type), allocatable :: all(:)
         integer(int64) :: k, i
         type(status_type) :: status
-
         modified_file_buffers_exist = .false.
         all = buffer_list()
-
         do k = 1, size(all, kind=int64)
             call resolve_buffer(all(k), i, status)
             if (.not. status%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
-
             if (buffers(i)%text%save_modiff < buffers(i)%text%modiff) then
                 modified_file_buffers_exist = .true.
                 return
@@ -656,17 +587,14 @@ contains
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         logical :: ok
-
         if (modified_file_buffers_exist()) then
             call save_some_buffers(arg, .false., status)
             if (.not. status%ok()) return
         end if
-
         if (modified_file_buffers_exist()) then
             call yes_or_no_p("Modified buffers exist; exit anyway? ", ok, status)
             if (.not. status%ok() .or. .not. ok) return
         end if
-
         call request_exit()
     end subroutine save_buffers_kill_emacs
 
@@ -675,7 +603,6 @@ contains
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: file
         type(status_type) :: status
-
         call expand_file_name(name, file, status)
         if (.not. status%ok()) file = name
     end function file_in_default_directory
@@ -693,38 +620,30 @@ contains
         character(len=:), allocatable :: file, new_name, actual
         type(handle_type) :: other, cb
         logical :: ok, query, along
-
         query = .true.
         if (present(no_query)) query = .not. no_query
         along = .false.
         if (present(along_with_file)) along = along_with_file
-
         if (len(filename) > 0) then
             call expand_file_name(filename, file, status)
             if (.not. status%ok()) return
-
             if (len(file_name_nondirectory(file)) == 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Empty file name")
                 return
             end if
-
             other = get_file_buffer(file)
             cb = current_buffer()
-
             if (other%index /= 0 .and. other%index /= cb%index .and. query) then
                 call y_or_n_p("A buffer is visiting "//file//"; proceed? ", ok, status)
                 if (.not. status%ok()) return
-
                 if (.not. ok) then
                     call set_error(status, FM_USER_ERROR, "Aborted")
                     return
                 end if
             end if
-
             buffers(cur)%filename = file
             buffers(cur)%directory = file_name_directory(file)
             new_name = file_name_nondirectory(file)
-
             if (.not. (new_name == buffers(cur)%name .and. len(new_name) == len(buffers(cur)%name))) then
                 call rename_buffer(new_name, .true., actual, status)
                 if (.not. status%ok()) return
@@ -732,7 +651,6 @@ contains
         else
             if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
         end if
-
         buffers(cur)%backed_up = .false.
         ! clear-visited-file-modtime
         if (.not. along) buffers(cur)%modtime_known = .false.
@@ -749,50 +667,46 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         logical :: ok
-
         file = filename
-
         if (len(file) > 0) then
             if (directory_name_p(file) .or. file_directory_p(file)) then
                 file = file_name_as_directory(file)
-
                 if (allocated(buffers(cur)%filename)) then
                     file = file//file_name_nondirectory(buffers(cur)%filename)
                 else
                     file = file//buffers(cur)%name
                 end if
             end if
-
             if (confirm .and. file_exists_p(file)) then
                 call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
                 if (.not. status%ok()) return
-
                 if (.not. ok) then
                     call set_error(status, FM_USER_ERROR, "Canceled")
                     return
                 end if
             end if
-
             call set_visited_file_name(file, status, no_query=.not. confirm)
             if (.not. status%ok()) return
         end if
-
         call restore_buffer_modified_p(.true.)
-
         ! Make the buffer writable if the file is.
         if (allocated(buffers(cur)%filename)) then
             if (file_writable_p(buffers(cur)%filename)) buffers(cur)%read_only = .false.
         end if
-
         call save_buffer(1_int64, .false., status)
     end subroutine write_file
 
-    !> C-x C-f.  Port of files.el:find-file (interactive), with
-    !> find-file-read-args.
+    !> Edit file FILENAME.
+    !> \<minibuffer-local-map>Switch to a buffer visiting file FILENAME, creating one if none
+    !> already exists.
+    !> Interactively, the default if you just type RET is the current directory,
+    !> but the visited file name is available through the minibuffer history:
+    !> type \[next-history-element] to pull it into the minibuffer.
+    !> Port of files.el:find-file (interactive), with find-file-read-args (no
+    !> wildcards, remote files or `file-name-at-point-functions').
     subroutine cmd_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
-
         dir = "~/"
         if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
         call read_file_name_in_minibuffer("Find file: ", filename, status, default_filename=dir, &
@@ -801,17 +715,29 @@ contains
         call find_file(filename, status)
     end subroutine cmd_find_file
 
-    !> C-x C-w.  Port of files.el:write-file (interactive).
+    !> Write current buffer into file FILENAME.
+    !> This makes the buffer visit that file, and marks it as not modified.
+    !>
+    !> Interactively, prompt for FILENAME.
+    !> If you specify just a directory name as FILENAME, that means to write
+    !> to a file in that directory.  In this case, the base name of the file
+    !> is the same as that of the file visited in the buffer, or the buffer
+    !> name sans leading directories, if any, if the buffer is not already
+    !> visiting a file.
+    !>
+    !> You can also yank the file name into the minibuffer to edit it,
+    !> using \<minibuffer-local-map>\[next-history-element].
+    !>
+    !> Confirmation is required before overwriting an existing file, unless
+    !> you supply a prefix argument.  Port of files.el:write-file (interactive).
     subroutine cmd_write_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename
-
         if (allocated(buffers(cur)%filename)) then
             call read_file_name_in_minibuffer("Write file: ", filename, status)
         else
             call read_file_name_in_minibuffer("Write file: ", filename, status, initial=buffers(cur)%name)
         end if
-
         if (.not. status%ok()) return
         call write_file(filename, .true., status)
     end subroutine cmd_write_file
@@ -820,25 +746,53 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> C-x C-s.
+    !> Save current buffer in visited file if modified.
+    !> Variations are described below.
+    !>
+    !> By default, makes the previous version into a backup file
+    !>  if previously requested or if this is the first save.
+    !> Prefixed with one \[universal-argument], marks this version
+    !>  to become a backup when the next save is done.
+    !> Prefixed with two \[universal-argument]'s,
+    !>  makes the previous version into a backup file.
+    !> Prefixed with three \[universal-argument]'s, marks this version
+    !>  to become a backup when the next save is done,
+    !>  and makes the previous version into a backup file.
+    !>
+    !> With a numeric prefix argument of 0, never make the previous version
+    !> into a backup file.
+    !>
+    !> Note that `make-backup-files' and `backup-enable-predicate' still
+    !> control whether a backup will actually be produced, even when you
+    !> invoke this command prefixed with two or three \[universal-argument]'s.
+    !>
+    !> If a file's name is FOO, its backup file is called FOO~.
+    !> Port of files.el:save-buffer (the command; no numbered backups).
     subroutine cmd_save_buffer(status)
         type(status_type), intent(out) :: status
-
         call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
     end subroutine cmd_save_buffer
 
-    !> C-x s.
+    !> Save some modified file-visiting buffers.  Asks user about each one.
+    !> You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,
+    !> \`!' to save the buffer and all remaining
+    !> buffers without any further querying, \`.' to save only the
+    !> current buffer and skip the remaining ones and \`q' or \`RET' to exit
+    !> the function without saving any more buffers.
+    !>
+    !> A prefix argument means save all with no questions.
+    !> Port of files.el:save-some-buffers (the command).
     subroutine cmd_save_some_buffers(status)
         type(status_type), intent(out) :: status
-
         call save_some_buffers(.not. nilp(current_prefix_arg), .true., status)
     end subroutine cmd_save_some_buffers
 
-    !> C-x C-c: leave Emacs.  Port of files.el:save-buffers-kill-terminal
-    !> (no emacsclient frames).
+    !> Offer to save each buffer, then kill Emacs.
+    !>
+    !> With prefix ARG, silently save all file-visiting buffers, then kill.
+    !> Port of files.el:save-buffers-kill-terminal (no emacsclient frames).
     subroutine cmd_save_buffers_kill_terminal(status)
         type(status_type), intent(out) :: status
-
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_save_buffers_kill_terminal
 
@@ -847,7 +801,6 @@ contains
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
         type(status_type) :: status
-
         call defcommand("find-file", cmd_find_file)
         call defcommand("write-file", cmd_write_file)
         call defcommand("save-buffer", cmd_save_buffer)
@@ -877,10 +830,8 @@ contains
         character(len=*), intent(in) :: dir
         logical, intent(out) :: already
         type(status_type), intent(out) :: status
-
         already = .false.
         call make_directory_internal(dir, status)
-
         if (.not. status%ok()) then
             already = file_directory_p(dir)
             if (already) status = status_type()
@@ -905,26 +856,21 @@ contains
         logical :: already_dir
         integer :: k, n
         integer, allocatable :: ends(:)
-
         if (present(already)) already = .false.
         call expand_file_name(dir, absname, status)
         if (.not. status%ok()) return
-
         if (.not. present(parents)) then
             call make_directory_internal(absname, status)
             return
         end if
-
         if (.not. parents) then
             call make_directory_internal(absname, status)
             return
         end if
-
         ! Walk up to the first directory that exists (or can be made),
         ! remembering the ones to create below it.
         d = directory_file_name(absname)
         allocate (ends(0))
-
         do
             parent = directory_file_name(file_name_directory(d))
             call ensure_directory(d, already_dir, est)
@@ -934,19 +880,15 @@ contains
             ends = [len(d), ends]
             d = parent
         end do
-
         n = size(ends)
-
         do k = 1, n
             call ensure_directory(absname(1:ends(k)), already_dir, status)
             if (.not. status%ok()) return
         end do
-
         if (n == 0 .and. .not. est%ok()) then
             status = est
             return
         end if
-
         if (present(already)) already = already_dir
     end subroutine make_directory
 end module files_fm

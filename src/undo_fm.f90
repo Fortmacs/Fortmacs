@@ -92,20 +92,16 @@ contains
         type(undo_entry_type), allocatable :: grown(:)
         integer(int64), allocatable :: equiv(:)
         integer(int64) :: n
-
         associate (b => buffers(cur))
             if (.not. allocated(b%undo_list)) allocate (b%undo_list(64))
-
             if (b%undo_count == size(b%undo_list, kind=int64)) then
                 allocate (grown(2*b%undo_count))
                 grown(1:b%undo_count) = b%undo_list(1:b%undo_count)
                 call move_alloc(grown, b%undo_list)
             end if
-
             n = b%undo_count + 1
             b%undo_list(n) = entry
             b%undo_count = n
-
             ! The list position is new: nothing in undo-equiv-table maps it.
             if (.not. allocated(b%undo_equiv)) then
                 allocate (b%undo_equiv(0:size(b%undo_list, kind=int64)))
@@ -116,7 +112,6 @@ contains
                 equiv(0:ubound(b%undo_equiv, 1)) = b%undo_equiv
                 call move_alloc(equiv, b%undo_equiv)
             end if
-
             b%undo_equiv(n) = -2
         end associate
     end subroutine push_undo_entry
@@ -129,11 +124,9 @@ contains
         integer(int64), intent(in) :: beg
         type(undo_entry_type) :: entry
         logical :: at_boundary
-
         at_boundary = undo_last_kind() == UE_BOUNDARY
         ! If this is the first change since save, then record this.
         if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
-
         ! We may need to record point if we are immediately after a
         ! boundary, so that this will be restored correctly after undo.
         if (at_boundary .and. point_before_last_command_or_undo /= beg .and. &
@@ -150,12 +143,10 @@ contains
         integer(int64), intent(in) :: beg, length
         type(undo_entry_type) :: entry
         integer(int64) :: n
-
         if (.not. buffers(cur)%undo_enabled) return
         call undo_auto_undoable_change()
         call record_point(beg)
         n = buffers(cur)%undo_count
-
         ! If this is following another insertion and consecutive with it
         ! in the buffer, combine the two.
         if (n > 0) then
@@ -164,7 +155,6 @@ contains
                 return
             end if
         end if
-
         entry%kind = UE_INSERTION
         entry%beg = beg
         entry%end = beg + length
@@ -178,19 +168,16 @@ contains
         integer(int64), intent(in) :: beg, nchars
         character(len=*), intent(in) :: string
         type(undo_entry_type) :: entry
-
         if (.not. buffers(cur)%undo_enabled) return
         call undo_auto_undoable_change()
         call record_point(beg)
         entry%kind = UE_DELETION
         entry%text = string
-
         if (buffers(cur)%pt == beg + nchars) then
             entry%beg = -beg
         else
             entry%beg = beg
         end if
-
         call push_undo_entry(entry)
     end subroutine record_delete
 
@@ -200,16 +187,13 @@ contains
     !> Port of undo.c:record_first_change.
     subroutine record_first_change()
         type(undo_entry_type) :: entry
-
         if (.not. buffers(cur)%undo_enabled) return
         entry%kind = UE_FIRST_CHANGE
         entry%known = buffers(cur)%modtime_known
-
         if (entry%known) then
             entry%beg = buffers(cur)%modtime_sec
             entry%end = buffers(cur)%modtime_nsec
         end if
-
         call push_undo_entry(entry)
     end subroutine record_first_change
 
@@ -219,7 +203,6 @@ contains
     !> Port of undo.c:Fundo_boundary.
     subroutine undo_boundary()
         type(undo_entry_type) :: entry
-
         if (.not. buffers(cur)%undo_enabled) return
         if (undo_last_kind() /= UE_BOUNDARY) call push_undo_entry(entry)
         last_boundary_cause = CAUSE_EXPLICIT
@@ -235,7 +218,6 @@ contains
     !> simple.el:undo-auto--undoable-change (no boundary timer).
     subroutine undo_auto_undoable_change()
         type(handle_type) :: h
-
         h = buffer_handle(cur)
         if (.not. member(changed_buffers, h)) call add_handle(changed_buffers, h)
     end subroutine undo_auto_undoable_change
@@ -245,10 +227,8 @@ contains
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: h
         integer :: k
-
         member = .false.
         if (.not. allocated(list)) return
-
         do k = 1, size(list)
             if (list(k)%index == h%index .and. list(k)%generation == h%generation) member = .true.
         end do
@@ -259,7 +239,6 @@ contains
         type(handle_type), intent(in) :: h
         type(handle_type), allocatable :: longer(:)
         integer :: n
-
         if (.not. allocated(list)) allocate (list(0))
         n = size(list)
         allocate (longer(n + 1))
@@ -274,12 +253,10 @@ contains
         integer, intent(in) :: cause
         integer :: last_amalgamating
         logical :: amalgamating
-
         if (undo_last_kind() == UE_BOUNDARY) return
         amalgamating = last_boundary_cause == CAUSE_AMALGAMATE
         last_amalgamating = last_amalgamating_count
         call undo_boundary()
-
         if (cause == CAUSE_AMALGAMATE) then
             last_boundary_cause = CAUSE_AMALGAMATE
             last_amalgamating_count = 0
@@ -298,25 +275,20 @@ contains
         type(handle_type), allocatable :: list(:)
         type(status_type) :: st
         integer :: k
-
         if (cur == 0) return
-
         ! All commands should ensure that there is an undo boundary whether
         ! they have changed the current buffer or not (bug#23785).
         if (cause == CAUSE_COMMAND) then
             if (.not. member(changed_buffers, buffer_handle(cur))) call add_handle(changed_buffers, buffer_handle(cur))
         end if
-
         if (.not. allocated(changed_buffers)) return
         old = buffer_handle(cur)
         list = changed_buffers
-
         do k = 1, size(list)
             if (.not. buffer_live_p(list(k))) cycle
             call set_buffer(list(k), st)
             if (buffers(cur)%undo_enabled) call ensure_boundary(cause)
         end do
-
         call set_buffer(old, st)
         deallocate (changed_buffers)
     end subroutine undo_auto_boundaries
@@ -326,7 +298,6 @@ contains
     !> simple.el:undo-auto--add-boundary.
     subroutine undo_auto_add_boundary()
         integer :: cause
-
         cause = CAUSE_COMMAND
         if (this_command_amalgamating) cause = CAUSE_AMALGAMATE
         this_command_amalgamating = .false.
@@ -344,19 +315,15 @@ contains
         type(handle_type) :: old
         type(status_type) :: st
         integer :: k
-
         this_command_amalgamating = .true.
         if (last_boundary_cause /= CAUSE_AMALGAMATE) return
-
         if (last_amalgamating_count < amalgamating_undo_limit .and. same_command) then
             ! Amalgamate all buffers that have changed.
             if (.not. allocated(last_boundary_buffers) .or. cur == 0) return
             old = buffer_handle(cur)
-
             do k = 1, size(last_boundary_buffers)
                 if (.not. buffer_live_p(last_boundary_buffers(k))) cycle
                 call set_buffer(last_boundary_buffers(k), st)
-
                 associate (b => buffers(cur))
                     ! The head of `buffer-undo-list` is nil: drop it.
                     if (b%undo_count > 0) then
@@ -364,7 +331,6 @@ contains
                     end if
                 end associate
             end do
-
             call set_buffer(old, st)
         else
             last_boundary_cause = CAUSE_NONE

@@ -80,7 +80,6 @@ contains
 
     subroutine collect_minibuf_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("abort-with-C-g", test_abort), &
                     new_unittest("read-from-minibuffer", test_read), &
@@ -133,7 +132,6 @@ contains
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
-
         call key_parse(keys, evs, st)
         call unread_command_events(evs)
     end subroutine type_keys
@@ -143,20 +141,16 @@ contains
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: evs(:)
         integer :: i
-
         allocate (evs(len(text)))
-
         do i = 1, len(text)
             evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
         end do
-
         call unread_command_events(evs)
     end subroutine type_text
 
     subroutine fresh_scratch()
         type(handle_type) :: buf
         type(status_type) :: st
-
         call init_bindings()
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)
@@ -169,7 +163,6 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         type(handle_type) :: cb
-
         call fresh_scratch()
         call type_text("hello"//achar(13))
         call read_from_minibuffer("Say: ", answer, st)
@@ -194,7 +187,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: answer
-
         call fresh_scratch()
         call type_keys("C-x C-f a b C-g")
         call command_loop(st)
@@ -215,7 +207,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
-
         call fresh_scratch()
         call type_keys("b C-a DEL C-b C-b a RET")
         call read_from_minibuffer("Say: ", answer, st)
@@ -226,7 +217,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
-
         call fresh_scratch()
         call set(sym("test-history"), nil(), st)
         call type_text("one"//achar(13))
@@ -253,7 +243,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
         type(status_type) :: st
-
         call fresh_scratch()
         call type_keys("M-n RET")
         call read_from_minibuffer("? ", answer, st, default="future")
@@ -270,7 +259,6 @@ contains
         type(status_type) :: st
         integer :: i, saved
         character(len=8) :: num
-
         call set(sym("h-test"), nil(), st)
         call add_to_history("h-test", "a")
         call add_to_history("h-test", "a")
@@ -280,12 +268,10 @@ contains
         if (allocated(error)) return
         saved = history_length
         history_length = 3
-
         do i = 1, 5
             write (num, "(i0)") i
             call add_to_history("h-test", trim(num))
         end do
-
         history_length = saved
         call symbol_value(sym("h-test"), h, st)
         call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
@@ -294,7 +280,6 @@ contains
     subroutine nested_read(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: answer
-
         call read_from_minibuffer("Inner: ", answer, nested_status)
         status = status_type()
     end subroutine nested_read
@@ -304,7 +289,6 @@ contains
         character(len=:), allocatable :: answer
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
-
         call fresh_scratch()
         call defcommand("test-nested-read", nested_read)
         call key_parse("C-t", key, st)
@@ -320,7 +304,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: answer
-
         call fresh_scratch()
         call type_text("yes"//achar(13))
         call yes_or_no_p("Really?", answer, st)
@@ -339,7 +322,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: name
         type(status_type) :: st
-
         call fresh_scratch()
         buffers(cur)%directory = "/x/y/"
         ! Unchanged input gives the default.
@@ -362,7 +344,6 @@ contains
         type(status_type) :: st
         type(handle_type) :: buf
         character(len=:), allocatable :: dir
-
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-minibuf"
@@ -387,7 +368,6 @@ contains
         type(handle_type) :: buf
         character(len=:), allocatable :: dir
         logical :: ok
-
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(emacs_wd)//"build/test-minibuf/"
@@ -427,9 +407,7 @@ contains
         type(completion_table_type) :: table
         type(value_type), allocatable :: elts(:)
         integer :: k
-
         allocate (elts(size(strings)))
-
         do k = 1, size(strings)
             select case (kind)
             case (1)
@@ -442,7 +420,6 @@ contains
                 elts(k) = list(make_string(trim(strings(k))), make_fixnum(int(k, int64)))
             end select
         end do
-
         table = completion_list_table(make_list(elts))
         member_of = table
     end function collection
@@ -452,10 +429,8 @@ contains
         type(value_type), intent(in) :: elt
         type(value_type), allocatable :: elts(:)
         integer :: k
-
         call list_elements(member_of%list, elts)
         memq_of_collection = .false.
-
         do k = 1, size(elts)
             if (value_equal(elts(k), elt)) memq_of_collection = .true.
         end do
@@ -464,7 +439,6 @@ contains
     !> #'ignore.
     logical function ignore(elt)
         type(value_type), intent(in) :: elt
-
         ignore = .false.
         if (nilp(elt)) ignore = .false.
     end function ignore
@@ -472,7 +446,6 @@ contains
     logical function is_string(v, s)
         type(value_type), intent(in) :: v
         character(len=*), intent(in) :: s
-
         is_string = .false.
         if (stringp(v)) is_string = xstring(v) == s .and. len(xstring(v)) == len(s)
     end function is_string
@@ -485,19 +458,15 @@ contains
         type(completion_table_type) :: abcdef, abba
         type(value_type) :: r
         type(status_type) :: st
-
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
-
         if (pred) then
             call try_completion("a", abcdef, r, st, memq_of_collection)
         else
             call try_completion("a", abcdef, r, st)
         end if
-
         call check(error, is_string(r, "abc"), "a in abcdef")
         if (allocated(error)) return
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
-
         if (pred) then
             call try_completion("a", abba, r, st, memq_of_collection)
             call check(error, is_string(r, "ab"), "a in +abba")
@@ -533,40 +502,32 @@ contains
         type(completion_table_type) :: abcdef, abba
         type(value_type) :: r
         type(status_type) :: st
-
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
-
         if (pred) then
             call all_completions("a", abcdef, r, st, memq_of_collection)
         else
             call all_completions("a", abcdef, r, st)
         end if
-
         call check(error, value_equal(r, list(make_string("abc"))), "a in abcdef")
         if (allocated(error)) return
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
-
         if (pred) then
             call all_completions("a", abba, r, st, memq_of_collection)
         else
             call all_completions("a", abba, r, st)
         end if
-
         call check(error, value_equal(r, list(make_string("abc"), make_string("abba"))), "a in +abba")
         if (allocated(error)) return
-
         if (pred) then
             call all_completions("abc", abba, r, st, memq_of_collection)
         else
             call all_completions("abc", abba, r, st)
         end if
-
         call check(error, value_equal(r, list(make_string("abc"))), "abc")
         if (allocated(error)) return
         call all_completions("abcd", abba, r, st)
         call check(error, nilp(r), "abcd")
         if (allocated(error)) return
-
         if (pred) then
             call all_completions("a", abba, r, st, ignore)
             call check(error, nilp(r), "ignore")
@@ -580,17 +541,13 @@ contains
         logical, intent(in) :: pred
         type(completion_table_type) :: abcdef, abba
         logical :: abc, def, ab, abcd
-
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
-
         if (pred) then
             abc = test_completion("abc", abcdef, memq_of_collection)
         else
             abc = test_completion("abc", abcdef)
         end if
-
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
-
         if (pred) then
             def = test_completion("def", abba, memq_of_collection)
             ab = test_completion("abba", abba, memq_of_collection)
@@ -600,10 +557,8 @@ contains
             ab = test_completion("abba", abba)
             abcd = test_completion("abcd", abba)
         end if
-
         call check(error, abc .and. def .and. ab .and. .not. abcd)
         if (allocated(error)) return
-
         if (pred) then
             call check(error,.not. test_completion("abc", abcdef, ignore) .and. &
                        .not. test_completion("def", abba, ignore), "ignore")
@@ -612,145 +567,121 @@ contains
 
     subroutine test_try_string_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 1, .false.)
     end subroutine test_try_string_list
 
     subroutine test_try_string_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 1, .true.)
     end subroutine test_try_string_list_pred
 
     subroutine test_try_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 2, .false.)
     end subroutine test_try_symbol_list
 
     subroutine test_try_symbol_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 2, .true.)
     end subroutine test_try_symbol_list_pred
 
     subroutine test_try_symbol_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 3, .false.)
     end subroutine test_try_symbol_alist
 
     subroutine test_try_symbol_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 3, .true.)
     end subroutine test_try_symbol_alist_pred
 
     subroutine test_try_string_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 4, .false.)
     end subroutine test_try_string_alist
 
     subroutine test_try_string_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_try(error, 4, .true.)
     end subroutine test_try_string_alist_pred
 
     subroutine test_all_string_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 1, .false.)
     end subroutine test_all_string_list
 
     subroutine test_all_string_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 1, .true.)
     end subroutine test_all_string_list_pred
 
     subroutine test_all_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 2, .false.)
     end subroutine test_all_symbol_list
 
     subroutine test_all_symbol_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 2, .true.)
     end subroutine test_all_symbol_list_pred
 
     subroutine test_all_symbol_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 3, .false.)
     end subroutine test_all_symbol_alist
 
     subroutine test_all_symbol_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 3, .true.)
     end subroutine test_all_symbol_alist_pred
 
     subroutine test_all_string_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 4, .false.)
     end subroutine test_all_string_alist
 
     subroutine test_all_string_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_all(error, 4, .true.)
     end subroutine test_all_string_alist_pred
 
     subroutine test_test_string_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 1, .false.)
     end subroutine test_test_string_list
 
     subroutine test_test_string_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 1, .true.)
     end subroutine test_test_string_list_pred
 
     subroutine test_test_symbol_list(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 2, .false.)
     end subroutine test_test_symbol_list
 
     subroutine test_test_symbol_list_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 2, .true.)
     end subroutine test_test_symbol_list_pred
 
     subroutine test_test_symbol_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 3, .false.)
     end subroutine test_test_symbol_alist
 
     subroutine test_test_symbol_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 3, .true.)
     end subroutine test_test_symbol_alist_pred
 
     subroutine test_test_string_alist(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 4, .false.)
     end subroutine test_test_string_alist
 
     subroutine test_test_string_alist_pred(error)
         type(error_type), allocatable, intent(out) :: error
-
         call check_test(error, 4, .true.)
     end subroutine test_test_string_alist_pred
 
@@ -760,7 +691,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r, v
         type(status_type) :: st
-
         v = sym("zqx-abc")
         v = sym("zqx-abba")
         call try_completion("zqx-a", completion_obarray_table(), r, st)
@@ -777,24 +707,20 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: r1, r2
         type(status_type) :: st
-
         completion_ignore_case = .true.
         call try_completion("bar", collection(1, [character(len=6) :: "bAr", "barfoo"]), r1, st)
         call check(error, is_string(r1, "bAr"), "bAr")
-
         if (.not. allocated(error)) then
             call try_completion("bar", collection(1, [character(len=6) :: "bArfoo", "barbaz"]), r1, st)
             call try_completion("bar", collection(1, [character(len=6) :: "barbaz", "bArfoo"]), r2, st)
             call check(error, is_string(r1, "bar") .and. value_equal(r1, r2), "bar either order")
         end if
-
         if (.not. allocated(error)) then
             ! bug#11339
             call try_completion("baz", collection(1, [character(len=6) :: "baz", "bAz"]), r1, st)
             call try_completion("baz", collection(1, [character(len=6) :: "bAz", "baz"]), r2, st)
             call check(error, is_string(r1, "baz") .and. value_equal(r1, r2), "baz, and not t")
         end if
-
         completion_ignore_case = .false.
     end subroutine test_try_completion_ignore_case
 
@@ -805,7 +731,6 @@ contains
     !> Record the minibuffer message and whether *Completions* shows.
     subroutine record_completion_state(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         nrecorded = nrecorded + 1
         recorded(nrecorded)%s = ""
@@ -817,7 +742,6 @@ contains
 
     logical function showing_completions()
         type(handle_type) :: c
-
         c = get_buffer("*Completions*")
         showing_completions = c%index /= 0 .and. c%index == selected_frame%root_window%buffer%index .and. &
                               c%generation == selected_frame%root_window%buffer%generation
@@ -827,7 +751,6 @@ contains
     subroutine completion_setup()
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
-
         call fresh_scratch()
         nrecorded = 0
         call defcommand("test-record-completion", record_completion_state)
@@ -840,13 +763,10 @@ contains
         type(value_type) :: v
         type(value_type), allocatable :: elts(:)
         integer :: k
-
         allocate (elts(size(items)))
-
         do k = 1, size(items)
             elts(k) = make_string(trim(items(k)))
         end do
-
         v = make_list(elts)
     end function strings
 
@@ -855,7 +775,6 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         type(value_type) :: abc
-
         call completion_setup()
         abc = strings([character(len=2) :: "a", "ab", "ac"])
         completion_auto_help = .false.
@@ -885,7 +804,6 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         type(handle_type) :: buf
-
         call completion_setup()
         call type_keys("b ? C-g")
         call completing_read("Prompt: ", completion_list_table(strings([character(len=6) :: "beta", "bar", "baz", &
@@ -901,7 +819,6 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         type(value_type) :: foo
-
         call completion_setup()
         foo = strings([character(len=6) :: "foobar", "foobaz"])
         ! TAB completes as far as possible.
@@ -935,7 +852,6 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         type(value_type) :: ff
-
         call completion_setup()
         ff = strings([character(len=24) :: "find-file", "find-file-other-window", "find-alternate-file"])
         call type_keys("f i SPC <f9> f SPC <f9> SPC <f9> C-g")
@@ -951,7 +867,6 @@ contains
     subroutine test_execute_extended_command(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-
         call fresh_scratch()
         call insert("abc", st)
         call goto_char(1_int64)
@@ -980,7 +895,6 @@ contains
         type(handle_type) :: buf
         type(value_type) :: r
         character(len=:), allocatable :: dir
-
         call fresh_scratch()
         call init_fileio()
         dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-complete")

@@ -62,7 +62,6 @@ contains
     !> Port of insdel.c:move_gap_both.
     subroutine move_gap_both(charpos, bytepos)
         integer(int64), intent(in) :: charpos, bytepos
-
         if (bytepos < buffers(cur)%text%gpt_byte) then
             call gap_left(charpos, bytepos, .false.)
         else if (bytepos > buffers(cur)%text%gpt_byte) then
@@ -76,17 +75,13 @@ contains
         integer(int64), intent(in) :: charpos, bytepos
         logical, intent(in) :: newgap
         integer(int64) :: n
-
         if (.not. newgap) call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
-
         associate (t => buffers(cur)%text)
             ! Bytes [bytepos, gpt_byte) move up to the end of the gap.
             n = t%gpt_byte - bytepos
-
             if (n > 0) then
                 t%beg(bytepos + t%gap_size:t%gpt_byte - 1 + t%gap_size) = t%beg(bytepos:t%gpt_byte - 1)
             end if
-
             t%gpt_byte = bytepos
             t%gpt = charpos
         end associate
@@ -96,17 +91,13 @@ contains
     subroutine gap_right(charpos, bytepos)
         integer(int64), intent(in) :: charpos, bytepos
         integer(int64) :: n
-
         call buf_compute_unchanged(buffers(cur), charpos, buffers(cur)%text%gpt)
-
         associate (t => buffers(cur)%text)
             ! Bytes [gpt_byte, bytepos) move down from after the gap.
             n = bytepos - t%gpt_byte
-
             if (n > 0) then
                 t%beg(t%gpt_byte:bytepos - 1) = t%beg(t%gpt_byte + t%gap_size:bytepos - 1 + t%gap_size)
             end if
-
             t%gpt = charpos
             t%gpt_byte = bytepos
         end associate
@@ -118,7 +109,6 @@ contains
     subroutine make_gap(nbytes_added, status)
         integer(int64), intent(in) :: nbytes_added
         type(status_type), intent(out) :: status
-
         if (nbytes_added >= 0) then
             ! Grow by at least 1/64 of the buffer to avoid O(N^2) growth.
             call make_gap_larger(max(nbytes_added, (buffers(cur)%text%z - BEG)/64), status)
@@ -136,34 +126,26 @@ contains
         integer(int64) :: current_size, nbytes_added, after, new_gap
         character(len=:), allocatable :: grown
         integer :: astat
-
         associate (t => buffers(cur)%text)
             current_size = t%z_byte - BEG + t%gap_size
-
             if (BUF_BYTES_MAX - current_size < nbytes_requested) then
                 call set_error(status, FM_GENERIC_ERROR, "Maximum buffer size exceeded")
                 return
             end if
-
             ! Get enough to last a while.
             nbytes_added = min(nbytes_requested + GAP_BYTES_DFL, BUF_BYTES_MAX - current_size)
-
             allocate (character(len=current_size + nbytes_added) :: grown, stat=astat)
-
             if (astat /= 0) then
                 call set_error(status, FM_MEMORY_FULL)
                 return
             end if
-
             new_gap = t%gap_size + nbytes_added
             after = t%z_byte - t%gpt_byte
             if (t%gpt_byte > 1) grown(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
-
             if (after > 0) then
                 grown(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
                     t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
-
             call move_alloc(grown, t%beg)
             t%gap_size = new_gap
         end associate
@@ -176,28 +158,22 @@ contains
         integer(int64) :: nbytes_removed, after, new_gap
         character(len=:), allocatable :: shrunk
         integer :: astat
-
         associate (t => buffers(cur)%text)
             nbytes_removed = nbytes_requested
             if (t%gap_size - nbytes_removed < GAP_BYTES_MIN) nbytes_removed = t%gap_size - GAP_BYTES_MIN
             if (nbytes_removed <= 0) return
-
             new_gap = t%gap_size - nbytes_removed
             allocate (character(len=len(t%beg, kind=int64) - nbytes_removed) :: shrunk, stat=astat)
-
             if (astat /= 0) then
                 call set_error(status, FM_MEMORY_FULL)
                 return
             end if
-
             after = t%z_byte - t%gpt_byte
             if (t%gpt_byte > 1) shrunk(1:t%gpt_byte - 1) = t%beg(1:t%gpt_byte - 1)
-
             if (after > 0) then
                 shrunk(t%gpt_byte + new_gap:t%gpt_byte + new_gap + after - 1) = &
                     t%beg(t%gpt_byte + t%gap_size:t%gpt_byte + t%gap_size + after - 1)
             end if
-
             call move_alloc(shrunk, t%beg)
             t%gap_size = new_gap
         end associate
@@ -212,7 +188,6 @@ contains
     subroutine insert(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-
         call insert_text(string, .false., status)
     end subroutine insert
 
@@ -221,7 +196,6 @@ contains
     subroutine insert_before_markers(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-
         call insert_text(string, .true., status)
     end subroutine insert_before_markers
 
@@ -230,7 +204,6 @@ contains
         logical, intent(in) :: before_markers
         type(status_type), intent(out) :: status
         integer(int64) :: nchars
-
         if (len(string) == 0) return
         call chars_in_text(string, nchars, status)
         if (.not. status%ok()) return
@@ -244,7 +217,6 @@ contains
         type(status_type), intent(out) :: status
         character(len=MAX_MULTIBYTE_LENGTH) :: str
         integer(int32) :: n
-
         if (buffers(cur)%multibyte) then
             call char_string(c, str, n, status)
             if (.not. status%ok()) return
@@ -252,7 +224,6 @@ contains
             n = 1
             str(1:1) = char(iand(c, 255_int32))
         end if
-
         call insert(str(1:n), status)
     end subroutine insert_char
 
@@ -262,7 +233,6 @@ contains
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: nchars
         type(status_type), intent(out) :: status
-
         if (.not. buffers(cur)%multibyte) then
             nchars = len(string, kind=int64)
         else
@@ -280,33 +250,25 @@ contains
         logical, intent(in) :: inherit, prepare, before_markers
         type(status_type), intent(out) :: status
         integer(int64) :: nchars
-
         if (nchars_in == 0) return
         nchars = nchars_in
         if (.not. buffers(cur)%multibyte) nchars = nbytes
-
         if (prepare) then
             call prepare_to_modify_buffer(buffers(cur)%pt, buffers(cur)%pt, status)
             if (.not. status%ok()) return
         end if
-
         if (buffers(cur)%pt /= buffers(cur)%text%gpt) then
             call move_gap_both(buffers(cur)%pt, buffers(cur)%pt_byte)
         end if
-
         if (buffers(cur)%text%gap_size < nbytes) then
             call make_gap(nbytes - buffers(cur)%text%gap_size, status)
             if (.not. status%ok()) return
         end if
-
         call record_insert(buffers(cur)%pt, nchars)
-
         associate (b => buffers(cur), t => buffers(cur)%text)
             call modiff_incr(t%modiff, nchars)
             t%chars_modiff = t%modiff
-
             t%beg(t%gpt_byte:t%gpt_byte + nbytes - 1) = string(1:nbytes)
-
             t%gap_size = t%gap_size - nbytes
             t%gpt = t%gpt + nchars
             b%zv = b%zv + nchars
@@ -314,22 +276,18 @@ contains
             t%gpt_byte = t%gpt_byte + nbytes
             b%zv_byte = b%zv_byte + nbytes
             t%z_byte = t%z_byte + nbytes
-
             ! The insert may have been in the unchanged region.
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
-
         call adjust_markers_for_insert(buffers(cur)%pt, buffers(cur)%pt_byte, &
                                        buffers(cur)%pt + nchars, buffers(cur)%pt_byte + nbytes, &
                                        before_markers)
-
         ! The inserted text gets an interval of its own with no properties
         ! (upstream: offset_intervals, then set_text_properties to nil when
         ! not inheriting).  Inheriting via stickiness is pending; the no-op
         ! reference keeps `inherit` in the interface without a warning.
         call offset_intervals(buffers(cur)%text%intervals, buffers(cur)%pt, nchars)
         if (inherit) continue
-
         call adjust_point(nchars, nbytes)
     end subroutine insert_1_both
 
@@ -341,11 +299,9 @@ contains
         integer(int64), intent(in) :: from, from_byte, to, to_byte
         logical, intent(in) :: before_markers
         integer(int64) :: m, nchars, nbytes
-
         nchars = to - from
         nbytes = to_byte - from_byte
         m = buffers(cur)%text%markers
-
         do while (m /= 0)
             associate (mk => markers(m))
                 if (mk%bytepos == from_byte) then
@@ -357,7 +313,6 @@ contains
                     mk%bytepos = mk%bytepos + nbytes
                     mk%charpos = mk%charpos + nchars
                 end if
-
                 m = mk%next
             end associate
         end do
@@ -369,9 +324,7 @@ contains
     subroutine adjust_markers_for_delete(from, from_byte, to, to_byte)
         integer(int64), intent(in) :: from, from_byte, to, to_byte
         integer(int64) :: m
-
         m = buffers(cur)%text%markers
-
         do while (m /= 0)
             associate (mk => markers(m))
                 if (mk%charpos > to) then
@@ -381,7 +334,6 @@ contains
                     mk%charpos = from
                     mk%bytepos = from_byte
                 end if
-
                 m = mk%next
             end associate
         end do
@@ -390,7 +342,6 @@ contains
     !> Move point by `nchars`/`nbytes`.  Port of insdel.c:adjust_point.
     subroutine adjust_point(nchars, nbytes)
         integer(int64), intent(in) :: nchars, nbytes
-
         buffers(cur)%pt = buffers(cur)%pt + nchars
         buffers(cur)%pt_byte = buffers(cur)%pt_byte + nbytes
     end subroutine adjust_point
@@ -404,7 +355,6 @@ contains
     subroutine del_range(from, to, status)
         integer(int64), intent(in) :: from, to
         type(status_type), intent(out) :: status
-
         call del_range_1(from, to, .true., status)
     end subroutine del_range
 
@@ -417,20 +367,16 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable, intent(out), optional :: deleted
         integer(int64) :: from, to, from_byte, to_byte
-
         from = max(from_in, buffers(cur)%begv)
         to = min(to_in, buffers(cur)%zv)
-
         if (to <= from) then
             if (present(deleted)) deleted = ""
             return
         end if
-
         if (prepare) then
             call prepare_to_modify_buffer(from, to, status)
             if (.not. status%ok()) return
         end if
-
         from_byte = char_to_byte(from)
         to_byte = char_to_byte(to)
         call del_range_2(from, from_byte, to, to_byte, deleted)
@@ -441,11 +387,9 @@ contains
         integer(int64), intent(in) :: from_byte_in, to_byte_in
         type(status_type), intent(out) :: status
         integer(int64) :: from, to, from_byte, to_byte
-
         from_byte = max(from_byte_in, buffers(cur)%begv_byte)
         to_byte = min(to_byte_in, buffers(cur)%zv_byte)
         if (to_byte <= from_byte) return
-
         from = byte_to_char(from_byte)
         to = byte_to_char(to_byte)
         call prepare_to_modify_buffer(from, to, status)
@@ -460,18 +404,15 @@ contains
         logical, intent(in) :: prepare
         type(status_type), intent(out) :: status
         integer(int64) :: from, to, from_byte, to_byte
-
         from_byte = max(from_byte_in, buffers(cur)%begv_byte)
         to_byte = min(to_byte_in, buffers(cur)%zv_byte)
         if (to_byte <= from_byte) return
         from = max(from_in, buffers(cur)%begv)
         to = min(to_in, buffers(cur)%zv)
-
         if (prepare) then
             call prepare_to_modify_buffer(from, to, status)
             if (.not. status%ok()) return
         end if
-
         call del_range_2(from, from_byte, to, to_byte)
     end subroutine del_range_both
 
@@ -482,32 +423,24 @@ contains
         integer(int64), intent(in) :: from, from_byte, to, to_byte
         character(len=:), allocatable, intent(out), optional :: deleted
         integer(int64) :: nchars_del, nbytes_del
-
         nchars_del = to - from
         nbytes_del = to_byte - from_byte
-
         ! Make sure the gap is somewhere in or next to what we are deleting.
         if (from > buffers(cur)%text%gpt) call gap_right(from, from_byte)
         if (to < buffers(cur)%text%gpt) call gap_left(to, to_byte, .false.)
-
         if (present(deleted)) deleted = buf_bytes(buffers(cur), from_byte, to_byte)
         if (buffers(cur)%undo_enabled) call record_delete(from, buf_bytes(buffers(cur), from_byte, to_byte), nchars_del)
-
         ! Relocate all markers pointing into the new, larger gap.
         call adjust_markers_for_delete(from, from_byte, to, to_byte)
-
         associate (b => buffers(cur), t => buffers(cur)%text)
             call modiff_incr(t%modiff, nchars_del)
             t%chars_modiff = t%modiff
-
             ! Relocate point as if it were a marker.
             if (from < b%pt) then
                 b%pt = b%pt + (from - min(b%pt, to))
                 b%pt_byte = b%pt_byte + (from_byte - min(b%pt_byte, to_byte))
             end if
-
             call offset_intervals(t%intervals, from, -nchars_del)
-
             t%gap_size = t%gap_size + nbytes_del
             b%zv = b%zv - nchars_del
             t%z = t%z - nchars_del
@@ -515,7 +448,6 @@ contains
             t%z_byte = t%z_byte - nbytes_del
             t%gpt = from
             t%gpt_byte = from_byte
-
             if (t%gpt - BEG < t%beg_unchanged) t%beg_unchanged = t%gpt - BEG
             if (t%z - t%gpt < t%end_unchanged) t%end_unchanged = t%z - t%gpt
         end associate
@@ -530,12 +462,10 @@ contains
     subroutine modify_text(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-
         call prepare_to_modify_buffer(start, end, status)
         if (.not. status%ok()) return
         call buf_compute_unchanged(buffers(cur), start - 1, end)
         if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
-
         associate (t => buffers(cur)%text)
             call modiff_incr(t%modiff, end - start)
             t%chars_modiff = t%modiff
@@ -550,7 +480,6 @@ contains
     subroutine prepare_to_modify_buffer(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-
         call barf_if_buffer_read_only(status, start)
         if (.not. status%ok()) return
         buffers(cur)%text%redisplay = .true.

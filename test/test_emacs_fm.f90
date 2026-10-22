@@ -41,7 +41,6 @@ contains
 
     subroutine collect_emacs_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("command-line-options", test_command_line), &
                     new_unittest("init-file-configure", test_configure), &
@@ -53,7 +52,6 @@ contains
     !> An init file's `configure`: a setting, a command and a key.
     subroutine sample_configure(status)
         type(status_type), intent(out) :: status
-
         tab_width = 4
         call defcommand("insert-config-stamp", insert_config_stamp)
         call keymap_global_set("C-c d", "insert-config-stamp", status)
@@ -62,14 +60,12 @@ contains
     !> The command bound by `sample_configure`.
     subroutine insert_config_stamp(status)
         type(status_type), intent(out) :: status
-
         call insert("configured", status)
     end subroutine insert_config_stamp
 
     !> An init file whose `configure` fails.
     subroutine failing_configure(status)
         type(status_type), intent(out) :: status
-
         call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
     end subroutine failing_configure
 
@@ -86,7 +82,6 @@ contains
         integer(int32) :: master, slave
         character(len=4096) :: buf
         integer(int64) :: n
-
         call get_buffer_create("*scratch*", scratch, st)
         call set_buffer(scratch, st)
         call erase_buffer(st)
@@ -97,12 +92,10 @@ contains
         call init_sys_modes(slave, old, ignore)
         call emacs_write(master, keys, ignore)
         call emacs_main("xterm-256color", slave, st, args, configure)
-
         do while (input_available(master, 100_int32))
             call emacs_read(master, buf, n, ignore)
             if (n <= 0) exit
         end do
-
         call reset_sys_modes(slave, old, ignore)
         call close_fd(slave)
         call close_fd(master)
@@ -112,7 +105,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(arg_type), allocatable :: args(:), rest(:)
         logical :: init
-
         allocate (args(3))
         args(1)%s = "-q"
         args(2)%s = "+3"
@@ -145,7 +137,6 @@ contains
     subroutine test_configure(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
@@ -158,7 +149,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(arg_type) :: args(1)
-
         args(1)%s = "-q"
         ! C-c is undefined without the init file, so "d" self-inserts.
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
@@ -170,7 +160,6 @@ contains
     subroutine test_init_error(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-
         ! The editor still starts.
         call run_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
         call check(error, st%ok(), "emacs_main")

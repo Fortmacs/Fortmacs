@@ -81,7 +81,6 @@ contains
     subroutine init_frame_windows(f)
         type(frame_type), intent(inout) :: f
         integer :: rows, cols
-
         rows = f%tty%wcm%cm_rows
         cols = f%tty%wcm%cm_cols
         f%root_window%top_line = 0
@@ -98,7 +97,6 @@ contains
     !> xfaces.c:realize_basic_faces.
     subroutine realize_basic_faces(f)
         type(frame_type), intent(inout) :: f
-
         if (allocated(f%faces)) deallocate (f%faces)
         allocate (f%faces(0:REGION_FACE_ID))
         f%faces(DEFAULT_FACE_ID)%foreground = FACE_TTY_DEFAULT_FG_COLOR
@@ -123,7 +121,6 @@ contains
     !> character.c:char_width with characters.el's char-width-table.
     elemental integer function glyph_width(c)
         integer(int32), intent(in) :: c
-
         glyph_width = 1
         if ((c >= int(z'1100', int32) .and. c <= int(z'115F', int32)) .or. &
             (c >= int(z'2E80', int32) .and. c <= int(z'303E', int32)) .or. &
@@ -151,9 +148,7 @@ contains
         type(glyph_type), intent(out) :: cells(:)
         integer, intent(out) :: n
         integer(int32) :: byte
-
         n = 1
-
         if (c == 9) then
             n = tab_width - mod(x, tab_width)
             cells(1:n)%ch = 32
@@ -185,7 +180,6 @@ contains
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
         type(glyph_type) :: cells(8)
-
         call produce_char(c, x, cells, n)
     end function glyph_columns
 
@@ -209,7 +203,6 @@ contains
         integer(int64) :: pos, pos_byte, zv
         integer(int32) :: c
         integer :: r, col, cont_width, n
-
         cursor_row = -1
         cursor_col = 0
         reached_end = .false.
@@ -218,56 +211,45 @@ contains
         pos_byte = buf_charpos_to_bytepos(bi, start)
         rb = 0
         re = 0
-
         if (present(region_beg) .and. present(region_end)) then
             rb = region_beg
             re = region_end
         end if
-
         cont_width = 0
-
         do r = 1, size(rows)
             rows(r)%glyphs = glyph_type()
             rows(r)%used = 0
             rows(r)%enabled_p = .true.
             if (reached_end) cycle
             col = 0
-
             do
                 if (pos >= zv) then
                     if (pos == pt .and. cursor_row < 0) then
                         cursor_row = r - 1
                         cursor_col = col
                     end if
-
                     reached_end = .true.
                     exit
                 end if
-
                 c = buf_fetch_char(buffers(bi), pos_byte)
-
                 if (c == 10) then
                     if (pos == pt) then
                         cursor_row = r - 1
                         cursor_col = col
                     end if
-
                     ! The region face has :extend t: a newline in the region
                     ! highlights the rest of the row.
                     if (pos >= rb .and. pos < re .and. col < width - 1) then
                         rows(r)%glyphs(col + 1:width - 1)%face_id = REGION_FACE_ID
                         col = width - 1
                     end if
-
                     pos = pos + 1
                     pos_byte = pos_byte + 1
                     cont_width = 0
                     exit
                 end if
-
                 cells = glyph_type()
                 call produce_char(c, col + cont_width, cells, n)
-
                 if (col + n > width - 1) then
                     ! Continue on the next row, \ in the last column.
                     rows(r)%glyphs(width)%ch = iachar("\")
@@ -275,22 +257,18 @@ contains
                     cont_width = cont_width + width - 1
                     exit
                 end if
-
                 if (pos == pt) then
                     cursor_row = r - 1
                     cursor_col = col
                 end if
-
                 rows(r)%glyphs(col + 1:col + n) = cells(1:n)
                 if (pos >= rb .and. pos < re) rows(r)%glyphs(col + 1:col + n)%face_id = REGION_FACE_ID
                 col = col + n
                 pos = pos + 1
                 pos_byte = pos_byte + buf_next_char_len(buffers(bi), pos_byte)
             end do
-
             rows(r)%used = col
         end do
-
         end_pos = pos
         if (pos >= zv) reached_end = .true.
     end subroutine layout_window
@@ -303,21 +281,17 @@ contains
         integer, intent(in) :: nlines
         integer(int64) :: byte, begv_byte
         integer :: k
-
         begv_byte = buffers(bi)%begv_byte
         byte = buf_charpos_to_bytepos(bi, pos)
-
         do k = 0, nlines
             ! Back to the start of this line.
             do while (byte > begv_byte)
                 if (buf_fetch_byte(buffers(bi), byte - 1) == 10) exit
                 byte = byte - 1
             end do
-
             if (k == nlines .or. byte <= begv_byte) exit
             byte = byte - 1
         end do
-
         start = buf_bytepos_to_charpos(bi, byte)
     end function line_start_above
 
@@ -331,7 +305,6 @@ contains
         integer, intent(in) :: top
         type(glyph_row_type), intent(in) :: rows(:)
         integer :: r
-
         do r = 1, size(rows)
             f%desired_matrix%rows(top + r - 1)%glyphs = rows(r)%glyphs
             f%desired_matrix%rows(top + r - 1)%used = rows(r)%used
@@ -352,26 +325,21 @@ contains
         integer(int64) :: rb, re, m
         integer :: body, width, cursor_row, cursor_col, r
         logical :: reached_end
-
         call resolve_buffer(w%buffer, bi, status)
         if (.not. status%ok()) return
         body = window_body_lines(w)
         width = w%total_cols
         allocate (rows(body))
-
         do r = 1, body
             allocate (rows(r)%glyphs(width))
         end do
-
         ! Transient Mark mode highlights an active region, in the selected
         ! window only (highlight-nonselected-windows nil).
         rb = 0
         re = 0
-
         if (transient_mark_mode .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
             .not. w%mini) then
             m = buffers(bi)%mark%index
-
             if (m > 0) then
                 if (markers(m)%buffer == bi) then
                     rb = min(pt, markers(m)%charpos)
@@ -379,18 +347,15 @@ contains
                 end if
             end if
         end if
-
         start = max(buffers(bi)%begv, min(window_start(w), buffers(bi)%zv))
         call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                            reached_end, rb, re)
-
         if (cursor_row < 0 .and. .not. w%force_start) then
             ! Point is not visible: recenter (scroll-conservatively 0).
             start = line_start_above(bi, pt, (body - 1)/2)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                                reached_end, rb, re)
         end if
-
         call set_window_start(w, start, status, noforce=.true.)
         w%window_end_pos = end_pos
         w%window_end_valid = reached_end
@@ -404,11 +369,9 @@ contains
     integer(int64) function line_number(bi, pos) result(n)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, end_byte
-
         n = 1
         byte = buffers(bi)%begv_byte
         end_byte = buf_charpos_to_bytepos(bi, pos)
-
         do while (byte < end_byte)
             if (buf_fetch_byte(buffers(bi), byte) == 10) n = n + 1
             byte = byte + 1
@@ -428,7 +391,6 @@ contains
         character(len=:), allocatable :: s
         character(len=2) :: flags
         character(len=20) :: num
-
         if (read_only) then
             flags = "%%"
             if (modified) flags = "%*"
@@ -437,12 +399,10 @@ contains
         else
             flags = "--"
         end if
-
         write (num, "(i0)") line
         s = "-UUU:"//flags//"--F1  "//name
         if (len(name) < 12) s = s//repeat(" ", 12 - len(name))
         s = s//"   "//position//"   L"//trim(num)//"     (Fundamental) "
-
         if (len(s) < width) then
             s = s//repeat("-", width - len(s))
         else
@@ -462,11 +422,9 @@ contains
         integer(int64) :: total
         character(len=4) :: pct
         integer :: k
-
         call buffer_modified_p(w%buffer, modified, status)
         at_top = start <= buffers(bi)%begv
         at_bottom = w%window_end_valid
-
         if (at_top .and. at_bottom) then
             position = "All"
         else if (at_top) then
@@ -478,16 +436,13 @@ contains
             write (pct, '(i2,"%")') int(((start - buffers(bi)%begv)*100)/total)
             position = trim(adjustl(pct))
         end if
-
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, position, &
                               line_number(bi, pt), w%total_cols)
         allocate (row(w%total_cols))
-
         do k = 1, w%total_cols
             row(k)%ch = iachar(text(k:k))
             row(k)%face_id = MODE_LINE_ACTIVE_FACE_ID
         end do
-
         associate (m => f%desired_matrix%rows(w%top_line + w%total_lines - 1))
             m%glyphs = row
             m%used = w%total_cols
@@ -504,10 +459,8 @@ contains
         integer :: n, cols
         integer(int64) :: pos
         integer(int32) :: ch, length
-
         cols = f%minibuffer_window%total_cols
         endcol = 0
-
         associate (m => f%desired_matrix%rows(f%minibuffer_window%top_line))
             m%glyphs = glyph_type()
             m%used = 0
@@ -515,7 +468,6 @@ contains
             if (.not. allocated(last_message)) return
             n = 0
             pos = 1
-
             do while (pos <= len(last_message, kind=int64) .and. n < cols)
                 ch = ichar(last_message(pos:pos), int32)
                 length = 1
@@ -524,7 +476,6 @@ contains
                 m%glyphs(n)%ch = ch
                 pos = pos + length
             end do
-
             m%used = n
             endcol = n
         end associate
@@ -546,7 +497,6 @@ contains
         integer :: x, n, cols, col_of_point
         integer(int64) :: mpos
         integer(int32) :: clen
-
         cursor_col = 0
         call resolve_buffer(f%minibuffer_window%buffer, bi, status)
         if (.not. status%ok()) return
@@ -557,7 +507,6 @@ contains
         col_of_point = -1
         pos = buffers(bi)%begv
         byte = buffers(bi)%begv_byte
-
         do while (pos < buffers(bi)%zv)
             if (pos == buffers(bi)%pt) col_of_point = x
             c = buf_fetch_char(buffers(bi), byte)
@@ -565,44 +514,36 @@ contains
             byte = byte + buf_next_char_len(buffers(bi), byte)
             pos = pos + 1
         end do
-
         if (col_of_point < 0) col_of_point = x
-
         ! A minibuffer-message after the text (its overlay at the end).
         if (allocated(minibuffer_message_text)) then
             mpos = 1
-
             do while (mpos <= len(minibuffer_message_text, kind=int64))
                 call string_char_and_length(minibuffer_message_text, mpos, c, clen)
                 call put(c)
                 mpos = mpos + clen
             end do
         end if
-
         ! auto-hscroll: recenter point when it would leave the line.
         associate (w => f%minibuffer_window)
             if (col_of_point < w%hscroll .or. col_of_point - w%hscroll >= cols - 1) then
                 w%hscroll = max(0, col_of_point - cols/2)
             end if
-
             associate (m => f%desired_matrix%rows(w%top_line))
                 m%glyphs = glyph_type()
                 m%enabled_p = .true.
                 n = min(cols, max(0, x - w%hscroll))
                 if (n > 0) m%glyphs(1:n) = line(w%hscroll + 1:w%hscroll + n)
                 m%used = n
-
                 ! Truncation glyphs.
                 if (w%hscroll > 0) then
                     m%glyphs(1) = glyph_type()
                     m%glyphs(1)%ch = iachar("$")
                 end if
-
                 if (x - w%hscroll > cols) then
                     m%glyphs(cols) = glyph_type()
                     m%glyphs(cols)%ch = iachar("$")
                 end if
-
                 ! A wide character cut by the left edge shows as a space.
                 if (n > 0) then
                     if (m%glyphs(1)%padding) then
@@ -611,24 +552,19 @@ contains
                     end if
                 end if
             end associate
-
             cursor_col = col_of_point - w%hscroll
         end associate
-
     contains
 
         !> Lay out character `c` at column x.
         subroutine put(c)
             integer(int32), intent(in) :: c
-
             call produce_char(c, x, cells, n)
-
             if (x + n > size(line)) then
                 allocate (grown(2*size(line) + n))
                 grown(1:x) = line(1:x)
                 call move_alloc(grown, line)
             end if
-
             line(x + 1:x + n) = cells(1:n)
             x = x + n
         end subroutine put
@@ -638,7 +574,6 @@ contains
     !> plain string; no *Messages* log yet).
     subroutine message(text)
         character(len=*), intent(in) :: text
-
         last_message = text
     end subroutine message
 
@@ -653,7 +588,6 @@ contains
         integer(int64) :: bi
         integer :: endcol, mini_col
         logical :: showing_message, mini_active
-
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (f%root_window%total_lines == 0) call init_frame_windows(f)
         if (.not. allocated(f%faces)) call realize_basic_faces(f)
@@ -661,7 +595,6 @@ contains
         ! The selected window shows the current buffer: the root window
         ! unless the minibuffer window is selected.
         cb = current_buffer()
-
         if (.not. f%minibuffer_selected) then
             if (cb%index /= f%root_window%buffer%index .or. &
                 cb%generation /= f%root_window%buffer%generation) then
@@ -669,26 +602,21 @@ contains
                 if (.not. status%ok()) return
             end if
         end if
-
         call resolve_buffer(f%root_window%buffer, bi, status)
         if (.not. status%ok()) return
         call redisplay_window(f, f%root_window, buffers(bi)%pt)
-
         ! The minibuffer line: a message if there is one, else the active
         ! minibuffer, else blank.
         showing_message = .false.
         if (allocated(last_message)) showing_message = len(last_message) > 0
         mini_active = f%minibuffer_selected .and. f%minibuffer_window%buffer%index /= 0
         mini_col = 0
-
         if (mini_active .and. .not. showing_message) then
             call display_minibuffer(f, mini_col)
         else
             call display_echo_area(f, endcol)
         end if
-
         f%cursor_vpos = -1
-
         if (mini_active .and. .not. showing_message) then
             f%cursor_vpos = f%minibuffer_window%top_line
             f%cursor_hpos = min(mini_col, f%minibuffer_window%total_cols - 1)
@@ -699,7 +627,6 @@ contains
             f%cursor_vpos = f%root_window%top_line + f%root_window%cursor_vpos
             f%cursor_hpos = f%root_window%cursor_hpos
         end if
-
         call update_frame(f, status)
     end subroutine redisplay
 end module xdisp_fm

@@ -162,16 +162,13 @@ contains
     subroutine newline(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-
         if (n < 0) then
             call set_error(status, FM_GENERIC_ERROR, &
                            "Repetition argument has to be non-negative")
             return
         end if
-
         call self_insert_command(n, 10_int64, status)
     end subroutine newline
 
@@ -181,7 +178,6 @@ contains
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         integer(int64) :: loc
-
         loc = point()
         call newline(n, status)
         if (.not. status%ok()) return
@@ -193,7 +189,6 @@ contains
     subroutine delete_backward_char(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-
         call delete_char(-n, status)
     end subroutine delete_backward_char
 
@@ -216,12 +211,10 @@ contains
         type(status_type) :: status
         integer :: d
         character(len=4) :: name
-
         if (keymap_live_p(uarg_map)) then
             map = uarg_map
             return
         end if
-
         call make_sparse_keymap(map)
         key(1) = make_fixnum(21_int64)
         call define_key(map, key, sym("universal-argument-more"), status)
@@ -229,7 +222,6 @@ contains
         call define_key(map, key, sym("universal-argument-minus"), status)
         key(1) = sym("kp-subtract")
         call define_key(map, key, sym("universal-argument-minus"), status)
-
         do d = 0, 9
             key(1) = make_fixnum(int(iachar("0") + d, int64))
             call define_key(map, key, sym("digit-argument"), status)
@@ -237,7 +229,6 @@ contains
             key(1) = sym(name)
             call define_key(map, key, sym("digit-argument"), status)
         end do
-
         uarg_map = map
     end function universal_argument_map
 
@@ -256,7 +247,6 @@ contains
     !> and hard newlines are not ported).
     subroutine cmd_newline(status)
         type(status_type), intent(out) :: status
-
         call newline(arg_p(), status)
     end subroutine cmd_newline
 
@@ -265,7 +255,6 @@ contains
     !> prefix or left margin).
     subroutine cmd_open_line(status)
         type(status_type), intent(out) :: status
-
         call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
@@ -281,9 +270,7 @@ contains
     subroutine cmd_delete_backward_char(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
-
         n = arg_p()
-
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else if (.not. nilp(current_prefix_arg)) then
@@ -298,7 +285,6 @@ contains
     subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-
         call region_beginning(b, status)
         if (status%ok()) call region_end(e, status)
         if (status%ok()) call delete_region(b, e, status)
@@ -317,9 +303,7 @@ contains
     subroutine cmd_delete_forward_char(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
-
         n = arg_p()
-
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else if (.not. nilp(current_prefix_arg)) then
@@ -335,7 +319,6 @@ contains
     !> Port of simple.el:keyboard-quit (no kbd macro handling).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
-
         if (region_active_p()) call deactivate_mark()
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
@@ -349,35 +332,31 @@ contains
         type(value_type) :: ev, key(1)
         logical :: have
         integer(int64) :: c
-
         call read_event(ev, have, status)
         if (.not. status%ok() .or. .not. have) return
         c = -1
         if (fixnump(ev)) c = xfixnum(ev)
-
         if (c < 0 .or. c > MAX_CHAR) then
             key(1) = ev
             call set_error(status, FM_USER_ERROR, key_description(key)// &
                            " is not a valid character")
             return
         end if
-
         call self_insert_command(max(arg_p(), 0_int64), c, status)
     end subroutine cmd_quoted_insert
 
     !> Begin a numeric argument for the following command.
-    !> Digits or minus sign following \\[universal-argument] make up the numeric argument.
-    !> \\[universal-argument] following the digits or minus sign ends the argument.
-    !> \\[universal-argument] without digits or minus sign provides 4 as argument.
-    !> Repeating \\[universal-argument] without digits or minus sign
+    !> Digits or minus sign following \[universal-argument] make up the numeric argument.
+    !> \[universal-argument] following the digits or minus sign ends the argument.
+    !> \[universal-argument] without digits or minus sign provides 4 as argument.
+    !> Repeating \[universal-argument] without digits or minus sign
     !>  multiplies the argument by 4 each time.
-    !> For some commands, just \\[universal-argument] by itself serves as a flag
+    !> For some commands, just \[universal-argument] by itself serves as a flag
     !> that is different in effect from any particular numeric argument.
-    !> These commands include \\[set-mark-command].
+    !> These commands include \[set-mark-command].
     !> Port of simple.el:universal-argument.
     subroutine cmd_universal_argument(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call prefix_command_preserve_state()
         prefix_arg = list(make_fixnum(4_int64))
@@ -388,11 +367,9 @@ contains
     subroutine cmd_universal_argument_more(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
-
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
-
         if (consp(arg)) then
             prefix_arg = list(make_fixnum(4*xfixnum(list_elt(arg, 1_int64))))
         else if (value_eq(arg, sym("-"))) then
@@ -400,21 +377,18 @@ contains
         else
             prefix_arg = arg
         end if
-
         if (consp(prefix_arg)) call universal_argument_mode()
     end subroutine cmd_universal_argument_more
 
     !> Begin a negative numeric argument for the next command.
-    !> \\[universal-argument] following digits or minus sign ends the argument.
+    !> \[universal-argument] following digits or minus sign ends the argument.
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
-
         status = status_type()
         arg = current_prefix_arg
         call prefix_command_preserve_state()
-
         if (fixnump(arg)) then
             prefix_arg = make_fixnum(-xfixnum(arg))
         else if (value_eq(arg, sym("-"))) then
@@ -422,25 +396,22 @@ contains
         else
             prefix_arg = sym("-")
         end if
-
         call universal_argument_mode()
     end subroutine cmd_negative_argument
 
     !> Part of the numeric argument for the next command.
-    !> \\[universal-argument] following digits or minus sign ends the argument.
+    !> \[universal-argument] following digits or minus sign ends the argument.
     !> Port of simple.el:digit-argument (character events; keypad digits
     !> need the `ascii-character' property, not ported).
     subroutine cmd_digit_argument(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
         integer(int64) :: digit
-
         status = status_type()
         if (.not. fixnump(last_command_event)) return
         arg = current_prefix_arg
         call prefix_command_preserve_state()
         digit = iand(xfixnum(last_command_event), 127_int64) - iachar("0")
-
         if (fixnump(arg)) then
             if (xfixnum(arg) < 0) then
                 prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
@@ -457,7 +428,6 @@ contains
         else
             prefix_arg = make_fixnum(digit)
         end if
-
         call universal_argument_mode()
     end subroutine cmd_digit_argument
 
@@ -466,7 +436,6 @@ contains
     !> inserts itself as the global binding would.
     subroutine cmd_universal_argument_minus(status)
         type(status_type), intent(out) :: status
-
         if (fixnump(current_prefix_arg)) then
             call self_insert_command(arg_p(), int(iachar("-"), int64), status)
         else
@@ -494,10 +463,8 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
         logical :: quiet
-
         quiet = .false.
         if (present(noerror)) quiet = noerror
-
         if (line_move_visual .and. goal_column < 0) then
             call line_move_visual_1(arg, quiet, status)
         else
@@ -512,27 +479,21 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, moved
         logical :: ok
-
         opoint = point()
-
         if (.not. (tgc_visual .and. after_line_move())) then
             temporary_goal_column = screen_column()
             tgc_visual = .true.
         end if
-
         call vertical_motion(arg, moved, int(temporary_goal_column))
-
         if (arg >= 0) then
             ok = moved >= arg
         else
             ok = moved <= arg
-
             if (ok .and. point() == opoint) then
                 call vertical_motion(arg, moved)
                 ok = moved == arg
             end if
         end if
-
         if (.not. ok .and. .not. noerror) then
             if (arg < 0) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -550,23 +511,17 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: opoint, n, shortage, npoint, column
         logical :: done
-
         opoint = point()
-
         if (tgc_visual) then
             ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
             tgc_visual = .false.
         end if
-
         if (.not. after_line_move()) temporary_goal_column = current_column()
-
         n = arg
         done = .false.
-
         if (n > 0) then
             if (n > 1) shortage = forward_line(n - 1)
             call end_of_line()
-
             if (forward_line(1_int64) == 0) then
                 n = 0
                 done = .true.
@@ -579,7 +534,6 @@ contains
                 end if
             end if
         end if
-
         if (.not. done .and. .not. noerror) then
             if (n < 0) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
@@ -587,7 +541,6 @@ contains
                 call set_error(status, FM_END_OF_BUFFER)
             end if
         end if
-
         if (n > 0) then
             npoint = line_end_position()
             call goto_char(opoint)
@@ -613,16 +566,13 @@ contains
         type(value_type) :: new_field, old_field
         type(status_type) :: st
         logical :: repeat
-
         repeat = .true.
-
         do while (repeat)
             repeat = .false.
             old = point()
             line_beg = line_beginning_position()
             ! (skip-chars-forward "^\n"), ignoring fields
             line_end = pos_eol()
-
             if (line_move_visual) then
                 call vertical_motion(0_int64, moved, int(column))
             else if (column == 0) then
@@ -630,13 +580,10 @@ contains
             else
                 call move_to_column(column, reached)
             end if
-
             if (forward .and. point() < old) call goto_char(old)
             new = point()
-
             if (new > line_end) then
                 call backward_char(st)
-
                 if (forward) then
                     if (line_beg < point()) then
                         new = point()
@@ -649,17 +596,14 @@ contains
                     new = line_end
                 end if
             end if
-
             call goto_char(opoint)
             call get_text_property(new, sym("field"), new_field, st)
             call get_text_property(opoint, sym("field"), old_field, st)
-
             if (value_eq(new_field, old_field)) then
                 call goto_char(new)
             else
                 call goto_char(constrain_to_field(new, opoint, .true., .true.))
             end if
-
             if (point() < line_beg .or. point() > line_end) repeat = .true.
         end do
     end subroutine line_move_finish
@@ -669,7 +613,6 @@ contains
     subroutine next_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-
         call line_move(arg, status)
     end subroutine next_line
 
@@ -677,7 +620,6 @@ contains
     subroutine previous_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
-
         call line_move(-arg, status)
     end subroutine previous_line
 
@@ -702,7 +644,6 @@ contains
     !> vscroll, `next-line-add-newlines' or `set-goal-column').
     subroutine cmd_next_line(status)
         type(status_type), intent(out) :: status
-
         call next_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_next_line
 
@@ -725,7 +666,6 @@ contains
     !> vscroll or `set-goal-column').
     subroutine cmd_previous_line(status)
         type(status_type), intent(out) :: status
-
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_previous_line
 
@@ -737,7 +677,6 @@ contains
     function history_value() result(history)
         type(value_type) :: history
         type(status_type) :: status
-
         history = nil()
         if (.not. allocated(minibuffer_history_variable)) return
         if (len(minibuffer_history_variable) == 0) return
@@ -758,49 +697,39 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: goal, pend
         integer :: minimum
-
         minimum = 0
         if (allocated(minibuffer_default)) minimum = -1
         history = history_value()
-
         if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
             minibuffer_text_before_history = minibuffer_contents()
         end if
-
         if (nabs < minimum) then
             if (allocated(minibuffer_default)) then
                 call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
             else
                 call set_error(status, FM_USER_ERROR, "End of history; no default available")
             end if
-
             return
         end if
-
         if (nabs > list_length(history)) then
             call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
             return
         end if
-
         ! minibuffer-temporary-goal-position
         pend = minibuffer_prompt_end()
         goal = -1
-
         if (point() <= pend) then
             goal = pend
         else if (point() /= point_max()) then
             goal = point()
         end if
-
         call del_range(pend, buffers(cur)%zv, status)
         if (.not. status%ok()) return
         minibuffer_history_position = nabs
-
         if (nabs < 0) then
             text = minibuffer_default
         else if (nabs == 0) then
             text = ""
-
             if (allocated(minibuffer_text_before_history)) then
                 call move_alloc(minibuffer_text_before_history, text)
             end if
@@ -809,9 +738,7 @@ contains
             text = ""
             if (stringp(elt)) text = xstring(elt)
         end if
-
         call insert(text, status)
-
         if (goal >= 0) then
             call goto_char(goal)
         else
@@ -825,7 +752,6 @@ contains
     subroutine cmd_previous_history_element(status)
         type(status_type), intent(out) :: status
         integer :: n
-
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position + n, status)
     end subroutine cmd_previous_history_element
@@ -838,7 +764,6 @@ contains
     subroutine cmd_next_history_element(status)
         type(status_type), intent(out) :: status
         integer :: n
-
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
@@ -857,14 +782,11 @@ contains
         character(len=:), allocatable :: prompt
         character(len=24) :: num
         type(value_type) :: head
-
         prompt = ""
-
         if (value_eq(current_prefix_arg, sym("-"))) then
             prompt = "- "
         else if (consp(current_prefix_arg)) then
             head = list_elt(current_prefix_arg, 1_int64)
-
             if (fixnump(head)) then
                 if (xfixnum(head) == 4) then
                     prompt = "C-u "
@@ -877,7 +799,6 @@ contains
             write (num, "(i0)") xfixnum(current_prefix_arg)
             prompt = trim(num)//" "
         end if
-
         ! Read a string, completing from and restricting to the set of all
         ! defined commands.  Save the command read on the extended-command
         ! history list.
@@ -901,7 +822,6 @@ contains
         type(value_type) :: function, binding
         type(value_type), allocatable :: keys(:)
         integer(int64) :: id
-
         if (present(command_name)) then
             name = command_name
         else
@@ -910,16 +830,13 @@ contains
             call read_extended_command(name, status)
             if (.not. status%ok()) return
         end if
-
         id = intern_soft(name)
         function = nil()
         if (id /= 0) function = sym(name)
-
         if (id == 0 .or. .not. commandp(function)) then
             call set_error(status, FM_GENERIC_ERROR, "`"//name//"' is not a valid command name")
             return
         end if
-
         binding = nil()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
         this_command = function
@@ -932,7 +849,6 @@ contains
         prefix_arg = nil()
         call call_interactively(function, status)
         if (.not. status%ok()) return
-
         if (suggest_key_bindings .and. .not. nilp(binding)) then
             if (echo_area_empty()) then
                 call list_elements(binding, keys)
@@ -951,7 +867,6 @@ contains
     subroutine cmd_execute_extended_command(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
-
         ! A copy: reading the command name runs other commands, which set
         ! current-prefix-arg.
         arg = current_prefix_arg
@@ -1002,7 +917,6 @@ contains
     !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
     integer(int64) function equiv_of(k) result(v)
         integer(int64), intent(in) :: k
-
         v = EQUIV_NONE
         if (.not. allocated(buffers(cur)%undo_equiv)) return
         if (k < 0 .or. k > ubound(buffers(cur)%undo_equiv, 1)) return
@@ -1013,7 +927,6 @@ contains
     subroutine set_equiv(k, v)
         integer(int64), intent(in) :: k, v
         integer(int64), allocatable :: grown(:)
-
         associate (b => buffers(cur))
             if (.not. allocated(b%undo_equiv)) then
                 allocate (b%undo_equiv(0:max(k, 64_int64)))
@@ -1024,7 +937,6 @@ contains
                 grown(0:ubound(b%undo_equiv, 1)) = b%undo_equiv
                 call move_alloc(grown, b%undo_equiv)
             end if
-
             b%undo_equiv(k) = v
         end associate
     end subroutine set_equiv
@@ -1032,9 +944,7 @@ contains
     !> List position `k` without its leading boundaries.
     integer(int64) function sans_leading_nil(k) result(j)
         integer(int64), intent(in) :: k
-
         j = k
-
         do while (j > 0)
             if (buffers(cur)%undo_list(j)%kind /= UE_BOUNDARY) exit
             j = j - 1
@@ -1045,7 +955,6 @@ contains
     !> undo-equiv-table value.  Port of simple.el:undo--last-change-was-undo-p.
     integer(int64) function last_change_was_undo(k) result(v)
         integer(int64), intent(in) :: k
-
         v = equiv_of(sans_leading_nil(k))
     end function last_change_was_undo
 
@@ -1060,21 +969,18 @@ contains
         type(value_type) :: saved
         type(status_type) :: st
         integer(int64) :: arg, apos
-
         rest = list
         arg = n
         ! In a writable buffer, enable undoing read-only text that is so
         ! because of text properties.
         saved = inhibit_read_only()
         call set(sym("inhibit-read-only"), t_value(), st)
-
         undo_records: do while (arg > 0)
             do while (rest > 0)
                 ! Exit inner loop at undo boundary.
                 next = buffers(cur)%undo_list(rest)
                 rest = rest - 1
                 if (next%kind == UE_BOUNDARY) exit
-
                 select case (next%kind)
                 case (UE_POINT)
                     call goto_char(next%beg)
@@ -1087,7 +993,6 @@ contains
                         call outside_error(status)
                         exit undo_records
                     end if
-
                     ! Set point first thing, so that undoing this undo does
                     ! not send point back to where it is now.
                     call goto_char(next%beg)
@@ -1095,12 +1000,10 @@ contains
                     if (.not. status%ok()) exit undo_records
                 case (UE_DELETION)
                     apos = abs(next%beg)
-
                     if (apos < point_min() .or. apos > point_max()) then
                         call outside_error(status)
                         exit undo_records
                     end if
-
                     ! Insert string and adjust point.
                     call goto_char(apos)
                     call insert(next%text, status)
@@ -1111,16 +1014,13 @@ contains
                     exit undo_records
                 end select
             end do
-
             arg = arg - 1
         end do undo_records
-
         call set(sym("inhibit-read-only"), saved, st)
     end subroutine primitive_undo
 
     subroutine outside_error(status)
         type(status_type), intent(out) :: status
-
         call set_error(status, FM_GENERIC_ERROR, "Changes to be undone are outside visible portion of buffer")
     end subroutine outside_error
 
@@ -1128,7 +1028,6 @@ contains
     !> modtime (time-equal-p with visited-file-modtime; 0 for none).
     logical function time_equal(entry)
         type(undo_entry_type), intent(in) :: entry
-
         if (.not. (entry%known .or. buffers(cur)%modtime_known)) then
             time_equal = .true.
         else
@@ -1142,12 +1041,10 @@ contains
     !> change.  Port of simple.el:undo-start (not in a region).
     subroutine undo_start(status)
         type(status_type), intent(out) :: status
-
         if (.not. buffers(cur)%undo_enabled) then
             call set_error(status, FM_USER_ERROR, "No undo information in this buffer")
             return
         end if
-
         pending_undo_list = buffers(cur)%undo_count
     end subroutine undo_start
 
@@ -1159,12 +1056,10 @@ contains
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
         integer(int64) :: rest
-
         if (pending_undo_list < 0) then
             call set_error(status, FM_USER_ERROR, "No further undo information")
             return
         end if
-
         undo_in_progress = .true.
         call primitive_undo(n, pending_undo_list, rest, status)
         undo_in_progress = .false.
@@ -1181,13 +1076,11 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: msg
         integer(int64) :: equiv, next, list
-
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         ! If we get an error in undo-start, the next command should not be
         ! a "consecutive undo".
         this_command = sym("undo-start")
-
         ! If the previous command is `undo`, don't break the undo chain.
         if (.not. (value_eq(last_command, sym("undo")) .and. &
                    (pending_undo_list < 0 .or. last_change_was_undo(buffers(cur)%undo_count) /= EQUIV_NONE))) then
@@ -1197,19 +1090,16 @@ contains
             call undo_more(1_int64, status)
             if (.not. status%ok()) return
         end if
-
         ! If we got this far, the next command should be a consecutive undo.
         this_command = sym("undo")
         ! Check to see whether we're hitting a redo record.
         equiv = EQUIV_NONE
         if (pending_undo_list >= 0) equiv = equiv_of(pending_undo_list)
-
         if (undo_no_redo .or. equiv == EQUIV_NONE) then
             msg = "Undo"
         else
             msg = "Redo"
         end if
-
         if (equiv >= 0 .and. undo_no_redo) then
             ! The equiv entry might point to another redo record if we have
             ! done undo-redo-undo-redo-... so skip to the very last equiv.
@@ -1219,17 +1109,14 @@ contains
                 equiv = next
                 if (equiv < 0) exit
             end do
-
             pending_undo_list = -1
             if (equiv >= 0) pending_undo_list = equiv
         end if
-
         if (fixnump(arg)) then
             call undo_more(prefix_numeric_value(arg), status)
         else
             call undo_more(1_int64, status)
         end if
-
         if (.not. status%ok()) return
         ! Don't specify a position in the undo record for the undo command.
         ! Instead, undoing this should move point to where the change is.
@@ -1237,7 +1124,6 @@ contains
         ! Record the fact that the just-generated undo records come from an
         ! undo operation--that is, they are redo records.
         list = sans_leading_nil(buffers(cur)%undo_count)
-
         if (list == pending_undo_list) then
             ! Prevent identity mapping (consecutive nils in the undo list).
             next = equiv_of(list)
@@ -1246,7 +1132,6 @@ contains
         else
             call set_equiv(list, pending_undo_list)
         end if
-
         if (minibuf_level == 0) call message(msg)
     end subroutine undo
 
@@ -1254,31 +1139,23 @@ contains
     !> ones for the same position), as `undo` does.
     subroutine strip_undo_point()
         integer(int64) :: k, j, pos
-
         associate (b => buffers(cur))
             k = b%undo_count
-
             do while (k > 0)
                 if (b%undo_list(k)%kind == UE_BOUNDARY) return
-
                 if (b%undo_list(k)%kind == UE_POINT) then
                     pos = b%undo_list(k)%beg
                     j = k
-
                     do while (j > 0)
                         if (b%undo_list(j)%kind == UE_BOUNDARY) exit
-
                         if (b%undo_list(j)%kind == UE_POINT .and. b%undo_list(j)%beg == pos) then
                             b%undo_list(j:b%undo_count - 1) = b%undo_list(j + 1:b%undo_count)
                             b%undo_count = b%undo_count - 1
                         end if
-
                         j = j - 1
                     end do
-
                     return
                 end if
-
                 k = k - 1
             end do
         end associate
@@ -1292,7 +1169,6 @@ contains
     subroutine undo_only(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-
         undo_no_redo = .true.
         call undo(make_fixnum(n), status)
         undo_no_redo = .false.
@@ -1304,15 +1180,12 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: ul, new_ul
-
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-
         if (last_change_was_undo(buffers(cur)%undo_count) == EQUIV_NONE) then
             call set_error(status, FM_USER_ERROR, "No undone changes to redo")
             return
         end if
-
         ul = sans_leading_nil(buffers(cur)%undo_count)
         undo_in_progress = .true.
         call primitive_undo(arg, ul, new_ul, status)
@@ -1328,19 +1201,16 @@ contains
 
     subroutine cmd_undo(status)
         type(status_type), intent(out) :: status
-
         call undo(current_prefix_arg, status)
     end subroutine cmd_undo
 
     subroutine cmd_undo_only(status)
         type(status_type), intent(out) :: status
-
         call undo_only(arg_p(), status)
     end subroutine cmd_undo_only
 
     subroutine cmd_undo_redo(status)
         type(status_type), intent(out) :: status
-
         call undo_redo(arg_p(), status)
     end subroutine cmd_undo_redo
 
@@ -1360,11 +1230,9 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: force
         logical :: forced
-
         pos = 0
         forced = .false.
         if (present(force)) forced = force
-
         if (forced .or. .not. transient_mark_mode .or. buffers(cur)%mark_active .or. mark_even_if_inactive) then
             pos = mark_position()
         else
@@ -1384,7 +1252,6 @@ contains
     !> nil).
     logical function use_region_p()
         integer(int64) :: m
-
         use_region_p = region_active_p()
         if (.not. use_region_p) return
         m = mark_position()
@@ -1398,7 +1265,6 @@ contains
     subroutine deactivate_mark(force)
         logical, intent(in), optional :: force
         logical :: forced
-
         forced = .false.
         if (present(force)) forced = force
         if (region_active_p() .or. forced) buffers(cur)%mark_active = .false.
@@ -1418,9 +1284,7 @@ contains
         integer(int64), intent(in) :: pos
         type(handle_type) :: m
         type(status_type) :: st
-
         call mark_marker(m)
-
         if (pos > 0) then
             call set_marker(m, pos, st)
             call activate_mark()
@@ -1443,34 +1307,28 @@ contains
         type(status_type) :: st
         integer(int64) :: old
         integer :: n
-
         call mark_marker(m)
         old = mark_position()
-
         if (old /= 0) then
             ! The old mark goes on the front of the ring, which keeps at most
             ! mark-ring-max entries.
             call copy_marker_at(old, copy, .false., st)
             if (.not. allocated(buffers(cur)%mark_ring)) allocate (buffers(cur)%mark_ring(0))
             n = size(buffers(cur)%mark_ring)
-
             if (n >= mark_ring_max) then
                 call free_marker(buffers(cur)%mark_ring(n), st)
                 n = n - 1
             end if
-
             allocate (ring(n + 1))
             ring(1) = copy
             ring(2:) = buffers(cur)%mark_ring(1:n)
             call move_alloc(ring, buffers(cur)%mark_ring)
         end if
-
         if (present(location)) then
             call set_marker(m, location, st)
         else
             call set_marker(m, point(), st)
         end if
-
         if (.not. flag(nomsg) .and. minibuf_level == 0) call message("Mark set")
         if (flag(activate) .or. .not. transient_mark_mode) call set_mark(mark_position())
     end subroutine push_mark
@@ -1484,10 +1342,8 @@ contains
         type(status_type) :: st
         integer(int64) :: pos
         integer :: n
-
         if (allocated(buffers(cur)%mark_ring)) then
             n = size(buffers(cur)%mark_ring)
-
             if (n > 0) then
                 ! The current mark goes to the back; the front becomes the mark.
                 call mark_marker(m)
@@ -1501,14 +1357,12 @@ contains
                 call move_alloc(ring, buffers(cur)%mark_ring)
             end if
         end if
-
         call deactivate_mark()
     end subroutine pop_mark
 
     !> Whether optional logical `x` is present and true.
     pure logical function flag(x)
         logical, intent(in), optional :: x
-
         flag = .false.
         if (present(x)) flag = x
     end function flag
@@ -1518,14 +1372,11 @@ contains
     subroutine pop_to_mark_command(status)
         type(status_type), intent(out) :: status
         integer(int64) :: m
-
         m = mark_position()
-
         if (m == 0) then
             call set_error(status, FM_USER_ERROR, "No mark set in this buffer")
             return
         end if
-
         if (point() == m) call message("Mark popped")
         call goto_char(m)
         call pop_mark()
@@ -1539,9 +1390,7 @@ contains
         logical, intent(in) :: arg
         logical, intent(in), optional :: nomsg
         integer(int64) :: m
-
         m = mark_position()
-
         if (arg .or. m == 0 .or. m /= point()) then
             call push_mark(nomsg=nomsg, activate=.true.)
         else
@@ -1568,14 +1417,12 @@ contains
     subroutine set_mark_command(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
-
         if (consp(arg)) then
             if (prefix_numeric_value(arg) > 4) then
                 call push_mark_command(.false.)
                 return
             end if
         end if
-
         if (.not. value_eq(this_command, sym("set-mark-command"))) then
             if (.not. nilp(arg)) then
                 call pop_to_mark_command(status)
@@ -1608,17 +1455,13 @@ contains
         logical, intent(in) :: arg
         type(status_type), intent(out) :: status
         integer(int64) :: omark
-
         omark = mark_position()
-
         if (omark == 0) then
             call set_error(status, FM_USER_ERROR, "No mark set in this buffer")
             return
         end if
-
         call set_mark(point())
         call goto_char(omark)
-
         if (arg .neqv. .not. region_active_p()) then
             call deactivate_mark()
         else
@@ -1644,7 +1487,6 @@ contains
     function kill_ring() result(ring)
         type(value_type) :: ring
         type(status_type) :: st
-
         call symbol_value(sym("kill-ring"), ring, st)
         if (.not. st%ok()) ring = nil()
     end function kill_ring
@@ -1659,7 +1501,6 @@ contains
         logical, intent(in), optional :: replace
         type(value_type), allocatable :: elems(:)
         type(status_type) :: st
-
         if (flag(replace) .and. list_length(kill_ring()) > 0) then
             call list_elements(kill_ring(), elems)
             elems(1) = make_string(string)
@@ -1667,7 +1508,6 @@ contains
         else
             call add_to_history("kill-ring", string, int(kill_ring_max), keep_all=.true.)
         end if
-
         kill_ring_yank_pointer = 1
     end subroutine kill_new
 
@@ -1678,10 +1518,8 @@ contains
         character(len=*), intent(in) :: string
         logical, intent(in) :: before_p
         character(len=:), allocatable :: latest
-
         latest = ""
         if (list_length(kill_ring()) > 0) latest = xstring(list_elt(kill_ring(), 1_int64))
-
         if (before_p) then
             call kill_new(string//latest, .true.)
         else
@@ -1699,15 +1537,12 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: do_not_move
         integer(int64) :: length, k
-
         text = ""
         length = list_length(kill_ring())
-
         if (length == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Kill ring is empty")
             return
         end if
-
         kill_ring_yank_pointer = min(max(kill_ring_yank_pointer, 1_int64), length)
         ! (nthcdr (mod (- n (length kill-ring-yank-pointer)) (length kill-ring)) kill-ring)
         k = modulo(n - (length - kill_ring_yank_pointer + 1), length) + 1
@@ -1737,38 +1572,31 @@ contains
         character(len=:), allocatable :: string
         integer(int64) :: s, e
         type(status_type) :: st
-
         s = beg
         e = end
-
         if (flag(region)) then
             call region_beginning(s, status)
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return
         end if
-
         call buffer_substring(min(s, e), max(s, e), string, status)
         if (.not. status%ok()) return
         call delete_region(min(s, e), max(s, e), status)
-
         if (status%ok()) then
             if (value_eq(last_command, sym("kill-region"))) then
                 call kill_append(string, end < beg)
             else
                 call kill_new(string)
             end if
-
             this_command = sym("kill-region")
             vdeactivate_mark = .true.
             return
         end if
-
         if (.not. (condition_matches(status%code, FM_BUFFER_READ_ONLY) .or. &
                    condition_matches(status%code, FM_TEXT_READ_ONLY))) return
         ! The text could not be deleted: copy it to the kill ring anyway.
         call copy_region_as_kill(beg, end, st, region)
         this_command = sym("kill-region")
-
         if (kill_read_only_ok .or. flag(read_only_ok)) then
             status = status_type()
             call message("Read only text copied to kill ring")
@@ -1785,25 +1613,20 @@ contains
         logical, intent(in), optional :: region
         character(len=:), allocatable :: string
         integer(int64) :: s, e
-
         s = beg
         e = end
-
         if (flag(region)) then
             call region_beginning(s, status)
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return
         end if
-
         call buffer_substring(min(s, e), max(s, e), string, status)
         if (.not. status%ok()) return
-
         if (value_eq(last_command, sym("kill-region"))) then
             call kill_append(string, end < beg)
         else
             call kill_new(string)
         end if
-
         vdeactivate_mark = .true.
     end subroutine copy_region_as_kill
 
@@ -1814,9 +1637,7 @@ contains
         integer(int64), intent(in) :: arg
         integer(int64) :: n
         logical :: first
-
         n = arg
-
         if (n > 0) then
             do while (n > 0)
                 if (forward_line(1_int64) /= 0) return
@@ -1824,14 +1645,12 @@ contains
             end do
         else
             first = .true.
-
             do while (first .or. n <= 0)
                 if (first) then
                     call beginning_of_line()
                 else if (forward_line(-1_int64) /= 0) then
                     return
                 end if
-
                 if (point() > point_min()) n = n + 1
                 first = .false.
             end do
@@ -1849,9 +1668,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: rest
         integer(int64) :: start, end
-
         start = point()
-
         if (have_arg) then
             call forward_visible_line(arg)
         else
@@ -1859,17 +1676,14 @@ contains
                 call set_error(status, FM_END_OF_BUFFER)
                 return
             end if
-
             end = line_end_position()
             call buffer_substring(start, end, rest, status)
-
             if (verify(rest, " "//achar(9)) == 0 .or. (kill_whole_line_option .and. bolp())) then
                 call forward_visible_line(1_int64)
             else
                 call goto_char(end)
             end if
         end if
-
         call kill_region(start, point(), status)
     end subroutine kill_line
 
@@ -1884,38 +1698,30 @@ contains
         type(handle_type) :: regions_begin, region1_end
         integer(int64) :: here, b, e1
         type(status_type) :: st
-
         here = point()
-
         if (arg > 0 .and. eobp()) then
             call forward_visible_line(0_int64)
             b = point()
             call goto_char(here)
-
             if (b == point_max()) then
                 call set_error(status, FM_END_OF_BUFFER)
                 return
             end if
         end if
-
         if (arg < 0 .and. bobp()) then
             call goto_char(line_end_position())
             b = point()
             call goto_char(here)
-
             if (b == point_min()) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
                 return
             end if
         end if
-
         if (.not. value_eq(last_command, sym("kill-region"))) then
             call kill_new("")
             last_command = sym("kill-region")
         end if
-
         call copy_marker_at(here, regions_begin, .false., st)
-
         if (arg == 0) then
             call forward_visible_line(0_int64)
             call copy_marker_at(point(), region1_end, .false., st)
@@ -1933,16 +1739,13 @@ contains
             call goto_char(here)
             call forward_visible_line(arg)
         end if
-
         call marker_position(regions_begin, b, st)
         call marker_position(region1_end, e1, st)
         call kill_region(b, e1, status, read_only_ok=b /= point())
-
         if (status%ok()) then
             call marker_position(regions_begin, b, st)
             call kill_region(b, point(), status)
         end if
-
         call free_marker(regions_begin, st)
         call free_marker(region1_end, st)
     end subroutine kill_whole_line
@@ -1959,10 +1762,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64) :: n, m
-
         this_command = t_value()
         call push_mark()
-
         if (nilp(arg) .or. consp(arg)) then
             n = 0
         else if (value_eq(arg, sym("-"))) then
@@ -1970,19 +1771,16 @@ contains
         else
             n = prefix_numeric_value(arg) - 1
         end if
-
         call current_kill(n, text, status)
         if (.not. status%ok()) return
         call insert_for_yank(text, status)
         if (.not. status%ok()) return
-
         if (consp(arg)) then
             ! Like exchange-point-and-mark, without activating the mark.
             m = mark_position()
             call set_marker_here()
             call goto_char(m)
         end if
-
         if (value_eq(this_command, t_value())) this_command = sym("yank")
     end subroutine yank
 
@@ -2008,12 +1806,10 @@ contains
         logical :: before
         type(value_type) :: saved
         type(status_type) :: st
-
         if (.not. value_eq(last_command, sym("yank"))) then
             call set_error(status, FM_USER_ERROR, "Previous command was not a yank")
             return
         end if
-
         this_command = sym("yank")
         m = mark_position()
         here = point()
@@ -2029,7 +1825,6 @@ contains
         if (.not. status%ok()) return
         call insert_for_yank(text, status)
         if (.not. status%ok()) return
-
         if (before) then
             m = mark_position()
             call set_marker_here()
@@ -2041,7 +1836,6 @@ contains
     subroutine set_marker_here()
         type(handle_type) :: m
         type(status_type) :: st
-
         call mark_marker(m)
         call set_marker(m, point(), st)
     end subroutine set_marker_here
@@ -2052,7 +1846,6 @@ contains
     subroutine insert_for_yank(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-
         call insert(string, status)
     end subroutine insert_for_yank
 
@@ -2063,7 +1856,6 @@ contains
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
-
         call current_kill(arg, text, status)
     end subroutine rotate_yank_pointer
 
@@ -2073,26 +1865,22 @@ contains
 
     subroutine cmd_set_mark_command(status)
         type(status_type), intent(out) :: status
-
         call set_mark_command(current_prefix_arg, status)
     end subroutine cmd_set_mark_command
 
     subroutine cmd_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
-
         call exchange_point_and_mark(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_exchange_point_and_mark
 
     subroutine cmd_mark_whole_buffer(status)
         type(status_type), intent(out) :: status
-
         status = status_type()
         call mark_whole_buffer()
     end subroutine cmd_mark_whole_buffer
 
     subroutine cmd_pop_to_mark_command(status)
         type(status_type), intent(out) :: status
-
         call pop_to_mark_command(status)
     end subroutine cmd_pop_to_mark_command
 
@@ -2101,11 +1889,9 @@ contains
     subroutine mark_and_point(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
-
         call mark(beg, status)
         if (.not. status%ok()) return
         end = point()
-
         if (beg == 0) then
             call set_error(status, FM_USER_ERROR, "The mark is not set now, so there is no region")
         end if
@@ -2114,7 +1900,6 @@ contains
     subroutine cmd_kill_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-
         call mark_and_point(beg, end, status)
         if (status%ok()) call kill_region(beg, end, status, region=.true.)
     end subroutine cmd_kill_region
@@ -2122,7 +1907,6 @@ contains
     subroutine cmd_copy_region_as_kill(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-
         call mark_and_point(beg, end, status)
         if (status%ok()) call copy_region_as_kill(beg, end, status, region=.true.)
     end subroutine cmd_copy_region_as_kill
@@ -2132,38 +1916,32 @@ contains
     !> simple.el:kill-ring-save (no indicate-copied-region yet).
     subroutine cmd_kill_ring_save(status)
         type(status_type), intent(out) :: status
-
         call cmd_copy_region_as_kill(status)
     end subroutine cmd_kill_ring_save
 
     subroutine cmd_kill_line(status)
         type(status_type), intent(out) :: status
-
         call kill_line(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), status)
     end subroutine cmd_kill_line
 
     subroutine cmd_kill_whole_line(status)
         type(status_type), intent(out) :: status
-
         call kill_whole_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_kill_whole_line
 
     subroutine cmd_yank(status)
         type(status_type), intent(out) :: status
-
         call barf_if_buffer_read_only(status)
         if (status%ok()) call yank(current_prefix_arg, status)
     end subroutine cmd_yank
 
     subroutine cmd_yank_pop(status)
         type(status_type), intent(out) :: status
-
         call yank_pop(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_yank_pop
 
     subroutine cmd_rotate_yank_pointer(status)
         type(status_type), intent(out) :: status
-
         call rotate_yank_pointer(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_rotate_yank_pointer
 end module simple_fm

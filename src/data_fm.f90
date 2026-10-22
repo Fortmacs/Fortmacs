@@ -49,7 +49,6 @@ contains
     subroutine wrong_type(status, predicate)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: predicate
-
         call set_error(status, FM_WRONG_TYPE_ARGUMENT, predicate)
     end subroutine wrong_type
 
@@ -57,7 +56,6 @@ contains
     subroutine check_fixnum(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
-
         if (.not. fixnump(v)) call wrong_type(status, "fixnump")
     end subroutine check_fixnum
 
@@ -65,7 +63,6 @@ contains
     subroutine check_symbol(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
-
         if (.not. symbolp(v)) call wrong_type(status, "symbolp")
     end subroutine check_symbol
 
@@ -73,7 +70,6 @@ contains
     subroutine check_string(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
-
         if (.not. stringp(v)) call wrong_type(status, "stringp")
     end subroutine check_string
 
@@ -81,7 +77,6 @@ contains
     subroutine check_list(v, status)
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
-
         if (.not. listp(v)) call wrong_type(status, "listp")
     end subroutine check_list
 
@@ -94,10 +89,8 @@ contains
     !> very same object is).  Port of data.c:Feq.
     elemental logical function value_eq(a, b)
         type(value_type), intent(in) :: a, b
-
         value_eq = .false.
         if (vtag(a) /= vtag(b)) return
-
         select case (vtag(a))
         case (V_NIL)
             value_eq = .true.
@@ -116,7 +109,6 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
-
         select case (vtag(list))
         case (V_LIST)
             v = list_elt(list, 1_int64)
@@ -133,7 +125,6 @@ contains
         type(value_type), intent(in) :: list
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
-
         select case (vtag(list))
         case (V_LIST)
             v = list_tail(list, 1_int64)
@@ -148,7 +139,6 @@ contains
     pure function car_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
-
         if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
     end function car_safe
 
@@ -156,7 +146,6 @@ contains
     pure function cdr_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
-
         if (vtag(list) == V_LIST) v = list_tail(list, 1_int64)
     end function cdr_safe
 
@@ -169,7 +158,6 @@ contains
         type(value_type), intent(in) :: symbol
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
-
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
@@ -179,11 +167,9 @@ contains
     !> True for symbols whose name starts with ':'.  Port of data.c:Fkeywordp.
     logical function keywordp(v)
         type(value_type), intent(in) :: v
-
         keywordp = .false.
         if (vtag(v) /= V_SYMBOL) return
         call ensure_obarray()
-
         associate (name => symbols(xsymbol(v))%name)
             if (len(name) > 0) keywordp = name(1:1) == ":"
         end associate
@@ -194,7 +180,6 @@ contains
         type(value_type), intent(in) :: symbol
         logical, intent(out) :: bound
         type(status_type), intent(out) :: status
-
         bound = .false.
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
@@ -209,17 +194,14 @@ contains
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
         integer(int64) :: id
-
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
-
         if (.not. symbols(id)%bound) then
             call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
         end if
-
         v = symbols(id)%val
     end subroutine symbol_value
 
@@ -230,20 +212,16 @@ contains
         type(value_type), intent(in) :: symbol, newval
         type(status_type), intent(out) :: status
         integer(int64) :: id
-
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
-
         if (symbols(id)%constant) then
             if (.not. (keywordp(symbol) .and. value_eq(newval, symbols(id)%val))) then
                 call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             end if
-
             return
         end if
-
         symbols(id)%val = newval
         symbols(id)%bound = .true.
     end subroutine set
@@ -253,17 +231,14 @@ contains
         type(value_type), intent(in) :: symbol
         type(status_type), intent(out) :: status
         integer(int64) :: id
-
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
-
         if (symbols(id)%constant) then
             call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             return
         end if
-
         symbols(id)%val = nil()
         symbols(id)%bound = .false.
     end subroutine makunbound

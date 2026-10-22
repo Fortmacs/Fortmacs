@@ -42,7 +42,6 @@ contains
 
     subroutine collect_buffer_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
-
         testsuite = [ &
                     new_unittest("get-buffer-create", test_create), &
                     new_unittest("empty-name-rejected", test_empty_name), &
@@ -63,7 +62,6 @@ contains
         type(handle_type), intent(out) :: h
         type(error_type), allocatable, intent(inout) :: error
         type(status_type) :: st
-
         call get_buffer_create(name, h, st)
         call check(error, st%ok(), "get_buffer_create failed: "//name)
     end subroutine make
@@ -71,7 +69,6 @@ contains
     subroutine discard(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-
         call kill_buffer(h, st)
     end subroutine discard
 
@@ -81,7 +78,6 @@ contains
         character(len=:), allocatable :: name
         type(status_type) :: st
         integer(int64) :: i
-
         call make("tb-create", a, error)
         if (allocated(error)) return
         call make("tb-create", again, error)
@@ -105,7 +101,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-
         call get_buffer_create("", h, st)
         call check(error, st%code, FM_GENERIC_ERROR)
     end subroutine test_empty_name
@@ -113,7 +108,6 @@ contains
     subroutine test_generate_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
-
         call check(error, generate_new_buffer_name("tb-gen"), "tb-gen")
         if (allocated(error)) return
         call make("tb-gen", a, error)
@@ -136,7 +130,6 @@ contains
     subroutine test_bug27966(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-
         call make("nil", h, error)
         if (allocated(error)) return
         call check(error, generate_new_buffer_name("nil") /= "nil", "returned a taken name")
@@ -148,20 +141,17 @@ contains
         type(handle_type) :: a, b, old, found
         character(len=:), allocatable :: actual, last
         type(status_type) :: st
-
         old = current_buffer()
         call make("tb-ren-a", a, error)
         if (allocated(error)) return
         call make("tb-ren-b", b, error)
         if (allocated(error)) return
         call set_buffer(a, st)
-
         call rename_buffer("tb-ren-b", .false., actual, st)
         call check(error, st%code, FM_GENERIC_ERROR)
         if (allocated(error)) return
         call check(error, st%detail, "Buffer name `tb-ren-b' is in use")
         if (allocated(error)) return
-
         call rename_buffer("tb-ren-b", .true., actual, st)
         call check(error, actual, "tb-ren-b<2>")
         if (allocated(error)) return
@@ -171,11 +161,9 @@ contains
         call buffer_last_name(a, last, st)
         call check(error, last, "tb-ren-a")
         if (allocated(error)) return
-
         ! Renaming to its own name is a no-op.
         call rename_buffer("tb-ren-b<2>", .false., actual, st)
         call check(error, st%ok() .and. actual == "tb-ren-b<2>", "self-rename failed")
-
         call set_buffer(old, st)
         call discard(a)
         call discard(b)
@@ -186,7 +174,6 @@ contains
         type(handle_type) :: h, again, found
         character(len=:), allocatable :: name
         type(status_type) :: st
-
         call make("tb-kill", h, error)
         if (allocated(error)) return
         call kill_buffer(h, st)
@@ -211,7 +198,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, hidden, old
         type(status_type) :: st
-
         old = current_buffer()
         call make("tb-kc-a", a, error)
         if (allocated(error)) return
@@ -244,7 +230,6 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         logical :: m
-
         old = current_buffer()
         call make("tb-mod", h, error)
         if (allocated(error)) return
@@ -274,7 +259,6 @@ contains
         type(handle_type) :: h, old
         type(status_type) :: st
         integer(int64) :: ticks, modt
-
         old = current_buffer()
         call make("tb-ticks", h, error)
         if (allocated(error)) return
@@ -298,7 +282,6 @@ contains
     subroutine test_modiff_incr(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: a, old
-
         a = 10
         call modiff_incr(a, 0_int64, old)
         call check(error, old == 10 .and. a == 11, "len 0 adds 1")
@@ -316,7 +299,6 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-
         old = current_buffer()
         call make("tb-ro", h, error)
         if (allocated(error)) return

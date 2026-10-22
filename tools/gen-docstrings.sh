@@ -261,7 +261,7 @@ END {
     }
     for (name in cmd) {
         proc = cmd[name]
-        # The command's own docstring, else the API function's, else that
+        # The docstring of the command itself, else of the API function, else
         # of the procedure citing it.
         d = (proc SUBSEP cmdfile[name] in pdoc) ? pdoc[proc SUBSEP cmdfile[name]] : anydoc[proc]
         if (d == "" && (name in fdoc)) d = fdoc[name]
@@ -377,6 +377,7 @@ END {
         mlist[j + 1] = x
     }
     print "    use, intrinsic :: iso_fortran_env, only: int64"
+    print "    use print_fm, only: prin1_to_string"
     for (i = 1; i <= nm; i++) {
         m = mlist[i]; sub(/\.f90$/, "", m)
         line = "    use " m ", only: "
@@ -489,7 +490,8 @@ END {
             print "            end select"
             print ""
         } else {
-            print "            entry%value = repr(" vfort[i] ")"
+            if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
+            else print "            entry%value = repr(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
     }
@@ -559,7 +561,10 @@ END {
 }
 ' "$tmp.records" >"$tmp.f90"
 
+# No blank lines inside procedure bodies (PORTING.md, Style).
+awk '/^    (subroutine|function) / { body = 1 } /^    end (subroutine|function) / { body = 0 } !(body && /^$/)' \
+    "$tmp.f90" >"$tmp.out"
 if command -v fprettify >/dev/null 2>&1; then
-    fprettify --config-file .fprettify.rc "$tmp.f90"
+    fprettify --config-file .fprettify.rc "$tmp.out" 2>/dev/null
 fi
-mv "$tmp.f90" "$out"
+mv "$tmp.out" "$out"

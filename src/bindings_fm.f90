@@ -44,6 +44,8 @@ module bindings_fm
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
+    use help_fm, only: syms_of_help
+    use help_fns_fm, only: syms_of_help_fns
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
     implicit none(type, external)
@@ -60,17 +62,25 @@ module bindings_fm
 
 contains
 
-    !> Port of bindings.el:right-char (left-to-right paragraphs only).
+    !> Move point N characters to the right (to the left if N is negative).
+    !> On reaching beginning or end of buffer, stop and signal error.
+    !>
+    !> In left-to-right text this moves forward in the buffer, like
+    !> \[forward-char].  Port of bindings.el:right-char (left-to-right
+    !> paragraphs only).
     subroutine cmd_right_char(status)
         type(status_type), intent(out) :: status
-
         call forward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_right_char
 
-    !> Port of bindings.el:left-char (left-to-right paragraphs only).
+    !> Move point N characters to the left (to the right if N is negative).
+    !> On reaching beginning or end of buffer, stop and signal error.
+    !>
+    !> In left-to-right text this moves backward in the buffer, like
+    !> \[backward-char].  Port of bindings.el:left-char (left-to-right
+    !> paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
-
         call backward_char(status, prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_char
 
@@ -80,7 +90,6 @@ contains
         character(len=*), intent(in) :: keys, cmd
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
-
         call key_parse(keys, key, status)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
@@ -92,7 +101,6 @@ contains
         character(len=*), intent(in) :: cmd
         type(value_type) :: key(1)
         type(status_type) :: status
-
         key(1) = make_fixnum(c)
         call define_key(map, key, sym(cmd), status)
     end subroutine bind_char
@@ -104,7 +112,6 @@ contains
         type(value_type), intent(in) :: to
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
-
         call key_parse(from, key, status)
         call define_key(map, key, list(to), status)
     end subroutine translate
@@ -115,19 +122,16 @@ contains
         type(status_type) :: status
         type(value_type) :: key(1)
         integer(int64) :: c
-
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
         if (keymap_live_p(ctl_x_map)) call free_keymap(ctl_x_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
-
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
         call defcommand("right-char", cmd_right_char)
         call defcommand("left-char", cmd_left_char)
-
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -137,11 +141,9 @@ contains
         key(1) = make_fixnum(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
         call bind_char(global_map, 9_int64, "self-insert-command")
-
         do c = 32, 126
             call bind_char(global_map, c, "self-insert-command")
         end do
-
         ! mule-conf.el: all non-ASCII characters self-insert (this covers
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
@@ -152,20 +154,17 @@ contains
         call bind(global_map, "C-f", "forward-char")
         call bind(global_map, "C-n", "next-line")
         call bind(global_map, "C-p", "previous-line")
-
         ! bindings.el
         call bind(global_map, "C-g", "keyboard-quit")
         call bind(global_map, "C-m", "newline")
         call bind(global_map, "C-o", "open-line")
         call bind(global_map, "C-q", "quoted-insert")
         call bind(global_map, "C-u", "universal-argument")
-
         do c = 0, 9
             call bind_char(esc_map, iachar("0") + c, "digit-argument")
             call bind_char(global_map, M_CTL + iachar("0") + c, "digit-argument")
             call bind_char(global_map, M_CTL + M_META + iachar("0") + c, "digit-argument")
         end do
-
         call bind(esc_map, "-", "negative-argument")
         call bind_char(global_map, M_CTL + iachar("-"), "negative-argument")
         call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative-argument")
@@ -183,18 +182,15 @@ contains
         call bind(global_map, "<prior>", "scroll-down-command")
         call bind(global_map, "C-v", "scroll-up-command")
         call bind(esc_map, "v", "scroll-down-command")
-
         ! window.el
         call bind(global_map, "C-l", "recenter-top-bottom")
         call bind(esc_map, "r", "move-to-window-line-top-bottom")
-
         ! Undo (bindings.el).
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
         call bind(ctl_x_map, "u", "undo")
         call bind(global_map, "C-?", "undo-redo")
         call bind(global_map, "C-M-_", "undo-redo")
-
         ! The mark and killing (bindings.el).
         call bind(global_map, "C-@", "set-mark-command")
         call bind(global_map, "C-SPC", "set-mark-command")
@@ -209,7 +205,6 @@ contains
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)
-
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its history keys from bindings.el (<up> and <down> are
         ! previous/next-line-or-history-element upstream, the same in a
@@ -223,18 +218,18 @@ contains
         call bind(minibuffer_local_map, "M-p", "previous-history-element")
         call bind(minibuffer_local_map, "<prior>", "previous-history-element")
         call bind(minibuffer_local_map, "<up>", "previous-history-element")
-
+        ! Help (help.el, help-fns.el), after the maps it names exist.
+        call syms_of_help(global_map)
+        call syms_of_help_fns()
         ! bindings.el: function-key-map, the parent of every terminal's
         ! local-function-key-map.
         call make_sparse_keymap(function_key_map)
         call translate(function_key_map, "<backspace>", make_fixnum(127_int64))
         call translate(function_key_map, "<delete>", make_fixnum(127_int64))
         call translate(function_key_map, "<kp-delete>", make_fixnum(127_int64))
-
         if (.not. keymap_live_p(local_function_key_map)) then
             call make_sparse_keymap(local_function_key_map)
         end if
-
         call set_keymap_parent(local_function_key_map, function_key_map, status)
     end subroutine init_bindings
 end module bindings_fm

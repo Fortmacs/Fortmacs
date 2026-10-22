@@ -106,7 +106,6 @@ contains
         integer(int64), intent(out) :: size
         type(status_type), intent(out) :: status
         integer(int64) :: i
-
         size = 0
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
@@ -128,7 +127,6 @@ contains
     subroutine goto_char(position)
         integer(int64), intent(in) :: position
         integer(int64) :: pos
-
         pos = max(buffers(cur)%begv, min(position, buffers(cur)%zv))
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto_char
@@ -138,7 +136,6 @@ contains
     subroutine goto_char_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
-
         call set_point_from_marker(m, status)
     end subroutine goto_char_marker
 
@@ -148,24 +145,19 @@ contains
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
         integer(int64) :: i, charpos, bytepos
-
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
-
         if (markers(i)%buffer == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
             return
         end if
-
         associate (b => buffers(cur))
             charpos = max(b%begv, min(markers(i)%charpos, b%zv))
-
             if (markers(i)%buffer /= cur) then
                 bytepos = buf_charpos_to_bytepos(cur, charpos)
             else
                 bytepos = max(b%begv_byte, min(markers(i)%bytepos, b%zv_byte))
             end if
-
             call temp_set_point_both(b, charpos, bytepos)
         end associate
     end subroutine set_point_from_marker
@@ -174,7 +166,6 @@ contains
     !> Port of editfns.c:Fpoint_marker.
     subroutine point_marker(m)
         type(handle_type), intent(out) :: m
-
         call new_marker_at(buffers(cur)%pt, buffers(cur)%pt_byte, m)
     end subroutine point_marker
 
@@ -186,7 +177,6 @@ contains
         type(handle_type), intent(out) :: m
         integer(int64) :: i
         type(status_type) :: st
-
         call resolve_marker(buffers(cur)%mark, i, st)
         if (.not. st%ok()) call make_marker(buffers(cur)%mark)
         m = buffers(cur)%mark
@@ -197,7 +187,6 @@ contains
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
-
         pos = 0
         call resolve_marker(buffers(cur)%mark, i, st)
         if (.not. st%ok()) return
@@ -211,21 +200,16 @@ contains
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
         integer(int64) :: m
-
         pos = 0
-
         if (transient_mark_mode .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
             call set_error(status, FM_MARK_INACTIVE)
             return
         end if
-
         m = mark_position()
-
         if (m == 0) then
             call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
             return
         end if
-
         if ((buffers(cur)%pt < m) .eqv. beginningp) then
             pos = buffers(cur)%pt
         else
@@ -238,7 +222,6 @@ contains
     subroutine region_beginning(pos, status)
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-
         call region_limit(.true., pos, status)
     end subroutine region_beginning
 
@@ -247,21 +230,18 @@ contains
     subroutine region_end(pos, status)
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-
         call region_limit(.false., pos, status)
     end subroutine region_end
 
     !> Port of editfns.c:Fpoint_min_marker.
     subroutine point_min_marker(m)
         type(handle_type), intent(out) :: m
-
         call new_marker_at(buffers(cur)%begv, buffers(cur)%begv_byte, m)
     end subroutine point_min_marker
 
     !> Port of editfns.c:Fpoint_max_marker.
     subroutine point_max_marker(m)
         type(handle_type), intent(out) :: m
-
         call new_marker_at(buffers(cur)%zv, buffers(cur)%zv_byte, m)
     end subroutine point_max_marker
 
@@ -270,7 +250,6 @@ contains
         integer(int64), intent(in) :: charpos, bytepos
         type(handle_type), intent(out) :: m
         type(status_type) :: st
-
         call make_marker(m)
         call set_marker_both(m, current_buffer(), charpos, bytepos, st)
     end subroutine new_marker_at
@@ -281,7 +260,6 @@ contains
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: bytepos
         logical, intent(out) :: found
-
         bytepos = 0
         found = BEG <= position .and. position <= buffers(cur)%text%z
         if (found) bytepos = char_to_byte(position)
@@ -294,12 +272,10 @@ contains
         integer(int64), intent(out) :: position
         logical, intent(out) :: found
         integer(int64) :: pos_byte
-
         position = 0
         found = BEG_BYTE <= bytepos .and. bytepos <= buffers(cur)%text%z_byte
         if (.not. found) return
         pos_byte = bytepos
-
         if (buffers(cur)%text%z /= buffers(cur)%text%z_byte) then
             ! Back up to the start of the character containing BYTEPOS.
             do while (pos_byte < buffers(cur)%text%z_byte)
@@ -307,7 +283,6 @@ contains
                 pos_byte = pos_byte - 1
             end do
         end if
-
         position = byte_to_char(pos_byte)
     end subroutine byte_to_position
 
@@ -319,7 +294,6 @@ contains
     !> Port of editfns.c:Ffollowing_char.
     integer(int32) function following_char()
         following_char = 0
-
         if (buffers(cur)%pt < buffers(cur)%zv) then
             following_char = buf_fetch_char(buffers(cur), buffers(cur)%pt_byte)
         end if
@@ -329,12 +303,9 @@ contains
     !> Port of editfns.c:Fprevious_char.
     integer(int32) function preceding_char()
         integer(int64) :: pos
-
         preceding_char = 0
-
         associate (b => buffers(cur))
             if (b%pt <= b%begv) return
-
             if (b%multibyte) then
                 pos = b%pt_byte - buf_prev_char_len(b, b%pt_byte)
                 preceding_char = buf_fetch_char(b, pos)
@@ -377,9 +348,7 @@ contains
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: pos
         integer(int64) :: pos_byte
-
         c = 0
-
         associate (b => buffers(cur))
             if (.not. present(pos)) then
                 pos_byte = b%pt_byte
@@ -388,7 +357,6 @@ contains
                 found = b%begv <= pos .and. pos < b%zv
                 if (found) pos_byte = char_to_byte(pos)
             end if
-
             if (found) c = buf_fetch_char(b, pos_byte)
         end associate
     end subroutine char_after
@@ -400,16 +368,13 @@ contains
         logical, intent(out) :: found
         integer(int64), intent(in), optional :: pos
         integer(int64) :: p, pos_byte
-
         c = 0
-
         associate (b => buffers(cur))
             p = b%pt
             if (present(pos)) p = pos
             found = b%begv < p .and. p <= b%zv
             if (.not. found) return
             pos_byte = char_to_byte(p)
-
             if (b%multibyte) then
                 pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
                 c = buf_fetch_char(b, pos_byte)
@@ -433,12 +398,10 @@ contains
         character(len=:), allocatable :: block
         integer(int32) :: clen
         integer(int64) :: n, chunk, reps
-
         if (.not. char_valid_p(c)) then
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp")
             return
         end if
-
         if (buffers(cur)%multibyte) then
             call char_string(c, str, clen, status)
             if (.not. status%ok()) return
@@ -446,19 +409,15 @@ contains
             str(1:1) = char(iand(c, 255_int32))
             clen = 1
         end if
-
         if (count <= 0) return
-
         if (BUF_BYTES_MAX/clen < count) then
             call set_error(status, FM_GENERIC_ERROR, "Maximum buffer size exceeded")
             return
         end if
-
         ! Insert in chunks of at most ~4000 bytes, as upstream.
         reps = min(count, 4000_int64/clen)
         block = repeat(str(1:clen), reps)
         n = count
-
         do while (n > 0)
             chunk = min(n, reps)
             call insert(block(1:chunk*clen), status)
@@ -473,16 +432,13 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
-
         s = min(start, end)
         e = max(start, end)
-
         associate (b => buffers(cur))
             if (.not. (BEG <= s .and. e <= b%text%z)) then
                 call range_error(status, start, end)
                 return
             end if
-
             b%begv = s
             b%begv_byte = char_to_byte(s)
             b%zv = e
@@ -508,15 +464,12 @@ contains
         integer(int64), intent(inout) :: start, end
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
-
         s = min(start, end)
         e = max(start, end)
-
         if (.not. (buffers(cur)%begv <= s .and. e <= buffers(cur)%zv)) then
             call range_error(status, start, end)
             return
         end if
-
         start = s
         end = e
     end subroutine validate_region
@@ -525,7 +478,6 @@ contains
         type(status_type), intent(inout) :: status
         integer(int64), intent(in) :: a, b
         character(len=24) :: sa, sb
-
         write (sa, "(i0)") a
         write (sb, "(i0)") b
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
@@ -538,7 +490,6 @@ contains
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
-
         s = start
         e = end
         call validate_region(s, e, status)
@@ -549,7 +500,6 @@ contains
     !> The accessible text.  Port of editfns.c:Fbuffer_string.
     function buffer_string() result(text)
         character(len=:), allocatable :: text
-
         text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
     end function buffer_string
 
@@ -559,7 +509,6 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
-
         s = start
         e = end
         call validate_region(s, e, status)
@@ -574,7 +523,6 @@ contains
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
-
         text = ""
         s = start
         e = end
@@ -595,7 +543,6 @@ contains
         integer(int64), intent(in), optional :: n
         integer(int64), intent(out), optional :: count
         integer(int64) :: cnt, charpos, bytepos, counted
-
         cnt = 0
         if (present(n)) cnt = max(-BUF_BYTES_MAX, min(n - 1, BUF_BYTES_MAX))
         if (present(count)) count = cnt
@@ -607,7 +554,6 @@ contains
     !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_bol.
     integer(int64) function pos_bol(n)
         integer(int64), intent(in), optional :: n
-
         pos_bol = bol(n)
     end function pos_bol
 
@@ -617,7 +563,6 @@ contains
     integer(int64) function line_beginning_position(n)
         integer(int64), intent(in), optional :: n
         integer(int64) :: count, charpos
-
         charpos = bol(n, count)
         line_beginning_position = constrain_to_field(charpos, buffers(cur)%pt, count /= 0, .true.)
     end function line_beginning_position
@@ -626,7 +571,6 @@ contains
     integer(int64) function eol(n)
         integer(int64), intent(in), optional :: n
         integer(int64) :: cnt
-
         cnt = 1
         if (present(n)) cnt = max(-BUF_BYTES_MAX, min(n, BUF_BYTES_MAX))
         if (cnt <= 0) cnt = cnt - 1
@@ -637,7 +581,6 @@ contains
     !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_eol.
     integer(int64) function pos_eol(n)
         integer(int64), intent(in), optional :: n
-
         pos_eol = eol(n)
     end function pos_eol
 
@@ -645,7 +588,6 @@ contains
     !> Port of editfns.c:Fline_end_position.
     integer(int64) function line_end_position(n)
         integer(int64), intent(in), optional :: n
-
         line_end_position = constrain_to_field(eol(n), buffers(cur)%pt, .false., .true.)
     end function line_end_position
 
@@ -657,7 +599,6 @@ contains
     !> The `field` symbol.
     function qfield() result(v)
         type(value_type) :: v
-
         v = sym("field")
     end function qfield
 
@@ -668,7 +609,6 @@ contains
         type(value_type), intent(in) :: prop
         type(value_type) :: v
         type(status_type) :: status
-
         call get_text_property(pos, prop, v, status)
     end function char_property
 
@@ -680,9 +620,7 @@ contains
         type(value_type), intent(in) :: prop
         type(value_type) :: v
         integer :: stickiness
-
         stickiness = text_property_stickiness(prop, position)
-
         if (stickiness > 0) then
             v = char_property(position, prop)
         else if (stickiness < 0 .and. position > buffers(cur)%begv) then
@@ -704,24 +642,20 @@ contains
         type(value_type) :: before_field, after_field, field, boundary
         integer(int64) :: p
         logical :: at_field_start, at_field_end
-
         at_field_start = .false.
         at_field_end = .false.
         boundary = sym("boundary")
         after_field = char_property(pos, qfield())
-
         if (pos > buffers(cur)%begv) then
             before_field = char_property(pos - 1, qfield())
         else
             ! Not nil: a buffer may start with a non-sticky field.
             before_field = after_field
         end if
-
         if (.not. merge_at_boundary) then
             field = get_pos_property(pos, qfield())
             if (.not. value_eq(field, after_field)) at_field_end = .true.
             if (.not. value_eq(field, before_field)) at_field_start = .true.
-
             ! A nil field between non-nil ones is a field not meant for
             ! editing (like a prompt), not a zero-length field.
             if (nilp(field) .and. at_field_start .and. at_field_end) then
@@ -729,28 +663,22 @@ contains
                 at_field_start = .false.
             end if
         end if
-
         if (at_field_start) then
             beg = pos
         else
             p = pos
-
             if (merge_at_boundary .and. value_eq(before_field, boundary)) then
                 p = previous_single_char_property_change(p, qfield(), beg_limit)
             end if
-
             beg = previous_single_char_property_change(p, qfield(), beg_limit)
         end if
-
         if (at_field_end) then
             end = pos
         else
             p = pos
-
             if (merge_at_boundary .and. value_eq(after_field, boundary)) then
                 p = next_single_char_property_change(p, qfield(), end_limit)
             end if
-
             end = next_single_char_property_change(p, qfield(), end_limit)
         end if
     end subroutine find_field
@@ -761,7 +689,6 @@ contains
         logical, intent(in) :: escape_from_edge
         integer(int64), intent(in), optional :: limit
         integer(int64) :: end
-
         call find_field(pos, escape_from_edge, field_beginning, end, beg_limit=limit)
     end function field_beginning
 
@@ -771,7 +698,6 @@ contains
         logical, intent(in) :: escape_from_edge
         integer(int64), intent(in), optional :: limit
         integer(int64) :: beg
-
         call find_field(pos, escape_from_edge, beg, field_end, end_limit=limit)
     end function field_end
 
@@ -782,7 +708,6 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: beg, end
         type(status_type) :: status
-
         call find_field(pos, .false., beg, end)
         call buffer_substring(beg, end, text, status)
     end function field_string
@@ -792,7 +717,6 @@ contains
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-
         call find_field(pos, .false., beg, end)
         if (beg /= end) call del_range(beg, end, status)
     end subroutine delete_field
@@ -809,10 +733,8 @@ contains
         logical, intent(in) :: escape_from_edge, only_in_line
         integer(int64) :: field_bound, counted, nl
         logical :: fwd
-
         pos = new_pos
         if (inhibit_field_text_motion .or. new_pos == old_pos) return
-
         if (nilp(char_property(new_pos, qfield())) .and. nilp(char_property(old_pos, qfield()))) then
             if (.not. (new_pos > buffers(cur)%begv .and. &
                        .not. nilp(char_property(new_pos - 1, qfield())))) then
@@ -820,16 +742,13 @@ contains
                            .not. nilp(char_property(old_pos - 1, qfield())))) return
             end if
         end if
-
         ! NEW_POS may not be in OLD_POS's field: try to move it there.
         fwd = new_pos > old_pos
-
         if (fwd) then
             field_bound = field_end(old_pos, escape_from_edge, new_pos)
         else
             field_bound = field_beginning(old_pos, escape_from_edge, new_pos)
         end if
-
         ! Unless escaping put the bound beyond NEW_POS already, constrain
         ! it (with ONLY_IN_LINE, only to a bound on the same line).
         if (merge(fwd,.not. fwd, field_bound < new_pos)) then
@@ -839,10 +758,8 @@ contains
                 else
                     nl = find_newline(new_pos, field_bound, 1_int64, counted)
                 end if
-
                 if (counted /= 0) return
             end if
-
             pos = field_bound
         end if
     end function constrain_to_field
