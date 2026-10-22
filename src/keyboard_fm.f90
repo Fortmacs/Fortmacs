@@ -53,6 +53,7 @@ module keyboard_fm
                          overriding_terminal_local_map
     use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
+    use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending
     implicit none(type, external)
     private
@@ -792,6 +793,7 @@ contains
             transient_active = .false.
         end if
 
+        vdeactivate_mark = .false.
         ! simple.el:command-execute
         current_prefix_arg = prefix_arg
         prefix_arg = nil()
@@ -811,6 +813,15 @@ contains
         real_last_command = real_this_command
         ! post-command-hook
         if (associated(post_command_hook)) call post_command_hook()
+
+        ! A command that changed the buffer (or asked to) ends an active
+        ! region in Transient Mark mode (simple.el:deactivate-mark).
+        if (cur /= 0) then
+            if (buffers(cur)%mark_active .and. vdeactivate_mark .and. transient_mark_mode) then
+                buffers(cur)%mark_active = .false.
+            end if
+        end if
+
         done = eof
     end subroutine command_loop_step
 

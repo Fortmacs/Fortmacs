@@ -166,21 +166,32 @@ contains
         end if
     end subroutine y_or_n_p
 
-    !> Add `newelt` to the front of history list `history_var` (a symbol
-    !> name) unless it is already first, keeping at most history-length
-    !> elements.  Port of subr.el:add-to-history
-    !> (history-delete-duplicates nil).
-    subroutine add_to_history(history_var, newelt)
+    !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
+    !> If MAXELT is present, it specifies the maximum length of the history.
+    !> Otherwise, the maximum history length is the value of the
+    !> `history_length` variable.
+    !> If KEEP-ALL is true, add NEWELT to history even if it is empty or
+    !> duplicates the most recent entry in the history.  Port of
+    !> subr.el:add-to-history (history-delete-duplicates nil).
+    subroutine add_to_history(history_var, newelt, maxelt, keep_all)
         character(len=*), intent(in) :: history_var, newelt
+        integer, intent(in), optional :: maxelt
+        logical, intent(in), optional :: keep_all
         type(value_type) :: history, first, longer
         type(value_type), allocatable :: elems(:)
         type(status_type) :: status
-        logical :: ok
+        logical :: ok, all
+        integer :: limit
 
+        limit = history_length
+        if (present(maxelt)) limit = maxelt
+        all = .false.
+        if (present(keep_all)) all = keep_all
         call symbol_value(sym(history_var), history, status)
         if (.not. status%ok()) history = nil()
+        if (.not. all .and. len(newelt) == 0) return
 
-        if (list_length(history) > 0) then
+        if (.not. all .and. list_length(history) > 0) then
             first = list_elt(history, 1_int64)
 
             if (stringp(first)) then
@@ -191,9 +202,11 @@ contains
         call cons(make_string(newelt), history, longer, ok)
         if (.not. ok) return
 
-        if (list_length(longer) > history_length) then
+        if (limit <= 0) then
+            longer = nil()
+        else if (list_length(longer) > limit) then
             call list_elements(longer, elems)
-            longer = make_list(elems(1:history_length))
+            longer = make_list(elems(1:limit))
         end if
 
         call set(sym(history_var), longer, status)
