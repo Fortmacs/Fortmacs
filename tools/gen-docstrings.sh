@@ -176,9 +176,9 @@ ingeneric != "" && /^[ \t]*module procedure/ {
         vname = decl; sub(/.*[ \t:]/, "", vname)
         type = decl; sub(/[ \t]*::.*/, "", type); sub(/^[ \t]+/, "", type)
         rest = substr($0, RLENGTH + 1)
-        isarray = (rest ~ /^\(/) ? 1 : 0
+        is_array = (rest ~ /^\(/) ? 1 : 0
         init = ""
-        if (!isarray && match(rest, /^[ \t]*=[ \t]*/)) {
+        if (!is_array && match(rest, /^[ \t]*=[ \t]*/)) {
             init = substr(rest, RLENGTH + 1)
             sub(/[ \t]*(,|&|!).*$/, "", init)
             if (init ~ /^"/ || init ~ "^\047") {
@@ -190,7 +190,7 @@ ingeneric != "" && /^[ \t]*module procedure/ {
         vdoc[key] = docstring(block)
         vcite[key] = citation(block, 1)
         vtype[key] = type
-        varr[key] = isarray
+        varr[key] = is_array
         vinit[key] = init
     }
     block = ""
