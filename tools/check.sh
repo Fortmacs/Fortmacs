@@ -83,12 +83,13 @@ if $style; then
     drifted=""
     for f in $files; do
         awk -f tools/blank-lines.awk "$f" >"$f.blank" || { rm -f "$f.blank"; exit 1; }
-        if cmp -s "$f" "$f.blank"; then
+        # (awk, not cmp or diff: the distro containers lack diffutils)
+        if awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' "$f" "$f.blank"; then
             rm -f "$f.blank"
         elif $fix; then
             mv "$f.blank" "$f"
         else
-            diff -u "$f" "$f.blank" || true
+            awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { print FILENAME ": first difference at line " FNR; exit }' "$f" "$f.blank"
             rm -f "$f.blank"
             drifted="$drifted $f"
         fi
