@@ -42,7 +42,10 @@ submodule(data_fm) data_buffer_fm
     use buffer_fm, only: buffers, cur, swap_buffer_locals_hook, fill_column, left_margin, &
                          auto_fill_function, auto_fill_proc, buffer_live_p, buffer_handle, transient_mark_mode
     use xdisp_fm, only: tab_width
-    use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc
+    use indent_fm, only: indent_tabs_mode, standard_indent, indent_line_function, indent_line_proc, &
+                         indent_line_setting, indent_line_function_name, indent_line_function_named
+    use callint_fm, only: find_command, command_type, funcall, command_name_of
+    use lisp_fm, only: command_proc
     use search_fm, only: case_fold_search
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, &
                              sentence_end_double_space, init_paragraph_variables
@@ -83,8 +86,8 @@ submodule(data_fm) data_buffer_fm
     !> has a local value, or a buffer's local value while it is not
     !> current.
     type :: procs_type
-        procedure(auto_fill_proc), pointer, nopass :: auto_fill => null()
-        procedure(indent_line_proc), pointer, nopass :: indent_line => null()
+        type(function_setting) :: auto_fill
+        type(indent_line_setting) :: indent_line
     end type procs_type
 
     type(procs_type) :: default_procs
@@ -123,86 +126,44 @@ contains
         if (k > 0) kind = FWD_KIND(k)
     end function kind_of
 
-    !> The name of an auto-fill-function as a value.
+    !> The value of an auto-fill-function as a value: its name (nil for
+    !> none; t for a procedure without a name).
     function auto_fill_value(p) result(v)
-        procedure(auto_fill_proc), pointer, intent(in) :: p
+        procedure(command_proc), pointer, intent(in) :: p
         type(value_type) :: v
+        character(len=:), allocatable :: name
         if (.not. associated(p)) then
             v = nil()
-        else if (associated(p, do_auto_fill)) then
-            v = sym("do-auto-fill")
+            return
+        end if
+        name = command_name_of(p)
+        if (len(name) > 0) then
+            v = sym(name)
         else
             v = t_value()
         end if
     end function auto_fill_value
 
-    !> The name of an indent-line-function as a value (null is the
-    !> default, `indent-relative`).
+    !> The value of an indent-line-function: its name (t for a procedure
+    !> without a name).
     function indent_line_value(p) result(v)
         procedure(indent_line_proc), pointer, intent(in) :: p
         type(value_type) :: v
-        if (.not. associated(p)) then
-            v = sym("indent-relative")
+        character(len=:), allocatable :: name
+        name = indent_line_function_name(p)
+        if (len(name) > 0) then
+            v = sym(name)
         else
             v = t_value()
         end if
     end function indent_line_value
 
-    !> The procedure named by V for auto-fill-function.
-    subroutine auto_fill_from(v, p, status)
-        type(value_type), intent(in) :: v
-        procedure(auto_fill_proc), pointer, intent(inout) :: p
+    !> auto-fill-function set to a function that has no Fortran
+    !> procedure of this kind: call it by name.
+    subroutine auto_fill_by_name(status)
         type(status_type), intent(out) :: status
-        status = status_type()
-        if (nilp(v)) then
-            p => null()
-        else if (symbolp(v) .and. symbols(xsymbol(v))%name == "do-auto-fill") then
-            p => do_auto_fill
-        else
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "functionp")
-        end if
-    end subroutine auto_fill_from
-
-    !> The procedure named by V for indent-line-function.
-    subroutine indent_line_from(v, p, status)
-        type(value_type), intent(in) :: v
-        procedure(indent_line_proc), pointer, intent(inout) :: p
-        type(status_type), intent(out) :: status
-        status = status_type()
-        if (symbolp(v) .and. .not. nilp(v)) then
-            if (symbols(xsymbol(v))%name == "indent-relative") then
-                p => null()
-                return
-            end if
-        end if
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "functionp")
-    end subroutine indent_line_from
-
-    !> A string or nil.
-    function string_or_nil(s) result(v)
-        character(len=:), allocatable, intent(in) :: s
-        type(value_type) :: v
-        if (allocated(s)) then
-            v = make_string(s)
-        else
-            v = nil()
-        end if
-    end function string_or_nil
-
-    !> Store V, a string or nil, in S.
-    subroutine set_string_or_nil(v, s, status)
-        type(value_type), intent(in) :: v
-        character(len=:), allocatable, intent(inout) :: s
-        type(status_type), intent(out) :: status
-        status = status_type()
-        if (nilp(v)) then
-            if (allocated(s)) deallocate (s)
-        else if (stringp(v)) then
-            s = xstring(v)
-        else
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
-        end if
-    end subroutine set_string_or_nil
+        call funcall(auto_fill_function%exact, status)
+    end subroutine auto_fill_by_name
 
     function bool_value(b) result(v)
         logical, intent(in) :: b
@@ -214,47 +175,115 @@ contains
         end if
     end function bool_value
 
+    !> The value of setting S given its Fortran value as FORTRAN: the exact
+    !> value if one is kept, unbound if void.
+    subroutine setting_value(s, fortran, v, bound)
+        class(setting_type), intent(in) :: s
+        type(value_type), intent(in) :: fortran
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: bound
+        bound = .not. s%void
+        if (s%has_exact) then
+            v = s%exact
+        else
+            v = fortran
+        end if
+    end subroutine setting_value
+
+    !> Keep V as the exact value of S (its Fortran value can't hold it).
+    subroutine keep_exact(s, v)
+        class(setting_type), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        s%exact = v
+        s%has_exact = .true.
+        s%void = .false.
+    end subroutine keep_exact
+
+    !> Set integer setting S to V.  With INTEGERP (a DEFVAR_PER_BUFFER with
+    !> predicate `integerp'), a non-nil V must be an integer; otherwise any
+    !> value is kept.
+    subroutine set_integer(s, v, integerp, status)
+        type(integer_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        logical, intent(in) :: integerp
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (fixnump(v)) then
+            s = xfixnum(v)
+        else if (integerp .and. .not. nilp(v)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+        else
+            call keep_exact(s, v)
+        end if
+    end subroutine set_integer
+
+    !> Set logical setting S to V (any value; the Fortran value is whether
+    !> it is non-nil).
+    subroutine set_logical(s, v)
+        type(logical_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        s = .not. nilp(v)
+        if (.not. (nilp(v) .or. value_eq(v, t_value()))) call keep_exact(s, v)
+    end subroutine set_logical
+
+    !> Set string setting S to V (any value; the Fortran value is nil
+    !> unless it is a string).
+    subroutine set_string(s, v)
+        type(string_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        if (stringp(v)) then
+            s = xstring(v)
+        else
+            call s%clear()
+            if (.not. nilp(v)) call keep_exact(s, v)
+        end if
+    end subroutine set_string
+
     !> The value of forwarded variable K in buffer B (B matters only for
-    !> slot variables; the others read the current value).
-    subroutine fwd_get(k, b, v)
+    !> slot variables; the others read the current value); BOUND is false
+    !> when it is void.
+    subroutine fwd_get(k, b, v, bound)
         integer, intent(in) :: k
         integer(int64), intent(in) :: b
         type(value_type), intent(out) :: v
+        logical, intent(out) :: bound
+        bound = .true.
         select case (trim(FWD_NAMES(k)))
         case ("fill-column")
-            v = make_fixnum(fill_column)
+            call setting_value(fill_column, make_fixnum(fill_column%value), v, bound)
         case ("left-margin")
-            v = make_fixnum(left_margin)
+            call setting_value(left_margin, make_fixnum(left_margin%value), v, bound)
         case ("tab-width")
-            v = make_fixnum(int(tab_width, int64))
+            call setting_value(tab_width, make_fixnum(tab_width%value), v, bound)
         case ("indent-tabs-mode")
-            v = bool_value(indent_tabs_mode)
+            ! A DEFVAR_BOOL: always t or nil.
+            v = bool_value(indent_tabs_mode%value)
         case ("case-fold-search")
-            v = bool_value(case_fold_search)
+            call setting_value(case_fold_search, bool_value(case_fold_search%value), v, bound)
         case ("fill-prefix")
-            v = string_or_nil(fill_prefix)
+            call setting_value(fill_prefix, string_or_nil(fill_prefix%value), v, bound)
         case ("paragraph-start")
             call init_paragraph_variables()
-            v = string_or_nil(paragraph_start)
+            call setting_value(paragraph_start, string_or_nil(paragraph_start%value), v, bound)
         case ("paragraph-separate")
             call init_paragraph_variables()
-            v = string_or_nil(paragraph_separate)
+            call setting_value(paragraph_separate, string_or_nil(paragraph_separate%value), v, bound)
         case ("sentence-end")
-            v = string_or_nil(sentence_end)
+            call setting_value(sentence_end, string_or_nil(sentence_end%value), v, bound)
         case ("sentence-end-double-space")
-            v = bool_value(sentence_end_double_space)
+            call setting_value(sentence_end_double_space, bool_value(sentence_end_double_space%value), v, bound)
         case ("adaptive-fill-mode")
-            v = bool_value(adaptive_fill_mode)
+            call setting_value(adaptive_fill_mode, bool_value(adaptive_fill_mode%value), v, bound)
         case ("auto-fill-inhibit-regexp")
-            v = string_or_nil(auto_fill_inhibit_regexp)
+            call setting_value(auto_fill_inhibit_regexp, string_or_nil(auto_fill_inhibit_regexp%value), v, bound)
         case ("standard-indent")
-            v = make_fixnum(standard_indent)
+            call setting_value(standard_indent, make_fixnum(standard_indent%value), v, bound)
         case ("auto-fill-function")
-            v = auto_fill_value(auto_fill_function)
+            call setting_value(auto_fill_function, auto_fill_value(auto_fill_function%value), v, bound)
         case ("indent-line-function")
-            v = indent_line_value(indent_line_function)
+            call setting_value(indent_line_function, indent_line_value(indent_line_function%value), v, bound)
         case ("transient-mark-mode")
-            v = bool_value(transient_mark_mode)
+            call setting_value(transient_mark_mode, bool_value(transient_mark_mode%value), v, bound)
         case ("major-mode")
             if (b > 0 .and. allocated(buffers(b)%major_mode)) then
                 v = sym(buffers(b)%major_mode)
@@ -275,51 +304,57 @@ contains
         end select
     end subroutine fwd_get
 
+    !> A string or nil.
+    function string_or_nil(s) result(v)
+        character(len=:), allocatable, intent(in) :: s
+        type(value_type) :: v
+        if (allocated(s)) then
+            v = make_string(s)
+        else
+            v = nil()
+        end if
+    end function string_or_nil
+
     !> Set forwarded variable K (of the current buffer, for slots).
+    !> Port of data.c:store_symval_forwarding.
     subroutine fwd_set(k, v, status)
         integer, intent(in) :: k
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         status = status_type()
-        if (FWD_KIND(k) == K_INT64 .or. FWD_KIND(k) == K_INT) then
-            if (.not. fixnump(v)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
-                return
-            end if
-        end if
         select case (trim(FWD_NAMES(k)))
         case ("fill-column")
-            fill_column = xfixnum(v)
+            call set_integer(fill_column, v, .true., status)
         case ("left-margin")
-            left_margin = xfixnum(v)
+            call set_integer(left_margin, v, .true., status)
         case ("tab-width")
-            tab_width = int(xfixnum(v))
+            call set_integer(tab_width, v, .true., status)
         case ("indent-tabs-mode")
             indent_tabs_mode = .not. nilp(v)
         case ("case-fold-search")
-            case_fold_search = .not. nilp(v)
+            call set_logical(case_fold_search, v)
         case ("fill-prefix")
-            call set_string_or_nil(v, fill_prefix, status)
+            call set_string(fill_prefix, v)
         case ("paragraph-start")
-            call set_string_or_nil(v, paragraph_start, status)
+            call set_string(paragraph_start, v)
         case ("paragraph-separate")
-            call set_string_or_nil(v, paragraph_separate, status)
+            call set_string(paragraph_separate, v)
         case ("sentence-end")
-            call set_string_or_nil(v, sentence_end, status)
+            call set_string(sentence_end, v)
         case ("sentence-end-double-space")
-            sentence_end_double_space = .not. nilp(v)
+            call set_logical(sentence_end_double_space, v)
         case ("adaptive-fill-mode")
-            adaptive_fill_mode = .not. nilp(v)
+            call set_logical(adaptive_fill_mode, v)
         case ("auto-fill-inhibit-regexp")
-            call set_string_or_nil(v, auto_fill_inhibit_regexp, status)
+            call set_string(auto_fill_inhibit_regexp, v)
         case ("standard-indent")
-            standard_indent = xfixnum(v)
+            call set_integer(standard_indent, v, .false., status)
         case ("auto-fill-function")
-            call auto_fill_from(v, auto_fill_function, status)
+            call set_auto_fill(auto_fill_function, v)
         case ("indent-line-function")
-            call indent_line_from(v, indent_line_function, status)
+            call set_indent_line(indent_line_function, v)
         case ("transient-mark-mode")
-            transient_mark_mode = .not. nilp(v)
+            call set_logical(transient_mark_mode, v)
         case ("major-mode")
             if (cur == 0) return
             if (.not. symbolp(v)) then
@@ -343,16 +378,118 @@ contains
         end select
     end subroutine fwd_set
 
+    !> auto-fill-function := V: the procedure of the function V names, or
+    !> a call by name.
+    subroutine set_auto_fill(s, v)
+        type(function_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        type(command_type), pointer :: c
+        if (nilp(v)) then
+            s%value => null()
+            call settle(s)
+            return
+        end if
+        c => null()
+        if (symbolp(v)) c => find_command(symbols(xsymbol(v))%name)
+        if (associated(c)) then
+            s%value => c%run
+            call settle(s)
+        else
+            s%value => auto_fill_by_name
+            call keep_exact(s, v)
+        end if
+    end subroutine set_auto_fill
+
+    !> indent-line-function := V.
+    subroutine set_indent_line(s, v)
+        type(indent_line_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        if (symbolp(v) .and. .not. nilp(v)) then
+            call indent_line_function_named(symbols(xsymbol(v))%name, s%value)
+            if (len(indent_line_function_name(s%value)) > 0) then
+                call settle(s)
+                return
+            end if
+        else
+            call indent_line_function_named("", s%value)
+        end if
+        call keep_exact(s, v)
+    end subroutine set_indent_line
+
+    !> Forget S's exact value and voidness.
+    subroutine settle(s)
+        class(setting_type), intent(inout) :: s
+        s%has_exact = .false.
+        s%void = .false.
+        s%exact = nil()
+    end subroutine settle
+
+    !> makunbound on forwarded variable K: Fset with Qunbound, which
+    !> store_symval_forwarding checks against the variable's kind.
+    subroutine fwd_makunbound(k, status)
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        status = status_type()
+        select case (trim(FWD_NAMES(k)))
+        case ("fill-column", "left-margin", "tab-width")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
+        case ("indent-tabs-mode")
+            ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
+            indent_tabs_mode = .true.
+        case ("major-mode")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
+        case ("mode-name", "buffer-read-only")
+            continue
+        case ("case-fold-search")
+            case_fold_search%void = .true.
+        case ("fill-prefix")
+            fill_prefix%void = .true.
+        case ("paragraph-start")
+            paragraph_start%void = .true.
+        case ("paragraph-separate")
+            paragraph_separate%void = .true.
+        case ("sentence-end")
+            sentence_end%void = .true.
+        case ("sentence-end-double-space")
+            sentence_end_double_space%void = .true.
+        case ("adaptive-fill-mode")
+            adaptive_fill_mode%void = .true.
+        case ("auto-fill-inhibit-regexp")
+            auto_fill_inhibit_regexp%void = .true.
+        case ("standard-indent")
+            standard_indent%void = .true.
+        case ("auto-fill-function")
+            auto_fill_function%void = .true.
+        case ("indent-line-function")
+            indent_line_function%void = .true.
+        case ("transient-mark-mode")
+            transient_mark_mode%void = .true.
+        case default
+            continue
+        end select
+    end subroutine fwd_makunbound
+
     module procedure forwarded_get
     integer :: k
+    logical :: is_bound
     k = resolve(id)
     found = k > 0
+    is_bound = .false.
     if (found) then
-        call fwd_get(k, cur, v)
+        call fwd_get(k, cur, v, is_bound)
     else
         v = nil()
     end if
+    if (present(bound)) bound = is_bound
     end procedure forwarded_get
+
+    module procedure forwarded_makunbound
+    integer :: k
+    status = status_type()
+    k = resolve(id)
+    found = k > 0
+    if (found) call fwd_makunbound(k, status)
+    end procedure forwarded_makunbound
 
     module procedure forwarded_set
     integer :: k
@@ -380,8 +517,7 @@ contains
         integer :: k
         k = resolve(id)
         if (k > 0) then
-            call fwd_get(k, cur, v)
-            bound = .true.
+            call fwd_get(k, cur, v, bound)
         else
             v = symbols(id)%val
             bound = symbols(id)%bound
@@ -398,7 +534,11 @@ contains
         k = resolve(id)
         if (k > 0) then
             ! The value came from the same variable, so it is valid.
-            if (bound) call fwd_set(k, v, st)
+            if (bound) then
+                call fwd_set(k, v, st)
+            else
+                call fwd_makunbound(k, st)
+            end if
         else
             symbols(id)%val = v
             symbols(id)%bound = bound
@@ -428,8 +568,7 @@ contains
         if (size(saved_procs, kind=int64) < b) then
             allocate (tmp(max(b, 2*size(saved_procs, kind=int64))))
             do i = 1, size(saved_procs, kind=int64)
-                tmp(i)%auto_fill => saved_procs(i)%auto_fill
-                tmp(i)%indent_line => saved_procs(i)%indent_line
+                tmp(i) = saved_procs(i)
             end do
             call move_alloc(tmp, saved_procs)
         end if
@@ -447,11 +586,11 @@ contains
                 id = buffers(old)%local_ids(i)
                 select case (kind_of(id))
                 case (K_AUTO_FILL)
-                    saved_procs(old)%auto_fill => auto_fill_function
-                    auto_fill_function => default_procs%auto_fill
+                    saved_procs(old)%auto_fill = auto_fill_function
+                    auto_fill_function = default_procs%auto_fill
                 case (K_INDENT_LINE)
-                    saved_procs(old)%indent_line => indent_line_function
-                    indent_line_function => default_procs%indent_line
+                    saved_procs(old)%indent_line = indent_line_function
+                    indent_line_function = default_procs%indent_line
                 case default
                     call get_current(id, buffers(old)%local_values(i), buffers(old)%local_bound(i))
                     call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
@@ -463,11 +602,11 @@ contains
                 id = buffers(new)%local_ids(i)
                 select case (kind_of(id))
                 case (K_AUTO_FILL)
-                    default_procs%auto_fill => auto_fill_function
-                    auto_fill_function => saved_procs(new)%auto_fill
+                    default_procs%auto_fill = auto_fill_function
+                    auto_fill_function = saved_procs(new)%auto_fill
                 case (K_INDENT_LINE)
-                    default_procs%indent_line => indent_line_function
-                    indent_line_function => saved_procs(new)%indent_line
+                    default_procs%indent_line = indent_line_function
+                    indent_line_function = saved_procs(new)%indent_line
                 case default
                     call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
                     call put_current(id, buffers(new)%local_values(i), buffers(new)%local_bound(i))
@@ -485,9 +624,9 @@ contains
         id = buffers(cur)%local_ids(i)
         select case (kind_of(id))
         case (K_AUTO_FILL)
-            auto_fill_function => default_procs%auto_fill
+            auto_fill_function = default_procs%auto_fill
         case (K_INDENT_LINE)
-            indent_line_function => default_procs%indent_line
+            indent_line_function = default_procs%indent_line
         case default
             call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
         end select
@@ -554,10 +693,10 @@ contains
     select case (kind_of(id))
     case (K_AUTO_FILL)
         call ensure_saved_procs(cur)
-        default_procs%auto_fill => auto_fill_function
+        default_procs%auto_fill = auto_fill_function
     case (K_INDENT_LINE)
         call ensure_saved_procs(cur)
-        default_procs%indent_line => indent_line_function
+        default_procs%indent_line = indent_line_function
     case default
         call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
     end select
@@ -638,18 +777,19 @@ contains
         bound = .true.
         select case (kind_of(id))
         case (K_SLOT)
-            call fwd_get(resolve(id), 0_int64, v)
+            call fwd_get(resolve(id), 0_int64, v, bound)
         case (K_AUTO_FILL)
             if (local_in_current(id)) then
-                v = auto_fill_value(default_procs%auto_fill)
+                call setting_value(default_procs%auto_fill, auto_fill_value(default_procs%auto_fill%value), v, bound)
             else
-                v = auto_fill_value(auto_fill_function)
+                call get_current(id, v, bound)
             end if
         case (K_INDENT_LINE)
             if (local_in_current(id)) then
-                v = indent_line_value(default_procs%indent_line)
+                call setting_value(default_procs%indent_line, indent_line_value(default_procs%indent_line%value), &
+                                   v, bound)
             else
-                v = indent_line_value(indent_line_function)
+                call get_current(id, v, bound)
             end if
         case default
             if (local_in_current(id)) then
@@ -698,9 +838,9 @@ contains
     case (K_SLOT)
         ! The defaults of per-buffer slots are fixed.
     case (K_AUTO_FILL)
-        call auto_fill_from(v, default_procs%auto_fill, status)
+        call set_auto_fill(default_procs%auto_fill, v)
     case (K_INDENT_LINE)
-        call indent_line_from(v, default_procs%indent_line, status)
+        call set_indent_line(default_procs%indent_line, v)
     case (0)
         symbols(id)%default_val = v
         symbols(id)%default_bound = .true.
@@ -740,7 +880,7 @@ contains
     if (buffer == cur) then
         call get_current(id, v, bound)
     else if (kind_of(id) == K_SLOT) then
-        call fwd_get(resolve(id), buffer, v)
+        call fwd_get(resolve(id), buffer, v, bound)
     else
         i = local_index(buffer, id)
         if (i == 0) then
@@ -748,9 +888,11 @@ contains
         else
             select case (kind_of(id))
             case (K_AUTO_FILL)
-                v = auto_fill_value(saved_procs(buffer)%auto_fill)
+                call setting_value(saved_procs(buffer)%auto_fill, auto_fill_value(saved_procs(buffer)%auto_fill%value), &
+                                   v, bound)
             case (K_INDENT_LINE)
-                v = indent_line_value(saved_procs(buffer)%indent_line)
+                call setting_value(saved_procs(buffer)%indent_line, &
+                                   indent_line_value(saved_procs(buffer)%indent_line%value), v, bound)
             case default
                 v = buffers(buffer)%local_values(i)
                 bound = buffers(buffer)%local_bound(i)

@@ -57,25 +57,25 @@ contains
     if (justify == JUSTIFY_NONE) return
     fc = current_fill_column()
     if (justify == JUSTIFY_LEFT .and. current_column() <= fc) return
-    if (allocated(auto_fill_inhibit_regexp)) then
+    if (allocated(auto_fill_inhibit_regexp%value)) then
         opoint = point()
         call beginning_of_line()
-        matched = looking_at(auto_fill_inhibit_regexp, st)
+        matched = looking_at(auto_fill_inhibit_regexp%value, st)
         call goto_char(opoint)
         if (matched) return
     end if
     ! (let ((fill-prefix fill-prefix)) ...)
-    have_saved = allocated(fill_prefix)
-    if (have_saved) saved_prefix = fill_prefix
+    have_saved = allocated(fill_prefix%value)
+    if (have_saved) saved_prefix = fill_prefix%value
     if (justify == JUSTIFY_FULL .or. justify == JUSTIFY_CENTER .or. justify == JUSTIFY_RIGHT) then
         opoint = point()
         call unjustify_current_line(st)
         call goto_char(min(opoint, point_max()))
     end if
     ! Choose a fill-prefix automatically.
-    have_prefix = allocated(fill_prefix)
-    if (have_prefix) have_prefix = len(fill_prefix) > 0
-    if (adaptive_fill_mode .and. .not. have_prefix) then
+    have_prefix = allocated(fill_prefix%value)
+    if (have_prefix) have_prefix = len(fill_prefix%value) > 0
+    if (adaptive_fill_mode%value .and. .not. have_prefix) then
         opoint = point()
         left = forward_paragraph(-1_int64)
         from = point()
@@ -87,7 +87,7 @@ contains
         if (have_prefix .and. len(prefix) > 0) then
             ! Use auto-indentation rather than a guessed empty prefix.
             if (.not. (fill_indent_according_to_mode .and. &
-                       string_match("\`[ "//TAB//"]*\'", prefix, st) > 0)) fill_prefix = prefix
+                       string_match("\`[ "//TAB//"]*\'", prefix, st) > 0)) fill_prefix%value = prefix
         end if
     end if
     give_up = .false.
@@ -97,7 +97,7 @@ contains
         call beginning_of_line()
         ! Don't split earlier in the line than the length of the fill
         ! prefix, since the resulting line would be longer.
-        if (allocated(fill_prefix)) call move_to_column(string_width(fill_prefix), col)
+        if (allocated(fill_prefix%value)) call move_to_column(string_width(fill_prefix%value), col)
         after_prefix = point()
         call move_to_column(fc + 1, col)
         call fill_move_to_break_point(after_prefix)
@@ -146,7 +146,7 @@ contains
     end do
     ! Justify last line.
     if (status%ok()) call justify_current_line(status, justify, .true., .true.)
-    if (allocated(fill_prefix)) deallocate (fill_prefix)
+    if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
     if (have_saved) fill_prefix = saved_prefix
     end procedure do_auto_fill
 
@@ -189,15 +189,15 @@ contains
     call goto_char(point() + 1)
     call delete_horizontal_space(.false., status)
     if (.not. status%ok()) return
-    if (allocated(fill_prefix) .and. .not. adaptive_fill_mode) then
+    if (allocated(fill_prefix%value) .and. .not. adaptive_fill_mode%value) then
         ! Blindly trust a non-adaptive fill-prefix.
         call indent_to_left_margin(status, noindent)
-        if (status%ok()) call insert_before_markers(fill_prefix, status)
-    else if (allocated(fill_prefix)) then
+        if (status%ok()) call insert_before_markers(fill_prefix%value, status)
+    else if (allocated(fill_prefix%value)) then
         ! If there's an adaptive prefix, use it unless we're inside a
         ! comment and the prefix is not a comment starter.
         call indent_to_left_margin(status, noindent)
-        if (status%ok()) call insert(fill_prefix, status)
+        if (status%ok()) call insert(fill_prefix%value, status)
     else
         ! If we're not inside a comment, just try to indent.
         call indent_according_to_mode(status)
@@ -207,7 +207,7 @@ contains
     module procedure internal_auto_fill
     status = status_type()
     if (inhibit_auto_fill) return
-    if (associated(auto_fill_function)) call auto_fill_function(status)
+    if (associated(auto_fill_function%value)) call auto_fill_function%value(status)
     end procedure internal_auto_fill
 
     module procedure auto_fill_mode
@@ -228,7 +228,7 @@ contains
         ! We used to use current-column silently, but C-x f is too easily
         ! typed as a typo for C-x C-f, so we turned it into an error and
         ! now an interactive prompt.
-        write (a, "(i0)") fill_column
+        write (a, "(i0)") fill_column%value
         call read_number("Change fill-column from "//trim(a)//" to: ", n, status, current_column())
         if (.not. status%ok()) return
     else
@@ -237,7 +237,7 @@ contains
         return
     end if
     write (a, "(i0)") n
-    write (b, "(i0)") fill_column
+    write (b, "(i0)") fill_column%value
     call message("Fill column set to "//trim(a)//" (was "//trim(b)//")")
     fill_column = n
     end procedure set_fill_column
@@ -279,11 +279,11 @@ contains
         call make_local_variable(sym("auto-fill-function"), status)
         if (.not. status%ok()) return
         if (.not. enable) then
-            auto_fill_function => null()
+            auto_fill_function%value => null()
         else if (associated(normal_auto_fill_function)) then
-            auto_fill_function => normal_auto_fill_function
+            auto_fill_function%value => normal_auto_fill_function
         else
-            auto_fill_function => do_auto_fill
+            auto_fill_function%value => do_auto_fill
         end if
     end subroutine auto_fill_body
 

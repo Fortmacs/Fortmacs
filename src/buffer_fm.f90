@@ -45,7 +45,7 @@ module buffer_fm
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: value_type, nilp, make_symbol_ref
     use lread_fm, only: intern
-    use data_fm, only: symbol_value
+    use data_fm, only: symbol_value, integer_setting, logical_setting, function_setting
     use intervals_fm, only: intervals_type, find_interval, textget
     use character_fm, only: bytes_by_char_head, raw_prev_char_len, &
                             string_char_and_length
@@ -167,7 +167,7 @@ module buffer_fm
     !> Non-nil also enables highlighting of the region whenever the mark is
     !> active.  The region is highlighted with the `region` face.  Port of
     !> buffer.c transient-mark-mode (on by default, as simple.el makes it).
-    logical, public :: transient_mark_mode = .true.
+    type(logical_setting), public :: transient_mark_mode = logical_setting(name="transient-mark-mode", value=.true.)
     !> Whether to deactivate the mark after an editing command.
     !> The command loop sets this to nil before each command,
     !> and tests the value when the command returns.
@@ -186,7 +186,7 @@ module buffer_fm
     !> Interactively, you can set the buffer local value using \[set-fill-column].
     !> Port of buffer.c fill-column (one global value; buffer-local values
     !> come with major and minor modes).
-    integer(int64), public :: fill_column = 70
+    type(integer_setting), public :: fill_column = integer_setting(name="fill-column", value=70)
 
     abstract interface
         !> Swap the buffer-local variables when buffer slot `new` becomes
@@ -211,7 +211,7 @@ module buffer_fm
     !> NOTE: This variable is not a hook;
     !> its value may not be a list of functions.  Port of buffer.c
     !> auto-fill-function (null is nil; one global value).
-    procedure(auto_fill_proc), pointer, public :: auto_fill_function => null()
+    type(function_setting), public :: auto_fill_function = function_setting(name="auto-fill-function")
 
     !> Swaps the buffer-local variables on a change of current buffer; set
     !> by data_fm (null for none).
@@ -220,7 +220,7 @@ module buffer_fm
     !> Column for the default `indent-line-function' to indent to.
     !> Linefeed indents to this column in Fundamental mode.  Port of
     !> buffer.c left-margin (one global value).
-    integer(int64), public :: left_margin = 0
+    type(integer_setting), public :: left_margin = integer_setting(name="left-margin", value=0)
 
     !> Registry storage; slot `i` is valid while its handle is live.
     type(buffer_type), allocatable, public :: buffers(:)

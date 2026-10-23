@@ -603,7 +603,7 @@ contains
         isearch_forward = forward
         isearch_regexp = flag(regexp)
         isearch_last_case_fold_search = isearch_case_fold_search
-        isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, case_fold_search)
+        isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, case_fold_search%value)
         isearch_string = ""
         isearch_message = ""
         ncmds = 0
@@ -672,7 +672,7 @@ contains
         ! If there was movement, mark the starting position.  Maybe should
         ! test difference between and set mark only if > threshold.
         if (point() /= isearch_opoint) then
-            if (.not. (transient_mark_mode .and. buffers(cur)%mark_active)) then
+            if (.not. (transient_mark_mode%value .and. buffers(cur)%mark_active)) then
                 call push_mark(isearch_opoint, nomsg=.true.)
                 if (minibuf_level == 0 .and. .not. flag(edit)) call message("Mark saved where search started")
             end if
@@ -893,7 +893,7 @@ contains
             isearch_case_fold_search = merge(CASE_FOLD_T, CASE_FOLD_NIL, &
                                              isearch_no_upper_case_p(isearch_string, isearch_regexp))
         end if
-        saved_fold = case_fold_search
+        saved_fold = case_fold_search%value
         case_fold_search = isearch_case_fold_search /= CASE_FOLD_NIL
         if (allocated(isearch_error)) deallocate (isearch_error)
         found = isearch_search_string(isearch_string, status)
@@ -937,7 +937,7 @@ contains
         type(status_type) :: status
         logical :: saved_fold
         mend = 0
-        saved_fold = case_fold_search
+        saved_fold = case_fold_search%value
         case_fold_search = fold
         if (isearch_regexp) then
             found = looking_at(string, status)

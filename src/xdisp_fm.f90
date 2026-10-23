@@ -57,7 +57,7 @@ module xdisp_fm
     use keyboard_fm, only: last_message, minibuffer_message_text
     use lisp_fm, only: value_type, nilp
     use lread_fm, only: sym
-    use data_fm, only: buffer_local_value
+    use data_fm, only: buffer_local_value, integer_setting
     implicit none(type, external)
     private
 
@@ -73,7 +73,7 @@ module xdisp_fm
     !> This controls the width of a TAB character on display.
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
-    integer, public :: tab_width = 8
+    type(integer_setting), public :: tab_width = integer_setting(name="tab-width", value=8)
 
     !> An entry of minor-mode-alist.
     type :: lighter_type
@@ -82,6 +82,10 @@ module xdisp_fm
 
     type(lighter_type), allocatable :: lighters(:)
     integer :: n_lighters = 0
+
+    !> The most cells one character can take: a TAB at the largest sane
+    !> tab-width (SANE_TAB_WIDTH).
+    integer, parameter :: MAX_CHAR_CELLS = 1000
 
 contains
 
@@ -166,9 +170,13 @@ contains
         type(glyph_type), intent(out) :: cells(:)
         integer, intent(out) :: n
         integer(int32) :: byte
+        integer :: tw
         n = 1
         if (c == 9) then
-            n = tab_width - mod(x, tab_width)
+            ! SANE_TAB_WIDTH
+            tw = 8
+            if (tab_width%value > 0 .and. tab_width%value <= 1000) tw = int(tab_width%value)
+            n = tw - mod(x, tw)
             cells(1:n)%ch = 32
         else if (c < 32 .or. c == 127) then
             ! ctl-arrow: ^@ .. ^_, ^?
@@ -197,7 +205,7 @@ contains
     integer function glyph_columns(c, x) result(n)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         call produce_char(c, x, cells, n)
     end function glyph_columns
 
@@ -216,7 +224,7 @@ contains
         logical, intent(out) :: reached_end
         !> The region to highlight with the region face, [region_beg, region_end).
         integer(int64), intent(in), optional :: region_beg, region_end
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         integer(int64) :: rb, re
         integer(int64) :: pos, pos_byte, zv
         integer(int32) :: c
@@ -384,7 +392,7 @@ contains
         ! window only (highlight-nonselected-windows nil).
         rb = 0
         re = 0
-        if (transient_mark_mode .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
+        if (transient_mark_mode%value .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
             .not. w%mini .and. selected) then
             m = buffers(bi)%mark%index
             if (m > 0) then
@@ -587,7 +595,7 @@ contains
         type(frame_type), intent(inout) :: f
         integer, intent(out) :: cursor_col
         type(glyph_type), allocatable :: line(:), grown(:)
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         type(status_type) :: status
         integer(int64) :: bi, pos, byte
         integer(int32) :: c

@@ -80,9 +80,9 @@ contains
         fill_column = 70
         sentence_end_double_space = .true.
         fill_separate_heterogeneous_words_with_space = .false.
-        if (allocated(fill_prefix)) deallocate (fill_prefix)
+        if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         if (allocated(fill_nobreak_predicate)) deallocate (fill_nobreak_predicate)
-        auto_fill_function => null()
+        auto_fill_function%value => null()
     end subroutine temp_buffer
 
     subroutine leave(h)
@@ -91,9 +91,9 @@ contains
         fill_column = 70
         sentence_end_double_space = .true.
         fill_separate_heterogeneous_words_with_space = .false.
-        if (allocated(fill_prefix)) deallocate (fill_prefix)
+        if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         if (allocated(fill_nobreak_predicate)) deallocate (fill_nobreak_predicate)
-        auto_fill_function => null()
+        auto_fill_function%value => null()
         call kill_buffer(h, st)
     end subroutine leave
 
@@ -191,7 +191,7 @@ contains
         call temp_buffer(";; one two three four five six", h)
         call goto_char(4_int64)
         call set_fill_prefix(.false.)
-        call check(error, fill_prefix, ";; ")
+        call check(error, fill_prefix%value, ";; ")
         if (allocated(error)) return
         fill_column = 14
         call fill_paragraph(st)
@@ -337,9 +337,9 @@ contains
             call insert(before, st)
             call goto_char(point_min())
         end if
-        if (index(code, "(setq-local fill-column 35)") > 0) fill_column = 35
-        if (index(code, "(setq-local sentence-end-double-space nil)") > 0) sentence_end_double_space = .false.
-        if (index(code, "(setq-local sentence-end-double-space t)") > 0) sentence_end_double_space = .true.
+        if (index(code, "(setq-local fill-column 35)") > 0) fill_column%value = 35
+        if (index(code, "(setq-local sentence-end-double-space nil)") > 0) sentence_end_double_space%value = .false.
+        if (index(code, "(setq-local sentence-end-double-space t)") > 0) sentence_end_double_space%value = .true.
         if (index(code, "(setq-local fill-separate-heterogeneous-words-with-space t)") > 0) then
             fill_separate_heterogeneous_words_with_space = .true.
         end if

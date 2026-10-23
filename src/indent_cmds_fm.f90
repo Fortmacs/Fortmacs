@@ -47,7 +47,7 @@ submodule(indent_fm) indent_cmds_fm
     use search_fm, only: looking_at, re_search_backward, re_search_forward, regexp_quote, SEARCH_NOERROR
     use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
     use keyboard_fm, only: this_command, last_command, set_transient_map
-    use callint_fm, only: current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
     use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation
     use buffer_fm, only: barf_if_buffer_read_only, vdeactivate_mark, left_margin
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
@@ -77,24 +77,61 @@ contains
     subroutine call_indent_line_function(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
-        if (associated(indent_line_function)) then
-            call indent_line_function(status, noindent)
+        if (associated(indent_line_function%value)) then
+            call indent_line_function%value(status, noindent)
         else
             call indent_relative_line(status, noindent)
         end if
     end subroutine call_indent_line_function
 
+    module procedure indent_line_function_name
+    procedure(indent_line_proc), pointer :: q
+    name = ""
+    if (.not. associated(p)) then
+        name = "indent-relative"
+        return
+    end if
+    q => indent_relative_line
+    if (associated(p, q)) name = "indent-relative"
+    q => indent_relative_first_indent_point
+    if (associated(p, q)) name = "indent-relative-first-indent-point"
+    q => indent_to_left_margin
+    if (associated(p, q)) name = "indent-to-left-margin"
+    end procedure indent_line_function_name
+
+    module procedure indent_line_function_named
+    select case (name)
+    case ("indent-relative")
+        p => indent_relative_line
+    case ("indent-relative-first-indent-point")
+        p => indent_relative_first_indent_point
+    case ("indent-to-left-margin")
+        p => indent_to_left_margin
+    case default
+        p => indent_line_by_name
+    end select
+    end procedure indent_line_function_named
+
+    ! An indent-line-function that is not one of the above: call the
+    ! function named by the variable's value.
+    recursive subroutine indent_line_by_name(status, noindent)
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: noindent
+        noindent = .false.
+        call funcall(indent_line_function%exact, status)
+    end subroutine indent_line_by_name
+
     ! Whether the indent-line-function is one of
     ! `indent-line-ignored-functions` (the indent-relative family).
     logical function ignored_indent_line_function()
         procedure(indent_line_proc), pointer :: p
-        ignored_indent_line_function = .not. associated(indent_line_function)
+        ignored_indent_line_function = .not. associated(indent_line_function%value)
         if (ignored_indent_line_function) return
         p => indent_relative_line
-        ignored_indent_line_function = associated(indent_line_function, p)
+        ignored_indent_line_function = associated(indent_line_function%value, p)
         if (ignored_indent_line_function) return
         p => indent_relative_first_indent_point
-        ignored_indent_line_function = associated(indent_line_function, p)
+        ignored_indent_line_function = associated(indent_line_function%value, p)
     end function ignored_indent_line_function
 
     !> Indent line in proper way for current major mode.
@@ -139,7 +176,7 @@ contains
         end if
     else
         ! The normal case.
-        call indent_line_function(status, noindent)
+        call indent_line_function%value(status, noindent)
     end if
     if (widened) then
         call widen()
@@ -183,9 +220,9 @@ contains
     procedure(indent_line_proc), pointer :: p
     status = status_type()
     to_left_margin = .false.
-    if (associated(indent_line_function)) then
+    if (associated(indent_line_function%value)) then
         p => indent_to_left_margin
-        to_left_margin = associated(indent_line_function, p)
+        to_left_margin = associated(indent_line_function%value, p)
     end if
     if (use_region_p()) then
         ! The region is active, indent it.
@@ -223,7 +260,7 @@ contains
     module procedure insert_tab
     integer(int64) :: count, col
     count = prefix_numeric_value(arg)
-    if (indent_tabs_mode) then
+    if (indent_tabs_mode%value) then
         call insert_char_n(9, count, status)
     else
         col = indent_to(sane_tab_width()*(count + current_column()/sane_tab_width()), status)
@@ -379,8 +416,8 @@ contains
     pos = point()
     if (eobp() .and. .not. bobp()) pos = pos - 1
     call get_text_property(pos, sym("left-margin"), v, st)
-    current_left_margin = left_margin
-    if (fixnump(v)) current_left_margin = left_margin + xfixnum(v)
+    current_left_margin = left_margin%value
+    if (fixnump(v)) current_left_margin = left_margin%value + xfixnum(v)
     current_left_margin = max(0_int64, current_left_margin)
     call goto_char(opoint)
     end procedure current_left_margin
@@ -494,11 +531,11 @@ contains
     call beginning_of_line(n)
     moved = skip_chars_forward(" "//TAB, st)
     ! Skip over fill-prefix.
-    have_prefix = allocated(fill_prefix)
-    if (have_prefix) have_prefix = len(fill_prefix) > 0
+    have_prefix = allocated(fill_prefix%value)
+    if (have_prefix) have_prefix = len(fill_prefix%value) > 0
     if (have_prefix) then
-        if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix))
-    else if (adaptive_fill_mode .and. allocated(adaptive_fill_regexp)) then
+        if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
+    else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
         if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end_0())
     end if
     ! Skip centering or flushright indentation
@@ -561,18 +598,18 @@ contains
         call marker_position(opoint_marker, opoint, st)
         call goto_char(opoint)
         call free_marker(opoint_marker, st)
-    else if (allocated(fill_prefix)) then
+    else if (allocated(fill_prefix%value)) then
         ! If a fill-prefix is specified, use it.
         ! (save-excursion ...)
         call copy_marker_at(point(), opoint_marker, .false., st)
         call copy_marker_at(end, end_marker, .false., st)
         call goto_char(start)
-        regexp = regexp_quote(fill_prefix)
+        regexp = regexp_quote(fill_prefix%value)
         do
             call marker_position(end_marker, endpos, st)
             if (point() >= endpos) exit
             if (.not. looking_at(regexp, st) .and. .not. (bolp() .and. eolp())) then
-                call insert(fill_prefix, status)
+                call insert(fill_prefix%value, status)
                 if (.not. status%ok()) exit
             end if
             shortage = forward_line(1_int64)
@@ -791,7 +828,7 @@ contains
     ! If we just added a tab, or moved over one, delete any superfluous
     ! spaces before the old point.
     if (preceding_char() == 32 .and. following_char() == 9) then
-        tabend = (current_column()/tab_width)*tab_width
+        tabend = (current_column()/tab_width%value)*tab_width%value
         do while (current_column() > tabend)
             if (preceding_char() /= 32) exit
             call goto_char(point() - 1)

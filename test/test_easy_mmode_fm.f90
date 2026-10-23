@@ -159,18 +159,18 @@ contains
         call get_buffer_create("easy-mmode-fill-B", b, st)
         call set_buffer(a, st)
         call auto_fill_mode(make_fixnum(1_int64))
-        call check(error, associated(auto_fill_function), "on in A")
+        call check(error, associated(auto_fill_function%value), "on in A")
         if (allocated(error)) return
         call check(error, local_variable_p(sym("auto-fill-function")), "auto-fill-function local")
         if (allocated(error)) return
         call check(error, mode_line_modes(a%index), "Fundamental Fill")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error,.not. associated(auto_fill_function), "off in B")
+        call check(error,.not. associated(auto_fill_function%value), "off in B")
         if (allocated(error)) return
         call set_buffer(a, st)
         call auto_fill_mode(nil(), .true.)
-        call check(error,.not. associated(auto_fill_function), "toggled off in A")
+        call check(error,.not. associated(auto_fill_function%value), "toggled off in A")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
     end subroutine test_auto_fill
@@ -181,16 +181,16 @@ contains
         type(status_type) :: st
         logical :: saved
         call syms_of_simple_modes()
-        saved = transient_mark_mode
+        saved = transient_mark_mode%value
         current_prefix_arg = make_fixnum(-1_int64)
         call minor_mode_command("transient-mark-mode", st)
         current_prefix_arg = nil()
-        call check(error,.not. transient_mark_mode, "turned off")
+        call check(error,.not. transient_mark_mode%value, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")
         if (allocated(error)) return
         call set_minor_mode("transient-mark-mode", st, make_fixnum(1_int64))
-        call check(error, transient_mark_mode, "turned on")
+        call check(error, transient_mark_mode%value, "turned on")
         transient_mark_mode = saved
     end subroutine test_global
 

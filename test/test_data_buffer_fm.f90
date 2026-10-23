@@ -26,13 +26,15 @@
 module test_data_buffer_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE
+    use error_fm, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, t_value, xfixnum, xstring, &
                        list_length, list_elt
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column, &
                          auto_fill_function
+    use search_fm, only: case_fold_search
+    use indent_fm, only: indent_tabs_mode
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
                        local_variable_p, local_variable_if_set_p, default_value, set_default, &
@@ -56,7 +58,9 @@ contains
                     new_unittest("forwarded-procedure", test_forwarded_procedure), &
                     new_unittest("kill-all-local-variables", test_kill_all), &
                     new_unittest("buffer-local-variables", test_buffer_local_variables), &
-                    new_unittest("kill-buffer-restores-defaults", test_kill_current) &
+                    new_unittest("kill-buffer-restores-defaults", test_kill_current), &
+                    new_unittest("forwarded-exact-values", test_exact), &
+                    new_unittest("makunbound-forwarded", test_makunbound_forwarded) &
                     ]
     end subroutine collect_data_buffer_fm
 
@@ -190,14 +194,14 @@ contains
         integer(int64) :: saved
         call setup(error, a, b)
         if (allocated(error)) return
-        saved = fill_column
+        saved = fill_column%value
         call set(sym("fill-column"), make_fixnum(50_int64), st)
-        call check(error, fill_column == 50, "fill_column set")
+        call check(error, fill_column%value == 50, "fill_column set")
         if (allocated(error)) return
         call check(error, local_variable_p(sym("fill-column")), "fill-column local after set")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error, fill_column == saved, "default in B")
+        call check(error, fill_column%value == saved, "default in B")
         if (allocated(error)) return
         call buffer_local_value(sym("fill-column"), a%index, v, st)
         call check(error, xfixnum(v) == 50, "buffer-local-value of A")
@@ -206,13 +210,13 @@ contains
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wrong-type-argument")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call check(error, fill_column == 50, "local again in A")
+        call check(error, fill_column%value == 50, "local again in A")
         if (allocated(error)) return
         call set_default(sym("fill-column"), make_fixnum(60_int64), st)
-        call check(error, fill_column == 50, "set-default keeps the local value")
+        call check(error, fill_column%value == 50, "set-default keeps the local value")
         if (allocated(error)) return
         call kill_local_variable(sym("fill-column"), st)
-        call check(error, fill_column == 60, "default after kill-local-variable")
+        call check(error, fill_column%value == 60, "default after kill-local-variable")
         fill_column = saved
         call teardown(a, b)
     end subroutine test_forwarded
@@ -226,22 +230,27 @@ contains
         call setup(error, a, b)
         if (allocated(error)) return
         call set(sym("auto-fill-function"), sym("do-auto-fill"), st)
-        call check(error, associated(auto_fill_function), "auto-fill on in A")
+        call check(error, associated(auto_fill_function%value), "auto-fill on in A")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error,.not. associated(auto_fill_function), "off in B")
+        call check(error,.not. associated(auto_fill_function%value), "off in B")
         if (allocated(error)) return
         call buffer_local_value(sym("auto-fill-function"), a%index, v, st)
         call check(error, value_eq(v, sym("do-auto-fill")), "named in A")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call check(error, associated(auto_fill_function), "on again in A")
+        call check(error, associated(auto_fill_function%value), "on again in A")
         if (allocated(error)) return
+        ! Any value is kept; calling it then fails as upstream.
         call set(sym("auto-fill-function"), sym("no-such-function"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "unknown function")
+        call symbol_value(sym("auto-fill-function"), v, st)
+        call check(error, value_eq(v, sym("no-such-function")), "kept exactly")
+        if (allocated(error)) return
+        call auto_fill_function%value(st)
+        call check(error, st%code == FM_VOID_FUNCTION, "void-function when called")
         call teardown(a, b)
         if (allocated(error)) return
-        call check(error,.not. associated(auto_fill_function), "off after killing A")
+        call check(error,.not. associated(auto_fill_function%value), "off after killing A")
     end subroutine test_forwarded_procedure
 
     !> kill-all-local-variables keeps permanent-local variables and
@@ -305,4 +314,60 @@ contains
         if (.not. allocated(error)) call check(error, st%code == FM_VOID_VARIABLE, "void")
         call teardown(a, b)
     end subroutine test_kill_current
+
+    !> Settings keep any value set by name, as upstream's variables do;
+    !> a Fortran assignment replaces it.
+    subroutine test_exact(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(value_type) :: v
+        logical :: saved
+        saved = case_fold_search%value
+        call set_default(sym("case-fold-search"), sym("data-test"), st)
+        call symbol_value(sym("case-fold-search"), v, st)
+        call check(error, value_eq(v, sym("data-test")) .and. case_fold_search%value, "symbol kept, true in Fortran")
+        if (allocated(error)) return
+        case_fold_search = saved
+        call symbol_value(sym("case-fold-search"), v, st)
+        call check(error, value_eq(v, t_value()) .eqv. saved, "Fortran assignment wins")
+        if (allocated(error)) return
+        call set_default(sym("fill-column"), nil(), st)
+        call check(error, st%ok(), "fill-column may be nil")
+        if (allocated(error)) return
+        call symbol_value(sym("fill-column"), v, st)
+        call check(error, nilp(v), "nil kept")
+        if (allocated(error)) return
+        call set_default(sym("fill-column"), make_string("x"), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "integerp")
+        fill_column = 70
+    end subroutine test_exact
+
+    !> makunbound on forwarded variables follows store_symval_forwarding.
+    subroutine test_makunbound_forwarded(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b
+        type(status_type) :: st
+        type(value_type) :: v
+        logical :: bound
+        call setup(error, a, b)
+        if (allocated(error)) return
+        call makunbound(sym("fill-column"), st)
+        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: integerp")
+        if (allocated(error)) return
+        indent_tabs_mode = .false.
+        call makunbound(sym("indent-tabs-mode"), st)
+        call check(error, indent_tabs_mode%value, "a DEFVAR_BOOL becomes t")
+        if (allocated(error)) return
+        call makunbound(sym("fill-prefix"), st)
+        call boundp(sym("fill-prefix"), bound, st)
+        call check(error,.not. bound, "fill-prefix void here")
+        if (allocated(error)) return
+        call symbol_value(sym("fill-prefix"), v, st)
+        call check(error, st%code == FM_VOID_VARIABLE, "void-variable")
+        if (allocated(error)) return
+        call set_buffer(b, st)
+        call boundp(sym("fill-prefix"), bound, st)
+        call check(error, bound, "still bound in B (local void binding in A)")
+        call teardown(a, b)
+    end subroutine test_makunbound_forwarded
 end module test_data_buffer_fm

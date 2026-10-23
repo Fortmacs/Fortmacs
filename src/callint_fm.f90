@@ -36,14 +36,14 @@ module callint_fm
                        fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
                        list_elt
     use lread_fm, only: intern, sym
-    use lisp_fm, only: command_type, command_proc, defined_command
+    use lisp_fm, only: command_type, command_proc, defined_command, defined_command_name_of
     use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     use data_fm, only: value_eq
     implicit none(type, external)
     private
 
     public :: command_proc, command_type, find_command, commandp, fboundp, command_defined_p, &
-              set_command_disabled, intern_command_names
+              set_command_disabled, intern_command_names, command_name_of
     public :: call_interactively, funcall, prefix_numeric_value
 
     !> callint.c:Vcurrent_prefix_arg: the raw prefix argument of the
@@ -83,6 +83,25 @@ contains
         if (.not. symbolp(v) .or. nilp(v)) return
         p => find_command(symbols(xsymbol(v))%name)
     end function symbol_command
+
+    !> The name of the function whose procedure is PROC ("" if none).
+    function command_name_of(proc) result(name)
+        procedure(command_proc) :: proc
+        character(len=:), allocatable :: name
+        type(command_type), pointer :: p
+        integer :: i
+        name = defined_command_name_of(proc)
+        if (len(name) > 0) return
+        do i = 1, size(BUILTIN_COMMAND_NAMES)
+            p => builtin_command(trim(BUILTIN_COMMAND_NAMES(i)))
+            if (.not. associated(p)) cycle
+            if (.not. associated(p%run)) cycle
+            if (associated(p%run, proc)) then
+                name = trim(BUILTIN_COMMAND_NAMES(i))
+                return
+            end if
+        end do
+    end function command_name_of
 
     !> Intern the names of the built-in commands, so that completion over
     !> the obarray (M-x) sees them.
