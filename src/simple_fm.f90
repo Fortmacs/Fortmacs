@@ -43,7 +43,7 @@ module simple_fm
     use data_fm, only: value_eq
     use character_fm, only: MAX_CHAR
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
-                         inhibit_read_only, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
+                         inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
@@ -69,7 +69,8 @@ module simple_fm
     use lread_fm, only: intern_soft
     use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
-    use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward
+    use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
+                         backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
                          SEARCH_NOERROR
     use fns_fm, only: value_equal
@@ -117,7 +118,8 @@ module simple_fm
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
               delete_all_space, just_one_space, cycle_spacing, transpose_chars, transpose_words, &
-              transpose_lines, transpose_subr, transpose_subr_1, transpose_mover
+              transpose_lines, transpose_subr, transpose_subr_1, transpose_mover, back_to_indentation, &
+              beginning_of_buffer, end_of_buffer
 
     !> String for filling to insert at front of new line, or nil for none.
     !> Unallocated is nil.  Port of simple.el fill-prefix.
@@ -184,6 +186,88 @@ module simple_fm
     integer :: cycle_spacing_last = 0
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
+
+    public :: do_auto_fill, default_indent_new_line, internal_auto_fill, auto_fill_mode, set_fill_column
+
+    !> Regexp to match lines that should not be auto-filled.  Port of
+    !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
+    character(len=:), allocatable, public :: auto_fill_inhibit_regexp
+
+    !> Non-nil means to do as if `auto-fill-mode' was disabled.  Port of
+    !> simple.el inhibit-auto-fill.
+    logical, public :: inhibit_auto_fill = .false.
+
+    !> The function to use for `auto-fill-function' if Auto Fill mode is turned on.
+    !> Some major modes set this.  Port of simple.el
+    !> normal-auto-fill-function (null is `do-auto-fill').
+    procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
+
+    interface
+        !> The default value for `normal-auto-fill-function'.
+        !> This is the default auto-fill function, some major modes use a different one.
+        !> Returns t if it really did any work.  Port of simple.el:do-auto-fill
+        !> (no comments).  (In simple_fill_fm.)
+        module subroutine do_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine do_auto_fill
+
+        !> Break line at point and indent.
+        !> If a comment syntax is defined, call `comment-line-break-function'.
+        !>
+        !> The inserted newline is marked hard if variable `use-hard-newlines' is true,
+        !> unless optional argument SOFT is non-nil.  Port of
+        !> simple.el:default-indent-new-line (no comments or hard
+        !> newlines).  (In simple_fill_fm.)
+        module subroutine default_indent_new_line(status, soft)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: soft
+        end subroutine default_indent_new_line
+
+        !> The function called by `self-insert-command' to perform auto-filling.
+        !> Port of simple.el:internal-auto-fill.  (In simple_fill_fm.)
+        module subroutine internal_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine internal_auto_fill
+
+        !> Toggle automatic line breaking (Auto Fill mode).
+        !>
+        !> When Auto Fill mode is enabled, inserting a space at a column
+        !> beyond `current-fill-column' automatically breaks the line at a
+        !> previous space.
+        !>
+        !> When `auto-fill-mode' is on, the `auto-fill-function' variable is
+        !> non-nil.
+        !>
+        !> The value of `normal-auto-fill-function' specifies the function to use
+        !> for `auto-fill-function' when turning Auto Fill mode on.  ARG is
+        !> the raw argument of a minor mode: nil or omitted toggles when
+        !> TOGGLE, else enables; a positive number enables, zero or a
+        !> negative number disables.  Port of simple.el:auto-fill-mode.
+        !> (In simple_fill_fm.)
+        module subroutine auto_fill_mode(arg, toggle)
+            implicit none(type, external)
+            type(value_type), intent(in), optional :: arg
+            logical, intent(in), optional :: toggle
+        end subroutine auto_fill_mode
+
+        !> Set `fill-column' to specified argument.
+        !> Use C-u followed by a number to specify a column.
+        !> Just C-u as argument means to use the current column.  Port of
+        !> simple.el:set-fill-column.  (In simple_fill_fm.)
+        module subroutine set_fill_column(arg, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: arg
+            type(status_type), intent(out) :: status
+        end subroutine set_fill_column
+
+        !> Register the fill commands of simple.el.  (In simple_fill_fm.)
+        module subroutine syms_of_simple_fill()
+            implicit none(type, external)
+        end subroutine syms_of_simple_fill
+    end interface
 
     abstract interface
         !> A motion for `transpose_subr`: move over N objects.
@@ -1013,6 +1097,10 @@ contains
         call defcommand("delete-indentation", cmd_delete_indentation)
         ! (defalias 'join-line #'delete-indentation)
         call defcommand("join-line", cmd_delete_indentation)
+        call defcommand("back-to-indentation", cmd_back_to_indentation)
+        call defcommand("beginning-of-buffer", cmd_beginning_of_buffer)
+        call defcommand("end-of-buffer", cmd_end_of_buffer)
+        call syms_of_simple_fill()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
@@ -2781,4 +2869,84 @@ contains
             call delete_indentation(.not. nilp(current_prefix_arg), status)
         end if
     end subroutine cmd_delete_indentation
+
+    !> Move point to the first non-whitespace character on this line.
+    !> Port of simple.el:back-to-indentation.
+    subroutine back_to_indentation()
+        integer(int64) :: moved
+        call beginning_of_line(1_int64)
+        moved = skip_syntax_forward(" ", line_end_position())
+        ! Move back over chars that have whitespace syntax but have the p
+        ! flag.
+        call backward_prefix_chars()
+    end subroutine back_to_indentation
+
+    subroutine cmd_back_to_indentation(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call back_to_indentation()
+    end subroutine cmd_back_to_indentation
+
+    !> Move point to the beginning of the buffer.
+    !> With numeric arg N, put point N/10 of the way from the beginning.
+    !> If the buffer is narrowed, this command uses the beginning of the
+    !> accessible part of the buffer.
+    !>
+    !> Push mark at previous position, unless either a C-u prefix
+    !> is supplied, or Transient Mark mode is enabled and the mark is
+    !> active.  ARG is the raw prefix argument.  Port of
+    !> simple.el:beginning-of-buffer.
+    subroutine beginning_of_buffer(arg)
+        type(value_type), intent(in) :: arg
+        integer(int64) :: size
+        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        size = point_max() - point_min()
+        if (.not. nilp(arg) .and. .not. consp(arg)) then
+            call goto_char(point_min() + 1 + (size*prefix_numeric_value(arg))/10)
+        else
+            call goto_char(point_min())
+        end if
+        ! If we went to a place in the middle of the buffer, adjust it to
+        ! the beginning of the following line.
+        if (.not. nilp(arg) .and. .not. consp(arg)) then
+            if (forward_line(1_int64) /= 0) continue
+        end if
+    end subroutine beginning_of_buffer
+
+    !> Move point to the end of the buffer.
+    !> With numeric arg N, put point N/10 of the way from the end.
+    !> If the buffer is narrowed, this command uses the end of the
+    !> accessible part of the buffer.
+    !>
+    !> Push mark at previous position, unless either a C-u prefix
+    !> is supplied, or Transient Mark mode is enabled and the mark is
+    !> active.  ARG is the raw prefix argument.  Port of
+    !> simple.el:end-of-buffer (redisplay scrolls the end into view; no
+    !> special recentering).
+    subroutine end_of_buffer(arg)
+        type(value_type), intent(in) :: arg
+        integer(int64) :: size
+        if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
+        size = point_max() - point_min()
+        if (.not. nilp(arg) .and. .not. consp(arg)) then
+            call goto_char(point_max() - (size*prefix_numeric_value(arg))/10)
+            ! If we went to a place in the middle of the buffer, adjust it
+            ! to the beginning of a line.
+            if (forward_line(1_int64) /= 0) continue
+        else
+            call goto_char(point_max())
+        end if
+    end subroutine end_of_buffer
+
+    subroutine cmd_beginning_of_buffer(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call beginning_of_buffer(current_prefix_arg)
+    end subroutine cmd_beginning_of_buffer
+
+    subroutine cmd_end_of_buffer(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call end_of_buffer(current_prefix_arg)
+    end subroutine cmd_end_of_buffer
 end module simple_fm

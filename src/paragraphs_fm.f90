@@ -46,7 +46,7 @@ module paragraphs_fm
     implicit none(type, external)
     private
 
-    public :: transpose_paragraphs, transpose_sentences
+    public :: transpose_paragraphs, transpose_sentences, init_paragraph_variables
     public :: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, backward_kill_paragraph, &
               start_of_paragraph_text, end_of_paragraph_text, syms_of_paragraphs
     public :: sentence_end_regexp, forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &

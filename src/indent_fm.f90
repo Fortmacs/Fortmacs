@@ -31,14 +31,225 @@ module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len
     use marker_fm, only: char_to_byte
-    use editfns_fm, only: goto_char, pos_bol
-    use xdisp_fm, only: glyph_columns
+    use error_fm, only: status_type
+    use lisp_fm, only: value_type
+    use editfns_fm, only: goto_char, pos_bol, point, insert_char_n
+    use insdel_fm, only: del_range
+    use xdisp_fm, only: glyph_columns, tab_width
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, window_text_cols
     implicit none(type, external)
     private
 
-    public :: current_column, move_to_column, vertical_motion, screen_column, window_text_width
+    public :: current_column, move_to_column, vertical_motion, screen_column, window_text_width, &
+              indent_to, current_indentation, sane_tab_width
+
+    !> Indentation can insert tabs if this is non-nil.  Port of indent.c
+    !> indent-tabs-mode (one global value).
+    logical, public :: indent_tabs_mode = .true.
+
+    ! ------------------------------------------------------------------
+    ! indent.el, in the submodule indent_cmds_fm
+    ! ------------------------------------------------------------------
+
+    public :: indent_line_proc, indent_region_proc
+    public :: indent_according_to_mode, indent_for_tab_command, insert_tab, indent_rigidly, indent_rigidly_left, &
+              indent_rigidly_right, indent_rigidly_left_to_tab_stop, indent_rigidly_right_to_tab_stop, &
+              indent_line_to, current_left_margin, move_to_left_margin, indent_to_left_margin, &
+              delete_to_left_margin, beginning_of_line_text, indent_region, indent_region_line_by_line, &
+              indent_relative, indent_relative_first_indent_point, indent_next_tab_stop, &
+              indent_accumulate_tab_stops, tab_to_tab_stop, move_to_tab_stop, syms_of_indent
+
+    abstract interface
+        !> An `indent-line-function`: indent the current line; `noindent`
+        !> says it could not (the value `noindent`).
+        subroutine indent_line_proc(status, noindent)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: noindent
+        end subroutine indent_line_proc
+
+        !> An `indent-region-function`.
+        subroutine indent_region_proc(start, end, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_region_proc
+    end interface
+
+    !> Default number of columns for margin-changing functions to indent.
+    !> Port of indent.el standard-indent.
+    integer(int64), public :: standard_indent = 4
+
+    !> Controls the operation of the TAB key.
+    !> If t, hitting TAB always just indents the current line.
+    !> If nil, hitting TAB indents the current line if point is at the left margin
+    !> or in the line's indentation, otherwise it inserts a "real" TAB character.
+    !> Port of indent.el tab-always-indent (no `complete`).
+    logical, public :: tab_always_indent = .true.
+
+    !> List of tab stop positions used by `tab-to-tab-stop'.
+    !> This should be nil, or a list of integers, ordered from smallest to largest.
+    !> It implicitly extends to infinity through repetition of the last step.
+    !> For example, (1 2 5) is equivalent to (1 2 5 8 11 ...).  If the list has
+    !> fewer than 2 elements, `tab-width' is used as the "last step".
+    !> A value of nil means a tab stop every `tab-width' columns.  Port of
+    !> indent.el tab-stop-list (unallocated or empty is nil).
+    integer(int64), allocatable, public :: tab_stop_list(:)
+
+    !> Function to indent the current line.
+    !> This function will be called with no arguments.
+    !> If it is called somewhere where it cannot auto-indent, the function
+    !> should return `noindent' to signal that it didn't.
+    !> Setting this function is all you need to make TAB indent appropriately.
+    !> Don't rebind TAB unless you really need to.  Port of indent.el
+    !> indent-line-function (null is the default, `indent-relative`).
+    procedure(indent_line_proc), pointer, public :: indent_line_function => null()
+
+    !> Short cut function to indent region using `indent-according-to-mode'.
+    !> Default is to really run `indent-according-to-mode' on each line.
+    !> Port of indent.el indent-region-function (null is
+    !> `indent-region-line-by-line`).
+    procedure(indent_region_proc), pointer, public :: indent_region_function => null()
+
+    interface
+        module subroutine indent_according_to_mode(status, inhibit_widen)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: inhibit_widen
+        end subroutine indent_according_to_mode
+
+        module subroutine indent_for_tab_command(arg, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: arg
+            type(status_type), intent(out) :: status
+        end subroutine indent_for_tab_command
+
+        module subroutine insert_tab(arg, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: arg
+            type(status_type), intent(out) :: status
+        end subroutine insert_tab
+
+        module subroutine indent_rigidly(start, end, arg, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end, arg
+            type(status_type), intent(out) :: status
+        end subroutine indent_rigidly
+
+        module subroutine indent_rigidly_left(beg, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_rigidly_left
+
+        module subroutine indent_rigidly_right(beg, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_rigidly_right
+
+        module subroutine indent_rigidly_left_to_tab_stop(beg, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_rigidly_left_to_tab_stop
+
+        module subroutine indent_rigidly_right_to_tab_stop(beg, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_rigidly_right_to_tab_stop
+
+        module subroutine indent_line_to(column, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: column
+            type(status_type), intent(out) :: status
+        end subroutine indent_line_to
+
+        module integer(int64) function current_left_margin()
+            implicit none(type, external)
+        end function current_left_margin
+
+        module subroutine move_to_left_margin(status, n, force)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: n
+            logical, intent(in), optional :: force
+        end subroutine move_to_left_margin
+
+        module subroutine indent_to_left_margin(status, noindent)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: noindent
+        end subroutine indent_to_left_margin
+
+        module subroutine delete_to_left_margin(status, from, to)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: from, to
+        end subroutine delete_to_left_margin
+
+        module subroutine beginning_of_line_text(n)
+            implicit none(type, external)
+            integer(int64), intent(in), optional :: n
+        end subroutine beginning_of_line_text
+
+        module subroutine indent_region(start, end, status, column)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: column
+        end subroutine indent_region
+
+        module subroutine indent_region_line_by_line(start, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine indent_region_line_by_line
+
+        module subroutine indent_relative(status, first_only, unindented_ok, noindent)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: first_only, unindented_ok
+            logical, intent(out), optional :: noindent
+        end subroutine indent_relative
+
+        module subroutine indent_relative_first_indent_point(status, noindent)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: noindent
+        end subroutine indent_relative_first_indent_point
+
+        module integer(int64) function indent_next_tab_stop(column, prev)
+            implicit none(type, external)
+            integer(int64), intent(in) :: column
+            logical, intent(in), optional :: prev
+        end function indent_next_tab_stop
+
+        module function indent_accumulate_tab_stops(limit) result(stops)
+            implicit none(type, external)
+            integer(int64), intent(in) :: limit
+            integer(int64), allocatable :: stops(:)
+        end function indent_accumulate_tab_stops
+
+        module subroutine tab_to_tab_stop(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine tab_to_tab_stop
+
+        module subroutine move_to_tab_stop(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine move_to_tab_stop
+
+        !> Register the indentation commands.
+        module subroutine syms_of_indent()
+            implicit none(type, external)
+        end subroutine syms_of_indent
+    end interface
 
     !> Width when no window is set up (as in batch use).
     integer, parameter :: DEFAULT_WIDTH = 80
@@ -61,27 +272,131 @@ contains
         end do
     end function current_column
 
-    !> Move point to column `column` in the current line: after a character
-    !> that spans it, or to the end of the line if it is too short.
-    !> `reached` is the column point ends up at.  Port of
-    !> indent.c:Fmove_to_column (no FORCE).
-    subroutine move_to_column(column, reached)
+    !> Move point to column COLUMN in the current line.
+    !> The column of a character is calculated by adding together the widths
+    !> as displayed of the previous characters in the line.
+    !> This function ignores line-continuation;
+    !> there is no upper limit on the column number a character can have
+    !> and horizontal scrolling has no effect.
+    !>
+    !> If specified column is within a character, point goes after that character.
+    !> If it's past end of line, point goes to end of line.
+    !>
+    !> Optional argument FORCE non-nil means if COLUMN is in the
+    !> middle of a tab character, either change it to spaces (when
+    !> `indent-tabs-mode' is nil), or insert enough spaces before it to reach
+    !> COLUMN (otherwise).  In addition, if FORCE is t, and the line is too short
+    !> to reach COLUMN, add spaces/tabs to get there.
+    !>
+    !> The return value is the current column (`reached`).  Port of
+    !> indent.c:Fmove_to_column (FORCE is t or nil).
+    subroutine move_to_column(column, reached, force, status)
         integer(int64), intent(in) :: column
         integer(int64), intent(out) :: reached
-        integer(int64) :: pos, byte
+        logical, intent(in), optional :: force
+        type(status_type), intent(out), optional :: status
+        integer(int64) :: pos, byte, prev_pos, prev_col, goal_pt, col
         integer(int32) :: c
+        type(status_type) :: st
         pos = pos_bol()
         byte = char_to_byte(pos)
         reached = 0
+        prev_pos = pos
+        prev_col = 0
+        c = 0
         do while (pos < buffers(cur)%zv .and. reached < column)
             c = buf_fetch_char(buffers(cur), byte)
             if (c == 10) exit
+            prev_pos = pos
+            prev_col = reached
             reached = reached + glyph_columns(c, int(reached))
             byte = byte + buf_next_char_len(buffers(cur), byte)
             pos = pos + 1
         end do
         call goto_char(pos)
+        if (present(status)) status = status_type()
+        if (.not. present(force)) return
+        if (.not. force) return
+        ! If a tab char made us overshoot, change it to spaces and scan
+        ! through it again.
+        if (reached > column .and. c == 9 .and. prev_col < column .and. prev_pos < pos) then
+            ! Insert spaces in front of the tab to reach GOAL.  Do this
+            ! first so that a marker at the end of the tab gets adjusted.
+            call goto_char(prev_pos)
+            call insert_char_n(32, column - prev_col, st)
+            ! Now delete the tab, and indent to COL.
+            if (st%ok()) call del_range(point(), point() + 1, st)
+            goal_pt = point()
+            if (st%ok()) col = indent_to(reached, st)
+            call goto_char(goal_pt)
+            reached = column
+        end if
+        ! If line ends prematurely, add space to the end.
+        if (reached < column .and. st%ok()) reached = indent_to(column, st)
+        if (present(status)) status = st
     end subroutine move_to_column
+
+    !> Indent from point with tabs and spaces until COLUMN is reached.
+    !> Optional second argument MINIMUM says always do at least MINIMUM spaces
+    !> even if that goes past COLUMN; by default, MINIMUM is zero.
+    !>
+    !> Whether this uses tabs or spaces depends on `indent-tabs-mode'.
+    !>
+    !> The return value is the column where the insertion ends.  Port of
+    !> indent.c:Findent_to.
+    integer(int64) function indent_to(column, status, minimum) result(mincol)
+        integer(int64), intent(in) :: column
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: minimum
+        integer(int64) :: fromcol, n, tw
+        status = status_type()
+        tw = sane_tab_width()
+        fromcol = current_column()
+        mincol = fromcol
+        if (present(minimum)) mincol = fromcol + minimum
+        if (mincol < column) mincol = column
+        if (fromcol == mincol) return
+        if (indent_tabs_mode) then
+            n = mincol/tw - fromcol/tw
+            if (n /= 0) then
+                call insert_char_n(9, n, status)
+                if (.not. status%ok()) return
+                fromcol = (mincol/tw)*tw
+            end if
+        end if
+        call insert_char_n(32, mincol - fromcol, status)
+    end function indent_to
+
+    !> Return the indentation of the current line.
+    !> This is the horizontal position of the character following any initial
+    !> whitespace.  Port of indent.c:Fcurrent_indentation (no invisible
+    !> text).
+    integer(int64) function current_indentation() result(col)
+        integer(int64) :: pos, byte, tw
+        integer(int32) :: c
+        tw = sane_tab_width()
+        pos = pos_bol()
+        byte = char_to_byte(pos)
+        col = 0
+        do while (pos < buffers(cur)%zv)
+            c = buf_fetch_char(buffers(cur), byte)
+            if (c == 32) then
+                col = col + 1
+            else if (c == 9) then
+                col = col + tw - mod(col, tw)
+            else
+                exit
+            end if
+            byte = byte + 1
+            pos = pos + 1
+        end do
+    end function current_indentation
+
+    !> tab-width, or 8 if it is not in 1..1000 (SANE_TAB_WIDTH).
+    integer(int64) function sane_tab_width() result(tw)
+        tw = tab_width
+        if (tw <= 0 .or. tw > 1000) tw = 8
+    end function sane_tab_width
 
     !> The width available for text in the selected window: its columns
     !> less the last, which holds the continuation glyph.

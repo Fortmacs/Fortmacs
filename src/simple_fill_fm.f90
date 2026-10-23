@@ -1,0 +1,300 @@
+! simple_fill_fm.f90 -- auto-fill and fill-column, a submodule of simple_fm.
+! Ported from GNU Emacs 31.1 lisp/simple.el.
+!
+! Copyright (C) 1985-2026 Free Software Foundation, Inc.
+! Copyright (C) 2026 The Fortmacs authors
+!
+! This file is part of Fortmacs.
+!
+! Fortmacs is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! Fortmacs is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
+!> Auto Fill mode (`do-auto-fill`, `internal-auto-fill`,
+!> `auto-fill-mode`), `default-indent-new-line` (M-j) and
+!> `set-fill-column` (C-x f): a submodule because they use fill_fm,
+!> which uses simple_fm.
+submodule(simple_fm) simple_fill_fm
+    use buffer_fm, only: fill_column, auto_fill_function
+    use cmds_fm, only: internal_auto_fill_hook, end_of_line
+    use indent_fm, only: current_column, move_to_column, indent_to_left_margin, indent_according_to_mode
+    use subr_fm, only: read_number
+    use fill_fm, only: current_justification, current_fill_column, fill_context_prefix, &
+                       fill_move_to_break_point, justify_current_line, unjustify_current_line, string_width, &
+                       adaptive_fill_mode, fill_indent_according_to_mode, JUSTIFY_NONE, JUSTIFY_LEFT, &
+                       JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_RIGHT
+    use paragraphs_fm, only: forward_paragraph
+    use search_fm, only: string_match
+    use insdel_fm, only: insert_before_markers
+    implicit none(type, external)
+
+contains
+
+    module procedure do_auto_fill
+    integer(int64) :: fc, opoint, after_prefix, fill_point, prev_column, col, moved, from, to, left
+    integer :: justify
+    character(len=:), allocatable :: prefix, saved_prefix
+    logical :: give_up, have_prefix, have_saved, matched, no_good
+    type(status_type) :: st
+    type(handle_type) :: m
+    status = status_type()
+    justify = current_justification()
+    if (justify == JUSTIFY_NONE) return
+    fc = current_fill_column()
+    if (justify == JUSTIFY_LEFT .and. current_column() <= fc) return
+    if (allocated(auto_fill_inhibit_regexp)) then
+        opoint = point()
+        call beginning_of_line()
+        matched = looking_at(auto_fill_inhibit_regexp, st)
+        call goto_char(opoint)
+        if (matched) return
+    end if
+    ! (let ((fill-prefix fill-prefix)) ...)
+    have_saved = allocated(fill_prefix)
+    if (have_saved) saved_prefix = fill_prefix
+    if (justify == JUSTIFY_FULL .or. justify == JUSTIFY_CENTER .or. justify == JUSTIFY_RIGHT) then
+        opoint = point()
+        call unjustify_current_line(st)
+        call goto_char(min(opoint, point_max()))
+    end if
+    ! Choose a fill-prefix automatically.
+    have_prefix = allocated(fill_prefix)
+    if (have_prefix) have_prefix = len(fill_prefix) > 0
+    if (adaptive_fill_mode .and. .not. have_prefix) then
+        opoint = point()
+        left = forward_paragraph(-1_int64)
+        from = point()
+        call goto_char(opoint)
+        left = forward_paragraph(1_int64)
+        to = point()
+        call goto_char(opoint)
+        call fill_context_prefix(from, to, prefix, have_prefix)
+        if (have_prefix .and. len(prefix) > 0) then
+            ! Use auto-indentation rather than a guessed empty prefix.
+            if (.not. (fill_indent_according_to_mode .and. &
+                       string_match("\`[ "//TAB//"]*\'", prefix, st) > 0)) fill_prefix = prefix
+        end if
+    end if
+    give_up = .false.
+    do while (.not. give_up .and. current_column() > fc)
+        ! Determine where to split the line.
+        opoint = point()
+        call beginning_of_line()
+        ! Don't split earlier in the line than the length of the fill
+        ! prefix, since the resulting line would be longer.
+        if (allocated(fill_prefix)) call move_to_column(string_width(fill_prefix), col)
+        after_prefix = point()
+        call move_to_column(fc + 1, col)
+        call fill_move_to_break_point(after_prefix)
+        fill_point = point()
+        call goto_char(opoint)
+        ! See whether the place we found is any good.
+        call goto_char(fill_point)
+        no_good = bolp()
+        if (.not. no_good) then
+            ! There is no use breaking at end of line.
+            moved = skip_chars_forward(" ", st)
+            no_good = eolp()
+        end if
+        call goto_char(opoint)
+        if (no_good) then
+            ! No good place to break => stop trying.
+            give_up = .true.
+        else
+            ! Ok, we have a useful place to break the line.  Do it.
+            prev_column = current_column()
+            ! If point is at the fill-point, do not `save-excursion'.
+            ! Otherwise, if a comment prefix or fill-prefix is inserted,
+            ! point will end up before it rather than after it.
+            moved = skip_chars_backward(" "//TAB, st)
+            if (point() == fill_point) then
+                call default_indent_new_line(status, .true.)
+            else
+                call goto_char(opoint)
+                call save_excursion_newline_at(fill_point, status)
+            end if
+            if (.not. status%ok()) exit
+            ! Now do justification, if required
+            if (justify /= JUSTIFY_LEFT) then
+                ! (save-excursion)
+                call copy_marker_at(point(), m, .false., st)
+                call end_of_line(0_int64)
+                call justify_current_line(st, justify, .false., .true.)
+                call marker_position(m, opoint, st)
+                call goto_char(opoint)
+                call free_marker(m, st)
+            end if
+            ! If making the new line didn't reduce the hpos of the end of
+            ! the line, then give up now; trying again will not help.
+            if (current_column() >= prev_column) give_up = .true.
+        end if
+    end do
+    ! Justify last line.
+    if (status%ok()) call justify_current_line(status, justify, .true., .true.)
+    if (allocated(fill_prefix)) deallocate (fill_prefix)
+    if (have_saved) fill_prefix = saved_prefix
+    end procedure do_auto_fill
+
+    ! (save-excursion (goto-char FILL-POINT) (default-indent-new-line t)),
+    ! point kept with a marker.
+    subroutine save_excursion_newline_at(fill_point, status)
+        integer(int64), intent(in) :: fill_point
+        type(status_type), intent(out) :: status
+        type(handle_type) :: m
+        type(status_type) :: st
+        integer(int64) :: pos
+        call copy_marker_at(point(), m, .false., st)
+        call goto_char(fill_point)
+        call default_indent_new_line(status, .true.)
+        call marker_position(m, pos, st)
+        call goto_char(pos)
+        call free_marker(m, st)
+    end subroutine save_excursion_newline_at
+
+    module procedure default_indent_new_line
+    integer(int64) :: opoint
+    logical :: noindent
+    status = status_type()
+    ! Insert the newline before removing empty space so that markers get
+    ! preserved better.
+    if (present(soft)) then
+        if (soft) then
+            call insert(LF, status)
+        else
+            call newline(1_int64, status)
+        end if
+    else
+        call newline(1_int64, status)
+    end if
+    if (.not. status%ok()) return
+    opoint = point()
+    call goto_char(point() - 1)
+    call delete_horizontal_space(.false., status)
+    if (.not. status%ok()) return
+    call goto_char(point() + 1)
+    call delete_horizontal_space(.false., status)
+    if (.not. status%ok()) return
+    if (allocated(fill_prefix) .and. .not. adaptive_fill_mode) then
+        ! Blindly trust a non-adaptive fill-prefix.
+        call indent_to_left_margin(status, noindent)
+        if (status%ok()) call insert_before_markers(fill_prefix, status)
+    else if (allocated(fill_prefix)) then
+        ! If there's an adaptive prefix, use it unless we're inside a
+        ! comment and the prefix is not a comment starter.
+        call indent_to_left_margin(status, noindent)
+        if (status%ok()) call insert(fill_prefix, status)
+    else
+        ! If we're not inside a comment, just try to indent.
+        call indent_according_to_mode(status)
+    end if
+    end procedure default_indent_new_line
+
+    module procedure internal_auto_fill
+    status = status_type()
+    if (inhibit_auto_fill) return
+    if (associated(auto_fill_function)) call auto_fill_function(status)
+    end procedure internal_auto_fill
+
+    module procedure auto_fill_mode
+    logical :: enable
+    enable = .true.
+    if (present(arg)) then
+        if (nilp(arg)) then
+            if (present(toggle)) then
+                if (toggle) enable = .not. associated(auto_fill_function)
+            end if
+        else
+            enable = prefix_numeric_value(arg) > 0
+        end if
+    else if (present(toggle)) then
+        if (toggle) enable = .not. associated(auto_fill_function)
+    end if
+    if (enable) then
+        if (associated(normal_auto_fill_function)) then
+            auto_fill_function => normal_auto_fill_function
+        else
+            auto_fill_function => do_auto_fill
+        end if
+    else
+        auto_fill_function => null()
+    end if
+    end procedure auto_fill_mode
+
+    module procedure set_fill_column
+    integer(int64) :: n
+    character(len=24) :: a, b
+    status = status_type()
+    if (consp(arg)) then
+        n = current_column()
+    else if (fixnump(arg)) then
+        n = xfixnum(arg)
+    else if (nilp(arg)) then
+        ! We used to use current-column silently, but C-x f is too easily
+        ! typed as a typo for C-x C-f, so we turned it into an error and
+        ! now an interactive prompt.
+        write (a, "(i0)") fill_column
+        call read_number("Change fill-column from "//trim(a)//" to: ", n, status, current_column())
+        if (.not. status%ok()) return
+    else
+        ! Disallow missing argument; it's probably a typo for C-x C-f.
+        call set_error(status, FM_GENERIC_ERROR, "set-fill-column requires an explicit argument")
+        return
+    end if
+    write (a, "(i0)") n
+    write (b, "(i0)") fill_column
+    call message("Fill column set to "//trim(a)//" (was "//trim(b)//")")
+    fill_column = n
+    end procedure set_fill_column
+
+    subroutine cmd_auto_fill_mode(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call auto_fill_mode(current_prefix_arg, .true.)
+        if (associated(auto_fill_function)) then
+            call message("Auto-Fill mode enabled")
+        else
+            call message("Auto-Fill mode disabled")
+        end if
+    end subroutine cmd_auto_fill_mode
+
+    subroutine cmd_turn_on_auto_fill(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call auto_fill_mode(make_fixnum(1_int64))
+    end subroutine cmd_turn_on_auto_fill
+
+    subroutine cmd_turn_off_auto_fill(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call auto_fill_mode(make_fixnum(-1_int64))
+    end subroutine cmd_turn_off_auto_fill
+
+    subroutine cmd_set_fill_column(status)
+        type(status_type), intent(out) :: status
+        call set_fill_column(current_prefix_arg, status)
+    end subroutine cmd_set_fill_column
+
+    subroutine cmd_default_indent_new_line(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call default_indent_new_line(status)
+    end subroutine cmd_default_indent_new_line
+
+    module procedure syms_of_simple_fill
+    internal_auto_fill_hook => internal_auto_fill
+    call defcommand("auto-fill-mode", cmd_auto_fill_mode)
+    call defcommand("turn-on-auto-fill", cmd_turn_on_auto_fill)
+    call defcommand("turn-off-auto-fill", cmd_turn_off_auto_fill)
+    call defcommand("set-fill-column", cmd_set_fill_column)
+    call defcommand("default-indent-new-line", cmd_default_indent_new_line)
+    end procedure syms_of_simple_fill
+end submodule simple_fill_fm

@@ -27,12 +27,17 @@
 module docstrings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use print_fm, only: prin1_to_string
-    use buffer_fm, only: transient_mark_mode
+    use buffer_fm, only: fill_column, left_margin, transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use casefiddle_fm, only: case_symbols_as_words
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use files_fm, only: make_backup_files
+    use fill_fm, only: adaptive_fill_mode, colon_double_space, default_justification, JUSTIFY_NONE, &
+                       JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
+                       fill_indent_according_to_mode, fill_nobreak_predicate, &
+                       fill_separate_heterogeneous_words_with_space
+    use indent_fm, only: indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
     use isearch_fm, only: isearch_lax_whitespace, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
@@ -45,8 +50,9 @@ module docstrings_fm
     use replace_fm, only: case_replace, query_replace_show_replacement, query_replace_skip_read_only, &
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
-    use simple_fm, only: cycle_spacing_actions, delete_active_region, goal_column, kill_read_only_ok, &
-                         kill_ring_max, kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
+    use simple_fm, only: cycle_spacing_actions, delete_active_region, goal_column, inhibit_auto_fill, &
+                         kill_read_only_ok, kill_ring_max, kill_whole_line_option, line_move_visual, mark_ring_max, &
+                         suggest_key_bindings
     use subr_fm, only: history_length
     use syntax_fm, only: words_include_escapes
     use term_fm, only: visible_bell
@@ -74,9 +80,11 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(250) = [character(len=30) :: &
+    character(len=34), parameter, public :: function_names(290) = [character(len=34) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
+                                                                   "auto-fill-mode", &
+                                                                   "back-to-indentation", &
                                                                    "backward-char", &
                                                                    "backward-kill-paragraph", &
                                                                    "backward-kill-sentence", &
@@ -84,12 +92,15 @@ module docstrings_fm
                                                                    "backward-paragraph", &
                                                                    "backward-sentence", &
                                                                    "backward-word", &
+                                                                   "beginning-of-buffer", &
                                                                    "beginning-of-line", &
+                                                                   "beginning-of-line-text", &
                                                                    "bobp", &
                                                                    "bolp", &
                                                                    "buffer-name", &
                                                                    "buffer-substring", &
                                                                    "call-interactively", &
+                                                                   "canonically-space-region", &
                                                                    "capitalize", &
                                                                    "capitalize-region", &
                                                                    "capitalize-word", &
@@ -101,10 +112,14 @@ module docstrings_fm
                                                                    "copy-region-as-kill", &
                                                                    "copy-syntax-table", &
                                                                    "current-buffer", &
+                                                                   "current-fill-column", &
                                                                    "current-global-map", &
+                                                                   "current-indentation", &
+                                                                   "current-justification", &
                                                                    "current-kill", &
                                                                    "cycle-spacing", &
                                                                    "deactivate-mark", &
+                                                                   "default-indent-new-line", &
                                                                    "defcommand", &
                                                                    "define-key", &
                                                                    "delete-all-space", &
@@ -123,16 +138,26 @@ module docstrings_fm
                                                                    "describe-variable", &
                                                                    "digit-argument", &
                                                                    "disable-command", &
+                                                                   "do-auto-fill", &
                                                                    "downcase", &
                                                                    "downcase-region", &
                                                                    "downcase-word", &
                                                                    "enable-command", &
+                                                                   "end-of-buffer", &
                                                                    "end-of-line", &
                                                                    "eobp", &
                                                                    "eolp", &
                                                                    "exchange-point-and-mark", &
                                                                    "execute-extended-command", &
                                                                    "exit-minibuffer", &
+                                                                   "fill-french-nobreak-p", &
+                                                                   "fill-paragraph", &
+                                                                   "fill-polish-nobreak-p", &
+                                                                   "fill-region", &
+                                                                   "fill-region-as-paragraph", &
+                                                                   "fill-region-as-paragraph-default", &
+                                                                   "fill-single-char-nobreak-p", &
+                                                                   "fill-single-word-nobreak-p", &
                                                                    "find-file", &
                                                                    "fixup-whitespace", &
                                                                    "format-error", &
@@ -145,6 +170,17 @@ module docstrings_fm
                                                                    "global-set-key", &
                                                                    "goto-char", &
                                                                    "help-quit", &
+                                                                   "indent-according-to-mode", &
+                                                                   "indent-for-tab-command", &
+                                                                   "indent-region", &
+                                                                   "indent-relative", &
+                                                                   "indent-relative-first-indent-point", &
+                                                                   "indent-rigidly", &
+                                                                   "indent-rigidly-left", &
+                                                                   "indent-rigidly-left-to-tab-stop", &
+                                                                   "indent-rigidly-right", &
+                                                                   "indent-rigidly-right-to-tab-stop", &
+                                                                   "indent-to", &
                                                                    "insert", &
                                                                    "isearch-abort", &
                                                                    "isearch-backward", &
@@ -174,6 +210,7 @@ module docstrings_fm
                                                                    "isearch-yank-word-or-char", &
                                                                    "join-line", &
                                                                    "just-one-space", &
+                                                                   "justify-current-line", &
                                                                    "key-description", &
                                                                    "key-parse", &
                                                                    "key-valid-p", &
@@ -218,6 +255,8 @@ module docstrings_fm
                                                                    "minibuffer-completion-exit", &
                                                                    "minibuffer-completion-help", &
                                                                    "modify-syntax-entry", &
+                                                                   "move-to-left-margin", &
+                                                                   "move-to-tab-stop", &
                                                                    "move-to-window-line", &
                                                                    "move-to-window-line-top-bottom", &
                                                                    "negative-argument", &
@@ -250,6 +289,7 @@ module docstrings_fm
                                                                    "read-buffer", &
                                                                    "read-file-name-default", &
                                                                    "read-multiple-choice", &
+                                                                   "read-number", &
                                                                    "read-string", &
                                                                    "recenter", &
                                                                    "recenter-top-bottom", &
@@ -279,6 +319,8 @@ module docstrings_fm
                                                                    "set", &
                                                                    "set-buffer", &
                                                                    "set-error", &
+                                                                   "set-fill-column", &
+                                                                   "set-fill-prefix", &
                                                                    "set-mark", &
                                                                    "set-mark-command", &
                                                                    "set-match-data", &
@@ -299,6 +341,7 @@ module docstrings_fm
                                                                    "symbol-value", &
                                                                    "syntax-table", &
                                                                    "t-value", &
+                                                                   "tab-to-tab-stop", &
                                                                    "test-completion", &
                                                                    "transpose-chars", &
                                                                    "transpose-lines", &
@@ -306,10 +349,13 @@ module docstrings_fm
                                                                    "transpose-sentences", &
                                                                    "transpose-words", &
                                                                    "try-completion", &
+                                                                   "turn-off-auto-fill", &
+                                                                   "turn-on-auto-fill", &
                                                                    "undo", &
                                                                    "undo-boundary", &
                                                                    "undo-only", &
                                                                    "undo-redo", &
+                                                                   "unfill-paragraph", &
                                                                    "universal-argument", &
                                                                    "universal-argument-minus", &
                                                                    "universal-argument-more", &
@@ -327,10 +373,12 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=30), parameter, public :: variable_names(45) = [character(len=30) :: &
+    character(len=44), parameter, public :: variable_names(58) = [character(len=44) :: &
+                                                                  "adaptive-fill-mode", &
                                                                   "case-fold-search", &
                                                                   "case-replace", &
                                                                   "case-symbols-as-words", &
+                                                                  "colon-double-space", &
                                                                   "completion-auto-help", &
                                                                   "completion-fail-discreetly", &
                                                                   "completion-ignore-case", &
@@ -338,12 +386,19 @@ module docstrings_fm
                                                                   "completion-show-inline-help", &
                                                                   "current-prefix-arg", &
                                                                   "cycle-spacing-actions", &
+                                                                  "default-justification", &
                                                                   "delete-active-region", &
                                                                   "disabled-command-function", &
                                                                   "enable-recursive-minibuffers", &
+                                                                  "fill-column", &
+                                                                  "fill-indent-according-to-mode", &
+                                                                  "fill-nobreak-predicate", &
+                                                                  "fill-separate-heterogeneous-words-with-space", &
                                                                   "goal-column", &
                                                                   "history-add-new-input", &
                                                                   "history-length", &
+                                                                  "indent-tabs-mode", &
+                                                                  "inhibit-auto-fill", &
                                                                   "inhibit-field-text-motion", &
                                                                   "insert-default-directory", &
                                                                   "isearch-lax-whitespace", &
@@ -351,6 +406,7 @@ module docstrings_fm
                                                                   "kill-read-only-ok", &
                                                                   "kill-ring-max", &
                                                                   "kill-whole-line", &
+                                                                  "left-margin", &
                                                                   "line-move-visual", &
                                                                   "make-backup-files", &
                                                                   "mark-even-if-inactive", &
@@ -368,7 +424,10 @@ module docstrings_fm
                                                                   "search-upper-case", &
                                                                   "sentence-end-double-space", &
                                                                   "sentence-end-without-period", &
+                                                                  "standard-indent", &
                                                                   "suggest-key-bindings", &
+                                                                  "tab-always-indent", &
+                                                                  "tab-stop-list", &
                                                                   "tab-width", &
                                                                   "transient-mark-mode", &
                                                                   "visible-bell", &
@@ -377,7 +436,7 @@ module docstrings_fm
     character(len=*), parameter :: LF = achar(10)
 
     interface repr
-        module procedure repr_logical, repr_integer, repr_int64, repr_string, repr_strings
+        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_string, repr_strings
     end interface repr
 
 contains
@@ -419,6 +478,29 @@ contains
                         "If optional argument PREDICATE is present, it is used to test each"//LF// &
                         "possible completion.  A possible completion is accepted only if"//LF// &
                         "PREDICATE returns true."
+        case ("auto-fill-mode")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call auto_fill_mode(arg, toggle)"
+            entry%interactive = .true.
+            entry%doc = "Toggle automatic line breaking (Auto Fill mode)."//LF// &
+                        ""//LF// &
+                        "When Auto Fill mode is enabled, inserting a space at a column"//LF// &
+                        "beyond `current-fill-column' automatically breaks the line at a"//LF// &
+                        "previous space."//LF// &
+                        ""//LF// &
+                        "When `auto-fill-mode' is on, the `auto-fill-function' variable is"//LF// &
+                        "non-nil."//LF// &
+                        ""//LF// &
+                        "The value of `normal-auto-fill-function' specifies the function to use"//LF// &
+                        "for `auto-fill-function' when turning Auto Fill mode on.  ARG is"//LF// &
+                        "the raw argument of a minor mode: nil or omitted toggles when"//LF// &
+                        "TOGGLE, else enables; a positive number enables, zero or a"//LF// &
+                        "negative number disables."
+        case ("back-to-indentation")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call back_to_indentation()"
+            entry%interactive = .true.
+            entry%doc = "Move point to the first non-whitespace character on this line."
         case ("backward-char")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call backward_char(status, n)"
@@ -484,6 +566,18 @@ contains
                         "The word boundaries are normally determined by the buffer's"//LF// &
                         "syntax table and character script (according to"//LF// &
                         "`char-script-table')."
+        case ("beginning-of-buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call beginning_of_buffer(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move point to the beginning of the buffer."//LF// &
+                        "With numeric arg N, put point N/10 of the way from the beginning."//LF// &
+                        "If the buffer is narrowed, this command uses the beginning of the"//LF// &
+                        "accessible part of the buffer."//LF// &
+                        ""//LF// &
+                        "Push mark at previous position, unless either a C-u prefix"//LF// &
+                        "is supplied, or Transient Mark mode is enabled and the mark is"//LF// &
+                        "active.  ARG is the raw prefix argument."
         case ("beginning-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call beginning_of_line(n)"
@@ -498,6 +592,10 @@ contains
                         "does not move.  To ignore field boundaries set"//LF// &
                         "`inhibit-field-text-motion' to t, or use the `forward-line' function"//LF// &
                         "instead."
+        case ("beginning-of-line-text")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("bobp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "bobp()"
@@ -518,6 +616,14 @@ contains
             entry%file = "callint_fm.f90"
             entry%fortran = "call call_interactively(cmd, status)"
             entry%doc = "Run command `cmd`."
+        case ("canonically-space-region")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call canonically_space_region(beg, end, status)"
+            entry%doc = "Remove extra spaces between words in region."//LF// &
+                        "Leave one space between words, two at end of sentences or after colons"//LF// &
+                        "(depending on values of `sentence-end-double-space', `colon-double-space',"//LF// &
+                        "and `sentence-end-without-period')."//LF// &
+                        "Remove indentation from each line."
         case ("capitalize")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "capitalize_char(ch)"
@@ -610,10 +716,33 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
             entry%doc = ""
+        case ("current-fill-column")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "current_fill_column()"
+            entry%doc = "Return the fill-column to use for this line."//LF// &
+                        "The fill-column to use for a buffer is stored in the variable `fill-column',"//LF// &
+                        "but can be locally modified by the `right-margin' text property, which is"//LF// &
+                        "subtracted from `fill-column'."//LF// &
+                        ""//LF// &
+                        "The fill column to use for a line is the first column at which the column"//LF// &
+                        "number equals or exceeds the local fill-column - right-margin difference."
         case ("current-global-map")
             entry%file = "keymap_fm.f90"
             entry%fortran = "current_global_map()"
             entry%doc = "The global keymap, made (full) on first use."
+        case ("current-indentation")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "current_indentation()"
+            entry%doc = "Return the indentation of the current line."//LF// &
+                        "This is the horizontal position of the character following any initial"//LF// &
+                        "whitespace."
+        case ("current-justification")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "current_justification()"
+            entry%doc = "How should we justify this line?"//LF// &
+                        "This returns the value of the text-property `justification',"//LF// &
+                        "or the variable `default-justification' if there is no text-property."//LF// &
+                        "However, it returns nil rather than `none' to mean ""don't justify""."
         case ("current-kill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call current_kill(n, text, status, do_not_move)"
@@ -649,6 +778,15 @@ contains
             entry%doc = "Deactivate the mark."//LF// &
                         "If Transient Mark mode is disabled, this function normally does"//LF// &
                         "nothing; but if FORCE is true, it deactivates the mark anyway."
+        case ("default-indent-new-line")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call default_indent_new_line(status, soft)"
+            entry%interactive = .true.
+            entry%doc = "Break line at point and indent."//LF// &
+                        "If a comment syntax is defined, call `comment-line-break-function'."//LF// &
+                        ""//LF// &
+                        "The inserted newline is marked hard if variable `use-hard-newlines' is true,"//LF// &
+                        "unless optional argument SOFT is non-nil."
         case ("defcommand")
             entry%file = "callint_fm.f90"
             entry%fortran = "call defcommand(name, proc)"
@@ -774,6 +912,12 @@ contains
             entry%interactive = .true.
             entry%doc = "Require special confirmation to execute COMMAND from now on."//LF// &
                         "COMMAND must be a symbol."
+        case ("do-auto-fill")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call do_auto_fill(status)"
+            entry%doc = "The default value for `normal-auto-fill-function'."//LF// &
+                        "This is the default auto-fill function, some major modes use a different one."//LF// &
+                        "Returns t if it really did any work."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "downcase_char(ch)"
@@ -802,6 +946,18 @@ contains
             entry%interactive = .true.
             entry%doc = "Allow COMMAND to be executed without special confirmation from now on."//LF// &
                         "COMMAND must be a symbol."
+        case ("end-of-buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call end_of_buffer(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move point to the end of the buffer."//LF// &
+                        "With numeric arg N, put point N/10 of the way from the end."//LF// &
+                        "If the buffer is narrowed, this command uses the end of the"//LF// &
+                        "accessible part of the buffer."//LF// &
+                        ""//LF// &
+                        "Push mark at previous position, unless either a C-u prefix"//LF// &
+                        "is supplied, or Transient Mark mode is enabled and the mark is"//LF// &
+                        "active.  ARG is the raw prefix argument."
         case ("end-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
@@ -844,6 +1000,110 @@ contains
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Terminate this minibuffer argument."
+        case ("fill-french-nobreak-p")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_french_nobreak_p()"
+            entry%doc = "Return nil if French style allows breaking the line at point."//LF// &
+                        "This is used in `fill-nobreak-predicate' to prevent breaking lines just"//LF// &
+                        "after an opening paren or just before a closing paren or a punctuation"//LF// &
+                        "mark such as `?' or `:'.  It is common in French writing to put a space"//LF// &
+                        "at such places, which would normally allow breaking the line at those"//LF// &
+                        "places."
+        case ("fill-paragraph")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call fill_paragraph(status, justify, region, used)"
+            entry%interactive = .true.
+            entry%doc = "Fill paragraph at or after point."//LF// &
+                        ""//LF// &
+                        "If JUSTIFY is non-nil (interactively, with prefix argument), justify as well."//LF// &
+                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "space does not end a sentence, so don't break a line there."//LF// &
+                        "The variable `fill-column' controls the width for filling."//LF// &
+                        ""//LF// &
+                        "Return the `fill-prefix' used for filling (`used`)."//LF// &
+                        ""//LF// &
+                        "The REGION argument is non-nil if called interactively; in that"//LF// &
+                        "case, if Transient Mark mode is enabled and the mark is active,"//LF// &
+                        "call `fill-region' to fill each of the paragraphs in the active"//LF// &
+                        "region, instead of just filling the current paragraph."
+        case ("fill-polish-nobreak-p")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_polish_nobreak_p()"
+            entry%doc = "Return nil if Polish style allows breaking the line at point."//LF// &
+                        "This function may be used in the `fill-nobreak-predicate' hook."//LF// &
+                        "It is almost the same as `fill-single-char-nobreak-p', with the"//LF// &
+                        "exception that it does not require the one-letter word to be"//LF// &
+                        "preceded by a space.  This blocks line-breaking in cases like"//LF// &
+                        """(a jednak)""."
+        case ("fill-region")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call fill_region(from, to, status, justify, nosqueeze, to_eop, used)"
+            entry%interactive = .true.
+            entry%doc = "Fill each of the paragraphs in the region."//LF// &
+                        "A prefix arg means justify as well."//LF// &
+                        "The `fill-column' variable controls the width."//LF// &
+                        ""//LF// &
+                        "Noninteractively, the third argument JUSTIFY specifies which"//LF// &
+                        "kind of justification to do: `full', `left', `right', `center',"//LF// &
+                        "or `none' (equivalent to nil).  A value of t means handle each"//LF// &
+                        "paragraph as specified by its text properties."//LF// &
+                        ""//LF// &
+                        "The fourth arg NOSQUEEZE non-nil means to leave whitespace other"//LF// &
+                        "than line breaks untouched, and fifth arg TO-EOP non-nil means"//LF// &
+                        "to keep filling to the end of the paragraph (or next hard newline,"//LF// &
+                        "if variable `use-hard-newlines' is on)."//LF// &
+                        ""//LF// &
+                        "Return the `fill-prefix' used for filling the last paragraph."//LF// &
+                        ""//LF// &
+                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "space does not end a sentence, so don't break a line there."
+        case ("fill-region-as-paragraph")
+            entry%file = "fill_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("fill-region-as-paragraph-default")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, u"// &
+                            "sed, have_used)"
+            entry%doc = "Fill the region as if it were a single paragraph."//LF// &
+                        "This command removes any paragraph breaks in the region and"//LF// &
+                        "extra newlines at the end, and indents and fills lines between the"//LF// &
+                        "margins given by the `current-left-margin' and `current-fill-column'"//LF// &
+                        "functions.  (In most cases, the variable `fill-column' controls the"//LF// &
+                        "width.)  It leaves point at the beginning of the line following the"//LF// &
+                        "region."//LF// &
+                        ""//LF// &
+                        "Normally, the command performs justification according to"//LF// &
+                        "the `current-justification' function, but with a prefix arg, it"//LF// &
+                        "does full justification instead."//LF// &
+                        ""//LF// &
+                        "JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current-justification`)"//LF// &
+                        "can specify any type of justification; see `default-justification'"//LF// &
+                        "for the possible values."//LF// &
+                        "Optional fourth arg NOSQUEEZE non-nil means not to make spaces"//LF// &
+                        "between words canonical before filling."//LF// &
+                        "Fifth arg SQUEEZE-AFTER, if non-nil, should be a buffer position; it"//LF// &
+                        "means canonicalize spaces only starting from that position."//LF// &
+                        "See `canonically-space-region' for the meaning of canonicalization"//LF// &
+                        "of spaces."//LF// &
+                        ""//LF// &
+                        "Return the `fill-prefix' used for filling (`used`, with"//LF// &
+                        "`have_used` false for nil)."//LF// &
+                        ""//LF// &
+                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "space does not end a sentence, so don't break a line there."
+        case ("fill-single-char-nobreak-p")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_single_char_nobreak_p()"
+            entry%doc = "Return non-nil if a one-letter word is before point."//LF// &
+                        "This function is suitable for adding to the hook `fill-nobreak-predicate',"//LF// &
+                        "to prevent the breaking of a line just after a one-letter word,"//LF// &
+                        "which is an error according to some typographical conventions.  Port"//LF// &
+                        "of fill.el:fill-single-char-nobreak-p."
+        case ("fill-single-word-nobreak-p")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_single_word_nobreak_p()"
+            entry%doc = "Don't break a line after the first or before the last word of a sentence."
         case ("find-file")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file(filename, status)"
@@ -948,6 +1208,57 @@ contains
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Just exit from the Help command's command loop."
+        case ("indent-according-to-mode")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-for-tab-command")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-region")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-relative")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-relative-first-indent-point")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-rigidly")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-rigidly-left")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-rigidly-left-to-tab-stop")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-rigidly-right")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-rigidly-right-to-tab-stop")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("indent-to")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "indent_to(column, status, minimum)"
+            entry%interactive = .true.
+            entry%doc = "Indent from point with tabs and spaces until COLUMN is reached."//LF// &
+                        "Optional second argument MINIMUM says always do at least MINIMUM spaces"//LF// &
+                        "even if that goes past COLUMN; by default, MINIMUM is zero."//LF// &
+                        ""//LF// &
+                        "Whether this uses tabs or spaces depends on `indent-tabs-mode'."//LF// &
+                        ""//LF// &
+                        "The return value is the column where the insertion ends."
         case ("insert")
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
@@ -1137,6 +1448,22 @@ contains
                         "Interactively, N is the prefix numeric argument."//LF// &
                         "If N is negative, delete newlines as well, leaving -N spaces."//LF// &
                         "See also `cycle-spacing'."
+        case ("justify-current-line")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call justify_current_line(status, how_in, eop, nosqueeze)"
+            entry%interactive = .true.
+            entry%doc = "Do some kind of justification on this line."//LF// &
+                        "Normally does full justification: adds spaces to the line to make it end at"//LF// &
+                        "the column given by `current-fill-column'."//LF// &
+                        "Optional first argument HOW specifies alternate type of justification:"//LF// &
+                        "it can be `left', `right', `full', `center', or `none'; for their"//LF// &
+                        "meaning, see `default-justification'."//LF// &
+                        "If HOW is t, will justify however the `current-justification' function says to."//LF// &
+                        "If HOW is nil or missing, full justification is done by default."//LF// &
+                        "Second arg EOP non-nil means that this is the last line of the paragraph, so"//LF// &
+                        "it will not be stretched by full justification."//LF// &
+                        "Third arg NOSQUEEZE non-nil means to leave interior whitespace unchanged,"//LF// &
+                        "otherwise it is made canonical."
         case ("key-description")
             entry%file = "keymap_fm.f90"
             entry%fortran = "key_description(keys, prefix)"
@@ -1541,6 +1868,14 @@ contains
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
                         "(comment sequences and prefix characters; see the Emacs manual)."
+        case ("move-to-left-margin")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("move-to-tab-stop")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("move-to-window-line")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -1958,6 +2293,18 @@ contains
                         "If the user types the `?' key, the help is displayed; other keys"//LF// &
                         "not in CHOICES ask again after ""Invalid choice.""; C-g quits.  Port"//LF// &
                         "of rmc.el:read-multiple-choice (short answers)."
+        case ("read-number")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "call read_number(prompt, n, status, default, hist)"
+            entry%doc = "Read from the minibuffer and return a numeric value, prompting with PROMPT."//LF// &
+                        "DEFAULT specifies a default value to return if the user just types RET."//LF// &
+                        "For historical reasons, the value of DEFAULT is always inserted into"//LF// &
+                        "PROMPT, so it's recommended to use `format' instead of `format-prompt'"//LF// &
+                        "to generate PROMPT.  HIST specifies a history list variable.  See"//LF// &
+                        "`read-from-minibuffer' for details of the HIST argument."//LF// &
+                        ""//LF// &
+                        "This function is used by the `interactive' code letter ""n"".  Port"//LF// &
+                        "of subr.el:read-number (integers only).  (In subr_read_fm.)"
         case ("read-string")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call read_string(prompt, result, status, initial, history, default)"
@@ -2337,6 +2684,21 @@ contains
             entry%file = "error_fm.f90"
             entry%fortran = "call set_error(status, code, detail)"
             entry%doc = "Record an error.  The analogue of upstream `xsignal`."
+        case ("set-fill-column")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call set_fill_column(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Set `fill-column' to specified argument."//LF// &
+                        "Use C-u followed by a number to specify a column."//LF// &
+                        "Just C-u as argument means to use the current column."
+        case ("set-fill-prefix")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call set_fill_prefix(arg)"
+            entry%interactive = .true.
+            entry%doc = "Set the fill prefix to the current line up to point."//LF// &
+                        "Filling expects lines to start with the fill prefix and"//LF// &
+                        "reinserts the fill prefix in each resulting line."//LF// &
+                        "With a prefix argument, cancel the fill prefix."
         case ("set-mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
@@ -2525,6 +2887,10 @@ contains
             entry%file = "lisp_fm.f90"
             entry%fortran = "t_value()"
             entry%doc = "The symbol t."
+        case ("tab-to-tab-stop")
+            entry%file = "indent_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("test-completion")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "test_completion(string, collection, predicate)"
@@ -2616,6 +2982,14 @@ contains
                         "matched while ignoring letter-case, but no guarantee is made about"//LF// &
                         "the letter-case of the return value, except that it comes either"//LF// &
                         "from the user's input or from one of the possible completions."
+        case ("turn-off-auto-fill")
+            entry%file = "simple_fill_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("turn-on-auto-fill")
+            entry%file = "simple_fill_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
         case ("undo")
             entry%file = "simple_fm.f90"
             entry%fortran = "call undo(arg, status)"
@@ -2643,6 +3017,24 @@ contains
             entry%fortran = "call undo_redo(arg, status)"
             entry%interactive = .true.
             entry%doc = "Undo the last ARG undos, i.e., redo the last ARG changes."
+        case ("unfill-paragraph")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "call unfill_paragraph(arg, status, beg, end)"
+            entry%interactive = .true.
+            entry%doc = "Join lines of this paragraph and fix up whitespace at joins."//LF// &
+                        "Interactively, if the region is active, join lines of each paragraph in"//LF// &
+                        "the region.  A numeric prefix argument means join the lines of the"//LF// &
+                        "following ARG paragraphs.  In this case an active region is ignored."//LF// &
+                        ""//LF// &
+                        "With an active region and no prefix argument this is roughly the same as"//LF// &
+                        "`delete-indentation' with that active region, except that this command"//LF// &
+                        "only joins lines within paragraphs, preserving the paragraphs"//LF// &
+                        "themselves."//LF// &
+                        ""//LF// &
+                        "When called from Lisp, ARG is the number of following paragraphs to join"//LF// &
+                        "lines within, or if ARG is nil, optional arguments BEG and END non-nil"//LF// &
+                        "means to join the lines of each paragraph in the region delimited by BEG"//LF// &
+                        "and END."
         case ("universal-argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2792,6 +3184,12 @@ contains
         found = .true.
         entry%original = ""
         select case (name)
+        case ("adaptive-fill-mode")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "adaptive_fill_mode"
+            entry%original = ".true."
+            entry%value = repr(adaptive_fill_mode)
+            entry%doc = "Non-nil means determine a paragraph's fill prefix from its text."
         case ("case-fold-search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
@@ -2820,6 +3218,12 @@ contains
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
                         "first letter of a symbol's name is ever capitalized."
+        case ("colon-double-space")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "colon_double_space"
+            entry%original = ".false."
+            entry%value = repr(colon_double_space)
+            entry%doc = "Non-nil means put two spaces after a colon when filling."
         case ("completion-auto-help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -2902,6 +3306,34 @@ contains
                         "  it as a number, e.g., `delete-space-before' and"//LF// &
                         "  `delete-space-after' treat it like 0 whereas `just-one-space'"//LF// &
                         "  treats it like -1 as is usual."
+        case ("default-justification")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "default_justification"
+            entry%original = "JUSTIFY_LEFT"
+            select case (default_justification)
+            case (JUSTIFY_NONE)
+                entry%value = "JUSTIFY_NONE"
+            case (JUSTIFY_LEFT)
+                entry%value = "JUSTIFY_LEFT"
+            case (JUSTIFY_RIGHT)
+                entry%value = "JUSTIFY_RIGHT"
+            case (JUSTIFY_FULL)
+                entry%value = "JUSTIFY_FULL"
+            case (JUSTIFY_CENTER)
+                entry%value = "JUSTIFY_CENTER"
+            case (JUSTIFY_T)
+                entry%value = "JUSTIFY_T"
+            case default
+                entry%value = repr(default_justification)
+            end select
+            entry%doc = "Method of justifying text not otherwise specified."//LF// &
+                        "Possible values are `left', `right', `full', `center', or `none'."//LF// &
+                        "The values `left' and `right' mean lines are lined up at,"//LF// &
+                        "respectively, left or right margin, and ragged at the other margin."//LF// &
+                        "`full' means lines are lined up at both margins.  `center' means each"//LF// &
+                        "line is centered.  `none' means no justification or centering."//LF// &
+                        "The requested kind of justification is done whenever lines are filled."//LF// &
+                        "The `justification' text-property can locally override this variable."
         case ("delete-active-region")
             entry%file = "simple_fm.f90"
             entry%fortran = "delete_active_region"
@@ -2924,6 +3356,41 @@ contains
             entry%value = repr(enable_recursive_minibuffers)
             entry%doc = "Non-nil means to allow minibuffer commands while in the minibuffer."//LF// &
                         "This variable makes a difference whenever the minibuffer window is active."
+        case ("fill-column")
+            entry%file = "buffer_fm.f90"
+            entry%fortran = "fill_column"
+            entry%original = "70"
+            entry%value = repr(fill_column)
+            entry%doc = "Column beyond which automatic line-wrapping should happen."//LF// &
+                        "It is used by filling commands, such as `fill-region' and `fill-paragraph',"//LF// &
+                        "and by `auto-fill-mode', which see."//LF// &
+                        "See also `current-fill-column'."//LF// &
+                        "Interactively, you can set the buffer local value using \[set-fill-column]."
+        case ("fill-indent-according-to-mode")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_indent_according_to_mode"
+            entry%original = ".false."
+            entry%value = repr(fill_indent_according_to_mode)
+            entry%doc = "Whether or not filling should try to use the major mode's indentation."
+        case ("fill-nobreak-predicate")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_nobreak_predicate"
+            entry%doc = "List of predicates for recognizing places not to break a line."//LF// &
+                        "The predicates are called with no arguments, with point at the place to"//LF// &
+                        "be tested.  If it returns a non-nil value, fill commands do not break"//LF// &
+                        "the line there."
+        case ("fill-separate-heterogeneous-words-with-space")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_separate_heterogeneous_words_with_space"
+            entry%original = ".false."
+            entry%value = repr(fill_separate_heterogeneous_words_with_space)
+            entry%doc = "Non-nil means to use a space to separate words of a different kind."//LF// &
+                        "For example, when an English word at the end of a line and a CJK word"//LF// &
+                        "at the beginning of the next line are joined into a single line, they"//LF// &
+                        "will be separated by a space if this variable is non-nil."//LF// &
+                        "Whether to use a space to separate such words also depends on the entry"//LF// &
+                        "in `fill-nospace-between-words-table' for the characters before and"//LF// &
+                        "after the newline."
         case ("goal-column")
             entry%file = "simple_fm.f90"
             entry%fortran = "goal_column"
@@ -2949,6 +3416,18 @@ contains
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
                         "elements, and is done just after inserting a new element."
+        case ("indent-tabs-mode")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "indent_tabs_mode"
+            entry%original = ".true."
+            entry%value = repr(indent_tabs_mode)
+            entry%doc = "Indentation can insert tabs if this is non-nil."
+        case ("inhibit-auto-fill")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "inhibit_auto_fill"
+            entry%original = ".false."
+            entry%value = repr(inhibit_auto_fill)
+            entry%doc = "Non-nil means to do as if `auto-fill-mode' was disabled."
         case ("inhibit-field-text-motion")
             entry%file = "editfns_fm.f90"
             entry%fortran = "inhibit_field_text_motion"
@@ -3016,6 +3495,13 @@ contains
             entry%value = repr(kill_whole_line_option)
             entry%doc = "If true, `kill_line` with no arg at start of line kills the whole"//LF// &
                         "line."
+        case ("left-margin")
+            entry%file = "buffer_fm.f90"
+            entry%fortran = "left_margin"
+            entry%original = "0"
+            entry%value = repr(left_margin)
+            entry%doc = "Column for the default `indent-line-function' to indent to."//LF// &
+                        "Linefeed indents to this column in Fundamental mode."
         case ("line-move-visual")
             entry%file = "simple_fm.f90"
             entry%fortran = "line_move_visual"
@@ -3182,6 +3668,12 @@ contains
                         "This value is used by the function `sentence-end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence-end' is nil."
+        case ("standard-indent")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "standard_indent"
+            entry%original = "4"
+            entry%value = repr(standard_indent)
+            entry%doc = "Default number of columns for margin-changing functions to indent."
         case ("suggest-key-bindings")
             entry%file = "simple_fm.f90"
             entry%fortran = "suggest_key_bindings"
@@ -3190,6 +3682,25 @@ contains
             entry%doc = "Non-nil means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported: the suggestion shows until the"//LF// &
                         "next command.)"
+        case ("tab-always-indent")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "tab_always_indent"
+            entry%original = ".true."
+            entry%value = repr(tab_always_indent)
+            entry%doc = "Controls the operation of the TAB key."//LF// &
+                        "If t, hitting TAB always just indents the current line."//LF// &
+                        "If nil, hitting TAB indents the current line if point is at the left margin"//LF// &
+                        "or in the line's indentation, otherwise it inserts a ""real"" TAB character."
+        case ("tab-stop-list")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "tab_stop_list"
+            if (allocated(tab_stop_list)) entry%value = repr(tab_stop_list)
+            entry%doc = "List of tab stop positions used by `tab-to-tab-stop'."//LF// &
+                        "This should be nil, or a list of integers, ordered from smallest to largest."//LF// &
+                        "It implicitly extends to infinity through repetition of the last step."//LF// &
+                        "For example, (1 2 5) is equivalent to (1 2 5 8 11 ...).  If the list has"//LF// &
+                        "fewer than 2 elements, `tab-width' is used as the ""last step""."//LF// &
+                        "A value of nil means a tab stop every `tab-width' columns."
         case ("tab-width")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "tab_width"
@@ -3246,6 +3757,19 @@ contains
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_int64
+
+    !> An array of integers as a Fortran array constructor.
+    function repr_int64s(v) result(s)
+        integer(int64), intent(in) :: v(:)
+        character(len=:), allocatable :: s
+        integer :: i
+        s = "["
+        do i = 1, size(v)
+            if (i > 1) s = s//", "
+            s = s//repr_int64(v(i))
+        end do
+        s = s//"]"
+    end function repr_int64s
 
     !> A string as a Fortran literal.
     function repr_string(v) result(s)

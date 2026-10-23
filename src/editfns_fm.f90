@@ -44,7 +44,7 @@ module editfns_fm
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                          markers, resolve_marker, make_marker, set_marker_both
     use callint_fm, only: mark_even_if_inactive
-    use insdel_fm, only: insert, del_range, del_range_1
+    use insdel_fm, only: insert, del_range, del_range_1, replace_range
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
     use lisp_fm, only: value_type, nilp, nil
     use lread_fm, only: sym
@@ -62,7 +62,7 @@ module editfns_fm
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
-    public :: insert_char_n, narrow_to_region, widen, validate_region
+    public :: insert_char_n, narrow_to_region, widen, validate_region, subst_char_in_region
     public :: buffer_substring, buffer_string, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
@@ -763,4 +763,31 @@ contains
             pos = field_bound
         end if
     end function constrain_to_field
+
+    !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
+    !> Both characters must have the same length of multi-byte form.  Port
+    !> of editfns.c:Fsubst_char_in_region (no NOUNDO; each occurrence is
+    !> replaced like `replace-range`, so markers and undo follow).
+    subroutine subst_char_in_region(start, end, fromchar, tochar, status)
+        integer(int64), intent(in) :: start, end
+        integer(int32), intent(in) :: fromchar, tochar
+        type(status_type), intent(out) :: status
+        integer(int64) :: pos, last
+        integer(int32) :: c, clen
+        character(len=MAX_MULTIBYTE_LENGTH) :: str
+        logical :: found
+        status = status_type()
+        call char_string(tochar, str, clen, status)
+        if (.not. status%ok()) return
+        pos = max(min(start, end), buffers(cur)%begv)
+        last = min(max(start, end), buffers(cur)%zv)
+        do while (pos < last)
+            call char_after(c, found, pos)
+            if (found .and. c == fromchar) then
+                call replace_range(pos, pos + 1, str(1:clen), .true., status)
+                if (.not. status%ok()) return
+            end if
+            pos = pos + 1
+        end do
+    end subroutine subst_char_in_region
 end module editfns_fm

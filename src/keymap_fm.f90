@@ -1515,7 +1515,7 @@ contains
             else if (len(key) >= 2 .and. multibyte_length(key, 1_int64, .false.) == len(key)) then
                 ! One multibyte (non-ASCII) character.
                 valid_key = .true.
-            else if (len(key) >= 3 .and. key(1:1) == "<" .and. key(len(key):len(key)) == ">") then
+            else if (index(key, "<") == 1 .and. len(key) >= 3 .and. index(key, ">", back=.true.) == len(key)) then
                 ! "\`<[-_A-Za-z0-9]+>\'", with no modifiers inside.
                 m = len(key) - 1
                 valid_key = verify(key(2:m), "-_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") == 0 &

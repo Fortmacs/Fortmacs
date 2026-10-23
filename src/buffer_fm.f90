@@ -167,6 +167,37 @@ module buffer_fm
     !> insdel_fm sets it; the function is simple_fm's `deactivate_mark`).
     logical, public :: vdeactivate_mark = .false.
 
+    !> Column beyond which automatic line-wrapping should happen.
+    !> It is used by filling commands, such as `fill-region' and `fill-paragraph',
+    !> and by `auto-fill-mode', which see.
+    !> See also `current-fill-column'.
+    !> Interactively, you can set the buffer local value using \[set-fill-column].
+    !> Port of buffer.c fill-column (one global value; buffer-local values
+    !> come with major and minor modes).
+    integer(int64), public :: fill_column = 70
+
+    abstract interface
+        !> An `auto-fill-function`.
+        subroutine auto_fill_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine auto_fill_proc
+    end interface
+
+    !> Function called (if non-nil) to perform auto-fill.
+    !> It is called after self-inserting any character specified in
+    !> the `auto-fill-chars' table.
+    !> NOTE: This variable is not a hook;
+    !> its value may not be a list of functions.  Port of buffer.c
+    !> auto-fill-function (null is nil; one global value).
+    procedure(auto_fill_proc), pointer, public :: auto_fill_function => null()
+
+    !> Column for the default `indent-line-function' to indent to.
+    !> Linefeed indents to this column in Fundamental mode.  Port of
+    !> buffer.c left-margin (one global value).
+    integer(int64), public :: left_margin = 0
+
     !> Registry storage; slot `i` is valid while its handle is live.
     type(buffer_type), allocatable, public :: buffers(:)
     !> Slot of the current buffer, 0 before any buffer exists.
@@ -211,7 +242,7 @@ module buffer_fm
         end subroutine erase_buffer
     end interface
 
-    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle
+    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer
     public :: set_buffer, kill_buffer, erase_buffer

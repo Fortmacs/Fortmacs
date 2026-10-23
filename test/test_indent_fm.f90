@@ -26,12 +26,18 @@ module test_indent_fm
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum
-    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer
+    use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, current_buffer, erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type
-    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column
+    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, indent_to, &
+                         current_indentation, indent_tabs_mode, indent_line_to, indent_relative, &
+                         indent_next_tab_stop, indent_accumulate_tab_stops, tab_stop_list, indent_rigidly, &
+                         indent_region
+    use simple_fm, only: back_to_indentation, fill_prefix
+    use editfns_fm, only: buffer_string, point_max
+    use keymap_fm, only: key_parse
     use simple_fm, only: line_move, goal_column, line_move_visual
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
     use lisp_fm, only: nil
@@ -43,7 +49,17 @@ module test_indent_fm
 
     character(len=*), parameter :: nl = achar(10)
 
+    character(len=*), parameter :: TAB = achar(9), LF = achar(10)
+
 contains
+
+    function itoa(n) result(s)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=24) :: buf
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function itoa
 
     subroutine collect_indent_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
@@ -54,7 +70,11 @@ contains
                     new_unittest("vertical-motion-wrapped", test_wrapped), &
                     new_unittest("next-line-goal-column", test_goal_column), &
                     new_unittest("line-move-errors", test_errors), &
-                    new_unittest("logical-line-move", test_logical) &
+                    new_unittest("logical-line-move", test_logical), &
+                    new_unittest("indent-to-and-current-indentation", test_indent_to), &
+                    new_unittest("indent-line-to-relative-tab-stops", test_indent_commands), &
+                    new_unittest("indent-rigidly-and-region", test_indent_region), &
+                    new_unittest("indent-keys", test_indent_keys) &
                     ]
     end subroutine collect_indent_fm
 
@@ -67,6 +87,7 @@ contains
         type(window_type), pointer :: sw
         call get_buffer_create("indent-test", h, st)
         call set_buffer(h, st)
+        call erase_buffer(st)
         call insert(text, st)
         call goto_char(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
@@ -230,4 +251,149 @@ contains
         goal_column = -1
         call leave(h)
     end subroutine test_logical
+
+    !> indent-to, current-indentation and move-to-column with FORCE.
+    subroutine test_indent_to(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: col
+        call enter("ab", 80, h)
+        call goto_char(2_int64)
+        indent_tabs_mode = .true.
+        col = indent_to(19_int64, st)
+        call check(error, col == 19 .and. buffer_string() == "a"//TAB//TAB//"   b", buffer_string())
+        if (allocated(error)) return
+        indent_tabs_mode = .false.
+        call goto_char(point_max())
+        col = indent_to(19_int64, st, 2_int64)
+        call check(error, col == 22 .and. buffer_string() == "a"//TAB//TAB//"   b  ")
+        indent_tabs_mode = .true.
+        call leave(h)
+        if (allocated(error)) return
+        call enter("  "//TAB//"x", 80, h)
+        call goto_char(point_max())
+        call check(error, current_indentation() == 8)
+        if (allocated(error)) return
+        ! FORCE splits a tab and pads short lines.
+        call move_to_column(4_int64, col, .true., st)
+        call check(error, col == 4 .and. point() == 5 .and. buffer_string() == "    "//TAB//"x", buffer_string())
+        if (allocated(error)) return
+        call move_to_column(12_int64, col, .true., st)
+        call check(error, col == 12 .and. buffer_string() == "    "//TAB//"x   ", buffer_string())
+        call leave(h)
+    end subroutine test_indent_to
+
+    !> indent-line-to, indent-relative, tab stops and back-to-indentation.
+    subroutine test_indent_commands(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("    foo  bar"//LF//"x", 80, h)
+        indent_tabs_mode = .false.
+        call goto_char(point_max())
+        call indent_line_to(6_int64, st)
+        call check(error, buffer_string() == "    foo  bar"//LF//"      x" .and. point() == 20, buffer_string())
+        if (allocated(error)) return
+        call indent_line_to(2_int64, st)
+        call check(error, buffer_string() == "    foo  bar"//LF//"  x")
+        if (allocated(error)) return
+        ! indent-relative: under the next indent point of the previous line.
+        call erase_buffer(st)
+        call insert("    foo  bar"//LF, st)
+        call indent_relative(st)
+        call check(error, current_column() == 4, "relative 1")
+        if (allocated(error)) return
+        call indent_relative(st)
+        call check(error, current_column() == 9, "relative 2")
+        if (allocated(error)) return
+        ! No more indent points: tab-to-tab-stop.
+        call indent_relative(st)
+        call check(error, current_column() == 16, "relative tab stop")
+        if (allocated(error)) return
+        call check(error, indent_next_tab_stop(3_int64) == 8 .and. indent_next_tab_stop(8_int64) == 16 .and. &
+                   indent_next_tab_stop(8_int64, .true.) == 0 .and. indent_next_tab_stop(9_int64, .true.) == 8, "tab stops")
+        if (allocated(error)) return
+        tab_stop_list = [int(4, int64), int(10, int64)]
+        call check(error, indent_next_tab_stop(0_int64) == 4 .and. indent_next_tab_stop(4_int64) == 10 .and. &
+                   indent_next_tab_stop(10_int64) == 16 .and. indent_next_tab_stop(10_int64, .true.) == 4 .and. &
+                   indent_next_tab_stop(17_int64, .true.) == 16, "tab-stop-list")
+        if (allocated(error)) return
+        call check(error, all(indent_accumulate_tab_stops(22_int64) == [int(4, int64), 10_int64, 16_int64, 22_int64]), "accumulate")
+        deallocate (tab_stop_list)
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call goto_char(8_int64)
+        call back_to_indentation()
+        call check(error, point() == 5, "back-to-indentation")
+        indent_tabs_mode = .true.
+        call leave(h)
+    end subroutine test_indent_commands
+
+    !> indent-rigidly and indent-region (to a column, with a fill
+    !> prefix, and line by line).
+    subroutine test_indent_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("a"//LF//"  b"//LF//LF//"c"//LF, 80, h)
+        indent_tabs_mode = .false.
+        call indent_rigidly(1_int64, point_max(), 2_int64, st)
+        call check(error, buffer_string() == "  a"//LF//"    b"//LF//LF//"  c"//LF, buffer_string())
+        if (allocated(error)) return
+        call indent_rigidly(1_int64, point_max(), -3_int64, st)
+        call check(error, buffer_string() == "a"//LF//" b"//LF//LF//"c"//LF, buffer_string())
+        if (allocated(error)) return
+        call indent_region(1_int64, point_max(), st, 3_int64)
+        call check(error, buffer_string() == "   a"//LF//"   b"//LF//LF//"   c"//LF, buffer_string())
+        if (allocated(error)) return
+        fill_prefix = "> "
+        call indent_region(1_int64, point_max(), st)
+        call check(error, buffer_string() == "> "//"   a"//LF//"> "//"   b"//LF//LF//"> "//"   c"//LF, buffer_string())
+        deallocate (fill_prefix)
+        if (allocated(error)) return
+        ! Line by line with indent-according-to-mode: like the previous
+        ! nonblank line.
+        call leave(h)
+        call enter("  a"//LF//"b"//LF//"    c"//LF//"d"//LF, 80, h)
+        call indent_region(5_int64, point_max(), st)
+        call check(error, buffer_string() == "  a"//LF//"  b"//LF//"  c"//LF//"  d"//LF, buffer_string())
+        indent_tabs_mode = .true.
+        call leave(h)
+    end subroutine test_indent_region
+
+    !> TAB, M-i, M-m, C-x TAB with the arrows and C-M-\ through the
+    !> command loop.
+    subroutine test_indent_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        call init_bindings()
+        call enter("    a"//LF//"b", 80, h)
+        indent_tabs_mode = .false.
+        call goto_char(7_int64)
+        call key_parse("TAB", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string() == "    a"//LF//"    b", buffer_string())
+        if (allocated(error)) return
+        call key_parse("C-e M-i M-m", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string() == "    a"//LF//"    b   " .and. point() == 11, buffer_string()//itoa(point()))
+        if (allocated(error)) return
+        call key_parse("M-< C-SPC M-> C-x TAB <right> <right> <left>", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string() == "     a"//LF//"     b   ", buffer_string())
+        if (allocated(error)) return
+        call key_parse("C-g M-< C-SPC M-> C-u 2 C-M-\", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string() == "  a"//LF//"  b   ", buffer_string())
+        indent_tabs_mode = .true.
+        call discard_input()
+        call leave(h)
+    end subroutine test_indent_keys
 end module test_indent_fm

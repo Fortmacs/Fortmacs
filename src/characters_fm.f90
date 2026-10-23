@@ -226,8 +226,8 @@ contains
         end if
     end function utf8
 
-    !> Whether character `c` has category `category` (one of ^, C, H and
-    !> K so far; false for others).
+    !> Whether character `c` has category `category` (one of ^, C, H, K,
+    !> l and | so far; false for others).
     pure logical function char_has_category(c, category)
         integer, intent(in) :: c
         character, intent(in) :: category
@@ -248,6 +248,18 @@ contains
         case ("H")
             char_has_category = in(c, int(z'3040'), int(z'309F')) .or. c == int(z'30A0') .or. c == int(z'30FC') .or. &
                                 in(c, int(z'1B001'), int(z'1B11F')) .or. in(c, int(z'1B150'), int(z'1B152'))
+        case ("l")
+            ! Latin: ASCII graphic characters, U+0080..U+024F and the
+            ! Latin Extended Additional block (characters.el).
+            char_has_category = in(c, 32, 127) .or. in(c, int(z'80'), int(z'24F')) .or. &
+                                in(c, int(z'1E00'), int(z'1EF9'))
+        case ("|")
+            ! Line breakable: the CJK ranges of characters.el (and the
+            ! full-width forms the Japanese charsets give it).
+            char_has_category = in(c, int(z'2E80'), int(z'312F')) .or. in(c, int(z'3190'), int(z'33FF')) .or. &
+                                in(c, int(z'3400'), int(z'9FFF')) .or. in(c, int(z'F900'), int(z'FAFF')) .or. &
+                                in(c, int(z'20000'), int(z'2FFFF')) .or. in(c, int(z'30000'), int(z'323AF')) .or. &
+                                in(c, int(z'FF01'), int(z'FFE6'))
         case default
             char_has_category = .false.
         end select

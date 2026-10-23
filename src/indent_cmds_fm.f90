@@ -1,0 +1,964 @@
+! indent_cmds_fm.f90 -- indentation commands, a submodule of indent_fm.
+! Ported from GNU Emacs 31.1 lisp/indent.el.
+!
+! Copyright (C) 1985-2026 Free Software Foundation, Inc.
+! Copyright (C) 2026 The Fortmacs authors
+!
+! This file is part of Fortmacs.
+!
+! Fortmacs is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! Fortmacs is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
+
+!> indent.el: `indent-for-tab-command` (TAB), `indent-according-to-mode`,
+!> `indent-rigidly` (C-x TAB, with its transient map), `indent-region`
+!> (C-M-\), `indent-relative`, `tab-to-tab-stop` (M-i), `indent-line-to`,
+!> the left margin and `beginning-of-line-text`.  A submodule because
+!> these use simple_fm and fill_fm, which use indent_fm.
+!>
+!> Not ported: `tab-always-indent` `complete` and `tab-first-completion`,
+!> `indent-for-tab-command` with a prefix argument (needs sexps),
+!> `edit-tab-stops`, right-to-left paragraphs, the margin text-property
+!> commands (`set-left-margin` and friends), abbrevs.
+submodule(indent_fm) indent_cmds_fm
+    use error_fm, only: set_error, FM_GENERIC_ERROR
+    use handle_fm, only: handle_type
+    use lisp_fm, only: nil, nilp, fixnump, xfixnum, make_keymap_ref
+    use lread_fm, only: sym
+    use data_fm, only: value_eq
+    use marker_fm, only: copy_marker_at, marker_position, free_marker
+    use editfns_fm, only: point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
+                          char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position
+    use insdel_fm, only: insert
+    use cmds_fm, only: forward_line, beginning_of_line
+    use textprop_fm, only: get_text_property
+    use syntax_fm, only: skip_chars_forward, skip_chars_backward
+    use search_fm, only: looking_at, re_search_backward, re_search_forward, regexp_quote, SEARCH_NOERROR
+    use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
+    use keyboard_fm, only: this_command, last_command, set_transient_map
+    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation
+    use buffer_fm, only: barf_if_buffer_read_only, vdeactivate_mark, left_margin
+    use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
+    use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, JUSTIFY_CENTER, &
+                       JUSTIFY_RIGHT, prefix_at_point, nchars
+    use xdisp_fm, only: message
+    implicit none(type, external)
+
+    !> Transient keymap for adjusting indentation interactively.
+    !> It is activated by calling `indent-rigidly' interactively.  Port of
+    !> indent.el indent-rigidly-map.
+    type(handle_type) :: indent_rigidly_map
+
+    character(len=*), parameter :: TAB = achar(9), LF = achar(10)
+
+contains
+
+    ! The default indent-line-function, `indent-relative`.
+    subroutine indent_relative_line(status, noindent)
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: noindent
+        call indent_relative(status, noindent=noindent)
+    end subroutine indent_relative_line
+
+    ! The current indent-line-function.
+    subroutine call_indent_line_function(status, noindent)
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: noindent
+        if (associated(indent_line_function)) then
+            call indent_line_function(status, noindent)
+        else
+            call indent_relative_line(status, noindent)
+        end if
+    end subroutine call_indent_line_function
+
+    ! Whether the indent-line-function is one of
+    ! `indent-line-ignored-functions` (the indent-relative family).
+    logical function ignored_indent_line_function()
+        procedure(indent_line_proc), pointer :: p
+        ignored_indent_line_function = .not. associated(indent_line_function)
+        if (ignored_indent_line_function) return
+        p => indent_relative_line
+        ignored_indent_line_function = associated(indent_line_function, p)
+        if (ignored_indent_line_function) return
+        p => indent_relative_first_indent_point
+        ignored_indent_line_function = associated(indent_line_function, p)
+    end function ignored_indent_line_function
+
+    !> Indent line in proper way for current major mode.
+    !> Normally, this is done by calling the function specified by the
+    !> variable `indent-line-function'.  However, if the value of that
+    !> variable is present in the `indent-line-ignored-functions' variable,
+    !> handle it specially (since those functions are used for tabbing);
+    !> in that case, indent by aligning to the previous non-blank line.
+    !>
+    !> Ignore restriction, unless the optional argument INHIBIT-WIDEN is
+    !> non-nil.  Port of indent.el:indent-according-to-mode.
+    module procedure indent_according_to_mode
+    integer(int64) :: savedb, savedz, column, opoint, shortage
+    type(status_type) :: st
+    logical :: widened, noindent
+    status = status_type()
+    savedb = buffers(cur)%begv
+    savedz = buffers(cur)%text%z - buffers(cur)%zv
+    widened = .true.
+    if (present(inhibit_widen)) widened = .not. inhibit_widen
+    if (widened) call widen()
+    if (ignored_indent_line_function()) then
+        ! These functions are used for tabbing, but can't be used for
+        ! indenting.  Replace with something ad-hoc.
+        opoint = point()
+        call beginning_of_line()
+        if (bobp()) then
+            column = 0
+        else
+            call beginning_of_line(0_int64)
+            if (looking_at("[ "//TAB//"]*$", st)) then
+                column = 0
+            else
+                column = current_indentation()
+            end if
+        end if
+        call goto_char(opoint)
+        if (current_column() <= current_indentation()) then
+            call indent_line_to(column, status)
+        else
+            call save_excursion_indent_line_to(column, status)
+        end if
+    else
+        ! The normal case.
+        call indent_line_function(status, noindent)
+    end if
+    if (widened) then
+        call widen()
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end if
+    end procedure indent_according_to_mode
+
+    ! (save-excursion (indent-line-to COLUMN)), point kept with a marker.
+    subroutine save_excursion_indent_line_to(column, status)
+        integer(int64), intent(in) :: column
+        type(status_type), intent(out) :: status
+        type(handle_type) :: m
+        type(status_type) :: st
+        integer(int64) :: pos
+        call copy_marker_at(point(), m, .false., st)
+        call indent_line_to(column, status)
+        call marker_position(m, pos, st)
+        call goto_char(pos)
+        call free_marker(m, st)
+    end subroutine save_excursion_indent_line_to
+
+    !> Indent the current line or region, or insert a tab, as appropriate.
+    !> This function either inserts a tab, or indents the current line,
+    !> or performs symbol completion, depending on `tab-always-indent'.
+    !> The function called to actually indent the line or insert a tab
+    !> is given by the variable `indent-line-function'.
+    !>
+    !> In most major modes, if point was in the current line's
+    !> indentation, it is moved to the first non-whitespace character
+    !> after indenting; otherwise it stays at the same position relative
+    !> to the text.
+    !>
+    !> If `transient-mark-mode' is turned on and the region is active,
+    !> this function instead calls `indent-region'.  In this case, any
+    !> prefix argument is ignored.  Port of
+    !> indent.el:indent-for-tab-command (no prefix-argument sexp
+    !> reindentation, no completion).
+    module procedure indent_for_tab_command
+    integer(int64) :: b, e
+    logical :: noindent, to_left_margin
+    procedure(indent_line_proc), pointer :: p
+    status = status_type()
+    to_left_margin = .false.
+    if (associated(indent_line_function)) then
+        p => indent_to_left_margin
+        to_left_margin = associated(indent_line_function, p)
+    end if
+    if (use_region_p()) then
+        ! The region is active, indent it.
+        call region_beginning(b, status)
+        call region_end(e, status)
+        call indent_region(b, e, status)
+    else if (to_left_margin .or. (.not. tab_always_indent .and. &
+                                  (current_column() > current_indentation() .or. &
+                                   value_eq(this_command, last_command)))) then
+        ! indent-to-left-margin is only meant for indenting, so we force it
+        ! to always insert a tab here.
+        call insert_tab(arg, status)
+    else
+        ! Indent the line.
+        call widened_indent_line(status, noindent)
+    end if
+    end procedure indent_for_tab_command
+
+    ! indent--funcall-widened with the indent-line-function.
+    subroutine widened_indent_line(status, noindent)
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: noindent
+        integer(int64) :: savedb, savedz
+        type(status_type) :: st
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call widen()
+        call call_indent_line_function(status, noindent)
+        call widen()
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end subroutine widened_indent_line
+
+    !> Insert a tab, or indent to the next tab column, ARG times.  Port of
+    !> indent.el:insert-tab (no abbrevs).
+    module procedure insert_tab
+    integer(int64) :: count, col
+    count = prefix_numeric_value(arg)
+    if (indent_tabs_mode) then
+        call insert_char_n(9, count, status)
+    else
+        col = indent_to(sane_tab_width()*(count + current_column()/sane_tab_width()), status)
+    end if
+    end procedure insert_tab
+
+    !> Return the smallest indentation in range from BEG to END.
+    !> Blank lines are ignored.  Port of
+    !> indent.el:indent-rigidly--current-indentation (-1 for nil).
+    integer(int64) function rigidly_current_indentation(beg, end) result(indent)
+        integer(int64), intent(in) :: beg, end
+        integer(int64) :: opoint, pos
+        type(status_type) :: st
+        opoint = point()
+        call goto_char(beg)
+        call goto_char(pos_bol())
+        indent = -1
+        do
+            call re_search_forward("^\s-*[[:print:]]", pos, st, bound=end, noerror=SEARCH_NOERROR)
+            if (pos == 0) exit
+            if (indent < 0) then
+                indent = current_indentation()
+            else
+                indent = min(indent, current_indentation())
+            end if
+        end do
+        call goto_char(opoint)
+    end function rigidly_current_indentation
+
+    !> Indent all lines starting in the region.
+    !> If called interactively with no prefix argument, activate a
+    !> transient mode in which the indentation can be adjusted interactively
+    !> by typing <left>, <right>, S-<left>, or S-<right>.
+    !> In addition, TAB is also bound (and calls `indent-rigidly-right').
+    !>
+    !> Typing any other key exits this mode, and this key is then
+    !> acted upon as normally.  If `transient-mark-mode' is enabled,
+    !> exiting also deactivates the mark.
+    !>
+    !> If called from a program, or interactively with prefix ARG,
+    !> indent all lines starting in the region forward by ARG columns.
+    !> If called from a program, START and END specify the beginning and
+    !> end of the text to act on, in place of the region.
+    !>
+    !> Negative values of ARG indent backward, so you can remove all
+    !> indentation by specifying a large negative ARG.  Port of
+    !> indent.el:indent-rigidly (the program path; the command is
+    !> cmd_indent_rigidly).
+    module procedure indent_rigidly
+    type(handle_type) :: end_marker
+    type(status_type) :: st
+    integer(int64) :: opoint, endpos, indent, shortage, moved, from, col
+    logical :: eol_flag
+    status = status_type()
+    call copy_marker_at(point(), end_marker, .false., st)
+    opoint = point()
+    call free_marker(end_marker, st)
+    call copy_marker_at(end, end_marker, .false., st)
+    call goto_char(start)
+    if (.not. bolp()) shortage = forward_line(1_int64)
+    do
+        call marker_position(end_marker, endpos, st)
+        if (point() >= endpos) exit
+        indent = current_indentation()
+        from = point()
+        moved = skip_chars_forward(" "//TAB, st)
+        eol_flag = eolp()
+        call goto_char(from)
+        if (.not. eol_flag) col = indent_to(max(0_int64, indent + arg), status, 0_int64)
+        if (.not. status%ok()) exit
+        from = point()
+        moved = skip_chars_forward(" "//TAB, st)
+        call delete_region(from, point(), status)
+        if (.not. status%ok()) exit
+        shortage = forward_line(1_int64)
+    end do
+    call free_marker(end_marker, st)
+    call goto_char(min(opoint, point_max()))
+    end procedure indent_rigidly
+
+    !> Indent all lines between BEG and END leftward by one space.  Port of
+    !> indent.el:indent-rigidly-left.
+    module procedure indent_rigidly_left
+    call indent_rigidly(beg, end, -1_int64, status)
+    end procedure indent_rigidly_left
+
+    !> Indent all lines between BEG and END rightward by one space.  Port
+    !> of indent.el:indent-rigidly-right.
+    module procedure indent_rigidly_right
+    call indent_rigidly(beg, end, 1_int64, status)
+    end procedure indent_rigidly_right
+
+    !> Indent all lines between BEG and END leftward to a tab stop.  Port
+    !> of indent.el:indent-rigidly-left-to-tab-stop.
+    module procedure indent_rigidly_left_to_tab_stop
+    integer(int64) :: current
+    current = max(0_int64, rigidly_current_indentation(beg, end))
+    call indent_rigidly(beg, end, indent_next_tab_stop(current, .true.) - current, status)
+    end procedure indent_rigidly_left_to_tab_stop
+
+    !> Indent all lines between BEG and END rightward to a tab stop.  Port
+    !> of indent.el:indent-rigidly-right-to-tab-stop.
+    module procedure indent_rigidly_right_to_tab_stop
+    integer(int64) :: current
+    current = max(0_int64, rigidly_current_indentation(beg, end))
+    call indent_rigidly(beg, end, indent_next_tab_stop(current) - current, status)
+    end procedure indent_rigidly_right_to_tab_stop
+
+    !> Indent current line to COLUMN.
+    !> This function removes or adds spaces and tabs at beginning of line
+    !> only if necessary.  It leaves point at end of indentation.  Port of
+    !> indent.el:indent-line-to.
+    module procedure indent_line_to
+    integer(int64) :: cur_col, moved, from, col, tw
+    type(status_type) :: st
+    status = status_type()
+    tw = sane_tab_width()
+    call beginning_of_line(1_int64)
+    moved = skip_chars_forward(" "//TAB, st)
+    cur_col = current_column()
+    if (cur_col < column) then
+        if (column - (cur_col/tw)*tw >= tw) then
+            from = point()
+            moved = skip_chars_backward(" ", st)
+            call delete_region(point(), from, status)
+            if (.not. status%ok()) return
+        end if
+        col = indent_to(column, status)
+    else if (cur_col > column) then
+        ! too far right (after tab?)
+        call move_to_column(column, col, .true., status)
+        if (.not. status%ok()) return
+        from = point()
+        ! The `move-to-column' call may replace tabs with spaces, so we
+        ! can't reuse the previous start point.
+        call beginning_of_line(1_int64)
+        moved = skip_chars_forward(" "//TAB, st)
+        call delete_region(from, point(), status)
+    end if
+    end procedure indent_line_to
+
+    !> Return the left margin to use for this line.
+    !> This is the value of the buffer-local variable `left-margin' plus the value
+    !> of the `left-margin' text-property at the start of the line.  Port of
+    !> indent.el:current-left-margin.
+    module procedure current_left_margin
+    integer(int64) :: opoint, pos
+    type(value_type) :: v
+    type(status_type) :: st
+    opoint = point()
+    call back_to_indentation()
+    pos = point()
+    if (eobp() .and. .not. bobp()) pos = pos - 1
+    call get_text_property(pos, sym("left-margin"), v, st)
+    current_left_margin = left_margin
+    if (fixnump(v)) current_left_margin = left_margin + xfixnum(v)
+    current_left_margin = max(0_int64, current_left_margin)
+    call goto_char(opoint)
+    end procedure current_left_margin
+
+    !> Move to the left margin of the current line.
+    !> With optional argument, move forward N-1 lines first.
+    !> The column moved to is the one given by the `current-left-margin' function.
+    !> If the line's indentation appears to be wrong, and this command is called
+    !> interactively or with optional argument FORCE, it will be fixed.  Port
+    !> of indent.el:move-to-left-margin.
+    module procedure move_to_left_margin
+    integer(int64) :: lm, cc, moved, col
+    type(status_type) :: st
+    logical :: forcing, noindent
+    status = status_type()
+    forcing = .false.
+    if (present(force)) forcing = force
+    call beginning_of_line(n)
+    moved = skip_chars_forward(" "//TAB, st)
+    if (minibuf_level > 0 .and. buffers(cur)%begv /= 0 .and. is_minibuffer()) then
+        if (pos_bol() == point_min()) then
+            call goto_char(minibuffer_prompt_end())
+        else
+            call beginning_of_line()
+        end if
+        return
+    end if
+    lm = current_left_margin()
+    cc = current_column()
+    if (cc > lm) then
+        call move_to_column(lm, col, forcing, status)
+        ! If lm is in a tab and we are not forcing, move before tab
+        if (col > lm) call goto_char(point() - 1)
+    else if (forcing .and. cc < lm) then
+        call indent_to_left_margin(status, noindent)
+    end if
+    end procedure move_to_left_margin
+
+    ! (minibufferp): the current buffer is a minibuffer.
+    logical function is_minibuffer()
+        is_minibuffer = minibuffer_prompt_end() > point_min()
+    end function is_minibuffer
+
+    !> Indent current line to the column given by `current-left-margin'.
+    !> Port of indent.el:indent-to-left-margin.
+    module procedure indent_to_left_margin
+    integer(int64) :: moved, opoint
+    type(status_type) :: st
+    noindent = .false.
+    call save_excursion_indent_line_to(current_left_margin(), status)
+    ! If we are within the indentation, move past it.
+    opoint = point()
+    moved = skip_chars_backward(" "//TAB, st)
+    if (bolp()) then
+        moved = skip_chars_forward(" "//TAB, st)
+    else
+        call goto_char(opoint)
+    end if
+    end procedure indent_to_left_margin
+
+    !> Remove left margin indentation from a region.
+    !> This deletes to the column given by `current-left-margin'.
+    !> In no case will it delete non-whitespace.
+    !> Args FROM and TO are optional; default is the whole buffer.  Port of
+    !> indent.el:delete-to-left-margin.
+    module procedure delete_to_left_margin
+    type(handle_type) :: to_marker
+    type(status_type) :: st
+    integer(int64) :: opoint, endpos, shortage, from_pos
+    status = status_type()
+    opoint = point()
+    if (present(to)) then
+        call copy_marker_at(to, to_marker, .false., st)
+    else
+        call copy_marker_at(point_max(), to_marker, .false., st)
+    end if
+    if (present(from)) then
+        call goto_char(from)
+    else
+        call goto_char(point_min())
+    end if
+    if (.not. bolp()) shortage = forward_line(1_int64)
+    do
+        call marker_position(to_marker, endpos, st)
+        if (point() >= endpos) exit
+        from_pos = point()
+        call move_to_left_margin(status, force=.true.)
+        if (.not. status%ok()) exit
+        call delete_region(from_pos, point(), status)
+        if (.not. status%ok()) exit
+        shortage = forward_line(1_int64)
+    end do
+    call free_marker(to_marker, st)
+    call goto_char(min(opoint, point_max()))
+    end procedure delete_to_left_margin
+
+    !> Move to the beginning of the text on this line.
+    !>
+    !> With optional argument N, move forward N-1 lines first.
+    !>
+    !> From the beginning of the line, moves past the `left-margin'
+    !> indentation, the `fill-prefix', and any indentation used for
+    !> centering or right-justifying the line, but does not move past
+    !> any whitespace that was explicitly inserted (such as a tab used
+    !> to indent the first line of a paragraph).  Port of
+    !> indent.el:beginning-of-line-text.
+    module procedure beginning_of_line_text
+    integer(int64) :: moved
+    type(status_type) :: st
+    logical :: have_prefix
+    call beginning_of_line(n)
+    moved = skip_chars_forward(" "//TAB, st)
+    ! Skip over fill-prefix.
+    have_prefix = allocated(fill_prefix)
+    if (have_prefix) have_prefix = len(fill_prefix) > 0
+    if (have_prefix) then
+        if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix))
+    else if (adaptive_fill_mode .and. allocated(adaptive_fill_regexp)) then
+        if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end_0())
+    end if
+    ! Skip centering or flushright indentation
+    select case (current_justification())
+    case (JUSTIFY_CENTER, JUSTIFY_RIGHT)
+        moved = skip_chars_forward(" "//TAB, st)
+    case default
+        continue
+    end select
+    end procedure beginning_of_line_text
+
+    integer(int64) function match_end_0()
+        use search_fm, only: match_end
+        type(status_type) :: st
+        match_end_0 = match_end(0, st)
+    end function match_end_0
+
+    !> Indent each nonblank line in the region.
+    !> A numeric prefix argument specifies a column: indent each line to that column.
+    !>
+    !> With no prefix argument, the command chooses one of these methods and
+    !> indents all the lines with it:
+    !>
+    !>   1) If `fill-prefix' is non-nil, insert `fill-prefix' at the
+    !>      beginning of each line in the region that does not already begin
+    !>      with it.
+    !>   2) If `indent-region-function' is non-nil, call that function
+    !>      to indent the region.
+    !>   3) Indent each line via `indent-according-to-mode'.
+    !>
+    !> Called from a program, START and END specify the region to indent.
+    !> If the third argument COLUMN is an integer, it specifies the
+    !> column to indent to; if it is nil, use one of the three methods above.
+    !> Port of indent.el:indent-region (no progress reporter).
+    module procedure indent_region
+    type(handle_type) :: end_marker
+    type(status_type) :: st
+    integer(int64) :: opoint, endpos, shortage, moved, from, col, savedb, savedz
+    character(len=:), allocatable :: regexp
+    status = status_type()
+    opoint = point()
+    if (present(column)) then
+        ! If a numeric prefix is given, indent to that column.
+        call copy_marker_at(end, end_marker, .false., st)
+        call goto_char(start)
+        if (.not. bolp()) shortage = forward_line(1_int64)
+        do
+            call marker_position(end_marker, endpos, st)
+            if (point() >= endpos) exit
+            from = point()
+            moved = skip_chars_forward(" "//TAB, st)
+            call delete_region(from, point(), status)
+            if (.not. status%ok()) exit
+            if (.not. eolp()) col = indent_to(column, status, 0_int64)
+            if (.not. status%ok()) exit
+            shortage = forward_line(1_int64)
+        end do
+        call free_marker(end_marker, st)
+        call goto_char(min(opoint, point_max()))
+    else if (allocated(fill_prefix)) then
+        ! If a fill-prefix is specified, use it.
+        call copy_marker_at(end, end_marker, .false., st)
+        call goto_char(start)
+        regexp = regexp_quote(fill_prefix)
+        do
+            call marker_position(end_marker, endpos, st)
+            if (point() >= endpos) exit
+            if (.not. looking_at(regexp, st) .and. .not. (bolp() .and. eolp())) then
+                call insert(fill_prefix, status)
+                if (.not. status%ok()) exit
+            end if
+            shortage = forward_line(1_int64)
+        end do
+        call free_marker(end_marker, st)
+        call goto_char(min(opoint, point_max()))
+    else
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call widen()
+        if (associated(indent_region_function)) then
+            call indent_region_function(start, end, status)
+        else
+            call indent_region_line_by_line(start, end, status)
+        end if
+        call widen()
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end if
+    ! In most cases, reindenting modifies the buffer, but it may also
+    ! leave it unmodified, in which case we have to deactivate the mark by
+    ! hand.
+    vdeactivate_mark = .true.
+    end procedure indent_region
+
+    !> Indent each nonblank line from START to END with
+    !> `indent-according-to-mode`.  Port of
+    !> indent.el:indent-region-line-by-line.
+    module procedure indent_region_line_by_line
+    type(handle_type) :: end_marker, opoint_marker
+    type(status_type) :: st
+    integer(int64) :: endpos, shortage, pos
+    status = status_type()
+    call copy_marker_at(point(), opoint_marker, .false., st)
+    call copy_marker_at(end, end_marker, .false., st)
+    call goto_char(start)
+    do
+        call marker_position(end_marker, endpos, st)
+        if (point() >= endpos) exit
+        if (.not. (bolp() .and. eolp())) then
+            call indent_according_to_mode(status, .true.)
+            if (.not. status%ok()) exit
+        end if
+        shortage = forward_line(1_int64)
+    end do
+    call free_marker(end_marker, st)
+    call marker_position(opoint_marker, pos, st)
+    call goto_char(pos)
+    call free_marker(opoint_marker, st)
+    end procedure indent_region_line_by_line
+
+    !> Indent the current line like the previous nonblank line.
+    !> Indent to the first indentation position in the previous nonblank
+    !> line if that position is greater than the current column.
+    !>
+    !> See also `indent-relative'.  Port of
+    !> indent.el:indent-relative-first-indent-point.
+    module procedure indent_relative_first_indent_point
+    call indent_relative(status, first_only=.true., noindent=noindent)
+    end procedure indent_relative_first_indent_point
+
+    !> Space out to under next indent point in previous nonblank line.
+    !> An indent point is a non-whitespace character following whitespace.
+    !> The following line shows the indentation points in this line.
+    !>     ^         ^    ^     ^   ^           ^      ^  ^    ^
+    !> If FIRST-ONLY is non-nil, then only the first indent point is
+    !> considered.
+    !>
+    !> If the previous nonblank line has no indent points beyond the
+    !> column point starts at, then `tab-to-tab-stop' is done, if both
+    !> FIRST-ONLY and UNINDENTED-OK are nil, otherwise nothing is done.
+    !> If there isn't a previous nonblank line and UNINDENTED-OK is nil,
+    !> call `tab-to-tab-stop'.
+    !>
+    !> See also `indent-relative-first-indent-point'.  Port of
+    !> indent.el:indent-relative (no abbrevs).
+    module procedure indent_relative
+    integer(int64) :: start_column, opoint, pos, end, col, moved, indent, shortage
+    type(handle_type) :: opoint_marker
+    type(status_type) :: st
+    logical :: first, unindented, have_indent
+    status = status_type()
+    if (present(noindent)) noindent = .false.
+    first = .false.
+    if (present(first_only)) first = first_only
+    unindented = .false.
+    if (present(unindented_ok)) unindented = unindented_ok
+    start_column = current_column()
+    have_indent = .false.
+    indent = 0
+    opoint = point()
+    call beginning_of_line()
+    call re_search_backward("^[^"//LF//"]", pos, st, noerror=SEARCH_NOERROR)
+    if (pos > 0) then
+        shortage = forward_line(1_int64)
+        end = point()
+        call goto_char(pos)
+        call move_to_column(start_column, col)
+        ! Is start-column inside a tab on this line?
+        if (current_column() > start_column) call goto_char(point() - 1)
+        if (.not. looking_at("[ "//TAB//"]", st) .and. .not. first) moved = skip_chars_forward("^ "//TAB, st, end)
+        moved = skip_chars_forward(" "//TAB, st, end)
+        if (point() /= end) then
+            indent = current_column()
+            have_indent = .true.
+        end if
+    end if
+    call goto_char(opoint)
+    if (have_indent) then
+        call copy_marker_at(point(), opoint_marker, .false., st)
+        col = indent_to(indent, status, 0_int64)
+        call marker_position(opoint_marker, pos, st)
+        if (pos > point()) call goto_char(pos)
+        call free_marker(opoint_marker, st)
+    else if (.not. unindented) then
+        call tab_to_tab_stop(status)
+    end if
+    end procedure indent_relative
+
+    !> Return the next tab stop after COLUMN.
+    !> If PREV is non-nil, return the previous one instead.  Port of
+    !> indent.el:indent-next-tab-stop.
+    module procedure indent_next_tab_stop
+    integer(int64) :: step, last
+    integer :: k, n
+    logical :: before
+    before = .false.
+    if (present(prev)) before = prev
+    n = 0
+    if (allocated(tab_stop_list)) n = size(tab_stop_list)
+    k = 1
+    do while (k <= n)
+        if (column < tab_stop_list(k)) exit
+        k = k + 1
+    end do
+    if (k <= n) then
+        if (.not. before) then
+            indent_next_tab_stop = tab_stop_list(k)
+        else if (k == 1) then
+            indent_next_tab_stop = 0
+        else if (column == tab_stop_list(k - 1)) then
+            if (k >= 3) then
+                indent_next_tab_stop = tab_stop_list(k - 2)
+            else
+                indent_next_tab_stop = 0
+            end if
+        else
+            indent_next_tab_stop = tab_stop_list(k - 1)
+        end if
+        return
+    end if
+    ! We passed the end of tab-stop-list: guess a continuation.
+    if (n >= 2) then
+        step = tab_stop_list(n) - tab_stop_list(n - 1)
+        last = tab_stop_list(n)
+    else
+        step = sane_tab_width()
+        last = 0
+        if (n == 1) last = tab_stop_list(1)
+    end if
+    ! Repeat the last tab's length.
+    if (before) then
+        if (column <= last) then
+            indent_next_tab_stop = last - step
+        else
+            indent_next_tab_stop = last + step*((column - last - 1)/step)
+        end if
+    else
+        indent_next_tab_stop = last + step*(1 + (column - last)/step)
+    end if
+    end procedure indent_next_tab_stop
+
+    !> Get a list of tab stops before LIMIT (inclusive).  Port of
+    !> indent.el:indent-accumulate-tab-stops.
+    module procedure indent_accumulate_tab_stops
+    integer(int64) :: tab
+    integer(int64), allocatable :: grown(:)
+    allocate (stops(0))
+    tab = 0
+    do
+        tab = indent_next_tab_stop(tab)
+        if (tab > limit) exit
+        allocate (grown(size(stops) + 1))
+        grown(1:size(stops)) = stops
+        grown(size(grown)) = tab
+        call move_alloc(grown, stops)
+    end do
+    end procedure indent_accumulate_tab_stops
+
+    !> Insert spaces or tabs to next defined tab-stop column.
+    !> The variable `tab-stop-list' is a list of columns at which there are tab stops.
+    !> Whether this inserts tabs or spaces depends on `indent-tabs-mode'.
+    !> Port of indent.el:tab-to-tab-stop (no abbrevs).
+    module procedure tab_to_tab_stop
+    integer(int64) :: nexttab, col
+    nexttab = indent_next_tab_stop(current_column())
+    call delete_horizontal_space(.true., status)
+    if (status%ok()) col = indent_to(nexttab, status)
+    end procedure tab_to_tab_stop
+
+    !> Move point to next defined tab-stop column.
+    !> The variable `tab-stop-list' is a list of columns at which there are tab stops.
+    !> Port of indent.el:move-to-tab-stop.
+    module procedure move_to_tab_stop
+    integer(int64) :: nexttab, before, col, tabend, moved, pos
+    integer(int32) :: c
+    logical :: found
+    type(status_type) :: st
+    nexttab = indent_next_tab_stop(current_column())
+    before = point()
+    call move_to_column(nexttab, col, .true., status)
+    if (.not. status%ok()) return
+    pos = point()
+    call goto_char(before)
+    ! If we just added a tab, or moved over one, delete any superfluous
+    ! spaces before the old point.
+    call char_before(c, found, pos)
+    if (found .and. c == 9) then
+        tabend = before
+        moved = skip_chars_backward(" ", st)
+        if (point() /= tabend) then
+            ! A whitespace run before the old point that a tab replaces.
+            call delete_region(point(), tabend, status)
+            pos = pos - (tabend - point())
+        end if
+    end if
+    call goto_char(pos)
+    end procedure move_to_tab_stop
+
+    ! ------------------------------------------------------------------
+    ! Commands
+    ! ------------------------------------------------------------------
+
+    subroutine cmd_indent_for_tab_command(status)
+        type(status_type), intent(out) :: status
+        call indent_for_tab_command(current_prefix_arg, status)
+    end subroutine cmd_indent_for_tab_command
+
+    subroutine cmd_indent_according_to_mode(status)
+        type(status_type), intent(out) :: status
+        call indent_according_to_mode(status)
+    end subroutine cmd_indent_according_to_mode
+
+    ! indent-rigidly: with no prefix argument, the transient map.
+    subroutine cmd_indent_rigidly(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: b, e
+        call region_beginning(b, status)
+        if (.not. status%ok()) return
+        call region_end(e, status)
+        if (nilp(current_prefix_arg)) then
+            call set_transient_map(indent_rigidly_map)
+            call message("Type <left> or <right> to indent region interactively")
+        else
+            call indent_rigidly(b, e, prefix_numeric_value(current_prefix_arg), status)
+        end if
+    end subroutine cmd_indent_rigidly
+
+    subroutine region_command(status, which)
+        type(status_type), intent(out) :: status
+        integer, intent(in) :: which
+        integer(int64) :: b, e
+        call region_beginning(b, status)
+        if (.not. status%ok()) return
+        call region_end(e, status)
+        select case (which)
+        case (1)
+            call indent_rigidly_left(b, e, status)
+        case (2)
+            call indent_rigidly_right(b, e, status)
+        case (3)
+            call indent_rigidly_left_to_tab_stop(b, e, status)
+        case default
+            call indent_rigidly_right_to_tab_stop(b, e, status)
+        end select
+        ! In the transient mode of `indent-rigidly' (KEEP-PRED t): stay in
+        ! it, and keep the active region.
+        if (in_rigid_mode()) then
+            call set_transient_map(indent_rigidly_map)
+            vdeactivate_mark = .false.
+        end if
+    end subroutine region_command
+
+    ! Whether the last command was `indent-rigidly' or one of the commands
+    ! of its transient map.
+    logical function in_rigid_mode()
+        in_rigid_mode = value_eq(last_command, sym("indent-rigidly")) .or. &
+                        value_eq(last_command, sym("indent-rigidly-left")) .or. &
+                        value_eq(last_command, sym("indent-rigidly-right")) .or. &
+                        value_eq(last_command, sym("indent-rigidly-left-to-tab-stop")) .or. &
+                        value_eq(last_command, sym("indent-rigidly-right-to-tab-stop"))
+    end function in_rigid_mode
+
+    subroutine cmd_indent_rigidly_left(status)
+        type(status_type), intent(out) :: status
+        call region_command(status, 1)
+    end subroutine cmd_indent_rigidly_left
+
+    subroutine cmd_indent_rigidly_right(status)
+        type(status_type), intent(out) :: status
+        call region_command(status, 2)
+    end subroutine cmd_indent_rigidly_right
+
+    subroutine cmd_indent_rigidly_left_to_tab_stop(status)
+        type(status_type), intent(out) :: status
+        call region_command(status, 3)
+    end subroutine cmd_indent_rigidly_left_to_tab_stop
+
+    subroutine cmd_indent_rigidly_right_to_tab_stop(status)
+        type(status_type), intent(out) :: status
+        call region_command(status, 4)
+    end subroutine cmd_indent_rigidly_right_to_tab_stop
+
+    subroutine cmd_indent_region(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: b, e
+        call region_beginning(b, status)
+        if (.not. status%ok()) return
+        call region_end(e, status)
+        if (nilp(current_prefix_arg)) then
+            call indent_region(b, e, status)
+        else
+            call indent_region(b, e, status, prefix_numeric_value(current_prefix_arg))
+        end if
+    end subroutine cmd_indent_region
+
+    subroutine cmd_indent_relative(status)
+        type(status_type), intent(out) :: status
+        call indent_relative(status, first_only=.not. nilp(current_prefix_arg))
+    end subroutine cmd_indent_relative
+
+    subroutine cmd_indent_relative_first_indent_point(status)
+        type(status_type), intent(out) :: status
+        logical :: noindent
+        call indent_relative_first_indent_point(status, noindent)
+    end subroutine cmd_indent_relative_first_indent_point
+
+    subroutine cmd_tab_to_tab_stop(status)
+        type(status_type), intent(out) :: status
+        call tab_to_tab_stop(status)
+    end subroutine cmd_tab_to_tab_stop
+
+    subroutine cmd_move_to_tab_stop(status)
+        type(status_type), intent(out) :: status
+        call move_to_tab_stop(status)
+    end subroutine cmd_move_to_tab_stop
+
+    subroutine cmd_move_to_left_margin(status)
+        type(status_type), intent(out) :: status
+        call move_to_left_margin(status, prefix_numeric_value(current_prefix_arg), .true.)
+    end subroutine cmd_move_to_left_margin
+
+    subroutine cmd_beginning_of_line_text(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call beginning_of_line_text(prefix_numeric_value(current_prefix_arg))
+    end subroutine cmd_beginning_of_line_text
+
+    subroutine cmd_indent_to(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: col
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) col = indent_to(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_indent_to
+
+    !> Register the indentation commands and make indent-rigidly-map.
+    module procedure syms_of_indent
+    type(value_type), allocatable :: key(:)
+    type(status_type) :: st
+    call defcommand("indent-for-tab-command", cmd_indent_for_tab_command)
+    call defcommand("indent-according-to-mode", cmd_indent_according_to_mode)
+    call defcommand("indent-rigidly", cmd_indent_rigidly)
+    call defcommand("indent-rigidly-left", cmd_indent_rigidly_left)
+    call defcommand("indent-rigidly-right", cmd_indent_rigidly_right)
+    call defcommand("indent-rigidly-left-to-tab-stop", cmd_indent_rigidly_left_to_tab_stop)
+    call defcommand("indent-rigidly-right-to-tab-stop", cmd_indent_rigidly_right_to_tab_stop)
+    call defcommand("indent-region", cmd_indent_region)
+    call defcommand("indent-relative", cmd_indent_relative)
+    call defcommand("indent-relative-first-indent-point", cmd_indent_relative_first_indent_point)
+    call defcommand("tab-to-tab-stop", cmd_tab_to_tab_stop)
+    call defcommand("move-to-tab-stop", cmd_move_to_tab_stop)
+    call defcommand("move-to-left-margin", cmd_move_to_left_margin)
+    call defcommand("beginning-of-line-text", cmd_beginning_of_line_text)
+    call defcommand("indent-to", cmd_indent_to)
+    if (indent_rigidly_map%index == 0) then
+        call make_sparse_keymap(indent_rigidly_map)
+        call key_parse("TAB", key, st)
+        call keymap_set_key(indent_rigidly_map, key, sym("indent-rigidly-right"), st)
+        call key_parse("<left>", key, st)
+        call keymap_set_key(indent_rigidly_map, key, sym("indent-rigidly-left"), st)
+        call key_parse("<right>", key, st)
+        call keymap_set_key(indent_rigidly_map, key, sym("indent-rigidly-right"), st)
+        call key_parse("S-<left>", key, st)
+        call keymap_set_key(indent_rigidly_map, key, sym("indent-rigidly-left-to-tab-stop"), st)
+        call key_parse("S-<right>", key, st)
+        call keymap_set_key(indent_rigidly_map, key, sym("indent-rigidly-right-to-tab-stop"), st)
+    end if
+    end procedure syms_of_indent
+end submodule indent_cmds_fm

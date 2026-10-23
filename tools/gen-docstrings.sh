@@ -277,8 +277,16 @@ END {
 
 # The named constants of enumerated settings (integer variables whose
 # value is one of a set of parameters, like search_upper_case).
+# A declaration continued over several lines is joined into one.
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort |
-    xargs grep -h 'integer, parameter, public ::' >"$tmp.params" || true
+    xargs awk '
+        cont { sub(/^[ \t]*/, ""); line = line $0 }
+        !cont && /integer, parameter, public ::/ { line = $0 }
+        !cont && !/integer, parameter, public ::/ { next }
+        {
+            cont = sub(/[ \t]*&[ \t]*$/, " ", line)
+            if (!cont) print line
+        }' >"$tmp.params" || true
 
 # Pass 2: the Fortran module.
 awk -F '\037' -v params="$tmp.params" '
@@ -429,7 +437,7 @@ END {
     print "    character(len=*), parameter :: LF = achar(10)"
     print ""
     print "    interface repr"
-    print "        module procedure repr_logical, repr_integer, repr_int64, repr_string, repr_strings"
+    print "        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_string, repr_strings"
     print "    end interface repr"
     print ""
     print "contains"
@@ -491,6 +499,8 @@ END {
         } else {
             # Other derived types have no printed representation yet.
             if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
+            else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/)
+                print "            if (allocated(" vfort[i] ")) entry%value = repr(" vfort[i] ")"
             else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
@@ -525,6 +535,22 @@ END {
     print "        write (buf, \"(i0)\") v"
     print "        s = trim(buf)"
     print "    end function repr_int64"
+    print ""
+    print "    !> An array of integers as a Fortran array constructor."
+    print "    function repr_int64s(v) result(s)"
+    print "        integer(int64), intent(in) :: v(:)"
+    print "        character(len=:), allocatable :: s"
+    print "        integer :: i"
+    print ""
+    print "        s = \"[\""
+    print ""
+    print "        do i = 1, size(v)"
+    print "            if (i > 1) s = s//\", \""
+    print "            s = s//repr_int64(v(i))"
+    print "        end do"
+    print ""
+    print "        s = s//\"]\""
+    print "    end function repr_int64s"
     print ""
     print "    !> A string as a Fortran literal."
     print "    function repr_string(v) result(s)"
