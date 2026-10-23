@@ -34,13 +34,19 @@ module window_fm
     implicit none(type, external)
     private
 
-    public :: set_window_buffer, window_start, set_window_start, window_point, &
-              set_window_point, window_body_lines, free_window
-    public :: make_window, delete_window_object, window_ref, window_live_p, window_valid_p, same_window, &
+    public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
+              switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
+              display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, &
+              temp_buffer_window_show, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
+              split_window_and_copy, copy_quit_restore, window_resize, syms_of_window_display
+    public :: window_start, set_window_start, window_point, &
+              set_window_point, window_body_lines, free_window, free_prev_buffer, free_quit_restore
+    public :: make_window, delete_window_object, window_ref, window_live_p, window_valid_p, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_cols, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
+              pos_visible_in_window_p, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
               move_to_window_line_top_bottom, quit_window, syms_of_window
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, syms_of_window_cmds
@@ -56,6 +62,107 @@ module window_fm
     !> window.el scroll-error-top-bottom.
     logical, public :: scroll_error_top_bottom = .false.
 
+    !> A buffer a window showed before (window.h prev_buffers element):
+    !> its window start and point when it was removed, as markers.
+    type, public :: prev_buffer_type
+        type(handle_type) :: buffer, start, point
+    end type prev_buffer_type
+
+    !> What a window's `quit_restore' parameter records (see
+    !> window.el:display-buffer-record-window): how the window came to
+    !> show `buffer' (QR_WINDOW, QR_FRAME, QR_SAME or QR_OTHER; QR_NONE
+    !> for no parameter), what to restore (QR_WINDOW, QR_FRAME, or with
+    !> `has_quad' the buffer shown before with its start, point and
+    !> size), and the window selected at the time.
+    type, public :: quit_restore_type
+        integer :: kind = 0
+        integer :: what = 0
+        logical :: has_quad = .false.
+        type(handle_type) :: quad_buffer, quad_point
+        integer(int64) :: quad_start = 0
+        !> The window's height or width then; -1 for none (nil).
+        integer :: quad_size = -1
+        type(handle_type) :: selected, buffer
+    end type quit_restore_type
+
+    !> Kinds of `quit_restore' parameter.
+    integer, parameter, public :: QR_NONE = 0, QR_WINDOW = 1, QR_FRAME = 2, QR_SAME = 3, QR_OTHER = 4
+
+    !> Dedication of a window to its buffer: nil, weak (non-nil), strong
+    !> (t).
+    integer, parameter, public :: DEDICATED_NONE = 0, DEDICATED_WEAK = 1, DEDICATED_STRONG = 2
+
+    !> What `quit_restore_window' and `switch_to_prev_buffer' do with the
+    !> window's buffer (BURY-OR-KILL): nothing, `append', `bury', `kill',
+    !> `killing' or `burying'.
+    integer, parameter, public :: BK_NONE = 0, BK_APPEND = 1, BK_BURY = 2, BK_KILL = 3, BK_KILLING = 4, &
+                                  BK_BURYING = 5
+
+    !> Actions for `display_buffer': none, display-buffer--same-window-action
+    !> and display-buffer--other-window-action.
+    integer, parameter, public :: DISPLAY_DEFAULT = 0, DISPLAY_SAME_WINDOW = 1, DISPLAY_OTHER_WINDOW = 2
+
+    !> Values of `split_window_preferred_direction'.
+    integer, parameter, public :: SPLIT_LONGEST = 0, SPLIT_VERTICAL = 1, SPLIT_HORIZONTAL = 2
+
+    !> Minimum height for splitting windows sensibly.
+    !> If this is an integer, `split_window_sensibly' may split a window
+    !> vertically only if it has at least this many lines.  If, however, a
+    !> window is the only window on its frame, or all the other ones are
+    !> dedicated, `split_window_sensibly' may split it vertically
+    !> disregarding the value of this variable.  Port of window.el
+    !> split-height-threshold.
+    integer, public :: split_height_threshold = 80
+
+    !> Minimum width for splitting windows sensibly.
+    !> If this is an integer, `split_window_sensibly' may split a window
+    !> horizontally only if it has at least this many columns.  Port of
+    !> window.el split-width-threshold.
+    integer, public :: split_width_threshold = 150
+
+    !> The first direction tried when Emacs needs to split a window.
+    !> This variable controls in which order `split_window_sensibly' will
+    !> try to split the window.  If set to `vertical' (SPLIT_VERTICAL),
+    !> `split_window_sensibly' tries to split vertically first and then
+    !> horizontally.  If set to `horizontal' (SPLIT_HORIZONTAL) it does the
+    !> opposite.  If set to `longest' (SPLIT_LONGEST, the default), the
+    !> first direction tried depends on the frame shape: in landscape
+    !> orientation it will be like `horizontal', but in portrait it will be
+    !> like `vertical'.  Port of window.el split-window-preferred-direction.
+    integer, public :: split_window_preferred_direction = SPLIT_LONGEST
+
+    !> Non-nil means `display_buffer' should make a new window.  Port of
+    !> window.el pop-up-windows.
+    logical, public :: pop_up_windows = .true.
+
+    !> If non-nil `display_buffer' will try to even window sizes.
+    !> Otherwise `display_buffer' will leave the window configuration
+    !> alone.  Port of window.el even-window-sizes (`height_only' and
+    !> `width_only' are deferred).
+    logical, public :: even_window_sizes = .true.
+
+    !> The minimum total height, in lines, of any window.
+    !> The value has to accommodate one text line, a mode and header line,
+    !> a horizontal scroll bar and a bottom divider, if present.  A value
+    !> less than `window_safe_min_height' is ignored.  Port of window.el
+    !> window-min-height.
+    integer, public :: window_min_height = 4
+
+    !> The minimum total width, in columns, of any window.
+    !> The value has to accommodate two text columns as well as margins,
+    !> fringes, a scroll bar and a right divider, if present.  A value less
+    !> than `window_safe_min_width' is ignored.  Port of window.el
+    !> window-min-width.
+    integer, public :: window_min_width = 10
+
+    !> window-safe-min-height and the safe minimum width: the least a
+    !> window may get when split with a SIZE.
+    integer, parameter :: window_safe_min_height = 2, window_safe_min_width = 2
+
+    !> The use time of the most recently selected window (window.c
+    !> window_select_count).
+    integer(int64) :: window_select_count = 0
+
     !> Port of the parts of window.h:struct window in use.
     type, public :: window_type
         !> The buffer shown (contents); the null handle for none.
@@ -65,9 +172,16 @@ module window_fm
         !> Position on the frame (0-based rows) and size, in lines and
         !> columns, including the mode line.
         integer :: top_line = 0, total_lines = 0, left_col = 0, total_cols = 0
-        !> The buffer shown before `buffer' (window.el window-prev-buffers,
-        !> one deep); the null handle for none.
-        type(handle_type) :: prev_buffer
+        !> The buffers shown before, most recently removed first
+        !> (`window_prev_buffers').
+        type(prev_buffer_type), allocatable :: prev_buffers(:)
+        !> Buffers recently replaced by `switch_to_prev_buffer'
+        !> (`window_next_buffers').
+        type(handle_type), allocatable :: next_buffers(:)
+        !> The `quit_restore' and `quit_restore_prev' parameters.
+        type(quit_restore_type) :: quit_restore, quit_restore_prev
+        !> Whether the window is dedicated to its buffer.
+        integer :: dedicated = DEDICATED_NONE
         !> The window tree: the parent (internal) window, the next and
         !> previous siblings, and for an internal window its first child;
         !> null handles for none.  Port of window.h parent, next, prev and
@@ -214,6 +328,45 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine scroll_down_command
 
+        !> Whether position POS is shown, at least partially, in WINDOW:
+        !> within the window's body lines from its start.  Port of
+        !> window.c:Fpos_visible_in_window_p with PARTIALLY non-nil (line
+        !> based, no vscroll).
+        module logical function pos_visible_in_window_p(pos, window) result(visible)
+            implicit none(type, external)
+            integer(int64), intent(in) :: pos
+            type(handle_type), intent(in) :: window
+        end function pos_visible_in_window_p
+
+        !> Return "the other" window for "other window scroll" commands: a
+        !> neighboring window on the selected frame.  Port of
+        !> window.c:Fother_window_for_scrolling (`minibuffer_scroll_window',
+        !> `other_window_scroll_buffer' and `other_window_scroll_default'
+        !> are deferred: they are nil).
+        module subroutine other_window_for_scrolling(window, status)
+            implicit none(type, external)
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+        end subroutine other_window_for_scrolling
+
+        !> Scroll next window upward LINES lines; or near full screen if no
+        !> ARG.  See `scroll_up_command' for details.  Port of
+        !> window.el:scroll-other-window.
+        recursive module subroutine scroll_other_window(lines, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: lines
+            type(status_type), intent(out) :: status
+        end subroutine scroll_other_window
+
+        !> Scroll next window downward LINES lines; or near full screen if
+        !> no ARG.  See `scroll_down_command' for details.  Port of
+        !> window.el:scroll-other-window-down.
+        recursive module subroutine scroll_other_window_down(lines, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: lines
+            type(status_type), intent(out) :: status
+        end subroutine scroll_other_window_down
+
         !> Scroll the window so that current line is in the middle of the
         !> window.  Successive invocations scroll the window in a cyclical
         !> order to put the current line at certain places within the
@@ -244,16 +397,6 @@ module window_fm
             type(value_type), intent(in) :: arg
             type(status_type), intent(out) :: status
         end subroutine move_to_window_line_top_bottom
-
-        !> Quit WINDOW and bury its buffer.  WINDOW is the selected one: it
-        !> shows the buffer it showed before, or some other buffer.  Port of
-        !> window.el:quit-window (no KILL, burying or quit-restore
-        !> parameters; the selected window shows the current buffer, so this
-        !> makes that buffer current).
-        module subroutine quit_window(status)
-            implicit none(type, external)
-            type(status_type), intent(out) :: status
-        end subroutine quit_window
 
         !> Register the scrolling commands and `quit_window'.
         module subroutine syms_of_window()
@@ -328,61 +471,223 @@ module window_fm
             type(handle_type) :: h
         end function other_buffer
 
-        !> Replace BUFFER with some other buffer in all windows showing it:
-        !> the buffer the window showed before, or else `other_buffer'.
-        !> Port of window.el:replace-buffer-in-windows (with
-        !> switch-to-prev-buffer).
-        module subroutine replace_buffer_in_windows(buffer)
-            implicit none(type, external)
-            type(handle_type), intent(in) :: buffer
-        end subroutine replace_buffer_in_windows
-
-        !> Display buffer BUFFER-OR-NAME in the selected window, making it
-        !> current; a name of no live buffer makes a new buffer of that name.
-        !> Port of window.el:switch-to-buffer.
-        module subroutine switch_to_buffer(name, status)
+        !> Display buffer NAME in the selected window, making it current; a
+        !> name of no live buffer makes a new buffer of that name.  If the
+        !> selected window cannot show it (it is the minibuffer window or
+        !> strongly dedicated), use `pop_to_buffer', or with
+        !> FORCE_SAME_WINDOW signal an error.  Unless NORECORD, the buffer
+        !> becomes the most recently selected one.  When the window showed
+        !> the buffer before, its start and point there are restored
+        !> (`switch_to_buffer_preserve_window_point' t).  Port of
+        !> window.el:switch-to-buffer (`switch_to_buffer_obey_display_actions'
+        !> and the other values of `switch_to_buffer_preserve_window_point'
+        !> are deferred).
+        module subroutine switch_to_buffer(name, status, norecord, force_same_window)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord, force_same_window
         end subroutine switch_to_buffer
 
         !> Register the window and buffer commands.
         module subroutine syms_of_window_cmds()
             implicit none(type, external)
         end subroutine syms_of_window_cmds
+        ! Showing buffers in windows, in submodule window_display_fm.
+
+        !> Make WINDOW display BUFFER-OR-NAME.
+        !> WINDOW must be a live window.  Optional third argument
+        !> KEEP-MARGINS non-nil means that WINDOW's current display margins,
+        !> fringe widths, and scroll bar settings are preserved.  This
+        !> function throws an error when WINDOW is strongly dedicated to its
+        !> buffer and does not already display BUFFER-OR-NAME.  Port of
+        !> window.c:Fset_window_buffer.
+        module subroutine set_window_buffer(h, buffer, status, keep_margins)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h, buffer
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: keep_margins
+        end subroutine set_window_buffer
+
+        !> Port of window.c:set_window_buffer.
+        module subroutine set_window_buffer_internal(h, buffer, keep_margins)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h, buffer
+            logical, intent(in) :: keep_margins
+        end subroutine set_window_buffer_internal
+
+        !> Port of window.c:window_discard_buffer_from_window.
+        module subroutine window_discard_buffer_from_window(buffer, h, all)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer, h
+            logical, intent(in) :: all
+        end subroutine window_discard_buffer_from_window
+
+        !> Port of window.el:record-window-buffer.
+        module subroutine record_window_buffer(h)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+        end subroutine record_window_buffer
+
+        !> Port of window.el:switch-to-prev-buffer.
+        module function switch_to_prev_buffer(window, bury_or_kill, status) result(new_buffer)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            integer, intent(in) :: bury_or_kill
+            type(status_type), intent(out) :: status
+            type(handle_type) :: new_buffer
+        end function switch_to_prev_buffer
+
+        !> Port of window.el:switch-to-next-buffer.
+        module function switch_to_next_buffer(window, status) result(new_buffer)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(status_type), intent(out) :: status
+            type(handle_type) :: new_buffer
+        end function switch_to_next_buffer
+
+        !> Port of window.el:quit-restore-window.
+        module subroutine quit_restore_window(window, bury_or_kill, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            integer, intent(in) :: bury_or_kill
+            type(status_type), intent(out) :: status
+        end subroutine quit_restore_window
+
+        !> Quit WINDOW (the selected one by default) and bury its buffer, or
+        !> with KILL kill it.  Port of window.el:quit-window.
+        module subroutine quit_window(kill, status, window)
+            implicit none(type, external)
+            logical, intent(in) :: kill
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: window
+        end subroutine quit_window
+
+        !> Port of window.el:replace-buffer-in-windows.
+        module subroutine replace_buffer_in_windows(buffer)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+        end subroutine replace_buffer_in_windows
+
+        !> Put BUFFER (the current buffer by default) at the end of the
+        !> list of all buffers.  Port of window.el:bury-buffer.
+        module subroutine bury_buffer(status, buffer)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: buffer
+        end subroutine bury_buffer
+
+        !> Port of window.el:display-buffer-record-window.
+        module subroutine display_buffer_record_window(type, h, buffer)
+            implicit none(type, external)
+            integer, intent(in) :: type
+            type(handle_type), intent(in) :: h, buffer
+        end subroutine display_buffer_record_window
+
+        !> Display BUFFER in some window and return that window (the null
+        !> handle if none could be found).  Port of window.el:display-buffer.
+        module subroutine display_buffer(buffer, window, status, action, inhibit_same_window)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+            integer, intent(in), optional :: action
+            logical, intent(in), optional :: inhibit_same_window
+        end subroutine display_buffer
+
+        !> Display BUFFER and select its window.  Port of
+        !> window.el:pop-to-buffer.
+        module subroutine pop_to_buffer(buffer, status, action, norecord)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+            integer, intent(in), optional :: action
+            logical, intent(in), optional :: norecord
+        end subroutine pop_to_buffer
+
+        !> Port of window.el:pop-to-buffer-same-window.
+        module subroutine pop_to_buffer_same_window(buffer, status, norecord)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord
+        end subroutine pop_to_buffer_same_window
+
+        !> Port of window.el:temp-buffer-window-show.
+        module subroutine temp_buffer_window_show(buffer, window, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(handle_type), intent(out) :: window
+            type(status_type), intent(out) :: status
+        end subroutine temp_buffer_window_show
+
+        !> Port of window.c:Fget_buffer_window.
+        module function get_buffer_window(buffer) result(window)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(handle_type) :: window
+        end function get_buffer_window
+
+        !> Port of window.el:get-lru-window.
+        module function get_lru_window(dedicated, not_selected) result(window)
+            implicit none(type, external)
+            logical, intent(in) :: dedicated, not_selected
+            type(handle_type) :: window
+        end function get_lru_window
+
+        !> Port of window.el:get-mru-window.
+        module function get_mru_window(dedicated, not_selected) result(window)
+            implicit none(type, external)
+            logical, intent(in) :: dedicated, not_selected
+            type(handle_type) :: window
+        end function get_mru_window
+
+        !> Port of window.el:get-largest-window.
+        module function get_largest_window(dedicated, not_selected) result(window)
+            implicit none(type, external)
+            logical, intent(in) :: dedicated, not_selected
+            type(handle_type) :: window
+        end function get_largest_window
+
+        !> Split a window as split-window-below or split-window-right do.
+        module subroutine split_window_and_copy(h, horizontal, new, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            logical, intent(in) :: horizontal
+            type(handle_type), intent(out) :: new
+            type(status_type), intent(out) :: status
+        end subroutine split_window_and_copy
+
+        !> Copy a `quit_restore' parameter.
+        module subroutine copy_quit_restore(from, to)
+            implicit none(type, external)
+            type(quit_restore_type), intent(in) :: from
+            type(quit_restore_type), intent(inout) :: to
+        end subroutine copy_quit_restore
+
+        !> Port of window.el:window-resize (a window with a sibling).
+        module subroutine window_resize(h, delta, horizontal, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+            integer, intent(in) :: delta
+            logical, intent(in) :: horizontal
+            type(status_type), intent(out) :: status
+        end subroutine window_resize
+
+        !> Register `quit_window', `bury_buffer', `previous_buffer' and
+        !> `next_buffer'.
+        module subroutine syms_of_window_display()
+            implicit none(type, external)
+        end subroutine syms_of_window_display
     end interface
 
 contains
 
-    !> Show buffer `buffer' in `w', starting at its accessible beginning,
-    !> with the window's point at the buffer's point.  The buffer shown
-    !> before is recorded as `prev_buffer' (window.el
-    !> record-window-buffer) unless `record' is false, as for a temporary
-    !> display.  Port of window.c:set_window_buffer (no hooks).
-    subroutine set_window_buffer(w, buffer, status, record)
-        type(window_type), intent(inout) :: w
-        type(handle_type), intent(in) :: buffer
-        type(status_type), intent(out) :: status
-        logical, intent(in), optional :: record
-        integer(int64) :: i
-        logical :: rec
-        call resolve_buffer(buffer, i, status)
-        if (.not. status%ok()) return
-        rec = .true.
-        if (present(record)) rec = record
-        if (rec .and. w%buffer%index /= 0 .and. .not. (w%buffer%index == buffer%index .and. &
-                                                       w%buffer%generation == buffer%generation)) then
-            w%prev_buffer = w%buffer
-        end if
-        if (w%start%index == 0) call make_marker(w%start)
-        if (w%pointm%index == 0) call make_marker(w%pointm)
-        w%buffer = buffer
-        call set_marker(w%start, buffers(i)%begv, status, buffer)
-        if (.not. status%ok()) return
-        call set_marker(w%pointm, buffers(i)%pt, status, buffer)
-        w%force_start = .false.
-        w%window_end_valid = .false.
-    end subroutine set_window_buffer
+    !> Whether `a' and `b' are the same buffer (or window) handle.
+    pure logical function same_handle(a, b)
+        type(handle_type), intent(in) :: a, b
+        same_handle = a%index == b%index .and. a%generation == b%generation
+    end function same_handle
 
     !> Where the display of `w' starts (1 if it shows no buffer).  Port of
     !> window.c:Fwindow_start.
@@ -441,12 +746,40 @@ contains
     subroutine free_window(w)
         type(window_type), intent(inout) :: w
         type(status_type) :: status
+        integer :: k
         if (w%start%index /= 0) call free_marker(w%start, status)
         if (w%pointm%index /= 0) call free_marker(w%pointm, status)
+        if (allocated(w%prev_buffers)) then
+            do k = 1, size(w%prev_buffers)
+                call free_prev_buffer(w%prev_buffers(k))
+            end do
+            deallocate (w%prev_buffers)
+        end if
+        if (allocated(w%next_buffers)) deallocate (w%next_buffers)
+        call free_quit_restore(w%quit_restore)
+        call free_quit_restore(w%quit_restore_prev)
         w%start = null_handle()
         w%pointm = null_handle()
         w%buffer = null_handle()
     end subroutine free_window
+
+    !> Free the markers of a previous-buffer entry.
+    subroutine free_prev_buffer(e)
+        type(prev_buffer_type), intent(inout) :: e
+        type(status_type) :: status
+        if (e%start%index /= 0) call free_marker(e%start, status)
+        if (e%point%index /= 0) call free_marker(e%point, status)
+        e = prev_buffer_type()
+    end subroutine free_prev_buffer
+
+    !> Clear a `quit_restore' parameter (set it to nil), freeing its
+    !> marker.
+    subroutine free_quit_restore(q)
+        type(quit_restore_type), intent(inout) :: q
+        type(status_type) :: status
+        if (q%quad_point%index /= 0) call free_marker(q%quad_point, status)
+        q = quit_restore_type()
+    end subroutine free_quit_restore
 
     ! ------------------------------------------------------------------
     ! The window registry and tree
@@ -700,10 +1033,7 @@ contains
                 n%total_lines = new_size
             end if
         end associate
-        call set_window_buffer(windows(new%index), windows(old%index)%buffer, status)
-        if (.not. status%ok()) return
-        call set_window_start(windows(new%index), window_start(windows(old%index)), status, noforce=.true.)
-        call set_window_point(windows(new%index), window_point(windows(old%index)), status)
+        call set_window_buffer_internal(new, windows(old%index)%buffer, .true.)
     end subroutine split_window_internal
 
     !> Take window `h' out of the tree: its space goes to the sibling

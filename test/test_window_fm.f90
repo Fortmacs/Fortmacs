@@ -40,7 +40,8 @@ module test_window_fm
                          windows, window_leaves, same_window, window_text_cols, other_buffer, &
                          scroll_up, scroll_down, recenter, move_to_window_line, &
                          scroll_up_command, scroll_down_command, recenter_top_bottom, &
-                         move_to_window_line_top_bottom, scroll_error_top_bottom
+                         move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
+                         select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
                            discard_input
@@ -68,7 +69,11 @@ contains
                     new_unittest("other-window", test_other_window), &
                     new_unittest("delete-window", test_delete), &
                     new_unittest("switch-to-buffer", test_switch_to_buffer), &
-                    new_unittest("kill-buffer", test_kill_buffer) &
+                    new_unittest("kill-buffer", test_kill_buffer), &
+                    new_unittest("display-buffer-and-quit-window", test_display_buffer), &
+                    new_unittest("previous-and-next-buffer", test_previous_next_buffer), &
+                    new_unittest("switch-to-buffer-dedicated", test_switch_dedicated), &
+                    new_unittest("scroll-other-window", test_scroll_other_window) &
                     ]
     end subroutine collect_window_fm
 
@@ -106,7 +111,7 @@ contains
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => win()
-        call set_window_buffer(w, h, st)
+        call set_window_buffer(selected_frame%selected_window, h, st)
         this_command = nil()
         last_command = nil()
     end subroutine enter
@@ -357,7 +362,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         w => win()
-        call set_window_buffer(w, h, st)
+        call set_window_buffer(selected_frame%selected_window, h, st)
     end subroutine enter_frame
 
     subroutine leave_frame()
@@ -541,4 +546,111 @@ contains
         call check(error,.not. buffer_live_p(h), "yes: killed")
         call leave_frame()
     end subroutine test_kill_buffer
+    !> display-buffer pops up a new window below the selected one (which
+    !> stays selected); showing the buffer again reuses that window; q
+    !> (quit-window) in it deletes it.
+    subroutine test_display_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, o, w, again
+        type(handle_type), allocatable :: ws(:)
+        type(status_type) :: st
+        call enter_frame("abc", h)
+        call get_buffer_create("other-test", o, st)
+        call display_buffer(o, w, st)
+        ws = leaves()
+        call check(error, st%ok() .and. size(ws) == 2 .and. same_window(w, ws(2)) .and. &
+                   windows(w%index)%buffer%index == o%index, "a new window below")
+        if (allocated(error)) return
+        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. buffers(cur)%name == "split-test" &
+                   .and. windows(w%index)%quit_restore%kind == QR_WINDOW, "selection unchanged")
+        if (allocated(error)) return
+        call display_buffer(o, again, st)
+        call check(error, size(leaves()) == 2 .and. same_window(again, w), "reused")
+        if (allocated(error)) return
+        call select_window(w, st)
+        call quit_window(.false., st)
+        ws = leaves()
+        call check(error, st%ok() .and. size(ws) == 1 .and. windows(ws(1)%index)%buffer%index == h%index .and. &
+                   buffers(cur)%name == "split-test", "quit-window deletes it")
+        call leave_frame()
+    end subroutine test_display_buffer
+
+    !> C-x <left> and C-x <right> go back and forth through the buffers the
+    !> window showed; C-x b back to a buffer restores its point there.
+    subroutine test_previous_next_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter_frame("abcdef", h)
+        call goto_char(3_int64)
+        call run_keys("C-x b o t h e r - t e s t RET")
+        call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
+        if (allocated(error)) return
+        call run_keys("C-x <left>")
+        call check(error, buffers(cur)%name == "split-test" .and. point() == 3, buffers(cur)%name//" "//last_message)
+        if (allocated(error)) return
+        call run_keys("C-x <right>")
+        call check(error, buffers(cur)%name == "other-test", buffers(cur)%name)
+        if (allocated(error)) return
+        ! Point moves in split-test meanwhile; the window's point stays.
+        call set_buffer(h, st)
+        call goto_char(6_int64)
+        call run_keys("C-x b s p l i t - t e s t RET")
+        call check(error, buffers(cur)%name == "split-test" .and. point() == 3, "window point restored")
+        call leave_frame()
+    end subroutine test_previous_next_buffer
+
+    !> A strongly dedicated window refuses C-x b; switch_to_buffer without
+    !> FORCE_SAME_WINDOW pops to another window instead.
+    subroutine test_switch_dedicated(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(handle_type), allocatable :: ws(:)
+        type(status_type) :: st
+        call enter_frame("abc", h)
+        windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
+        call run_keys("C-x b")
+        call check(error, last_message == "Cannot switch buffers in a dedicated window", last_message)
+        if (allocated(error)) return
+        call switch_to_buffer("other-test", st, force_same_window=.true.)
+        call check(error, st%code /= 0 .and. size(leaves()) == 1, "forced: error")
+        if (allocated(error)) return
+        call switch_to_buffer("other-test", st)
+        ws = leaves()
+        call check(error, st%ok() .and. size(ws) == 2 .and. same_window(selected_frame%selected_window, ws(2)) .and. &
+                   buffers(cur)%name == "other-test" .and. windows(ws(1)%index)%buffer%index == h%index, &
+                   "popped to another window")
+        call leave_frame()
+    end subroutine test_switch_dedicated
+
+    !> C-M-v scrolls the other window, M-<prior> scrolls it back; the
+    !> selected window and its point stay.
+    subroutine test_scroll_other_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(handle_type), allocatable :: ws(:)
+        character(len=:), allocatable :: text
+        character(len=7) :: one
+        integer :: k
+        text = ""
+        do k = 1, 30
+            write (one, '("line", i2.2, a)') k, achar(10)
+            text = text//one
+        end do
+        call enter_frame(text, h)
+        call run_keys("C-x 2")
+        ws = leaves()
+        call goto_char(line(2))
+        ! The bottom window has 10 text lines: a screenful is 8 lines.
+        call run_keys("C-M-v")
+        call check(error, window_start(windows(ws(2)%index)) == line(9) .and. &
+                   same_window(selected_frame%selected_window, ws(1)) .and. point() == line(2), "scrolled the other")
+        if (allocated(error)) return
+        call run_keys("M-<prior>")
+        call check(error, window_start(windows(ws(2)%index)) == line(1), "and back")
+        if (allocated(error)) return
+        call run_keys("C-x 1 C-M-v")
+        call check(error, last_message == "There is no other window", last_message)
+        call leave_frame()
+    end subroutine test_scroll_other_window
 end module test_window_fm

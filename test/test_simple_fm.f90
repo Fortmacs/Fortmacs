@@ -24,6 +24,7 @@
 module test_simple_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
@@ -94,6 +95,7 @@ contains
         call erase_buffer(st)
         call deactivate_mark(.true.)
         call set(sym("kill_ring"), nil(), st)
+        call show_alone()
     end subroutine fresh
 
     !> Set the current buffer's text, point and mark according to

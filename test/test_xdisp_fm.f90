@@ -33,8 +33,8 @@ module test_xdisp_fm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
-    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal
-    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width
+    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer
+    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, init_frame_windows
     use keyboard_fm, only: last_message
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
@@ -250,6 +250,9 @@ contains
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        ! The selected window shows the buffer.
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
         ! Point at the start of line 60.
         call goto_char(line_start(60))
         call redisplay(f, st)
@@ -338,6 +341,9 @@ contains
         call buffer_with("*xdisp-split*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        ! The selected window shows the buffer.
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
         call goto_char(1_int64)
         call redisplay(f, st)
         top_left = f%root_window

@@ -26,7 +26,9 @@ module test_help_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, buffer_modified_p
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p
+    use frame_fm, only: selected_frame, ensure_frame_windows
+    use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
@@ -77,8 +79,37 @@ contains
         call discard_input()
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
+        ! One window, showing *scratch*.
+        call ensure_frame_windows()
+        call delete_other_windows(selected_frame%selected_window, st)
+        call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
+        call switch_to_buffer("*scratch*", st)
         last_message = ""
     end subroutine fresh_scratch
+
+    !> The text of *Help*.
+    function help_text() result(text)
+        character(len=:), allocatable :: text
+        type(handle_type) :: old
+        type(status_type) :: st
+        old = current_buffer()
+        call set_buffer(get_buffer("*Help*"), st)
+        text = buffer_string()
+        call set_buffer(old, st)
+    end function help_text
+
+    !> The number of windows on the frame.
+    integer function window_count()
+        type(handle_type), allocatable :: leaves(:)
+        call window_leaves(selected_frame%root_window, leaves)
+        window_count = size(leaves)
+    end function window_count
+
+    !> The name of the buffer shown in the selected window.
+    function selected_buffer_name() result(name)
+        character(len=:), allocatable :: name
+        name = buffers(windows(selected_frame%selected_window%index)%buffer%index)%name
+    end function selected_buffer_name
 
     !> Queue `keys` (a key_valid_p string) as input.
     subroutine type_keys(keys)
@@ -276,20 +307,31 @@ contains
     subroutine test_help_window(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+        type(handle_type) :: help
         logical :: modified
         call fresh_scratch()
         call with_help_window("Some help."//LF, st)
-        call check(error, st%ok() .and. buffers(cur)%name == "*Help*" .and. buffers(cur)%read_only .and. &
-                   buffer_string() == "Some help."//LF, buffers(cur)%name)
+        ! The help buffer pops up in a new window below; the selected
+        ! window and the current buffer stay.
+        call check(error, st%ok() .and. buffers(cur)%name == "*scratch*" .and. window_count() == 2 .and. &
+                   selected_buffer_name() == "*scratch*", buffers(cur)%name)
         if (allocated(error)) return
-        call check(error, last_message == "Type q to restore previous buffer", last_message)
+        help = get_buffer("*Help*")
+        call check(error, buffers(help%index)%read_only .and. help_text() == "Some help."//LF, help_text())
         if (allocated(error)) return
-        call buffer_modified_p(current_buffer(), modified, st)
+        call check(error, last_message == "Type C-x 1 to delete the help window.", last_message)
+        if (allocated(error)) return
+        call buffer_modified_p(help, modified, st)
         call check(error,.not. modified, "*Help* is unmodified")
+        if (allocated(error)) return
+        ! q in the help window deletes it.
+        call type_keys("C-x o")
+        call command_loop(st)
+        call check(error, selected_buffer_name() == "*Help*", selected_buffer_name())
         if (allocated(error)) return
         call type_keys("q")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        call check(error, buffers(cur)%name == "*scratch*" .and. window_count() == 1, buffers(cur)%name)
     end subroutine test_help_window
 
     subroutine test_describe_key(error)
@@ -298,18 +340,21 @@ contains
         call fresh_scratch()
         call type_keys("C-h k C-f")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*Help*", buffers(cur)%name)
+        call check(error, buffers(cur)%name == "*scratch*" .and. window_count() == 2, buffers(cur)%name)
         if (allocated(error)) return
-        call check(error, index(buffer_string(), "C-f runs the command forward_char (found in global_map), which is "// &
+        call check(error, index(help_text(), "C-f runs the command forward_char (found in global_map), which is "// &
                                 "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF) == 1, &
-                   buffer_string())
+                   help_text())
         if (allocated(error)) return
         call type_keys("<f1> k C-x C-f")
         call command_loop(st)
-        call check(error, index(buffer_string(), "C-x C-f runs the command find_file (found in global_map)") == 1, &
-                   buffer_string())
+        call check(error, index(help_text(), "C-x C-f runs the command find_file (found in global_map)") == 1, &
+                   help_text())
         if (allocated(error)) return
-        call type_keys("q")
+        ! The help window shows *Help* again: no message.
+        call check(error, window_count() == 2, "two windows")
+        if (allocated(error)) return
+        call type_keys("C-x o q")
         call command_loop(st)
         call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
     end subroutine test_describe_key
@@ -351,9 +396,11 @@ contains
         call fresh_scratch()
         call type_keys("C-h f i n s e r t RET")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*Help*" .and. &
-                   index(buffer_string(), "insert is a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ) == 1, &
-                   buffer_string())
+        call check(error, window_count() == 2 .and. &
+                   index(help_text(), "insert is a Fortran subroutine in "//LQ//"insdel_fm.f90"//RQ) == 1, &
+                   help_text())
+        ! Back to one window.
+        call fresh_scratch()
     end subroutine test_describe_function_keys
 
     subroutine test_describe_variable_keys(error)
@@ -362,8 +409,10 @@ contains
         call fresh_scratch()
         call type_keys("C-h v t a b _ w i d t h RET")
         call command_loop(st)
-        call check(error, buffers(cur)%name == "*Help*" .and. &
-                   index(buffer_string(), "tab_width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ) == 1, &
-                   buffer_string())
+        call check(error, window_count() == 2 .and. &
+                   index(help_text(), "tab_width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ) == 1, &
+                   help_text())
+        ! Back to one window.
+        call fresh_scratch()
     end subroutine test_describe_variable_keys
 end module test_help_fm

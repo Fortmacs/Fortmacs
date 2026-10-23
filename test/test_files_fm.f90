@@ -24,6 +24,7 @@ module test_files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use bindings_fm, only: init_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
+    use test_support, only: show_alone
     use error_fm, only: format_message
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
@@ -128,6 +129,7 @@ contains
         call kill_buffer(buf, st)
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
+        call show_alone()
     end subroutine setup
 
     !> Kill every buffer visiting a file in the test directory.
@@ -474,8 +476,9 @@ contains
             call insert("bee", st)
             call find_file(path("c.txt"), st)
             call insert("sea", st)
-            ! Answer y for b.txt, n for c.txt (in buffer-list order).
-            call type_keys("yn")
+            ! Answer n for c.txt, y for b.txt (in buffer-list order: c.txt
+            ! was selected last).
+            call type_keys("ny")
             call save_some_buffers(.false., .true., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body

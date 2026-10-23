@@ -45,6 +45,7 @@ module commands_fm
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
+        type(command_type) :: bury_buffer
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: copy_region_as_kill
@@ -155,6 +156,7 @@ module commands_fm
         type(command_type) :: move_to_window_line_top_bottom
         type(command_type) :: negative_argument
         type(command_type) :: newline
+        type(command_type) :: next_buffer
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: normal_mode
@@ -163,6 +165,7 @@ module commands_fm
         type(command_type) :: pop_to_mark_command
         type(command_type) :: posix_search_backward
         type(command_type) :: posix_search_forward
+        type(command_type) :: previous_buffer
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: prog_mode
@@ -184,6 +187,8 @@ module commands_fm
         type(command_type) :: save_some_buffers
         type(command_type) :: scroll_down
         type(command_type) :: scroll_down_command
+        type(command_type) :: scroll_other_window
+        type(command_type) :: scroll_other_window_down
         type(command_type) :: scroll_up
         type(command_type) :: scroll_up_command
         type(command_type) :: search_backward
@@ -226,7 +231,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(188) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(193) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
@@ -240,6 +245,7 @@ module commands_fm
                                                                  "beginning_of_buffer", &
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
+                                                                 "bury_buffer", &
                                                                  "capitalize_region", &
                                                                  "capitalize_word", &
                                                                  "copy_region_as_kill", &
@@ -350,6 +356,7 @@ module commands_fm
                                                                  "move_to_window_line_top_bottom", &
                                                                  "negative_argument", &
                                                                  "newline", &
+                                                                 "next_buffer", &
                                                                  "next_history_element", &
                                                                  "next_line", &
                                                                  "normal_mode", &
@@ -358,6 +365,7 @@ module commands_fm
                                                                  "pop_to_mark_command", &
                                                                  "posix_search_backward", &
                                                                  "posix_search_forward", &
+                                                                 "previous_buffer", &
                                                                  "previous_history_element", &
                                                                  "previous_line", &
                                                                  "prog_mode", &
@@ -379,6 +387,8 @@ module commands_fm
                                                                  "save_some_buffers", &
                                                                  "scroll_down", &
                                                                  "scroll_down_command", &
+                                                                 "scroll_other_window", &
+                                                                 "scroll_other_window_down", &
                                                                  "scroll_up", &
                                                                  "scroll_up_command", &
                                                                  "search_backward", &
@@ -451,6 +461,8 @@ contains
             p => commands%beginning_of_line
         case ("beginning_of_line_text")
             p => commands%beginning_of_line_text
+        case ("bury_buffer")
+            p => commands%bury_buffer
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
@@ -671,6 +683,8 @@ contains
             p => commands%negative_argument
         case ("newline")
             p => commands%newline
+        case ("next_buffer")
+            p => commands%next_buffer
         case ("next_history_element")
             p => commands%next_history_element
         case ("next_line")
@@ -687,6 +701,8 @@ contains
             p => commands%posix_search_backward
         case ("posix_search_forward")
             p => commands%posix_search_forward
+        case ("previous_buffer")
+            p => commands%previous_buffer
         case ("previous_history_element")
             p => commands%previous_history_element
         case ("previous_line")
@@ -729,6 +745,10 @@ contains
             p => commands%scroll_down
         case ("scroll_down_command")
             p => commands%scroll_down_command
+        case ("scroll_other_window")
+            p => commands%scroll_other_window
+        case ("scroll_other_window_down")
+            p => commands%scroll_other_window_down
         case ("scroll_up")
             p => commands%scroll_up
         case ("scroll_up_command")

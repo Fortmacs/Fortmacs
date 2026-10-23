@@ -24,6 +24,7 @@
 module test_minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
@@ -160,6 +161,7 @@ contains
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
         last_message = ""
+        call show_alone()
     end subroutine fresh_scratch
 
     subroutine test_read(error)
