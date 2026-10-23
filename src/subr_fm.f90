@@ -185,15 +185,20 @@ module subr_fm
         !> to generate PROMPT.  HIST specifies a history list variable.  See
         !> `read_from_minibuffer' for details of the HIST argument.
         !>
+        !> DEFAULTS, in place of DEFAULT, is a list of defaults: the first
+        !> is the default, all are offered by M-n.
+        !>
         !> This function is used by the `interactive' code letter "n".  Port
-        !> of subr.el:read-number (integers only).  (In subr_read_fm.)
-        module subroutine read_number(prompt, n, status, default, hist)
+        !> of subr.el:read-number (the answer is read as the Lisp reader
+        !> reads an integer; floats are not ported).  (In subr_read_fm.)
+        module subroutine read_number(prompt, n, status, default, hist, defaults)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer(int64), intent(out) :: n
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: default
             character(len=*), intent(in), optional :: hist
+            integer(int64), intent(in), optional :: defaults(:)
         end subroutine read_number
 
         !> Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK.

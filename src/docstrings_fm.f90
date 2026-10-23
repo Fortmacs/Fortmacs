@@ -2350,7 +2350,7 @@ contains
                         "of rmc.el:read-multiple-choice (short answers)."
         case ("read_number")
             entry%file = "subr_fm.f90"
-            entry%fortran = "call read_number(prompt, n, status, default, hist)"
+            entry%fortran = "call read_number(prompt, n, status, default, hist, defaults)"
             entry%doc = "Read from the minibuffer and return a numeric value, prompting with PROMPT."//LF// &
                         "DEFAULT specifies a default value to return if the user just types RET."//LF// &
                         "For historical reasons, the value of DEFAULT is always inserted into"//LF// &
@@ -2358,8 +2358,12 @@ contains
                         "to generate PROMPT.  HIST specifies a history list variable.  See"//LF// &
                         "`read_from_minibuffer' for details of the HIST argument."//LF// &
                         ""//LF// &
+                        "DEFAULTS, in place of DEFAULT, is a list of defaults: the first"//LF// &
+                        "is the default, all are offered by M-n."//LF// &
+                        ""//LF// &
                         "This function is used by the `interactive' code letter ""n"".  Port"//LF// &
-                        "of subr.el:read-number (integers only).  (In subr_read_fm.)"
+                        "of subr.el:read-number (the answer is read as the Lisp reader"//LF// &
+                        "reads an integer; floats are not ported).  (In subr_read_fm.)"
         case ("read_string")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call read_string(prompt, result, status, initial, history, default, position)"

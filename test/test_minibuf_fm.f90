@@ -52,7 +52,8 @@ module test_minibuf_fm
                           completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
     use fns_fm, only: yes_or_no_p, use_short_answers
-    use subr_fm, only: add_to_history, history_length, history_delete_duplicates, y_or_n_p, y_or_n_p_use_read_key
+    use subr_fm, only: add_to_history, history_length, history_delete_duplicates, y_or_n_p, y_or_n_p_use_read_key, &
+                       read_number
     use fns_fm, only: put
     use minibuf_fm, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
@@ -99,6 +100,7 @@ contains
                     new_unittest("add-to-history", test_add_to_history), &
                     new_unittest("no-recursive-minibuffer", test_no_recursion), &
                     new_unittest("yes-or-no-p", test_yes_or_no), &
+                    new_unittest("read-number", test_read_number), &
                     new_unittest("y-or-n-p-minibuffer", test_y_or_n_p_minibuffer), &
                     new_unittest("y-or-n-p-read-key", test_y_or_n_p_read_key), &
                     new_unittest("read-file-name", test_read_file_name), &
@@ -471,6 +473,46 @@ contains
         y_or_n_p_use_read_key = .false.
         call check(error, st%code == FM_QUIT, "ESC quits")
     end subroutine test_y_or_n_p_read_key
+
+    !> read-number reads the answer as the Lisp reader does.
+    subroutine test_read_number(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        integer(int64) :: n
+        call fresh_scratch()
+        call type_text("#x10"//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == 16, "#x10")
+        if (allocated(error)) return
+        call type_text("?a"//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == 97, "?a")
+        if (allocated(error)) return
+        call type_text("-12."//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == -12, "-12.")
+        if (allocated(error)) return
+        call type_text("  5 foo"//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == 5, "5 foo")
+        if (allocated(error)) return
+        call type_text("#3r12"//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == 5, "#3r12")
+        if (allocated(error)) return
+        call type_text("abc"//achar(13)//"7"//achar(13))
+        call read_number("N: ", n, st)
+        call check(error, st%ok() .and. n == 7, "asked again")
+        if (allocated(error)) return
+        ! A list of defaults: the first for empty input, M-n offers all.
+        call type_keys("RET")
+        call read_number("N: ", n, st, defaults=[3_int64, 4_int64])
+        call check(error, st%ok() .and. n == 3, "first default")
+        if (allocated(error)) return
+        call type_keys("M-n M-n RET")
+        call read_number("N: ", n, st, defaults=[3_int64, 4_int64])
+        call check(error, st%ok() .and. n == 4, "second default")
+    end subroutine test_read_number
 
     subroutine test_read_file_name(error)
         type(error_type), allocatable, intent(out) :: error
