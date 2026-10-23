@@ -27,7 +27,7 @@
 !> `file-precious-flag`.
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, &
+    use error_fm, only: status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nilp
@@ -61,6 +61,7 @@ module files_fm
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
     public :: set_visited_file_name, write_file
     public :: make_directory
+    public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
 
     interface
         !> minibuffer.el:read-file-name.  With `confirm_nonexistent`, a
@@ -78,6 +79,64 @@ module files_fm
             character(len=*), intent(in), optional :: dir, default_filename, initial
             logical, intent(in), optional :: confirm_nonexistent
         end subroutine read_file_name_in_minibuffer
+
+        !> Choose the major mode for this buffer automatically.
+        !> Uses the visited file name and the -*- line.
+        !>
+        !> This function is called automatically from `find-file'.  Port of
+        !> files.el:normal-mode (no file or directory local variables yet).
+        !> (In files_mode_fm.)
+        recursive module subroutine normal_mode(status, find_file)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: find_file
+        end subroutine normal_mode
+
+        !> Select major mode appropriate for current buffer.
+        !>
+        !> To find the right major mode, this function checks for a -*- mode tag,
+        !> then compares the file name against the entries in `auto-mode-alist'
+        !> (case-sensitively first, then ignoring case, as `auto-mode-case-fold').
+        !>
+        !> If the optional argument KEEP-MODE-IF-SAME is non-nil, then we
+        !> set the major mode only if that would change it.  Port of
+        !> files.el:set-auto-mode (only the first mode of a -*- line; no
+        !> interpreter-mode-alist or magic-mode-alist yet).  (In
+        !> files_mode_fm.)
+        recursive module subroutine set_auto_mode(status, keep_mode_if_same)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: keep_mode_if_same
+        end subroutine set_auto_mode
+
+        !> Add (REGEXP . MODE) to the front of `auto-mode-alist', so files
+        !> whose names match REGEXP get major mode MODE.  The counterpart
+        !> of (add-to-list 'auto-mode-alist '(REGEXP . MODE)).  (In
+        !> files_mode_fm.)
+        module subroutine add_auto_mode(regexp, mode)
+            implicit none(type, external)
+            character(len=*), intent(in) :: regexp, mode
+        end subroutine add_auto_mode
+
+        !> Return file NAME sans backup versions or strings.
+        !> This is a separate procedure so your site-init or startup file can
+        !> redefine it.  Port of files.el:file-name-sans-versions (no
+        !> version-control numbering beyond .~N~).  (In files_mode_fm.)
+        module function file_name_sans_versions(name) result(base)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: base
+        end function file_name_sans_versions
+
+        !> The mode named by the -*- line of TEXT (the start of a buffer),
+        !> as "NAME-mode", or "" if there is none.  Port of the -*- part of
+        !> files.el:set-auto-mode with set-auto-mode-1.  (In
+        !> files_mode_fm.)
+        module function auto_mode_spec(text) result(mode)
+            implicit none(type, external)
+            character(len=*), intent(in) :: text
+            character(len=:), allocatable :: mode
+        end function auto_mode_spec
     end interface
 
     !> Non-nil means make a backup of a file the first time it is saved.
@@ -198,8 +257,8 @@ contains
 
     !> Set up the current buffer after visiting its file: read-only if the
     !> file can't be written, and a message about new or protected files
-    !> when `warn`.  Port of files.el:after-find-file (no auto-save, modes,
-    !> local variables or hooks).
+    !> when `warn`, then the major mode.  Port of files.el:after-find-file
+    !> (no auto-save, local variables or hooks).
     subroutine after_find_file(error, warn)
         logical, intent(in) :: error, warn
         character(len=:), allocatable :: msg, file
@@ -233,6 +292,7 @@ contains
                 call set_buffer_read_only(current_buffer(), .true., st)
             end if
         end if
+        call normal_mode(st, .true.)
     end subroutine after_find_file
 
     !> Visit `filename` and make its buffer current (and so shown in the
@@ -768,6 +828,13 @@ contains
     !>
     !> If a file's name is FOO, its backup file is called FOO~.
     !> Port of files.el:save-buffer (the command; no numbered backups).
+    !> Choose the major mode for this buffer automatically.  Port of
+    !> files.el:normal-mode as a command.
+    recursive subroutine cmd_normal_mode(status)
+        type(status_type), intent(out) :: status
+        call normal_mode(status)
+    end subroutine cmd_normal_mode
+
     subroutine cmd_save_buffer(status)
         type(status_type), intent(out) :: status
         call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
@@ -802,6 +869,7 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
         call defcommand("find-file", cmd_find_file)
+        call defcommand("normal-mode", cmd_normal_mode)
         call defcommand("write-file", cmd_write_file)
         call defcommand("save-buffer", cmd_save_buffer)
         call defcommand("save-some-buffers", cmd_save_some_buffers)

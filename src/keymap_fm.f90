@@ -59,7 +59,7 @@ module keymap_fm
                        nilp, fixnump, symbolp, xfixnum, xsymbol, xstring, &
                        xhandle, list_length, list_elements, list_tail, keymap_ref_p
     use lread_fm, only: intern
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, symbol_value
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
                             CHAR_CTL, CHAR_META, MAX_CHAR, &
                             MAX_MULTIBYTE_LENGTH, char_string, &
@@ -74,7 +74,7 @@ module keymap_fm
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
     public :: current_global_map, use_global_map
-    public :: current_local_map, use_local_map, current_active_maps
+    public :: current_local_map, use_local_map, current_active_maps, add_minor_mode_map
     public :: parse_modifiers, apply_modifiers
     public :: key_parse, key_description, single_key_description, &
               push_key_description
@@ -136,6 +136,12 @@ module keymap_fm
     !> composes the new map with the old overriding-terminal-local-map
     !> (internal-push-keymap); this is the old one, active below it.
     type(handle_type), public :: pushed_terminal_local_map
+
+    !> minor-mode-map-alist: keymaps active while their variable (a
+    !> symbol id) is non-nil, the most recently added first.
+    integer(int64), allocatable :: minor_mode_vars(:)
+    type(handle_type), allocatable :: minor_mode_maps(:)
+    integer :: n_minor_mode_maps = 0
 
     !> A key sequence and the keymap it leads to (where-is).
     type :: key_list_type
@@ -987,16 +993,48 @@ contains
         buffers(cur)%keymap = km
     end subroutine use_local_map
 
+    !> Make keymap MAP active while variable VARIABLE is non-nil, ahead
+    !> of the minor-mode maps added earlier (replacing VARIABLE's earlier
+    !> map).  Port of the keymap part of subr.el:add-minor-mode.
+    subroutine add_minor_mode_map(variable, map)
+        character(len=*), intent(in) :: variable
+        type(handle_type), intent(in) :: map
+        integer(int64), allocatable :: vars(:)
+        type(handle_type), allocatable :: maps(:)
+        integer(int64) :: id
+        integer :: i, n
+        id = intern(variable)
+        n = n_minor_mode_maps
+        do i = 1, n
+            if (minor_mode_vars(i) == id) then
+                minor_mode_maps(i) = map
+                return
+            end if
+        end do
+        allocate (vars(n + 1), maps(n + 1))
+        vars(1) = id
+        maps(1) = map
+        if (n > 0) then
+            vars(2:) = minor_mode_vars(1:n)
+            maps(2:) = minor_mode_maps(1:n)
+        end if
+        call move_alloc(vars, minor_mode_vars)
+        call move_alloc(maps, minor_mode_maps)
+        n_minor_mode_maps = n + 1
+    end subroutine add_minor_mode_map
+
     !> The active keymaps, highest precedence first, as one composite:
-    !> overriding-terminal-local-map, the local map, the global map.  Port
-    !> of keymap.c:Fcurrent_active_maps without minor-mode,
+    !> overriding-terminal-local-map, the minor-mode maps, the local map,
+    !> the global map.  Port of keymap.c:Fcurrent_active_maps without
     !> overriding-local-map and text-property maps.
     function current_active_maps() result(maps)
         type(value_type) :: maps
         type(value_type), allocatable :: elems(:)
+        type(value_type) :: v
         type(handle_type) :: local
-        integer :: n
-        allocate (elems(4))
+        type(status_type) :: st
+        integer :: n, i
+        allocate (elems(4 + n_minor_mode_maps))
         n = 0
         if (table%is_live(overriding_terminal_local_map)) then
             n = n + 1
@@ -1006,6 +1044,14 @@ contains
             n = n + 1
             elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
+        do i = 1, n_minor_mode_maps
+            if (.not. table%is_live(minor_mode_maps(i))) cycle
+            call symbol_value(make_symbol_ref(minor_mode_vars(i)), v, st)
+            if (.not. st%ok()) cycle
+            if (nilp(v)) cycle
+            n = n + 1
+            elems(n) = make_keymap_ref(minor_mode_maps(i))
+        end do
         local = current_local_map()
         if (local%index /= 0) then
             n = n + 1

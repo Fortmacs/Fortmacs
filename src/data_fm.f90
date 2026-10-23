@@ -20,11 +20,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Type checks, `eq`, list access, and global symbol values.
+!> Type checks, `eq`, list access, symbol values, and (in the submodule
+!> data_buffer_fm) buffer-local values and the variables forwarded to
+!> Fortran settings.
+!>
+!> Buffer-local values work as upstream's swapped-in bindings: the value
+!> of a variable (its symbol slot, or the Fortran variable it forwards
+!> to) is always the current buffer's; switching buffers saves the old
+!> buffer's local values and loads the new buffer's.  So Fortran code
+!> reads settings such as `fill_column` directly.
 !>
 !> Wrong-type errors carry the predicate name as detail (upstream's DATA is
-!> `(PREDICATE VALUE)`).  Dynamic binding (`let`), buffer-local values,
-!> variable watchers and aliases are not here yet.
+!> `(PREDICATE VALUE)`).  Dynamic binding (`let`), variable watchers and
+!> aliases are not here yet.
 module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
@@ -39,6 +47,196 @@ module data_fm
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq, car, cdr, car_safe, cdr_safe
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
+    public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
+              local_variable_p, local_variable_if_set_p, default_value, set_default, default_boundp, &
+              buffer_local_value, buffer_local_variables, setq_local
+
+    interface
+        !> The value of the Fortran variable forwarded to by the symbol
+        !> with id ID: `found` is false if it is a plain variable.  (In
+        !> data_buffer_fm.)
+        module subroutine forwarded_get(id, v, found)
+            implicit none(type, external)
+            integer(int64), intent(in) :: id
+            type(value_type), intent(out) :: v
+            logical, intent(out) :: found
+        end subroutine forwarded_get
+
+        !> Set the Fortran variable forwarded to by symbol ID; `found` is
+        !> false if it is a plain variable.  (In data_buffer_fm.)
+        module subroutine forwarded_set(id, v, status, found)
+            implicit none(type, external)
+            integer(int64), intent(in) :: id
+            type(value_type), intent(in) :: v
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: found
+        end subroutine forwarded_set
+
+        !> Whether the current buffer has a local value for symbol ID.
+        !> (In data_buffer_fm.)
+        module logical function local_in_current(id)
+            implicit none(type, external)
+            integer(int64), intent(in) :: id
+        end function local_in_current
+
+        !> Whether symbol ID becomes buffer-local when set (made so by
+        !> `make-variable-buffer-local`, or a per-buffer variable of
+        !> buffer.c).  (In data_buffer_fm.)
+        module logical function auto_local(id)
+            implicit none(type, external)
+            integer(int64), intent(in) :: id
+        end function auto_local
+
+        !> Make VARIABLE have a separate value in the current buffer.
+        !> Other buffers will continue to share a common default value.
+        !> (The buffer-local value of VARIABLE starts out as the same value
+        !> VARIABLE previously had.)
+        !>
+        !> If the variable is already arranged to become local when set,
+        !> this function causes a local value to exist for this buffer,
+        !> just as setting the variable would do.  Port of
+        !> data.c:Fmake_local_variable.  (In data_buffer_fm.)
+        module subroutine make_local_variable(variable, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            type(status_type), intent(out) :: status
+        end subroutine make_local_variable
+
+        !> Make VARIABLE become buffer-local whenever it is set.
+        !> At any time, the value for the current buffer is in effect,
+        !> unless the variable has never been set in this buffer,
+        !> in which case the default value is in effect.
+        !> Note that binding the variable with `let', or setting it while
+        !> a `let'-style binding made in this buffer is in effect,
+        !> does not make the variable buffer-local.  Port of
+        !> data.c:Fmake_variable_buffer_local.  (In data_buffer_fm.)
+        module subroutine make_variable_buffer_local(variable, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            type(status_type), intent(out) :: status
+        end subroutine make_variable_buffer_local
+
+        !> Make VARIABLE no longer have a separate value in the current buffer.
+        !> From now on the default value will apply in this buffer.  Port of
+        !> data.c:Fkill_local_variable.  (In data_buffer_fm.)
+        module subroutine kill_local_variable(variable, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            type(status_type), intent(out) :: status
+        end subroutine kill_local_variable
+
+        !> Switch to Fundamental mode by killing current buffer's local variables.
+        !> Most local variable bindings are eliminated so that the default values
+        !> become effective once more.  Also, the syntax table is set from
+        !> `standard-syntax-table', the local keymap is set to nil,
+        !> and the abbrev table from `fundamental-mode-abbrev-table'.
+        !> This function also forces redisplay of the mode line.
+        !>
+        !> Every function to select a new major mode starts by
+        !> calling this function.
+        !>
+        !> As a special exception, local variables whose names have
+        !> a non-nil `permanent-local' property are not eliminated by this function.
+        !> If the optional KILL-PERMANENT argument is non-nil, clear out these local
+        !> variables, too.
+        !>
+        !> The first thing this function does is run
+        !> the normal hook `change-major-mode-hook'.  Port of
+        !> buffer.c:Fkill_all_local_variables.  (In data_buffer_fm.)
+        module subroutine kill_all_local_variables(kill_permanent)
+            implicit none(type, external)
+            logical, intent(in), optional :: kill_permanent
+        end subroutine kill_all_local_variables
+
+        !> Non-nil if VARIABLE has a local binding in buffer BUFFER (the
+        !> slot number; the current buffer if absent).  Port of
+        !> data.c:Flocal_variable_p.  (In data_buffer_fm.)
+        module logical function local_variable_p(variable, buffer)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            integer(int64), intent(in), optional :: buffer
+        end function local_variable_p
+
+        !> Non-nil if VARIABLE is local in buffer BUFFER when set there.
+        !> BUFFER defaults to the current buffer.
+        !>
+        !> More precisely, return non-nil if either VARIABLE already has a local
+        !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
+        !> `make-variable-buffer-local').  Port of
+        !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
+        module logical function local_variable_if_set_p(variable, buffer)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            integer(int64), intent(in), optional :: buffer
+        end function local_variable_if_set_p
+
+        !> Return SYMBOL's default value.
+        !> This is the value that is seen in buffers that do not have their own values
+        !> for this variable.  The default value is meaningful for variables with
+        !> local bindings in certain buffers.  Port of data.c:Fdefault_value.
+        !> (In data_buffer_fm.)
+        module subroutine default_value(symbol, v, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: symbol
+            type(value_type), intent(out) :: v
+            type(status_type), intent(out) :: status
+        end subroutine default_value
+
+        !> Return t if SYMBOL has a non-void default value.
+        !> A variable may have a buffer-local value.  This function says whether
+        !> the variable has a non-void value outside of the current buffer
+        !> context.  Port of data.c:Fdefault_boundp.  (In data_buffer_fm.)
+        module logical function default_boundp(symbol)
+            implicit none(type, external)
+            type(value_type), intent(in) :: symbol
+        end function default_boundp
+
+        !> Set SYMBOL's default value to VALUE.  SYMBOL and VALUE are evaluated.
+        !> The default value is seen in buffers that do not have their own values
+        !> for this variable.  Port of data.c:Fset_default.  (In
+        !> data_buffer_fm.)
+        module subroutine set_default(symbol, v, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: symbol, v
+            type(status_type), intent(out) :: status
+        end subroutine set_default
+
+        !> Return the value of VARIABLE in BUFFER (a slot number).
+        !> If VARIABLE does not have a buffer-local binding in BUFFER, the value
+        !> is the default binding of the variable.  Port of
+        !> buffer.c:Fbuffer_local_value.  (In data_buffer_fm.)
+        module subroutine buffer_local_value(variable, buffer, v, status)
+            implicit none(type, external)
+            type(value_type), intent(in) :: variable
+            integer(int64), intent(in) :: buffer
+            type(value_type), intent(out) :: v
+            type(status_type), intent(out) :: status
+        end subroutine buffer_local_value
+
+        !> Return an alist of variables that are buffer-local in BUFFER.
+        !> Most elements look like (SYMBOL VALUE), describing one variable.
+        !> For a symbol that is locally unbound, just the symbol appears in the value.
+        !> Note that storing new VALUEs in these elements doesn't change the variables.
+        !> No argument or nil as argument means use current buffer as BUFFER.
+        !> Port of buffer.c:Fbuffer_local_variables (elements are two-element
+        !> lists, since values hold proper lists only).
+        !> (In data_buffer_fm.)
+        module function buffer_local_variables(buffer) result(alist)
+            implicit none(type, external)
+            integer(int64), intent(in), optional :: buffer
+            type(value_type) :: alist
+        end function buffer_local_variables
+
+        !> Make VARIABLE buffer-local in the current buffer and set it to
+        !> VALUE.  Port of subr.el:setq-local (one pair).  (In
+        !> data_buffer_fm.)
+        module subroutine setq_local(variable, v, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: variable
+            type(value_type), intent(in) :: v
+            type(status_type), intent(out) :: status
+        end subroutine setq_local
+    end interface
 
 contains
 
@@ -180,11 +378,15 @@ contains
         type(value_type), intent(in) :: symbol
         logical, intent(out) :: bound
         type(status_type), intent(out) :: status
+        type(value_type) :: v
         bound = .false.
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         bound = symbols(xsymbol(symbol))%bound
+        if (.not. bound) then
+            call forwarded_get(xsymbol(symbol), v, bound)
+        end if
     end subroutine boundp
 
     !> The value of `symbol`; void-variable if unbound.
@@ -194,10 +396,13 @@ contains
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
         integer(int64) :: id
+        logical :: found
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
+        call forwarded_get(id, v, found)
+        if (found) return
         if (.not. symbols(id)%bound) then
             call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
@@ -208,10 +413,11 @@ contains
     !> Give `symbol` the value `newval`.  Constants (nil, t, keywords)
     !> signal setting-constant, except a keyword set to itself.
     !> Port of data.c:Fset / set_internal (global value only).
-    subroutine set(symbol, newval, status)
+    recursive subroutine set(symbol, newval, status)
         type(value_type), intent(in) :: symbol, newval
         type(status_type), intent(out) :: status
         integer(int64) :: id
+        logical :: found
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
@@ -222,6 +428,15 @@ contains
             end if
             return
         end if
+        ! An automatically buffer-local variable becomes local when set.
+        if (auto_local(id)) then
+            if (.not. local_in_current(id)) then
+                call make_local_variable(symbol, status)
+                if (.not. status%ok()) return
+            end if
+        end if
+        call forwarded_set(id, newval, status, found)
+        if (found) return
         symbols(id)%val = newval
         symbols(id)%bound = .true.
     end subroutine set

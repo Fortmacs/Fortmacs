@@ -20,8 +20,11 @@ replace with confirmation (`M-%`; `C-M-%` for regular expressions) or without
 paragraphs (`M-f`, `M-b`, `M-d`, `M-DEL`, `M-a`, `M-e`, `M-k`, `M-}`, `M-{`,
 `M-h`), read built-in help (`C-h f`, `C-h v`, `C-h k`; `q` leaves it), split and
 switch windows and buffers (`C-x 2`, `C-x 3`, `C-x o`, `C-x 0`, `C-x 1`,
-`C-x b`, `C-x k`), and save (`C-x C-s`, with a `FILE~` backup; `C-x C-w` to write
-elsewhere). Most of Emacs is still missing. See [PORTING.md](PORTING.md) for the
+`C-x b`, `C-x k`), switch major and minor modes (Text mode for `.txt` files or
+a `-*- text -*-` line, `M-x text-mode`, `M-x prog-mode`, `M-x auto-fill-mode`,
+shown in the mode line; buffer-local settings and mode hooks in the config),
+and save (`C-x C-s`, with a `FILE~` backup; `C-x C-w` to write elsewhere). Most
+of Emacs is still missing. See [PORTING.md](PORTING.md) for the
 roadmap and progress.
 
 <!-- progress:start -->
@@ -30,9 +33,9 @@ roadmap and progress.
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.35%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.52%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆6.84%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.58%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">867<br>of 63,999</td><td align="center">867<br>of 56,864</td><td align="center">585<br>of 8,547</td><td align="center">282<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆1.35%</td><td align="center">≆1.52%</td><td align="center">≆6.84%</td><td align="center">≆0.58%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
+<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.40%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.58%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆7.02%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.62%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
+<tr><td align="center">899<br>of 63,999</td><td align="center">899<br>of 56,864</td><td align="center">600<br>of 8,547</td><td align="center">299<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">≆1.40%</td><td align="center">≆1.58%</td><td align="center">≆7.02%</td><td align="center">≆0.62%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
 Total is Emacs (its C functions and Elisp definitions) and the packages

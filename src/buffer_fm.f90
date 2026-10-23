@@ -149,6 +149,18 @@ module buffer_fm
         !> Unique per buffer ever created, so caches keyed by slot (which is
         !> reused after kill-buffer) can tell buffers apart.
         integer(int64) :: serial = 0
+        !> BVAR local_var_alist: the variables local to this buffer (symbol
+        !> ids) and, while the buffer is not current, their values (data_fm
+        !> swaps them in and out).
+        integer(int64), allocatable :: local_ids(:)
+        type(value_type), allocatable :: local_values(:)
+        logical, allocatable :: local_bound(:)
+        integer :: nlocal = 0
+        !> BVAR major_mode (`major-mode`): the major mode's command name.
+        character(len=:), allocatable :: major_mode
+        !> BVAR mode_name (`mode-name`): the major mode's name for the mode
+        !> line.
+        character(len=:), allocatable :: mode_name
     end type buffer_type
 
     !> Non-nil if Transient Mark mode is enabled.
@@ -177,6 +189,14 @@ module buffer_fm
     integer(int64), public :: fill_column = 70
 
     abstract interface
+        !> Swap the buffer-local variables when buffer slot `new` becomes
+        !> current after slot `old` (0 for none).
+        subroutine swap_locals_proc(old, new)
+            import :: int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: old, new
+        end subroutine swap_locals_proc
+
         !> An `auto-fill-function`.
         subroutine auto_fill_proc(status)
             import :: status_type
@@ -192,6 +212,10 @@ module buffer_fm
     !> its value may not be a list of functions.  Port of buffer.c
     !> auto-fill-function (null is nil; one global value).
     procedure(auto_fill_proc), pointer, public :: auto_fill_function => null()
+
+    !> Swaps the buffer-local variables on a change of current buffer; set
+    !> by data_fm (null for none).
+    procedure(swap_locals_proc), pointer, public :: swap_buffer_locals_hook => null()
 
     !> Column for the default `indent-line-function' to indent to.
     !> Linefeed indents to this column in Fundamental mode.  Port of
@@ -242,7 +266,8 @@ module buffer_fm
         end subroutine erase_buffer
     end interface
 
-    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc
+    public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle, auto_fill_proc, swap_locals_proc, &
+              set_buffer_internal
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
     public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer
     public :: set_buffer, kill_buffer, erase_buffer
@@ -363,7 +388,7 @@ contains
         end if
         if (present(inhibit_buffer_hooks)) buffers(i)%inhibit_buffer_hooks = inhibit_buffer_hooks
         call alist_append(h)
-        if (cur == 0) cur = i
+        if (cur == 0) call set_buffer_internal(i)
     end subroutine get_buffer_create
 
     !> The live buffer visiting `filename`, or the null handle.  The caller
@@ -519,8 +544,18 @@ contains
             status%detail = "Selecting deleted buffer"
             return
         end if
-        cur = i
+        call set_buffer_internal(i)
     end subroutine set_buffer
+
+    !> Make buffer slot `i` (0 for none) current, swapping the buffer-local
+    !> variables of the old and new current buffers.  Port of
+    !> buffer.c:set_buffer_internal_2.
+    subroutine set_buffer_internal(i)
+        integer(int64), intent(in) :: i
+        if (i == cur) return
+        if (associated(swap_buffer_locals_hook)) call swap_buffer_locals_hook(cur, i)
+        cur = i
+    end subroutine set_buffer_internal
 
     !> Move buffer `h` to the most recently selected end of the buffer
     !> list.  Port of buffer.c:record_buffer.

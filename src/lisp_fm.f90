@@ -93,6 +93,15 @@ module lisp_fm
         !> trapped_write == SYMBOL_NOWRITE: nil, t and keywords.
         logical :: constant = .false.
         type(value_type) :: plist
+        !> The default value while the current buffer has a local value
+        !> (`default_bound` false for void); see data_fm.
+        type(value_type) :: default_val
+        logical :: default_bound = .false.
+        !> make-variable-buffer-local: setting makes the variable local.
+        logical :: local_if_set = .false.
+        !> SYMBOL_FORWARDED: 0 not yet known, -1 a plain variable, else
+        !> the variable's number in data_fm's table of Fortran variables.
+        integer :: fwd = 0
     end type symbol_type
 
     !> Symbol storage, indexed by id; maintained by lread_fm.

@@ -55,9 +55,13 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame
     use keyboard_fm, only: last_message, minibuffer_message_text
+    use lisp_fm, only: value_type, nilp
+    use lread_fm, only: sym
+    use data_fm, only: buffer_local_value
     implicit none(type, external)
     private
 
+    public :: add_minor_mode_lighter, mode_line_modes
     public :: redisplay, init_frame_windows, realize_basic_faces, glyph_width, &
               mode_line_text, layout_window, message, glyph_columns
 
@@ -70,6 +74,14 @@ module xdisp_fm
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
     integer, public :: tab_width = 8
+
+    !> An entry of minor-mode-alist.
+    type :: lighter_type
+        character(len=:), allocatable :: variable, lighter
+    end type lighter_type
+
+    type(lighter_type), allocatable :: lighters(:)
+    integer :: n_lighters = 0
 
 contains
 
@@ -418,11 +430,14 @@ contains
     !> modified flags, frame name, buffer name, position, line number and
     !> major mode.  (xdisp.c:display_mode_line with bindings.el's
     !> mode-line-format, simplified.)
-    function mode_line_text(name, modified, read_only, position, line, width) result(s)
+    !> MODES is the text in parentheses, the major mode's name and the
+    !> minor modes' lighters (default "Fundamental").
+    function mode_line_text(name, modified, read_only, position, line, width, modes) result(s)
         character(len=*), intent(in) :: name, position
         logical, intent(in) :: modified, read_only
         integer(int64), intent(in) :: line
         integer, intent(in) :: width
+        character(len=*), intent(in), optional :: modes
         character(len=:), allocatable :: s
         character(len=2) :: flags
         character(len=20) :: num
@@ -437,13 +452,62 @@ contains
         write (num, "(i0)") line
         s = "-UUU:"//flags//"--F1  "//name
         if (len(name) < 12) s = s//repeat(" ", 12 - len(name))
-        s = s//"   "//position//"   L"//trim(num)//"     (Fundamental) "
+        s = s//"   "//position//"   L"//trim(num)//"     ("
+        if (present(modes)) then
+            s = s//modes//") "
+        else
+            s = s//"Fundamental) "
+        end if
         if (len(s) < width) then
             s = s//repeat("-", width - len(s))
         else
             s = s(1:width)
         end if
     end function mode_line_text
+
+    !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
+    !> VARIABLE's earlier lighter).  Port of the mode-line part of
+    !> subr.el:add-minor-mode (minor-mode-alist).
+    subroutine add_minor_mode_lighter(variable, lighter)
+        character(len=*), intent(in) :: variable, lighter
+        type(lighter_type), allocatable :: grown(:)
+        integer :: i
+        do i = 1, n_lighters
+            if (lighters(i)%variable == variable) then
+                lighters(i)%lighter = lighter
+                return
+            end if
+        end do
+        if (.not. allocated(lighters)) allocate (lighters(8))
+        if (n_lighters == size(lighters)) then
+            allocate (grown(2*n_lighters))
+            grown(1:n_lighters) = lighters
+            call move_alloc(grown, lighters)
+        end if
+        n_lighters = n_lighters + 1
+        lighters(n_lighters)%variable = variable
+        lighters(n_lighters)%lighter = lighter
+    end subroutine add_minor_mode_lighter
+
+    !> The modes part of buffer BI's mode line: `mode-name` and the
+    !> lighters of `minor-mode-alist` whose variables are non-nil there.
+    function mode_line_modes(bi) result(s)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable :: s
+        type(value_type) :: v
+        type(status_type) :: st
+        integer :: i
+        if (allocated(buffers(bi)%mode_name)) then
+            s = buffers(bi)%mode_name
+        else
+            s = "Fundamental"
+        end if
+        do i = 1, n_lighters
+            call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
+            if (.not. st%ok()) cycle
+            if (.not. nilp(v)) s = s//lighters(i)%lighter
+        end do
+    end function mode_line_modes
 
     !> Port of the terminal part of xdisp.c:display_mode_line.
     subroutine display_mode_line(f, w, bi, start, pt)
@@ -472,7 +536,7 @@ contains
             position = trim(adjustl(pct))
         end if
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, position, &
-                              line_number(bi, pt), w%total_cols)
+                              line_number(bi, pt), w%total_cols, mode_line_modes(bi))
         allocate (row(w%total_cols))
         do k = 1, w%total_cols
             row(k)%ch = iachar(text(k:k))
