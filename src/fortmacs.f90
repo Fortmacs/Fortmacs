@@ -26,13 +26,15 @@
 !>         implicit none(type, external)
 !>         private
 !>         public :: configure
+!>         type(command_type), target :: insert_date_stamp_command
 !>     contains
 !>         subroutine configure(status)
 !>             type(status_type), intent(out) :: status
 !>
 !>             tab_width = 4
 !>             make_backup_files = .false.
-!>             call defcommand("insert-date-stamp", insert_date_stamp)
+!>             insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+!>             call insert_date_stamp_command%define()
 !>             call keymap_global_set("C-c d", "insert-date-stamp", status)
 !>         end subroutine configure
 !>
@@ -49,7 +51,9 @@
 !> value; `setq_local` sets a buffer's own value).  Major and minor modes
 !> are defined with `define_derived_mode` and `define_minor_mode`, and
 !> customized from their hooks with `add_hook`.  Commands are
-!> subroutines taking a `status_type`, registered with `defcommand` and
+!> subroutines taking a `status_type`, defined as `command_type` objects
+!> (built-in ones are the components of `commands`, so that
+!> `commands%upcase_region%disabled = .false.` enables C-x C-u) and
 !> bound with `keymap_global_set`.  A `configure` that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
 !> `fortmacs -q` starts without running `configure`.
@@ -64,7 +68,8 @@ module fortmacs
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     ! Commands and keys.
-    use callint_fm, only: command_proc, defcommand, call_interactively, &
+    use commands_fm, only: commands
+    use callint_fm, only: command_proc, command_type, set_command_disabled, call_interactively, &
                           current_prefix_arg, prefix_numeric_value
     use keymap_fm, only: keymap_global_set, keymap_set, key_valid_p, key_parse, &
                          key_description, define_key, current_global_map, make_sparse_keymap
@@ -77,7 +82,7 @@ module fortmacs
                           delete_region, bobp, eobp, bolp, eolp, region_beginning, region_end
     use cmds_fm, only: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     use files_fm, only: find_file, save_buffer
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: yes_or_no_p, get, put
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
@@ -202,8 +207,8 @@ module fortmacs
     public :: int64
     public :: status_type, set_error, format_error, FM_GENERIC_ERROR
     public :: value_type, nil, t_value, make_fixnum, make_string, list, sym
-    public :: symbol_value, set
-    public :: command_proc, defcommand, call_interactively, current_prefix_arg, &
+    public :: symbol_value, set, get, put
+    public :: command_proc, command_type, commands, set_command_disabled, call_interactively, current_prefix_arg, &
               prefix_numeric_value
     public :: keymap_global_set, keymap_set, key_valid_p, key_parse, key_description, &
               define_key, current_global_map, make_sparse_keymap, global_set_key

@@ -28,6 +28,7 @@
 !> submodule.  Scrolling is line based, as upstream on text terminals,
 !> with `scroll-margin` 0 and `scroll-preserve-screen-position` nil.
 submodule(window_fm) window_scroll_fm
+    use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use lisp_fm, only: nil, nilp, consp, make_fixnum
     use lread_fm, only: sym
@@ -37,7 +38,7 @@ submodule(window_fm) window_scroll_fm
     use cmds_fm, only: forward_line
     use indent_fm, only: vertical_motion, move_to_column
     use frame_fm, only: selected_frame, selected_window_ref
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use simple_fm, only: goal_column, line_move_visual
     implicit none(type, external)
@@ -464,15 +465,15 @@ contains
     end subroutine cmd_quit_window
 
     module subroutine syms_of_window()
-        call defcommand("scroll-up", cmd_scroll_up)
-        call defcommand("scroll-down", cmd_scroll_down)
-        call defcommand("scroll-up-command", cmd_scroll_up_command)
-        call defcommand("scroll-down-command", cmd_scroll_down_command)
-        call defcommand("recenter", cmd_recenter)
-        call defcommand("recenter-top-bottom", cmd_recenter_top_bottom)
-        call defcommand("move-to-window-line", cmd_move_to_window_line)
-        call defcommand("move-to-window-line-top-bottom", cmd_move_to_window_line_top_bottom)
-        call defcommand("quit-window", cmd_quit_window)
+        commands%scroll_up%run => cmd_scroll_up
+        commands%scroll_down%run => cmd_scroll_down
+        commands%scroll_up_command%run => cmd_scroll_up_command
+        commands%scroll_down_command%run => cmd_scroll_down_command
+        commands%recenter%run => cmd_recenter
+        commands%recenter_top_bottom%run => cmd_recenter_top_bottom
+        commands%move_to_window_line%run => cmd_move_to_window_line
+        commands%move_to_window_line_top_bottom%run => cmd_move_to_window_line_top_bottom
+        commands%quit_window%run => cmd_quit_window
         call syms_of_window_cmds()
     end subroutine syms_of_window
 end submodule window_scroll_fm

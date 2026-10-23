@@ -27,6 +27,7 @@
 !> `file-precious-flag`.
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
@@ -45,7 +46,7 @@ module files_fm
                          file_regular_p, file_symlink_p, user_uid, group_gid, &
                          make_directory_internal
     use keymap_fm, only: define_key
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: request_exit
     use xdisp_fm, only: message
     use subr_fm, only: y_or_n_p
@@ -868,12 +869,12 @@ contains
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
         type(status_type) :: status
-        call defcommand("find-file", cmd_find_file)
-        call defcommand("normal-mode", cmd_normal_mode)
-        call defcommand("write-file", cmd_write_file)
-        call defcommand("save-buffer", cmd_save_buffer)
-        call defcommand("save-some-buffers", cmd_save_some_buffers)
-        call defcommand("save-buffers-kill-terminal", cmd_save_buffers_kill_terminal)
+        commands%find_file%run => cmd_find_file
+        commands%normal_mode%run => cmd_normal_mode
+        commands%write_file%run => cmd_write_file
+        commands%save_buffer%run => cmd_save_buffer
+        commands%save_some_buffers%run => cmd_save_some_buffers
+        commands%save_buffers_kill_terminal%run => cmd_save_buffers_kill_terminal
         ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
         key(1) = make_fixnum(6_int64)
         call define_key(ctl_x_map, key, sym("find-file"), status)

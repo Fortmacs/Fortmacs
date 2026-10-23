@@ -28,14 +28,17 @@ module test_emacs_fm
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
     use keyboard_fm, only: last_message
+    use lread_fm, only: user_init_file
     use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file
-    use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, defcommand, &
+    use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_buffer_create, set_buffer, &
                         handle_type, tab_width
     implicit none(type, external)
     private
 
     public :: collect_emacs_fm
+
+    type(command_type), target :: cmd_insert_config_stamp
 
 contains
 
@@ -53,7 +56,8 @@ contains
     subroutine sample_configure(status)
         type(status_type), intent(out) :: status
         tab_width = 4
-        call defcommand("insert-config-stamp", insert_config_stamp)
+        cmd_insert_config_stamp = command_type("insert-config-stamp", insert_config_stamp)
+        call cmd_insert_config_stamp%define()
         call keymap_global_set("C-c d", "insert-config-stamp", status)
     end subroutine sample_configure
 
@@ -174,5 +178,7 @@ contains
         call load_init_file(sample_configure)
         call check(error,.not. init_file_had_error, "reset")
         tab_width = 8
+        ! Leave no init file name behind for other suites.
+        if (allocated(user_init_file)) deallocate (user_init_file)
     end subroutine test_init_error
 end module test_emacs_fm

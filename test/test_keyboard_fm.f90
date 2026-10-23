@@ -29,7 +29,7 @@ module test_keyboard_fm
     use data_fm, only: value_eq
     use keymap_fm, only: define_key, free_keymap, key_description, key_parse, make_keymap, &
                          make_sparse_keymap, use_global_map
-    use callint_fm, only: commandp, current_prefix_arg, defcommand, prefix_arg, prefix_numeric_value
+    use callint_fm, only: commandp, current_prefix_arg, command_type, prefix_arg, prefix_numeric_value
     use keyboard_fm, only: command_loop, command_loop_step, discard_input, input_decode_map, &
                            input_pending_p, kbd_store_bytes, key_translation_map, last_command, &
                            last_command_event, last_message, local_function_key_map, read_event, &
@@ -42,6 +42,12 @@ module test_keyboard_fm
     private
 
     public :: collect_keyboard_fm
+
+    type(command_type), target :: cmd_cmd_a
+    type(command_type), target :: cmd_cmd_b
+    type(command_type), target :: cmd_cmd_fail
+    type(command_type), target :: cmd_cmd_exit
+    type(command_type), target :: cmd_universal_argument
 
     integer(int64), parameter :: META = int(z'8000000', int64)
 
@@ -332,10 +338,14 @@ contains
         type(status_type) :: st
         logical :: done
         call fresh_global(global)
-        call defcommand("cmd-a", cmd_a)
-        call defcommand("cmd-b", cmd_b)
-        call defcommand("cmd-fail", cmd_fail)
-        call defcommand("cmd-exit", cmd_exit)
+        cmd_cmd_a = command_type("cmd-a", cmd_a)
+        call cmd_cmd_a%define()
+        cmd_cmd_b = command_type("cmd-b", cmd_b)
+        call cmd_cmd_b%define()
+        cmd_cmd_fail = command_type("cmd-fail", cmd_fail)
+        call cmd_cmd_fail%define()
+        cmd_cmd_exit = command_type("cmd-exit", cmd_exit)
+        call cmd_cmd_exit%define()
         call define_key(global, kbd("a"), sym("cmd-a"), st)
         call define_key(global, kbd("C-c b"), sym("cmd-b"), st)
         call define_key(global, kbd("f"), sym("cmd-fail"), st)
@@ -365,7 +375,7 @@ contains
         if (allocated(error)) return
         call kbd_store_bytes("v")
         call command_loop_step(done, st)
-        call check(error, last_message, "Symbol's function definition is void: void-command")
+        call check(error, last_message, "Wrong type argument: commandp, void-command")
         if (allocated(error)) return
         ! Errors don't stop the loop; cmd-exit does.
         call kbd_store_bytes("faqa")
@@ -382,12 +392,15 @@ contains
         type(handle_type) :: global
         type(status_type) :: st
         call fresh_global(global)
-        call defcommand("cmd-a", cmd_a)
-        call defcommand("cmd-b", cmd_b)
-        call defcommand("universal-argument", cmd_universal)
+        cmd_cmd_a = command_type("cmd-a", cmd_a)
+        call cmd_cmd_a%define()
+        cmd_cmd_b = command_type("cmd-b", cmd_b)
+        call cmd_cmd_b%define()
+        cmd_universal_argument = command_type("test-universal-argument", cmd_universal)
+        call cmd_universal_argument%define()
         call define_key(global, kbd("a"), sym("cmd-a"), st)
         call define_key(global, kbd("b"), sym("cmd-b"), st)
-        call define_key(global, kbd("C-u"), sym("universal-argument"), st)
+        call define_key(global, kbd("C-u"), sym("test-universal-argument"), st)
         call define_key(global, kbd("C-c m"), make_string("ab"), st)
         count_a = 0
         count_b = 0

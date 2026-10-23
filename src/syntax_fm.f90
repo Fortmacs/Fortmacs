@@ -46,13 +46,14 @@
 !> buffers' raw bytes.
 module syntax_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use character_fm, only: MAX_CHAR, string_char_and_length
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_prev_char_len
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, constrain_to_field
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use characters_fm, only: characters_syntax, char_has_category
     use charscript_fm, only: char_script
     implicit none(type, external)
@@ -745,7 +746,7 @@ contains
 
     !> Register the commands.
     subroutine syms_of_syntax()
-        call defcommand("forward-word", cmd_forward_word)
+        commands%forward_word%run => cmd_forward_word
     end subroutine syms_of_syntax
 
     ! ------------------------------------------------------------------

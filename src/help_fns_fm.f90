@@ -31,11 +31,12 @@
 !> buffer-local values, `describe-symbol`, `describe-command`.
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements
     use lread_fm, only: sym
     use data_fm, only: symbol_name
-    use callint_fm, only: defcommand, command_defined_p
+    use callint_fm, only: command_defined_p, fboundp
     use keymap_fm, only: key_description, where_is_internal
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
@@ -64,7 +65,7 @@ contains
         do k = 1, size(function_names)
             if (trim(function_names(k)) == name) return
         end do
-        function_known_p = command_defined_p(sym(name))
+        function_known_p = fboundp(sym(name))
     end function function_known_p
 
     !> Completion predicate for `describe-function`.
@@ -227,8 +228,8 @@ contains
         end do
         describe_function_1_hook => describe_function_1
         documentation_hook => documentation
-        call defcommand("describe-function", cmd_describe_function)
-        call defcommand("describe-variable", cmd_describe_variable)
+        commands%describe_function%run => cmd_describe_function
+        commands%describe_variable%run => cmd_describe_variable
     end subroutine syms_of_help_fns
 
     !> The raw docstring of function NAME.  Port of doc.c:Fdocumentation

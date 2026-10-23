@@ -38,13 +38,14 @@
 !> (C-x C-b), `switch-to-buffer-preserve-window-point`,
 !> `kill-buffer-query-functions` and `kill-buffer-hook`.
 submodule(window_fm) window_cmds_fm
+    use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_fm, only: cur, current_buffer, set_buffer, buffer_list, get_buffer, get_buffer_create, &
                          record_buffer, buffer_live_p, kill_buffer, buffer_modified_p, &
                          replace_buffer_in_windows_hook
     use editfns_fm, only: goto_char
     use frame_fm, only: selected_frame, ensure_frame_windows
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use lisp_fm, only: nilp, make_string, list
     use minibuf_fm, only: completion_list_table
     use minibuffer_fm, only: read_buffer, completing_read, REQUIRE_MATCH_T, REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
@@ -518,12 +519,12 @@ contains
 
     module subroutine syms_of_window_cmds()
         replace_buffer_in_windows_hook => replace_buffer_in_windows
-        call defcommand("split-window-below", cmd_split_window_below)
-        call defcommand("split-window-right", cmd_split_window_right)
-        call defcommand("delete-window", cmd_delete_window)
-        call defcommand("delete-other-windows", cmd_delete_other_windows)
-        call defcommand("other-window", cmd_other_window)
-        call defcommand("switch-to-buffer", cmd_switch_to_buffer)
-        call defcommand("kill-buffer", cmd_kill_buffer)
+        commands%split_window_below%run => cmd_split_window_below
+        commands%split_window_right%run => cmd_split_window_right
+        commands%delete_window%run => cmd_delete_window
+        commands%delete_other_windows%run => cmd_delete_other_windows
+        commands%other_window%run => cmd_other_window
+        commands%switch_to_buffer%run => cmd_switch_to_buffer
+        commands%kill_buffer%run => cmd_kill_buffer
     end subroutine syms_of_window_cmds
 end submodule window_cmds_fm

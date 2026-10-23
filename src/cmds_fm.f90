@@ -28,6 +28,7 @@
 !> text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, &
                         FM_BEGINNING_OF_BUFFER, &
                         FM_END_OF_BUFFER
@@ -39,7 +40,7 @@ module cmds_fm
                           insert_char_n
     use lisp_fm, only: value_type, fixnump, xfixnum
     use character_fm, only: MAX_CHAR
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
     use data_fm, only: value_eq
     use undo_fm, only: undo_auto_amalgamate
@@ -318,12 +319,12 @@ contains
     !> Register this module's commands.  Port of the defsubr part of
     !> cmds.c:syms_of_cmds.
     subroutine syms_of_cmds()
-        call defcommand("forward-char", cmd_forward_char)
-        call defcommand("backward-char", cmd_backward_char)
-        call defcommand("forward-line", cmd_forward_line)
-        call defcommand("beginning-of-line", cmd_beginning_of_line)
-        call defcommand("end-of-line", cmd_end_of_line)
-        call defcommand("delete-char", cmd_delete_char)
-        call defcommand("self-insert-command", cmd_self_insert_command)
+        commands%forward_char%run => cmd_forward_char
+        commands%backward_char%run => cmd_backward_char
+        commands%forward_line%run => cmd_forward_line
+        commands%beginning_of_line%run => cmd_beginning_of_line
+        commands%end_of_line%run => cmd_end_of_line
+        commands%delete_char%run => cmd_delete_char
+        commands%self_insert_command%run => cmd_self_insert_command
     end subroutine syms_of_cmds
 end module cmds_fm

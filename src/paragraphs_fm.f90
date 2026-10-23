@@ -30,6 +30,7 @@
 !> (query-replace), `count-sentences`, `forward-sentence-function`.
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte
@@ -39,7 +40,7 @@ module paragraphs_fm
     use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr
     use editfns_fm, only: mark_position
     use data_fm, only: value_eq
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
                          SEARCH_NOERROR, SEARCH_MOVE
@@ -700,17 +701,17 @@ contains
     !> Give the variables their defaults and register the commands.
     subroutine syms_of_paragraphs()
         call init_paragraph_variables()
-        call defcommand("forward-sentence", cmd_forward_sentence)
-        call defcommand("backward-sentence", cmd_backward_sentence)
-        call defcommand("kill-sentence", cmd_kill_sentence)
-        call defcommand("backward-kill-sentence", cmd_backward_kill_sentence)
-        call defcommand("mark-end-of-sentence", cmd_mark_end_of_sentence)
-        call defcommand("forward-paragraph", cmd_forward_paragraph)
-        call defcommand("backward-paragraph", cmd_backward_paragraph)
-        call defcommand("mark-paragraph", cmd_mark_paragraph)
-        call defcommand("kill-paragraph", cmd_kill_paragraph)
-        call defcommand("backward-kill-paragraph", cmd_backward_kill_paragraph)
-        call defcommand("transpose-paragraphs", cmd_transpose_paragraphs)
-        call defcommand("transpose-sentences", cmd_transpose_sentences)
+        commands%forward_sentence%run => cmd_forward_sentence
+        commands%backward_sentence%run => cmd_backward_sentence
+        commands%kill_sentence%run => cmd_kill_sentence
+        commands%backward_kill_sentence%run => cmd_backward_kill_sentence
+        commands%mark_end_of_sentence%run => cmd_mark_end_of_sentence
+        commands%forward_paragraph%run => cmd_forward_paragraph
+        commands%backward_paragraph%run => cmd_backward_paragraph
+        commands%mark_paragraph%run => cmd_mark_paragraph
+        commands%kill_paragraph%run => cmd_kill_paragraph
+        commands%backward_kill_paragraph%run => cmd_backward_kill_paragraph
+        commands%transpose_paragraphs%run => cmd_transpose_paragraphs
+        commands%transpose_sentences%run => cmd_transpose_sentences
     end subroutine syms_of_paragraphs
 end module paragraphs_fm
