@@ -45,9 +45,10 @@ jobs:
       - name: Install packages (Arch)
         if: matrix.distro == 'arch'
         # Arch strips ld.so, so valgrind needs glibc's debug info, which Arch
-        # serves over debuginfod.
+        # serves over debuginfod.  Arch's pipx needs python-filelock, which
+        # its package doesn't pull in.
         run: |
-          pacman -Syu --noconfirm --needed gcc-fortran valgrind debuginfod python-pipx git curl ncurses which
+          pacman -Syu --noconfirm --needed gcc-fortran valgrind debuginfod python-pipx python-filelock git curl ncurses which
           echo "DEBUGINFOD_URLS=https://debuginfod.archlinux.org" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v7
