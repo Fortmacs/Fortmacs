@@ -88,7 +88,8 @@ contains
                     new_unittest("save-buffers-kill-emacs", test_kill_emacs), &
                     new_unittest("command-line-files", test_command_line), &
                     new_unittest("files-tests-make-directory", test_make_directory), &
-                    new_unittest("require-final-newline", test_final_newline) &
+                    new_unittest("require-final-newline", test_final_newline), &
+                    new_unittest("write-file", test_write_file) &
                     ]
     end subroutine collect_files_fm
 
@@ -688,4 +689,43 @@ contains
         call delete_directory_internal(path("nl"), st)
         call kill_file_buffers()
     end subroutine test_final_newline
+
+    !> write-file: a directory name takes the buffer's name, the major
+    !> mode follows the new file name, and an executable file's new copy
+    !> is executable.
+    subroutine test_write_file(error)
+        use files_fm, only: write_file
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        body: block
+            call setup()
+            call get_buffer_create("ro", buf, st)
+            call set_buffer(buf, st)
+            call insert("text", st)
+            call write_file(path(""), .false., st)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call check(error, slurp(path("ro")) == "text", "file named after the buffer")
+            if (allocated(error)) exit body
+            call check(error, mode_name_of_current() == "fundamental-mode", "no mode for the name")
+            if (allocated(error)) exit body
+            call set_file_modes(path("ro"), int(o'755', int32), st)
+            call write_file(path("new"), .false., st)
+            call check(error, mode_name_of_current() == "fundamental-mode")
+            if (allocated(error)) exit body
+            call check(error, iand(file_modes(path("new")), int(o'111', int32)) == int(o'111', int32), "executable")
+            if (allocated(error)) exit body
+            call write_file(path("c.txt"), .false., st)
+            call check(error, buffers(cur)%major_mode == "text-mode", "mode from the new name")
+        end block body
+        call kill_file_buffers()
+    end subroutine test_write_file
+
+    !> The current buffer's `major-mode'.
+    function mode_name_of_current() result(mode)
+        character(len=:), allocatable :: mode
+        mode = "fundamental-mode"
+        if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
+    end function mode_name_of_current
 end module test_files_fm

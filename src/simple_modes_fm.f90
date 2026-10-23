@@ -81,6 +81,7 @@ contains
     ! can name it as their parent.
     call major_modes%fundamental_mode%define("fundamental-mode", "Fundamental", fundamental_mode)
     call major_modes%special_mode%define("special-mode", "Special", special_mode)
+    major_modes%special_mode%special = .true.
     call minor_modes%transient_mark_mode%define("transient-mark-mode", global=.true., &
                                                 variable="transient-mark-mode")
     commands%transient_mark_mode%run => cmd_transient_mark_mode
