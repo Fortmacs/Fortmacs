@@ -176,16 +176,17 @@ contains
     end subroutine plist_get_eq
 
     !> Value of text property `prop' in `plist', falling back to the
-    !> `category' symbol's property.  Port of intervals.c:textget /
-    !> lookup_char_property (char-property-alias-alist and
-    !> default-text-properties are not consulted yet).
+    !> `category' symbol's property, then to the first of the properties
+    !> `char_property_alias_alist' gives as alternatives for `prop'.  Port
+    !> of intervals.c:textget / lookup_char_property
+    !> (default-text-properties is not consulted yet).
     function textget(plist, prop) result(val)
         type(value_type), intent(in) :: plist, prop
         type(value_type) :: val
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elems(:), aliases(:), alias(:)
         type(value_type) :: category, fallback, tem
         logical :: found
-        integer(int64) :: k
+        integer(int64) :: k, j, id
         category = make_symbol_ref(intern("category"))
         call list_elements(plist, elems)
         do k = 1, size(elems, kind=int64) - 1, 2
@@ -202,6 +203,23 @@ contains
             end if
         end do
         val = fallback
+        if (.not. nilp(fallback)) return
+        ! Check for alternative properties.
+        call ensure_obarray()
+        id = intern("char_property_alias_alist")
+        if (.not. symbols(id)%bound) return
+        if (.not. consp(symbols(id)%val)) return
+        call list_elements(symbols(id)%val, aliases)
+        do k = 1, size(aliases, kind=int64)
+            if (.not. consp(aliases(k))) cycle
+            call list_elements(aliases(k), alias)
+            if (.not. value_eq(alias(1), prop)) cycle
+            do j = 2, size(alias, kind=int64)
+                call plist_get_eq(plist, alias(j), val, found)
+                if (.not. nilp(val)) return
+            end do
+            return
+        end do
     end function textget
 
     !> True if `sym' is in list `set', or `set' is a non-nil non-list.

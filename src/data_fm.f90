@@ -119,6 +119,26 @@ module data_fm
         procedure, private :: set_local_function => function_set_local
     end type function_setting
 
+    public :: kill_locals_proc, add_local_variables_killer
+
+    abstract interface
+        !> Forget the current buffer's values of some buffer-local
+        !> variables kept outside the symbols (Fortran objects), as
+        !> `kill_all_local_variables' does.
+        subroutine kill_locals_proc()
+            implicit none(type, external)
+        end subroutine kill_locals_proc
+    end interface
+
+    !> A function `kill_all_local_variables' runs.
+    type :: killer_type
+        procedure(kill_locals_proc), pointer, nopass :: fn => null()
+    end type killer_type
+
+    !> The functions forgetting buffer-local values kept in Fortran objects,
+    !> run by `kill_all_local_variables'.
+    type(killer_type), allocatable :: killers(:)
+
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq, car, cdr, car_safe, cdr_safe
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
@@ -325,6 +345,24 @@ module data_fm
     end interface
 
 contains
+
+    !> Have `kill_all_local_variables' run FN in the buffer whose local
+    !> variables it kills (once, however often it is added): for modules
+    !> keeping buffer-local variables of derived types in Fortran objects.
+    subroutine add_local_variables_killer(fn)
+        procedure(kill_locals_proc) :: fn
+        type(killer_type), allocatable :: grown(:)
+        integer :: k, n
+        if (.not. allocated(killers)) allocate (killers(0))
+        do k = 1, size(killers)
+            if (associated(killers(k)%fn, fn)) return
+        end do
+        n = size(killers)
+        allocate (grown(n + 1))
+        grown(1:n) = killers
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, killers)
+    end subroutine add_local_variables_killer
 
     ! ------------------------------------------------------------------
     ! Settings

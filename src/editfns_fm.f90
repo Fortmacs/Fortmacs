@@ -44,7 +44,7 @@ module editfns_fm
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                          markers, resolve_marker, make_marker, set_marker_both
     use callint_fm, only: mark_even_if_inactive
-    use insdel_fm, only: insert, del_range, del_range_1, modify_text
+    use insdel_fm, only: insert, del_range, del_range_1, modify_text, signal_after_change
     use undo_fm, only: record_delete, record_insert
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
     use lisp_fm, only: value_type, nilp, nil
@@ -393,7 +393,7 @@ contains
 
     !> Insert `count' copies of character `c' (nothing if count <= 0).
     !> Port of editfns.c:Finsert_char (without INHERIT).
-    subroutine insert_char_n(c, count, status)
+    recursive subroutine insert_char_n(c, count, status)
         integer(int32), intent(in) :: c
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
@@ -508,7 +508,7 @@ contains
 
     !> Delete the text between `start' and `end' (either order).
     !> Port of editfns.c:Fdelete_region.
-    subroutine delete_region(start, end, status)
+    recursive subroutine delete_region(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         integer(int64) :: s, e
@@ -521,7 +521,7 @@ contains
 
     !> Delete the text between `start' and `end' and return it.
     !> Port of editfns.c:Fdelete_and_extract_region.
-    subroutine delete_and_extract_region(start, end, text, status)
+    recursive subroutine delete_and_extract_region(start, end, text, status)
         integer(int64), intent(in) :: start, end
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
@@ -716,7 +716,7 @@ contains
     end function field_string
 
     !> Delete the field around `pos'.  Port of editfns.c:Fdelete_field.
-    subroutine delete_field(pos, status)
+    recursive subroutine delete_field(pos, status)
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
@@ -768,20 +768,20 @@ contains
     end function constrain_to_field
 
     !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
-    !> If optional arg NOUNDO is non-nil, don't record this change for undo
+    !> If optional arg NOUNDO is true, don't record this change for undo
     !> and don't mark the buffer as really changed.
     !> Both characters must have the same length of multi-byte form.  Port
-    !> of editfns.c:Fsubst_char_in_region (after-change hooks and
-    !> compositions are not ported).
-    subroutine subst_char_in_region(start, end, fromchar, tochar, status, noundo)
+    !> of editfns.c:Fsubst_char_in_region (compositions are not ported).
+    recursive subroutine subst_char_in_region(start, end, fromchar, tochar, status, noundo)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noundo
-        integer(int64) :: pos, pos_byte, end_byte, pos_byte_next, s, e, k, m
+        integer(int64) :: pos, pos_byte, end_byte, pos_byte_next, s, e, k, m, changed, last_changed
         integer(int32) :: nlen, tolen
         character(len=MAX_MULTIBYTE_LENGTH) :: fromstr, tostr
-        logical :: changed, no_undo, saved_undo
+        character(len=:), allocatable :: saved_filename
+        logical :: no_undo, saved_undo, had_filename, rescan
         status = status_type()
         no_undo = .false.
         if (present(noundo)) no_undo = noundo
@@ -812,44 +812,82 @@ contains
             fromstr(1:1) = achar(iand(fromchar, 255_int32))
             tostr(1:1) = achar(iand(tochar, 255_int32))
         end if
-        pos = s
-        pos_byte = char_to_byte(pos)
-        end_byte = char_to_byte(e)
+        ! Keep track of the first change in the buffer: 0 if we haven't
+        ! found it yet, < 0 if we've found it and run the before-change
+        ! functions, > 0 if we've actually performed it (its position).
+        changed = 0
+        last_changed = 0
         ! If we don't want undo, turn off putting stuff on the list.
+        ! Also inhibit locking the file.
         saved_undo = buffers(cur)%undo_enabled
-        if (no_undo) buffers(cur)%undo_enabled = .false.
-        changed = .false.
-        do while (pos_byte < end_byte)
-            pos_byte_next = pos_byte
-            if (buffers(cur)%multibyte) then
-                pos_byte_next = pos_byte_next + buf_next_char_len(buffers(cur), pos_byte_next)
-            else
-                pos_byte_next = pos_byte_next + 1
-            end if
-            if (pos_byte_next - pos_byte == nlen) then
-                if (buf_bytes(buffers(cur), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
-                    if (.not. changed) then
-                        changed = .true.
-                        call modify_text(pos, e, status)
-                        if (.not. status%ok()) exit
-                        if (no_undo) then
-                            m = buffers(cur)%text%modiff
-                            if (buffers(cur)%text%save_modiff == m - 1) buffers(cur)%text%save_modiff = m
-                        end if
-                    end if
-                    if (.not. no_undo) call record_change(pos, pos_byte, pos_byte_next)
-                    do k = 0, nlen - 1
-                        associate (t => buffers(cur)%text)
-                            t%beg(buf_byte_index(buffers(cur), pos_byte + k):buf_byte_index(buffers(cur), pos_byte + k)) = &
-                                tostr(k + 1:k + 1)
-                        end associate
-                    end do
+        had_filename = allocated(buffers(cur)%filename)
+        if (no_undo) then
+            buffers(cur)%undo_enabled = .false.
+            if (had_filename) call move_alloc(buffers(cur)%filename, saved_filename)
+        end if
+        do
+            rescan = .false.
+            pos = s
+            pos_byte = char_to_byte(pos)
+            end_byte = char_to_byte(e)
+            do while (pos_byte < end_byte)
+                pos_byte_next = pos_byte
+                if (buffers(cur)%multibyte) then
+                    pos_byte_next = pos_byte_next + buf_next_char_len(buffers(cur), pos_byte_next)
+                else
+                    pos_byte_next = pos_byte_next + 1
                 end if
-            end if
-            pos_byte = pos_byte_next
-            pos = pos + 1
+                if (pos_byte_next - pos_byte == nlen) then
+                    if (buf_bytes(buffers(cur), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
+                        if (changed < 0) then
+                            ! We've already seen this and run the
+                            ! before-change functions; this time we only
+                            ! need to record the actual position.
+                            changed = pos
+                        else if (changed == 0) then
+                            changed = -1
+                            call modify_text(pos, e, status)
+                            if (.not. status%ok()) exit
+                            if (no_undo) then
+                                m = buffers(cur)%text%modiff
+                                if (buffers(cur)%text%save_modiff == m - 1) buffers(cur)%text%save_modiff = m
+                            end if
+                            ! The before-change functions may have moved the
+                            ! gap or even modified the buffer so we should
+                            ! start over.
+                            rescan = .true.
+                            exit
+                        end if
+                        if (.not. no_undo) call record_change(pos, pos_byte, pos_byte_next)
+                        do k = 0, nlen - 1
+                            associate (t => buffers(cur)%text)
+                                t%beg(buf_byte_index(buffers(cur), pos_byte + k):buf_byte_index(buffers(cur), pos_byte + k)) = &
+                                    tostr(k + 1:k + 1)
+                            end associate
+                        end do
+                        last_changed = pos + 1
+                    end if
+                end if
+                pos_byte = pos_byte_next
+                pos = pos + 1
+            end do
+            if (.not. rescan) exit
+            s = start
+            e = end
+            call validate_region(s, e, status)
+            if (.not. status%ok()) exit
         end do
-        buffers(cur)%undo_enabled = saved_undo
+        if (status%ok() .and. changed > 0) then
+            call signal_after_change(changed, last_changed - changed, last_changed - changed, status)
+        end if
+        if (no_undo) then
+            buffers(cur)%undo_enabled = saved_undo
+            if (had_filename) then
+                call move_alloc(saved_filename, buffers(cur)%filename)
+            else if (allocated(buffers(cur)%filename)) then
+                deallocate (buffers(cur)%filename)
+            end if
+        end if
     contains
 
         !> Record that the character at POS (bytes FROM_BYTE..TO_BYTE) is

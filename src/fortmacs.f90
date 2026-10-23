@@ -158,6 +158,22 @@ module fortmacs
     use simple_fm, only: suggest_key_bindings
     use dired_fm, only: completion_ignored_extensions
     use search_fm, only: case_fold_search
+    ! Font Lock.
+    use font_core_fm, only: font_lock_defaults, font_lock_defaults_setting, font_lock_global_modes, &
+                            font_lock_global_modes_type, font_lock_mode_hook, global_font_lock_mode_hook, &
+                            turn_on_font_lock, font_lock_keyword_type, font_lock_highlight_type, &
+                            font_lock_match_highlight_type, font_lock_keywords_type, font_lock_syntax_entry_type, &
+                            FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+                            FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, &
+                            font_lock_face_proc, font_lock_form_proc
+    use font_lock_fm, only: font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
+                            font_lock_dont_widen, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, &
+                            FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_extra_managed_props, font_lock_syntactic_face_function, &
+                            font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_add_keywords, &
+                            FONT_LOCK_ADD_BEGINNING, FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET
+    use jit_lock_fm, only: jit_lock_chunk_size
+    use xdisp_fm, only: fontification_functions
+    use eval_fm, only: position_hook_type, position_function
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
@@ -183,7 +199,9 @@ module fortmacs
                           query_replace_skip_read_only, query_replace_show_replacement, query_replace_from_to_separator
     ! Settings, hooks and modes as objects.
     use data_fm, only: setting_type, integer_setting, logical_setting, string_setting, function_setting
-    use eval_fm, only: hook_type, change_major_mode_hook
+    use eval_fm, only: hook_type, change_major_mode_hook, change_hook_type, after_change_hook_type, change_function, &
+                       after_change_function
+    use insdel_fm, only: before_change_functions, after_change_functions, first_change_hook, inhibit_modification_hooks
     use subr_fm, only: change_major_mode_after_body_hook, after_change_major_mode_hook
     use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p, major_mode_named
     use easy_mmode_fm, only: minor_mode_type, minor_mode_body_proc
@@ -194,7 +212,12 @@ module fortmacs
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use simple_fm, only: turn_on_auto_fill, turn_off_auto_fill
     use text_mode_fm, only: text_mode_variant
-    use syntax_fm, only: parse_sexp_ignore_comments
+    use syntax_fm, only: parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+                         open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss
+    use syntax_fm, only: forward_comment, scan_lists, scan_sexps, parse_partial_sexp, parse_state_type, &
+                         ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
+    use lisp_cmds_fm, only: forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
+                            backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     implicit none(type, external)
@@ -232,7 +255,10 @@ module fortmacs
               replace_regexp, replacement_function, transpose_chars, transpose_words, transpose_lines, &
               transpose_sentences, transpose_paragraphs, delete_horizontal_space, delete_all_space, just_one_space, &
               fixup_whitespace, delete_blank_lines, delete_indentation, skip_chars_forward, skip_chars_backward, &
-              skip_syntax_forward, skip_syntax_backward, enable_command, disable_command, rmc_choice_type, &
+              skip_syntax_forward, skip_syntax_backward, forward_comment, scan_lists, scan_sexps, &
+              parse_partial_sexp, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, &
+              COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE, forward_sexp, backward_sexp, forward_list, backward_list, &
+ down_list, up_list, backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp, enable_command, disable_command, rmc_choice_type, &
               read_multiple_choice, indent_to, current_indentation, indent_according_to_mode, indent_rigidly, &
               indent_line_to, current_left_margin, move_to_left_margin, indent_region, indent_relative, &
               tab_to_tab_stop, move_to_tab_stop, beginning_of_line_text, indent_line_proc, indent_region_proc, &
@@ -272,6 +298,21 @@ module fortmacs
               major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
-              parse_sexp_ignore_comments, require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
-              FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+              parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+              open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss, require_final_newline, &
+              mode_require_final_newline, FINAL_NEWLINE_NEVER, &
+              FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
+              after_change_hook_type, change_function, after_change_function, before_change_functions, &
+              after_change_functions, first_change_hook, inhibit_modification_hooks
+    public :: font_lock_defaults, font_lock_defaults_setting, font_lock_global_modes, font_lock_global_modes_type, &
+              font_lock_mode_hook, global_font_lock_mode_hook, turn_on_font_lock, font_lock_keyword_type, &
+              font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
+              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+              FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, font_lock_face_proc, &
+              font_lock_form_proc, font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
+              font_lock_dont_widen, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, &
+              font_lock_extra_managed_props, font_lock_syntactic_face_function, font_lock_keyword, &
+              font_lock_highlight, font_lock_anchored, font_lock_add_keywords, FONT_LOCK_ADD_BEGINNING, &
+              FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET, jit_lock_chunk_size, fontification_functions, &
+              position_hook_type, position_function
 end module fortmacs

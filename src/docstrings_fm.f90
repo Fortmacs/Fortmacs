@@ -42,13 +42,21 @@ module docstrings_fm
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
     use fns_fm, only: use_short_answers
+    use font_core_fm, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
+                            global_font_lock_mode_hook
+    use font_lock_fm, only: font_lock_dont_widen, font_lock_extra_managed_props, &
+                            font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_support_mode, &
+                            FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
                          tab_stop_list
+    use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
+                         inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: minibuffer_message_timeout
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
@@ -73,7 +81,9 @@ module docstrings_fm
                          transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_use_read_key
-    use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
+    use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
+                         multibyte_syntax_as_symbol, open_paren_in_column_0_is_defun_start, &
+                         parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
     use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo, &
@@ -83,7 +93,7 @@ module docstrings_fm
                          pop_up_windows, scroll_error_top_bottom, split_height_threshold, split_width_threshold, &
                          split_window_preferred_direction, SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, &
                          window_min_height, window_min_width
-    use xdisp_fm, only: tab_width, truncate_partial_width_windows
+    use xdisp_fm, only: fontification_functions, tab_width, truncate_partial_width_windows
     implicit none(type, external)
     private
 
@@ -106,7 +116,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(299) = [character(len=34) :: &
+    character(len=38), parameter, public :: function_names(330) = [character(len=38) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "add_auto_mode", &
@@ -115,9 +125,13 @@ module docstrings_fm
                                                                    "backward_char", &
                                                                    "backward_kill_paragraph", &
                                                                    "backward_kill_sentence", &
+                                                                   "backward_kill_sexp", &
                                                                    "backward_kill_word", &
+                                                                   "backward_list", &
                                                                    "backward_paragraph", &
                                                                    "backward_sentence", &
+                                                                   "backward_sexp", &
+                                                                   "backward_up_list", &
                                                                    "backward_word", &
                                                                    "beginning_of_buffer", &
                                                                    "beginning_of_line", &
@@ -161,6 +175,7 @@ module docstrings_fm
                                                                    "digit_argument", &
                                                                    "disable_command", &
                                                                    "do_auto_fill", &
+                                                                   "down_list", &
                                                                    "downcase", &
                                                                    "downcase_region", &
                                                                    "downcase_word", &
@@ -183,14 +198,32 @@ module docstrings_fm
                                                                    "fill_single_word_nobreak_p", &
                                                                    "find_file", &
                                                                    "fixup_whitespace", &
+                                                                   "font_lock_add_keywords", &
+                                                                   "font_lock_anchored", &
+                                                                   "font_lock_change_mode", &
+                                                                   "font_lock_debug_fontify", &
+                                                                   "font_lock_defontify", &
+                                                                   "font_lock_fontify_block", &
+                                                                   "font_lock_fontify_buffer", &
+                                                                   "font_lock_highlight", &
+                                                                   "font_lock_keyword", &
+                                                                   "font_lock_mode", &
+                                                                   "font_lock_mode_set_explicitly", &
+                                                                   "font_lock_refresh_defaults", &
+                                                                   "font_lock_update", &
                                                                    "format_error", &
                                                                    "forward_char", &
+                                                                   "forward_comment", &
                                                                    "forward_line", &
+                                                                   "forward_list", &
                                                                    "forward_paragraph", &
                                                                    "forward_sentence", &
+                                                                   "forward_sexp", &
                                                                    "forward_word", &
                                                                    "fundamental_mode", &
                                                                    "get_buffer_create", &
+                                                                   "global_font_lock_mode", &
+                                                                   "global_font_lock_mode_enable_in_buffer", &
                                                                    "global_set_key", &
                                                                    "goto_char", &
                                                                    "help_mode", &
@@ -248,6 +281,7 @@ module docstrings_fm
                                                                    "kill_region", &
                                                                    "kill_ring_save", &
                                                                    "kill_sentence", &
+                                                                   "kill_sexp", &
                                                                    "kill_whole_line", &
                                                                    "kill_word", &
                                                                    "left_char", &
@@ -261,6 +295,7 @@ module docstrings_fm
                                                                    "mark", &
                                                                    "mark_end_of_sentence", &
                                                                    "mark_paragraph", &
+                                                                   "mark_sexp", &
                                                                    "mark_whole_buffer", &
                                                                    "mark_word", &
                                                                    "match_beginning", &
@@ -295,6 +330,7 @@ module docstrings_fm
                                                                    "open_line", &
                                                                    "other_buffer", &
                                                                    "other_window", &
+                                                                   "parse_partial_sexp", &
                                                                    "point", &
                                                                    "point_max", &
                                                                    "point_min", &
@@ -337,6 +373,8 @@ module docstrings_fm
                                                                    "save_buffer", &
                                                                    "save_buffers_kill_terminal", &
                                                                    "save_some_buffers", &
+                                                                   "scan_lists", &
+                                                                   "scan_sexps", &
                                                                    "scroll_down", &
                                                                    "scroll_down_command", &
                                                                    "scroll_other_window", &
@@ -383,6 +421,8 @@ module docstrings_fm
                                                                    "transpose_words", &
                                                                    "turn_off_auto_fill", &
                                                                    "turn_on_auto_fill", &
+                                                                   "turn_on_font_lock", &
+                                                                   "turn_on_font_lock_if_desired", &
                                                                    "undefined", &
                                                                    "undo", &
                                                                    "undo_boundary", &
@@ -392,6 +432,7 @@ module docstrings_fm
                                                                    "universal_argument", &
                                                                    "universal_argument_minus", &
                                                                    "universal_argument_more", &
+                                                                   "up_list", &
                                                                    "upcase", &
                                                                    "upcase_initials", &
                                                                    "upcase_initials_region", &
@@ -408,14 +449,16 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(121) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(140) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
+                                                                   "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
                                                                    "auto_fill_chars", &
                                                                    "auto_fill_function", &
                                                                    "auto_fill_inhibit_regexp", &
                                                                    "auto_fill_mode_hook", &
+                                                                   "before_change_functions", &
                                                                    "case_fold_search", &
                                                                    "case_replace", &
                                                                    "case_symbols_as_words", &
@@ -424,6 +467,8 @@ module docstrings_fm
                                                                    "change_major_mode_with_file_name", &
                                                                    "colon_double_space", &
                                                                    "commands", &
+                                                                   "comment_end_can_be_escaped", &
+                                                                   "comment_use_syntax_ppss", &
                                                                    "completion_auto_help", &
                                                                    "completion_fail_discreetly", &
                                                                    "completion_ignore_case", &
@@ -444,6 +489,17 @@ module docstrings_fm
                                                                    "fill_nobreak_predicate", &
                                                                    "fill_prefix", &
                                                                    "fill_separate_heterogeneous_words_with_space", &
+                                                                   "first_change_hook", &
+                                                                   "font_lock_defaults", &
+                                                                   "font_lock_dont_widen", &
+                                                                   "font_lock_extra_managed_props", &
+                                                                   "font_lock_global_modes", &
+                                                                   "font_lock_maximum_decoration", &
+                                                                   "font_lock_mode_hook", &
+                                                                   "font_lock_support_mode", &
+                                                                   "font_lock_verbose", &
+                                                                   "fontification_functions", &
+                                                                   "global_font_lock_mode_hook", &
                                                                    "goal_column", &
                                                                    "help_map", &
                                                                    "help_mode_hook", &
@@ -456,10 +512,12 @@ module docstrings_fm
                                                                    "indent_tabs_mode_hook", &
                                                                    "inhibit_auto_fill", &
                                                                    "inhibit_field_text_motion", &
+                                                                   "inhibit_modification_hooks", &
                                                                    "insert_default_directory", &
                                                                    "isearch_lax_whitespace", &
                                                                    "isearch_mode_map", &
                                                                    "isearch_regexp_lax_whitespace", &
+                                                                   "jit_lock_chunk_size", &
                                                                    "kill_read_only_ok", &
                                                                    "kill_ring_max", &
                                                                    "kill_ring_yank_pointer", &
@@ -473,7 +531,9 @@ module docstrings_fm
                                                                    "minibuffer_message_timeout", &
                                                                    "minibuffer_scroll_window", &
                                                                    "mode_require_final_newline", &
+                                                                   "multibyte_syntax_as_symbol", &
                                                                    "next_screen_context_lines", &
+                                                                   "open_paren_in_column_0_is_defun_start", &
                                                                    "paragraph_ignore_fill_prefix", &
                                                                    "paragraph_separate", &
                                                                    "paragraph_start", &
@@ -613,12 +673,35 @@ contains
             entry%doc = "Kill back from point to start of sentence."//LF// &
                         "With ARG, repeat, or kill forward to Nth end of sentence if"//LF// &
                         "negative ARG -N."
+        case ("backward_kill_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_kill_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Kill the sexp (balanced expression) preceding point."//LF// &
+                        "With ARG, kill that many sexps before point."//LF// &
+                        "Negative arg -N means kill N sexps after point."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("backward_kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_kill_word(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill characters backward until encountering the beginning of a word."//LF// &
                         "With argument ARG, do this that many times."
+        case ("backward_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move backward across one balanced group of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do it that many times."//LF// &
+                        "Negative arg -N means move forward across N groups of parentheses."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "Uses `forward_list' to do the work."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("backward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_paragraph(arg)"
@@ -641,6 +724,35 @@ contains
             entry%doc = "Move backward to start of sentence."//LF// &
                         "With ARG, do it ARG times.  See `forward_sentence' for more"//LF// &
                         "information."
+        case ("backward_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move backward across one balanced expression (sexp)."//LF// &
+                        "With ARG, do it that many times.  Negative arg -N means"//LF// &
+                        "move forward across N balanced expressions."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "Uses `forward_sexp' to do the work."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
+        case ("backward_up_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_up_list(arg, status, escape_strings, no_syntax_crossing)"
+            entry%interactive = .true.
+            entry%doc = "Move backward out of one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode.  With ARG, do this that"//LF// &
+                        "many times.  A negative argument means move forward but still to"//LF// &
+                        "a less deep spot."//LF// &
+                        ""//LF// &
+                        "If ESCAPE_STRINGS is true (as it is interactively), move out"//LF// &
+                        "of enclosing strings as well."//LF// &
+                        ""//LF// &
+                        "If NO_SYNTAX_CROSSING is true (as it is interactively), prefer"//LF// &
+                        "to break out of any enclosing string instead of moving to the"//LF// &
+                        "start of a list broken across multiple strings."//LF// &
+                        ""//LF// &
+                        "On error, location of point is unspecified."
         case ("backward_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_word(arg)"
@@ -969,6 +1081,18 @@ contains
             entry%doc = "The default value for `normal_auto_fill_function'."//LF// &
                         "This is the default auto-fill function, some major modes use a different one."//LF// &
                         "Returns t if it really did any work."
+        case ("down_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call down_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward down one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do this that many times."//LF// &
+                        "A negative argument means move backward but still go down a level."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "downcase_char(ch)"
@@ -1177,6 +1301,149 @@ contains
             entry%interactive = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
+        case ("font_lock_add_keywords")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "call font_lock_add_keywords(mode, keywords, status, how)"
+            entry%doc = "Add highlighting KEYWORDS for MODE."//LF// &
+                        ""//LF// &
+                        "MODE should be the major mode command name, such as ""c_mode"", or"//LF// &
+                        "empty.  If empty, highlighting keywords are added for the current"//LF// &
+                        "buffer.  By default they are added at the beginning of the current"//LF// &
+                        "highlighting list.  If HOW is FONT_LOCK_ADD_SET, they are used to"//LF// &
+                        "replace the current highlighting list.  If HOW is FONT_LOCK_ADD_END,"//LF// &
+                        "they are added at the end of the current highlighting list."//LF// &
+                        ""//LF// &
+                        "For example:"//LF// &
+                        ""//LF// &
+                        " type(font_lock_highlight_type) :: fixme(1)"//LF// &
+                        " type(font_lock_keyword_type) :: keywords(2)"//LF// &
+                        " fixme(1) = font_lock_highlight(1, ""font_lock_warning_face"", FONT_LOCK_OVERRIDE_PREPEND)"//LF// &
+                        " keywords(1) = font_lock_keyword(""\\<\\(FIXME\\):"", fixme)"//LF// &
+                        " keywords(2) = font_lock_keyword(""\\<\\(and\\|or\\|not\\)\\>"", face=""font_lock_keyword_fac"// &
+                        "e"")"//LF// &
+                        " call font_lock_add_keywords(""c_mode"", keywords, status)"//LF// &
+                        ""//LF// &
+                        "adds two fontification patterns for C mode, to fontify `FIXME:'"//LF// &
+                        "words, even in comments, and to fontify `and', `or' and `not' words"//LF// &
+                        "as keywords."//LF// &
+                        ""//LF// &
+                        "The above procedure will only add the keywords for C mode, not"//LF// &
+                        "for modes derived from C mode.  To add them for derived modes too,"//LF// &
+                        "pass an empty MODE and add the call to `c_mode_hook'."
+        case ("font_lock_anchored")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_anchored(highlights, regexp, matcher, pre_match_form, post_match_form)"
+            entry%doc = "A MATCH-ANCHORED highlight: REGEXP (or MATCHER) searched for after"//LF// &
+                        "each match of the keyword, each match highlighted as HIGHLIGHTS say"//LF// &
+                        "(their `match' parts)."
+        case ("font_lock_change_mode")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Get rid of fontification for the old major mode (run when the"//LF// &
+                        "major mode changes)."
+        case ("font_lock_debug_fontify")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Reinitialize the font-lock machinery and (re-)fontify the buffer."//LF// &
+                        "This functions is a convenience functions when developing font"//LF// &
+                        "locking for a mode, and is not meant to be called from Fortran code."
+        case ("font_lock_defontify")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Clear out all `font_lock_face' properties in current buffer."//LF// &
+                        "A major mode that uses `font_lock_face' properties might want to put"//LF// &
+                        "this function onto `change_major_mode_hook'."
+        case ("font_lock_fontify_block")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Fontify some lines the way `font_lock_fontify_buffer' would."//LF// &
+                        "The lines could be a function or paragraph, or a specified number"//LF// &
+                        "of lines.  If ARG is given, fontify that many lines before and after"//LF// &
+                        "point, or 16 lines if no ARG is given."
+        case ("font_lock_fontify_buffer")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The interactive `font_lock_fontify_buffer'."
+        case ("font_lock_highlight")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function)"
+            entry%doc = "A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face"//LF// &
+                        "FACE (or the face FACE_FUNCTION names), combined with existing"//LF// &
+                        "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),"//LF// &
+                        "LAXMATCH if SUBEXP need not match."
+        case ("font_lock_keyword")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_keyword(regexp, highlights, face, subexp, matcher)"
+            entry%doc = "A keyword: REGEXP (or the function MATCHER), with HIGHLIGHTS; with"//LF// &
+                        "only FACE, subexpression 0 (or SUBEXP) in FACE; with neither,"//LF// &
+                        "subexpression 0 (or SUBEXP) in `font_lock_keyword_face'"//LF// &
+                        "(font-lock-compile-keyword's forms MATCHER, (MATCHER . SUBEXP),"//LF// &
+                        "(MATCHER . FACENAME))."
+        case ("font_lock_mode")
+            entry%file = "font_core_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle syntax highlighting in this buffer (Font Lock mode)."//LF// &
+                        ""//LF// &
+                        "When Font Lock mode is enabled, text is fontified as you type it:"//LF// &
+                        ""//LF// &
+                        " - Comments are displayed in `font_lock_comment_face';"//LF// &
+                        " - Strings are displayed in `font_lock_string_face';"//LF// &
+                        " - Certain other expressions are displayed in other faces"//LF// &
+                        "   according to the value of the variable `font_lock_keywords'."//LF// &
+                        ""//LF// &
+                        "To customize the faces (colors, fonts, etc.) used by Font Lock for"//LF// &
+                        "fontifying different parts of buffer text, use \[customize-face]."//LF// &
+                        ""//LF// &
+                        "You can enable Font Lock mode in any major mode automatically by"//LF// &
+                        "turning on in the major mode's hook.  For example, put in your"//LF// &
+                        "init.f90:"//LF// &
+                        ""//LF// &
+                        " call c_mode_hook%add(turn_on_font_lock)"//LF// &
+                        ""//LF// &
+                        "Alternatively, you can use Global Font Lock mode to automagically"//LF// &
+                        "turn on Font Lock mode in buffers whose major mode supports it"//LF// &
+                        "and whose major mode is one of `font_lock_global_modes'."//LF// &
+                        ""//LF// &
+                        "Where major modes support different levels of fontification, you"//LF// &
+                        "can use the variable `font_lock_maximum_decoration' to specify"//LF// &
+                        "which level you generally prefer.  When you turn Font Lock mode"//LF// &
+                        "on/off the buffer is fontified/defontified."//LF// &
+                        ""//LF// &
+                        "To add your own highlighting for some major mode, and modify the"//LF// &
+                        "highlighting selected automatically via the variable"//LF// &
+                        "`font_lock_maximum_decoration', you can use"//LF// &
+                        "`font_lock_add_keywords'."//LF// &
+                        ""//LF// &
+                        "To fontify a buffer, without turning on Font Lock mode and"//LF// &
+                        "regardless of buffer size, you can use \[font-lock-fontify-buffer]."//LF// &
+                        ""//LF// &
+                        "You can set your own default settings for some mode, by setting a"//LF// &
+                        "buffer local value for `font_lock_defaults', via its mode hook."//LF// &
+                        ""//LF// &
+                        "The above is the default behavior of `font_lock_mode'; you may"//LF// &
+                        "specify your own function which is called when `font_lock_mode'"//LF// &
+                        "is toggled via `font_lock_function'."
+        case ("font_lock_mode_set_explicitly")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Record that Font Lock mode was set explicitly in the current buffer"//LF// &
+                        "(it runs from `font_lock_mode_hook')."
+        case ("font_lock_refresh_defaults")
+            entry%file = "font_lock_fm.f90"
+            entry%doc = "Restart fontification in current buffer after recomputing from"//LF// &
+                        "defaults.  Recompute fontification variables using"//LF// &
+                        "`font_lock_defaults' and `font_lock_maximum_decoration'.  Then"//LF// &
+                        "restart fontification."//LF// &
+                        ""//LF// &
+                        "Use this function when you have changed any of the above"//LF// &
+                        "variables directly."//LF// &
+                        ""//LF// &
+                        "Note: This function will erase modifications done by"//LF// &
+                        "`font_lock_add_keywords'."
+        case ("font_lock_update")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Update the syntax highlighting in this buffer."//LF// &
+                        "Refontify the accessible portion of this buffer, or enable Font Lock"//LF// &
+                        "mode in this buffer if it is currently disabled.  With prefix ARG,"//LF// &
+                        "toggle Font Lock mode."
         case ("format_error")
             entry%file = "error_fm.f90"
             entry%fortran = "format_error(status)"
@@ -1194,6 +1461,14 @@ contains
                         "Depending on the bidirectional context, the movement may be to the"//LF// &
                         "right or to the left on the screen.  This is in contrast with"//LF// &
                         "\[right_char], which see."
+        case ("forward_comment")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "forward_comment(count)"
+            entry%doc = "Move forward across up to COUNT comments.  If COUNT is negative, move backward."//LF// &
+                        "Stop scanning if we find something other than a comment or whitespace."//LF// &
+                        "Set point to where scanning stops."//LF// &
+                        "If COUNT comments are found as expected, with nothing except whitespace"//LF// &
+                        "between them, return true; otherwise return false."
         case ("forward_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "forward_line(n)"
@@ -1214,6 +1489,18 @@ contains
                         ""//LF// &
                         "The command C-n (\[next_line]) can also be used to move to the next"//LF// &
                         "line."
+        case ("forward_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call forward_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward across one balanced group of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do it that many times."//LF// &
+                        "Negative arg -N means move backward across N groups of parentheses."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("forward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "forward_paragraph(arg)"
@@ -1236,6 +1523,19 @@ contains
                         "The variable `sentence_end' is a regular expression that matches"//LF// &
                         "ends of sentences.  Also, every paragraph boundary terminates"//LF// &
                         "sentences as well."
+        case ("forward_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call forward_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward across one balanced expression (sexp)."//LF// &
+                        "With ARG, do it that many times.  Negative arg -N means move"//LF// &
+                        "backward across N balanced expressions.  This command assumes"//LF// &
+                        "point is not in a string or comment."//LF// &
+                        "If unable to move over a sexp, signal `scan_error' with three"//LF// &
+                        "arguments: a message, the start of the obstacle (usually a"//LF// &
+                        "parenthesis or list marker of some kind), and end of the"//LF// &
+                        "obstacle.  If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("forward_word")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call forward_word(arg, ok)"
@@ -1258,6 +1558,22 @@ contains
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
             entry%doc = "Live buffer named `name', created (empty, multibyte) if needed."//LF// &
                         "The first buffer created becomes current."
+        case ("global_font_lock_mode")
+            entry%file = "font_core_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle Font Lock mode in many buffers."//LF// &
+                        "Specifically, Font Lock mode is enabled in all buffers where"//LF// &
+                        "`turn_on_font_lock_if_desired' would do it."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, enable Global Font Lock mode if ARG is positive;"//LF// &
+                        "otherwise, disable it."//LF// &
+                        ""//LF// &
+                        "See `font_lock_mode' for more information on Font Lock mode.  Port"//LF// &
+                        "of font-core.el:global-font-lock-mode."
+        case ("global_font_lock_mode_enable_in_buffer")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Turn on Font Lock mode in the current buffer unless the user set it"//LF// &
+                        "explicitly there."
         case ("global_set_key")
             entry%file = "subr_fm.f90"
             entry%fortran = "call global_set_key(key, command, status)"
@@ -1625,6 +1941,16 @@ contains
             entry%doc = "Kill from point to end of sentence."//LF// &
                         "With ARG, repeat; negative ARG -N means kill back to Nth start of"//LF// &
                         "sentence."
+        case ("kill_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call kill_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Kill the sexp (balanced expression) following point."//LF// &
+                        "With ARG, kill that many sexps after point."//LF// &
+                        "Negative arg -N means kill N sexps before point."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("kill_whole_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1757,6 +2083,26 @@ contains
                         "Interactively (or if ALLOW-EXTEND is non-nil), if this command is"//LF// &
                         "repeated or (in Transient Mark mode) if the mark is active,"//LF// &
                         "it marks the next ARG paragraphs after the ones already marked."
+        case ("mark_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call mark_sexp(arg, have_arg, allow_extend, status)"
+            entry%interactive = .true.
+            entry%doc = "Set mark ARG sexps from point or move mark one sexp."//LF// &
+                        "With ALLOW_EXTEND false, mark is set ARG sexps from point."//LF// &
+                        "With ARG given (HAVE_ARG) and ALLOW_EXTEND both true (interactively,"//LF// &
+                        "with prefix argument), the place to which mark goes is the same"//LF// &
+                        "place \[forward_sexp] would move to with the same argument; if the"//LF// &
+                        "mark is active, it moves ARG sexps from its current position,"//LF// &
+                        "otherwise it is set ARG sexps from point."//LF// &
+                        "When invoked interactively without a prefix argument and no active"//LF// &
+                        "region, mark moves one sexp forward."//LF// &
+                        "When invoked interactively without a prefix argument, and region"//LF// &
+                        "is active, mark moves one sexp away of point (i.e., forward"//LF// &
+                        "if mark is at or after point, back if mark is before point), thus"//LF// &
+                        "extending the region by one sexp.  Since the direction of region"//LF// &
+                        "extension depends on the relative position of mark and point, you"//LF// &
+                        "can change the direction by \[exchange_point_and_mark]."//LF// &
+                        "This command assumes point is not in a string or comment."
         case ("mark_whole_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2102,6 +2448,32 @@ contains
                         "skip -COUNT windows backwards.  COUNT zero means do not skip any"//LF// &
                         "window, so select the selected window.  In an interactive call,"//LF// &
                         "COUNT is the numeric prefix argument."
+        case ("parse_partial_sexp")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call parse_partial_sexp(from, to, state, status, targetdepth, stopbefore, oldstate, commen"// &
+                            "tstop)"
+            entry%doc = "Parse Lisp syntax starting at FROM until TO; return status of parse at TO."//LF// &
+                        "Parsing stops at TO or when certain criteria are met;"//LF// &
+                        " point is set to where parsing stops."//LF// &
+                        ""//LF// &
+                        "If OLDSTATE is omitted, parsing assumes that FROM is the"//LF// &
+                        " beginning of a function.  If not, OLDSTATE should be the state at"//LF// &
+                        " FROM."//LF// &
+                        ""//LF// &
+                        "The value, STATE, describes the final state of parsing (see"//LF// &
+                        "`parse_state_type')."//LF// &
+                        ""//LF// &
+                        "If third arg TARGETDEPTH is present, parsing stops if the depth"//LF// &
+                        "in parentheses becomes equal to TARGETDEPTH."//LF// &
+                        "Fourth arg STOPBEFORE true means stop when we come to"//LF// &
+                        " any character that starts a sexp."//LF// &
+                        "Fifth arg OLDSTATE is a state like what this function returns."//LF// &
+                        " It is used to initialize the state of the parse.  Components"//LF// &
+                        " `innermost_start', `last_sexp_start' and `mindepth' are ignored."//LF// &
+                        "Sixth arg COMMENTSTOP COMMENTSTOP_COMMENT means stop after the start"//LF// &
+                        " of a comment.  If it is COMMENTSTOP_SYNTAX_TABLE, stop after the"//LF// &
+                        " start of a comment or a string, or after end of a comment or a"//LF// &
+                        " string."
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
@@ -2728,6 +3100,40 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
+        case ("scan_lists")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "scan_lists(from, count, depth, status)"
+            entry%doc = "Scan from character number FROM by COUNT lists."//LF// &
+                        "Scan forward if COUNT is positive, backward if COUNT is negative."//LF// &
+                        "Return the character number of the position thus found."//LF// &
+                        ""//LF// &
+                        "A ""list"", in this context, refers to a balanced parenthetical"//LF// &
+                        "grouping, as determined by the syntax table."//LF// &
+                        ""//LF// &
+                        "If DEPTH is nonzero, treat that as the nesting depth of the starting"//LF// &
+                        "point (i.e. the starting point is DEPTH parentheses deep).  This"//LF// &
+                        "function scans over parentheses until the depth goes to zero COUNT"//LF// &
+                        "times.  Hence, positive DEPTH moves out that number of levels of"//LF// &
+                        "parentheses, while negative DEPTH moves to a deeper level."//LF// &
+                        ""//LF// &
+                        "Comments are ignored if `parse_sexp_ignore_comments' is true."//LF// &
+                        ""//LF// &
+                        "If we reach the beginning or end of the accessible part of the buffer"//LF// &
+                        "before we have scanned over COUNT lists, return 0 (nil) if the depth at"//LF// &
+                        "that point is zero, and signal an error if the depth is nonzero."
+        case ("scan_sexps")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "scan_sexps(from, count, status)"
+            entry%doc = "Scan from character number FROM by COUNT balanced expressions."//LF// &
+                        "If COUNT is negative, scan backwards."//LF// &
+                        "Returns the character number of the position thus found."//LF// &
+                        ""//LF// &
+                        "Comments are ignored if `parse_sexp_ignore_comments' is true."//LF// &
+                        ""//LF// &
+                        "If the beginning or end of (the accessible part of) the buffer is reached"//LF// &
+                        "in the middle of a parenthetical grouping, an error is signaled."//LF// &
+                        "If the beginning or end is reached between groupings"//LF// &
+                        "but before count is used up, 0 (nil) is returned."
         case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -3170,6 +3576,15 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("turn_on_font_lock")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "call turn_on_font_lock(status)"
+            entry%doc = "Turn on Font Lock mode (only if the terminal can display it).  Port"//LF// &
+                        "of font-core.el:turn-on-font-lock."
+        case ("turn_on_font_lock_if_desired")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Turn on Font Lock mode if the major mode is one of"//LF// &
+                        "`font_lock_global_modes'."
         case ("undefined")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -3240,19 +3655,34 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("up_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call up_list(arg, status, escape_strings, no_syntax_crossing)"
+            entry%interactive = .true.
+            entry%doc = "Move forward out of one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode.  With ARG, do this that"//LF// &
+                        "many times.  A negative argument means move backward but still to"//LF// &
+                        "a less deep spot."//LF// &
+                        ""//LF// &
+                        "If ESCAPE_STRINGS is true (as it is interactively), move out"//LF// &
+                        "of enclosing strings as well."//LF// &
+                        ""//LF// &
+                        "If NO_SYNTAX_CROSSING is true (as it is interactively), prefer"//LF// &
+                        "to break out of any enclosing string instead of moving to the"//LF// &
+                        "end of a list broken across multiple strings."//LF// &
+                        ""//LF// &
+                        "On error, location of point is unspecified."
         case ("upcase")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "upcase_string(str)"
-            entry%doc = "Convert argument to upper case and return that."//LF// &
-                        "The argument object is not altered--the value is a copy.  See also"//LF// &
-                        "`capitalize', `downcase' and `upcase_initials'."
+            entry%fortran = "upcase_char(ch)"
+            entry%doc = "Convert a character to upper case.  Characters which map to"//LF// &
+                        "multiple code points when cased, e.g. ﬁ, are returned unchanged."
         case ("upcase_initials")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "upcase_initials_string(str)"
-            entry%doc = "Convert the initial of each word in the argument to upper case."//LF// &
-                        "This means that each word's first character is converted to either"//LF// &
-                        "title case or upper case, and the rest are left unchanged."//LF// &
-                        "The argument object is not altered--the value is a copy."
+            entry%fortran = "upcase_initials_char(ch)"
+            entry%doc = "Convert the initial of a character ""word"" to upper case: title case"//LF// &
+                        "or upper case."
         case ("upcase_initials_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_initials_region(beg, end, status)"
@@ -3411,6 +3841,25 @@ contains
             entry%original = ".true."
             entry%value = repr(adaptive_fill_mode%value)
             entry%doc = "Non-nil means determine a paragraph's fill prefix from its text."
+        case ("after_change_functions")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "after_change_functions"
+            entry%original = "after_change_hook_type(name=""after_change_functions"")"
+            entry%doc = "List of functions to call after each text change."//LF// &
+                        "Three arguments are passed to each function: the positions of"//LF// &
+                        "the beginning and end of the range of changed text,"//LF// &
+                        "and the length in chars of the pre-change text replaced by that range."//LF// &
+                        "(For an insertion, the pre-change length is zero;"//LF// &
+                        "for a deletion, that length is the number of chars deleted,"//LF// &
+                        "and the post-change beginning and end are at the same place.)"//LF// &
+                        ""//LF// &
+                        "Buffer changes made while executing the `after_change_functions'"//LF// &
+                        "don't call any before-change or after-change functions."//LF// &
+                        "That's because `inhibit_modification_hooks' is temporarily set true."//LF// &
+                        ""//LF// &
+                        "If an unhandled error happens in running these functions,"//LF// &
+                        "the variable's value remains empty.  That prevents the error"//LF// &
+                        "from happening repeatedly and making Emacs nonfunctional."
         case ("after_change_major_mode_hook")
             entry%file = "subr_fm.f90"
             entry%fortran = "after_change_major_mode_hook"
@@ -3447,6 +3896,23 @@ contains
             entry%fortran = "auto_fill_mode_hook"
             entry%original = "hook_type(name=""auto_fill_mode_hook"")"
             entry%doc = "Hook run after entering or leaving `auto_fill_mode'."
+        case ("before_change_functions")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "before_change_functions"
+            entry%original = "change_hook_type(name=""before_change_functions"")"
+            entry%doc = "List of functions to call before each text change."//LF// &
+                        "Two arguments are passed to each function: the positions of"//LF// &
+                        "the beginning and end of the range of old text to be changed."//LF// &
+                        "(For an insertion, the beginning and end are at the same place.)"//LF// &
+                        "No information is given about the length of the text after the change."//LF// &
+                        ""//LF// &
+                        "Buffer changes made while executing the `before_change_functions'"//LF// &
+                        "don't call any before-change or after-change functions."//LF// &
+                        "That's because `inhibit_modification_hooks' is temporarily set true."//LF// &
+                        ""//LF// &
+                        "If an unhandled error happens in running these functions,"//LF// &
+                        "the variable's value remains empty.  That prevents the error"//LF// &
+                        "from happening repeatedly and making Emacs nonfunctional."
         case ("case_fold_search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
@@ -3506,6 +3972,17 @@ contains
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
             entry%doc = "The built-in commands."
+        case ("comment_end_can_be_escaped")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "comment_end_can_be_escaped"
+            entry%value = repr(comment_end_can_be_escaped%value)
+            entry%doc = "True means an escaped ender inside a comment doesn't end the comment."
+        case ("comment_use_syntax_ppss")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "comment_use_syntax_ppss"
+            entry%original = ".true."
+            entry%value = repr(comment_use_syntax_ppss)
+            entry%doc = "True means `forward_comment' can use `syntax_ppss' internally."
         case ("completion_auto_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -3722,6 +4199,95 @@ contains
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
                         "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
+        case ("first_change_hook")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "first_change_hook"
+            entry%original = "hook_type(name=""first_change_hook"")"
+            entry%doc = "A list of functions to call before changing a buffer which is unmodified."//LF// &
+                        "The functions are run using the `run_hooks' function."
+        case ("font_lock_defaults")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_defaults"
+            entry%doc = "The current buffer's Font Lock defaults (see the type)."
+        case ("font_lock_dont_widen")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_dont_widen"
+            entry%original = ".false."
+            entry%value = repr(font_lock_dont_widen)
+            entry%doc = "If true, font-lock will work on the non-widened buffer."//LF// &
+                        "Useful for things like RMAIL and Info where the whole buffer is not"//LF// &
+                        "a very meaningful entity to highlight."
+        case ("font_lock_extra_managed_props")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_extra_managed_props"
+            if (allocated(font_lock_extra_managed_props)) entry%value = repr(font_lock_extra_managed_props)
+            entry%doc = "Additional text properties managed by font-lock."//LF// &
+                        "This is used by `font_lock_default_unfontify_region' to decide"//LF// &
+                        "what properties to clear before refontifying a region."
+        case ("font_lock_global_modes")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_global_modes"
+            entry%doc = "Modes for which Font Lock mode is automagically turned on (see the"//LF// &
+                        "type)."
+        case ("font_lock_maximum_decoration")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_maximum_decoration"
+            entry%original = "FONT_LOCK_DECORATION_MAX"
+            select case (font_lock_maximum_decoration)
+            case (FONT_LOCK_DECORATION_MAX)
+                entry%value = "FONT_LOCK_DECORATION_MAX"
+            case default
+                entry%value = repr(font_lock_maximum_decoration)
+            end select
+            entry%doc = "Maximum decoration level for fontification."//LF// &
+                        "If 0, use the default decoration (typically the minimum available)."//LF// &
+                        "If FONT_LOCK_DECORATION_MAX (the default), use the maximum decoration"//LF// &
+                        "available."//LF// &
+                        "If a number, use that level of decoration (or if not available the"//LF// &
+                        "maximum).  The higher the number, the more decoration is done."
+        case ("font_lock_mode_hook")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_mode_hook"
+            entry%original = "hook_type(name=""font_lock_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `font_lock_mode'."
+        case ("font_lock_support_mode")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_support_mode"
+            entry%original = "FONT_LOCK_SUPPORT_JIT_LOCK"
+            select case (font_lock_support_mode)
+            case (FONT_LOCK_SUPPORT_NONE)
+                entry%value = "FONT_LOCK_SUPPORT_NONE"
+            case (FONT_LOCK_SUPPORT_JIT_LOCK)
+                entry%value = "FONT_LOCK_SUPPORT_JIT_LOCK"
+            case default
+                entry%value = repr(font_lock_support_mode)
+            end select
+            entry%doc = "Support mode for Font Lock mode."//LF// &
+                        "If FONT_LOCK_SUPPORT_NONE, means support for Font Lock mode is never"//LF// &
+                        "performed.  This can be useful for debugging."//LF// &
+                        ""//LF// &
+                        "The value of this variable is used when Font Lock mode is turned on."
+        case ("font_lock_verbose")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_verbose"
+            entry%original = ".false."
+            entry%value = repr(font_lock_verbose)
+            entry%doc = "If true, means show status messages for buffer fontification.  Port"//LF// &
+                        "of font-lock.el:font-lock-verbose (the size threshold form is"//LF// &
+                        "deferred)."
+        case ("fontification_functions")
+            entry%file = "xdisp_fm.f90"
+            entry%fortran = "fontification_functions"
+            entry%doc = "List of functions to call to fontify regions of text."//LF// &
+                        "Each function is called with one argument POS.  Functions must"//LF// &
+                        "fontify a region starting at POS in the current buffer, and give"//LF// &
+                        "fontified regions the property `fontified' with a true value."
+        case ("global_font_lock_mode_hook")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "global_font_lock_mode_hook"
+            entry%original = "hook_type(name=""global_font_lock_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `global_font_lock_mode'.  Port"//LF// &
+                        "of font-core.el:global-font-lock-mode-hook."
         case ("goal_column")
             entry%file = "simple_fm.f90"
             entry%fortran = "goal_column"
@@ -3804,6 +4370,23 @@ contains
             entry%original = ".false."
             entry%value = repr(inhibit_field_text_motion)
             entry%doc = "Non-nil means text motion commands don't notice fields."
+        case ("inhibit_modification_hooks")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "inhibit_modification_hooks"
+            entry%original = ".false."
+            entry%value = repr(inhibit_modification_hooks%value)
+            entry%doc = "True means don't run any of the hooks that respond to buffer changes."//LF// &
+                        "This affects `before_change_functions' and `after_change_functions',"//LF// &
+                        "as well as hooks attached to text properties and overlays."//LF// &
+                        "Setting this variable true also inhibits file locks and checks"//LF// &
+                        "whether files are locked by another Emacs session, as well as"//LF// &
+                        "handling of the active region per `select_active_regions'."//LF// &
+                        ""//LF// &
+                        "To delay change hooks during a series of changes, use"//LF// &
+                        "`combine_change_calls' or `combine_after_change_calls' instead of"//LF// &
+                        "binding this variable."//LF// &
+                        ""//LF// &
+                        "See also the info node `(elisp) Change Hooks'."
         case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
@@ -3850,6 +4433,23 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("jit_lock_chunk_size")
+            entry%file = "jit_lock_fm.f90"
+            entry%fortran = "jit_lock_chunk_size"
+            entry%original = "1500"
+            entry%value = repr(jit_lock_chunk_size)
+            entry%doc = "Jit-lock asks to fontify chunks of at most this many characters at"//LF// &
+                        "a time."//LF// &
+                        ""//LF// &
+                        "The actual size of the fontified chunk of text can be different,"//LF// &
+                        "depending on what the `fontification_functions' actually decide to"//LF// &
+                        "do."//LF// &
+                        ""//LF// &
+                        "This variable controls both display-time and stealth"//LF// &
+                        "fontifications."//LF// &
+                        ""//LF// &
+                        "The optimum value is a little over the typical number of buffer"//LF// &
+                        "characters which fit in a typical window."
         case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
@@ -3968,12 +4568,24 @@ contains
                         "variable since this value is used for modes for files that ought to have"//LF// &
                         "final newlines.  So if you set this to nil, you must explicitly check and"//LF// &
                         "add a final newline, whenever you save a file that really needs one."
+        case ("multibyte_syntax_as_symbol")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "multibyte_syntax_as_symbol"
+            entry%original = ".false."
+            entry%value = repr(multibyte_syntax_as_symbol)
+            entry%doc = "True means `scan_sexps' treats all multibyte characters as symbol."
         case ("next_screen_context_lines")
             entry%file = "window_fm.f90"
             entry%fortran = "next_screen_context_lines"
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("open_paren_in_column_0_is_defun_start")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "open_paren_in_column_0_is_defun_start"
+            entry%original = ".true."
+            entry%value = repr(open_paren_in_column_0_is_defun_start)
+            entry%doc = "True means an open paren in column 0 denotes the start of a defun."
         case ("paragraph_ignore_fill_prefix")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_ignore_fill_prefix"

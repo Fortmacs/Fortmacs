@@ -42,6 +42,7 @@ module bindings_fm
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
     use paragraphs_fm, only: syms_of_paragraphs
+    use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
     use replace_fm, only: syms_of_replace
     use casefiddle_fm, only: syms_of_casefiddle
@@ -64,6 +65,9 @@ module bindings_fm
     use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
     use prog_mode_fm, only: syms_of_prog_mode
+    use font_core_fm, only: syms_of_font_core
+    use font_lock_fm, only: syms_of_font_lock
+    use jit_lock_fm, only: syms_of_jit_lock
     implicit none(type, external)
     private
 
@@ -72,9 +76,10 @@ module bindings_fm
     integer(int64), parameter :: M_CTL = int(CHAR_CTL, int64), &
                                  M_META = int(CHAR_META, int64)
 
-    !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map.
+    !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map;
+    !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
-                                 function_key_map
+                                 function_key_map, ctl_x_x_map
 
 contains
 
@@ -179,6 +184,7 @@ contains
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
         if (keymap_live_p(ctl_x_map)) call free_keymap(ctl_x_map, status)
+        if (keymap_live_p(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         call syms_of_cmds()
         call syms_of_simple()
@@ -189,6 +195,7 @@ contains
         commands%left_word%run => cmd_left_word
         call syms_of_syntax()
         call syms_of_paragraphs()
+        call syms_of_lisp_cmds()
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
@@ -197,6 +204,9 @@ contains
         call syms_of_novice()
         call syms_of_text_mode()
         call syms_of_prog_mode()
+        call syms_of_jit_lock()
+        call syms_of_font_core()
+        call syms_of_font_lock()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -277,6 +287,11 @@ contains
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
         call bind(ctl_x_map, "u", "undo")
+        ! bindings.el: ctl-x-x-map.
+        call make_sparse_keymap(ctl_x_x_map)
+        call bind(ctl_x_x_map, "f", "font_lock_update")
+        key(1) = make_fixnum(int(iachar("x"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_x_map), status)
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
@@ -328,6 +343,28 @@ contains
         call bind(esc_map, "e", "forward_sentence")
         call bind(esc_map, "k", "kill_sentence")
         call bind(ctl_x_map, "DEL", "backward_kill_sentence")
+        ! Balanced expressions (bindings.el).
+        call bind(global_map, "C-M-<left>", "backward_sexp")
+        call bind(esc_map, "C-<left>", "backward_sexp")
+        call bind(global_map, "C-M-<right>", "forward_sexp")
+        call bind(esc_map, "C-<right>", "forward_sexp")
+        call bind(global_map, "C-M-<up>", "backward_up_list")
+        call bind(esc_map, "C-<up>", "backward_up_list")
+        call bind(global_map, "C-M-<down>", "down_list")
+        call bind(esc_map, "C-<down>", "down_list")
+        call bind(esc_map, "C-f", "forward_sexp")
+        call bind(esc_map, "C-b", "backward_sexp")
+        call bind(esc_map, "C-u", "backward_up_list")
+        call bind(esc_map, "C-@", "mark_sexp")
+        call bind(esc_map, "C-SPC", "mark_sexp")
+        call bind(esc_map, "C-d", "down_list")
+        call bind(esc_map, "C-k", "kill_sexp")
+        call bind(global_map, "C-M-<delete>", "backward_kill_sexp")
+        call bind(global_map, "C-M-<backspace>", "backward_kill_sexp")
+        call bind(esc_map, "C-<delete>", "backward_kill_sexp")
+        call bind(esc_map, "C-<backspace>", "backward_kill_sexp")
+        call bind(esc_map, "C-n", "forward_list")
+        call bind(esc_map, "C-p", "backward_list")
         call bind(esc_map, "%", "query_replace")
         call bind(esc_map, "C-%", "query_replace_regexp")
         call bind(global_map, "C-t", "transpose_chars")

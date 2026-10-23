@@ -459,9 +459,8 @@ contains
     inschars = string_chars(text)
     newpoint = sub_start + inschars
     ! Replace the old text with the new in the cleanest possible way.
-    call replace_range(sub_start, sub_end, text, .true., status)
+    call replace_range(sub_start, sub_end, text, .true., status, adjust_match_data=.true.)
     if (.not. status%ok()) return
-    call update_search_regs(sub_start, sub_end, sub_start + inschars)
     if (case_action == ALL_CAPS) then
         call upcase_region(search_regs_start(sub), newpoint, status)
     else if (case_action == CAP_INITIAL) then
@@ -523,32 +522,6 @@ contains
         sub_text = str(string_index_to_offset(str, b) + 1:string_index_to_offset(str, e))
     end function substring
     end procedure replace_match
-
-    !> Adjust the match data for replacing OLDSTART..OLDEND with text that
-    !> ends at NEWEND.  Port of search.c:update_search_regs.
-    subroutine update_search_regs(oldstart, oldend, newend)
-        integer(int64), intent(in) :: oldstart, oldend, newend
-        integer(int64) :: change
-        integer :: i
-        change = newend - oldend
-        do i = 0, size(search_regs_start) - 1
-            ! If the subgroup that `replace_match' is modifying encloses
-            ! the subgroup I, then its start position should stay
-            ! unchanged.
-            if (search_regs_start(i) <= oldstart) then
-                continue
-            else if (search_regs_start(i) >= oldend) then
-                search_regs_start(i) = search_regs_start(i) + change
-            else
-                search_regs_start(i) = oldstart
-            end if
-            if (search_regs_end(i) >= oldend) then
-                search_regs_end(i) = search_regs_end(i) + change
-            else if (search_regs_end(i) > oldstart) then
-                search_regs_end(i) = oldstart
-            end if
-        end do
-    end subroutine update_search_regs
 
     ! ------------------------------------------------------------------
     ! Commands

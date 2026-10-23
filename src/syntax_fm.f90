@@ -39,15 +39,19 @@
 !> `word_separating_categories' (category.c:word_boundary_p, with
 !> characters.el's values for those variables).
 !>
-!> Deferred: `syntax_table' text properties (parse-sexp-lookup-properties),
-!> comments and sexps (`forward_comment', `scan_lists', `scan_sexps',
-!> `parse_partial_sexp'), `skip_chars_*' and `skip_syntax_*',
+!> Comments and balanced expressions are in the submodule syntax_scan_fm:
+!> `forward_comment', `scan_lists', `scan_sexps' and `parse_partial_sexp',
+!> whose result is a `parse_state_type' rather than a list.
+!>
+!> Deferred: `syntax_table' text properties (parse-sexp-lookup-properties,
+!> syntax-propertize), `forward_comment_function',
 !> `find_word_boundary_function_table', `describe_syntax', unibyte
-!> buffers' raw bytes.
+!> buffers' raw bytes, quitting during long scans (rarely_quit).
 module syntax_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, &
+                        FM_SCAN_ERROR
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use character_fm, only: MAX_CHAR, string_char_and_length
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_prev_char_len
@@ -66,6 +70,8 @@ module syntax_fm
               matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
               skip_limit, backward_prefix_chars
+    public :: parse_state_type, forward_comment, scan_lists, scan_sexps, parse_partial_sexp, syntax_ppss, &
+              scan_error_data
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -84,6 +90,80 @@ module syntax_fm
     !> Port of syntax.c parse-sexp-ignore-comments.
     type(logical_setting), public :: parse_sexp_ignore_comments = &
                                      logical_setting(name="parse_sexp_ignore_comments", value=.false.)
+
+    !> True means an escaped ender inside a comment doesn't end the comment.
+    !> Port of syntax.c comment-end-can-be-escaped (buffer-local when set,
+    !> as upstream makes it).
+    type(logical_setting), public :: comment_end_can_be_escaped = &
+                                     logical_setting(name="comment_end_can_be_escaped", value=.false.)
+
+    !> True means `scan_sexps' treats all multibyte characters as symbol.
+    !> Port of syntax.c multibyte-syntax-as-symbol.
+    logical, public :: multibyte_syntax_as_symbol = .false.
+
+    !> True means an open paren in column 0 denotes the start of a defun.
+    !> Port of syntax.c open-paren-in-column-0-is-defun-start.
+    logical, public :: open_paren_in_column_0_is_defun_start = .true.
+
+    !> True means `forward_comment' can use `syntax_ppss' internally.
+    !> Port of syntax.c comment-use-syntax-ppss.
+    logical, public :: comment_use_syntax_ppss = .true.
+
+    !> Comment style and string terminator of a parse state in a comment or
+    !> string delimited by a generic comment or string fence (syntax.c
+    !> ST_COMMENT_STYLE and ST_STRING_STYLE): `comment_style' 257 is the
+    !> symbol `syntax-table' upstream, `instring' 258 is t.
+    integer, parameter, public :: ST_COMMENT_STYLE = 256 + 1, ST_STRING_STYLE = 256 + 2
+
+    !> One more than the largest syntax class (syntax.h Smax).
+    integer, parameter, public :: SMAX = 16
+
+    !> COMMENTSTOP of `parse_partial_sexp': nil, non-nil (stop after the
+    !> start of a comment) and the symbol `syntax-table' (stop after the
+    !> start or end of a comment or a string).
+    integer, parameter, public :: COMMENTSTOP_NIL = 0, COMMENTSTOP_COMMENT = 1, COMMENTSTOP_SYNTAX_TABLE = -1
+
+    !> The state of a parse by `parse_partial_sexp', the list upstream
+    !> returns.  Its components are the list's elements:
+    !>  0. `depth': depth in parens.
+    !>  1. `innermost_start': character address of start of innermost
+    !>     containing list; 0 if none (nil).
+    !>  2. `last_sexp_start': character address of start of last complete
+    !>     sexp terminated; 0 if none (nil).
+    !>  3. `instring': -1 (nil) if not inside a string; else the character
+    !>     that will terminate the string, or ST_STRING_STYLE (t) if the
+    !>     string should be terminated by a generic string delimiter.
+    !>  4. `incomment': 0 (nil) outside a comment, -1 (t) inside a
+    !>     non-nestable comment, else the current comment nesting.
+    !>  5. `quoted': true if following a quote character.
+    !>  6. `mindepth': the minimum paren-depth encountered during this scan.
+    !>  7. `comment_style': style of comment, if any: 0 (nil, style a), 1
+    !>     (b), 2 (c), 3 (b and c) or ST_COMMENT_STYLE (the symbol
+    !>     `syntax-table': a generic comment fence).
+    !>  8. `comstr_start': character address of start of comment or string;
+    !>     0 (nil) if not in one.
+    !>  9. `open_parens': positions of currently open parens, outermost
+    !>     first.
+    !> 10. `prev_syntax': when the last position scanned holds the first
+    !>     character of a (potential) two character construct, the syntax
+    !>     of that position (class and flags), otherwise -1 (nil).  That
+    !>     construct can be a two character comment delimiter or an
+    !>     Escaped or Char-quoted character.
+    !> The default value is the state at the start of a defun (an OLDSTATE
+    !> of nil).
+    type :: parse_state_type
+        integer(int64) :: depth = 0
+        integer(int64) :: innermost_start = 0
+        integer(int64) :: last_sexp_start = 0
+        integer :: instring = -1
+        integer(int64) :: incomment = 0
+        logical :: quoted = .false.
+        integer(int64) :: mindepth = 0
+        integer :: comment_style = 0
+        integer(int64) :: comstr_start = 0
+        integer(int64), allocatable :: open_parens(:)
+        integer :: prev_syntax = -1
+    end type parse_state_type
 
     !> Counts `modify_syntax_entry' calls, so compiled regexps that depend
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
@@ -124,6 +204,105 @@ module syntax_fm
             integer(int64), intent(in), optional :: lim
             integer(int64) :: moved
         end function skip_chars
+
+        !> Move forward across up to COUNT comments.  If COUNT is negative, move backward.
+        !> Stop scanning if we find something other than a comment or whitespace.
+        !> Set point to where scanning stops.
+        !> If COUNT comments are found as expected, with nothing except whitespace
+        !> between them, return true; otherwise return false.  Port of
+        !> syntax.c:Fforward_comment (no `forward_comment_function').
+        module logical function forward_comment(count) result(found)
+            implicit none(type, external)
+            integer(int64), intent(in) :: count
+        end function forward_comment
+
+        !> Scan from character number FROM by COUNT lists.
+        !> Scan forward if COUNT is positive, backward if COUNT is negative.
+        !> Return the character number of the position thus found.
+        !>
+        !> A "list", in this context, refers to a balanced parenthetical
+        !> grouping, as determined by the syntax table.
+        !>
+        !> If DEPTH is nonzero, treat that as the nesting depth of the starting
+        !> point (i.e. the starting point is DEPTH parentheses deep).  This
+        !> function scans over parentheses until the depth goes to zero COUNT
+        !> times.  Hence, positive DEPTH moves out that number of levels of
+        !> parentheses, while negative DEPTH moves to a deeper level.
+        !>
+        !> Comments are ignored if `parse_sexp_ignore_comments' is true.
+        !>
+        !> If we reach the beginning or end of the accessible part of the buffer
+        !> before we have scanned over COUNT lists, return 0 (nil) if the depth at
+        !> that point is zero, and signal an error if the depth is nonzero.
+        !> Port of syntax.c:Fscan_lists (the error is `scan_error').
+        module integer(int64) function scan_lists(from, count, depth, status) result(pos)
+            implicit none(type, external)
+            integer(int64), intent(in) :: from, count, depth
+            type(status_type), intent(out) :: status
+        end function scan_lists
+
+        !> Scan from character number FROM by COUNT balanced expressions.
+        !> If COUNT is negative, scan backwards.
+        !> Returns the character number of the position thus found.
+        !>
+        !> Comments are ignored if `parse_sexp_ignore_comments' is true.
+        !>
+        !> If the beginning or end of (the accessible part of) the buffer is reached
+        !> in the middle of a parenthetical grouping, an error is signaled.
+        !> If the beginning or end is reached between groupings
+        !> but before count is used up, 0 (nil) is returned.  Port of
+        !> syntax.c:Fscan_sexps.
+        module integer(int64) function scan_sexps(from, count, status) result(pos)
+            implicit none(type, external)
+            integer(int64), intent(in) :: from, count
+            type(status_type), intent(out) :: status
+        end function scan_sexps
+
+        !> Parse Lisp syntax starting at FROM until TO; return status of parse at TO.
+        !> Parsing stops at TO or when certain criteria are met;
+        !>  point is set to where parsing stops.
+        !>
+        !> If OLDSTATE is omitted, parsing assumes that FROM is the
+        !>  beginning of a function.  If not, OLDSTATE should be the state at
+        !>  FROM.
+        !>
+        !> The value, STATE, describes the final state of parsing (see
+        !> `parse_state_type').
+        !>
+        !> If third arg TARGETDEPTH is present, parsing stops if the depth
+        !> in parentheses becomes equal to TARGETDEPTH.
+        !> Fourth arg STOPBEFORE true means stop when we come to
+        !>  any character that starts a sexp.
+        !> Fifth arg OLDSTATE is a state like what this function returns.
+        !>  It is used to initialize the state of the parse.  Components
+        !>  `innermost_start', `last_sexp_start' and `mindepth' are ignored.
+        !> Sixth arg COMMENTSTOP COMMENTSTOP_COMMENT means stop after the start
+        !>  of a comment.  If it is COMMENTSTOP_SYNTAX_TABLE, stop after the
+        !>  start of a comment or a string, or after end of a comment or a
+        !>  string.  Port of syntax.c:Fparse_partial_sexp (STATE and OLDSTATE
+        !> must be different variables).
+        module subroutine parse_partial_sexp(from, to, state, status, targetdepth, stopbefore, oldstate, commentstop)
+            implicit none(type, external)
+            integer(int64), intent(in) :: from, to
+            type(parse_state_type), intent(out) :: state
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: targetdepth
+            logical, intent(in), optional :: stopbefore
+            type(parse_state_type), intent(in), optional :: oldstate
+            integer, intent(in), optional :: commentstop
+        end subroutine parse_partial_sexp
+
+        !> Return the parse state of the parenthesis structure at POS
+        !> (default: point), as `parse_partial_sexp' gives it parsing from
+        !> `point_min' to POS.  Point is at POS when this function returns.
+        !> Port of emacs-lisp/syntax.el:syntax-ppss without its cache,
+        !> `syntax_ppss_table' and syntax-propertize (until syntax.el is
+        !> ported).
+        module subroutine syntax_ppss(state, pos)
+            implicit none(type, external)
+            type(parse_state_type), intent(out) :: state
+            integer(int64), intent(in), optional :: pos
+        end subroutine syntax_ppss
     end interface
 
 contains
@@ -915,6 +1094,33 @@ contains
         end do
         call goto_char(opoint)
     end subroutine backward_prefix_chars
+
+    !> The data of the `scan_error' in STATUS: its message and the start
+    !> and end of the obstacle (an empty message and 0 when STATUS holds no
+    !> scan error).  Not a port: upstream takes them from the error's data.
+    subroutine scan_error_data(status, message, beg, end)
+        type(status_type), intent(in) :: status
+        character(len=:), allocatable, intent(out) :: message
+        integer(int64), intent(out) :: beg, end
+        integer :: q, c, ios
+        message = ""
+        beg = 0
+        end = 0
+        if (status%code /= FM_SCAN_ERROR .or. .not. allocated(status%detail)) return
+        ! "MESSAGE", BEG, END
+        if (index(status%detail, """") /= 1) return
+        q = index(status%detail(2:), """") + 1
+        if (q < 2) return
+        message = status%detail(2:q - 1)
+        c = index(status%detail(q + 1:), ",") + q
+        if (c == q) return
+        q = index(status%detail(c + 1:), ",") + c
+        if (q == c) return
+        read (status%detail(c + 1:q - 1), *, iostat=ios) beg
+        if (ios /= 0) beg = 0
+        read (status%detail(q + 1:), *, iostat=ios) end
+        if (ios /= 0) end = 0
+    end subroutine scan_error_data
 
     ! The character before POS.
     integer function fetch_char_before(pos) result(c)

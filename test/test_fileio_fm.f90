@@ -28,7 +28,7 @@ module test_fileio_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, &
                          buffer_modified_p, current_buffer
-    use insdel_fm, only: insert
+    use insdel_fm, only: insert, after_change_functions
     use editfns_fm, only: point, buffer_string, goto_char
     use sysdep_fm, only: sys_setenv, sys_unsetenv, passwd_name_of_user, passwd_home_of_user
     use fileio_fm, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
@@ -48,6 +48,9 @@ module test_fileio_fm
 
     !> Scratch directory for file tests, relative to the working directory.
     character(len=*), parameter :: testdir = "build/test-fileio"
+
+    !> What the change functions recorded.
+    character(len=:), allocatable :: trace
 
 contains
 
@@ -71,7 +74,8 @@ contains
                     new_unittest("modtime", test_modtime), &
                     new_unittest("predicates-and-modes", test_predicates), &
                     new_unittest("rename-and-copy", test_rename_copy), &
-                    new_unittest("substitute-in-file-name", test_substitute) &
+                    new_unittest("substitute-in-file-name", test_substitute), &
+                    new_unittest("insert-file-contents-change-hooks", test_insert_change_hooks) &
                     ]
     end subroutine collect_fileio_fm
 
@@ -615,4 +619,42 @@ contains
         if (allocated(error)) return
         call check(error, substitute_in_file_name("/plain") == "/plain")
     end subroutine test_substitute
+
+    !> Records "A<beg>,<end>,<old_len>" (an after-change function).
+    subroutine rec_after(beg, end, old_len, status)
+        integer(int64), intent(in) :: beg, end, old_len
+        type(status_type), intent(out) :: status
+        character(len=64) :: buf
+        status = status_type()
+        write (buf, "(a, i0, a, i0, a, i0)") " A", beg, ",", end, ",", old_len
+        trace = trace//trim(buf)
+    end subroutine rec_after
+
+    !> Inserting a file runs the after-change functions for the inserted
+    !> text; visiting one does not (fileio.c:Finsert_file_contents).
+    subroutine test_insert_change_hooks(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+        integer(int64) :: inserted
+        call setup(buf)
+        call insert("abc", st)
+        call write_region(testdir//"/f5", .false., st)
+        call teardown(buf)
+        call after_change_functions%add(rec_after)
+        call new_buffer(buf)
+        trace = ""
+        call insert_file_contents(testdir//"/f5", .true., inserted, st)
+        call check(error, st%ok() .and. trace == "", "visiting: no change hooks")
+        if (allocated(error)) return
+        call teardown(buf)
+        call new_buffer(buf)
+        call insert("<>", st)
+        call goto_char(2_int64)
+        trace = ""
+        call insert_file_contents(testdir//"/f5", .false., inserted, st)
+        call check(error, trace, " A2,5,0", "inserting")
+        call teardown(buf)
+        call after_change_functions%remove(rec_after)
+    end subroutine test_insert_change_hooks
 end module test_fileio_fm
