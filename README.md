@@ -5,30 +5,9 @@ aarch64. There is no Elisp: your configuration is a Fortran module compiled
 into the binary, and every rebuild is a numbered generation you can roll
 back to, as in Guix.
 
-**Status:** early porting. Fortmacs runs as a bare-bones terminal editor; most
-of Emacs is still missing. See [PORTING.md](PORTING.md) for the roadmap. What
-works so far:
-
-- **Files and buffers:** open (`fortmacs FILE`, `C-x C-f`), save (`C-x C-s`,
-  with a `FILE~` backup), write elsewhere (`C-x C-w`), switch and kill buffers
-  (`C-x b`, `C-x k`).
-- **Editing:** move by character, word, line, sentence and paragraph; kill,
-  copy and yank (`C-SPC`, `C-w`, `M-w`, `C-k`, `C-y`, `M-y`); undo and redo
-  (`C-/`, `C-x u`, `C-?`); transpose and change case (`C-t`, `M-t`, `C-x C-t`,
-  `M-u`, `M-l`, `M-c`); tidy whitespace (`M-SPC`, `M-\`, `M-^`, `C-x C-o`).
-- **Indenting and filling:** `TAB`, `C-x TAB`, `C-M-\`, `M-i`, `M-m`, `M-q`,
-  `C-x f`, `C-x .`, Auto Fill mode.
-- **Search and replace:** incremental search (`C-s`, `C-r`, `C-M-s`, `C-M-r`),
-  query replace (`M-%`, `C-M-%`), `M-x replace-string`, `M-x replace-regexp`.
-- **Windows:** scroll (`C-v`, `M-v`, `C-l`), split and switch (`C-x 2`,
-  `C-x 3`, `C-x o`, `C-x 0`, `C-x 1`).
-- **Commands and help:** `M-x` with completion (`TAB` completes file names
-  too); `C-h f`, `C-h v`, `C-h k`.
-- **Modes:** Text mode (for `.txt` files or a `-*- text -*-` line), Prog mode,
-  Auto Fill mode, shown in the mode line.
-
 <!-- progress:start -->
-**Progress:**
+**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
+missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>

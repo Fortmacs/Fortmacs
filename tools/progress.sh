@@ -202,7 +202,8 @@ melpa|MELPA|#4690B9|$melpa_done|$melpa_total"
     done <<EOF2
 $cols
 EOF2
-    echo "**Progress:**"
+    echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
+    echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
     echo "<table>"
     echo '<tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>'
