@@ -34,8 +34,9 @@ tools/check.sh          # format, lint, debug build and tests, as CI runs them
 tools/check.sh --fix    # reformat and apply safe lint fixes
 ```
 
-CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
-Linux (x86-64) for every pull request, and on Guix weekly.
+CI runs the same check on Ubuntu (x86-64) for every pull request, on Ubuntu
+and Fedora (x86-64 and aarch64) and Arch Linux (x86-64) after each merge,
+and on Guix weekly.
 
 ## Configuring
 
@@ -138,7 +139,18 @@ What an assistant changes:
    consistently across thousands of functions.
 3. **It ports the tests too,** so each port is checked against Emacs's own
    expectations.
-4. **The safeguards stay human.** Every change is built, tested and checked
+4. **It works on several modules at once.** Up to eight agents run in
+   parallel, each porting a different module in its own git worktree, and
+   one lead session reviews their branches and combines them into pull
+   requests. Usage limits still pause the work now and then.
+5. **It is fast, with caveats.** In the first three days (October 2026)
+   the project reached about 65,000 hand-written lines of Fortran and
+   tests, around 850 lines per hour of elapsed time. Someone porting by
+   hand, reading the C or Elisp and writing tested Fortran, might manage a
+   few hundred lines on a good day. Line counts say nothing about quality,
+   though: a fair share of that output was later rewritten after review,
+   and human direction and review remain the bottleneck.
+6. **The safeguards stay human.** Every change is built, tested and checked
    for memory leaks in CI on two architectures, and a human reviews and
    merges every pull request.
 
