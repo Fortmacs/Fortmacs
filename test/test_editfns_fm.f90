@@ -396,8 +396,8 @@ contains
         call enter("te-prompt", h, old)
         call insert("Find file: ", st)
         call add_text_properties(1_int64, point(), &
-                                 list(sym("field"), t_value(), sym("front-sticky"), t_value(), &
-                                      sym("rear-nonsticky"), t_value()), changed, st)
+                                 list(sym("field"), t_value(), sym("front_sticky"), t_value(), &
+                                      sym("rear_nonsticky"), t_value()), changed, st)
         call insert("/tmp/x", st)
         call check(error, line_beginning_position() == 12, "C-a stops after the prompt")
         if (allocated(error)) return

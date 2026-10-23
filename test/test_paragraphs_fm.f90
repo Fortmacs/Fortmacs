@@ -297,8 +297,8 @@ contains
         ! Repeating the command marks the next sentence.
         call temp_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
-        last_command = sym("mark-end-of-sentence")
-        this_command = sym("mark-end-of-sentence")
+        last_command = sym("mark_end_of_sentence")
+        this_command = sym("mark_end_of_sentence")
         call mark_end_of_sentence(1_int64)
         call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "repeated")
     end subroutine test_mark_end_of_sentence

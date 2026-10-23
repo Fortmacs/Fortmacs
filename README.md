@@ -12,9 +12,9 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.42%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.59%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆7.08%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.62%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">906<br>of 63,999</td><td align="center">906<br>of 56,864</td><td align="center">605<br>of 8,547</td><td align="center">301<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆1.42%</td><td align="center">≆1.59%</td><td align="center">≆7.08%</td><td align="center">≆0.62%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
+<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆1.42%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆1.60%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆7.10%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆0.62%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
+<tr><td align="center">908<br>of 63,999</td><td align="center">908<br>of 56,864</td><td align="center">607<br>of 8,547</td><td align="center">301<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">≆1.42%</td><td align="center">≆1.60%</td><td align="center">≆7.10%</td><td align="center">≆0.62%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
 Total is Emacs (its C functions and Elisp definitions) and the packages
@@ -44,7 +44,7 @@ Write your configuration in `~/.config/fortmacs/init.f90`
 `configure` subroutine runs at startup. Settings are variables
 (`tab_width = 4`), built-in commands are objects
 (`commands%upcase_region%disabled = .false.`), and keys are bound with
-`keymap_global_set("C-c d", "my-command", status)`.
+`keymap_global_set("C-c d", "my_command", status)`.
 
 ```sh
 fpm install --profile release   # fortmacs, its library and modules, in ~/.local
@@ -82,8 +82,30 @@ suit an editor well:
    [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html).
    That's a preference, not a verdict on Elisp.
 
+6. **Help that speaks Fortran.** Emacs is at its best as an environment for
+   the language it's written in: it documents every function and variable,
+   shows their current values and jumps to their source. Fortmacs aims to
+   bring that to Fortran: help shows Fortran names, values and source files,
+   so exploring and configuring the editor feels like working in Fortran.
+   A language server such as fortls supports editing Fortran code; this is
+   about the editor itself being inspectable in Fortran.
+
 The trade-off: you can't evaluate code in a running session. Changing the
 configuration means rebuilding.
+
+## Differences from Emacs
+
+Fortmacs follows Emacs 31.1 exactly, except where being Fortran requires
+otherwise:
+
+- Names use underscores: `M-x find_file`, `C-h v fill_column`,
+  `text_mode_hook`. Keys and mode-line text are unchanged.
+- There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
+  `ielm`, and `*scratch*` starts in Fundamental mode.
+- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
+  names the Fortran file a definition lives in.
+- Configuration and packages are Fortran modules compiled into the binary;
+  commands that save settings write Fortran into `init.f90`.
 
 ## Why AI assistance?
 

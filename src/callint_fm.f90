@@ -20,17 +20,17 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Running commands.  A command is a `command_type` object (lisp_fm):
-!> built-in ones are the components of `commands` (commands_fm), others
-!> are defined with `define`.  Keymaps bind command names; upstream a
-!> command is a function with an `interactive` spec, stored in the
+!> Running commands.  A command is a `command_type' object (lisp_fm):
+!> built-in ones are the components of `commands' (commands_fm), others
+!> are defined with `define'.  Keymaps bind command names; upstream a
+!> command is a function with an `interactive' spec, stored in the
 !> symbol's function cell, and here a command reads its own arguments
-!> (the prefix argument is `current_prefix_arg`).
+!> (the prefix argument is `current_prefix_arg').
 !>
 !>     commands%forward_char%run => cmd_forward_char
 module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, &
+    use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, V_LIST, V_STRING, nsymbols, vtag, nilp, &
                        fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
@@ -66,8 +66,8 @@ module callint_fm
 
 contains
 
-    !> The function named NAME: one defined with `command_type%define`,
-    !> else a built-in one (`commands`); null if there is none or it has no
+    !> The function named NAME: one defined with `command_type%define',
+    !> else a built-in one (`commands'); null if there is none or it has no
     !> procedure.
     function find_command(name) result(p)
         character(len=*), intent(in) :: name
@@ -124,7 +124,7 @@ contains
         fboundp = associated(symbol_command(v))
     end function fboundp
 
-    !> Whether symbol `v` names a defined command (a function with an
+    !> Whether symbol `v' names a defined command (a function with an
     !> interactive spec).
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
@@ -134,7 +134,7 @@ contains
         if (command_defined_p) command_defined_p = p%interactive
     end function command_defined_p
 
-    !> Whether `v` can be run as a command: a defined command, or a
+    !> Whether `v' can be run as a command: a defined command, or a
     !> keyboard macro (a string or a list of events).  Port of
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
     logical function commandp(v)
@@ -149,9 +149,9 @@ contains
         end select
     end function commandp
 
-    !> Make the command named NAME disabled or not (its `disabled`
+    !> Make the command named NAME disabled or not (its `disabled'
     !> property), for a name only known at run time; built-in commands
-    !> are `commands%NAME%disabled`.
+    !> are `commands%NAME%disabled'.
     subroutine set_command_disabled(name, disabled, status)
         character(len=*), intent(in) :: name
         logical, intent(in) :: disabled
@@ -161,14 +161,14 @@ contains
         p => defined_command(name)
         if (.not. associated(p)) p => builtin_command(name)
         if (.not. associated(p)) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid command name `"//name//"'")
+            call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//name//format_message("'"))
             return
         end if
         p%disabled = disabled
         if (allocated(p%disabled_message)) deallocate (p%disabled_message)
     end subroutine set_command_disabled
 
-    !> Run command `cmd`.  Port of callint.c:Fcall_interactively (the
+    !> Run command `cmd'.  Port of callint.c:Fcall_interactively (the
     !> interactive spec is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine call_interactively(cmd, status)
@@ -208,7 +208,7 @@ contains
         call p%run(status)
     end subroutine funcall
 
-    !> The numeric value of raw prefix argument `raw`: nil gives 1, `-`
+    !> The numeric value of raw prefix argument `raw': nil gives 1, `-'
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
     integer(int64) function prefix_numeric_value(raw) result(n)
         type(value_type), intent(in) :: raw

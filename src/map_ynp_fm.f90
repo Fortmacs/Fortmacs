@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `map-y-or-n-p`: ask about each of a list of objects in turn.
+!> `map_y_or_n_p': ask about each of a list of objects in turn.
 !>
 !> Objects are numbered 1..n; the caller's prompter and actor procedures
 !> stand in for upstream's PROMPTER and ACTOR functions.  As in subr_fm,
-!> keys are read in the echo area (the `y-or-n-p-use-read-key` path).
+!> keys are read in the echo area (the `y_or_n_p_use_read_key' path).
 !> There is no help (C-h) or ACTION-ALIST yet, so the prompt lists only
 !> the keys that work.
 module map_ynp_fm
@@ -45,7 +45,7 @@ module map_ynp_fm
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
 
     abstract interface
-        !> Whether and how to ask about object `k`.
+        !> Whether and how to ask about object `k'.
         subroutine ynp_prompter(k, how, prompt)
             implicit none(type, external)
             integer, intent(in) :: k
@@ -53,7 +53,7 @@ module map_ynp_fm
             character(len=:), allocatable, intent(out) :: prompt
         end subroutine ynp_prompter
 
-        !> Act on object `k`.
+        !> Act on object `k'.
         subroutine ynp_actor(k, status)
             import :: status_type
             implicit none(type, external)
@@ -64,9 +64,9 @@ module map_ynp_fm
 
 contains
 
-    !> Ask about objects 1..`n` in turn and act on those the user accepts:
+    !> Ask about objects 1..`n' in turn and act on those the user accepts:
     !> SPC or y acts, DEL or n skips, ! acts on all the rest, . acts and
-    !> stops, RET or q stops, C-g quits.  `actions` is the number of
+    !> stops, RET or q stops, C-g quits.  `actions' is the number of
     !> objects acted on.  Port of map-ynp.el:map-y-or-n-p.
     subroutine map_y_or_n_p(n, prompter, actor, actions, status)
         integer, intent(in) :: n

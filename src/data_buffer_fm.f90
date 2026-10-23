@@ -26,8 +26,8 @@
 !>
 !> The value of a variable is always the current buffer's.  When a
 !> buffer has its own value for a variable, the default is kept in the
-!> symbol (`default_val`) while that buffer is current, and the local
-!> value in the buffer (`local_values`) while it is not; the swap
+!> symbol (`default_val') while that buffer is current, and the local
+!> value in the buffer (`local_values') while it is not; the swap
 !> happens in set_buffer_internal.  Variables forwarded to procedure
 !> pointers (auto-fill-function, indent-line-function) keep the pointers
 !> themselves in this submodule, so a procedure without a name survives
@@ -70,18 +70,18 @@ submodule(data_fm) data_buffer_fm
     !> slots with a local flag of -1).
     integer, parameter :: NFWD = 23
     character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=24) :: &
-                                                "fill-column", "left-margin", "tab-width", "indent-tabs-mode", "case-fold-search", &
-                                                      "fill-prefix", "paragraph-start", "paragraph-separate", "sentence-end", &
-                                                    "sentence-end-double-space", "adaptive-fill-mode", "auto-fill-inhibit-regexp", &
-                                           "standard-indent", "auto-fill-function", "indent-line-function", "transient-mark-mode", &
-                                                      "major-mode", "mode-name", "buffer-read-only", "text-mode-variant", &
-                                                "parse-sexp-ignore-comments", "require-final-newline", "mode-require-final-newline"]
+                                                "fill_column", "left_margin", "tab_width", "indent_tabs_mode", "case_fold_search", &
+                                                      "fill_prefix", "paragraph_start", "paragraph_separate", "sentence_end", &
+                                                    "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
+                                           "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
+                                                      "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
+                                                "parse_sexp_ignore_comments", "require_final_newline", "mode_require_final_newline"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
                                             K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT]
-    !> DEFVAR_PER_BUFFER, `make-variable-buffer-local` or `:local t`:
+    !> DEFVAR_PER_BUFFER, `make_variable_buffer_local' or `:local t':
     !> local when set.
     logical, parameter :: FWD_PER_BUFFER(NFWD) = [.true., .true., .true., .false., .true., &
                                                   .true., .false., .false., .false., &
@@ -283,64 +283,64 @@ contains
             return
         end if
         select case (trim(FWD_NAMES(k)))
-        case ("fill-column")
+        case ("fill_column")
             call setting_value(fill_column, make_fixnum(fill_column%value), v, bound)
-        case ("left-margin")
+        case ("left_margin")
             call setting_value(left_margin, make_fixnum(left_margin%value), v, bound)
-        case ("tab-width")
+        case ("tab_width")
             call setting_value(tab_width, make_fixnum(tab_width%value), v, bound)
-        case ("indent-tabs-mode")
+        case ("indent_tabs_mode")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(indent_tabs_mode%value)
-        case ("case-fold-search")
+        case ("case_fold_search")
             call setting_value(case_fold_search, bool_value(case_fold_search%value), v, bound)
-        case ("fill-prefix")
+        case ("fill_prefix")
             call setting_value(fill_prefix, string_or_nil(fill_prefix%value), v, bound)
-        case ("paragraph-start")
+        case ("paragraph_start")
             call init_paragraph_variables()
             call setting_value(paragraph_start, string_or_nil(paragraph_start%value), v, bound)
-        case ("paragraph-separate")
+        case ("paragraph_separate")
             call init_paragraph_variables()
             call setting_value(paragraph_separate, string_or_nil(paragraph_separate%value), v, bound)
-        case ("sentence-end")
+        case ("sentence_end")
             call setting_value(sentence_end, string_or_nil(sentence_end%value), v, bound)
-        case ("sentence-end-double-space")
+        case ("sentence_end_double_space")
             call setting_value(sentence_end_double_space, bool_value(sentence_end_double_space%value), v, bound)
-        case ("adaptive-fill-mode")
+        case ("adaptive_fill_mode")
             call setting_value(adaptive_fill_mode, bool_value(adaptive_fill_mode%value), v, bound)
-        case ("auto-fill-inhibit-regexp")
+        case ("auto_fill_inhibit_regexp")
             call setting_value(auto_fill_inhibit_regexp, string_or_nil(auto_fill_inhibit_regexp%value), v, bound)
-        case ("standard-indent")
+        case ("standard_indent")
             call setting_value(standard_indent, make_fixnum(standard_indent%value), v, bound)
-        case ("auto-fill-function")
+        case ("auto_fill_function")
             call setting_value(auto_fill_function, auto_fill_value(auto_fill_function%value), v, bound)
-        case ("indent-line-function")
+        case ("indent_line_function")
             call setting_value(indent_line_function, indent_line_value(indent_line_function%value), v, bound)
-        case ("transient-mark-mode")
+        case ("transient_mark_mode")
             call setting_value(transient_mark_mode, bool_value(transient_mark_mode%value), v, bound)
-        case ("major-mode")
+        case ("major_mode")
             if (b > 0 .and. allocated(buffers(b)%major_mode)) then
                 v = sym(buffers(b)%major_mode)
             else
-                v = sym("fundamental-mode")
+                v = sym("fundamental_mode")
             end if
-        case ("mode-name")
+        case ("mode_name")
             if (b > 0 .and. allocated(buffers(b)%mode_name)) then
                 v = make_string(buffers(b)%mode_name)
             else
                 v = make_string("Fundamental")
             end if
-        case ("buffer-read-only")
+        case ("buffer_read_only")
             v = nil()
             if (b > 0) v = bool_value(buffers(b)%read_only)
-        case ("text-mode-variant")
+        case ("text_mode_variant")
             call setting_value(text_mode_variant, bool_value(text_mode_variant%value), v, bound)
-        case ("parse-sexp-ignore-comments")
+        case ("parse_sexp_ignore_comments")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(parse_sexp_ignore_comments%value)
-        case ("require-final-newline")
+        case ("require_final_newline")
             call setting_value(require_final_newline, final_newline_value(require_final_newline%value), v, bound)
-        case ("mode-require-final-newline")
+        case ("mode_require_final_newline")
             call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline%value), &
                                v, bound)
         case default
@@ -373,39 +373,39 @@ contains
             return
         end if
         select case (trim(FWD_NAMES(k)))
-        case ("fill-column")
+        case ("fill_column")
             call set_integer(fill_column, v, .true., status)
-        case ("left-margin")
+        case ("left_margin")
             call set_integer(left_margin, v, .true., status)
-        case ("tab-width")
+        case ("tab_width")
             call set_integer(tab_width, v, .true., status)
-        case ("indent-tabs-mode")
+        case ("indent_tabs_mode")
             indent_tabs_mode = .not. nilp(v)
-        case ("case-fold-search")
+        case ("case_fold_search")
             call set_logical(case_fold_search, v)
-        case ("fill-prefix")
+        case ("fill_prefix")
             call set_string(fill_prefix, v)
-        case ("paragraph-start")
+        case ("paragraph_start")
             call set_string(paragraph_start, v)
-        case ("paragraph-separate")
+        case ("paragraph_separate")
             call set_string(paragraph_separate, v)
-        case ("sentence-end")
+        case ("sentence_end")
             call set_string(sentence_end, v)
-        case ("sentence-end-double-space")
+        case ("sentence_end_double_space")
             call set_logical(sentence_end_double_space, v)
-        case ("adaptive-fill-mode")
+        case ("adaptive_fill_mode")
             call set_logical(adaptive_fill_mode, v)
-        case ("auto-fill-inhibit-regexp")
+        case ("auto_fill_inhibit_regexp")
             call set_string(auto_fill_inhibit_regexp, v)
-        case ("standard-indent")
+        case ("standard_indent")
             call set_integer(standard_indent, v, .false., status)
-        case ("auto-fill-function")
+        case ("auto_fill_function")
             call set_auto_fill(auto_fill_function, v)
-        case ("indent-line-function")
+        case ("indent_line_function")
             call set_indent_line(indent_line_function, v)
-        case ("transient-mark-mode")
+        case ("transient_mark_mode")
             call set_logical(transient_mark_mode, v)
-        case ("major-mode")
+        case ("major_mode")
             if (cur == 0) return
             if (.not. symbolp(v)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
@@ -414,22 +414,22 @@ contains
             else
                 buffers(cur)%major_mode = symbols(xsymbol(v))%name
             end if
-        case ("mode-name")
+        case ("mode_name")
             if (cur == 0) return
             if (stringp(v)) then
                 buffers(cur)%mode_name = xstring(v)
             else
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
             end if
-        case ("buffer-read-only")
+        case ("buffer_read_only")
             if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
-        case ("text-mode-variant")
+        case ("text_mode_variant")
             call set_logical(text_mode_variant, v)
-        case ("parse-sexp-ignore-comments")
+        case ("parse_sexp_ignore_comments")
             parse_sexp_ignore_comments = .not. nilp(v)
-        case ("require-final-newline")
+        case ("require_final_newline")
             call set_final_newline(require_final_newline, v)
-        case ("mode-require-final-newline")
+        case ("mode_require_final_newline")
             call set_final_newline(mode_require_final_newline, v)
         case default
             ! Not a forwarded variable (resolve gives no such K).
@@ -475,7 +475,7 @@ contains
     end subroutine set_indent_line
 
     !> The value of a require-final-newline setting N: nil, t, `visit',
-    !> `visit-save' or (for any other non-nil value) `ask'.
+    !> `visit_save' or (for any other non-nil value) `ask'.
     function final_newline_value(n) result(v)
         integer(int64), intent(in) :: n
         type(value_type) :: v
@@ -487,7 +487,7 @@ contains
         case (FINAL_NEWLINE_VISIT)
             v = sym("visit")
         case (FINAL_NEWLINE_VISIT_SAVE)
-            v = sym("visit-save")
+            v = sym("visit_save")
         case default
             v = sym("ask")
         end select
@@ -503,7 +503,7 @@ contains
             s = FINAL_NEWLINE_SAVE
         else if (value_eq(v, sym("visit"))) then
             s = FINAL_NEWLINE_VISIT
-        else if (value_eq(v, sym("visit-save"))) then
+        else if (value_eq(v, sym("visit_save"))) then
             s = FINAL_NEWLINE_VISIT_SAVE
         else
             s = FINAL_NEWLINE_ASK
@@ -532,47 +532,47 @@ contains
             return
         end if
         select case (trim(FWD_NAMES(k)))
-        case ("fill-column", "left-margin", "tab-width")
+        case ("fill_column", "left_margin", "tab_width")
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
-        case ("indent-tabs-mode")
+        case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
-        case ("major-mode")
+        case ("major_mode")
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
-        case ("mode-name", "buffer-read-only")
+        case ("mode_name", "buffer_read_only")
             continue
-        case ("case-fold-search")
+        case ("case_fold_search")
             case_fold_search%void = .true.
-        case ("fill-prefix")
+        case ("fill_prefix")
             fill_prefix%void = .true.
-        case ("paragraph-start")
+        case ("paragraph_start")
             paragraph_start%void = .true.
-        case ("paragraph-separate")
+        case ("paragraph_separate")
             paragraph_separate%void = .true.
-        case ("sentence-end")
+        case ("sentence_end")
             sentence_end%void = .true.
-        case ("sentence-end-double-space")
+        case ("sentence_end_double_space")
             sentence_end_double_space%void = .true.
-        case ("adaptive-fill-mode")
+        case ("adaptive_fill_mode")
             adaptive_fill_mode%void = .true.
-        case ("auto-fill-inhibit-regexp")
+        case ("auto_fill_inhibit_regexp")
             auto_fill_inhibit_regexp%void = .true.
-        case ("standard-indent")
+        case ("standard_indent")
             standard_indent%void = .true.
-        case ("auto-fill-function")
+        case ("auto_fill_function")
             auto_fill_function%void = .true.
-        case ("indent-line-function")
+        case ("indent_line_function")
             indent_line_function%void = .true.
-        case ("transient-mark-mode")
+        case ("transient_mark_mode")
             transient_mark_mode%void = .true.
-        case ("text-mode-variant")
+        case ("text_mode_variant")
             text_mode_variant%void = .true.
-        case ("parse-sexp-ignore-comments")
+        case ("parse_sexp_ignore_comments")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             parse_sexp_ignore_comments = .true.
-        case ("require-final-newline")
+        case ("require_final_newline")
             require_final_newline%void = .true.
-        case ("mode-require-final-newline")
+        case ("mode_require_final_newline")
             mode_require_final_newline%void = .true.
         case default
             continue
@@ -842,19 +842,19 @@ contains
     type(status_type) :: st
     if (cur == 0) return
     ! The first thing this function does is run the normal hook
-    ! `change-major-mode-hook'.
+    ! `change_major_mode_hook'.
     call change_major_mode_hook%run(st)
     all = .false.
     if (present(kill_permanent)) all = kill_permanent
     call kill_local_hooks(all)
     call kill_delayed_mode_hooks()
     buffers(cur)%syntax_table = null_handle()
-    buffers(cur)%major_mode = "fundamental-mode"
+    buffers(cur)%major_mode = "fundamental_mode"
     buffers(cur)%mode_name = "Fundamental"
     buffers(cur)%keymap = null_handle()
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then
-            call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent-local"), prop, st)
+            call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent_local"), prop, st)
             if (.not. nilp(prop)) cycle
         end if
         call drop_local(i)
@@ -1020,7 +1020,7 @@ contains
     type(value_type), allocatable :: elts(:)
     type(value_type) :: v
     type(status_type) :: st
-    character(len=*), parameter :: SLOTS(3) = [character(len=16) :: "buffer-read-only", "major-mode", "mode-name"]
+    character(len=*), parameter :: SLOTS(3) = [character(len=16) :: "buffer_read_only", "major_mode", "mode_name"]
     b = cur
     if (present(buffer)) b = buffer
     alist = nil()

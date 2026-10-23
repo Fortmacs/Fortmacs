@@ -317,7 +317,7 @@ contains
         tab_stop_list = [int(4, int64), int(10, int64)]
         call check(error, indent_next_tab_stop(0_int64) == 4 .and. indent_next_tab_stop(4_int64) == 10 .and. &
                    indent_next_tab_stop(10_int64) == 16 .and. indent_next_tab_stop(10_int64, .true.) == 4 .and. &
-                   indent_next_tab_stop(17_int64, .true.) == 16, "tab-stop-list")
+                   indent_next_tab_stop(17_int64, .true.) == 16, "tab_stop_list")
         if (allocated(error)) return
         call check(error, all(indent_accumulate_tab_stops(22_int64) == [int(4, int64), 10_int64, 16_int64, 22_int64]), "accumulate")
         deallocate (tab_stop_list)
@@ -325,7 +325,7 @@ contains
         call goto_char(1_int64)
         call goto_char(8_int64)
         call back_to_indentation()
-        call check(error, point() == 5, "back-to-indentation")
+        call check(error, point() == 5, "back_to_indentation")
         indent_tabs_mode = .true.
         call leave(h)
     end subroutine test_indent_commands

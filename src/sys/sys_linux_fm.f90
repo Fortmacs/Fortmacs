@@ -36,12 +36,12 @@
 !> - struct dirent: glibc bits/dirent.h (d_name at byte 19 on both);  struct
 !>   tm: glibc bits/types/struct_tm.h (nine ints, then tm_gmtoff and tm_zone)
 !>
-!> Variadic functions (`open`, `ioctl`) are bound with fixed arguments.
+!> Variadic functions (`open', `ioctl') are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
 !> Apple's) passes variadic arguments like fixed ones, and on x86-64 the
 !> only difference is %al, which glibc's prologue merely tests to decide
-!> whether to spill vector registers.  `open` is never given O_CREAT here,
-!> so it never reads a mode argument; files are created with `creat`.
+!> whether to spill vector registers.  `open' is never given O_CREAT here,
+!> so it never reads a mode argument; files are created with `creat'.
 !> O_DIRECTORY differs between the two targets, so it is not used.
 module sys_linux_fm
     use, intrinsic :: iso_c_binding, only: c_int, c_signed_char, c_int16_t, c_int32_t, c_int64_t, &
@@ -534,7 +534,7 @@ contains
         errno = p
     end function errno
 
-    !> Copy of the NUL-terminated C string at `p` ("" for a null pointer).
+    !> Copy of the NUL-terminated C string at `p' ("" for a null pointer).
     function c_string_to_fortran(p) result(s)
         type(c_ptr), intent(in) :: p
         character(len=:), allocatable :: s

@@ -20,21 +20,21 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The help commands of help.el: the help map on C-h and <f1>,
-!> `describe-key` (C-h k), `describe-key-briefly` (C-h c), `where-is`
-!> (C-h w) and `help-quit`; `substitute-command-keys`, which turns a
+!> `describe_key' (C-h k), `describe_key_briefly' (C-h c), `where_is'
+!> (C-h w) and `help_quit'; `substitute_command_keys', which turns a
 !> docstring's \[COMMAND], \<MAP>, \`KEY', \= and quotes into what the
-!> reader sees; and `with-help-window`, which shows text in *Help*.
+!> reader sees; and `with_help_window', which shows text in *Help*.
 !>
 !> The help buffer is shown in the selected window (there is one window
-!> until windows can be split), and `q` there goes back to the buffer
-!> shown before.  `describe-function` and `describe-variable` are in
-!> help_fns_fm, which installs the text `describe-key` shows through
-!> `describe_function_1_hook` (help-fns.el is loaded after help.el).
+!> until windows can be split), and `q' there goes back to the buffer
+!> shown before.  `describe_function' and `describe_variable' are in
+!> help_fns_fm, which installs the text `describe_key' shows through
+!> `describe_function_1_hook' (help-fns.el is loaded after help.el).
 !>
-!> Deferred: `help-for-help` and the rest of the help map, the
-!> `help-key-binding` face, \{MAP} keymap summaries, key translations in
-!> `describe-key`'s report, mouse and menu events, the help-xref stack,
-!> and `function-called-at-point` defaults.
+!> Deferred: `help_for_help' and the rest of the help map, the
+!> `help_key_binding' face, \{MAP} keymap summaries, key translations in
+!> `describe_key''s report, mouse and menu events, the help-xref stack,
+!> and `function_called_at_point' defaults.
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -68,14 +68,14 @@ module help_fm
     type(handle_type), public :: help_map
 
     abstract interface
-        !> The text describing function `name` after "NAME is ".
+        !> The text describing function `name' after "NAME is ".
         subroutine describe_function_1_proc(name, text)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: text
         end subroutine describe_function_1_proc
 
-        !> The raw docstring of function `name` (`found` false if none).
+        !> The raw docstring of function `name' (`found' false if none).
         subroutine documentation_proc(name, doc, found)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -103,13 +103,13 @@ module help_fm
 
     type(named_keymap_type), allocatable :: named_keymaps(:)
 
-    !> Left and right single quotes (text-quoting-style `curve`).
+    !> Left and right single quotes (text-quoting-style `curve').
     character(len=*), parameter :: LQUOTE = char(226)//char(128)//char(152), &
                                    RQUOTE = char(226)//char(128)//char(153)
 
 contains
 
-    !> Let \<`name`> and "found in `name`" refer to keymap `map`.
+    !> Let \<`name'> and "found in `name'" refer to keymap `map'.
     subroutine register_keymap_name(name, map)
         character(len=*), intent(in) :: name
         type(handle_type), intent(in) :: map
@@ -129,7 +129,7 @@ contains
         call move_alloc(grown, named_keymaps)
     end subroutine register_keymap_name
 
-    !> The registered name of keymap `map`, or "".
+    !> The registered name of keymap `map', or "".
     function keymap_name(map) result(name)
         type(handle_type), intent(in) :: map
         character(len=:), allocatable :: name
@@ -145,7 +145,7 @@ contains
         end do
     end function keymap_name
 
-    !> The keymap registered as `name`; `found` false if there is none.
+    !> The keymap registered as `name'; `found' false if there is none.
     subroutine named_keymap(name, map, found)
         character(len=*), intent(in) :: name
         type(handle_type), intent(out) :: map
@@ -162,8 +162,8 @@ contains
         end do
     end subroutine named_keymap
 
-    !> The keys that run command `name`, as "C-x C-f", searching `map` and
-    !> the global map if `have_map`, else the active maps; "M-x NAME" if
+    !> The keys that run command `name', as "C-x C-f", searching `map' and
+    !> the global map if `have_map', else the active maps; "M-x NAME" if
     !> none.
     function command_keys(name, map, have_map) result(s)
         character(len=*), intent(in) :: name
@@ -197,23 +197,22 @@ contains
     !> as the keymap for future \[COMMAND] substrings.
     !>
     !> Each grave accent ` is replaced by left quote, and each apostrophe '
-    !> is replaced by right quote.  A grave accent that closes a quotation
-    !> opened by another (as in FORD comments) is a right quote too.
+    !> is replaced by right quote.  Left and right quote characters are
+    !> specified by `text_quoting_style'.
     !>
     !> \= quotes the following character and is discarded; thus, \=\= puts \=
-    !> into the output, \=\[ puts \[ into the output, and \=` puts ` into the
+    !> into the output, \=\[ puts \[ into the output, and \=` puts ' into the
     !> output.  Port of help.el:substitute-command-keys (no faces; \{MAPVAR}
-    !> summaries are left out; text-quoting-style is `curve`).
+    !> summaries are left out; text-quoting-style is `curve').
     function substitute_command_keys(string) result(out)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
         type(handle_type) :: map
         integer :: i, j, n, clen
-        logical :: have_map, open, found
+        logical :: have_map, found
         character :: c, nx
         out = ""
         have_map = .false.
-        open = .false.
         n = len(string)
         i = 1
         do while (i <= n)
@@ -267,16 +266,10 @@ contains
                 out = out//c
                 i = i + 1
             else if (c == "`") then
-                if (open) then
-                    out = out//RQUOTE
-                else
-                    out = out//LQUOTE
-                end if
-                open = .not. open
+                out = out//LQUOTE
                 i = i + 1
             else if (c == "'") then
                 out = out//RQUOTE
-                open = .false.
                 i = i + 1
             else
                 out = out//c
@@ -296,7 +289,7 @@ contains
         if (len(key) > 4) literal_key_p = literal_key_p .or. key(1:4) == "M-x "
     end function literal_key_p
 
-    !> Length of the UTF-8 sequence that starts with byte `b`.
+    !> Length of the UTF-8 sequence that starts with byte `b'.
     integer function utf8_length(b)
         character, intent(in) :: b
         integer :: code
@@ -312,7 +305,7 @@ contains
         end if
     end function utf8_length
 
-    !> Show `text` in the help buffer, in Help mode, and say how to get
+    !> Show `text' in the help buffer, in Help mode, and say how to get
     !> back.  Port of help.el:with-help-window with help-window-setup (the
     !> help buffer is shown in the selected window, which shows the
     !> current buffer: so it becomes current).
@@ -347,11 +340,11 @@ contains
                 sw%prev_buffer = previous
             end if
         end if
-        call message(substitute_command_keys("Type \<help-mode-map>\[quit-window] to restore previous buffer"))
+        call message(substitute_command_keys("Type \<help_mode_map>\[quit_window] to restore previous buffer"))
     end subroutine with_help_window
 
-    !> " (found in MAP)" for the active map in which `keys` is bound to
-    !> `binding`, if that map has a name; else "".
+    !> " (found in MAP)" for the active map in which `keys' is bound to
+    !> `binding', if that map has a name; else "".
     function found_in(keys, binding) result(s)
         type(value_type), intent(in) :: keys(:), binding
         character(len=:), allocatable :: s
@@ -378,7 +371,7 @@ contains
         end do
     end function found_in
 
-    !> Read a key sequence for a help command; `ok` false at end of input.
+    !> Read a key sequence for a help command; `ok' false at end of input.
     subroutine read_help_key(prompt, keys, binding, ok, status)
         character(len=*), intent(in) :: prompt
         type(value_type), allocatable, intent(out) :: keys(:)
@@ -477,7 +470,7 @@ contains
         status = status_type()
     end subroutine help_quit
 
-    !> Make `help_map` and put it on C-h and <f1> in `global_map`; name
+    !> Make `help_map' and put it on C-h and <f1> in `global_map'; name
     !> the keymaps docstrings refer to; register the commands.
     subroutine syms_of_help(global_map)
         type(handle_type), intent(in) :: global_map
@@ -485,21 +478,21 @@ contains
         type(value_type), allocatable :: key(:)
         if (keymap_live_p(help_map)) call free_keymap(help_map, status)
         call make_sparse_keymap(help_map)
-        call keymap_set(help_map, "c", "describe-key-briefly", status)
-        call keymap_set(help_map, "f", "describe-function", status)
-        call keymap_set(help_map, "k", "describe-key", status)
-        call keymap_set(help_map, "q", "help-quit", status)
-        call keymap_set(help_map, "v", "describe-variable", status)
-        call keymap_set(help_map, "w", "where-is", status)
+        call keymap_set(help_map, "c", "describe_key_briefly", status)
+        call keymap_set(help_map, "f", "describe_function", status)
+        call keymap_set(help_map, "k", "describe_key", status)
+        call keymap_set(help_map, "q", "help_quit", status)
+        call keymap_set(help_map, "v", "describe_variable", status)
+        call keymap_set(help_map, "w", "where_is", status)
         call key_parse("C-h", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<f1>", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call init_help_mode()
-        call register_keymap_name("global-map", global_map)
-        call register_keymap_name("help-map", help_map)
-        call register_keymap_name("help-mode-map", help_mode_map)
-        call register_keymap_name("minibuffer-local-map", minibuffer_local_map)
+        call register_keymap_name("global_map", global_map)
+        call register_keymap_name("help_map", help_map)
+        call register_keymap_name("help_mode_map", help_mode_map)
+        call register_keymap_name("minibuffer_local_map", minibuffer_local_map)
         commands%describe_key%run => cmd_describe_key
         commands%describe_key_briefly%run => cmd_describe_key_briefly
         commands%where_is%run => cmd_where_is

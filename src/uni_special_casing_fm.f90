@@ -23,11 +23,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The title case mappings that differ from the simple upper case
-!> mapping (`title_keys` to `title_values`), and the unconditional
+!> mapping (`title_keys' to `title_values'), and the unconditional
 !> special casings that are not a single character: for each of lower
-!> (1), title (2) and upper (3) case, the characters (`special_keys_N`),
-!> the length of their mapping (`special_lengths_N`) and up to three
-!> characters of it (`special_values_N`, three per key, 0 for unused).
+!> (1), title (2) and upper (3) case, the characters (`special_keys_N'),
+!> the length of their mapping (`special_lengths_N') and up to three
+!> characters of it (`special_values_N', three per key, 0 for unused).
 !> Used by casefiddle_fm.
 module uni_special_casing_fm
     use, intrinsic :: iso_fortran_env, only: int32

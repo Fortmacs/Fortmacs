@@ -22,14 +22,14 @@
 !> Reading a line of input in the minibuffer: the prompt is read-only
 !> text in a field at the start of buffer " *Minibuf-N*", shown in the
 !> frame's minibuffer window, which is selected while a recursive edit
-!> runs; a command throws to `exit` to finish.
+!> runs; a command throws to `exit' to finish.
 !>
-!> The completion primitives (`try-completion`, `all-completions`,
-!> `test-completion`) are here too; the completion UI is minibuffer_fm's.
+!> The completion primitives (`try_completion', `all_completions',
+!> `test_completion') are here too; the completion UI is minibuffer_fm's.
 !>
-!> Not yet: `completion-regexp-list` (no regexps), hash-table
+!> Not yet: `completion_regexp_list' (no regexps), hash-table
 !> collections, minibuffer-only frames, input methods, Lisp
-!> reading (`read-minibuffer`), `minibuffer-setup-hook`, the
+!> reading (`read_minibuffer'), `minibuffer_setup_hook', the
 !> minibuffer-prompt face, and restoring window configurations.
 module minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -62,8 +62,8 @@ module minibuf_fm
               completion_function
 
     !> Actions passed to a completion function (programmed completion): as
-    !> `try-completion` (nil), `all-completions` (t), `test-completion`
-    !> (lambda), and `(boundaries . SUFFIX)`.
+    !> `try_completion' (nil), `all_completions' (t), `test_completion'
+    !> (lambda), and `(boundaries . SUFFIX)'.
     integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
                                   COMPLETE_BOUNDARIES = 3
 
@@ -72,7 +72,7 @@ module minibuf_fm
     integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2
 
     abstract interface
-        !> A completion predicate: whether the element `elt` (the list
+        !> A completion predicate: whether the element `elt' (the list
         !> element or the symbol) is an acceptable completion.
         logical function completion_predicate(elt)
             import :: value_type
@@ -81,7 +81,7 @@ module minibuf_fm
         end function completion_predicate
 
         !> A function completion table.  ACTION says what to compute for
-        !> STRING: COMPLETE_TRY (the `try-completion` value: nil, t or a
+        !> STRING: COMPLETE_TRY (the `try_completion' value: nil, t or a
         !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
         !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
         !> SUFFIX, or nil for the default).
@@ -107,9 +107,9 @@ module minibuf_fm
     end type completion_table_type
 
     !> Non-nil means don't consider case significant in completion.
-    !> For file-name completion, `read-file-name-completion-ignore-case'
+    !> For file-name completion, `read_file_name_completion_ignore_case'
     !> controls the behavior, rather than this variable.
-    !> For buffer name completion, `read-buffer-completion-ignore-case'
+    !> For buffer name completion, `read_buffer_completion_ignore_case'
     !> controls the behavior, rather than this variable.  Port of minibuf.c
     !> completion-ignore-case.
     logical, public :: completion_ignore_case = .false.
@@ -124,7 +124,7 @@ module minibuf_fm
     !> Non-nil means to add new elements in history.
     !> If set to false, minibuffer reading functions don't add new elements to the
     !> history list, so it is possible to do this afterwards by calling
-    !> `add_to_history` explicitly.  Port of minibuf.c history-add-new-input.
+    !> `add_to_history' explicitly.  Port of minibuf.c history-add-new-input.
     logical, public :: history_add_new_input = .true.
 
     !> Vminibuffer_history_variable: the history list's symbol name.
@@ -160,7 +160,7 @@ contains
         minibuf_level = 0
     end subroutine init_minibuf
 
-    !> The minibuffer for depth `depth`, " *Minibuf-DEPTH*", made if
+    !> The minibuffer for depth `depth', " *Minibuf-DEPTH*", made if
     !> needed.  Port of minibuf.c:get_minibuffer.
     subroutine get_minibuffer(depth, buf, status)
         integer, intent(in) :: depth
@@ -186,7 +186,7 @@ contains
         minibuffers(depth + 1) = buf
     end subroutine get_minibuffer
 
-    !> Whether `buf` (default: the current buffer) is a minibuffer.
+    !> Whether `buf' (default: the current buffer) is a minibuffer.
     !> Port of minibuf.c:Fminibufferp.
     logical function minibufferp(buf)
         type(handle_type), intent(in), optional :: buf
@@ -239,9 +239,9 @@ contains
         if (buffers(cur)%pt < pend) call goto_char(pend)
     end subroutine leave_prompt
 
-    !> Read a string in the minibuffer with `prompt`, starting with
-    !> `initial` (point after it), using `keymap` (default
-    !> minibuffer-local-map) and history list `history` (default
+    !> Read a string in the minibuffer with `prompt', starting with
+    !> `initial' (point after it), using `keymap' (default
+    !> minibuffer-local-map) and history list `history' (default
     !> "minibuffer-history").  C-g (abort-minibuffers) gives a quit.
     !> Port of minibuf.c:read_minibuf with Fread_from_minibuffer (no
     !> READ, no INHERIT-INPUT-METHOD, DEFAULT only for the history).
@@ -266,7 +266,7 @@ contains
             call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
             return
         end if
-        histvar = "minibuffer-history"
+        histvar = "minibuffer_history"
         if (present(history)) histvar = history
         calling_buffer = current_buffer()
         have_dir = allocated(buffers(cur)%directory)
@@ -311,9 +311,9 @@ contains
         selected_frame%minibuffer_selected = .true.
         mw%hscroll = 0
         ! The prompt: read-only text in its own field.
-        call set(sym("inhibit-read-only"), t_value(), st)
+        call set(sym("inhibit_read_only"), t_value(), st)
         call erase_buffer(st)
-        call set(sym("inhibit-read-only"), nil(), st)
+        call set(sym("inhibit_read_only"), nil(), st)
         buffers(cur)%multibyte = .true.
         if (len(prompt) > 0) then
             call insert(prompt, st)
@@ -321,9 +321,9 @@ contains
             ! minibuffer-prompt-properties (read-only, cursor-intangible;
             ! the minibuffer-prompt face is not ported).
             call add_text_properties(1_int64, buffers(cur)%pt, &
-                                     list(sym("front-sticky"), t_value(), sym("rear-nonsticky"), t_value(), &
-                                          sym("field"), t_value(), sym("read-only"), t_value()), changed, st)
-            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("cursor-intangible"), t_value()), &
+                                     list(sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value(), &
+                                          sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
+            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("cursor_intangible"), t_value()), &
                                      changed, st)
         end if
         if (present(initial)) call insert(initial, st)
@@ -342,9 +342,9 @@ contains
         ! read_minibuf_unwind
         post_command_hook => saved_hook
         minibuf_level = minibuf_level - 1
-        call set(sym("inhibit-read-only"), t_value(), st)
+        call set(sym("inhibit_read_only"), t_value(), st)
         call erase_buffer(st)
-        call set(sym("inhibit-read-only"), nil(), st)
+        call set(sym("inhibit_read_only"), nil(), st)
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
@@ -381,7 +381,7 @@ contains
         end if
     end subroutine read_from_minibuffer
 
-    !> Read a string; empty input gives `default` if present.
+    !> Read a string; empty input gives `default' if present.
     !> Port of minibuf.c:Fread_string.
     recursive subroutine read_string(prompt, result, status, initial, history, default)
         character(len=*), intent(in) :: prompt
@@ -414,7 +414,7 @@ contains
     ! Completion primitives
     ! ------------------------------------------------------------------
 
-    !> A completion table holding the list `list` (strings, symbols, or
+    !> A completion table holding the list `list' (strings, symbols, or
     !> lists whose first element is the completion).
     function completion_list_table(list) result(table)
         type(value_type), intent(in) :: list
@@ -429,7 +429,7 @@ contains
         table%kind = TABLE_OBARRAY
     end function completion_obarray_table
 
-    !> A completion table computed by `fn` (programmed completion).
+    !> A completion table computed by `fn' (programmed completion).
     function completion_function_table(fn) result(table)
         procedure(completion_function) :: fn
         type(completion_table_type) :: table
@@ -437,9 +437,9 @@ contains
         table%fn => fn
     end function completion_function_table
 
-    !> The elements of a non-function table: `elts` (the list elements or
+    !> The elements of a non-function table: `elts' (the list elements or
     !> symbols, given to the predicate) and the string each one completes
-    !> to (`names`; `ok` is false for elements that are not strings or
+    !> to (`names'; `ok' is false for elements that are not strings or
     !> symbols).
     subroutine table_elements(table, elts, names, ok)
         type(completion_table_type), intent(in) :: table
@@ -480,7 +480,7 @@ contains
         end do
     end subroutine table_elements
 
-    !> Whether completion candidate `name` begins with STRING.
+    !> Whether completion candidate `name' begins with STRING.
     logical function prefix_matches(string, name)
         character(len=*), intent(in) :: string, name
         integer(int64) :: n
@@ -496,7 +496,7 @@ contains
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
     !> symbols.  Symbols are converted to strings before testing, by using
-    !> `symbol-name'.
+    !> `symbol_name'.
     !>
     !> If no possible completions match, the function returns nil; if
     !> there's just one exact match, it returns t; otherwise it returns
@@ -511,7 +511,7 @@ contains
     !>
     !> COLLECTION can also be a function to do the completion itself.  It
     !> receives STRING, PREDICATE and COMPLETE_TRY.  Whatever it returns
-    !> becomes the value of `try-completion'.
+    !> becomes the value of `try_completion'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
@@ -519,11 +519,11 @@ contains
     !> string or a list (whose first element is a string) from the alist,
     !> or a symbol from the obarray.
     !>
-    !> If `completion-ignore-case' is non-nil, possible completions are
+    !> If `completion_ignore_case' is non-nil, possible completions are
     !> matched while ignoring letter-case, but no guarantee is made about
     !> the letter-case of the return value, except that it comes either
     !> from the user's input or from one of the possible completions.
-    !> Port of minibuf.c:Ftry_completion (no `completion-regexp-list`).
+    !> Port of minibuf.c:Ftry_completion (no `completion_regexp_list').
     recursive subroutine try_completion(string, collection, result, status, predicate)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -619,7 +619,7 @@ contains
     !> Test each possible completion specified by COLLECTION to see if it
     !> begins with STRING.  The possible completions may be strings or
     !> symbols.  Symbols are converted to strings before testing, by using
-    !> `symbol-name'.
+    !> `symbol_name'.
     !>
     !> The value is a list of all the possible completions that match
     !> STRING.
@@ -630,12 +630,12 @@ contains
     !>
     !> COLLECTION can also be a function to do the completion itself.  It
     !> receives STRING, PREDICATE and COMPLETE_ALL.  Whatever it returns
-    !> becomes the value of `all-completions'.
+    !> becomes the value of `all_completions'.
     !>
     !> If optional argument PREDICATE is present, it is used to test each
     !> possible completion.  A possible completion is accepted only if
     !> PREDICATE returns true.  Port of minibuf.c:Fall_completions (no
-    !> `completion-regexp-list`).
+    !> `completion_regexp_list').
     recursive subroutine all_completions(string, collection, result, status, predicate)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
@@ -674,11 +674,11 @@ contains
     !> For instance, if COLLECTION is a list of strings, STRING is a valid
     !> completion if it appears in the list and PREDICATE is satisfied.
     !>
-    !> Takes the same arguments as `all-completions' and `try-completion'.
+    !> Takes the same arguments as `all_completions' and `try_completion'.
     !>
     !> If COLLECTION is a function, it is called with STRING, PREDICATE and
     !> COMPLETE_TEST (`lambda').  Port of minibuf.c:Ftest_completion (no
-    !> `completion-regexp-list`).
+    !> `completion_regexp_list').
     recursive logical function test_completion(string, collection, predicate) result(valid)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection

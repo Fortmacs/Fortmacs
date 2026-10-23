@@ -129,7 +129,7 @@ contains
         beg = pos_bol()
         end = pos_eol()
         fill_prefix = repeat(" ", int(pos - beg))
-        ! `fill-column' is too small to accommodate the current line
+        ! `fill_column' is too small to accommodate the current line
         fill_column = end - beg - 10
         call fill_region_as_paragraph(beg, end, st, squeeze_after=pos)
         call check(error, buffer_string(), "aaa =   baaaaaaaa aaaaaaaaaa"//LF//"         aaaaaaaaaa"//LF)

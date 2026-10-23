@@ -22,7 +22,7 @@
 
 !> Values: what upstream represents as Lisp_Object.
 !>
-!> There is no Lisp here.  A `value_type` is a plain Fortran derived type
+!> There is no Lisp here.  A `value_type' is a plain Fortran derived type
 !> with value semantics: assignment deep-copies and allocatables free
 !> themselves, so no garbage collector is needed and no cycles can form.
 !> Shared mutable objects (buffers, markers, later keymaps and windows)
@@ -31,7 +31,7 @@
 !> Representation.  A value is a tree stored flat, in preorder, in an
 !> array of atoms.  An atom is a scalar (integer, symbol, string, handle)
 !> or a list header holding its element count and its subtree size
-!> (`span`).  So (a (b c) d) is
+!> (`span').  So (a (b c) d) is
 !>
 !>     [LIST n=3 span=6] [a] [LIST n=2 span=3] [b] [c] [d]
 !>
@@ -41,17 +41,17 @@
 !> data_fm/fns_fm should use the procedures, not the atoms.
 !>
 !> Lists are proper lists only: no dotted pairs, no setcar/setcdr
-!> sharing.  Without object identity, `eq` on strings and lists is always
+!> sharing.  Without object identity, `eq' on strings and lists is always
 !> false (data_fm:value_eq), as for distinct objects upstream.
 !>
 !> gfortran leaks a function result with allocatable components when it
-!> appears inside an array constructor, so build lists with `list(...)`
-!> or from variables: write `list(sym("a"), sym("b"))`, never
-!> `make_list([sym("a"), sym("b")])`.
+!> appears inside an array constructor, so build lists with `list(...)'
+!> or from variables: write `list(sym("a"), sym("b"))', never
+!> `make_list([sym("a"), sym("b")])'.
 !>
 !> Symbols are stored here (struct Lisp_Symbol); interning is lread_fm,
 !> values and properties are data_fm and fns_fm.  Symbols are never
-!> freed, so a symbol is just an id; ids 1 and 2 are `nil` and `t`.
+!> freed, so a symbol is just an id; ids 1 and 2 are `nil' and `t'.
 module lisp_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use handle_fm, only: handle_type
@@ -61,7 +61,7 @@ module lisp_fm
 
     abstract interface
         !> A command or function: it reads the prefix argument (commands
-        !> only) and reports errors through `status`.
+        !> only) and reports errors through `status'.
         subroutine command_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -70,13 +70,13 @@ module lisp_fm
     end interface
 
     !> A named function: what upstream keeps in a symbol's function cell,
-    !> its interactive spec (`interactive`: a command) and its `disabled`
-    !> property.  Built-in ones are the components of `commands`
-    !> (commands_fm); define your own as a `target` variable and call
-    !> its `define`:
+    !> its interactive spec (`interactive': a command) and its `disabled'
+    !> property.  Built-in ones are the components of `commands'
+    !> (commands_fm); define your own as a `target' variable and call
+    !> its `define':
     !>
     !>     type(command_type), target :: insert_date_stamp_command
-    !>     insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+    !>     insert_date_stamp_command = command_type("insert_date_stamp", insert_date_stamp)
     !>     call insert_date_stamp_command%define()
     type, public :: command_type
         !> The name, as M-x and the help commands show it.
@@ -87,10 +87,10 @@ module lisp_fm
         !> keys can run it.
         logical :: interactive = .true.
         !> Non-nil means running it interactively asks for confirmation
-        !> first (novice.el; the `disabled` property).
+        !> first (novice.el; the `disabled' property).
         logical :: disabled = .false.
-        !> A message to show instead of the standard one when `disabled`
-        !> (a string `disabled` property).
+        !> A message to show instead of the standard one when `disabled'
+        !> (a string `disabled' property).
         character(len=:), allocatable :: disabled_message
     contains
         !> Make this command known by its name, to M-x, keymaps and the
@@ -103,7 +103,7 @@ module lisp_fm
         type(command_type), pointer :: p => null()
     end type command_ref_type
 
-    !> Commands defined with `define`, not built in.
+    !> Commands defined with `define', not built in.
     type(command_ref_type), allocatable :: defined_commands(:)
     integer :: n_defined_commands = 0
 
@@ -130,7 +130,7 @@ module lisp_fm
         character(len=:), allocatable :: s
     end type atom_type
 
-    !> One value.  Unallocated `a` (the default) is nil.
+    !> One value.  Unallocated `a' (the default) is nil.
     type, public :: value_type
         type(atom_type), allocatable :: a(:)
     end type value_type
@@ -138,14 +138,14 @@ module lisp_fm
     !> Port of the parts of lisp.h:struct Lisp_Symbol in use.
     type, public :: symbol_type
         character(len=:), allocatable :: name
-        !> The global value, valid when `bound`.
+        !> The global value, valid when `bound'.
         type(value_type) :: val
         logical :: bound = .false.
         !> trapped_write == SYMBOL_NOWRITE: nil, t and keywords.
         logical :: constant = .false.
         type(value_type) :: plist
         !> The default value while the current buffer has a local value
-        !> (`default_bound` false for void); see data_fm.
+        !> (`default_bound' false for void); see data_fm.
         type(value_type) :: default_val
         logical :: default_bound = .false.
         !> make-variable-buffer-local: setting makes the variable local.
@@ -202,7 +202,7 @@ contains
         v = scalar(atom)
     end function make_fixnum
 
-    !> A string value holding `text` (already in the internal encoding).
+    !> A string value holding `text' (already in the internal encoding).
     !> Port of alloc.c:build_string.
     pure function make_string(text) result(v)
         character(len=*), intent(in) :: text
@@ -213,7 +213,7 @@ contains
         v = scalar(atom)
     end function make_string
 
-    !> The symbol with id `id`; id SYM_NIL gives nil.
+    !> The symbol with id `id'; id SYM_NIL gives nil.
     !> Port of lisp.h:make_lisp_symbol.
     pure function make_symbol_ref(id) result(v)
         integer(int64), intent(in) :: id
@@ -225,7 +225,7 @@ contains
         v = scalar(atom)
     end function make_symbol_ref
 
-    !> A value referring to buffer `h`.
+    !> A value referring to buffer `h'.
     pure function make_buffer_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -235,7 +235,7 @@ contains
         v = scalar(atom)
     end function make_buffer_ref
 
-    !> A value referring to marker `h`.
+    !> A value referring to marker `h'.
     pure function make_marker_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -245,7 +245,7 @@ contains
         v = scalar(atom)
     end function make_marker_ref
 
-    !> A value referring to keymap `h`.
+    !> A value referring to keymap `h'.
     pure function make_keymap_ref(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
@@ -255,7 +255,7 @@ contains
         v = scalar(atom)
     end function make_keymap_ref
 
-    !> The atoms of `v` as an element of a list (nil becomes an explicit
+    !> The atoms of `v' as an element of a list (nil becomes an explicit
     !> V_NIL atom).
     pure subroutine element_atoms(v, atoms)
         type(value_type), intent(in) :: v
@@ -267,7 +267,7 @@ contains
         end if
     end subroutine element_atoms
 
-    !> A list of `elements`; nil when there are none.  Port of alloc.c:Flist.
+    !> A list of `elements'; nil when there are none.  Port of alloc.c:Flist.
     !> Pass variables, not function results (see the module note).
     pure function make_list(elements) result(v)
         type(value_type), intent(in) :: elements(:)
@@ -327,8 +327,8 @@ contains
         v = make_list(parts(1:n))
     end function list
 
-    !> `elt` prepended to `list` (nil or a list).  Anything else would be a
-    !> dotted pair, which this model does not have: `ok` is then false.
+    !> `elt' prepended to `list' (nil or a list).  Anything else would be a
+    !> dotted pair, which this model does not have: `ok' is then false.
     !> Port of alloc.c:Fcons (proper lists only).
     pure subroutine cons(elt, list, v, ok)
         type(value_type), intent(in) :: elt, list
@@ -357,7 +357,7 @@ contains
     ! Predicates and accessors (lisp.h)
     ! ------------------------------------------------------------------
 
-    !> Tag of `v` (V_NIL for nil).
+    !> Tag of `v' (V_NIL for nil).
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v
         vtag = V_NIL
@@ -418,14 +418,14 @@ contains
         keymap_ref_p = vtag(v) == V_KEYMAP
     end function keymap_ref_p
 
-    !> The integer in `v`, unchecked.  Port of lisp.h:XFIXNUM.
+    !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
         type(value_type), intent(in) :: v
         xfixnum = 0
         if (vtag(v) == V_INT) xfixnum = v%a(1)%i
     end function xfixnum
 
-    !> The symbol id of `v` (SYM_NIL for nil), unchecked.
+    !> The symbol id of `v' (SYM_NIL for nil), unchecked.
     !> Port of lisp.h:XSYMBOL.
     elemental integer(int64) function xsymbol(v)
         type(value_type), intent(in) :: v
@@ -433,7 +433,7 @@ contains
         if (vtag(v) == V_SYMBOL) xsymbol = v%a(1)%i
     end function xsymbol
 
-    !> The text of string `v` ("" if not a string).  Port of lisp.h:SSDATA.
+    !> The text of string `v' ("" if not a string).  Port of lisp.h:SSDATA.
     pure function xstring(v) result(s)
         type(value_type), intent(in) :: v
         character(len=:), allocatable :: s
@@ -451,14 +451,14 @@ contains
         if (allocated(v%a)) h = v%a(1)%h
     end function xhandle
 
-    !> Number of elements of list `v` (0 for nil and non-lists).
+    !> Number of elements of list `v' (0 for nil and non-lists).
     elemental integer(int64) function list_length(v)
         type(value_type), intent(in) :: v
         list_length = 0
         if (vtag(v) == V_LIST) list_length = v%a(1)%i
     end function list_length
 
-    !> Atom index where element `k` (1-based) of list `v` starts.
+    !> Atom index where element `k' (1-based) of list `v' starts.
     pure integer(int64) function elt_start(v, k) result(p)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
@@ -469,7 +469,7 @@ contains
         end do
     end function elt_start
 
-    !> Element `k` (1-based) of list `v`; nil if out of range.
+    !> Element `k' (1-based) of list `v'; nil if out of range.
     pure function list_elt(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
@@ -481,7 +481,7 @@ contains
         end if
     end function list_elt
 
-    !> All elements of list `v` as an array (size 0 for nil).
+    !> All elements of list `v' as an array (size 0 for nil).
     pure subroutine list_elements(v, elems)
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: elems(:)
@@ -494,7 +494,7 @@ contains
         end do
     end subroutine list_elements
 
-    !> List `v` without its first `n` elements (nil if none remain).
+    !> List `v' without its first `n' elements (nil if none remain).
     !> The core of data.c:Fcdr and fns.c:Fnthcdr.
     pure function list_tail(v, n) result(tail)
         type(value_type), intent(in) :: v
@@ -537,7 +537,7 @@ contains
         defined_commands(n_defined_commands)%p => self
     end subroutine define_command
 
-    !> The command defined with `define` named NAME, or null.
+    !> The command defined with `define' named NAME, or null.
     function defined_command(name) result(p)
         character(len=*), intent(in) :: name
         type(command_type), pointer :: p
@@ -551,14 +551,14 @@ contains
         end do
     end function defined_command
 
-    !> Whether A and B are the same string (`==` ignores trailing blanks).
+    !> Whether A and B are the same string (`==' ignores trailing blanks).
     pure logical function same_name(a, b)
         character(len=*), intent(in) :: a, b
         same_name = len(a) == len(b)
         if (same_name) same_name = a == b
     end function same_name
 
-    !> The name of the command defined with `define` whose procedure is
+    !> The name of the command defined with `define' whose procedure is
     !> PROC ("" if none).
     function defined_command_name_of(proc) result(name)
         procedure(command_proc) :: proc

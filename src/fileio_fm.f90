@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> File name manipulation (`expand-file-name` and friends), file
+!> File name manipulation (`expand_file_name' and friends), file
 !> predicates, and reading and writing buffer text.
 !>
 !> File names are strings of bytes, as they are on Linux; Fortmacs does no
-!> file-name encoding (`file-name-coding-system` is effectively utf-8).
+!> file-name encoding (`file_name_coding_system' is effectively utf-8).
 !> Where upstream returns nil for "no directory", the functions here
 !> return "" (a directory name is never empty).  There are no file name
 !> handlers (TRAMP and friends).
@@ -35,7 +35,7 @@
 module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
-                        FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+                        FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only
     use character_fm, only: str_as_multibyte, str_as_unibyte
     use marker_fm, only: char_to_byte
@@ -45,7 +45,7 @@ module fileio_fm
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
-                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, F_OK, R_OK, &
+                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                          W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST
     implicit none(type, external)
     private
@@ -84,7 +84,7 @@ contains
         emacs_wd = emacs_get_current_dir_name()
     end subroutine init_fileio
 
-    !> The directory part of `filename`, ending in a slash, or "" if it has
+    !> The directory part of `filename', ending in a slash, or "" if it has
     !> none.  Port of fileio.c:file_name_directory.
     pure function file_name_directory(filename) result(dir)
         character(len=*), intent(in) :: filename
@@ -92,7 +92,7 @@ contains
         dir = filename(1:index(filename, "/", back=.true.))
     end function file_name_directory
 
-    !> `filename` without its directory part.
+    !> `filename' without its directory part.
     !> Port of fileio.c:Ffile_name_nondirectory.
     pure function file_name_nondirectory(filename) result(name)
         character(len=*), intent(in) :: filename
@@ -100,7 +100,7 @@ contains
         name = filename(index(filename, "/", back=.true.) + 1:)
     end function file_name_nondirectory
 
-    !> `file` as a directory name: with a trailing slash ("./" for "").
+    !> `file' as a directory name: with a trailing slash ("./" for "").
     !> Port of fileio.c:file_name_as_directory.
     pure function file_name_as_directory(file) result(dir)
         character(len=*), intent(in) :: file
@@ -114,7 +114,7 @@ contains
         end if
     end function file_name_as_directory
 
-    !> The file name of directory `directory`: without trailing slashes,
+    !> The file name of directory `directory': without trailing slashes,
     !> except that "/" and "//" stay and "///..." becomes "/".
     !> Port of fileio.c:directory_file_name.
     pure function directory_file_name(directory) result(file)
@@ -131,14 +131,14 @@ contains
         file = directory(1:n)
     end function directory_file_name
 
-    !> Whether `name` ends in a slash.  Port of fileio.c:Fdirectory_name_p.
+    !> Whether `name' ends in a slash.  Port of fileio.c:Fdirectory_name_p.
     pure logical function directory_name_p(name)
         character(len=*), intent(in) :: name
         directory_name_p = .false.
         if (len(name) > 0) directory_name_p = name(len(name):len(name)) == "/"
     end function directory_name_p
 
-    !> Whether `filename` is absolute: it starts with "/", "~", "~/" or
+    !> Whether `filename' is absolute: it starts with "/", "~", "~/" or
     !> "~USER" for an existing USER.  Port of fileio.c:file_name_absolute_p.
     logical function file_name_absolute_p(filename)
         character(len=*), intent(in) :: filename
@@ -158,7 +158,7 @@ contains
         end if
     end function file_name_absolute_p
 
-    !> Home directory of the user named at the start of `name` (up to a
+    !> Home directory of the user named at the start of `name' (up to a
     !> slash); false if there is no such user or the home directory is
     !> not absolute.  Port of fileio.c:user_homedir.
     logical function user_homedir(name, home)
@@ -213,15 +213,15 @@ contains
         home = file_name_as_directory(emacs_wd)//home
     end function get_homedir
 
-    !> Whether `s` holds a NUL byte (CHECK_STRING_NULL_BYTES).
+    !> Whether `s' holds a NUL byte (CHECK_STRING_NULL_BYTES).
     pure logical function has_null_byte(s)
         character(len=*), intent(in) :: s
         has_null_byte = index(s, achar(0)) > 0
     end function has_null_byte
 
-    !> `name` made absolute and canonical: relative names are taken
-    !> relative to `default_directory` (or the current buffer's
-    !> `default-directory`, or "/"), "~" and "~USER" become home
+    !> `name' made absolute and canonical: relative names are taken
+    !> relative to `default_directory' (or the current buffer's
+    !> `default_directory', or "/"), "~" and "~USER" become home
     !> directories, and "." and "FOO/.." components and repeated slashes
     !> are removed (without looking at the file system).
     !> Port of fileio.c:Fexpand_file_name (Unix; no file name handlers).
@@ -337,7 +337,7 @@ contains
         expanded = canonicalize(target)
     end subroutine expand_file_name
 
-    !> The byte of `s` at `i`, or "" past the end (C's NUL terminator).
+    !> The byte of `s' at `i', or "" past the end (C's NUL terminator).
     pure function at(s, i) result(c)
         character(len=*), intent(in) :: s
         integer, intent(in) :: i
@@ -349,7 +349,7 @@ contains
         end if
     end function at
 
-    !> Remove "//", "/." and "/FOO/.." from `target`: the last step of
+    !> Remove "//", "/." and "/FOO/.." from `target': the last step of
     !> Fexpand_file_name.
     pure function canonicalize(target) result(out)
         character(len=*), intent(in) :: target
@@ -394,7 +394,7 @@ contains
     end function canonicalize
 
     !> Where an absolute file name ("//...", "/~...", "/~user...") starts
-    !> after a slash inside `nm`, or 0.  Port of
+    !> after a slash inside `nm', or 0.  Port of
     !> fileio.c:search_embedded_absfilename.
     integer function search_embedded_absfilename(nm) result(p)
         character(len=*), intent(in) :: nm
@@ -404,7 +404,7 @@ contains
         p = 0
     end function search_embedded_absfilename
 
-    !> `filename` with environment variables substituted ($FOO, ${FOO},
+    !> `filename' with environment variables substituted ($FOO, ${FOO},
     !> $$; unset ones stay), and everything before an embedded "//" or
     !> "/~" dropped, so that typing "~/x" after a default directory in the
     !> minibuffer means "~/x".  Port of fileio.c:Fsubstitute_in_file_name
@@ -431,7 +431,7 @@ contains
     ! File predicates and attributes
     ! ------------------------------------------------------------------
 
-    !> Expand `filename`, quietly giving "" on error (for predicates).
+    !> Expand `filename', quietly giving "" on error (for predicates).
     function expand_quietly(filename) result(absname)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -440,7 +440,7 @@ contains
         if (.not. status%ok()) absname = ""
     end function expand_quietly
 
-    !> Whether `filename` exists.  Port of fileio.c:Ffile_exists_p.
+    !> Whether `filename' exists.  Port of fileio.c:Ffile_exists_p.
     logical function file_exists_p(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: absname
@@ -451,7 +451,7 @@ contains
 
     !> Return t if FILENAME can be executed by you.
     !> For a directory, this means you can access files in that directory.
-    !> (It is generally better to use `file_accessible_directory_p` for that
+    !> (It is generally better to use `file_accessible_directory_p' for that
     !> purpose, though.)  Port of fileio.c:Ffile_executable_p.
     logical function file_executable_p(filename)
         character(len=*), intent(in) :: filename
@@ -477,7 +477,7 @@ contains
                                  (st1%mtime_sec == st2%mtime_sec .and. st1%mtime_nsec > st2%mtime_nsec)
     end function file_newer_than_file_p
 
-    !> Whether `filename` exists and can be read.
+    !> Whether `filename' exists and can be read.
     !> Port of fileio.c:Ffile_readable_p.
     logical function file_readable_p(filename)
         character(len=*), intent(in) :: filename
@@ -487,7 +487,7 @@ contains
         if (file_readable_p) file_readable_p = sys_access(absname, R_OK) == 0
     end function file_readable_p
 
-    !> Whether `filename` can be written or created.
+    !> Whether `filename' can be written or created.
     !> Port of fileio.c:Ffile_writable_p.
     logical function file_writable_p(filename)
         character(len=*), intent(in) :: filename
@@ -505,7 +505,7 @@ contains
         file_writable_p = sys_access(file_name_directory(absname), ior(W_OK, X_OK)) == 0
     end function file_writable_p
 
-    !> Whether `filename` names a directory.  Port of
+    !> Whether `filename' names a directory.  Port of
     !> fileio.c:Ffile_directory_p via file_directory_p's portable path
     !> (O_DIRECTORY differs between the two targets).
     logical function file_directory_p(filename)
@@ -523,7 +523,7 @@ contains
         file_directory_p = iand(st%mode, S_IFMT) == S_IFDIR
     end function file_directory_p
 
-    !> Whether `filename` is a directory whose files can be accessed (a
+    !> Whether `filename' is a directory whose files can be accessed (a
     !> "/." appended to it exists).
     !> Port of fileio.c:file_accessible_directory_p.
     logical function file_accessible_directory_p(filename)
@@ -535,7 +535,7 @@ contains
         file_accessible_directory_p = sys_access(file_name_as_directory(absname)//".", F_OK) == 0
     end function file_accessible_directory_p
 
-    !> Status of `filename` (following links); `found` is false if it
+    !> Status of `filename' (following links); `found' is false if it
     !> can't be read.  The parts of dired.c:Ffile_attributes in use.
     subroutine file_attributes(filename, st, found)
         character(len=*), intent(in) :: filename
@@ -548,7 +548,7 @@ contains
         found = sys_stat(absname, st) == 0
     end subroutine file_attributes
 
-    !> Whether `filename` is a regular file (following links).
+    !> Whether `filename' is a regular file (following links).
     !> Port of fileio.c:Ffile_regular_p.
     logical function file_regular_p(filename)
         character(len=*), intent(in) :: filename
@@ -559,7 +559,7 @@ contains
         if (found) file_regular_p = iand(st%mode, S_IFMT) == S_IFREG
     end function file_regular_p
 
-    !> Whether `filename` is a symbolic link.  Like
+    !> Whether `filename' is a symbolic link.  Like
     !> fileio.c:Ffile_symlink_p, but a truth value instead of the target.
     logical function file_symlink_p(filename)
         character(len=*), intent(in) :: filename
@@ -582,7 +582,7 @@ contains
         group_gid = emacs_getegid()
     end function group_gid
 
-    !> Permission bits of `filename`, or -1 if it doesn't exist.
+    !> Permission bits of `filename', or -1 if it doesn't exist.
     !> Port of fileio.c:Ffile_modes.
     integer(int32) function file_modes(filename)
         character(len=*), intent(in) :: filename
@@ -593,7 +593,7 @@ contains
         if (found) file_modes = iand(st%mode, int(o'7777', int32))
     end function file_modes
 
-    !> Set the permission bits of `filename`.
+    !> Set the permission bits of `filename'.
     !> Port of fileio.c:Fset_file_modes.
     subroutine set_file_modes(filename, mode, status)
         character(len=*), intent(in) :: filename
@@ -607,7 +607,7 @@ contains
         if (err /= 0) call report_file_errno("Doing chmod", absname, err, status)
     end subroutine set_file_modes
 
-    !> Rename `file` to `newname`, replacing it if it exists.  Port of
+    !> Rename `file' to `newname', replacing it if it exists.  Port of
     !> fileio.c:Frename_file with OK-IF-ALREADY-EXISTS non-nil, for files
     !> on one file system.
     subroutine rename_file(file, newname, status)
@@ -623,7 +623,7 @@ contains
         if (err /= 0) call report_file_errno("Renaming", from//", "//to, err, status)
     end subroutine rename_file
 
-    !> Copy `file` to `newname`, replacing it, with the same permission
+    !> Copy `file' to `newname', replacing it, with the same permission
     !> bits.  Port of fileio.c:Fcopy_file with OK-IF-ALREADY-EXISTS
     !> non-nil (times, owner and ACLs are not copied yet).
     subroutine copy_file(file, newname, status)
@@ -656,7 +656,7 @@ contains
         err = sys_chmod(to, mode)
     end subroutine copy_file
 
-    !> Create directory `directory` (its parent must exist).
+    !> Create directory `directory' (its parent must exist).
     !> Port of fileio.c:Fmake_directory_internal.
     subroutine make_directory_internal(directory, status)
         character(len=*), intent(in) :: directory
@@ -670,7 +670,7 @@ contains
         if (err /= 0) call report_file_errno("Creating directory", dir, err, status)
     end subroutine make_directory_internal
 
-    !> Delete the empty directory `directory`.
+    !> Delete the empty directory `directory'.
     !> Port of fileio.c:Fdelete_directory_internal.
     subroutine delete_directory_internal(directory, status)
         character(len=*), intent(in) :: directory
@@ -684,7 +684,7 @@ contains
         if (err /= 0) call report_file_errno("Removing directory", dir, err, status)
     end subroutine delete_directory_internal
 
-    !> Delete file `filename`.  Port of fileio.c:Fdelete_file_internal.
+    !> Delete file `filename'.  Port of fileio.c:Fdelete_file_internal.
     subroutine delete_file_internal(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
@@ -696,15 +696,21 @@ contains
         if (err /= 0 .and. err /= ENOENT) call report_file_errno("Removing old name", absname, err, status)
     end subroutine delete_file_internal
 
-    !> A file error for `name` from errno `err`: "STRING: <strerror>, NAME",
+    !> A file error for `name' from errno `err': "STRING: <strerror>, NAME",
     !> file-missing for ENOENT.  Port of fileio.c:report_file_errno.
     subroutine report_file_errno(string, name, err, status)
         character(len=*), intent(in) :: string, name
         integer(int32), intent(in) :: err
         type(status_type), intent(inout) :: status
         integer(int32) :: code
+        ! (file-already-exists ERRSTRING NAME): no STRING.
+        if (err == EEXIST) then
+            call set_error(status, FM_FILE_ALREADY_EXISTS, emacs_strerror(err)//": "//name)
+            return
+        end if
         code = FM_FILE_ERROR
         if (err == ENOENT) code = FM_FILE_MISSING
+        if (err == EACCES) code = FM_PERMISSION_DENIED
         call set_error(status, code, string//": "//emacs_strerror(err)//", "//name)
     end subroutine report_file_errno
 
@@ -712,8 +718,8 @@ contains
     ! Reading and writing
     ! ------------------------------------------------------------------
 
-    !> All the bytes of file `absname`.  Errors opening it are reported
-    !> with `what` ("Opening input file").
+    !> All the bytes of file `absname'.  Errors opening it are reported
+    !> with `what' ("Opening input file").
     subroutine read_file(absname, what, data, status, st, opened)
         character(len=*), intent(in) :: absname, what
         character(len=:), allocatable, intent(out) :: data
@@ -767,11 +773,11 @@ contains
         data = data(1:n)
     end subroutine read_file
 
-    !> Insert the contents of file `filename` after point, leaving point
-    !> before them.  With `visit`, the buffer (which must be empty) visits
+    !> Insert the contents of file `filename' after point, leaving point
+    !> before them.  With `visit', the buffer (which must be empty) visits
     !> the file: its file name and modification time are recorded and it
     !> is marked unmodified, even if the file doesn't exist (which is then
-    !> reported as file-missing).  `inserted` is the number of characters
+    !> reported as file-missing).  `inserted' is the number of characters
     !> inserted.  Port of fileio.c:Finsert_file_contents (no BEG, END or
     !> REPLACE; decoding as described in the module documentation).
     subroutine insert_file_contents(filename, visit, inserted, status)
@@ -830,10 +836,10 @@ contains
         end if
     end subroutine insert_file_contents
 
-    !> Write the text between `start` and `end` (default: the whole
-    !> buffer, ignoring narrowing) to file `filename`, replacing it.  With
-    !> `visit`, the buffer then visits that file and is unmodified.
-    !> `message`, if present, receives "Wrote FILE" for the echo area.
+    !> Write the text between `start' and `end' (default: the whole
+    !> buffer, ignoring narrowing) to file `filename', replacing it.  With
+    !> `visit', the buffer then visits that file and is unmodified.
+    !> `message', if present, receives "Wrote FILE" for the echo area.
     !> Port of fileio.c:Fwrite_region (no APPEND, LOCKNAME or MUSTBENEW;
     !> no fsync, as write-region-inhibit-fsync defaults to t).
     subroutine write_region(filename, visit, status, start, end, message)
@@ -930,7 +936,7 @@ contains
     !> If LINKNAME is a directory name, make a like-named symbolic link
     !> under LINKNAME.
     !>
-    !> Signal a `file-already-exists` error if a file LINKNAME already exists
+    !> Signal a `file_already_exists' error if a file LINKNAME already exists
     !> unless OK_IF_ALREADY_EXISTS is true.  Port of
     !> fileio.c:Fmake_symbolic_link (without the interactive query).
     subroutine make_symbolic_link(target, linkname, status, ok_if_already_exists)

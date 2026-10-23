@@ -21,15 +21,15 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Hooks.  A hook is a `hook_type` object holding procedures of no
-!> arguments (`command_proc`), run in order:
+!> Hooks.  A hook is a `hook_type' object holding procedures of no
+!> arguments (`command_proc'), run in order:
 !>
 !>     call major_modes%text_mode%hook%add(turn_on_auto_fill)
 !>
 !> Upstream a hook is a variable whose value is a list of functions; a
-!> buffer-local value holds `t` where the default value's functions run.
+!> buffer-local value holds `t' where the default value's functions run.
 !> Here a buffer's own functions are kept in the hook by buffer, with a
-!> `t` entry in the same place.
+!> `t' entry in the same place.
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
@@ -49,7 +49,7 @@ module eval_fm
     !> Hooks that have been given buffers' own functions.
     type(hook_ref_type), allocatable :: local_hooks(:)
 
-    !> One function of a hook, or the `t` marker of a buffer's own value.
+    !> One function of a hook, or the `t' marker of a buffer's own value.
     type :: hook_entry_type
         procedure(command_proc), pointer, nopass :: fn => null()
         integer :: depth = 0
@@ -57,7 +57,7 @@ module eval_fm
     end type hook_entry_type
 
     !> The depth a function was last added with (subr.el's
-    !> `hook--depth-alist'): it stays when the function is removed, and
+    !> `hook__depth_alist'): it stays when the function is removed, and
     !> applies when it is added again without a depth.
     type :: depth_type
         procedure(command_proc), pointer, nopass :: fn => null()
@@ -89,7 +89,7 @@ module eval_fm
         type(depth_type), allocatable :: depths(:)
         type(local_depths_type), allocatable :: local_depths(:)
         !> Keep buffers' own functions when the major mode changes (the
-        !> `permanent-local' property).
+        !> `permanent_local' property).
         logical :: permanent_local = .false.
     contains
         !> Add a function to the hook (subr.el's add-hook).
@@ -107,9 +107,9 @@ module eval_fm
     end type hook_type
 
     !> Normal hook run before changing the major mode of a buffer.
-    !> The function `kill-all-local-variables' runs this before doing
+    !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
-    type(hook_type), public, target :: change_major_mode_hook = hook_type(name="change-major-mode-hook")
+    type(hook_type), public, target :: change_major_mode_hook = hook_type(name="change_major_mode_hook")
 
 contains
 
@@ -308,7 +308,7 @@ contains
     !> This makes the hook buffer-local, and it makes t a member of the
     !> buffer-local value.  That acts as a flag to run the hook
     !> functions of the global value as well as in the local value.
-    !> Port of subr.el:add-hook (`t` for DEPTH is 90).
+    !> Port of subr.el:add-hook (`t' for DEPTH is 90).
     subroutine hook_add(self, fn, depth, local)
         class(hook_type), intent(inout), target :: self
         procedure(command_proc) :: fn
@@ -377,7 +377,7 @@ contains
 
     !> Run each function of the hook, in order, stopping at the first
     !> error.  In a buffer with its own functions, those run, with the
-    !> default functions in the place of `t`.  Port of eval.c:run_hook
+    !> default functions in the place of `t'.  Port of eval.c:run_hook
     !> (via run_hook_with_args).
     recursive subroutine hook_run(self, status)
         class(hook_type), intent(in) :: self

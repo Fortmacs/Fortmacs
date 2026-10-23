@@ -21,7 +21,7 @@
 
 !> Text properties of the current buffer.
 !>
-!> Functions that return nil upstream take a `found` logical.  Changing
+!> Functions that return nil upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
 !> checked) as upstream.  Not yet: properties on strings, overlays
 !> (get-char-property = get-text-property), undo records, modification
@@ -72,7 +72,7 @@ contains
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
     end subroutine range_error
 
-    !> Order and check a range of the current buffer.  `nonempty` is false
+    !> Order and check a range of the current buffer.  `nonempty' is false
     !> when there is nothing to work on.  Port of the buffer case of
     !> textprop.c:validate_interval_range.
     subroutine validate_range(start, end, s, e, nonempty, status)
@@ -117,7 +117,7 @@ contains
         end if
     end subroutine validate_plist
 
-    !> True if `x` is eq to an element of list `set`.
+    !> True if `x' is eq to an element of list `set'.
     logical function memq_p(x, set)
         type(value_type), intent(in) :: x, set
         type(value_type), allocatable :: elems(:)
@@ -143,7 +143,7 @@ contains
         end if
     end subroutine text_read_only
 
-    !> Check that the properties of `start`..`end` may change, and record
+    !> Check that the properties of `start'..`end' may change, and record
     !> the modification.  Port of textprop.c:modify_text_properties (with
     !> the read-only part of insdel.c:prepare_to_modify_buffer_1).
     subroutine modify_text_properties(start, end, status)
@@ -179,8 +179,8 @@ contains
         has_all_properties = .true.
     end function has_all_properties
 
-    !> True if interval `k` has any of the properties named in `names`
-    !> (every element when `step` is 1, every other one for a plist).
+    !> True if interval `k' has any of the properties named in `names'
+    !> (every element when `step' is 1, every other one for a plist).
     !> Port of textprop.c:interval_has_some_properties(_list).
     logical function has_some_properties(names, step, k)
         type(value_type), intent(in) :: names
@@ -200,7 +200,7 @@ contains
         end do
     end function has_some_properties
 
-    !> Set or add each property of `plist` on interval `k`; new properties
+    !> Set or add each property of `plist' on interval `k'; new properties
     !> go in front, as upstream.  Port of textprop.c:add_properties
     !> (TEXT_PROPERTY_REPLACE).
     subroutine add_properties(plist, k, changed)
@@ -234,8 +234,8 @@ contains
         end do
     end subroutine add_properties
 
-    !> Remove from interval `k` every property named in `names` (every
-    !> element when `step` is 1, every other one for a plist).
+    !> Remove from interval `k' every property named in `names' (every
+    !> element when `step' is 1, every other one for a plist).
     !> Port of textprop.c:remove_properties.
     subroutine remove_properties(names, step, k, changed)
         type(value_type), intent(in) :: names
@@ -267,8 +267,8 @@ contains
     ! Queries
     ! ------------------------------------------------------------------
 
-    !> Index of the interval at `pos`, or 0 if there is none (no intervals,
-    !> empty accessible region, or `pos` at the end of the text).
+    !> Index of the interval at `pos', or 0 if there is none (no intervals,
+    !> empty accessible region, or `pos' at the end of the text).
     integer(int64) function interval_at(pos)
         integer(int64), intent(in) :: pos
         interval_at = 0
@@ -279,7 +279,7 @@ contains
         end associate
     end function interval_at
 
-    !> Property list of the character after `position`.
+    !> Property list of the character after `position'.
     !> Port of textprop.c:Ftext_properties_at.
     subroutine text_properties_at(position, plist, status)
         integer(int64), intent(in) :: position
@@ -294,7 +294,7 @@ contains
         if (k > 0) plist = buffers(cur)%text%intervals%runs(k)%plist
     end subroutine text_properties_at
 
-    !> Value of `prop` on the character after `position` (via `category`
+    !> Value of `prop' on the character after `position' (via `category'
     !> too).  Port of textprop.c:Fget_text_property.
     subroutine get_text_property(position, prop, val, status)
         integer(int64), intent(in) :: position
@@ -310,8 +310,8 @@ contains
     ! Changing properties
     ! ------------------------------------------------------------------
 
-    !> Add the properties in `properties` to the text from `start` to
-    !> `end`.  `changed` tells whether anything changed.
+    !> Add the properties in `properties' to the text from `start' to
+    !> `end'.  `changed' tells whether anything changed.
     !> Port of textprop.c:Fadd_text_properties / add_text_properties_1.
     subroutine add_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
@@ -365,7 +365,7 @@ contains
         end associate
     end subroutine add_text_properties
 
-    !> Set property `prop` to `val` on the text from `start` to `end`.
+    !> Set property `prop' to `val' on the text from `start' to `end'.
     !> Port of textprop.c:Fput_text_property.
     subroutine put_text_property(start, end, prop, val, status)
         integer(int64), intent(in) :: start, end
@@ -375,8 +375,8 @@ contains
         call add_text_properties(start, end, list(prop, val), changed, status)
     end subroutine put_text_property
 
-    !> Replace the properties of the text from `start` to `end` with
-    !> `properties`.  Port of textprop.c:Fset_text_properties
+    !> Replace the properties of the text from `start' to `end' with
+    !> `properties'.  Port of textprop.c:Fset_text_properties
     !> (set_text_properties with COHERENT_CHANGE_P t, set_text_properties_1).
     subroutine set_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
@@ -415,8 +415,8 @@ contains
         end associate
     end subroutine set_text_properties
 
-    !> Remove the properties named in plist `properties` (values ignored)
-    !> from the text from `start` to `end`.
+    !> Remove the properties named in plist `properties' (values ignored)
+    !> from the text from `start' to `end'.
     !> Port of textprop.c:Fremove_text_properties.
     subroutine remove_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
@@ -426,8 +426,8 @@ contains
         call remove_common(start, end, properties, 2_int64, changed, status)
     end subroutine remove_text_properties
 
-    !> Remove the properties named in `list` from the text from `start` to
-    !> `end`.  Port of textprop.c:Fremove_list_of_text_properties.
+    !> Remove the properties named in `list' from the text from `start' to
+    !> `end'.  Port of textprop.c:Fremove_list_of_text_properties.
     subroutine remove_list_of_text_properties(start, end, list, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: list
@@ -496,7 +496,7 @@ contains
         end if
     end subroutine check_position
 
-    !> Return LIMIT: `found` only if a limit was given.
+    !> Return LIMIT: `found' only if a limit was given.
     subroutine give_limit(result, found, limit)
         integer(int64), intent(out) :: result
         logical, intent(out) :: found
@@ -506,8 +506,8 @@ contains
         if (found) result = limit
     end subroutine give_limit
 
-    !> Next position after `position` where any property changes, or
-    !> `limit` if none before it; `found` false means nil (no change and no
+    !> Next position after `position' where any property changes, or
+    !> `limit' if none before it; `found' false means nil (no change and no
     !> limit).  Port of textprop.c:Fnext_property_change (LIMIT t pending).
     subroutine next_property_change(position, result, found, status, limit)
         integer(int64), intent(in) :: position
@@ -518,7 +518,7 @@ contains
         call next_change(position, result, found, status, limit=limit)
     end subroutine next_property_change
 
-    !> Like `next_property_change`, for the single property `prop`.
+    !> Like `next_property_change', for the single property `prop'.
     !> Port of textprop.c:Fnext_single_property_change.
     subroutine next_single_property_change(position, prop, result, found, status, limit)
         integer(int64), intent(in) :: position
@@ -567,8 +567,8 @@ contains
         end associate
     end subroutine next_change
 
-    !> Previous position before `position` where any property changes, or
-    !> `limit`.  Port of textprop.c:Fprevious_property_change.
+    !> Previous position before `position' where any property changes, or
+    !> `limit'.  Port of textprop.c:Fprevious_property_change.
     subroutine previous_property_change(position, result, found, status, limit)
         integer(int64), intent(in) :: position
         integer(int64), intent(out) :: result
@@ -578,7 +578,7 @@ contains
         call previous_change(position, result, found, status, limit=limit)
     end subroutine previous_property_change
 
-    !> Like `previous_property_change`, for the single property `prop`.
+    !> Like `previous_property_change', for the single property `prop'.
     !> Port of textprop.c:Fprevious_single_property_change.
     subroutine previous_single_property_change(position, prop, result, found, status, limit)
         integer(int64), intent(in) :: position
@@ -630,8 +630,8 @@ contains
         end associate
     end subroutine previous_change
 
-    !> First position in `start`..`end` whose `prop` is eq to `value`;
-    !> `found` false means nil.  Port of textprop.c:Ftext_property_any.
+    !> First position in `start'..`end' whose `prop' is eq to `value';
+    !> `found' false means nil.  Port of textprop.c:Ftext_property_any.
     subroutine text_property_any(start, end, prop, value, result, found, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: prop, value
@@ -641,7 +641,7 @@ contains
         call property_scan(start, end, prop, value, .true., result, found, status)
     end subroutine text_property_any
 
-    !> First position in `start`..`end` whose `prop` is not eq to `value`.
+    !> First position in `start'..`end' whose `prop' is not eq to `value'.
     !> Port of textprop.c:Ftext_property_not_all.
     subroutine text_property_not_all(start, end, prop, value, result, found, status)
         integer(int64), intent(in) :: start, end
@@ -687,7 +687,7 @@ contains
         end associate
     end subroutine property_scan
 
-    !> Whether `prop` at `pos` would be inherited by text inserted there:
+    !> Whether `prop' at `pos' would be inherited by text inserted there:
     !> -1 from the character before (rear-sticky), 1 from the one after
     !> (front-sticky), 0 from neither.  Port of
     !> textprop.c:text_property_stickiness (current buffer).
@@ -705,14 +705,14 @@ contains
         if (ignore_previous_character .or. default_nonsticky(prop)) then
             is_rear_sticky = .false.
         else
-            call get_text_property(pos - 1, qsym("rear-nonsticky"), rear_non_sticky, status)
+            call get_text_property(pos - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
             if (consp(rear_non_sticky)) then
                 if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
             else if (.not. nilp(rear_non_sticky)) then
                 is_rear_sticky = .false.
             end if
         end if
-        call get_text_property(pos, qsym("front-sticky"), front_sticky, status)
+        call get_text_property(pos, qsym("front_sticky"), front_sticky, status)
         if (value_eq(front_sticky, qsym("t"))) then
             is_front_sticky = .true.
         else if (consp(front_sticky)) then
@@ -738,13 +738,13 @@ contains
 
         logical function default_nonsticky(p)
             type(value_type), intent(in) :: p
-            default_nonsticky = value_eq(p, qsym("syntax-table")) .or. value_eq(p, qsym("display")) .or. &
+            default_nonsticky = value_eq(p, qsym("syntax_table")) .or. value_eq(p, qsym("display")) .or. &
                                 value_eq(p, qsym("composition")) .or. value_eq(p, qsym("cursor"))
         end function default_nonsticky
     end function text_property_stickiness
 
-    !> The next position after `position` where `prop` changes, or
-    !> `limit` (default point-max) if it doesn't change before it.  Port of
+    !> The next position after `position' where `prop' changes, or
+    !> `limit' (default point-max) if it doesn't change before it.  Port of
     !> textprop.c:Fnext_single_char_property_change for the current
     !> buffer (text properties only: there are no overlays yet).
     integer(int64) function next_single_char_property_change(position, prop, limit) result(next)
@@ -765,8 +765,8 @@ contains
         next = min(next, lim)
     end function next_single_char_property_change
 
-    !> The previous position before `position` where `prop` changes, or
-    !> `limit` (default point-min).  Port of
+    !> The previous position before `position' where `prop' changes, or
+    !> `limit' (default point-min).  Port of
     !> textprop.c:Fprevious_single_char_property_change for the current
     !> buffer (text properties only).
     integer(int64) function previous_single_char_property_change(position, prop, limit) result(prev)
@@ -791,9 +791,9 @@ contains
     ! Read-only text
     ! ------------------------------------------------------------------
 
-    !> Signal text-read-only (or buffer-read-only) if `start`..`end` may not
-    !> be changed because of `read-only` / `inhibit-read-only` properties.
-    !> An empty range is an insertion: then the stickiness of `read-only`
+    !> Signal text-read-only (or buffer-read-only) if `start'..`end' may not
+    !> be changed because of `read_only' / `inhibit_read_only' properties.
+    !> An empty range is an insertion: then the stickiness of `read_only'
     !> on the neighbours decides.  Port of textprop.c:
     !> verify_interval_modification (modification hooks pending).
     subroutine verify_interval_modification(start_in, end_in, status)
@@ -824,11 +824,11 @@ contains
                 if (.not. (nilp(inhibit) .or. consp(inhibit))) return
                 if (.not. (has_after .and. has_prev .and. k == prev)) then
                     if (has_after) then
-                        after = textget(iv%runs(k)%plist, qsym("read-only"))
+                        after = textget(iv%runs(k)%plist, qsym("read_only"))
                         if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
-                            tem = textget(iv%runs(k)%plist, qsym("front-sticky"))
-                            call plist_get_eq(iv%runs(k)%plist, qsym("read-only"), val, found)
-                            if (tmem(qsym("read-only"), tem) .or. &
+                            tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
+                            call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                            if (tmem(qsym("read_only"), tem) .or. &
                                 (nilp(val) .and. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
@@ -836,11 +836,11 @@ contains
                         end if
                     end if
                     if (has_prev) then
-                        before = textget(iv%runs(prev)%plist, qsym("read-only"))
+                        before = textget(iv%runs(prev)%plist, qsym("read_only"))
                         if (.not. nilp(before) .and. .not. memq_p(before, inhibit)) then
-                            tem = textget(iv%runs(prev)%plist, qsym("rear-nonsticky"))
-                            call plist_get_eq(iv%runs(prev)%plist, qsym("read-only"), val, found)
-                            if (.not. tmem(qsym("read-only"), tem) .and. &
+                            tem = textget(iv%runs(prev)%plist, qsym("rear_nonsticky"))
+                            call plist_get_eq(iv%runs(prev)%plist, qsym("read_only"), val, found)
+                            if (.not. tmem(qsym("read_only"), tem) .and. &
                                 (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, before)
                                 return
@@ -850,17 +850,17 @@ contains
                 else
                     ! Inside one interval: it is read-only unless both ends say
                     ! the property does not stick.
-                    after = textget(iv%runs(k)%plist, qsym("read-only"))
+                    after = textget(iv%runs(k)%plist, qsym("read_only"))
                     if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
-                        call plist_get_eq(iv%runs(k)%plist, qsym("read-only"), val, found)
-                        tem = textget(iv%runs(k)%plist, qsym("front-sticky"))
-                        if (tmem(qsym("read-only"), tem) .or. &
+                        call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                        tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
+                        if (tmem(qsym("read_only"), tem) .or. &
                             (nilp(val) .and. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
                             return
                         end if
-                        tem = textget(iv%runs(k)%plist, qsym("rear-nonsticky"))
-                        if (.not. tmem(qsym("read-only"), tem) .and. &
+                        tem = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
+                        if (.not. tmem(qsym("read_only"), tem) .and. &
                             (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
                             return
@@ -872,10 +872,10 @@ contains
                 k = find_interval(iv, start)
                 p = 0
                 do
-                    read_only = textget(iv%runs(k)%plist, qsym("read-only"))
+                    read_only = textget(iv%runs(k)%plist, qsym("read_only"))
                     ! INTERVAL_GENERALLY_WRITABLE_P / INTERVAL_EXPRESSLY_WRITABLE_P
                     implied = nilp(read_only) .or. (.not. nilp(inhibit) .and. .not. consp(inhibit))
-                    express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit-read-only")))
+                    express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit_read_only")))
                     if (.not. express .and. .not. nilp(read_only) .and. consp(inhibit)) then
                         express = memq_p(read_only, inhibit)
                     end if

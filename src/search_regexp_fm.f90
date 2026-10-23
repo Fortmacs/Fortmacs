@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The cache of compiled patterns, `looking-at`, `string-match` and regexp
+!> The cache of compiled patterns, `looking_at', `string_match' and regexp
 !> search in buffers.  A submodule of search_fm, because the regexp engine
 !> depends (through the syntax table) on modules that use search_fm.
 submodule(search_fm) search_regexp_fm
@@ -37,7 +37,7 @@ submodule(search_fm) search_regexp_fm
     use insdel_fm, only: replace_range
     use editfns_fm, only: buffer_substring, goto_char
     use buffer_fm, only: temp_set_point_both
-    use error_fm, only: FM_ARGS_OUT_OF_RANGE
+    use error_fm, only: format_message, FM_ARGS_OUT_OF_RANGE
     implicit none(type, external)
 
     !> Number of compiled patterns kept (REGEXP_CACHE_SIZE).
@@ -52,7 +52,7 @@ submodule(search_fm) search_regexp_fm
         logical :: has_whitespace_regexp = .false.
         character(len=:), allocatable :: whitespace_regexp
         type(handle_type) :: syntax_table
-        !> `syntax_modiff` when compiled: clear_regexp_cache drops entries
+        !> `syntax_modiff' when compiled: clear_regexp_cache drops entries
         !> that used a syntax table when any syntax entry changes.
         integer(int64) :: syntax_modiff = 0
         integer(int64) :: used_at = 0
@@ -64,8 +64,8 @@ submodule(search_fm) search_regexp_fm
 
 contains
 
-    !> Compile PATTERN for case folding `translate` and Posix backtracking
-    !> `posix`, or find it already compiled, and return its index in the
+    !> Compile PATTERN for case folding `translate' and Posix backtracking
+    !> `posix', or find it already compiled, and return its index in the
     !> cache, moved to the front as most recently used.  Port of
     !> search.c:compile_pattern and compile_pattern_1.
     subroutine compile_pattern(pattern, translate, posix, k, status)
@@ -127,7 +127,7 @@ contains
         same_handle = a%index == b%index .and. a%generation == b%generation
     end function same_handle
 
-    !> Make the match data from `regs`, offsets in the current buffer's
+    !> Make the match data from `regs', offsets in the current buffer's
     !> accessible portion.
     subroutine set_regs_from_buffer(regs)
         type(re_registers_type), intent(in) :: regs
@@ -143,7 +143,7 @@ contains
         last_search_in_string = .false.
     end subroutine set_regs_from_buffer
 
-    !> Make the match data from `regs`, offsets in STR.
+    !> Make the match data from `regs', offsets in STR.
     subroutine set_regs_from_string(regs, str)
         type(re_registers_type), intent(in) :: regs
         character(len=*), intent(in) :: str
@@ -213,7 +213,7 @@ contains
     idx = string_offset_to_index(string, val)
     end procedure string_match_1
 
-    !> Regexp search for `search_buffer`.  Port of
+    !> Regexp search for `search_buffer'.  Port of
     !> search.c:search_buffer_re.
     module procedure search_buffer_re
     type(re_subject_type) :: subj
@@ -286,7 +286,7 @@ contains
     if (.not. is_literal .and. index(newtext, "\") == 0) is_literal = .true.
     case_action = NOCHANGE
     if (.not. allocated(search_regs_start)) then
-        call set_error(status, FM_GENERIC_ERROR, "`replace-match' called before any match found")
+        call set_error(status, FM_GENERIC_ERROR, format_message("`replace_match' called before any match found"))
         return
     end if
     num_regs = size(search_regs_start)
@@ -388,7 +388,7 @@ contains
                     else if (c == iachar("?")) then
                         piece = "\?"
                     else
-                        call set_error(status, FM_GENERIC_ERROR, "Invalid use of `\' in replacement text")
+                        call set_error(status, FM_GENERIC_ERROR, format_message("Invalid use of `\' in replacement text"))
                         return
                     end if
                 end if
@@ -437,7 +437,7 @@ contains
                 else if (c == iachar("\")) then
                     piece = "\"
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid use of `\' in replacement text")
+                    call set_error(status, FM_GENERIC_ERROR, format_message("Invalid use of `\' in replacement text"))
                     return
                 end if
             end if
@@ -506,7 +506,7 @@ contains
         integer :: i
         change = newend - oldend
         do i = 0, size(search_regs_start) - 1
-            ! If the subgroup that `replace-match' is modifying encloses
+            ! If the subgroup that `replace_match' is modifying encloses
             ! the subgroup I, then its start position should stay
             ! unchanged.
             if (search_regs_start(i) <= oldstart) then

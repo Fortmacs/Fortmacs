@@ -22,7 +22,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> One global obarray, an open-addressing hash table of symbol ids.
-!> Symbols are never removed (upstream's `unintern` is not ported).
+!> Symbols are never removed (upstream's `unintern' is not ported).
 !> Names starting with ':' are keywords: constants whose value is
 !> themselves, as in lread.c:intern_sym.
 module lread_fm
@@ -45,7 +45,7 @@ module lread_fm
 
 contains
 
-    !> Hash of `name` (polynomial, kept below 2**31 so it cannot overflow).
+    !> Hash of `name' (polynomial, kept below 2**31 so it cannot overflow).
     pure integer(int64) function hash_name(name)
         character(len=*), intent(in) :: name
         integer :: k
@@ -55,7 +55,7 @@ contains
         end do
     end function hash_name
 
-    !> Slot where `name` is, or the empty slot where it would go.
+    !> Slot where `name' is, or the empty slot where it would go.
     integer(int64) function find_slot(name)
         character(len=*), intent(in) :: name
         integer(int64) :: mask, id
@@ -89,7 +89,7 @@ contains
         symbols(id)%val = make_symbol_ref(SYM_T)
     end subroutine init_obarray
 
-    !> Append a new symbol named `name` and index it.
+    !> Append a new symbol named `name' and index it.
     integer(int64) function add_symbol(name) result(id)
         character(len=*), intent(in) :: name
         type(symbol_type), allocatable :: grown(:)
@@ -127,12 +127,12 @@ contains
     end subroutine rehash
 
     !> Create nil and t if no symbol exists yet.  Anything that indexes
-    !> `symbols` without interning first must call this.
+    !> `symbols' without interning first must call this.
     subroutine ensure_obarray()
         if (.not. allocated(slots)) call init_obarray()
     end subroutine ensure_obarray
 
-    !> Id of the symbol named `name`, creating it if needed.
+    !> Id of the symbol named `name', creating it if needed.
     !> Port of lread.c:Fintern (initial obarray).
     integer(int64) function intern(name) result(id)
         character(len=*), intent(in) :: name
@@ -141,7 +141,7 @@ contains
         if (id == 0) id = add_symbol(name)
     end function intern
 
-    !> Id of the symbol named `name`, or 0 if there is none.
+    !> Id of the symbol named `name', or 0 if there is none.
     !> Port of lread.c:Fintern_soft.
     integer(int64) function intern_soft(name) result(id)
         character(len=*), intent(in) :: name
@@ -149,7 +149,7 @@ contains
         id = slots(find_slot(name))
     end function intern_soft
 
-    !> The symbol named `name` as a value (nil for "nil"); the Fortmacs
+    !> The symbol named `name' as a value (nil for "nil"); the Fortmacs
     !> spelling of 'name.  Interns it if needed.
     function sym(name) result(v)
         character(len=*), intent(in) :: name

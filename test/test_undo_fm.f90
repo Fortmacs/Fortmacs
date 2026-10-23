@@ -216,34 +216,34 @@ contains
         call exec([character(len=16) :: "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo"])
+        call exec([character(len=16) :: "backward_char", "undo"])
         call check(error, buffer_string(), "abcd")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo"])
         call check(error, buffer_string(), "abcde")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo", "undo"])
+        call exec([character(len=16) :: "backward_char", "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo-redo"])
+        call exec([character(len=16) :: "backward_char", "undo_redo"])
         call check(error, buffer_string(), "abcd")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo-redo", "undo-redo"])
+        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abcde")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo-only", "undo-only"])
+        call exec([character(len=16) :: "backward_char", "undo_only", "undo_only"])
         call check(error, buffer_string(), "a")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo-redo", "undo-redo"])
+        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward-char", "undo-redo", "undo-redo"])
+        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abcde")
         call kill_buffer(h, st)
     end subroutine test_simple_undo

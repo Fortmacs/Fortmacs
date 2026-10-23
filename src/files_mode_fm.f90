@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `normal-mode`, `set-auto-mode` and `auto-mode-alist`: a submodule
+!> `normal_mode', `set_auto_mode' and `auto_mode_alist': a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
     use data_fm, only: kill_all_local_variables
@@ -63,12 +63,12 @@ contains
     !> that exist so far.
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
-        call append_auto_mode("\.te?xt\'", "text-mode")
-        call append_auto_mode("\.article\'", "text-mode")
-        call append_auto_mode("\.letter\'", "text-mode")
-        call append_auto_mode("\`/tmp/Re", "text-mode")
-        call append_auto_mode("/Message[0-9]*\'", "text-mode")
-        call append_auto_mode("\`/tmp/fol/", "text-mode")
+        call append_auto_mode("\.te?xt\'", "text_mode")
+        call append_auto_mode("\.article\'", "text_mode")
+        call append_auto_mode("\.letter\'", "text_mode")
+        call append_auto_mode("\`/tmp/Re", "text_mode")
+        call append_auto_mode("/Message[0-9]*\'", "text_mode")
+        call append_auto_mode("\`/tmp/fol/", "text_mode")
     end subroutine init_auto_modes
 
     module procedure add_auto_mode
@@ -163,7 +163,7 @@ contains
     spec = strip(rest(1:j - 1))
     if (index(spec, ":") == 0) then
         ! Simple -*-MODE-*- case.
-        if (len(spec) > 0) mode = downcase(spec)//"-mode"
+        if (len(spec) > 0) mode = underscores(downcase(spec))//"_mode"
         return
     end if
     ! The first `mode:' entry: at the start or after [ \t;].
@@ -185,8 +185,20 @@ contains
     j = index(value, ";")
     if (j > 0) value = value(1:j - 1)
     value = strip(value)
-    if (len(value) > 0) mode = downcase(value)//"-mode"
+    if (len(value) > 0) mode = underscores(downcase(value))//"_mode"
     end procedure auto_mode_spec
+
+    !> S with hyphens turned into underscores: a mode named in a file, as
+    !> Emacs names it, as Fortmacs names it.
+    function underscores(s) result(t)
+        character(len=*), intent(in) :: s
+        character(len=:), allocatable :: t
+        integer :: i
+        t = s
+        do i = 1, len(t)
+            if (t(i:i) == "-") t(i:i) = "_"
+        end do
+    end function underscores
 
     !> Apply MODE.  Port of files.el:set-auto-mode-0.  Returns whether it
     !> was applied (or kept).

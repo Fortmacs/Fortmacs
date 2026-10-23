@@ -18,7 +18,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The configuration API.  A user's init.f90 is a module named
-!> `user_config` with a public subroutine `configure`, which runs once at
+!> `user_config' with a public subroutine `configure', which runs once at
 !> startup (where upstream loads the init file):
 !>
 !>     module user_config
@@ -33,9 +33,9 @@
 !>
 !>             tab_width = 4
 !>             make_backup_files = .false.
-!>             insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+!>             insert_date_stamp_command = command_type("insert_date_stamp", insert_date_stamp)
 !>             call insert_date_stamp_command%define()
-!>             call keymap_global_set("C-c d", "insert-date-stamp", status)
+!>             call keymap_global_set("C-c d", "insert_date_stamp", status)
 !>         end subroutine configure
 !>
 !>         subroutine insert_date_stamp(status)
@@ -48,20 +48,20 @@
 !>     end module user_config
 !>
 !> Settings are the variables below; assign them (that sets the default
-!> value; `call fill_column%set_local(60)` sets the current buffer's own
-!> value).  Commands are subroutines taking a `status_type`, defined as
-!> `command_type` objects: built-in ones are the components of
-!> `commands`, so that `commands%upcase_region%disabled = .false.`
-!> enables C-x C-u, and `call commands%yank%run(status)` runs one.  Keys
-!> are bound with `keymap_global_set`.  Modes are customized from
-!> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)`.  New modes
-!> are `major_mode_type` and `minor_mode_type` objects made known with
-!> their `define`.  A `configure` that fails (returns a
+!> value; `call fill_column%set_local(60)' sets the current buffer's own
+!> value).  Commands are subroutines taking a `status_type', defined as
+!> `command_type' objects: built-in ones are the components of
+!> `commands', so that `commands%upcase_region%disabled = .false.'
+!> enables C-x C-u, and `call commands%yank%run(status)' runs one.  Keys
+!> are bound with `keymap_global_set'.  Modes are customized from
+!> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)'.  New modes
+!> are `major_mode_type' and `minor_mode_type' objects made known with
+!> their `define'.  A `configure' that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
-!> `fortmacs -q` starts without running `configure`.
+!> `fortmacs -q' starts without running `configure'.
 !>
 !> This module only gathers names from the modules that define them, so
-!> the API stays one `use` away.
+!> the API stays one `use' away.
 module fortmacs
     use, intrinsic :: iso_fortran_env, only: int64
     ! Errors and values.
@@ -139,7 +139,7 @@ module fortmacs
     use files_fm, only: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions
     ! Settings.
     use xdisp_fm, only: tab_width
-    use files_fm, only: make_backup_files
+    use files_fm, only: make_backup_files, change_major_mode_with_file_name
     use simple_fm, only: line_move_visual, goal_column
     use subr_fm, only: history_length
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
@@ -239,7 +239,7 @@ module fortmacs
               JUSTIFY_T, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
     public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
-    public :: tab_width, make_backup_files, line_move_visual, goal_column, history_length, &
+    public :: tab_width, make_backup_files, change_major_mode_with_file_name, line_move_visual, goal_column, history_length, &
               enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
               inhibit_field_text_motion, visible_bell, transient_mark_mode, mark_even_if_inactive, kill_ring_max, &
               mark_ring_max, kill_whole_line_option, delete_active_region, kill_read_only_ok, case_fold_search, &

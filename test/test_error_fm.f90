@@ -19,6 +19,7 @@
 
 module test_error_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use error_fm, only: format_message
     use error_fm, only: condition_matches, error_message, error_name, fm_args_out_of_range, &
                         fm_arith_error, fm_buffer_read_only, fm_end_of_buffer, fm_generic_error, &
                         fm_ok, fm_overflow_error, fm_quit, fm_text_read_only, fm_user_error, &
@@ -68,11 +69,11 @@ contains
 
     subroutine test_names(error)
         type(error_type), allocatable, intent(out) :: error
-        call check(error, error_name(FM_ARGS_OUT_OF_RANGE), "args-out-of-range")
+        call check(error, error_name(FM_ARGS_OUT_OF_RANGE), "args_out_of_range")
         if (allocated(error)) return
         call check(error, error_message(FM_BUFFER_READ_ONLY), "Buffer is read-only")
         if (allocated(error)) return
-        call check(error, error_name(FM_TEXT_READ_ONLY), "text-read-only")
+        call check(error, error_name(FM_TEXT_READ_ONLY), "text_read_only")
         if (allocated(error)) return
         call check(error, error_message(FM_USER_ERROR), "")
         if (allocated(error)) return
@@ -120,6 +121,6 @@ contains
         call check(error, format_error(st), "Cyclic keymap inheritance")
         if (allocated(error)) return
         call set_error(st, FM_VOID_FUNCTION, "foo")
-        call check(error, format_error(st), "Symbol's function definition is void: foo")
+        call check(error, format_error(st), format_message("Symbol's function definition is void: foo"))
     end subroutine test_format
 end module test_error_fm

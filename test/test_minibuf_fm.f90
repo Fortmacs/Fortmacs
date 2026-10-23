@@ -878,15 +878,15 @@ contains
         call fresh_scratch()
         call insert("abc", st)
         call goto_char(1_int64)
-        call type_keys("M-x f o r w a r d - c TAB RET")
+        call type_keys("M-x f o r w a r d _ c TAB RET")
         call command_loop(st)
         call check(error, point() == 2, "ran forward-char")
         if (allocated(error)) return
         call check(error, last_message == "You can run the command "//char(226)//char(128)//char(152)// &
-                   "forward-char"//char(226)//char(128)//char(153)//" with C-f", last_message)
+                   "forward_char"//char(226)//char(128)//char(153)//" with C-f", last_message)
         if (allocated(error)) return
         ! A prefix argument goes to the command.
-        call type_keys("C-u 2 M-x f o r w a r d - c h a r RET")
+        call type_keys("C-u 2 M-x f o r w a r d _ c h a r RET")
         call command_loop(st)
         call check(error, point() == 4, "C-u 2")
         if (allocated(error)) return
@@ -917,7 +917,7 @@ contains
         call kill_buffer(buf, st)
         call fresh_scratch()
         call file_name_completion("al", dir, r, st)
-        call check(error, stringp(r) .and. xstring(r) == "alp", "file-name-completion")
+        call check(error, stringp(r) .and. xstring(r) == "alp", "file_name_completion")
         if (allocated(error)) return
         ! completion-ignored-extensions.
         call file_name_completion("be", dir, r, st)
@@ -928,7 +928,7 @@ contains
         if (allocated(error)) return
         ! The minibuffer table: the directory part stays.
         call try_completion(dir//"alpi", completion_function_table(read_file_name_internal), r, st)
-        call check(error, stringp(r) .and. xstring(r) == dir//"alpine/", "read-file-name-internal")
+        call check(error, stringp(r) .and. xstring(r) == dir//"alpine/", "read_file_name_internal")
         if (allocated(error)) return
         call check(error, test_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
                    "exists")

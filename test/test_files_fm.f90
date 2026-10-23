@@ -24,6 +24,7 @@ module test_files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use bindings_fm, only: init_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
+    use error_fm, only: format_message
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
     use handle_fm, only: handle_type
@@ -87,7 +88,8 @@ contains
                     new_unittest("save-buffers-kill-emacs", test_kill_emacs), &
                     new_unittest("command-line-files", test_command_line), &
                     new_unittest("files-tests-make-directory", test_make_directory), &
-                    new_unittest("require-final-newline", test_final_newline) &
+                    new_unittest("require-final-newline", test_final_newline), &
+                    new_unittest("write-file", test_write_file) &
                     ]
     end subroutine collect_files_fm
 
@@ -546,10 +548,18 @@ contains
             call check(error, point() == 7, "+2 put point on line 2")
             if (allocated(error)) exit body
             deallocate (args)
+            allocate (args(2))
+            args(1)%s = "+2:4"
+            args(2)%s = testdir//"/a.txt"
+            call command_line_1(args, st)
+            call check(error, point() == 10, "+2:4 put point on column 3 of line 2")
+            if (allocated(error)) exit body
+            deallocate (args)
             allocate (args(1))
             args(1)%s = "--bogus"
             call command_line_1(args, st)
-            call check(error, format_error(st) == "Unknown option `--bogus'", format_error(st))
+            call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
+                       format_error(st))
         end block body
         call kill_file_buffers()
         call find_file(path("-dashed"), st)
@@ -627,7 +637,7 @@ contains
         call delete_directory_internal(dir, st)
     end subroutine test_make_directory
 
-    !> basic-save-buffer adds a final newline as `require-final-newline'
+    !> basic-save-buffer adds a final newline as `require_final_newline'
     !> says (asking for other values than t and visit-save), visiting adds
     !> one for `visit', and saving into a missing directory asks to create
     !> it.
@@ -686,4 +696,43 @@ contains
         call delete_directory_internal(path("nl"), st)
         call kill_file_buffers()
     end subroutine test_final_newline
+
+    !> write-file: a directory name takes the buffer's name, the major
+    !> mode follows the new file name, and an executable file's new copy
+    !> is executable.
+    subroutine test_write_file(error)
+        use files_fm, only: write_file
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        body: block
+            call setup()
+            call get_buffer_create("ro", buf, st)
+            call set_buffer(buf, st)
+            call insert("text", st)
+            call write_file(path(""), .false., st)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call check(error, slurp(path("ro")) == "text", "file named after the buffer")
+            if (allocated(error)) exit body
+            call check(error, mode_name_of_current() == "fundamental_mode", "no mode for the name")
+            if (allocated(error)) exit body
+            call set_file_modes(path("ro"), int(o'755', int32), st)
+            call write_file(path("new"), .false., st)
+            call check(error, mode_name_of_current() == "fundamental_mode")
+            if (allocated(error)) exit body
+            call check(error, iand(file_modes(path("new")), int(o'111', int32)) == int(o'111', int32), "executable")
+            if (allocated(error)) exit body
+            call write_file(path("c.txt"), .false., st)
+            call check(error, buffers(cur)%major_mode == "text_mode", "mode from the new name")
+        end block body
+        call kill_file_buffers()
+    end subroutine test_write_file
+
+    !> The current buffer's `major_mode'.
+    function mode_name_of_current() result(mode)
+        character(len=:), allocatable :: mode
+        mode = "fundamental_mode"
+        if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
+    end function mode_name_of_current
 end module test_files_fm
