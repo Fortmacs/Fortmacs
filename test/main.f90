@@ -44,6 +44,7 @@ program tester
     use test_editfns_fm, only: collect_editfns_fm
     use test_cmds_fm, only: collect_cmds_fm
     use test_values_fm, only: collect_values_fm
+    use test_data_buffer_fm, only: collect_data_buffer_fm
     use test_textprop_fm, only: collect_textprop_fm
     use test_keymap_fm, only: collect_keymap_fm
     use test_keyboard_fm, only: collect_keyboard_fm
@@ -86,6 +87,7 @@ program tester
                  new_testsuite("editfns_fm", collect_editfns_fm), &
                  new_testsuite("cmds_fm", collect_cmds_fm), &
                  new_testsuite("values_fm", collect_values_fm), &
+                 new_testsuite("data_buffer_fm", collect_data_buffer_fm), &
                  new_testsuite("textprop_fm", collect_textprop_fm), &
                  new_testsuite("keymap_fm", collect_keymap_fm), &
                  new_testsuite("keyboard_fm", collect_keyboard_fm), &

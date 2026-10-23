@@ -44,6 +44,8 @@ contains
         ! Make this buffer not be displayed.
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         was_current = i == cur
+        ! Its local variables go with it: make it not current first.
+        if (was_current) call set_buffer_internal(0_int64)
         buffers(i)%last_name = buffers(i)%name
         call alist_remove(h)
         ! Unchain all markers of this buffer and leave them pointing nowhere.
@@ -62,15 +64,14 @@ contains
         if (allocated(buffers(i)%text%beg)) deallocate (buffers(i)%text%beg)
         buffers(i) = buffer_type()
         if (.not. was_current) return
-        cur = 0
         do k = alist_count, 1, -1
             if (buffers(alist(k)%index)%name(1:1) /= " ") then
-                cur = alist(k)%index
+                call set_buffer_internal(alist(k)%index)
                 return
             end if
         end do
         call get_buffer_create("*scratch*", other, status)
-        if (status%ok()) cur = other%index
+        if (status%ok()) call set_buffer_internal(other%index)
     end subroutine kill_buffer
 
     module subroutine erase_buffer(status)
