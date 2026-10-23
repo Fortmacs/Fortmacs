@@ -33,6 +33,7 @@ module commands_fm
     !> One component per built-in command.
     type :: command_table_type
         type(command_type) :: abort_minibuffers
+        type(command_type) :: abort_recursive_edit
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
@@ -149,6 +150,11 @@ module commands_fm
         type(command_type) :: minibuffer_complete_word
         type(command_type) :: minibuffer_completion_exit
         type(command_type) :: minibuffer_completion_help
+        type(command_type) :: minibuffer_recenter_top_bottom
+        type(command_type) :: minibuffer_scroll_down_command
+        type(command_type) :: minibuffer_scroll_up_command
+        type(command_type) :: move_beginning_of_line
+        type(command_type) :: move_end_of_line
         type(command_type) :: move_to_left_margin
         type(command_type) :: move_to_tab_stop
         type(command_type) :: move_to_window_line
@@ -157,6 +163,7 @@ module commands_fm
         type(command_type) :: newline
         type(command_type) :: next_history_element
         type(command_type) :: next_line
+        type(command_type) :: next_line_or_history_element
         type(command_type) :: normal_mode
         type(command_type) :: open_line
         type(command_type) :: other_window
@@ -165,6 +172,7 @@ module commands_fm
         type(command_type) :: posix_search_forward
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
+        type(command_type) :: previous_line_or_history_element
         type(command_type) :: prog_mode
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
@@ -206,6 +214,7 @@ module commands_fm
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
         type(command_type) :: turn_on_auto_fill
+        type(command_type) :: undefined
         type(command_type) :: undo
         type(command_type) :: undo_only
         type(command_type) :: undo_redo
@@ -218,6 +227,9 @@ module commands_fm
         type(command_type) :: upcase_word
         type(command_type) :: where_is
         type(command_type) :: write_file
+        type(command_type) :: y_or_n_p_insert_n
+        type(command_type) :: y_or_n_p_insert_other
+        type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
     end type command_table_type
@@ -226,8 +238,9 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(188) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(200) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
+                                                                 "abort_recursive_edit", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
@@ -344,6 +357,11 @@ module commands_fm
                                                                  "minibuffer_complete_word", &
                                                                  "minibuffer_completion_exit", &
                                                                  "minibuffer_completion_help", &
+                                                                 "minibuffer_recenter_top_bottom", &
+                                                                 "minibuffer_scroll_down_command", &
+                                                                 "minibuffer_scroll_up_command", &
+                                                                 "move_beginning_of_line", &
+                                                                 "move_end_of_line", &
                                                                  "move_to_left_margin", &
                                                                  "move_to_tab_stop", &
                                                                  "move_to_window_line", &
@@ -352,6 +370,7 @@ module commands_fm
                                                                  "newline", &
                                                                  "next_history_element", &
                                                                  "next_line", &
+                                                                 "next_line_or_history_element", &
                                                                  "normal_mode", &
                                                                  "open_line", &
                                                                  "other_window", &
@@ -360,6 +379,7 @@ module commands_fm
                                                                  "posix_search_forward", &
                                                                  "previous_history_element", &
                                                                  "previous_line", &
+                                                                 "previous_line_or_history_element", &
                                                                  "prog_mode", &
                                                                  "query_replace", &
                                                                  "query_replace_regexp", &
@@ -401,6 +421,7 @@ module commands_fm
                                                                  "transpose_words", &
                                                                  "turn_off_auto_fill", &
                                                                  "turn_on_auto_fill", &
+                                                                 "undefined", &
                                                                  "undo", &
                                                                  "undo_only", &
                                                                  "undo_redo", &
@@ -413,6 +434,9 @@ module commands_fm
                                                                  "upcase_word", &
                                                                  "where_is", &
                                                                  "write_file", &
+                                                                 "y_or_n_p_insert_n", &
+                                                                 "y_or_n_p_insert_other", &
+                                                                 "y_or_n_p_insert_y", &
                                                                  "yank", &
                                                                  "yank_pop"]
 
@@ -427,6 +451,8 @@ contains
         select case (name)
         case ("abort_minibuffers")
             p => commands%abort_minibuffers
+        case ("abort_recursive_edit")
+            p => commands%abort_recursive_edit
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("back_to_indentation")
@@ -659,6 +685,16 @@ contains
             p => commands%minibuffer_completion_exit
         case ("minibuffer_completion_help")
             p => commands%minibuffer_completion_help
+        case ("minibuffer_recenter_top_bottom")
+            p => commands%minibuffer_recenter_top_bottom
+        case ("minibuffer_scroll_down_command")
+            p => commands%minibuffer_scroll_down_command
+        case ("minibuffer_scroll_up_command")
+            p => commands%minibuffer_scroll_up_command
+        case ("move_beginning_of_line")
+            p => commands%move_beginning_of_line
+        case ("move_end_of_line")
+            p => commands%move_end_of_line
         case ("move_to_left_margin")
             p => commands%move_to_left_margin
         case ("move_to_tab_stop")
@@ -675,6 +711,8 @@ contains
             p => commands%next_history_element
         case ("next_line")
             p => commands%next_line
+        case ("next_line_or_history_element")
+            p => commands%next_line_or_history_element
         case ("normal_mode")
             p => commands%normal_mode
         case ("open_line")
@@ -691,6 +729,8 @@ contains
             p => commands%previous_history_element
         case ("previous_line")
             p => commands%previous_line
+        case ("previous_line_or_history_element")
+            p => commands%previous_line_or_history_element
         case ("prog_mode")
             p => commands%prog_mode
         case ("query_replace")
@@ -773,6 +813,8 @@ contains
             p => commands%turn_off_auto_fill
         case ("turn_on_auto_fill")
             p => commands%turn_on_auto_fill
+        case ("undefined")
+            p => commands%undefined
         case ("undo")
             p => commands%undo
         case ("undo_only")
@@ -797,6 +839,12 @@ contains
             p => commands%where_is
         case ("write_file")
             p => commands%write_file
+        case ("y_or_n_p_insert_n")
+            p => commands%y_or_n_p_insert_n
+        case ("y_or_n_p_insert_other")
+            p => commands%y_or_n_p_insert_other
+        case ("y_or_n_p_insert_y")
+            p => commands%y_or_n_p_insert_y
         case ("yank")
             p => commands%yank
         case ("yank_pop")

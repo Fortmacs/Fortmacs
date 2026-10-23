@@ -36,35 +36,43 @@ module minibuffer_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
-                         set_buffer_read_only, buffer_list
+                         set_buffer_read_only, buffer_list, vdeactivate_mark
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
                          free_keymap
     use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, list, list_elements, list_length, &
                        list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, symbol_value, set
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type, set_window_buffer, set_window_start
+    use window_fm, only: window_type, set_window_buffer, set_window_start, recenter_top_bottom, scroll_up_command, &
+                         scroll_down_command
+    use callint_fm, only: current_prefix_arg
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
-    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp
+    use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp, yes_or_no_p
     use dired_fm, only: file_name_completion, file_name_all_completions
     use lread_fm, only: sym
-    use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text
+    use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
+                           run_at_time, cancel_timer, minibuffer_message_timeout
     use minibuf_fm, only: minibufferp, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
+                          minibuffer_innermost_command_loop_p, innermost_minibuffer_p, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
                           completion_predicate, completion_function_table, try_completion, all_completions, &
                           test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
-                          COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table
+                          COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
+                          minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default, &
+                          minibuffer_string_type
     use fileio_fm, only: file_name_absolute_p, expand_file_name, substitute_in_file_name, file_name_directory, &
-                         file_name_nondirectory, file_exists_p
+                         file_name_nondirectory, file_exists_p, file_name_as_directory
+    use subr_fm, only: add_to_history, history_delete_duplicates
     use files_fm, only: abbreviate_file_name
     implicit none(type, external)
     private
 
     public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer, read_buffer
+    public :: internal_complete_buffer, minibuffer_maybe_quote_filename
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               minibuffer_complete, minibuffer_complete_word, minibuffer_complete_and_exit, &
               minibuffer_completion_help, minibuffer_hide_completions, minibuffer_message, &
@@ -149,18 +157,52 @@ module minibuffer_fm
     !> Port of minibuffer.el insert-default-directory.
     logical, public :: insert_default_directory = .true.
 
+    !> Non-nil means when reading a file name completion ignores case.
+    !> Port of minibuffer.el read-file-name-completion-ignore-case (nil on
+    !> GNU/Linux).
+    logical, public :: read_file_name_completion_ignore_case = .false.
+
+    !> What `read_file_name_setup' sets up: the minibuffer's directory and
+    !> the initial input (none unless `rfn_have_insdef').
+    character(len=:), allocatable :: rfn_dir, rfn_insdef
+    logical :: rfn_have_insdef = .false.
+
+    !> Non-nil means completion ignores case when reading a buffer name.
+    !> Port of minibuf.c read-buffer-completion-ignore-case.
+    logical, public :: read_buffer_completion_ignore_case = .false.
+
+    !> The buffer name internal-complete-buffer-except leaves out
+    !> (unallocated for none) and the predicate it combines with its own.
+    character(len=:), allocatable :: rbts_except
+    procedure(completion_predicate), pointer :: rbts_pred2 => null()
+
+    !> completing-read-default's minibuffer setup: the ambient
+    !> `completion_ignore_case', and the setup function of an enclosing
+    !> minibuffer-with-setup-hook, run after it.
+    logical :: crd_ignore_case = .false.
+    procedure(minibuffer_setup_proc), pointer :: crd_outer_setup => null()
+
 contains
 
-    !> Finish the minibuffer input (RET).  Port of
+    !> Terminate this minibuffer argument.  Port of
     !> minibuffer.el:exit-minibuffer.
     subroutine exit_minibuffer(status)
         type(status_type), intent(out) :: status
+        status = status_type()
         if (minibufferp()) then
-            if (command_loop_level /= minibuf_level) then
+            if (.not. minibuffer_innermost_command_loop_p()) then
                 call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
                 return
             end if
+            if (.not. innermost_minibuffer_p()) then
+                call set_error(status, FM_GENERIC_ERROR, "Not in most nested minibuffer")
+                return
+            end if
         end if
+        ! If the command that uses this has made modifications in the
+        ! minibuffer, we don't want them to cause deactivation of the mark
+        ! in the original buffer.
+        vdeactivate_mark = .false.
         call throw_exit(.false.)
     end subroutine exit_minibuffer
 
@@ -171,23 +213,64 @@ contains
         call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
     end subroutine delete_minibuffer_contents
 
-    !> Read a file name in the minibuffer, starting with directory `dir'
-    !> (default: default-directory) abbreviated as the input to edit.
-    !> Unchanged input gives `default_filename' (default: the buffer's
-    !> file); the result goes through substitute-in-file-name, so typing
-    !> "~/x" or "/x" after the directory means just that.  Port of
-    !> minibuffer.el:read-file-name-default (completion through
-    !> `read_file_name_internal'; MUSTMATCH is a REQUIRE_MATCH_ value; no
-    !> PREDICATE).
+    !> Read a file name, prompting with PROMPT and completing in directory DIR.
+    !> Return the file name as a string.
+    !> The return value is not expanded---you must call `expand_file_name'
+    !> yourself.
+    !>
+    !> DIR is the directory to use for completing relative file names.
+    !> It should be an absolute directory name, or absent (which means the
+    !> current buffer's value of `default_directory').
+    !>
+    !> DEFAULT-FILENAME specifies the default file name to return if the
+    !> user exits the minibuffer with the same non-empty string inserted
+    !> by this function.  If DEFAULT-FILENAME is absent, then if INITIAL
+    !> is present, the default is DIR combined with INITIAL; otherwise, if
+    !> the current buffer is visiting a file, that file serves as the
+    !> default; otherwise, the default is simply the string inserted into
+    !> the minibuffer.
+    !>
+    !> If the user exits with an empty minibuffer, return an empty
+    !> string.  (This happens only if the user erases the pre-inserted
+    !> contents, or if `insert_default_directory' is nil.)
+    !>
+    !> Fourth arg MUSTMATCH can take the following values:
+    !> - REQUIRE_MATCH_NIL means that the user can exit with any input.
+    !> - REQUIRE_MATCH_T means that the user is not allowed to exit unless
+    !>   the input is (or completes to) an existing file.
+    !> - REQUIRE_MATCH_CONFIRM means that the user can exit with any input,
+    !>   but she needs to confirm her choice if the input is not an
+    !>   existing file.
+    !> - REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION means that the user can
+    !>   exit with any input, but she needs to confirm her choice if she
+    !>   called `minibuffer_complete' right before
+    !>   `minibuffer_complete_and_exit' and the input is not an existing
+    !>   file.
+    !> - REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_T except that
+    !>   typing RET does not exit if it does non-null completion.
+    !>
+    !> Fifth arg INITIAL specifies text to start with.  It will be
+    !> interpreted as the trailing part of DEFAULT-FILENAME, so using a
+    !> full file name for INITIAL will usually lead to surprising
+    !> results.
+    !>
+    !> See also `read_file_name_completion_ignore_case'.  Port of
+    !> minibuffer.el:read-file-name-default (no PREDICATE, function
+    !> MUSTMATCH, list DEFAULT-FILENAME, file dialogs,
+    !> minibuffer-default-add-function, minibuffer-local-filename-syntax or
+    !> file-name-quote for names containing "/~": Deferred).
     recursive subroutine read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: dir, default_filename, initial
         integer, intent(in), optional :: mustmatch
-        character(len=:), allocatable :: d, default, insdef, val
-        logical :: have_default, saved_completing
-        integer :: match
+        character(len=:), allocatable :: d, default, insdef, val, val1, expanded
+        type(value_type) :: history
+        type(value_type), allocatable :: elems(:), kept(:)
+        type(status_type) :: st
+        logical :: have_default, have_insdef, saved_completing, used_default, replace_in_history, add_history
+        integer :: match, k, n
         if (present(dir)) then
             d = dir
         else if (allocated(buffers(cur)%directory)) then
@@ -207,35 +290,175 @@ contains
             have_default = allocated(buffers(cur)%filename)
             if (have_default) default = buffers(cur)%filename
         else if (len(initial) == 0) then
+            ! Special-case "" because (expand-file-name "" "/tmp/")
+            ! returns "/tmp" rather than "/tmp/" (bug#39057).
             default = d
         else
             call expand_file_name(initial, default, status, d)
             if (.not. status%ok()) return
         end if
+        ! If dir starts with user's homedir, change that to ~.
         d = abbreviate_file_name(d)
+        ! Likewise for default-filename.
         if (have_default) default = abbreviate_file_name(default)
-        insdef = ""
-        if (insert_default_directory) insdef = d
-        if (present(initial)) insdef = insdef//initial
+        if (insert_default_directory) then
+            if (present(initial)) then
+                insdef = minibuffer_maybe_quote_filename(d//initial)
+            else
+                insdef = minibuffer_maybe_quote_filename(d)
+            end if
+        else if (present(initial)) then
+            insdef = minibuffer_maybe_quote_filename(initial)
+        else
+            insdef = ""
+        end if
+        have_insdef = insert_default_directory .or. present(initial)
         match = REQUIRE_MATCH_NIL
         if (present(mustmatch)) match = mustmatch
+        ! The minibuffer's default-directory: DIR as a directory name.
+        call expand_file_name(d, expanded, status)
+        if (.not. status%ok()) return
+        rfn_dir = file_name_as_directory(expanded)
+        rfn_insdef = insdef
+        rfn_have_insdef = have_insdef
+        minibuffer_setup_function => read_file_name_setup
         saved_completing = minibuffer_completing_file_name
         minibuffer_completing_file_name = .true.
-        if (have_default) then
+        if (have_insdef .and. have_default) then
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
-                                 require_match=match, initial=insdef, history="file_name_history", default=default)
+                                 require_match=match, initial=insdef, history="file_name_history", &
+                                 default=default, used_default=used_default)
+        else if (have_insdef) then
+            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+                                 require_match=match, initial=insdef, history="file_name_history", &
+                                 used_default=used_default)
+        else if (have_default) then
+            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+                                 require_match=match, history="file_name_history", default=default, &
+                                 used_default=used_default)
         else
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
-                                 require_match=match, initial=insdef, history="file_name_history")
+                                 require_match=match, history="file_name_history", used_default=used_default)
         end if
         minibuffer_completing_file_name = saved_completing
+        minibuffer_setup_function => null()
         if (.not. status%ok()) return
-        ! completing-read: empty input gives the default.
-        if (len(val) == 0 .and. have_default) val = default
-        ! Unchanged input means the default file.
-        if (have_default .and. val == insdef .and. len(val) == len(insdef)) val = default
-        result = substitute_in_file_name(val)
+        ! What completing-read returned is the history's first element
+        ! (`eq') if read_from_minibuffer added it.
+        replace_in_history = history_added
+        add_history = .false.
+        ! If completing-read returned the inserted default string itself
+        ! (rather than a new string with the same contents), it has to
+        ! mean that the user typed RET with the minibuffer empty.  In that
+        ! case, we really want to return "" so that commands such as
+        ! set-visited-file-name can distinguish.
+        if (used_default) then
+            ! In this case, completing-read has not added an element to
+            ! the history.  Maybe we should.
+            if (.not. replace_in_history) add_history = .true.
+            val = ""
+        end if
+        if (have_default .and. have_insdef) then
+            if (val == insdef .and. len(val) == len(insdef)) val = default
+        end if
+        val = substitute_in_file_name(val)
+        if (replace_in_history) then
+            ! Replace what completing_read added to the history with what
+            ! we will actually return.  As an exception, if that's the
+            ! same as the second item in file-name-history, it's really a
+            ! repeat (Bug#4657).
+            val1 = minibuffer_maybe_quote_filename(val)
+            call symbol_value(sym("file_name_history"), history, st)
+            if (st%ok()) then
+                call list_elements(history, elems)
+                if (size(elems) > 0) then
+                    allocate (kept(size(elems)))
+                    kept(1) = elems(1)
+                    n = 1
+                    do k = 2, size(elems)
+                        if (history_delete_duplicates .and. string_equal(elems(k), val1)) cycle
+                        n = n + 1
+                        kept(n) = elems(k)
+                    end do
+                    if (n >= 2) then
+                        if (string_equal(kept(2), val1)) then
+                            call set(sym("file_name_history"), make_list(kept(2:n)), st)
+                        else
+                            kept(1) = make_string(val1)
+                            call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                        end if
+                    else
+                        kept(1) = make_string(val1)
+                        call set(sym("file_name_history"), make_list(kept(1:n)), st)
+                    end if
+                end if
+            end if
+        else if (add_history) then
+            call add_to_history("file_name_history", minibuffer_maybe_quote_filename(val))
+        end if
+        result = val
+    contains
+
+        logical function string_equal(v, s)
+            type(value_type), intent(in) :: v
+            character(len=*), intent(in) :: s
+            string_equal = stringp(v)
+            if (string_equal) string_equal = xstring(v) == s .and. len(xstring(v)) == len(s)
+        end function string_equal
     end subroutine read_file_name
+
+    !> The minibuffer-with-setup-hook function of `read_file_name': the
+    !> minibuffer's default-directory is the directory read in, a first
+    !> default equal to the initial input is dropped, and
+    !> `completion_ignore_case' is `read_file_name_completion_ignore_case'.
+    !> Part of minibuffer.el:read-file-name-default.
+    subroutine read_file_name_setup()
+        type(minibuffer_string_type), allocatable :: rest(:)
+        integer :: k
+        buffers(cur)%directory = rfn_dir
+        ! When the first default in `minibuffer-default' duplicates
+        ! initial input `insdef', reset `minibuffer-default' to nil.
+        if (allocated(minibuffer_default) .and. rfn_have_insdef) then
+            if (size(minibuffer_default) > 0) then
+                if (minibuffer_default(1)%s == rfn_insdef .and. len(minibuffer_default(1)%s) == len(rfn_insdef)) then
+                    ! (cdr-safe minibuffer-default)
+                    allocate (rest(size(minibuffer_default) - 1))
+                    do k = 2, size(minibuffer_default)
+                        rest(k - 1)%s = minibuffer_default(k)%s
+                    end do
+                    deallocate (minibuffer_default)
+                    if (size(rest) > 0) call move_alloc(rest, minibuffer_default)
+                end if
+            end if
+        end if
+        call completion_ignore_case%set_local(read_file_name_completion_ignore_case)
+    end subroutine read_file_name_setup
+
+    !> Protect FILENAME from `substitute_in_file_name', as needed.
+    !> Useful to give the user default values that won't be substituted.
+    !> Port of minibuffer.el:minibuffer-maybe-quote-filename (file-name-quote
+    !> for names with "/~" is not ported: they are only $-doubled).
+    function minibuffer_maybe_quote_filename(filename) result(quoted)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: quoted
+        quoted = double_dollars(filename)
+    end function minibuffer_maybe_quote_filename
+
+    !> Return STR with dollar signs doubled.  Port of
+    !> minibuffer.el:minibuffer--double-dollars.
+    pure function double_dollars(str) result(doubled)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable :: doubled
+        integer :: i
+        doubled = ""
+        do i = 1, len(str)
+            if (str(i:i) == "$") then
+                doubled = doubled//"$$"
+            else
+                doubled = doubled//str(i:i)
+            end if
+        end do
+    end function double_dollars
 
     !> Terminate this minibuffer argument.
     !> Port of minibuffer.el:exit-minibuffer.
@@ -245,10 +468,12 @@ contains
     end subroutine cmd_exit_minibuffer
 
     !> Abort the current minibuffer.
-    !> Port of minibuffer.el:abort-minibuffers (one minibuffer level).
+    !> If we are not currently in the innermost minibuffer, prompt the user to
+    !> confirm the aborting of the current minibuffer and all contained ones.
+    !> Port of minibuf.c:abort-minibuffers.
     subroutine cmd_abort_minibuffers(status)
         type(status_type), intent(out) :: status
-        call abort_minibuffers(status)
+        call abort_minibuffers(status, yes_or_no_p)
     end subroutine cmd_abort_minibuffers
 
     subroutine cmd_minibuffer_complete(status)
@@ -279,6 +504,59 @@ contains
         call exit_minibuffer(status)
     end subroutine cmd_minibuffer_completion_exit
 
+    !> Run `recenter_top_bottom' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-recenter-top-bottom.
+    subroutine cmd_minibuffer_recenter_top_bottom(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(1, status)
+    end subroutine cmd_minibuffer_recenter_top_bottom
+
+    !> Run `scroll_up_command' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-scroll-up-command (no shift
+    !> selection).
+    subroutine cmd_minibuffer_scroll_up_command(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(2, status)
+    end subroutine cmd_minibuffer_scroll_up_command
+
+    !> Run `scroll_down_command' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-scroll-down-command (no shift
+    !> selection).
+    subroutine cmd_minibuffer_scroll_down_command(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(3, status)
+    end subroutine cmd_minibuffer_scroll_down_command
+
+    !> Run command `which' (1 recenter-top-bottom, 2 scroll-up-command,
+    !> 3 scroll-down-command) with the prefix argument in the window that
+    !> was selected when the minibuffer was entered.  Port of
+    !> minibuffer.el:with-minibuffer-selected-window.
+    recursive subroutine with_minibuffer_selected_window(which, status)
+        integer, intent(in) :: which
+        type(status_type), intent(out) :: status
+        type(handle_type) :: mini
+        type(window_type), pointer :: sw
+        type(status_type) :: st
+        logical :: saved
+        status = status_type()
+        if (.not. selected_frame%minibuffer_selected .or. minibuf_level == 0) return
+        mini = current_buffer()
+        saved = selected_frame%minibuffer_selected
+        selected_frame%minibuffer_selected = .false.
+        sw => frame_selected_window_ref()
+        call set_buffer(sw%buffer, st)
+        select case (which)
+        case (1)
+            call recenter_top_bottom(current_prefix_arg, status)
+        case (2)
+            call scroll_up_command(current_prefix_arg, status)
+        case default
+            call scroll_down_command(current_prefix_arg, status)
+        end select
+        selected_frame%minibuffer_selected = saved
+        call set_buffer(mini, st)
+    end subroutine with_minibuffer_selected_window
+
     !> Register the commands, minibuffer.el's minibuffer-local-map keys, and
     !> the completion keymaps.
     subroutine syms_of_minibuffer()
@@ -290,6 +568,9 @@ contains
         commands%minibuffer_completion_help%run => cmd_minibuffer_completion_help
         commands%minibuffer_complete_and_exit%run => cmd_minibuffer_complete_and_exit
         commands%minibuffer_completion_exit%run => cmd_minibuffer_completion_exit
+        commands%minibuffer_recenter_top_bottom%run => cmd_minibuffer_recenter_top_bottom
+        commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
+        commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
         call bind(minibuffer_local_map, "C-g", "abort_minibuffers")
         call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
         call bind(minibuffer_local_map, "RET", "exit_minibuffer")
@@ -586,14 +867,18 @@ contains
 
     !> Temporarily display MESSAGE at the end of minibuffer text.
     !> This function is designed to be called from the minibuffer, i.e.,
-    !> when Emacs prompts the user for some input, and the user types into
-    !> the minibuffer.  If called when the current buffer is not the
-    !> minibuffer, this function just calls `message', and thus displays
-    !> MESSAGE in the echo-area.  When called from the minibuffer, this
-    !> function displays MESSAGE at the end of minibuffer text until the
-    !> next input event arrives.  It encloses MESSAGE in [...] if it is
-    !> not yet enclosed.  Port of minibuffer.el:minibuffer-message (no
-    !> timeout; the overlay is minibuffer_message_text).
+    !> when Emacs prompts the user for some input, and the user types
+    !> into the minibuffer.  If called when the current buffer is not
+    !> the minibuffer, this function just calls `message', and thus
+    !> displays MESSAGE in the echo-area.
+    !> When called from the minibuffer, this function displays MESSAGE
+    !> at the end of minibuffer text for `minibuffer_message_timeout'
+    !> seconds, or until the next input event arrives, whichever comes first.
+    !> It encloses MESSAGE in [...] if it is not yet enclosed.
+    !> The intent is to show the message without hiding what the user typed.
+    !> Port of minibuffer.el:minibuffer-message (no ARGS, text properties
+    !> or `minibuffer_message' property; the overlay is
+    !> minibuffer_message_text).
     subroutine minibuffer_message(msg)
         character(len=*), intent(in) :: msg
         integer :: k
@@ -603,18 +888,23 @@ contains
         end if
         ! Clear out any old echo-area message to make way for our new
         ! thing.
+        call delete_message_overlay()
         call message("")
+        minibuffer_message_text = " ["//msg//"]"
         k = verify(msg, " ")
         if (k > 0 .and. len(msg) >= 2) then
-            if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) then
-                minibuffer_message_text = msg
-                last_minibuffer_message = msg
-                return
-            end if
+            if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) minibuffer_message_text = msg
         end if
-        minibuffer_message_text = " ["//msg//"]"
         last_minibuffer_message = minibuffer_message_text
+        call run_at_time(int(minibuffer_message_timeout*1000, int32), delete_message_overlay)
     end subroutine minibuffer_message
+
+    !> Remove the text `minibuffer_message' shows.  Port of
+    !> minibuffer.el:minibuffer--delete-message-overlay.
+    subroutine delete_message_overlay()
+        if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
+        call cancel_timer()
+    end subroutine delete_message_overlay
 
     !> Port of minibuffer.el:completion--message.
     subroutine completion_message(msg)
@@ -929,7 +1219,7 @@ contains
         call buffer_substring(beg, end, string, status)
         ! See if we have a completion from the table.
         if (mb_test(string)) then
-            if (completion_ignore_case) then
+            if (completion_ignore_case%value) then
                 ! Fixup case of the field, if necessary.
                 call mb_try(string, compl, status)
                 if (stringp(compl)) then
@@ -1180,9 +1470,12 @@ contains
     !>  instead of that empty string; the prompt shows it.
     !> Optional third arg REQUIRE-MATCH has the same meaning as the
     !>  REQUIRE-MATCH argument of `completing_read'.
+    !> If `read_buffer_completion_ignore_case' is non-nil, completion ignores
+    !> case while reading the buffer name.
     !> The buffer `except' (if given) is left out of the completions, as
-    !> internal-complete-buffer-except does.  Port of minibuf.c:Fread_buffer
-    !> (with format-prompt; internal buffers are not offered).
+    !> internal-complete-buffer-except does (read-buffer-to-switch puts that
+    !> table in the minibuffer).  Port of minibuf.c:Fread_buffer (no
+    !> PREDICATE or read-buffer-function).
     recursive subroutine read_buffer(prompt, result, status, def, require_match, except)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
@@ -1190,46 +1483,167 @@ contains
         character(len=*), intent(in), optional :: def
         integer, intent(in), optional :: require_match
         type(handle_type), intent(in), optional :: except
-        type(handle_type), allocatable :: all(:)
-        type(value_type), allocatable :: names(:)
-        character(len=:), allocatable :: p
-        integer :: k, n, match
-        all = buffer_list()
-        allocate (names(size(all)))
-        n = 0
-        ! Most recently selected first.
-        do k = size(all), 1, -1
-            if (present(except)) then
-                if (all(k)%index == except%index .and. all(k)%generation == except%generation) cycle
-            end if
-            if (len(buffers(all(k)%index)%name) > 0) then
-                if (buffers(all(k)%index)%name(1:1) == " ") cycle
-            end if
-            n = n + 1
-            names(n) = make_string(buffers(all(k)%index)%name)
-        end do
+        type(completion_table_type) :: table
+        character(len=:), allocatable :: p, saved_except
+        logical :: saved_ignore_case, had_except
+        integer :: match
         match = REQUIRE_MATCH_NIL
         if (present(require_match)) match = require_match
+        had_except = allocated(rbts_except)
+        if (had_except) call move_alloc(rbts_except, saved_except)
+        table = completion_function_table(internal_complete_buffer)
+        if (present(except)) then
+            rbts_except = buffers(except%index)%name
+            table = completion_function_table(internal_complete_buffer_except)
+        end if
+        saved_ignore_case = completion_ignore_case%value
+        completion_ignore_case = read_buffer_completion_ignore_case
         p = prompt
         if (present(def)) then
-            if (len(def) > 0) then
-                ! Edit the default in before the colon (format-prompt with
-                ! minibuffer-default-prompt-format " (default %s)").
-                if (len(p) >= 2) then
-                    if (p(len(p) - 1:) == ": ") p = p(1:len(p) - 2)
+            ! A default value was provided: we must change PROMPT, editing
+            ! the default value in before the colon (format-prompt with
+            ! minibuffer-default-prompt-format " (default %s)").
+            if (len(p) >= 2) then
+                if (p(len(p) - 1:) == ": ") then
+                    p = p(1:len(p) - 2)
+                else if (p(len(p):) == ":" .or. p(len(p):) == " ") then
+                    p = p(1:len(p) - 1)
                 end if
-                if (len(p) >= 1) then
-                    if (p(len(p):) == ":" .or. p(len(p):) == " ") p = p(1:len(p) - 1)
-                end if
-                p = p//" (default "//def//"): "
+            else if (len(p) == 1) then
+                if (p == ":" .or. p == " ") p = ""
             end if
-            call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
-                                 require_match=match, history="buffer_name_history", default=def)
+            if (len(def) > 0) then
+                p = p//" (default "//def//"): "
+            else
+                p = p//": "
+            end if
+            call completing_read(p, table, result, status, require_match=match, history="buffer_name_history", &
+                                 default=def)
         else
-            call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
-                                 require_match=match, history="buffer_name_history")
+            call completing_read(p, table, result, status, require_match=match, history="buffer_name_history")
         end if
+        completion_ignore_case = saved_ignore_case
+        if (allocated(rbts_except)) deallocate (rbts_except)
+        if (had_except) call move_alloc(saved_except, rbts_except)
     end subroutine read_buffer
+
+    !> The names of all buffers, in the order of `buffer_list'
+    !> (Vbuffer_alist).
+    function buffer_names() result(names)
+        type(value_type) :: names
+        type(handle_type), allocatable :: all(:)
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+        all = buffer_list()
+        allocate (elts(size(all)))
+        ! Most recently selected first.
+        do k = 1, size(all)
+            elts(k) = make_string(buffers(all(size(all) + 1 - k)%index)%name)
+        end do
+        names = make_list(elts)
+    end function buffer_names
+
+    !> Perform completion on buffer names.
+    !> STRING and PREDICATE have the same meanings as in `try_completion',
+    !> `all_completions', and `test_completion'.
+    !>
+    !> If FLAG is COMPLETE_TRY, invoke `try_completion'; if it is
+    !> COMPLETE_ALL, invoke `all_completions'; otherwise invoke
+    !> `test_completion'.  Port of minibuf.c:Finternal_complete_buffer.
+    recursive subroutine internal_complete_buffer(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        type(completion_table_type) :: alist
+        type(value_type), allocatable :: res(:), bufs(:)
+        integer :: k, n, total
+        status = status_type()
+        result = nil()
+        alist = completion_list_table(buffer_names())
+        select case (action)
+        case (COMPLETE_TRY)
+            call try_completion(string, alist, result, status, pred)
+        case (COMPLETE_ALL)
+            call all_completions(string, alist, result, status, pred)
+            if (len(string) > 0) return
+            ! Strip out internal buffers.
+            call list_elements(result, res)
+            allocate (bufs(size(res)))
+            n = 0
+            do k = 1, size(res)
+                if (internal_name(res(k))) cycle
+                n = n + 1
+                bufs(n) = res(k)
+            end do
+            if (n == 0) then
+                ! If all bufs are internal don't strip them out.
+                total = int(list_length(buffer_names()))
+                if (size(res) /= total) result = nil()
+                return
+            end if
+            result = make_list(bufs(1:n))
+        case (COMPLETE_TEST)
+            if (test_completion(string, alist, pred)) result = t_value()
+        case default
+            continue
+        end select
+        if (present(suffix)) continue
+    contains
+
+        logical function internal_name(v)
+            type(value_type), intent(in) :: v
+            character(len=:), allocatable :: s
+            s = xstring(v)
+            internal_name = .false.
+            if (len(s) > 0) internal_name = s(1:1) == " "
+        end function internal_name
+    end subroutine internal_complete_buffer
+
+    !> Perform completion on all buffers excluding BUFFER (`rbts_except'):
+    !> internal-complete-buffer through completion-table-with-predicate
+    !> (not strict).  Port of
+    !> minibuffer.el:internal-complete-buffer-except.
+    recursive subroutine internal_complete_buffer_except(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        procedure(completion_predicate), pointer :: saved_pred2
+        status = status_type()
+        result = nil()
+        select case (action)
+        case (COMPLETE_TEST)
+            ! Ignore pred1 since it doesn't really have to apply anyway.
+            call internal_complete_buffer(string, action, result, status, pred)
+        case (COMPLETE_TRY, COMPLETE_ALL)
+            saved_pred2 => rbts_pred2
+            rbts_pred2 => null()
+            if (present(pred)) rbts_pred2 => pred
+            call internal_complete_buffer(string, action, result, status, not_except)
+            rbts_pred2 => saved_pred2
+            ! If completion failed and we're not applying pred1 strictly,
+            ! try again without pred1.
+            if (nilp(result)) call internal_complete_buffer(string, action, result, status, pred)
+        case default
+            if (present(suffix)) continue
+        end select
+    end subroutine internal_complete_buffer_except
+
+    !> internal-complete-buffer-except's predicate: the buffer is not
+    !> `rbts_except' (and PRED2 accepts it).
+    recursive logical function not_except(elt)
+        type(value_type), intent(in) :: elt
+        not_except = .true.
+        if (stringp(elt) .and. allocated(rbts_except)) then
+            not_except = .not. (xstring(elt) == rbts_except .and. len(xstring(elt)) == len(rbts_except))
+        end if
+        if (not_except .and. associated(rbts_pred2)) not_except = rbts_pred2(elt)
+    end function not_except
 
     !> Read a string in the minibuffer, with completion.
     !> PROMPT is a string to prompt with; normally it ends in a colon and
@@ -1260,7 +1674,7 @@ contains
     !> minibuf.c:Fcompleting_read with
     !> minibuffer.el:completing-read-default.
     recursive subroutine completing_read(prompt, collection, result, status, predicate, require_match, &
-                                         initial, history, default)
+                                         initial, history, default, used_default)
         character(len=*), intent(in) :: prompt
         type(completion_table_type), intent(in) :: collection
         character(len=:), allocatable, intent(out) :: result
@@ -1268,11 +1682,15 @@ contains
         procedure(completion_predicate), optional :: predicate
         integer, intent(in), optional :: require_match
         character(len=*), intent(in), optional :: initial, history, default
+        !> Whether the input was empty and the value is DEFAULT itself (as
+        !> `eq' tells upstream).
+        logical, intent(out), optional :: used_default
         type(completion_table_type) :: saved_table
         procedure(completion_predicate), pointer :: saved_pred
         type(handle_type) :: keymap
         integer :: saved_confirm, match
         logical :: saved_scroll
+        if (present(used_default)) used_default = .false.
         match = REQUIRE_MATCH_NIL
         if (present(require_match)) match = require_match
         if (match /= REQUIRE_MATCH_NIL) then
@@ -1293,33 +1711,52 @@ contains
         minibuffer_completion_confirm = match
         if (match == REQUIRE_MATCH_T) minibuffer_completion_confirm = REQUIRE_MATCH_NIL
         completions_scroll_window = .false.
+        ! (setq-local completion-ignore-case c-i-c) runs first, then the
+        ! functions of enclosing minibuffer-with-setup-hook forms.
+        crd_ignore_case = completion_ignore_case%value
+        crd_outer_setup => minibuffer_setup_function
+        minibuffer_setup_function => completing_read_setup
         if (present(history)) then
             call read_from_minibuffer(prompt, result, status, initial, keymap, history, default)
         else
             call read_from_minibuffer(prompt, result, status, initial, keymap, default=default)
         end if
+        minibuffer_setup_function => null()
         minibuffer_completion_table = saved_table
         minibuffer_completion_predicate => saved_pred
         minibuffer_completion_confirm = saved_confirm
         completions_scroll_window = saved_scroll
         if (.not. status%ok()) return
-        if (len(result) == 0 .and. present(default)) result = default
+        if (len(result) == 0 .and. present(default)) then
+            result = default
+            if (present(used_default)) used_default = .true.
+        end if
     end subroutine completing_read
 
-    !> Completion table for file names (`read_file_name_internal'):
-    !> completion-file-name-table on the input (no environment variables,
-    !> `substitute_in_file_name' quoting or ~USER completion).  Port of
-    !> minibuffer.el:completion-file-name-table.
-    recursive subroutine read_file_name_internal(string, action, result, status, pred, suffix)
+    !> completing-read-default's minibuffer-with-setup-hook function.
+    subroutine completing_read_setup()
+        procedure(minibuffer_setup_proc), pointer :: outer
+        call completion_ignore_case%set_local(crd_ignore_case)
+        outer => crd_outer_setup
+        crd_outer_setup => null()
+        if (associated(outer)) call outer()
+    end subroutine completing_read_setup
+
+    !> Completion table for file names.  Port of
+    !> minibuffer.el:completion-file-name-table (no ~USER completion or
+    !> file-name handlers).
+    recursive subroutine completion_file_name_table(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_predicate), optional :: pred
         character(len=*), intent(in), optional :: suffix
-        character(len=:), allocatable :: name, specdir, realdir, expanded
+        character(len=:), allocatable :: name, specdir, realdir, saved_dir
+        type(value_type), allocatable :: all(:), comp(:)
         type(status_type) :: st
-        integer :: slash
+        integer :: slash, k, n
+        logical :: had_dir
         status = status_type()
         result = nil()
         select case (action)
@@ -1327,20 +1764,17 @@ contains
             slash = 0
             if (present(suffix)) slash = index(suffix, "/")
             if (slash > 0) then
-                result = list(make_fixnum(schars(file_name_directory(string))), &
+                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), &
                               make_fixnum(schars(suffix(1:slash - 1))))
             else
-                result = list(make_fixnum(schars(file_name_directory(string))), nil())
+                result = list(make_fixnum(min(schars(file_name_directory(string)), schars(string))), nil())
             end if
         case (COMPLETE_TEST)
             if (len(string) == 0) return
             if (present(pred)) then
                 if (pred(make_string(string))) result = t_value()
             else
-                call expand_file_name(string, expanded, st)
-                if (st%ok()) then
-                    if (file_exists_p(expanded)) result = t_value()
-                end if
+                if (file_exists_p(string)) result = t_value()
             end if
         case default
             name = file_name_nondirectory(string)
@@ -1357,7 +1791,161 @@ contains
             else
                 call file_name_all_completions(name, realdir, result, st)
                 if (.not. st%ok()) result = nil()
+                ! Check the predicate, if necessary.
+                if (present(pred) .and. st%ok()) then
+                    call list_elements(result, all)
+                    allocate (comp(size(all)))
+                    n = 0
+                    had_dir = allocated(buffers(cur)%directory)
+                    if (had_dir) saved_dir = buffers(cur)%directory
+                    call expand_file_name(realdir, buffers(cur)%directory, st)
+                    do k = 1, size(all)
+                        if (.not. pred(all(k))) cycle
+                        n = n + 1
+                        comp(n) = all(k)
+                    end do
+                    if (had_dir) then
+                        buffers(cur)%directory = saved_dir
+                    else
+                        deallocate (buffers(cur)%directory)
+                    end if
+                    result = make_list(comp(1:n))
+                end if
             end if
+        end select
+    end subroutine completion_file_name_table
+
+    !> `substitute_in_file_name' on `filename', with any part before a
+    !> "/~" followed by a word character or `*' or `-' cut off first.
+    !> Port of minibuffer.el:completion--sifn-regardless-of-system-users.
+    function sifn_regardless_of_system_users(filename) result(name)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable :: name
+        integer :: k
+        character :: c
+        name = filename
+        k = 1
+        do while (k + 2 <= len(name))
+            if (name(k:k + 1) == "/~") then
+                c = name(k + 2:k + 2)
+                if ((c >= "a" .and. c <= "z") .or. (c >= "A" .and. c <= "Z") .or. (c >= "0" .and. c <= "9") &
+                    .or. c == "_" .or. c == "*" .or. c == "-" .or. iachar(c) >= 128) then
+                    name = name(k + 1:)
+                    k = 1
+                    cycle
+                end if
+            end if
+            k = k + 1
+        end do
+        name = substitute_in_file_name(name)
+    end function sifn_regardless_of_system_users
+
+    !> Return completion boundaries on file name STRING: the start in
+    !> STRING (`string_start'), and the end in SUFFIX (`bend', -1 for
+    !> nil).  Runs `substitute_in_file_name' on STRING first, but returns
+    !> completion boundaries for the original string.  Port of
+    !> minibuffer.el:completion--sifn-boundaries.
+    subroutine sifn_boundaries(string, suffix, string_start, bend, pred)
+        character(len=*), intent(in) :: string, suffix
+        integer(int64), intent(out) :: string_start, bend
+        procedure(completion_predicate), optional :: pred
+        character(len=:), allocatable :: sifned
+        type(value_type) :: bounds
+        type(status_type) :: st
+        ! We want to compute the start boundary on the result of
+        ! `substitute_in_file_name' (since that's what we use for actual
+        ! completion), and then transform that into an offset in STRING
+        ! instead.  We can't do this if we expand environment variables,
+        ! so double the $s to prevent that.
+        sifned = substitute_in_file_name(double_dollars(string))
+        call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, st, pred, suffix)
+        ! Adjust SIFNED-START to be an offset in STRING instead of in
+        ! SIFNED.
+        string_start = xfixnum(list_elt(bounds, 1_int64)) - schars(sifned) + schars(string)
+        bend = -1
+        if (fixnump(list_elt(bounds, 2_int64))) bend = xfixnum(list_elt(bounds, 2_int64))
+    end subroutine sifn_boundaries
+
+    !> Internal subroutine for `read_file_name'.  Do not call this.
+    !> This is a completion table for file names, like
+    !> `completion_file_name_table' except that it passes the file name
+    !> through `substitute_in_file_name'.  Port of
+    !> minibuffer.el:completion--file-name-table (read-file-name-internal;
+    !> completion--embedded-envvar-table, completing environment variable
+    !> names, is not ported).
+    recursive subroutine read_file_name_internal(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        character(len=:), allocatable :: sifned, orig_in_bounds, sifned_in_bounds, compl
+        type(value_type), allocatable :: elts(:)
+        type(value_type) :: bounds
+        integer(int64) :: orig_start, sifned_start, bend
+        logical :: only_need_double_dollars
+        integer :: k
+        status = status_type()
+        result = nil()
+        if (action == COMPLETE_BOUNDARIES) then
+            if (present(suffix)) then
+                call sifn_boundaries(string, suffix, orig_start, bend, pred)
+            else
+                call sifn_boundaries(string, "", orig_start, bend, pred)
+            end if
+            if (bend >= 0) then
+                result = list(make_fixnum(orig_start), make_fixnum(bend))
+            else
+                result = list(make_fixnum(orig_start), nil())
+            end if
+            return
+        end if
+        if (action == COMPLETE_TEST) then
+            sifned = substitute_in_file_name(string)
+        else
+            sifned = sifn_regardless_of_system_users(string)
+        end if
+        call sifn_boundaries(string, "", orig_start, bend, pred)
+        call completion_file_name_table(sifned, COMPLETE_BOUNDARIES, bounds, status, pred, "")
+        sifned_start = xfixnum(list_elt(bounds, 1_int64))
+        orig_in_bounds = substring(string, orig_start)
+        sifned_in_bounds = substring(sifned, sifned_start)
+        ! If true, sifn only un-doubled $s in ORIG, so we can fix a
+        ! completion to match ORIG by just doubling $s again.  This
+        ! preserves more text from the completion, behaving better with
+        ! non-nil `completion_ignore_case'.
+        only_need_double_dollars = orig_in_bounds == double_dollars(sifned_in_bounds) .and. &
+                                   len(orig_in_bounds) == len(double_dollars(sifned_in_bounds))
+        call completion_file_name_table(sifned, action, result, status, pred)
+        select case (action)
+        case (COMPLETE_TRY)
+            if (stringp(result)) then
+                if (only_need_double_dollars) then
+                    ! Extract the newly added text, quote any dollar signs,
+                    ! and append it to ORIG.
+                    result = make_string(substring(string, 0_int64, orig_start)// &
+                                         double_dollars(substring(xstring(result), sifned_start)))
+                else
+                    result = make_string(string//double_dollars(substring(xstring(result), schars(sifned))))
+                end if
+            end if
+        case (COMPLETE_ALL)
+            call list_elements(result, elts)
+            do k = 1, size(elts)
+                if (only_need_double_dollars) then
+                    elts(k) = make_string(double_dollars(xstring(elts(k))))
+                else
+                    ! Extract the newly added text, quote any dollar signs,
+                    ! and append it to the part of ORIG inside the
+                    ! completion boundaries.
+                    compl = xstring(elts(k))
+                    elts(k) = make_string(orig_in_bounds//double_dollars(substring(compl, schars(sifned_in_bounds))))
+                end if
+            end do
+            result = make_list(elts)
+        case default
+            continue
         end select
     end subroutine read_file_name_internal
 end module minibuffer_fm

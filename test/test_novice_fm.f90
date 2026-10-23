@@ -52,7 +52,8 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
                     new_unittest("disabled-command-answers", test_answers), &
-                    new_unittest("enable-and-disable-command", test_enable_disable) &
+                    new_unittest("enable-and-disable-command", test_enable_disable), &
+                    new_unittest("disabled-message", test_disabled_message) &
                     ]
     end subroutine collect_novice_fm
 
@@ -189,4 +190,31 @@ contains
         read (u) text
         close (u)
     end function read_text
+    !> A string `disabled' property disables the command too; y clears it.
+    subroutine test_disabled_message(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: saved
+        call enter(h)
+        commands%upcase_region%disabled = .false.
+        commands%upcase_region%disabled_message = "Not for you."
+        call run("C-x C-u n")
+        call check(error, buffer_string() == "abc", buffer_string())
+        if (allocated(error)) return
+        if (allocated(user_init_file)) saved = user_init_file
+        ! (No init file: y enables it for the session.)
+        user_init_file = ""
+        call run("C-x C-u y")
+        if (allocated(saved)) then
+            user_init_file = saved
+        else
+            deallocate (user_init_file)
+        end if
+        call check(error, buffer_string() == "ABC" .and. .not. allocated(commands%upcase_region%disabled_message), &
+                   buffer_string())
+        commands%upcase_region%disabled = .true.
+        call discard_input()
+        call kill_buffer(h, st)
+    end subroutine test_disabled_message
 end module test_novice_fm

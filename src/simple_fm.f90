@@ -27,44 +27,52 @@
 !> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
 !> kill ring are here too.
 !>
-!> Not ported yet: undo in a region, the global mark ring, shift-selection, the
-!> interprogram (system clipboard) cut and paste, `yank_from_kill_ring',
-!> electric indentation, auto-fill and hard newlines, prefix-argument
-!> echoing, octal input in quoted-insert.
+!> Not ported yet: undo in a region (undo-make-selective-list), temporary
+!> Transient Mark mode ((only . OLD) and lambda), the global mark ring,
+!> shift-selection, the interprogram (system clipboard) cut and paste,
+!> `yank_from_kill_ring' (read-from-kill-ring needs completion metadata,
+!> history positions and display properties), the timer of the M-x key
+!> binding suggestion, electric indentation, hard newlines and
+!> prefix-argument echoing.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
-                        FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY
+                        FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting
-    use character_fm, only: MAX_CHAR
+    use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
+    use casetab_fm, only: downcase
+    use buffer_fm, only: resolve_buffer
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
                          inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
     use xdisp_fm, only: message
-    use subr_fm, only: add_to_history
+    use frame_fm, only: selected_frame, selected_window_ref
+    use window_fm, only: window_type, window_start, window_body_lines, recenter
+    use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                           bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
-                          delete_region, mark_marker, mark_position, region_beginning, region_end
+                          delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
     use textprop_fm, only: get_text_property
-    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column
+    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
-    use lisp_fm, only: list_length, xstring, stringp
+    use lisp_fm, only: list_length, xstring, stringp, symbolp, xsymbol, symbols, make_keymap_ref
+    use editfns_fm, only: insert_char_n
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
-                          minibuffer_default, minibuffer_text_before_history, &
+                          minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
-                         key_description, where_is_internal
+                         key_description, where_is_internal, lookup_key, command_remapping
     use minibuf_fm, only: completion_obarray_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use lread_fm, only: intern_soft
@@ -77,12 +85,15 @@ module simple_fm
     use fns_fm, only: value_equal
     use eval_fm, only: hook_type
     use insdel_fm, only: insert_before_markers
-    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region
-    use cmds_fm, only: forward_char
+    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region, char_after, pos_bol, &
+                          inhibit_field_text_motion
+    use minibuf_fm, only: minibufferp
+    use cmds_fm, only: forward_char, kill_forward_chars_hook
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
-                           set_transient_map, last_message, disabled_command_hook
+                           set_transient_map, last_message, disabled_command_hook, &
+                           local_function_key_map, unread_command_events
     implicit none(type, external)
     private
 
@@ -90,10 +101,11 @@ module simple_fm
     public :: fundamental_mode, special_mode, syms_of_simple_modes
 
     !> Non-nil means show the equivalent keybinding when M-x has one.
-    !> (A length of time is not supported: the suggestion shows until the
-    !> next command.)  Port of simple.el suggest-key-bindings.
+    !> (A length of time is not supported, nor the timer: the suggestion
+    !> shows at once if the echo area is empty, until the next command.)  Port of simple.el suggest-key-bindings.
     logical, public :: suggest_key_bindings = .true.
 
+    public :: read_quoted_char, ascii_character
     public :: newline, open_line, delete_backward_char, &
               prefix_command_preserve_state, universal_argument_map, &
               syms_of_simple, goto_history_element, line_move, next_line, previous_line
@@ -103,6 +115,11 @@ module simple_fm
     !> undone (a list position); -1 (t) if we undid all the way to the end
     !> of it.  Port of simple.el pending-undo-list.
     integer(int64), public :: pending_undo_list = 0
+    !> Radix for \[quoted_insert] and other uses of `read_quoted_char'.
+    !> Supported radix values are 8, 10 and 16.  Port of simple.el
+    !> read-quoted-char-radix.
+    integer(int64), public :: read_quoted_char_radix = 8
+
     !> If t, `undo' doesn't go through redo entries.  Port of simple.el
     !> undo-no-redo.
     logical, public :: undo_no_redo = .false.
@@ -118,6 +135,10 @@ module simple_fm
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
               forward_visible_line
     public :: backward_word, kill_word, backward_kill_word, mark_word
+    public :: indicate_copied_region, region_indistinguishable_p, predicate_proc
+    ! (Public because gfortran drops private parent procedures that only a
+    ! submodule uses.)
+    public :: shows_current_buffer, pos_visible_in_window_p
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
               delete_all_space, just_one_space, cycle_spacing, transpose_chars, transpose_words, &
@@ -201,6 +222,12 @@ module simple_fm
     !> simple.el inhibit-auto-fill.
     logical, public :: inhibit_auto_fill = .false.
 
+    !> The value of the last call of `auto_fill_function' (the Lisp return
+    !> value): true when it really did any work.  An auto-fill function
+    !> sets it, as `do_auto_fill' does; `internal_auto_fill' clears it
+    !> before the call.
+    logical, public :: auto_fill_result = .false.
+
     !> The function to use for `auto_fill_function' if Auto Fill mode is turned on.
     !> Some major modes set this.  Port of simple.el
     !> normal-auto-fill-function (null is `do_auto_fill').
@@ -245,10 +272,13 @@ module simple_fm
         end subroutine default_indent_new_line
 
         !> The function called by `self_insert_command' to perform auto-filling.
-        !> Port of simple.el:internal-auto-fill.  (In simple_fill_fm.)
-        module subroutine internal_auto_fill(status)
+        !> `filled' is its value: what `auto_fill_function' returned.
+        !> Port of simple.el:internal-auto-fill (no comments).  (In
+        !> simple_fill_fm.)
+        module subroutine internal_auto_fill(status, filled)
             implicit none(type, external)
             type(status_type), intent(out) :: status
+            logical, intent(out) :: filled
         end subroutine internal_auto_fill
 
         !> Toggle automatic line breaking (Auto Fill mode).
@@ -295,6 +325,50 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine set_fill_column
 
+        !> Insert a newline, and move to left margin of the new line.
+        !> With prefix argument ARG, insert that many newlines.
+        !>
+        !> If `auto_fill_mode' is enabled, this may cause automatic line
+        !> breaking of the preceding line.  A non-nil ARG inhibits this.
+        !>
+        !> ARG absent is nil (one newline).  Port of simple.el:newline
+        !> (electric indentation, `use_hard_newlines' and
+        !> `post_self_insert_hook' are not ported).  (In simple_fill_fm,
+        !> for `page_delimiter'.)
+        module subroutine newline(status, arg)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: arg
+        end subroutine newline
+
+        !> Insert a newline and leave point before it.
+        !> If there is a fill prefix and/or a `left_margin', insert them on
+        !> the new line if the line would have been blank.
+        !> With arg N, insert N newlines.  Port of simple.el:open-line (no
+        !> abbrevs).  (In simple_fill_fm.)
+        module subroutine open_line(n, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: n
+            type(status_type), intent(out) :: status
+        end subroutine open_line
+
+        !> Indicate that the region text has been copied interactively.
+        !> If the mark is visible in the selected window, blink the cursor between
+        !> point and mark if there is currently no active region highlighting.
+        !> The option `copy_region_blink_delay' can disable blinking.
+        !>
+        !> If the mark lies outside the selected window, display an
+        !> informative message containing a sample of the copied text.  The
+        !> optional argument MESSAGE_LEN, if non-nil, specifies the length
+        !> of this sample text; it defaults to 40.  Port of
+        !> simple.el:indicate-copied-region (a quit during the blink does
+        !> not deactivate the mark; the mark counts as not visible when the
+        !> selected window shows another buffer).  (In simple_kill_fm.)
+        module subroutine indicate_copied_region(message_len)
+            implicit none(type, external)
+            integer(int64), intent(in), optional :: message_len
+        end subroutine indicate_copied_region
+
         !> Register the fill commands of simple.el.  (In simple_fill_fm.)
         module subroutine syms_of_simple_fill()
             implicit none(type, external)
@@ -334,6 +408,27 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine transpose_mover
     end interface
+
+    abstract interface
+        !> A predicate of no arguments.
+        logical function predicate_proc()
+            implicit none(type, external)
+        end function predicate_proc
+    end interface
+
+    !> Time in seconds to delay after showing the other end of the region.
+    !> It's used by the command `kill_ring_save' and the function
+    !> `indicate_copied_region' to blink the cursor between point and mark.
+    !> The value 0 disables blinking.  Port of simple.el
+    !> copy-region-blink-delay.
+    real, public :: copy_region_blink_delay = 1.0
+
+    !> Whether the cursor must be blinked after a copy.
+    !> When this condition holds, and the copied region fits in the
+    !> current window, `kill_ring_save' will blink the cursor between
+    !> point and mark for `copy_region_blink_delay' seconds.  Port of
+    !> simple.el copy-region-blink-predicate.
+    procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => region_indistinguishable_p
 
     !> Maximum length of kill ring before oldest elements are thrown away.
     !> Port of simple.el kill-ring-max.
@@ -385,40 +480,24 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
-    !> Insert `n' newlines.  Port of simple.el:newline (no margins,
-    !> electric indentation, auto-fill or hard newlines).
-    subroutine newline(n, status)
+    !> Delete `n' characters before point; KILLFLAG true means kill
+    !> instead.  Port of simple.el:delete-backward-char (no region or
+    !> untabify).
+    subroutine delete_backward_char(n, status, killflag)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        call barf_if_buffer_read_only(status)
-        if (.not. status%ok()) return
-        if (n < 0) then
-            call set_error(status, FM_GENERIC_ERROR, &
-                           "Repetition argument has to be non-negative")
-            return
-        end if
-        call self_insert_command(n, 10_int64, status)
-    end subroutine newline
-
-    !> Insert `n' newlines, leaving point before them.  Port of
-    !> simple.el:open-line (no fill prefix or left margin).
-    subroutine open_line(n, status)
-        integer(int64), intent(in) :: n
-        type(status_type), intent(out) :: status
-        integer(int64) :: loc
-        loc = point()
-        call newline(n, status)
-        if (.not. status%ok()) return
-        call goto_char(loc)
-    end subroutine open_line
-
-    !> Delete `n' characters before point.  Port of
-    !> simple.el:delete-backward-char (no region, untabify or kill).
-    subroutine delete_backward_char(n, status)
-        integer(int64), intent(in) :: n
-        type(status_type), intent(out) :: status
-        call delete_char(-n, status)
+        logical, intent(in), optional :: killflag
+        call delete_char(-n, status, killflag)
     end subroutine delete_backward_char
+
+    !> Kill `arg' characters after point (before, if negative).  Port of
+    !> simple.el:kill-forward-chars (the internal subroutine of
+    !> `delete_char').
+    subroutine kill_forward_chars(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call kill_region(point(), point() + arg, status)
+    end subroutine kill_forward_chars
 
     !> Pass the prefix-argument state on to the next command, which keeps
     !> `last_command' too.  Port of simple.el:prefix-command-preserve-state
@@ -471,19 +550,31 @@ contains
 
     !> Insert a newline, and move to left margin of the new line.
     !> With prefix argument ARG, insert that many newlines.
-    !> Port of simple.el:newline (the command; electric indentation, auto-fill
+    !>
+    !> If `auto_fill_mode' is enabled, this may cause automatic line
+    !> breaking of the preceding line.  A non-nil ARG inhibits this.
+    !> Port of simple.el:newline (the command, "*P"; electric indentation
     !> and hard newlines are not ported).
     subroutine cmd_newline(status)
         type(status_type), intent(out) :: status
-        call newline(arg_p(), status)
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        if (nilp(current_prefix_arg)) then
+            call newline(status)
+        else
+            call newline(status, arg_p())
+        end if
     end subroutine cmd_newline
 
     !> Insert a newline and leave point before it.
-    !> With arg N, insert N newlines.  Port of simple.el:open-line (no fill
-    !> prefix or left margin).
+    !> If there is a fill prefix and/or a `left_margin', insert them on
+    !> the new line if the line would have been blank.
+    !> With arg N, insert N newlines.  Port of simple.el:open-line (the
+    !> command, "*p").
     subroutine cmd_open_line(status)
         type(status_type), intent(out) :: status
-        call open_line(arg_p(), status)
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call open_line(arg_p(), status)
     end subroutine cmd_open_line
 
     !> Delete the previous N characters (following if N is negative).
@@ -501,11 +592,8 @@ contains
         n = arg_p()
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
-        else if (.not. nilp(current_prefix_arg)) then
-            ! cmds.c:Fdelete_char's KILLFLAG: simple.el:kill-backward-chars.
-            call kill_region(point(), point() - n, status)
         else
-            call delete_backward_char(n, status)
+            call delete_backward_char(n, status,.not. nilp(current_prefix_arg))
         end if
     end subroutine cmd_delete_backward_char
 
@@ -534,11 +622,8 @@ contains
         n = arg_p()
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
-        else if (.not. nilp(current_prefix_arg)) then
-            ! simple.el:kill-forward-chars.
-            call kill_region(point(), point() + n, status)
         else
-            call delete_char(n, status)
+            call delete_char(n, status,.not. nilp(current_prefix_arg))
         end if
     end subroutine cmd_delete_forward_char
 
@@ -551,27 +636,170 @@ contains
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
 
+    !> Like `read_char', but do not allow quitting.
+    !> Also, if the first character read is an octal digit,
+    !> we read any number of octal digits and return the
+    !> specified character code.  Any nondigit terminates the sequence.
+    !> If the terminator is RET, it is discarded;
+    !> any other terminator is used itself as input.
+    !>
+    !> The variable `read_quoted_char_radix' controls which radix to use
+    !> for numeric input.  Port of simple.el:read-quoted-char (no PROMPT
+    !> or help form; at the end of input `code' is what was read so far).
+    subroutine read_quoted_char(code, status)
+        integer(int64), intent(out) :: code
+        type(status_type), intent(out) :: status
+        type(value_type) :: ev, translation, key(1)
+        type(status_type) :: st
+        logical :: have, done, first
+        integer(int64) :: translated, digits, lower
+        done = .false.
+        first = .true.
+        code = 0
+        digits = min(10_int64, read_quoted_char_radix)
+        do while (.not. done)
+            call read_event(ev, have, status)
+            if (.not. status%ok() .or. .not. have) return
+            ! Only the first event is read with inhibit-quit.
+            if (.not. first .and. fixnump(ev)) then
+                if (xfixnum(ev) == 7) then
+                    call set_error(status, FM_QUIT)
+                    return
+                end if
+            end if
+            ! Translate TAB key into control-I ASCII character, and so on.
+            translation = nil()
+            if (keymap_live_p(local_function_key_map)) then
+                key(1) = ev
+                call lookup_key(make_keymap_ref(local_function_key_map), key, translation, st)
+            end if
+            translated = -1
+            if (consp(translation)) then
+                if (fixnump(list_elt(translation, 1_int64))) translated = xfixnum(list_elt(translation, 1_int64))
+            else if (fixnump(ev)) then
+                translated = xfixnum(ev)
+            end if
+            if (translated >= 0) translated = char_resolve_modifier_mask(int(translated, int32))
+            if (translated < 0) then
+                call unread_command_events([ev])
+                done = .true.
+            else if (iand(translated, int(CHAR_META, int64)) /= 0) then
+                ! Turn a meta-character into a character with the 0200 bit set.
+                code = ior(iand(translated, not(int(CHAR_META, int64))), 128_int64)
+                done = .true.
+            else if (iachar("0") <= translated .and. translated < iachar("0") + digits) then
+                code = code*read_quoted_char_radix + (translated - iachar("0"))
+            else if (downcase_in_radix(translated, lower)) then
+                code = code*read_quoted_char_radix + (10 + (lower - iachar("a")))
+            else if (.not. first .and. translated == 13) then
+                done = .true.
+            else if (.not. first) then
+                call unread_command_events([ev])
+                done = .true.
+            else
+                code = translated
+                done = .true.
+            end if
+            first = .false.
+        end do
+    contains
+        ! (downcase translated) is a digit letter of the radix.
+        logical function downcase_in_radix(c, lc)
+            integer(int64), intent(in) :: c
+            integer(int64), intent(out) :: lc
+            lc = c
+            if (c <= MAX_CHAR) lc = downcase(int(c, int32))
+            downcase_in_radix = iachar("a") <= lc .and. lc < iachar("a") - 10 + min(36_int64, read_quoted_char_radix)
+        end function downcase_in_radix
+    end subroutine read_quoted_char
+
     !> Read next input character and insert it.
     !> This is useful for inserting control characters.
-    !> With argument, insert ARG copies of the character.  Port of
-    !> simple.el:quoted-insert (without read-quoted-char's octal codes).
+    !> With argument, insert ARG copies of the character.
+    !>
+    !> If the first character you type is an octal digit, the sequence of
+    !> one or more octal digits you type is interpreted to specify a
+    !> character code.  Any character that is not an octal digit terminates
+    !> the sequence.  If the terminator is a RET, it is discarded; any
+    !> other terminator is used itself as input and is inserted.
+    !>
+    !> The variable `read_quoted_char_radix' specifies the radix for this feature;
+    !> set it to 10 or 16 to use decimal or hex instead of octal.  If you change
+    !> the radix, the characters interpreted as specifying a character code
+    !> change accordingly: 0 to 9 for decimal, 0 to F for hex.  Port of
+    !> simple.el:quoted-insert (overwrite mode is not ported).
     subroutine cmd_quoted_insert(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: ev, key(1)
-        logical :: have
-        integer(int64) :: c
-        call read_event(ev, have, status)
-        if (.not. status%ok() .or. .not. have) return
-        c = -1
-        if (fixnump(ev)) c = xfixnum(ev)
+        type(value_type) :: key(1)
+        integer(int64) :: c, arg
+        ! "*p": barf first.
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        arg = arg_p()
+        call read_quoted_char(c, status)
+        if (.not. status%ok()) return
         if (c < 0 .or. c > MAX_CHAR) then
-            key(1) = ev
+            key(1) = make_fixnum(c)
             call set_error(status, FM_USER_ERROR, key_description(key)// &
                            " is not a valid character")
             return
         end if
-        call self_insert_command(max(arg_p(), 0_int64), c, status)
+        do while (arg > 0)
+            call insert_char_n(int(c, int32), 1_int64, status)
+            if (.not. status%ok()) return
+            arg = arg - 1
+        end do
     end subroutine cmd_quoted_insert
+
+    !> The `ascii_character' property of function-key symbol EVENT: the
+    !> character a keypad or other key with a character equivalent stands
+    !> for, or -1 (nil).  The properties bindings.el and simple.el's
+    !> keypad support give.
+    integer(int64) function ascii_character(event) result(c)
+        type(value_type), intent(in) :: event
+        character(len=:), allocatable :: name
+        c = -1
+        if (.not. symbolp(event)) return
+        name = symbols(xsymbol(event))%name
+        if (len(name) == 4) then
+            if (name(1:3) == "kp-" .and. verify(name(4:4), "0123456789") == 0) then
+                c = iachar(name(4:4))
+                return
+            end if
+        end if
+        select case (name)
+        case ("kp-decimal")
+            c = iachar(".")
+        case ("kp-add")
+            c = iachar("+")
+        case ("kp-subtract")
+            c = iachar("-")
+        case ("kp-multiply")
+            c = iachar("*")
+        case ("kp-divide")
+            c = iachar("/")
+        case ("kp-space")
+            c = iachar(" ")
+        case ("kp-tab", "tab")
+            c = 9
+        case ("kp-enter", "return")
+            c = 13
+        case ("kp-separator")
+            c = iachar(",")
+        case ("kp-equal")
+            c = iachar("=")
+        case ("backspace", "delete")
+            c = 127
+        case ("linefeed")
+            c = 10
+        case ("clear")
+            c = 12
+        case ("escape")
+            c = 27
+        case default
+            c = -1
+        end select
+    end function ascii_character
 
     !> Begin a numeric argument for the following command.
     !> Digits or minus sign following \[universal_argument] make up the numeric argument.
@@ -629,17 +857,24 @@ contains
 
     !> Part of the numeric argument for the next command.
     !> \[universal_argument] following digits or minus sign ends the argument.
-    !> Port of simple.el:digit-argument (character events; keypad digits
-    !> need the `ascii_character' property, not ported).
+    !> Port of simple.el:digit-argument.
     subroutine cmd_digit_argument(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
-        integer(int64) :: digit
+        integer(int64) :: digit, char
         status = status_type()
-        if (.not. fixnump(last_command_event)) return
         arg = current_prefix_arg
         call prefix_command_preserve_state()
-        digit = iand(xfixnum(last_command_event), 127_int64) - iachar("0")
+        if (fixnump(last_command_event)) then
+            char = xfixnum(last_command_event)
+        else
+            char = ascii_character(last_command_event)
+            if (char < 0) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integer_or_marker_p")
+                return
+            end if
+        end if
+        digit = iand(char, 127_int64) - iachar("0")
         if (fixnump(arg)) then
             if (xfixnum(arg) < 0) then
                 prefix_arg = make_fixnum(xfixnum(arg)*10 - digit)
@@ -684,31 +919,34 @@ contains
 
     !> Move `arg' lines down (up if negative), keeping the goal column; by
     !> screen lines unless a goal column is set or line-move-visual is
-    !> off.  With `noerror', stopping early is not an error.  Port of
+    !> off.  With `noerror', stopping early is not an error.  `moved' is
+    !> the function's value: whether all `arg' lines were moved.  Port of
     !> simple.el:line-move (no vscroll, which terminals don't have).
-    subroutine line_move(arg, status, noerror)
+    subroutine line_move(arg, status, noerror, moved)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
-        logical :: quiet
+        logical, intent(out), optional :: moved
+        logical :: quiet, ok
         quiet = .false.
         if (present(noerror)) quiet = noerror
         if (line_move_visual .and. goal_column < 0) then
-            call line_move_visual_1(arg, quiet, status)
+            call line_move_visual_1(arg, quiet, status, ok)
         else
-            call line_move_1(arg, quiet, status)
+            call line_move_1(arg, quiet, status, ok)
         end if
+        if (present(moved)) moved = ok
     end subroutine line_move
 
     !> Port of simple.el:line-move-visual: keep the cursor's screen x.
-    subroutine line_move_visual_1(arg, noerror, status)
+    subroutine line_move_visual_1(arg, noerror, status, ok)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: noerror
         type(status_type), intent(out) :: status
+        logical, intent(out) :: ok
         integer(int64) :: opoint, moved
-        logical :: ok
         opoint = point()
-        if (.not. (tgc_visual .and. after_line_move())) then
+        if (.not. (tgc_visual .and. (after_line_move() .or. value_eq(last_command, this_command)))) then
             temporary_goal_column = screen_column()
             tgc_visual = .true.
         end if
@@ -733,12 +971,12 @@ contains
 
     !> Port of simple.el:line-move-1: move by buffer lines to the goal
     !> column (no invisible text or selective display yet).
-    subroutine line_move_1(arg, noerror, status)
+    subroutine line_move_1(arg, noerror, status, done)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: noerror
         type(status_type), intent(out) :: status
+        logical, intent(out) :: done
         integer(int64) :: opoint, n, shortage, npoint, column
-        logical :: done
         opoint = point()
         if (tgc_visual) then
             ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
@@ -897,6 +1135,124 @@ contains
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_previous_line
 
+    !> Move point to end of current line as displayed.
+    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !>
+    !> To ignore the effects of the `intangible' text or overlay
+    !> property, bind `inhibit_point_motion_hooks' to t.
+    !> If there is an image in the current line, this function
+    !> disregards newlines that are part of the text on which the image
+    !> rests.  Port of simple.el:move-end-of-line (invisible text is
+    !> deferred with the rest of invisibility).
+    subroutine move_end_of_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: n, newpos, opoint, saved_goal
+        integer(int32) :: c
+        logical :: done, moved, saved_visual, saved_inhibit, found
+        type(status_type) :: st
+        status = status_type()
+        n = arg
+        done = .false.
+        do while (.not. done)
+            ! (save-excursion (let ((goal-column 0) (line-move-visual nil)
+            ! (inhibit-field-text-motion (minibufferp))) ...))
+            opoint = point()
+            saved_goal = goal_column
+            saved_visual = line_move_visual
+            saved_inhibit = inhibit_field_text_motion
+            goal_column = 0
+            line_move_visual = .false.
+            inhibit_field_text_motion = minibufferp()
+            call line_move(n, st, noerror=.true., moved=moved)
+            if (moved) then
+                ! With bidi reordering, we may not be at bol, so make sure
+                ! we are.
+                call goto_char(pos_bol())
+                if (.not. bobp()) call goto_char(point() - 1)
+            end if
+            newpos = point()
+            goal_column = saved_goal
+            line_move_visual = saved_visual
+            inhibit_field_text_motion = saved_inhibit
+            call goto_char(opoint)
+            call goto_char(newpos)
+            done = .true.
+            if (point() > newpos) then
+                call char_before(c, found)
+                if (found .and. c == 10) then
+                    call goto_char(point() - 1)
+                else if (.not. eobp()) then
+                    call char_after(c, found)
+                    if (c /= 10) then
+                        ! If we skipped something intangible and now we're
+                        ! not really at eol, keep going.
+                        n = 1
+                        done = .false.
+                    end if
+                end if
+            end if
+        end do
+    end subroutine move_end_of_line
+
+    !> Move point to visible beginning of current logical line.
+    !> This disregards any invisible newline characters.
+    !>
+    !> When moving from position that has no `field' property, this
+    !> command doesn't enter text which has non-nil `field' property.
+    !> In particular, when invoked in the minibuffer, the command will
+    !> stop short of entering the text of the minibuffer prompt.
+    !> See `inhibit_field_text_motion' for how to inhibit this.
+    !>
+    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !> (But if the buffer doesn't end in a newline, it stops at the
+    !> beginning of the last line.)
+    !>
+    !> To ignore intangibility, bind `inhibit_point_motion_hooks' to t.
+    !> For motion by visual lines, see `beginning_of_visual_line'.  Port
+    !> of simple.el:move-beginning-of-line (invisible text is deferred
+    !> with the rest of invisibility).
+    subroutine move_beginning_of_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: orig, first_vis, first_vis_field_value
+        logical :: saved_visual
+        type(status_type) :: st
+        status = status_type()
+        orig = point()
+        ! Move by lines, if ARG is not 1 (the default).
+        if (arg /= 1) then
+            saved_visual = line_move_visual
+            line_move_visual = .false.
+            call line_move(arg - 1, st, noerror=.true.)
+            line_move_visual = saved_visual
+        end if
+        ! Move to beginning-of-line, ignoring fields.
+        call goto_char(pos_bol())
+        first_vis = point()
+        ! See if fields would stop us from reaching FIRST-VIS.
+        first_vis_field_value = constrain_to_field(first_vis, orig, arg /= 1, .true.)
+        if (first_vis_field_value /= first_vis) then
+            ! If yes, obey them.
+            call goto_char(first_vis_field_value)
+        else
+            ! Otherwise, move to START with attention to fields.
+            call goto_char(constrain_to_field(point(), orig, arg /= 1, .true.))
+        end if
+    end subroutine move_beginning_of_line
+
+    subroutine cmd_move_end_of_line(status)
+        type(status_type), intent(out) :: status
+        call move_end_of_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_move_end_of_line
+
+    subroutine cmd_move_beginning_of_line(status)
+        type(status_type), intent(out) :: status
+        call move_beginning_of_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_move_beginning_of_line
+
     ! ------------------------------------------------------------------
     ! Minibuffer history
     ! ------------------------------------------------------------------
@@ -912,27 +1268,32 @@ contains
         if (.not. status%ok()) history = nil()
     end function history_value
 
-    !> Put history element `nabs' in the minibuffer: 0 is the input typed
-    !> before moving into the history, N > 0 the Nth previous input, -1
-    !> the default ("future history").  Point stays where it was unless it
-    !> was at the end or in the prompt.  Port of
-    !> simple.el:goto-history-element (one default; no
-    !> minibuffer-default-add-function or history-sexp flag).
+    !> Insert into the minibuffer the element of minibuffer history specified by NABS.
+    !> It specifies the absolute history position in descending order,
+    !> where 0 means the current element and a positive number N means
+    !> the Nth previous element.  NABS that is a negative number -N means
+    !> the Nth entry of "future history."  Port of
+    !> simple.el:goto-history-element (no minibuffer-default-add-function
+    !> or history-sexp flag).
     subroutine goto_history_element(nabs, status)
         integer, intent(in) :: nabs
         type(status_type), intent(out) :: status
         type(value_type) :: history, elt
         character(len=:), allocatable :: text
-        integer(int64) :: goal, pend
-        integer :: minimum
-        minimum = 0
-        if (allocated(minibuffer_default)) minimum = -1
+        integer(int64) :: pend
+        integer :: minimum, ndefaults
+        logical :: have_default
+        status = status_type()
+        ndefaults = 0
+        if (allocated(minibuffer_default)) ndefaults = size(minibuffer_default)
+        have_default = ndefaults > 0
+        minimum = -ndefaults
         history = history_value()
         if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
             minibuffer_text_before_history = minibuffer_contents()
         end if
         if (nabs < minimum) then
-            if (allocated(minibuffer_default)) then
+            if (have_default) then
                 call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
             else
                 call set_error(status, FM_USER_ERROR, "End of history; no default available")
@@ -943,19 +1304,23 @@ contains
             call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
             return
         end if
-        ! minibuffer-temporary-goal-position
-        pend = minibuffer_prompt_end()
-        goal = -1
-        if (point() <= pend) then
-            goal = pend
-        else if (point() /= point_max()) then
-            goal = point()
+        if (.not. (value_eq(last_command, sym("next_history_element")) .or. &
+                   value_eq(last_command, sym("previous_history_element")))) then
+            pend = minibuffer_prompt_end()
+            if (point() <= pend) then
+                minibuffer_temporary_goal_position = pend
+            else if (eobp()) then
+                minibuffer_temporary_goal_position = 0
+            else
+                minibuffer_temporary_goal_position = point()
+            end if
         end if
-        call del_range(pend, buffers(cur)%zv, status)
+        call goto_char(point_max())
+        call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
         if (.not. status%ok()) return
         minibuffer_history_position = nabs
         if (nabs < 0) then
-            text = minibuffer_default
+            text = minibuffer_default(-nabs)%s
         else if (nabs == 0) then
             text = ""
             if (allocated(minibuffer_text_before_history)) then
@@ -967,8 +1332,8 @@ contains
             if (stringp(elt)) text = xstring(elt)
         end if
         call insert(text, status)
-        if (goal >= 0) then
-            call goto_char(goal)
+        if (minibuffer_temporary_goal_position > 0) then
+            call goto_char(minibuffer_temporary_goal_position)
         else
             call goto_char(point_max())
         end if
@@ -995,6 +1360,172 @@ contains
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
+
+    !> The column of the end of the minibuffer prompt that ends at
+    !> `prompt_end' (the column of its last character).
+    integer(int64) function prompt_column(prompt_end) result(column)
+        integer(int64), intent(in) :: prompt_end
+        integer(int64) :: opoint
+        opoint = point()
+        call goto_char(prompt_end - 1)
+        column = current_column()
+        call goto_char(opoint)
+    end function prompt_column
+
+    !> Move cursor vertically down ARG lines, or to the next history element.
+    !> When point moves over the bottom line of multi-line minibuffer, puts ARGth
+    !> next element of the minibuffer history in the minibuffer.
+    !> Port of simple.el:next-line-or-history-element (no shift selection).
+    subroutine next_line_or_history_element(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: old_point, prompt_end, old_column, reached
+        logical :: have_column
+        old_point = point()
+        ! Remember the original goal column of possibly multi-line input
+        ! excluding the length of the prompt on the first line.
+        prompt_end = minibuffer_prompt_end()
+        have_column = .not. (eolp() .and. point() > prompt_end)
+        old_column = 0
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                old_column = max(current_column() - prompt_column(prompt_end), 0_int64)
+            else
+                old_column = current_column()
+            end if
+        end if
+        call next_line(arg, status)
+        if (status%code /= FM_END_OF_BUFFER) return
+        ! Restore old position since `line_move_visual' moves point to the
+        ! end of the line when it fails to go to the next line.
+        call goto_char(old_point)
+        if (arg /= 0) then
+            call goto_history_element(minibuffer_history_position - int(arg), status)
+            if (.not. status%ok()) return
+        else
+            status = status_type()
+        end if
+        ! Reset `temporary_goal_column' because a correct value is not
+        ! calculated when `next_line' above fails by bumping against the
+        ! bottom of the minibuffer (bug#22544).
+        temporary_goal_column = 0
+        ! Restore the original goal column on the last line of possibly
+        ! multi-line input.
+        call goto_char(point_max())
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                call move_to_column(old_column + prompt_column(minibuffer_prompt_end()), reached)
+            else
+                call move_to_column(old_column, reached)
+            end if
+        end if
+    end subroutine next_line_or_history_element
+
+    !> Move cursor vertically up ARG lines, or to the previous history element.
+    !> When point moves over the top line of multi-line minibuffer, puts ARGth
+    !> previous element of the minibuffer history in the minibuffer.
+    !> Port of simple.el:previous-line-or-history-element (no shift
+    !> selection).
+    subroutine previous_line_or_history_element(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: old_point, prompt_end, old_column, reached, line_end, moved
+        logical :: have_column, to_history
+        old_point = point()
+        ! Remember the original goal column of possibly multi-line input
+        ! excluding the length of the prompt on the first line.
+        prompt_end = minibuffer_prompt_end()
+        have_column = .not. (eolp() .and. point() > prompt_end)
+        old_column = 0
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                old_column = max(current_column() - prompt_column(prompt_end), 1_int64)
+            else
+                old_column = current_column()
+            end if
+        end if
+        call previous_line(arg, status)
+        to_history = status%code == FM_BEGINNING_OF_BUFFER
+        if (.not. status%ok() .and. .not. to_history) return
+        if (status%ok()) then
+            ! Avoid moving point to the prompt.
+            if (point() < minibuffer_prompt_end()) then
+                ! If there is minibuffer contents on the same line
+                line_end = visual_line_end()
+                if (minibuffer_prompt_end() < line_end) then
+                    ! Move to the beginning of minibuffer contents
+                    call goto_char(minibuffer_prompt_end())
+                else
+                    ! Otherwise, go to the previous history element
+                    to_history = .true.
+                end if
+            end if
+        end if
+        if (.not. to_history) return
+        ! Restore old position since `line_move_visual' moves point to the
+        ! beginning of the line when it fails to go to the previous line.
+        call goto_char(old_point)
+        if (arg /= 0) then
+            call goto_history_element(minibuffer_history_position + int(arg), status)
+            if (.not. status%ok()) return
+        else
+            status = status_type()
+        end if
+        ! Reset `temporary_goal_column' because a correct value is not
+        ! calculated when `previous_line' above fails by bumping against
+        ! the top of the minibuffer (bug#22544).
+        temporary_goal_column = 0
+        ! Restore the original goal column on the first line of possibly
+        ! multi-line input.
+        call goto_char(minibuffer_prompt_end())
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                call move_to_column(old_column + prompt_column(minibuffer_prompt_end()), reached)
+            else
+                call move_to_column(old_column, reached)
+            end if
+        else if (.not. line_move_visual) then
+            ! Handle logical lines (bug#42862)
+            call end_of_line()
+        else
+            ! Put the cursor at the end of the visual line instead of the
+            ! logical line, so the next `previous_line_or_history_element'
+            ! would move to the previous history element, not to a
+            ! possible upper visual line from the end of logical line in
+            ! `line_move_visual' mode.
+            call vertical_motion(0_int64, moved, window_text_width())
+            ! Since `end_of_visual_line' puts the cursor at the beginning
+            ! of the next visual line, move it one char back to the end of
+            ! the first visual line (bug#22544).
+            if (.not. eolp()) call backward_char(status)
+            status = status_type()
+        end if
+    contains
+
+        ! Where (end-of-line), or with line-move-visual
+        ! (end-of-visual-line), would move point; point doesn't move.
+        integer(int64) function visual_line_end() result(pos)
+            integer(int64) :: opoint, moved
+            opoint = point()
+            if (.not. line_move_visual) then
+                call end_of_line()
+            else
+                call vertical_motion(0_int64, moved, window_text_width())
+            end if
+            pos = point()
+            call goto_char(opoint)
+        end function visual_line_end
+    end subroutine previous_line_or_history_element
+
+    subroutine cmd_next_line_or_history_element(status)
+        type(status_type), intent(out) :: status
+        call next_line_or_history_element(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_line_or_history_element
+
+    subroutine cmd_previous_line_or_history_element(status)
+        type(status_type), intent(out) :: status
+        call previous_line_or_history_element(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_line_or_history_element
 
     ! ------------------------------------------------------------------
     ! M-x
@@ -1047,7 +1578,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: command_name
         character(len=:), allocatable :: name
-        type(value_type) :: function, binding
+        type(value_type) :: function, binding, remapped
         type(value_type), allocatable :: keys(:)
         integer(int64) :: id
         logical :: handled
@@ -1068,6 +1599,13 @@ contains
         end if
         binding = nil()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
+        ! If we're executing a command that's remapped, we can't actually
+        ! execute that command with the keymapping we've found with
+        ! `where_is_internal'.
+        if (.not. nilp(binding)) then
+            call command_remapping(function, remapped)
+            if (.not. nilp(remapped)) binding = nil()
+        end if
         this_command = function
         ! Normally `real_this_command' should never be changed, but here we
         ! really want to pretend that M-x <cmd> RET is nothing more than a
@@ -1105,13 +1643,18 @@ contains
     end subroutine cmd_execute_extended_command
 
     subroutine syms_of_simple()
+        call defvar_nil("kill_ring")
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command
         commands%next_line%run => cmd_next_line
+        commands%move_beginning_of_line%run => cmd_move_beginning_of_line
+        commands%move_end_of_line%run => cmd_move_end_of_line
         commands%previous_line%run => cmd_previous_line
         commands%previous_history_element%run => cmd_previous_history_element
         commands%next_history_element%run => cmd_next_history_element
+        commands%next_line_or_history_element%run => cmd_next_line_or_history_element
+        commands%previous_line_or_history_element%run => cmd_previous_line_or_history_element
         commands%newline%run => cmd_newline
         commands%open_line%run => cmd_open_line
         commands%delete_backward_char%run => cmd_delete_backward_char
@@ -1156,6 +1699,7 @@ contains
         commands%back_to_indentation%run => cmd_back_to_indentation
         commands%beginning_of_buffer%run => cmd_beginning_of_buffer
         commands%end_of_buffer%run => cmd_end_of_buffer
+        kill_forward_chars_hook => kill_forward_chars
         call syms_of_simple_fill()
         call syms_of_simple_modes()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
@@ -1387,7 +1931,8 @@ contains
         else
             call set_equiv(list, pending_undo_list)
         end if
-        if (minibuf_level == 0) call message(msg)
+        ! No message when the selected window is the minibuffer window.
+        if (.not. selected_frame%minibuffer_selected) call message(msg)
     end subroutine undo
 
     !> Remove from the newest change group the point entry (and the later
@@ -1834,9 +2379,8 @@ contains
             if (status%ok()) call region_end(e, status)
             if (.not. status%ok()) return
         end if
-        call buffer_substring(min(s, e), max(s, e), string, status)
-        if (.not. status%ok()) return
-        call delete_region(min(s, e), max(s, e), status)
+        ! (filter-buffer-substring beg end 'delete)
+        call delete_and_extract_region(s, e, string, status)
         if (status%ok()) then
             if (value_eq(last_command, sym("kill_region"))) then
                 call kill_append(string, end < beg)
@@ -2073,12 +2617,12 @@ contains
         saved = inhibit_read_only()
         call set(sym("inhibit_read_only"), t_value(), st)
         call delete_region(min(here, m), max(here, m), status)
+        if (status%ok()) then
+            call set_marker_here()
+            call current_kill(n, text, status)
+        end if
+        if (status%ok()) call insert_for_yank(text, status)
         call set(sym("inhibit_read_only"), saved, st)
-        if (.not. status%ok()) return
-        call set_marker_here()
-        call current_kill(n, text, status)
-        if (.not. status%ok()) return
-        call insert_for_yank(text, status)
         if (.not. status%ok()) return
         if (before) then
             m = mark_position()
@@ -2167,12 +2711,33 @@ contains
     end subroutine cmd_copy_region_as_kill
 
     !> Save the region as if killed, but don't kill it.
-    !> In Transient Mark mode, deactivate the mark.  Port of
-    !> simple.el:kill-ring-save (no indicate-copied-region yet).
+    !> In Transient Mark mode, deactivate the mark.
+    !>
+    !> This command is similar to `copy_region_as_kill', except that it gives
+    !> visual feedback indicating the extent of the region being copied.
+    !> Port of simple.el:kill-ring-save (the command).
     subroutine cmd_kill_ring_save(status)
         type(status_type), intent(out) :: status
         call cmd_copy_region_as_kill(status)
+        if (status%ok()) call indicate_copied_region()
     end subroutine cmd_kill_ring_save
+
+    !> Whether the current region is not denoted visually.
+    !> This holds when the region is inactive, or when the `region' face
+    !> cannot be distinguished from the `default' face (on a terminal it
+    !> always can).  Port of simple.el:region-indistinguishable-p.
+    logical function region_indistinguishable_p()
+        region_indistinguishable_p = .not. region_active_p()
+    end function region_indistinguishable_p
+
+    !> Whether `w' shows the current buffer.
+    logical function shows_current_buffer(w)
+        type(window_type), intent(in) :: w
+        type(status_type) :: st
+        integer(int64) :: bi
+        call resolve_buffer(w%buffer, bi, st)
+        shows_current_buffer = st%ok() .and. bi == cur
+    end function shows_current_buffer
 
     subroutine cmd_kill_line(status)
         type(status_type), intent(out) :: status
@@ -2737,7 +3302,7 @@ contains
             arg = forward_line(n)
             call char_before(c, found)
             if (.not. found .or. c /= 10) arg = arg + 1
-            if (arg > 0) call newline(arg, status)
+            if (arg > 0) call newline(status, arg)
         else
             arg = forward_line(n)
         end if
@@ -2764,8 +3329,8 @@ contains
             ! save-excursion
             call point_marker(saved)
             call aux(1_int64, pos1)
+            if (status%ok()) call mark(m, status)
             if (status%ok()) then
-                m = mark_position()
                 if (m == 0) then
                     call set_error(status, FM_GENERIC_ERROR, "No mark set in this buffer")
                 else
@@ -2978,11 +3543,13 @@ contains
     !> Push mark at previous position, unless either a C-u prefix
     !> is supplied, or Transient Mark mode is enabled and the mark is
     !> active.  ARG is the raw prefix argument.  Port of
-    !> simple.el:end-of-buffer (redisplay scrolls the end into view; no
-    !> special recentering).
+    !> simple.el:end-of-buffer (`scroll_minibuffer_conservatively' is t,
+    !> its default: not yet a variable).
     subroutine end_of_buffer(arg)
         type(value_type), intent(in) :: arg
         integer(int64) :: size
+        type(window_type), pointer :: w
+        type(status_type) :: st
         if (.not. consp(arg) .and. .not. region_active_p()) call push_mark()
         size = point_max() - point_min()
         if (.not. nilp(arg) .and. .not. consp(arg)) then
@@ -2990,10 +3557,48 @@ contains
             ! If we went to a place in the middle of the buffer, adjust it
             ! to the beginning of a line.
             if (forward_line(1_int64) /= 0) continue
-        else
-            call goto_char(point_max())
+            return
+        end if
+        call goto_char(point_max())
+        w => selected_window_ref()
+        if (.not. shows_current_buffer(w)) return
+        if (point() > window_end_updated(w)) then
+            ! If the end of the buffer is not already on the screen, then
+            ! scroll specially to put it near, but not at, the bottom.
+            if (w%mini) then
+                call recenter(make_fixnum(-1_int64), .false., st)
+            else
+                call recenter(make_fixnum(-3_int64), .false., st)
+            end if
         end if
     end subroutine end_of_buffer
+
+    !> The position after the end of the text `w' (showing the current
+    !> buffer) displays from its start: the start of the first line below
+    !> its last screen line.  Port of window.c:Fwindow_end with UPDATE
+    !> non-nil (line-based, as on a text terminal).
+    integer(int64) function window_end_updated(w) result(pos)
+        type(window_type), intent(in) :: w
+        integer(int64) :: opoint, moved
+        opoint = point()
+        call goto_char(max(point_min(), min(window_start(w), point_max())))
+        call vertical_motion(int(window_body_lines(w), int64), moved)
+        pos = point()
+        call goto_char(opoint)
+    end function window_end_updated
+
+    !> Whether position `pos' is displayed in `w' (showing the current
+    !> buffer), counting from its start.  Port of
+    !> window.c:Fpos_visible_in_window_p (line-based, as on a text
+    !> terminal; no partial lines).
+    logical function pos_visible_in_window_p(pos, w) result(visible)
+        integer(int64), intent(in) :: pos
+        type(window_type), intent(in) :: w
+        integer(int64) :: start
+        start = max(point_min(), min(window_start(w), point_max()))
+        visible = pos >= start .and. (pos < window_end_updated(w) .or. &
+                                      (pos == point_max() .and. window_end_updated(w) == point_max()))
+    end function pos_visible_in_window_p
 
     subroutine cmd_beginning_of_buffer(status)
         type(status_type), intent(out) :: status

@@ -35,7 +35,8 @@ module test_keyboard_fm
                            last_command_event, last_message, local_function_key_map, read_event, &
                            read_key_sequence, request_exit, set_input_fd, set_input_meta_mode, &
                            this_command_keys, this_command_keys_shift_translated, &
-                           unread_command_events
+                           unread_command_events, ring_bell_hook
+    use subr_fm, only: syms_of_subr
     use sysdep_fm, only: emacs_tty_type, open_pty, close_fd, init_sys_modes, &
                          reset_sys_modes, emacs_write
     implicit none(type, external)
@@ -48,6 +49,7 @@ module test_keyboard_fm
     type(command_type), target :: cmd_cmd_fail
     type(command_type), target :: cmd_cmd_exit
     type(command_type), target :: cmd_universal_argument
+    type(command_type), target :: cmd_cmd_check
 
     integer(int64), parameter :: META = int(z'8000000', int64)
 
@@ -70,6 +72,7 @@ contains
                     new_unittest("read-key-sequence/shift-translation", test_shift_translation), &
                     new_unittest("command-loop", test_command_loop), &
                     new_unittest("command-loop/prefix-arg-and-macro", test_prefix_and_macro), &
+                    new_unittest("execute-kbd-macro/until-error", test_macro_until_error), &
                     new_unittest("command-loop/tty", test_tty) &
                     ]
     end subroutine collect_keyboard_fm
@@ -94,6 +97,13 @@ contains
         call set_error(status, FM_USER_ERROR, "Boom")
     end subroutine cmd_fail
 
+    !> Fail once cmd-a has run three times.
+    subroutine cmd_check(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (count_a >= 3) call set_error(status, FM_USER_ERROR, "Boom")
+    end subroutine cmd_check
+
     subroutine cmd_exit(status)
         type(status_type), intent(out) :: status
         status = status_type()
@@ -108,6 +118,12 @@ contains
     end subroutine cmd_universal
 
     ! Helpers.
+
+    !> Type "aqa" when the bell rings.
+    subroutine type_aqa()
+        ring_bell_hook => null()
+        call kbd_store_bytes("aqa")
+    end subroutine type_aqa
 
     function kbd(text) result(key)
         character(len=*), intent(in) :: text
@@ -365,6 +381,7 @@ contains
         if (allocated(error)) return
         call check(error, xfixnum(last_command_event), 98_int64)
         if (allocated(error)) return
+        call syms_of_subr()
         call kbd_store_bytes("z")
         call command_loop_step(done, st)
         call check(error, last_message, "z is undefined")
@@ -377,10 +394,12 @@ contains
         call command_loop_step(done, st)
         call check(error, last_message, "Wrong type argument: commandp, void-command")
         if (allocated(error)) return
-        ! Errors don't stop the loop; cmd-exit does.
-        call kbd_store_bytes("faqa")
+        ! Errors don't stop the loop; cmd-exit does.  An error discards
+        ! the input typed ahead and rings the bell.
+        call kbd_store_bytes("fa")
+        ring_bell_hook => type_aqa
         call command_loop(st)
-        call check(error, count_a == 3, "exit")
+        call check(error, count_a == 3 .and. .not. associated(ring_bell_hook), "exit")
         if (allocated(error)) return
         call check(error, input_pending_p(), "input left")
         call discard_input()
@@ -419,6 +438,50 @@ contains
         call check(error, count_a == 4 .and. count_b == 4, "macro")
         call free(global)
     end subroutine test_prefix_and_macro
+
+    !> macros.c:Fexecute_kbd_macro: a COUNT of 0 repeats the macro until
+    !> an error, which the command loop reports after the iterations
+    !> done; ringing the bell ends a macro.
+    subroutine test_macro_until_error(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: global
+        type(status_type) :: st
+        call fresh_global(global)
+        cmd_cmd_a = command_type("cmd-a", cmd_a)
+        call cmd_cmd_a%define()
+        cmd_cmd_check = command_type("cmd-check", cmd_check)
+        call cmd_cmd_check%define()
+        cmd_universal_argument = command_type("test-universal-argument", cmd_universal)
+        call cmd_universal_argument%define()
+        call syms_of_subr()
+        call define_key(global, kbd("a"), sym("cmd-a"), st)
+        call define_key(global, kbd("g"), sym("cmd-check"), st)
+        call define_key(global, kbd("C-c m"), make_string("ag"), st)
+        call define_key(global, kbd("C-c u"), make_string("za"), st)
+        call define_key(global, kbd("C-c 0"), list(make_fixnum(3_int64), make_fixnum(109_int64)), st)
+        count_a = 0
+        ! C-c 0 is the macro C-c m with a count of 0 from the prefix.
+        prefix_arg = make_fixnum(0_int64)
+        call kbd_store_bytes(char(3)//"m")
+        call command_loop(st)
+        call check(error, count_a, 3)
+        if (allocated(error)) return
+        call check(error, last_message, "After 2 kbd macro iterations: Boom")
+        if (allocated(error)) return
+        ! An undefined key in a macro: the bell ends it.
+        count_a = 0
+        call kbd_store_bytes(char(3)//"u")
+        call command_loop(st)
+        call check(error, count_a == 0 .and. last_message == "After 0 kbd macro iterations: "// &
+                   "Keyboard macro terminated by a command ringing the bell", last_message)
+        if (allocated(error)) return
+        ! A list of events as a macro.
+        count_a = 0
+        call kbd_store_bytes(char(3)//"0")
+        call command_loop(st)
+        call check(error, count_a == 1 .and. last_message == "", last_message)
+        call free(global)
+    end subroutine test_macro_until_error
 
     !> Input read from a terminal (a pty in raw mode).
     subroutine test_tty(error)

@@ -44,6 +44,7 @@ module replace_fm
     use lisp_fm, only: value_type, nil, make_string, make_list, stringp, xstring, nilp, list_elements, &
                        list_length, list_elt
     use lread_fm, only: sym
+    use fns_fm, only: schars
     use data_fm, only: value_eq, symbol_value, set
     use buffer_fm, only: barf_if_buffer_read_only
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
@@ -55,20 +56,21 @@ module replace_fm
     use search_fm, only: case_fold_search, search_spaces_regexp, re_search_forward, re_search_backward, &
                          looking_at, match_beginning, match_end, match_data, set_match_data, replace_match, &
                          regexp_quote, string_match, SEARCH_NOERROR
-    use subr_fm, only: read_key, add_to_history, history_length, query_replace_answer, match_string, &
-                       looking_back, match_substitute_replacement, &
+    use subr_fm, only: read_key, add_to_history, defvar_nil, history_length, query_replace_answer, match_string, &
+                       looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
+                       find_tag_default_as_symbol_regexp, &
                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
                        ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
-                       ANSWER_SCROLL_UP
+                       ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
     use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
                           isearch_no_upper_case_p, word_search_regexp
-    use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input
+    use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input, minibuffer_string_type
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit_1
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: push_mark, use_region_p, deactivate_mark
-    use window_fm, only: recenter_top_bottom, scroll_up_command
+    use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
     use help_fm, only: with_help_window
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
@@ -79,7 +81,7 @@ module replace_fm
     public :: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, replace_regexp
     public :: query_replace_descr, query_replace_read_from, query_replace_read_to, query_replace_read_args, &
               query_replace_compile_replacement, replace_expand_count, syms_of_replace
-    public :: replacement_function
+    public :: replacement_function, read_regexp, read_regexp_suggestions, query_replace_read_from_suggestions
 
     !> A (FROM-STRING . TO-STRING) element of `query_replace_defaults'.
     type, public :: replace_pair_type
@@ -358,41 +360,175 @@ contains
         call move_alloc(longer, query_replace_defaults)
     end subroutine push_defaults
 
-    !> The suggestions `query_replace_read_from' offers through M-n (only
-    !> the first one: the minibuffer takes one default): the active
-    !> region, else the last search string, else the last string
-    !> replaced.  Port of replace.el:query-replace-read-from-suggestions
-    !> (no find-tag-default) and, for regexps, read-regexp-suggestions.
-    subroutine read_from_suggestion(regexp_flag, suggestion, found)
-        logical, intent(in) :: regexp_flag
-        character(len=:), allocatable, intent(out) :: suggestion
+    !> Append `s' to the list `list' (allocated, `n' used) unless absent.
+    subroutine push_string(list, n, s)
+        type(minibuffer_string_type), allocatable, intent(inout) :: list(:)
+        integer, intent(inout) :: n
+        character(len=*), intent(in) :: s
+        type(minibuffer_string_type), allocatable :: grown(:)
+        integer :: k
+        if (n == size(list)) then
+            allocate (grown(max(4, 2*n)))
+            do k = 1, n
+                call move_alloc(list(k)%s, grown(k)%s)
+            end do
+            call move_alloc(grown, list)
+        end if
+        n = n + 1
+        list(n)%s = s
+    end subroutine push_string
+
+    !> The region's text, if `use_region_p'.
+    subroutine region_text(text, found)
+        character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         integer(int64) :: b, e
-        type(status_type) :: status
-        found = .false.
-        suggestion = ""
-        if (.not. regexp_flag .and. use_region_p()) then
-            call region_beginning(b, status)
-            call region_end(e, status)
-            call buffer_substring(b, e, suggestion, status)
-            found = status%ok()
-            if (found) return
+        type(status_type) :: st
+        found = use_region_p()
+        text = ""
+        if (.not. found) return
+        call region_beginning(b, st)
+        call region_end(e, st)
+        call buffer_substring(b, e, text, st)
+    end subroutine region_text
+
+    !> Return a list of standard suggestions for `query_replace_read_from'.
+    !> By default, the list includes the active region, the identifier
+    !> (a.k.a. "tag") at point, the last isearch string, and the last
+    !> replacement regexp.  `query_replace_read_from' appends the list
+    !> returned by this function to the end of values available via M-n.
+    !> Port of replace.el:query-replace-read-from-suggestions.
+    subroutine query_replace_read_from_suggestions(list, n)
+        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        integer, intent(out) :: n
+        character(len=:), allocatable :: s
+        logical :: found
+        allocate (list(4))
+        n = 0
+        call region_text(s, found)
+        if (found) call push_string(list, n, s)
+        call find_tag_default(s, found)
+        if (found) call push_string(list, n, s)
+        call history_head("search_ring", s, found)
+        if (found) call push_string(list, n, s)
+        call history_head(query_replace_from_history_variable, s, found)
+        if (found) call push_string(list, n, s)
+    end subroutine query_replace_read_from_suggestions
+
+    !> Return a list of standard suggestions for `read_regexp'.
+    !> By default, the list includes the active region, the identifier
+    !> (a.k.a. "tag") at point, the last isearch regexp, the last isearch
+    !> string, and the last replacement regexp.  `read_regexp' appends the
+    !> list returned by this function to the end of values available via
+    !> M-n.  Port of replace.el:read-regexp-suggestions (nil elements are
+    !> left out, as read-regexp drops them).
+    subroutine read_regexp_suggestions(list, n)
+        type(minibuffer_string_type), allocatable, intent(out) :: list(:)
+        integer, intent(out) :: n
+        character(len=:), allocatable :: s
+        logical :: found
+        allocate (list(6))
+        n = 0
+        call region_text(s, found)
+        if (found) call push_string(list, n, s)
+        call find_tag_default_as_regexp(s, found)
+        if (found) call push_string(list, n, s)
+        call find_tag_default_as_symbol_regexp(s, found)
+        if (found) call push_string(list, n, s)
+        call history_head("regexp_search_ring", s, found)
+        if (found) call push_string(list, n, s)
+        call history_head("search_ring", s, found)
+        call push_string(list, n, regexp_quote(s))
+        call history_head(query_replace_from_history_variable, s, found)
+        if (found) call push_string(list, n, s)
+    end subroutine read_regexp_suggestions
+
+    !> Read and return a regular expression as a string.
+    !> Prompt with the string PROMPT.  If PROMPT ends in ":" (followed by
+    !> optional whitespace), use it as is.  Otherwise, add ": " to the end,
+    !> possibly preceded by the default result (see below).
+    !>
+    !> The optional argument DEFAULTS is a list of default values: the
+    !> first is the default when the user enters empty input, and the
+    !> rest come before `read_regexp_suggestions' in the values M-n
+    !> offers.
+    !>
+    !> The optional argument HISTORY is a symbol to use for the history list.
+    !> If nil, use `regexp_history'.  Port of replace.el:read-regexp
+    !> (DEFAULTS a list of strings; no read-regexp-defaults-function,
+    !> read-regexp-map or case-fold toggle).
+    recursive subroutine read_regexp(prompt, result, status, defaults, history)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        character(len=*), intent(in), optional :: history
+        type(minibuffer_string_type), allocatable :: more(:), suggestions(:)
+        character(len=:), allocatable :: full, input, histvar
+        integer :: n, nmore, k, j
+        logical :: saved_add, have_default, dup
+        histvar = "regexp_history"
+        if (present(history)) histvar = history
+        have_default = .false.
+        if (present(defaults)) have_default = size(defaults) > 0
+        call read_regexp_suggestions(more, nmore)
+        ! (delete-dups (delq nil (delete "" suggestions)))
+        allocate (suggestions(4))
+        n = 0
+        if (present(defaults)) then
+            do k = 1, size(defaults)
+                call add_suggestion(defaults(k)%s)
+            end do
         end if
-        if (regexp_flag) then
-            call history_head("regexp_search_ring", suggestion, found)
-            if (found) return
-            call history_head("search_ring", suggestion, found)
-            if (found) then
-                suggestion = regexp_quote(suggestion)
-                return
+        do k = 1, nmore
+            call add_suggestion(more(k)%s)
+        end do
+        ! The prompt
+        full = prompt
+        if (.not. ends_in_colon(prompt)) then
+            full = prompt
+            if (have_default) then
+                if (len(defaults(1)%s) > 0) full = full//" (default "//query_replace_descr(defaults(1)%s)//")"
             end if
-            call history_head("minibuffer_history", suggestion, found)
-        else
-            call history_head("search_ring", suggestion, found)
-            if (found) return
-            call history_head(query_replace_from_history_variable, suggestion, found)
+            full = full//": "
         end if
-    end subroutine read_from_suggestion
+        ! Do not automatically add default to the history for empty input.
+        saved_add = history_add_new_input
+        history_add_new_input = .false.
+        call read_from_minibuffer(full, input, status, history=histvar, defaults=suggestions(1:n))
+        history_add_new_input = saved_add
+        if (.not. status%ok()) return
+        ! Return the default value when the user enters empty input.
+        result = input
+        if (len(input) == 0) then
+            if (.not. have_default) return
+            result = defaults(1)%s
+        end if
+        call add_to_history(histvar, result)
+    contains
+
+        subroutine add_suggestion(s)
+            character(len=*), intent(in) :: s
+            if (len(s) == 0) return
+            dup = .false.
+            do j = 1, n
+                if (suggestions(j)%s == s .and. len(suggestions(j)%s) == len(s)) dup = .true.
+            end do
+            if (.not. dup) call push_string(suggestions, n, s)
+        end subroutine add_suggestion
+
+        ! (string-match-p ":[ \t]*\\'" prompt)
+        logical function ends_in_colon(p)
+            character(len=*), intent(in) :: p
+            integer :: i
+            ends_in_colon = .false.
+            do i = len(p), 1, -1
+                if (p(i:i) == " " .or. p(i:i) == achar(9)) cycle
+                ends_in_colon = p(i:i) == ":"
+                return
+            end do
+        end function ends_in_colon
+    end subroutine read_regexp
 
     !> Query and return the FROM argument of a `query_replace' operation.
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
@@ -406,12 +542,14 @@ contains
         character(len=:), allocatable, intent(out) :: from, to
         logical, intent(out) :: have_to, counted
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: full_prompt, suggestion
+        character(len=:), allocatable :: full_prompt
         type(value_type) :: saved_history, from_history
         type(value_type), allocatable :: older(:), entries(:)
+        type(minibuffer_string_type), allocatable :: suggestions(:)
         type(status_type) :: st
-        logical :: saved_add, have_separator, have_suggestion
-        integer :: k, n, at
+        integer(int64) :: saved_point
+        logical :: saved_add, have_separator
+        integer :: k, n, at, nsuggestions
         to = ""
         have_to = .false.
         counted = .false.
@@ -445,15 +583,20 @@ contains
         else
             full_prompt = format_prompt(prompt)
         end if
-        call read_from_suggestion(regexp_flag, suggestion, have_suggestion)
-        saved_add = history_add_new_input
-        history_add_new_input = .false.
-        if (have_suggestion) then
-            call read_from_minibuffer(full_prompt, from, status, history="minibuffer_history", default=suggestion)
+        ! The save-excursion here is in case the user marks and copies a
+        ! region in order to specify the minibuffer input.
+        saved_point = point()
+        if (regexp_flag) then
+            call read_regexp(full_prompt, from, status, history="minibuffer_history")
         else
-            call read_from_minibuffer(full_prompt, from, status, history="minibuffer_history")
+            call query_replace_read_from_suggestions(suggestions, nsuggestions)
+            saved_add = history_add_new_input
+            history_add_new_input = .false.
+            call read_from_minibuffer(full_prompt, from, status, history="minibuffer_history", &
+                                      defaults=suggestions(1:nsuggestions))
+            history_add_new_input = saved_add
         end if
-        history_add_new_input = saved_add
+        call goto_char(saved_point)
         call set(sym("minibuffer_history"), saved_history, st)
         if (.not. status%ok()) return
         if (len(from) == 0 .and. allocated(query_replace_defaults)) then
@@ -628,7 +771,7 @@ contains
             at = find_directive(text, 1, "?")
             do while (at > 0)
                 call read_string("Edit replacement string: ", edited, status, &
-                                 initial=text(1:at - 1)//text(at + 2:))
+                                 initial=text(1:at - 1)//text(at + 2:), position=1 + schars(text(1:at - 1)))
                 if (.not. status%ok()) return
                 text = edited
                 unedited = .false.
@@ -940,7 +1083,9 @@ contains
                 call set_match_data(real_data)
                 presentation = match_substitute_replacement(next_replacement, st, nocasify, literal)
                 if (.not. st%ok()) presentation = next_replacement
-                next_replacement_replaced = query_replace_descr(presentation)
+                ! (query-replace-descr only adds display properties: the
+                ! text stays the replacement.)
+                next_replacement_replaced = presentation
                 if (.not. query_replace_show_replacement) presentation = next_replacement
                 call read_key(msg_prefix//query_replace_descr(from_string)//" with "// &
                               query_replace_descr(presentation)//": (? for help) ", key, status)
@@ -1145,14 +1290,22 @@ contains
                     call message("The diff answer needs diff-mode, which is not ported yet")
                     call ding()
                     call sit_for(1000)
-                case (ANSWER_SCROLL_UP)
-                    call scroll_up_command(nil(), st)
+                case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)
+                    ! (commandp def t): (call-interactively def).
+                    if (def == ANSWER_SCROLL_UP) then
+                        call scroll_up(nil(), status)
+                    else
+                        call scroll_down(nil(), status)
+                    end if
+                    if (.not. status%ok()) exit main
                 case (ANSWER_QUIT)
                     call set_error(status, FM_QUIT)
                     exit main
                 case default
                     ! Any other key (and exit-prefix) exits, and is then
-                    ! re-executed as a normal key sequence.
+                    ! re-executed as a normal key sequence.  (The commands
+                    ! scroll-other-window and scroll-other-window-down are
+                    ! not ported: Deferred.)
                     this_command = sym("mode_exited")
                     keep_going = .false.
                     call unread_command_events([key])
@@ -1550,17 +1703,10 @@ contains
         character(len=:), allocatable :: from, to
         integer(int64) :: b, e
         type(status_type) :: st
-        logical :: saved_add, counted
-        saved_add = history_add_new_input
-        history_add_new_input = .false.
-        call read_from_minibuffer("Map query replace (regexp): ", from, status, &
-                                  history=query_replace_from_history_variable)
-        if (status%ok()) call read_from_minibuffer("Query replace "//query_replace_descr(from)// &
-                                                   " with (space-separated strings): ", to, status, &
-                                                   history=query_replace_to_history_variable, default=from)
-        history_add_new_input = saved_add
+        call read_regexp("Map query replace (regexp): ", from, status, history=query_replace_from_history_variable)
         if (.not. status%ok()) return
-        call query_replace_compile_replacement(to, .true., counted, status)
+        call read_from_minibuffer("Query replace "//query_replace_descr(from)//" with (space-separated strings): ", &
+                                  to, status, history=query_replace_to_history_variable, default=from)
         if (.not. status%ok()) return
         if (use_region_p()) then
             call region_beginning(b, st)
@@ -1584,6 +1730,8 @@ contains
         type(value_type) :: history
         query_replace_from_to_separator = " → "
         query_replace_from_history_variable = "query_replace_history"
+        call defvar_nil("query_replace_history")
+        call defvar_nil("regexp_history")
         query_replace_to_history_variable = "query_replace_history"
         ! Default history list for `query_replace' commands.
         call symbol_value(sym("query_replace_history"), history, st)

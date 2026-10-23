@@ -27,7 +27,7 @@ module test_simple_fm
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_elt, list_length, xstring, make_fixnum, list
+    use lisp_fm, only: value_type, nil, list_elt, list_length, xstring, make_fixnum, list, list_elements
     use lread_fm, only: sym
     use data_fm, only: set, value_eq
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
@@ -46,7 +46,22 @@ module test_simple_fm
                          delete_indentation, fill_prefix, transpose_chars, transpose_words, transpose_lines, &
                          delete_horizontal_space, just_one_space, fixup_whitespace, delete_blank_lines, &
                          cycle_spacing
-    use cmds_fm, only: forward_line, end_of_line
+    use cmds_fm, only: forward_line, end_of_line, self_insert_command, delete_char, auto_fill_chars
+    use simple_fm, only: newline, open_line, turn_on_auto_fill, turn_off_auto_fill, inhibit_auto_fill, &
+                         end_of_buffer, indicate_copied_region, transient_mark_mode_hook, special_mode, &
+                         fundamental_mode
+    use keymap_fm, only: key_parse, key_binding
+    use buffer_fm, only: left_margin, fill_column, transient_mark_mode, auto_fill_function
+    use undo_fm, only: this_command_amalgamating
+    use callint_fm, only: mark_even_if_inactive, current_prefix_arg
+    use keyboard_fm, only: unread_command_events
+    use character_fm, only: CHAR_META
+    use error_fm, only: FM_MARK_INACTIVE
+    use handle_fm, only: null_handle
+    use frame_fm, only: selected_frame, frame_selected_window_ref, ensure_frame_windows
+    use window_fm, only: window_type, set_window_buffer, window_start, delete_window_tree, resize_window_tree, &
+                         set_window_start
+    use indent_fm, only: indent_tabs_mode
     use editfns_fm, only: narrow_to_region, widen, pos_bol, pos_eol
     implicit none(type, external)
     private
@@ -55,6 +70,7 @@ module test_simple_fm
 
     character(len=*), parameter :: point_tag = "<POINT>", mark_tag = "<MARK>"
     character(len=1), parameter :: nl = achar(10)
+    integer :: fill_calls = 0
 
 contains
 
@@ -80,7 +96,20 @@ contains
                     new_unittest("simple-delete-indentation-prefix", test_delete_indentation_prefix), &
                     new_unittest("transpose-chars-words-lines", test_transpose), &
                     new_unittest("whitespace-commands", test_whitespace), &
-                    new_unittest("transpose-and-whitespace-keys", test_space_keys) &
+                    new_unittest("transpose-and-whitespace-keys", test_space_keys), &
+                    new_unittest("newline", test_newline), &
+                    new_unittest("open-line", test_open_line), &
+                    new_unittest("open-line-margin-and-prefix", test_open_line_margin_and_prefix), &
+                    new_unittest("newline-arg-inhibits-auto-fill", test_newline_auto_fill), &
+                    new_unittest("auto-fill-chars-and-amalgamation", test_auto_fill_chars), &
+                    new_unittest("delete-char-killflag", test_delete_char_killflag), &
+                    new_unittest("quoted-insert", test_quoted_insert), &
+                    new_unittest("keypad-digit-argument", test_keypad_digit), &
+                    new_unittest("transpose-with-inactive-mark", test_transpose_mark), &
+                    new_unittest("yank-pop-read-only", test_yank_pop_read_only), &
+                    new_unittest("end-of-buffer-recenters", test_end_of_buffer), &
+                    new_unittest("kill-ring-save-indicates", test_indicate_copied_region), &
+                    new_unittest("special-mode-suppresses-self-insert", test_special_mode_suppress) &
                     ]
     end subroutine collect_simple_fm
 
@@ -819,4 +848,406 @@ contains
         call check(error, buffer_string() == "x"//nl//"cd BA"//nl, buffer_string())
         call kill_buffer(h, st)
     end subroutine test_space_keys
+    !> A buffer holding "(a b" before point and " c d)" after, as
+    !> simple-tests.el:simple-test--dummy-buffer (indent-tabs-mode nil
+    !> does not matter here).
+    subroutine dummy_buffer(h)
+        type(handle_type), intent(out) :: h
+        type(status_type) :: st
+        call fresh(h)
+        indent_tabs_mode = .false.
+        call insert("(a b c d)", st)
+        call goto_char(5_int64)
+    end subroutine dummy_buffer
+
+    !> Port of simple-tests.el:newline (no electric indentation).
+    subroutine test_newline(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call dummy_buffer(h)
+        call newline(st, -1_int64)
+        call check(error,.not. st%ok(), "(newline -1) signals")
+        if (allocated(error)) return
+        call newline(st, 1_int64)
+        call check_substrings(error, "(a b"//nl, " c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call newline(st)
+        call check_substrings(error, "(a b"//nl, " c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call newline(st, 5_int64)
+        call check_substrings(error, "(a b"//repeat(nl, 5), " c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call goto_char(point() + 1)
+        call newline(st, 1_int64)
+        call check_substrings(error, "(a b "//nl, "c d)")
+        indent_tabs_mode = .true.
+        call kill_buffer(h, st)
+    end subroutine test_newline
+
+    !> Port of simple-tests.el:open-line.
+    subroutine test_open_line(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call dummy_buffer(h)
+        call open_line(-1_int64, st)
+        call check(error,.not. st%ok(), "(open-line -1) signals")
+        if (allocated(error)) return
+        call open_line(1_int64, st)
+        call check_substrings(error, "(a b", nl//" c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call open_line(5_int64, st)
+        call check_substrings(error, "(a b", repeat(nl, 5)//" c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call goto_char(point() + 1)
+        call open_line(1_int64, st)
+        call check_substrings(error, "(a b ", nl//"c d)")
+        indent_tabs_mode = .true.
+        call kill_buffer(h, st)
+    end subroutine test_open_line
+
+    !> Port of simple-tests.el:open-line-margin-and-prefix.
+    subroutine test_open_line_margin_and_prefix(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call dummy_buffer(h)
+        left_margin = 10_int64
+        call open_line(3_int64, st)
+        left_margin = 0_int64
+        call check_substrings(error, "(a b", repeat(nl, 3)//"          c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call goto_char(point_min())
+        left_margin = 2_int64
+        call open_line(1_int64, st)
+        left_margin = 0_int64
+        call check_substrings(error, "  ", nl//"  (a b c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        fill_prefix = "- - "
+        call open_line(1_int64, st)
+        call check_substrings(error, "(a b", nl//" c d)")
+        if (allocated(error)) return
+        call dummy_buffer(h)
+        call goto_char(point_min())
+        call open_line(1_int64, st)
+        deallocate (fill_prefix%value)
+        call check_substrings(error, "- - ", nl//"(a b c d)")
+        indent_tabs_mode = .true.
+        call kill_buffer(h, st)
+    end subroutine test_open_line_margin_and_prefix
+
+    !> `newline' with an argument does not auto-fill; without one it does.
+    subroutine test_newline_auto_fill(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call init_bindings()
+        call turn_on_auto_fill(st)
+        fill_column = 5_int64
+        call insert("aaa bbb ccc", st)
+        call newline(st, 1_int64)
+        call check(error, buffer_string(), "aaa bbb ccc"//nl)
+        if (allocated(error)) return
+        call check(error,.not. inhibit_auto_fill, "inhibit_auto_fill restored")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("aaa bbb ccc", st)
+        call newline(st)
+        call check(error, buffer_string(), "aaa"//nl//"bbb"//nl//"ccc"//nl)
+        call turn_off_auto_fill(st)
+        fill_column = 70_int64
+        call kill_buffer(h, st)
+    end subroutine test_newline_auto_fill
+
+    ! An auto-fill function that only counts its calls.
+    subroutine count_fill(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        fill_calls = fill_calls + 1
+    end subroutine count_fill
+
+    !> Characters in `auto_fill_chars' (CJK too) invoke auto-filling, and
+    !> a self-insertion that filled is not amalgamated for undo.
+    subroutine test_auto_fill_chars(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call init_bindings()
+        call check(error, allocated(auto_fill_chars), "auto_fill_chars set")
+        if (allocated(error)) return
+        auto_fill_function%value => count_fill
+        fill_calls = 0
+        call self_insert_command(1_int64, int(z'4E00', int64), st)
+        call self_insert_command(1_int64, 97_int64, st)
+        call self_insert_command(1_int64, 32_int64, st)
+        call check(error, fill_calls, 2)
+        if (allocated(error)) return
+        ! The real auto-fill: breaking the line resets the amalgamation.
+        call turn_on_auto_fill(st)
+        fill_column = 5_int64
+        call erase_buffer(st)
+        call insert("aaa", st)
+        call self_insert_command(1_int64, 32_int64, st)
+        call check(error, this_command_amalgamating, "no fill: amalgamating")
+        if (allocated(error)) return
+        call insert("bbbbbb", st)
+        call self_insert_command(1_int64, 32_int64, st)
+        call check(error, buffer_string(), "aaa"//nl//"bbbbbb ")
+        if (allocated(error)) return
+        call check(error,.not. this_command_amalgamating, "filled: not amalgamating")
+        call turn_off_auto_fill(st)
+        fill_column = 70_int64
+        call kill_buffer(h, st)
+    end subroutine test_auto_fill_chars
+
+    !> C-d with a prefix argument kills (KILLFLAG); DEL too.
+    subroutine test_delete_char_killflag(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert("hello world", st)
+        call goto_char(1_int64)
+        last_command = nil()
+        call delete_char(5_int64, st, .true.)
+        call check(error, buffer_string() == " world" .and. latest_kill() == "hello", "killed")
+        if (allocated(error)) return
+        call delete_char(1_int64, st)
+        call check(error, buffer_string() == "world" .and. latest_kill() == "hello", "deleted")
+        if (allocated(error)) return
+        call init_bindings()
+        call discard_input()
+        prefix_arg = nil()
+        ! C-u 2 C-d
+        call kbd_store_bytes(achar(21)//"2"//achar(4))
+        call command_loop(st)
+        call check(error, buffer_string() == "rld" .and. latest_kill() == "wo", "C-u 2 C-d")
+        current_prefix_arg = nil()
+        call kill_buffer(h, st)
+    end subroutine test_delete_char_killflag
+
+    !> C-q: octal codes, meta characters, non-character events, and the
+    !> read-only check before reading.  Port of the behaviour of
+    !> simple.el:read-quoted-char.
+    subroutine test_quoted_insert(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        type(value_type), allocatable :: events(:)
+        call fresh(h)
+        call init_bindings()
+        call discard_input()
+        prefix_arg = nil()
+        ! C-q 1 0 1 RET: octal 101 is A, RET is discarded.
+        call kbd_store_bytes(achar(17)//"101"//achar(13))
+        call command_loop(st)
+        call check(error, buffer_string(), "A")
+        if (allocated(error)) return
+        ! C-q 1 2 x: octal 12 is newline; x is then typed.
+        call kbd_store_bytes(achar(17)//"12x")
+        call command_loop(st)
+        call check(error, buffer_string(), "A"//nl//"x")
+        if (allocated(error)) return
+        ! C-q M-a inserts a with the 0200 bit: 225.
+        call erase_buffer(st)
+        call list_elements(list(make_fixnum(17_int64), make_fixnum(ior(97_int64, int(CHAR_META, int64)))), events)
+        call unread_command_events(events)
+        call command_loop(st)
+        call check(error, buffer_string(), achar(195)//achar(161))
+        if (allocated(error)) return
+        ! C-u 3 C-q C-a
+        call erase_buffer(st)
+        call kbd_store_bytes(achar(21)//"3"//achar(17)//achar(1))
+        call command_loop(st)
+        call check(error, buffer_string(), repeat(achar(1), 3))
+        if (allocated(error)) return
+        ! A read-only buffer: an error before reading, so `b' is inserted
+        ! by the next command after the buffer is made writable.
+        call erase_buffer(st)
+        call set_buffer_read_only(h, .true., st)
+        call kbd_store_bytes(achar(17))
+        call command_loop(st)
+        call check(error, index(last_message, "Buffer is read-only") == 1, last_message)
+        if (allocated(error)) return
+        call set_buffer_read_only(h, .false., st)
+        call kbd_store_bytes("b")
+        call command_loop(st)
+        call check(error, buffer_string(), "b")
+        current_prefix_arg = nil()
+        call kill_buffer(h, st)
+    end subroutine test_quoted_insert
+
+    !> Keypad digits after C-u use their `ascii_character'.
+    subroutine test_keypad_digit(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        type(value_type), allocatable :: events(:)
+        call fresh(h)
+        call init_bindings()
+        call discard_input()
+        prefix_arg = nil()
+        call list_elements(list(make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)), events)
+        call unread_command_events(events)
+        call command_loop(st)
+        call check(error, buffer_string(), repeat("a", 12))
+        current_prefix_arg = nil()
+        call kill_buffer(h, st)
+    end subroutine test_keypad_digit
+
+    !> transpose with ARG 0 uses (mark), which signals when the mark is
+    !> inactive in Transient Mark mode without mark-even-if-inactive.
+    subroutine test_transpose_mark(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert("ab cd", st)
+        call set_mark(1_int64)
+        call deactivate_mark()
+        call goto_char(4_int64)
+        mark_even_if_inactive = .false.
+        call transpose_words(0_int64, st)
+        mark_even_if_inactive = .true.
+        call check(error, st%code == FM_MARK_INACTIVE .and. buffer_string() == "ab cd", "mark inactive")
+        if (allocated(error)) return
+        call transpose_words(0_int64, st)
+        call check(error, buffer_string(), "cd ab")
+        call kill_buffer(h, st)
+    end subroutine test_transpose_mark
+
+    !> yank-pop's inhibit-read-only covers the insertion too.
+    subroutine test_yank_pop_read_only(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call kill_new("one")
+        call kill_new("two")
+        call yank(nil(), st)
+        last_command = sym("yank")
+        call set_buffer_read_only(h, .true., st)
+        call yank_pop(1_int64, st)
+        call set_buffer_read_only(h, .false., st)
+        call check(error, st%ok() .and. buffer_string() == "one", buffer_string())
+        call kill_buffer(h, st)
+    end subroutine test_yank_pop_read_only
+
+    !> A 30-line buffer shown in an 11-line window (10 body lines) from
+    !> its start, point at 1.
+    subroutine enter_window(h)
+        type(handle_type), intent(out) :: h
+        type(status_type) :: st
+        type(window_type), pointer :: w
+        character(len=7) :: text
+        integer :: k
+        call fresh(h)
+        do k = 1, 30
+            write (text, '("line", i2.2, a)') k, achar(10)
+            call insert(text, st)
+        end do
+        call goto_char(1_int64)
+        selected_frame%minibuffer_selected = .false.
+        call delete_window_tree(selected_frame%root_window)
+        selected_frame%root_window = null_handle()
+        call ensure_frame_windows()
+        call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
+        w => frame_selected_window_ref()
+        call set_window_buffer(w, h, st)
+        this_command = nil()
+        last_command = nil()
+    end subroutine enter_window
+
+    subroutine leave_window(h)
+        type(handle_type), intent(in) :: h
+        type(status_type) :: st
+        call kill_buffer(h, st)
+        call delete_window_tree(selected_frame%root_window)
+        selected_frame%root_window = null_handle()
+        selected_frame%garbaged = .true.
+    end subroutine leave_window
+
+    !> end-of-buffer puts the end on the third line from the bottom when
+    !> it was not visible; not when it was.
+    subroutine test_end_of_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter_window(h)
+        call end_of_buffer(nil())
+        ! Point (the empty last line, 31) on body line 8 of 10.
+        call check(error, point() == point_max() .and. window_start(frame_selected_window_ref()) == 7*24 - 6, &
+                   "recentered")
+        if (allocated(error)) return
+        call end_of_buffer(nil())
+        call check(error, window_start(frame_selected_window_ref()) == 7*24 - 6, "visible: unchanged")
+        call leave_window(h)
+    end subroutine test_end_of_buffer
+
+    !> kill-ring-save: a message with a sample when the mark is not
+    !> visible; when it is, the cursor blinks there and comes back.
+    subroutine test_indicate_copied_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter_window(h)
+        call set_window_start(frame_selected_window_ref(), 7_int64*20 + 1, st)
+        call set_mark(1_int64)
+        call goto_char(7_int64*25 + 1)
+        last_message = ""
+        call indicate_copied_region()
+        call check(error, last_message, 'Copied text from "line01'//"^J"//"line02"//"^J"//"line03"//"^J"//"line04"// &
+                   "^J"//"line05"//"^J"//'line0"')
+        if (allocated(error)) return
+        call set_window_start(frame_selected_window_ref(), 1_int64, st)
+        call goto_char(1_int64)
+        call set_mark(7_int64*25 + 1)
+        last_message = ""
+        call indicate_copied_region(10_int64)
+        call check(error, last_message, 'Copied text until "24'//"^J"//"line25"//"^J"//'"')
+        if (allocated(error)) return
+        ! Visible: no message; point and mark are back.
+        call set_mark(8_int64)
+        call deactivate_mark()
+        last_message = ""
+        call indicate_copied_region()
+        call check(error, last_message == "" .and. point() == 1 .and. mark_position() == 8, "blink")
+        call leave_window(h)
+    end subroutine test_indicate_copied_region
+
+    !> special-mode-map is a suppressed keymap: self-insert-command is
+    !> remapped to `undefined', so letters are undefined keys there.
+    subroutine test_special_mode_suppress(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        type(value_type) :: binding
+        type(value_type), allocatable :: key(:)
+        call fresh(h)
+        call init_bindings()
+        call discard_input()
+        prefix_arg = nil()
+        call special_mode(st)
+        call key_parse("x", key, st)
+        call key_binding(key, binding, st)
+        call check(error, value_eq(binding, sym("undefined")), "key-binding remaps")
+        if (allocated(error)) return
+        call key_binding(key, binding, st, no_remap=.true.)
+        call check(error, value_eq(binding, sym("self_insert_command")), "no remap")
+        if (allocated(error)) return
+        call kbd_store_bytes("x")
+        call command_loop(st)
+        call check(error, buffer_string() == "" .and. last_message == "x is undefined", last_message)
+        call fundamental_mode(st)
+        call kill_buffer(h, st)
+    end subroutine test_special_mode_suppress
 end module test_simple_fm

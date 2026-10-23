@@ -65,7 +65,9 @@ contains
                     new_unittest("isearch-regexp", test_regexp), &
                     new_unittest("isearch-regexp-incomplete-and-fallback", test_regexp_fallback), &
                     new_unittest("isearch-toggle-regexp", test_toggle_regexp), &
-                    new_unittest("isearch-lax-whitespace", test_lax_whitespace) &
+                    new_unittest("isearch-lax-whitespace", test_lax_whitespace), &
+                    new_unittest("isearch-control-char-message", test_control_message), &
+                    new_unittest("isearch-edit-string-at-failure", test_edit_at_failure) &
                     ]
     end subroutine collect_isearch_fm
 
@@ -419,4 +421,27 @@ contains
         call check(error, isearch_lax_whitespace, "toggled back")
         call leave(h)
     end subroutine test_lax_whitespace
+
+    !> Control characters in the search string show as ^C.
+    subroutine test_control_message(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("a"//achar(10)//"b", h)
+        call type_keys("C-s a C-q C-j")
+        call check(error, last_message == "I-search: a^J", last_message)
+        if (allocated(error)) return
+        call check(error, isearch_string == "a"//achar(10), "the string has the newline")
+        call leave(h)
+    end subroutine test_control_message
+
+    !> M-e on a failing search puts point where the search string stops
+    !> matching.
+    subroutine test_edit_at_failure(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        call enter("abc", h)
+        call type_keys("C-s a b x M-e Z RET")
+        call check(error, isearch_string == "abZx", isearch_string)
+        call leave(h)
+    end subroutine test_edit_at_failure
 end module test_isearch_fm

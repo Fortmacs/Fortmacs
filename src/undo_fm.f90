@@ -72,10 +72,13 @@ module undo_fm
     integer :: last_boundary_cause = CAUSE_NONE
     integer :: last_amalgamating_count = 0
     type(handle_type), allocatable :: last_boundary_buffers(:)
-    ! simple.el undo-auto--undoably-changed-buffers and
-    ! undo-auto--this-command-amalgamating.
+    ! simple.el undo-auto--undoably-changed-buffers.
     type(handle_type), allocatable :: changed_buffers(:)
-    logical :: this_command_amalgamating = .false.
+    !> Non-nil if `this_command' should be amalgamated.  This variable is
+    !> set to nil by `undo_auto_add_boundary' and is set by
+    !> `undo_auto_amalgamate'.  Port of simple.el
+    !> undo-auto--this-command-amalgamating.
+    logical, public :: this_command_amalgamating = .false.
 
 contains
 

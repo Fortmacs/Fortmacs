@@ -746,7 +746,7 @@ contains
                 done = done + 1
             end do
         else
-            call map_y_or_n_p(int(n), save_prompter, save_actor, done, status)
+            call map_y_or_n_p(int(n), save_prompter, save_actor, done, status, "buffer", "buffers", "save")
         end if
         deallocate (pending)
         if (.not. status%ok()) return

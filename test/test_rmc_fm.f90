@@ -26,8 +26,12 @@ module test_rmc_fm
     use error_fm, only: status_type, FM_QUIT
     use lisp_fm, only: value_type
     use keymap_fm, only: key_parse
-    use keyboard_fm, only: unread_command_events, discard_input
-    use rmc_fm, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help
+    use keyboard_fm, only: unread_command_events, discard_input, last_message
+    use bindings_fm, only: init_bindings
+    use buffer_fm, only: get_buffer_create, set_buffer
+    use handle_fm, only: handle_type
+    use rmc_fm, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help, &
+                      read_char_choice_use_read_key
     implicit none(type, external)
     private
 
@@ -40,7 +44,9 @@ contains
         testsuite = [ &
                     new_unittest("test-rmc--add-key-description/non-graphical-display", test_add_key_description), &
                     new_unittest("test-read-multiple-choice", test_read), &
-                    new_unittest("test-read-multiple-choice-help", test_help) &
+                    new_unittest("test-read-multiple-choice-help", test_help), &
+                    new_unittest("read-multiple-choice-read-key", test_read_key), &
+                    new_unittest("read-multiple-choice-long-form", test_long_form) &
                     ]
     end subroutine collect_rmc_fm
 
@@ -53,6 +59,16 @@ contains
         c%name = name
         if (present(description)) c%description = description
     end function choice
+
+    !> Bindings and a current buffer for reading in the minibuffer.
+    subroutine setup()
+        type(handle_type) :: h
+        type(status_type) :: st
+        call init_bindings()
+        call discard_input()
+        call get_buffer_create("*scratch*", h, st)
+        call set_buffer(h, st)
+    end subroutine setup
 
     subroutine test_add_key_description(error)
         type(error_type), allocatable, intent(out) :: error
@@ -71,7 +87,7 @@ contains
         integer :: answer
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
-        call discard_input()
+        call setup()
         call key_parse("n", evs, st)
         call unread_command_events(evs)
         call read_multiple_choice("Do it? ", choices, answer, st)
@@ -104,4 +120,41 @@ contains
                    repeat(" ", 50)//"description of ccc"//LF// &
                    repeat(" ", 50)//LF)
     end subroutine test_help
+
+    !> read-char-choice-use-read-key: the prompt in the echo area, with
+    !> "[?]" for help.
+    subroutine test_read_key(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(rmc_choice_type) :: choices(2)
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        integer :: answer
+        choices(1) = choice("y", "yes")
+        choices(2) = choice("n", "no")
+        call discard_input()
+        read_char_choice_use_read_key = .true.
+        call key_parse("n", evs, st)
+        call unread_command_events(evs)
+        call read_multiple_choice("Do it?", choices, answer, st)
+        read_char_choice_use_read_key = .false.
+        call check(error, st%ok() .and. answer == 2, "n")
+        if (allocated(error)) return
+        call check(error, last_message == "Do it? ([Y]es, [N]o, [?]): ", last_message)
+    end subroutine test_read_key
+
+    !> LONG-FORM reads a name with completion.
+    subroutine test_long_form(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(rmc_choice_type) :: choices(2)
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        integer :: answer
+        choices(1) = choice("y", "yes")
+        choices(2) = choice("n", "no")
+        call setup()
+        call key_parse("n o RET", evs, st)
+        call unread_command_events(evs)
+        call read_multiple_choice("Do it?", choices, answer, st, long_form=.true.)
+        call check(error, st%ok() .and. answer == 2, "no")
+    end subroutine test_long_form
 end module test_rmc_fm

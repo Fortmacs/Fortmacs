@@ -32,12 +32,20 @@
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
-    use error_fm, only: status_type
-    use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements
+    use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
+    use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements, V_LIST, vtag, list_elt, fixnump, &
+                       xfixnum, symbolp
+    use handle_fm, only: handle_type
+    use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
+    use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
+                         generate_new_buffer_name
+    use editfns_fm, only: point_min, point_max, buffer_string
+    use insdel_fm, only: insert
+    use fill_fm, only: fill_region_as_paragraph
     use lread_fm, only: sym
     use data_fm, only: symbol_name
     use callint_fm, only: command_defined_p, fboundp
-    use keymap_fm, only: key_description, where_is_internal
+    use keymap_fm, only: key_description, where_is_internal, parse_modifiers
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
@@ -49,6 +57,11 @@ module help_fns_fm
               syms_of_help_fns
 
     character(len=*), parameter :: LF = achar(10)
+
+    !> The modifier bits of a character event, and shift.
+    integer(int64), parameter :: M_SHIFT = int(CHAR_SHIFT, int64), &
+                                 M_MODS = int(CHAR_ALT, int64) + int(CHAR_SUPER, int64) + int(CHAR_HYPER, int64) + &
+                                 int(CHAR_SHIFT, int64) + int(CHAR_CTL, int64) + int(CHAR_META, int64)
 
     !> Left and right single quotes.
     character(len=*), parameter :: LQUOTE = char(226)//char(128)//char(152), &
@@ -78,32 +91,139 @@ contains
         if (function_symbol_p) function_symbol_p = function_known_p(name)
     end function function_symbol_p
 
-    !> The keys that run command `name', as "C-f, <right>"; "" for none.
-    function bindings_text(name) result(s)
-        character(len=*), intent(in) :: name
+    !> Whether event `ev' has no modifiers but shift: its
+    !> `event_modifiers' are nil or (shift).
+    logical function unmodified_event_p(ev)
+        type(value_type), intent(in) :: ev
+        type(value_type) :: head
+        character(len=:), allocatable :: base
+        integer(int64) :: bits, c
+        head = ev
+        ! A list (a character interval here): its car.
+        if (vtag(ev) == V_LIST) head = list_elt(ev, 1_int64)
+        unmodified_event_p = .false.
+        if (fixnump(head)) then
+            ! subr.el:event-modifiers for a character.
+            bits = iand(xfixnum(head), M_MODS)
+            c = iand(xfixnum(head), not(M_MODS))
+            if (iand(bits, not(M_SHIFT)) /= 0) return
+            if (c < 32) return
+            unmodified_event_p = .true.
+        else if (symbolp(head)) then
+            call parse_modifiers(head, bits, base)
+            unmodified_event_p = bits == 0 .or. bits == M_SHIFT
+        end if
+    end function unmodified_event_p
+
+    !> The key sequences in `keys' joined as "A, B and C".  Port of
+    !> help-fns.el:help-fns--insert-bindings.
+    function bindings_text(keys) result(s)
+        type(value_type), intent(in) :: keys(:)
         character(len=:), allocatable :: s
-        type(value_type) :: all
-        type(value_type), allocatable :: seqs(:), events(:)
+        type(value_type), allocatable :: events(:)
         integer :: k
         s = ""
-        call where_is_internal(sym(name), all)
-        if (nilp(all)) return
-        call list_elements(all, seqs)
-        do k = 1, size(seqs)
-            call list_elements(seqs(k), events)
-            if (k > 1) s = s//", "
+        do k = 1, size(keys)
+            if (k == 1) then
+                s = ""
+            else if (k == size(keys)) then
+                s = s//" and "
+            else
+                s = s//", "
+            end if
+            call list_elements(keys(k), events)
             s = s//key_description(events)
         end do
     end function bindings_text
 
-    !> What describe-function says about function `name' after "NAME is ":
-    !> its kind and file, its keys, how Fortran calls it and its
-    !> documentation.  Port of help-fns.el:describe-function-1 (with
+    !> What help-fns--key-bindings prints for command `name', before it is
+    !> filled: its keys, "many ordinary text characters" standing for
+    !> ten or more unmodified ones.  Port of the text of
+    !> help-fns.el:help-fns--key-bindings (no remapping or menus).
+    function key_bindings_text(name) result(s)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: s
+        type(value_type) :: all
+        type(value_type), allocatable :: keys(:), events(:), rest(:)
+        logical, allocatable :: unmodified(:)
+        integer :: k, n, nunmod
+        s = ""
+        call where_is_internal(sym(name), all)
+        call list_elements(all, keys)
+        if (name == "self_insert_command" .and. size(keys) > 0) then
+            call list_elements(keys(1), events)
+            if (size(events) > 0) then
+                if (vtag(events(1)) == V_LIST) then
+                    s = "It is bound to many ordinary text characters."//LF
+                    return
+                end if
+            end if
+        end if
+        ! Which non-control non-meta keys run this command?
+        allocate (unmodified(size(keys)))
+        do k = 1, size(keys)
+            call list_elements(keys(k), events)
+            unmodified(k) = .false.
+            if (size(events) > 0) unmodified(k) = unmodified_event_p(events(1))
+        end do
+        nunmod = count(unmodified)
+        if (size(keys) > 0) then
+            s = "It is bound to "
+            ! If lots of ordinary text characters run this command, don't
+            ! mention them one by one.
+            if (nunmod < 10) then
+                s = s//bindings_text(keys)
+            else
+                allocate (rest(size(keys) - nunmod))
+                n = 0
+                do k = 1, size(keys)
+                    if (unmodified(k)) cycle
+                    n = n + 1
+                    rest(n) = keys(k)
+                end do
+                if (n > 0) then
+                    s = s//bindings_text(rest)//", and many ordinary text characters"
+                else
+                    s = s//"many ordinary text characters."
+                end if
+            end if
+        end if
+        if (size(keys) > 0 .or. nunmod > 0) s = s//"."//LF
+    end function key_bindings_text
+
+    !> `text' filled as a paragraph (help-fns.el fills its lines in the
+    !> help buffer with fill-region-as-paragraph); `nosqueeze' keeps its
+    !> spaces.
+    function fill_text(text, nosqueeze) result(filled)
+        character(len=*), intent(in) :: text
+        logical, intent(in) :: nosqueeze
+        character(len=:), allocatable :: filled
+        type(handle_type) :: previous, temp
+        type(status_type) :: st
+        filled = text
+        if (len(text) == 0) return
+        previous = current_buffer()
+        call get_buffer_create(generate_new_buffer_name(" *temp*"), temp, st)
+        if (.not. st%ok()) return
+        call set_buffer(temp, st)
+        buffers(cur)%undo_enabled = .false.
+        call insert(text, st)
+        call fill_region_as_paragraph(point_min(), point_max(), st, nosqueeze=nosqueeze)
+        filled = buffer_string()
+        call set_buffer(previous, st)
+        call kill_buffer(temp, st)
+    end function fill_text
+
+    !> What describe-function says about function `name' after `lead'
+    !> ("NAME is "): its kind and file, its keys, how Fortran calls it and
+    !> its documentation; `text' starts with `lead'.  Port of
+    !> help-fns.el:describe-function-1 (with
     !> help-fns-function-description-header, help-fns--key-bindings and
     !> help-fns--signature).
-    subroutine describe_function_1(name, text)
+    subroutine describe_function_1(name, text, lead)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: text
+        character(len=*), intent(in), optional :: lead
         type(doc_entry_type) :: entry
         character(len=:), allocatable :: keys, doc
         logical :: found, interactive, subroutine_p
@@ -112,10 +232,12 @@ contains
         if (found) interactive = interactive .or. entry%interactive
         subroutine_p = .true.
         if (found) subroutine_p = len(entry%fortran) == 0 .or. index(entry%fortran, "call ") == 1
+        text = ""
+        if (present(lead)) text = lead
         if (interactive) then
-            text = "an interactive "
+            text = text//"an interactive "
         else
-            text = "a "
+            text = text//"a "
         end if
         if (subroutine_p) then
             text = text//"Fortran subroutine"
@@ -123,10 +245,13 @@ contains
             text = text//"Fortran function"
         end if
         if (found) text = text//" in "//LQUOTE//entry%file//RQUOTE
-        text = text//"."//LF//LF
+        text = fill_text(text//".", .true.)//LF//LF
         if (interactive) then
-            keys = bindings_text(name)
-            if (len(keys) > 0) text = text//"It is bound to "//keys//"."//LF//LF
+            keys = fill_text(key_bindings_text(name), .false.)
+            if (len(keys) > 0) then
+                if (keys(len(keys):) /= LF) keys = keys//LF
+                text = text//keys//LF
+            end if
         end if
         if (found) then
             if (len(entry%fortran) > 0) text = text//entry%fortran//LF//LF
@@ -144,8 +269,8 @@ contains
         character(len=*), intent(in) :: function
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
-        call describe_function_1(function, text)
-        call with_help_window(function//" is "//text, status)
+        call describe_function_1(function, text, function//" is ")
+        call with_help_window(text, status)
     end subroutine describe_function
 
     !> The report describe-variable shows for variable `name'; `found'
@@ -164,13 +289,18 @@ contains
         end if
         text = name//" is a variable defined in "//LQUOTE//entry%file//RQUOTE//"."//LF//LF
         ! A value too long for the line starts on the next.
-        if (len("Its value is "//entry%value) < 68) then
+        if (len(entry%value) + len("Its value is") < 68) then
             text = text//"Its value is "//entry%value//LF
         else
             text = text//"Its value is"//LF//entry%value//LF
         end if
         if (len(entry%original) > 0 .and. entry%original /= entry%value) then
-            text = text//"Original value was "//entry%original//LF
+            ! A short value stays on the line.
+            if (len(entry%original) < 20) then
+                text = text//"Original value was "//entry%original//LF
+            else
+                text = text//"Original value was "//LF//entry%original//LF
+            end if
         end if
         text = text//"Its Fortran name is "//LQUOTE//entry%fortran//RQUOTE//"."//LF//LF
         doc = entry%doc
@@ -197,7 +327,13 @@ contains
         character(len=:), allocatable :: name
         call completing_read("Describe function: ", completion_obarray_table(), name, status, &
                              function_symbol_p, require_match=REQUIRE_MATCH_T)
-        if (.not. status%ok() .or. len(name) == 0) return
+        if (.not. status%ok()) return
+        ! help-fns--describe-function-or-command-prompt (no function at
+        ! point yet)
+        if (len(name) == 0) then
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
+            return
+        end if
         call describe_function(name, status)
     end subroutine cmd_describe_function
 
@@ -214,7 +350,12 @@ contains
         end do
         call completing_read("Describe variable: ", completion_list_table(make_list(names)), name, status, &
                              require_match=REQUIRE_MATCH_T)
-        if (.not. status%ok() .or. len(name) == 0) return
+        if (.not. status%ok()) return
+        ! (No variable at point yet.)
+        if (len(name) == 0) then
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
+            return
+        end if
         call describe_variable(name, status)
     end subroutine cmd_describe_variable
 

@@ -42,6 +42,12 @@ module test_indent_fm
     use keyboard_fm, only: unread_command_events, discard_input, command_loop, last_command
     use lisp_fm, only: nil
     use bindings_fm, only: init_bindings
+    use keyboard_fm, only: last_message
+    use data_fm, only: kill_local_variable
+    use lread_fm, only: sym
+    use buffer_fm, only: buffers, cur
+    use simple_fm, only: region_active_p
+    use indent_fm, only: indent_line_function, indent_for_tab_command, indent_region_line_by_line
     implicit none(type, external)
     private
 
@@ -74,7 +80,11 @@ contains
                     new_unittest("indent-to-and-current-indentation", test_indent_to), &
                     new_unittest("indent-line-to-relative-tab-stops", test_indent_commands), &
                     new_unittest("indent-rigidly-and-region", test_indent_region), &
-                    new_unittest("indent-keys", test_indent_keys) &
+                    new_unittest("indent-keys", test_indent_keys), &
+                    new_unittest("indent-rigidly-transient-map", test_indent_rigidly_map), &
+                    new_unittest("indent-for-tab-noindent-fallback", test_noindent_fallback), &
+                    new_unittest("indent-region-progress", test_indent_region_progress), &
+                    new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte) &
                     ]
     end subroutine collect_indent_fm
 
@@ -388,7 +398,11 @@ contains
         call command_loop(st)
         call check(error, buffer_string() == "     a"//LF//"     b   ", buffer_string())
         if (allocated(error)) return
-        call key_parse("C-g M-< C-SPC M-> C-u 2 C-M-\", evs, st)
+        ! C-g signals quit, which discards the input typed ahead.
+        call key_parse("C-g", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call key_parse("M-< C-SPC M-> C-u 2 C-M-\", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
         call check(error, buffer_string() == "  a"//LF//"  b   ", buffer_string())
@@ -396,4 +410,96 @@ contains
         call discard_input()
         call leave(h)
     end subroutine test_indent_keys
+    !> C-x TAB: the transient map's message names its keys and comes back
+    !> after each of its commands, which keep the region and undo
+    !> together; another key ends it, clearing the message and the mark.
+    subroutine test_indent_rigidly_map(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        call init_bindings()
+        call enter("a"//LF//"b", 80, h)
+        indent_tabs_mode = .false.
+        call key_parse("C-SPC M-> C-x TAB", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, last_message, "Type TAB, <left>, <right>, S-<left>, S-<right> to indent region interactively")
+        if (allocated(error)) return
+        call key_parse("<right>", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call key_parse("<right>", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string() == "  a"//LF//"  b" .and. region_active_p() .and. &
+                   last_message == "Type TAB, <left>, <right>, S-<left>, S-<right> to indent region interactively", &
+                   buffer_string()//"|"//last_message)
+        if (allocated(error)) return
+        call key_parse("C-e", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error,.not. region_active_p() .and. last_message == "", "exit: "//last_message)
+        if (allocated(error)) return
+        ! The second <right> removed the undo boundary after the first:
+        ! one undo takes back both.
+        call key_parse("C-_", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call check(error, buffer_string(), "a"//LF//"b")
+        indent_tabs_mode = .true.
+        call discard_input()
+        call leave(h)
+    end subroutine test_indent_rigidly_map
+
+    ! An indent-line-function that cannot indent.
+    subroutine cannot_indent(status, noindent)
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: noindent
+        status = status_type()
+        noindent = .true.
+    end subroutine cannot_indent
+
+    !> indent-for-tab-command: when the indent-line-function returns
+    !> `noindent', the default one (indent-relative) indents.
+    subroutine test_noindent_fallback(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("    a"//LF//"b", 80, h)
+        indent_tabs_mode = .false.
+        call goto_char(7_int64)
+        call indent_line_function%set_local(cannot_indent)
+        call indent_for_tab_command(nil(), st)
+        call kill_local_variable(sym("indent_line_function"), st)
+        call check(error, buffer_string(), "    a"//LF//"    b")
+        indent_tabs_mode = .true.
+        call leave(h)
+    end subroutine test_noindent_fallback
+
+    !> indent-region-line-by-line reports its progress.
+    subroutine test_indent_region_progress(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("a"//LF//"b"//LF, 80, h)
+        last_message = ""
+        call indent_region_line_by_line(1_int64, point_max(), st)
+        call check(error, last_message, "Indenting region...done")
+        call leave(h)
+    end subroutine test_indent_region_progress
+
+    !> In a unibyte buffer the byte 0240 counts as a space.
+    subroutine test_indentation_unibyte(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("", 80, h)
+        buffers(cur)%multibyte = .false.
+        call insert(" "//achar(160)//"x", st)
+        call goto_char(1_int64)
+        call check(error, current_indentation(), 2_int64)
+        buffers(cur)%multibyte = .true.
+        call leave(h)
+    end subroutine test_indentation_unibyte
 end module test_indent_fm

@@ -19,13 +19,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `read_multiple_choice', the short-answers path (one key per choice,
-!> read in the echo area), for a terminal: the key of each name is shown
-!> in [brackets].  The help is shown in a window split off the bottom of
-!> the selected one, removed afterwards (save-window-excursion).
+!> `read_multiple_choice' for a terminal: the key of each name is shown
+!> in [brackets].  The answer is read in the minibuffer, with `read_key'
+!> (read-char-choice-use-read-key), or as a long answer.  The help is
+!> shown in a window split off the bottom of the selected one, removed
+!> afterwards.
 !>
-!> Not ported: the long-answers and minibuffer paths, dialog boxes,
-!> touch-screen events, the `edit' answer (recursive edit).
+!> Not ported: dialog boxes, touch-screen events.
 module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
@@ -36,9 +36,20 @@ module rmc_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use keymap_fm, only: single_key_description
-    use subr_fm, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP
+    use subr_fm, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN, &
+                       ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_EDIT
     use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, window_live_p, &
-                         recenter_top_bottom, scroll_up_command
+                         recenter, scroll_up_command, scroll_down_command
+    use lisp_fm, only: make_keymap_ref, nilp, make_string, make_list, command_type
+    use lread_fm, only: sym
+    use data_fm, only: value_eq
+    use character_fm, only: MAX_CHAR
+    use keymap_fm, only: make_sparse_keymap, set_keymap_parent, define_key, define_key_range, lookup_key, &
+                         current_global_map, free_keymap
+    use keyboard_fm, only: recursive_edit_1, this_command, real_this_command, last_command_event, sit_for
+    use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers, &
+                          completion_list_table
+    use minibuffer_fm, only: exit_minibuffer, minibuffer_message, completing_read, REQUIRE_MATCH_T
     use frame_fm, only: selected_frame, selected_window
     use dispnew_fm, only: ding
     use xdisp_fm, only: message
@@ -47,12 +58,28 @@ module rmc_fm
 
     public :: read_multiple_choice, rmc_add_key_description, generated_help
 
+    !> If non-nil, use `read_key' when reading a character by
+    !> `read_multiple_choice' (read-char-choice).  Otherwise, use the
+    !> minibuffer (this is the default).  Port of subr.el
+    !> read-char-choice-use-read-key.
+    logical, public :: read_char_choice_use_read_key = .false.
+
     !> A choice of `read_multiple_choice': (CHAR NAME [DESCRIPTION]).
     type, public :: rmc_choice_type
         integer :: key = 0
         character(len=:), allocatable :: name
         character(len=:), allocatable :: description
     end type rmc_choice_type
+
+    !> The question being asked: what the help and the minibuffer
+    !> commands need (upstream's closures).
+    character(len=:), allocatable :: rmc_prompt, rmc_help_string, rmc_buf_name
+    type(rmc_choice_type), allocatable :: rmc_choices(:)
+    logical :: rmc_have_help_string = .false., rmc_have_show_help = .false., rmc_shown = .false.
+    type(handle_type) :: rmc_buf, rmc_help_window
+    !> The key the minibuffer path read (tchar), -1 for none.
+    integer :: rmc_tchar = -1
+    type(command_type), target :: cmd_char, cmd_help, cmd_wrong
 
 contains
 
@@ -87,7 +114,7 @@ contains
     !> Ask user to select an entry from CHOICES, prompting with PROMPT.
     !> This function lets a user select an option from a list of options
     !> by typing a single character, and returns the index of the choice
-    !> (`answer').
+    !> (`answer'; 0 for none).
     !>
     !> CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character
     !> to be entered.  NAME is a short name for the entry to be displayed
@@ -102,121 +129,296 @@ contains
     !> SHOW-HELP, if present, means show the help buffer from the start
     !> (named SHOW-HELP when it is a non-empty string).
     !>
-    !> If the user types the `?' key, the help is displayed; other keys
-    !> not in CHOICES ask again after "Invalid choice."; C-g quits.  Port
-    !> of rmc.el:read-multiple-choice (short answers).
-    subroutine read_multiple_choice(prompt, choices, answer, status, help_string, show_help)
+    !> If optional argument LONG-FORM is non-nil, the user will have to
+    !> type in long-form answers (using `completing_read') instead of
+    !> hitting a single key.
+    !>
+    !> If the user types the `?' key, the help is displayed.  The answer
+    !> is read in the minibuffer, or with `read_key' if
+    !> `read_char_choice_use_read_key' is non-nil.  Port of
+    !> rmc.el:read-multiple-choice (no dialog boxes or touch-screen
+    !> events).
+    recursive subroutine read_multiple_choice(prompt, choices, answer, status, help_string, show_help, long_form)
         character(len=*), intent(in) :: prompt
         type(rmc_choice_type), intent(in) :: choices(:)
         integer, intent(out) :: answer
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: help_string, show_help
-        character(len=:), allocatable :: full_prompt, buf_name
-        type(value_type) :: key
-        type(handle_type) :: buf, help_window
+        logical, intent(in), optional :: long_form
         type(status_type) :: st
-        logical :: wrong_char, shown
+        logical :: long
+        answer = 0
+        status = status_type()
+        long = .false.
+        if (present(long_form)) long = long_form
+        if (long) then
+            call long_answers(prompt, choices, answer, status)
+        else
+            ! The state the help needs.
+            rmc_prompt = prompt
+            rmc_choices = choices
+            rmc_have_help_string = present(help_string)
+            if (rmc_have_help_string) rmc_help_string = help_string
+            rmc_have_show_help = present(show_help)
+            rmc_buf_name = "*Multiple Choice Help*"
+            if (present(show_help)) then
+                if (len(show_help) > 0) rmc_buf_name = show_help
+            end if
+            rmc_shown = .false.
+            if (read_char_choice_use_read_key) then
+                call short_answers(answer, status)
+            else
+                call from_minibuffer(answer, status)
+            end if
+            if (rmc_shown) then
+                if (window_live_p(rmc_help_window)) call delete_window(rmc_help_window, st)
+                call kill_buffer(rmc_buf, st)
+            end if
+        end if
+    end subroutine read_multiple_choice
+
+    !> The prompt: PROMPT, then the names with their keys, and "[?]"
+    !> unless the help shows from the start.
+    function full_prompt() result(full)
+        character(len=:), allocatable :: full
+        type(rmc_choice_type) :: question
+        integer :: k
+        full = rmc_prompt//" ("
+        do k = 1, size(rmc_choices)
+            if (k > 1) full = full//", "
+            full = full//rmc_add_key_description(rmc_choices(k))
+        end do
+        if (.not. rmc_have_show_help) then
+            question%key = iachar("?")
+            question%name = "?"
+            if (size(rmc_choices) > 0) full = full//", "
+            full = full//rmc_add_key_description(question)
+        end if
+        full = full//"): "
+    end function full_prompt
+
+    !> Port of rmc.el:read-multiple-choice--short-answers.
+    subroutine short_answers(answer, status)
+        integer, intent(out) :: answer
+        type(status_type), intent(out) :: status
+        type(value_type) :: key
+        type(status_type) :: st
+        logical :: wrong_char, again
         integer :: k, c
         answer = 0
         status = status_type()
-        full_prompt = prompt//" ("
-        do k = 1, size(choices)
-            if (k > 1) full_prompt = full_prompt//", "
-            full_prompt = full_prompt//rmc_add_key_description(choices(k))
-        end do
-        if (.not. present(show_help)) full_prompt = full_prompt//", ?"
-        full_prompt = full_prompt//"): "
-        buf_name = "*Multiple Choice Help*"
-        if (present(show_help)) then
-            if (len(show_help) > 0) buf_name = show_help
-        end if
-        shown = .false.
-        if (present(show_help)) call show(buf, help_window)
+        if (rmc_have_show_help) call show_help_window()
         wrong_char = .false.
-        do while (answer == 0)
+        do
             if (wrong_char) then
-                call read_key("Invalid choice.  "//full_prompt, key, status)
+                call read_key("Invalid choice.  "//full_prompt(), key, status)
             else
-                call read_key(full_prompt, key, status)
+                call read_key(full_prompt(), key, status)
             end if
-            if (.not. status%ok()) exit
-            if (.not. fixnump(key)) then
-                c = -1
-            else
-                c = int(xfixnum(key))
-            end if
+            if (.not. status%ok()) return
+            c = -1
+            if (fixnump(key)) c = int(xfixnum(key))
             if (c == 7) then
                 call set_error(status, FM_QUIT)
-                exit
+                return
             end if
+            again = .true.
             select case (query_replace_answer(key))
             case (ANSWER_RECENTER)
-                call recenter_top_bottom(nil(), st)
-                wrong_char = .false.
-                cycle
+                call recenter(nil(), .false., st)
             case (ANSWER_SCROLL_UP)
                 call scroll_up_command(nil(), st)
+            case (ANSWER_SCROLL_DOWN)
+                call scroll_down_command(nil(), st)
+            case (ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN)
+                ! scroll-other-window and scroll-other-window-down are not
+                ! ported (Deferred).
+                continue
+            case (ANSWER_EDIT)
+                call message("Recursive edit; type C-M-c to return to help screen")
+                call recursive_edit_1(st)
+            case default
+                again = .false.
+            end select
+            if (again) then
                 wrong_char = .false.
                 cycle
-            case default
-                continue
-            end select
-            do k = 1, size(choices)
-                if (choices(k)%key == c) answer = k
+            end if
+            do k = 1, size(rmc_choices)
+                if (rmc_choices(k)%key == c) answer = k
             end do
-            if (answer == 0) then
-                ! The user has entered an invalid choice, so display the
-                ! help messages.
-                wrong_char = c /= iachar("?") .and. c /= 8
-                if (wrong_char) call ding()
-                if (.not. shown) call show(buf, help_window)
+            if (answer /= 0) exit
+            ! The user has entered an invalid choice, so display the help
+            ! messages.
+            wrong_char = c /= iachar("?") .and. c /= 8
+            if (wrong_char) call ding()
+            call show_help_window()
+        end do
+    end subroutine short_answers
+
+    !> Read short answers from the minibuffer.  Port of
+    !> rmc.el:read-multiple-choice--from-minibuffer (the keymap's
+    !> [remap self-insert-command] is flattened, as keymap_fm has no
+    !> remapping; its [help-char] binding binds a symbol event, which
+    !> never arrives).
+    recursive subroutine from_minibuffer(answer, status)
+        type(value_type) :: key1(1)
+        integer, intent(out) :: answer
+        type(status_type), intent(out) :: status
+        type(handle_type) :: map
+        type(value_type) :: b, saved_this, saved_real_this
+        type(status_type) :: st
+        character(len=:), allocatable :: str
+        integer :: k
+        integer(int64) :: c
+        logical :: saved_enable
+        answer = 0
+        rmc_tchar = -1
+        call define_commands()
+        if (rmc_have_show_help) call show_help_window()
+        call make_sparse_keymap(map)
+        call set_keymap_parent(map, minibuffer_local_map, st)
+        ! [remap self-insert-command]
+        do c = 0, 127
+            key1(1) = make_fixnum(c)
+            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
+            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+            if (value_eq(b, sym("self_insert_command"))) then
+                call define_key(map, key1, sym("rmc__wrong"), st)
             end if
         end do
-        if (shown) then
-            if (window_live_p(help_window)) call delete_window(help_window, st)
-            call kill_buffer(buf, st)
+        key1(1) = make_fixnum(128_int64)
+        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
+        if (value_eq(b, sym("self_insert_command"))) then
+            call define_key_range(map, 128_int64, int(MAX_CHAR, int64), sym("rmc__wrong"), st)
         end if
-        call message("")
-    contains
-        ! rmc--show-help: fill the help buffer and show it at the bottom.
-        subroutine show(buf, help_window)
-            type(handle_type), intent(out) :: buf, help_window
-            type(handle_type) :: previous
-            type(window_type), pointer :: w
-            character(len=:), allocatable :: text
-            integer :: lines, i
-            previous = current_buffer()
-            call get_buffer_create(buf_name, buf, st)
+        do k = 1, size(rmc_choices)
+            key1(1) = make_fixnum(int(rmc_choices(k)%key, int64))
+            call define_key(map, key1, sym("rmc__char"), st)
+        end do
+        key1(1) = make_fixnum(int(iachar("?"), int64))
+        if (.not. rmc_have_show_help) call define_key(map, key1, &
+                                                      sym("rmc__help"), st)
+        saved_this = this_command
+        saved_real_this = real_this_command
+        saved_enable = enable_recursive_minibuffers
+        enable_recursive_minibuffers = .true.
+        call read_from_minibuffer(full_prompt(), str, status, keymap=map)
+        enable_recursive_minibuffers = saved_enable
+        this_command = saved_this
+        real_this_command = saved_real_this
+        call free_keymap(map, st)
+        if (.not. status%ok()) return
+        do k = 1, size(rmc_choices)
+            if (rmc_choices(k)%key == rmc_tchar) answer = k
+        end do
+    end subroutine from_minibuffer
+
+    !> Make the minibuffer path's commands known.
+    subroutine define_commands()
+        if (len_trim(cmd_char%name) > 0) return
+        cmd_char = command_type("rmc__char", rmc_char)
+        call cmd_char%define()
+        cmd_help = command_type("rmc__help", rmc_help)
+        call cmd_help%define()
+        cmd_wrong = command_type("rmc__wrong", rmc_wrong)
+        call cmd_wrong%define()
+    end subroutine define_commands
+
+    !> cmd-char: the key is the answer.
+    subroutine rmc_char(status)
+        type(status_type), intent(out) :: status
+        rmc_tchar = -1
+        if (fixnump(last_command_event)) rmc_tchar = int(xfixnum(last_command_event))
+        call exit_minibuffer(status)
+    end subroutine rmc_char
+
+    !> cmd-help: show the help.
+    subroutine rmc_help(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call show_help_window()
+    end subroutine rmc_help
+
+    !> cmd-wrong: an invalid choice.
+    subroutine rmc_wrong(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call ding()
+        call show_help_window()
+        call minibuffer_message("Invalid choice")
+        call sit_for(2000)
+    end subroutine rmc_wrong
+
+    !> Port of rmc.el:read-multiple-choice--long-answers.
+    recursive subroutine long_answers(prompt, choices, answer, status)
+        character(len=*), intent(in) :: prompt
+        type(rmc_choice_type), intent(in) :: choices(:)
+        integer, intent(out) :: answer
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: names(:)
+        character(len=:), allocatable :: full, result
+        integer :: k
+        answer = 0
+        allocate (names(size(choices)))
+        full = prompt//" ("
+        do k = 1, size(choices)
+            names(k) = make_string(choices(k)%name)
+            if (k > 1) full = full//"/"
+            full = full//choices(k)%name
+        end do
+        full = full//") "
+        call completing_read(full, completion_list_table(make_list(names)), result, status, &
+                             require_match=REQUIRE_MATCH_T)
+        if (.not. status%ok()) return
+        do k = 1, size(choices)
+            if (choices(k)%name == result .and. len(choices(k)%name) == len(result)) then
+                answer = k
+                return
+            end if
+        end do
+    end subroutine long_answers
+
+    !> rmc--show-help: fill the help buffer and show it at the bottom.
+    subroutine show_help_window()
+        type(handle_type) :: previous
+        type(window_type), pointer :: w
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+        integer :: lines, i
+        previous = current_buffer()
+        call get_buffer_create(rmc_buf_name, rmc_buf, st)
+        if (.not. st%ok()) return
+        call set_buffer(rmc_buf, st)
+        call set_buffer_read_only(rmc_buf, .false., st)
+        call erase_buffer(st)
+        if (rmc_have_help_string) then
+            text = rmc_help_string
+        else
+            text = rmc_prompt//achar(10)//achar(10)//generated_help(rmc_choices, help_columns())
+        end if
+        call insert(text, st)
+        call goto_char(1_int64)
+        call set_buffer_read_only(rmc_buf, .true., st)
+        call set_buffer(previous, st)
+        if (rmc_shown) then
+            if (window_live_p(rmc_help_window)) return
+        end if
+        rmc_shown = .true.
+        ! A window as high as the text (and its mode line) below the
+        ! selected one; none if it doesn't fit.
+        lines = 1
+        do i = 1, len(text) - 1
+            if (text(i:i) == achar(10)) lines = lines + 1
+        end do
+        call split_window(selected_window(), -(lines + 1), .true., .false., rmc_help_window, st)
+        if (.not. st%ok()) then
+            call split_window(selected_window(), 0, .false., .false., rmc_help_window, st)
             if (.not. st%ok()) return
-            call set_buffer(buf, st)
-            call set_buffer_read_only(buf, .false., st)
-            call erase_buffer(st)
-            if (present(help_string)) then
-                text = help_string
-            else
-                text = prompt//achar(10)//achar(10)//generated_help(choices, help_columns())
-            end if
-            call insert(text, st)
-            call goto_char(1_int64)
-            call set_buffer_read_only(buf, .true., st)
-            call set_buffer(previous, st)
-            shown = .true.
-            ! A window as high as the text (and its mode line) below the
-            ! selected one; none if it doesn't fit.
-            lines = 1
-            do i = 1, len(text) - 1
-                if (text(i:i) == achar(10)) lines = lines + 1
-            end do
-            if (selected_frame%minibuffer_selected) return
-            call split_window(selected_window(), -(lines + 1), .true., .false., help_window, st)
-            if (.not. st%ok()) then
-                call split_window(selected_window(), 0, .false., .false., help_window, st)
-                if (.not. st%ok()) return
-            end if
-            w => window_ref(help_window)
-            call set_window_buffer(w, buf, st, record=.false.)
-        end subroutine show
-    end subroutine read_multiple_choice
+        end if
+        w => window_ref(rmc_help_window)
+        call set_window_buffer(w, rmc_buf, st, record=.false.)
+    end subroutine show_help_window
     ! (/ (window-width) 25): the columns of the generated help.
     integer function help_columns() result(columns)
         type(window_type), pointer :: w

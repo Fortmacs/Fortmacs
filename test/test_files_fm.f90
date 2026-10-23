@@ -458,7 +458,14 @@ contains
         call map_y_or_n_p(5, ask_all, act, actions, st)
         call check(error, actions == 0 .and. .not. any(acted))
         if (allocated(error)) return
-        call check(error, last_message == "Item 3? (y, n, !, ., or q) q", last_message)
+        ! The echo area is restored.
+        call check(error, last_message == "", last_message)
+        if (allocated(error)) return
+        ! Other keys say how to get help; the question stays.
+        acted = .false.
+        call type_keys("xy.")
+        call map_y_or_n_p(5, ask_all, act, actions, st)
+        call check(error, st%ok() .and. actions == 2 .and. acted(1) .and. acted(3), "x is not an answer")
         if (allocated(error)) return
         call type_keys(achar(7))
         call map_y_or_n_p(5, ask_all, act, actions, st)
