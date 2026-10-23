@@ -22,9 +22,9 @@
 !> `normal-mode`, `set-auto-mode` and `auto-mode-alist`: a submodule
 !> because the modes use files_fm's dependencies.
 submodule(files_fm) files_mode_fm
-    use lisp_fm, only: nil
-    use data_fm, only: kill_all_local_variables, symbol_value
-    use eval_fm, only: run_hooks, funcall_noargs
+    use data_fm, only: kill_all_local_variables
+    use eval_fm, only: funcall_noargs
+    use subr_fm, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
     use callint_fm, only: fboundp
     use search_fm, only: string_match, case_fold_search
     use editfns_fm, only: point_min, point_max, buffer_substring
@@ -203,7 +203,7 @@ contains
             end if
         end if
         if (.not. fboundp(sym(mode))) then
-            call message("Ignoring unknown mode `"//mode//"'")
+            call message(format_message("Ignoring unknown mode `"//mode//"'"))
             return
         end if
         call funcall_noargs(sym(mode), status)
@@ -262,20 +262,16 @@ contains
     end procedure set_auto_mode
 
     module procedure normal_mode
-    type(value_type) :: v
     type(status_type) :: st
-    logical :: delaying
-    character(len=40), parameter :: HOOKS(2) = [character(len=40) :: &
-                                                "change-major-mode-after-body-hook", "after-change-major-mode-hook"]
     status = status_type()
     if (cur == 0) return
     ! FIND_FILE only matters for file-local variables, not yet supported.
     if (present(find_file)) continue
     call kill_all_local_variables()
-    call symbol_value(sym("delay-mode-hooks"), v, st)
-    delaying = st%ok() .and. .not. nilp(v)
-    if (.not. delaying) then
-        call run_hooks(HOOKS, status)
+    if (.not. delaying_mode_hooks()) then
+        call change_major_mode_after_body_hook%run(status)
+        if (.not. status%ok()) return
+        call after_change_major_mode_hook%run(status)
         if (.not. status%ok()) return
     end if
     ! (with-demoted-errors "File mode specification error: %S" ...)

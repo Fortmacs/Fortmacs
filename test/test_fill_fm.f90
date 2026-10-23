@@ -37,7 +37,8 @@ module test_fill_fm
     use editfns_fm, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol
     use cmds_fm, only: forward_line, beginning_of_line, self_insert_command
     use search_fm, only: search_forward
-    use simple_fm, only: fill_prefix, auto_fill_mode, deactivate_mark
+    use simple_fm, only: fill_prefix, deactivate_mark, syms_of_simple
+    use modes_fm, only: minor_modes
     use paragraphs_fm, only: sentence_end_double_space
     use bindings_fm, only: init_bindings
     use fill_fm, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
@@ -139,15 +140,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+        call syms_of_simple()
         call temp_buffer("", h)
-        call auto_fill_mode()
+        call minor_modes%auto_fill_mode%enable(st)
         call insert("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius.", st)
         call self_insert_command(1_int64, 32_int64, st)
         call check(error, buffer_string(), "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius. ")
         call leave(h)
         if (allocated(error)) return
         call temp_buffer("", h)
-        call auto_fill_mode()
+        call minor_modes%auto_fill_mode%enable(st)
         call insert("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius.Foo", st)
         call goto_char(point() - 3)
         call self_insert_command(1_int64, 32_int64, st)

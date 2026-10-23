@@ -46,8 +46,12 @@ module callint_fm
               set_command_disabled, intern_command_names, command_name_of
     public :: call_interactively, funcall, prefix_numeric_value
 
-    !> callint.c:Vcurrent_prefix_arg: the raw prefix argument of the
-    !> command being run.
+    !> The value of the prefix argument for this editing command.
+    !> It may be a number, or the symbol `-' for just a minus sign as arg,
+    !> or a list whose car is a number for just one or more C-u's
+    !> or nil if no argument has been specified.
+    !> This is what `(interactive "P")' returns.  Port of callint.c
+    !> current-prefix-arg.
     type(value_type), public :: current_prefix_arg
     !> keyboard.c KVAR prefix_arg: the raw prefix argument for the next
     !> command (set by universal-argument and friends).

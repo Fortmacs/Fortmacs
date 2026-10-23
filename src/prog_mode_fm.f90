@@ -24,15 +24,23 @@
 module prog_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type
-    use lisp_fm, only: t_value, value_type
-    use lread_fm, only: sym
-    use data_fm, only: setq_local, symbol_value
-    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end
-    use simple_fm, only: syms_of_simple_modes
+    use modes_fm, only: major_modes
+    use eval_fm, only: hook_type
+    use handle_fm, only: handle_type
+    use files_fm, only: require_final_newline, mode_require_final_newline
+    use syntax_fm, only: parse_sexp_ignore_comments
     implicit none(type, external)
     private
 
     public :: prog_mode, syms_of_prog_mode
+
+    !> Normal hook run when entering programming modes.  Port of
+    !> prog-mode.el prog-mode-hook.
+    type(hook_type), target, public :: prog_mode_hook = hook_type(name="prog-mode-hook")
+
+    !> Keymap used for programming modes.  Port of prog-mode.el
+    !> prog-mode-map.
+    type(handle_type), public :: prog_mode_map
 
 contains
 
@@ -40,21 +48,19 @@ contains
     !> prog-mode.el:prog-mode.
     recursive subroutine prog_mode(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: v
-        type(status_type) :: st
         logical :: saved
-        call derived_mode_begin("prog-mode", saved, status)
+        call major_modes%prog_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call symbol_value(sym("mode-require-final-newline"), v, st)
-        if (st%ok()) call setq_local("require-final-newline", v, status)
-        call setq_local("parse-sexp-ignore-comments", t_value(), status)
-        call derived_mode_end("prog-mode", saved, status)
+        call require_final_newline%set_local(mode_require_final_newline)
+        call parse_sexp_ignore_comments%set_local(.true.)
+        call major_modes%prog_mode%finish(saved, status)
     end subroutine prog_mode
 
-    !> Define Prog mode (and its parent, Fundamental mode).
+    !> Define Prog mode.  Its parent is fundamental-mode, which
+    !> define-derived-mode takes as no parent.
     subroutine syms_of_prog_mode()
-        call syms_of_simple_modes()
-        call define_derived_mode("prog-mode", "fundamental-mode", "Prog")
+        call major_modes%prog_mode%define("prog-mode", "Prog", prog_mode, prog_mode_hook)
+        prog_mode_map = major_modes%prog_mode%map
         commands%prog_mode%run => prog_mode
     end subroutine syms_of_prog_mode
 end module prog_mode_fm

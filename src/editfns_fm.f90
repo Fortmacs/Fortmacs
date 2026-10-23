@@ -68,12 +68,36 @@ module editfns_fm
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
               delete_field, constrain_to_field
+    public :: format_message
 
     !> Non-nil means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
     logical, public :: inhibit_field_text_motion = .false.
 
 contains
+
+    !> Format a string out of a format-string and arguments, converting
+    !> grave accents and apostrophes in FMT to curved quotes (the
+    !> `curve' style of `text-quoting-style', the style used on a UTF-8
+    !> terminal).  Only the format string is converted, so concatenate
+    !> the arguments after converting the literal parts.  Port of
+    !> editfns.c:Fformat_message (the quoting).
+    function format_message(fmt) result(s)
+        character(len=*), intent(in) :: fmt
+        character(len=:), allocatable :: s
+        integer :: i
+        s = ""
+        do i = 1, len(fmt)
+            select case (fmt(i:i))
+            case ("`")
+                s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'98'))
+            case ("'")
+                s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'99'))
+            case default
+                s = s//fmt(i:i)
+            end select
+        end do
+    end function format_message
 
     ! ------------------------------------------------------------------
     ! Positions

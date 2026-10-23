@@ -32,6 +32,7 @@ module subr_fm
                        list_elements, make_list, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
+    use eval_fm, only: hook_type
     use keyboard_fm, only: read_event, discard_input
     use xdisp_fm, only: message, cursor_in_echo_area
     use keymap_fm, only: define_key, current_global_map
@@ -44,8 +45,17 @@ module subr_fm
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
     public :: global_set_key, read_number
-    public :: add_hook, remove_hook, run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, &
-              provided_mode_derived_p, derived_mode_p
+    public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
+              kill_delayed_mode_hooks
+
+    !> Normal hook run in major mode functions, before the mode hooks.
+    !> Port of subr.el change-major-mode-after-body-hook.
+    type(hook_type), public, target :: change_major_mode_after_body_hook = &
+                                       hook_type(name="change-major-mode-after-body-hook")
+
+    !> Normal hook run at the very end of major mode functions.  Port of
+    !> subr.el after-change-major-mode-hook.
+    type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after-change-major-mode-hook")
     public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
               match_substitute_replacement
 
@@ -94,73 +104,27 @@ module subr_fm
             character(len=*), intent(in), optional :: hist
         end subroutine read_number
 
-        !> Add to the value of HOOK the function FUNCTION.
-        !> FUNCTION is not added if already present.
-        !>
-        !> HOOK should be a symbol.  If HOOK is void, or if HOOK's value is a
-        !> single function, it is changed to a list of functions.
-        !>
-        !> The place where the function is added depends on the DEPTH
-        !> parameter.  DEPTH defaults to 0.  By convention, it should be
-        !> a number between -100 and 100 where 100 means that the function
-        !> should be at the very end of the list, whereas -100 means that
-        !> the function should always come first.
-        !> Since nothing is "always" true, don't use 100 nor -100.
-        !> When two functions have the same depth, the new one gets added after the
-        !> old one if depth is strictly positive and before otherwise.
-        !>
-        !> The optional fourth argument, LOCAL, if non-nil, says to modify
-        !> the hook's buffer-local value rather than its global value.
-        !> This makes the hook buffer-local, and it makes t a member of the
-        !> buffer-local value.  That acts as a flag to run the hook
-        !> functions of the global value as well as in the local value.
-        !>
-        !> FUNCTION names a procedure registered with `defcommand`.  Port of
-        !> subr.el:add-hook (depths are kept for the default value only).
-        !> (In subr_hooks_fm.)
-        module subroutine add_hook(hook, function, status, depth, local)
-            implicit none(type, external)
-            character(len=*), intent(in) :: hook, function
-            type(status_type), intent(out) :: status
-            integer, intent(in), optional :: depth
-            logical, intent(in), optional :: local
-        end subroutine add_hook
-
-        !> Remove FUNCTION from HOOK's functions.
-        !> HOOK should be a symbol, and FUNCTION may be any valid function.
-        !> Do nothing if HOOK does not currently contain FUNCTION.
-        !>
-        !> The optional third argument, LOCAL, if non-nil, says to modify
-        !> the hook's buffer-local value rather than its default value.
-        !> Port of subr.el:remove-hook.  (In subr_hooks_fm.)
-        module subroutine remove_hook(hook, function, status, local)
-            implicit none(type, external)
-            character(len=*), intent(in) :: hook, function
-            type(status_type), intent(out) :: status
-            logical, intent(in), optional :: local
-        end subroutine remove_hook
-
-        !> Run mode hooks `delayed-mode-hooks' and HOOKS, or delay HOOKS.
+        !> Run mode hooks `delayed-mode-hooks' and HOOK, or delay HOOK.
         !>
         !> If the variable `delay-mode-hooks' is non-nil, does not do anything,
-        !> just adds the HOOKS to the list `delayed-mode-hooks'.
+        !> just adds HOOK to the list `delayed-mode-hooks'.
         !> Otherwise, runs hooks in the sequence: `change-major-mode-after-body-hook',
-        !> `delayed-mode-hooks' (in reverse order), HOOKS, then
+        !> `delayed-mode-hooks' (in reverse order), HOOK, then
         !> runs the hook `after-change-major-mode-hook'.
         !>
         !> Major mode functions should use this instead of `run-hooks' when
         !> running their FOO-mode-hook.  Port of subr.el:run-mode-hooks
         !> (no file-local variables yet).  (In subr_hooks_fm.)
-        module subroutine run_mode_hooks(hooks, status)
+        recursive module subroutine run_mode_hooks(status, hook)
             implicit none(type, external)
-            character(len=*), intent(in) :: hooks(:)
             type(status_type), intent(out) :: status
+            type(hook_type), intent(in), target, optional :: hook
         end subroutine run_mode_hooks
 
         !> Start `delay-mode-hooks': until the matching
-        !> delay_mode_hooks_end, `run-mode-hooks' only records its hooks.
-        !> SAVED keeps the outer value.  Port of subr.el:delay-mode-hooks.
-        !> (In subr_hooks_fm.)
+        !> delay_mode_hooks_end, `run-mode-hooks' only records its hooks
+        !> (in the current buffer).  SAVED keeps the outer value.  Port of
+        !> subr.el:delay-mode-hooks.  (In subr_hooks_fm.)
         module subroutine delay_mode_hooks_begin(saved)
             implicit none(type, external)
             logical, intent(out) :: saved
@@ -173,23 +137,18 @@ module subr_fm
             logical, intent(in) :: saved
         end subroutine delay_mode_hooks_end
 
-        !> Non-nil if MODE is derived from a mode that is a member of the list MODES.
-        !> This examines the parent modes set by `define-derived-mode'.
-        !> If you just want to check the current `major-mode', use `derived-mode-p'.
-        !> Port of subr.el:provided-mode-derived-p (no extra parents).
-        !> (In subr_hooks_fm.)
-        module logical function provided_mode_derived_p(mode, modes)
+        !> Forget the current buffer's `delayed-mode-hooks' (a local
+        !> variable that `kill-all-local-variables' kills).  (In
+        !> subr_hooks_fm.)
+        module subroutine kill_delayed_mode_hooks()
             implicit none(type, external)
-            character(len=*), intent(in) :: mode, modes(:)
-        end function provided_mode_derived_p
+        end subroutine kill_delayed_mode_hooks
 
-        !> Return non-nil if the current major mode is derived from one of MODES.
-        !> This examines the parent modes set by `define-derived-mode'.
-        !> Port of subr.el:derived-mode-p.  (In subr_hooks_fm.)
-        module logical function derived_mode_p(modes)
+        !> Whether mode hooks are being delayed in the current buffer (the
+        !> variable `delay-mode-hooks').  (In subr_hooks_fm.)
+        module logical function delaying_mode_hooks()
             implicit none(type, external)
-            character(len=*), intent(in) :: modes(:)
-        end function derived_mode_p
+        end function delaying_mode_hooks
     end interface
 
 contains

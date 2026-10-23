@@ -19,41 +19,37 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `define-minor-mode` for Fortran minor modes.  Upstream's macro
-!> expands into a function; here define_minor_mode registers the mode
-!> (its variable, lighter, keymap `MODE-map` and hooks) and set_minor_mode
-!> does what that function does.  The mode's command is a small Fortran
-!> procedure calling minor_mode_command:
+!> Minor modes.  A minor mode is a `minor_mode_type` object: built-in
+!> ones are the components of `minor_modes` (modes_fm), others are
+!> `target` variables made known with `define`.  Upstream's
+!> `define-minor-mode` macro expands into a variable, a keymap, hooks
+!> and a function; here they are the object's state, `map`, `hook`
+!> (with `on_hook` and `off_hook`) and type-bound procedures:
 !>
-!>     subroutine cmd_my_mode(status)
-!>         type(status_type), intent(out) :: status
-!>         call minor_mode_command("my-mode", status)
-!>     end subroutine cmd_my_mode
-!>
-!> registered with define_minor_mode("my-mode", " My", body=my_body)
-!> and defcommand("my-mode", cmd_my_mode).
+!>     call minor_modes%auto_fill_mode%enable(status)
+!>     call minor_modes%auto_fill_mode%hook%add(my_procedure)
 module easy_mmode_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, t_value, make_keymap_ref
-    use lread_fm, only: sym
-    use data_fm, only: boundp, set, set_default, symbol_value, make_variable_buffer_local
-    use eval_fm, only: run_hooks
+    use error_fm, only: status_type
+    use handle_fm, only: handle_type
+    use lisp_fm, only: value_type, nil, nilp, t_value, make_keymap_ref, symbols
+    use lread_fm, only: sym, intern
+    use data_fm, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting
+    use eval_fm, only: hook_type
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
+    use buffer_fm, only: buffers, cur
     use keymap_fm, only: make_sparse_keymap, keymap_live_p, add_minor_mode_map
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
     implicit none(type, external)
     private
 
-    public :: minor_mode_body_proc, define_minor_mode, set_minor_mode, minor_mode_command, &
-              minor_mode_enabled_p, minor_mode_map, easy_mmode_pretty_mode_name
+    public :: minor_mode_body_proc, easy_mmode_pretty_mode_name, minor_mode_named, minor_mode_index, minor_mode_at
 
     abstract interface
-        !> The body of a minor mode, run after its variable is set:
-        !> `enable` is the new state.  A mode whose state is another
-        !> variable (upstream's :variable) sets that variable here.
+        !> The body of a minor mode, run after its state is set: `enable`
+        !> is the new state.  A mode whose state is another variable
+        !> (upstream's :variable with a setter) sets that variable here.
         subroutine minor_mode_body_proc(enable, status)
             import :: status_type
             implicit none(type, external)
@@ -62,34 +58,81 @@ module easy_mmode_fm
         end subroutine minor_mode_body_proc
     end interface
 
-    type :: minor_mode_type
-        character(len=:), allocatable :: name, variable
+    !> A minor mode.  Port of what easy-mmode.el:define-minor-mode
+    !> defines.
+    type, public :: minor_mode_type
+        !> The mode's name, as M-x and the help commands show it.
+        character(len=64) :: name = ""
+        !> Shown in the mode line while the mode is on; begins with a space.
+        character(len=:), allocatable :: lighter
+        !> A global mode (else each buffer has its own state).
         logical :: global = .false.
-        logical :: own_variable = .true.
-        type(handle_type) :: map
+        !> The variable holding the state when it is not the mode's own
+        !> (upstream's :variable), by name, e.g. `transient-mark-mode`.
+        character(len=64) :: variable = ""
+        !> Run every time the mode is turned on or off, after the state
+        !> is set.
         procedure(minor_mode_body_proc), pointer, nopass :: body => null()
+        !> The keymap active while the mode is on (`MODE-map`).
+        type(handle_type) :: map
+        !> Run after the mode is turned on or off (`MODE-hook`), and
+        !> `MODE-on-hook` / `MODE-off-hook`.
+        type(hook_type), pointer :: hook => null()
+        type(hook_type) :: on_hook, off_hook
+        !> The mode's own state (the variable named after the mode, unless
+        !> `variable` names another); buffer-local unless `global`.
+        type(logical_setting) :: state
+    contains
+        !> Make the mode known by NAME, with its lighter, keymap and hooks.
+        procedure :: define => minor_mode_define
+        !> Turn the mode on.
+        procedure :: enable => minor_mode_enable
+        !> Turn the mode off.
+        procedure :: disable => minor_mode_disable
+        !> Turn the mode on if it is off, else off.
+        procedure :: toggle => minor_mode_toggle
+        !> The mode's command: toggle it, or with a prefix argument turn
+        !> it on if the argument is positive, else off.
+        procedure :: command => minor_mode_command
+        !> Whether the mode is on in the current buffer.
+        procedure :: enabled => minor_mode_enabled
+        !> Whether the mode is on in buffer slot B.
+        procedure :: enabled_in => minor_mode_enabled_in
+        !> Set the mode's own state (without running the mode).
+        procedure :: set_state => minor_mode_set_state
     end type minor_mode_type
 
-    type(minor_mode_type), allocatable :: modes(:)
-    integer :: nmodes = 0
+    !> A pointer to a minor mode.
+    type :: minor_mode_ref_type
+        type(minor_mode_type), pointer :: p => null()
+    end type minor_mode_ref_type
+
+    !> The defined minor modes.
+    type(minor_mode_ref_type), allocatable :: defined(:)
 
 contains
 
-    !> Turn the symbol MODE into a string intended for the user.  Port of
-    !> easy-mmode.el:easy-mmode-pretty-mode-name (without LIGHTER).
-    function easy_mmode_pretty_mode_name(mode) result(name)
+    !> Turn the symbol MODE into a string intended for the user.
+    !> If provided, LIGHTER will be used to help choose capitalization by,
+    !> replacing its case-insensitive matches with the literal string in
+    !> LIGHTER.  Port of easy-mmode.el:easy-mmode-pretty-mode-name.
+    function easy_mmode_pretty_mode_name(mode, lighter) result(name)
         character(len=*), intent(in) :: mode
-        character(len=:), allocatable :: name, base
+        character(len=*), intent(in), optional :: lighter
+        character(len=:), allocatable :: name, base, light
         integer :: i
         logical :: word_start
+        ! "foo-bar-minor-mode" -> "foo-bar-minor"
         base = mode
-        if (len(base) >= 7) then
-            if (base(1:7) == "toggle-") base = base(8:)
-        end if
+        do
+            i = index(base, "toggle-")
+            if (i == 0) exit
+            base = base(1:i - 1)//base(i + 7:)
+        end do
         if (len(base) >= 5) then
             if (base(len(base) - 4:) == "-mode") base = base(1:len(base) - 5)
         end if
-        ! capitalize
+        ! "foo-bar-minor" -> "Foo-Bar-Minor"
         name = base
         word_start = .true.
         do i = 1, len(name)
@@ -104,12 +147,30 @@ contains
                 word_start = .true.
             end if
         end do
-        i = index(name, "-Minor")
-        if (i > 0) name = name(1:i - 1)//" minor"//name(i + 6:)
+        ! "-Minor" -> " minor"
+        do
+            i = index(name, "-Minor")
+            if (i == 0) exit
+            name = name(1:i - 1)//" minor"//name(i + 6:)
+        end do
         name = name//" mode"
         if (len(name) >= 7) then
             if (name(1:7) == "Global-") name = "Global "//name(8:)
         end if
+        if (.not. present(lighter)) return
+        ! Strip leading and trailing whitespace from LIGHTER, then replace
+        ! any (case-insensitive) matches for it in NAME with it.
+        light = trim(adjustl(lighter))
+        if (len(light) == 0) return
+        i = 1
+        do while (i + len(light) - 1 <= len(name))
+            if (lower(name(i:i + len(light) - 1)) == lower(light)) then
+                name = name(1:i - 1)//light//name(i + len(light):)
+                i = i + len(light)
+            else
+                i = i + 1
+            end if
+        end do
     end function easy_mmode_pretty_mode_name
 
     logical function is_alnum(c)
@@ -129,167 +190,201 @@ contains
         if (c >= "A" .and. c <= "Z") downcase = achar(iachar(c) + 32)
     end function downcase
 
-    !> The index of MODE in the registry, or 0.
-    integer function find_mode(mode) result(k)
-        character(len=*), intent(in) :: mode
+    function lower(s) result(t)
+        character(len=*), intent(in) :: s
+        character(len=len(s)) :: t
+        integer :: i
+        do i = 1, len(s)
+            t(i:i) = downcase(s(i:i))
+        end do
+    end function lower
+
+    !> The defined minor mode named NAME, or null.
+    function minor_mode_named(name) result(p)
+        character(len=*), intent(in) :: name
+        type(minor_mode_type), pointer :: p
+        integer :: i
+        p => null()
+        if (.not. allocated(defined)) return
+        do i = 1, size(defined)
+            if (trim(defined(i)%p%name) == name) then
+                p => defined(i)%p
+                return
+            end if
+        end do
+    end function minor_mode_named
+
+    !> The index of the defined minor mode named NAME, or 0.
+    integer function minor_mode_index(name) result(k)
+        character(len=*), intent(in) :: name
         integer :: i
         k = 0
-        do i = 1, nmodes
-            if (modes(i)%name == mode) then
+        if (.not. allocated(defined)) return
+        do i = 1, size(defined)
+            if (trim(defined(i)%p%name) == name) then
                 k = i
                 return
             end if
         end do
-    end function find_mode
+    end function minor_mode_index
 
-    !> Define a new minor mode MODE.
-    !> This defines the toggle command MODE and (by default) a control variable
-    !> MODE (you can override this with VARIABLE).  MODE is buffer-local
-    !> unless GLOBAL is true.  LIGHTER (if not empty) is shown in the mode
-    !> line while the mode is on; it should begin with a space.
-    !>
-    !> BODY, if present, is run every time the mode is turned on or off,
-    !> after the variable is set.  The keymap `MODE-map` is active while
-    !> the mode is on, and the hooks `MODE-hook` and `MODE-on-hook` or
-    !> `MODE-off-hook` run after BODY.  Port of
-    !> easy-mmode.el:define-minor-mode (its command is defined by the
-    !> caller, see the module documentation).
-    subroutine define_minor_mode(mode, lighter, body, global, variable)
-        character(len=*), intent(in) :: mode, lighter
-        procedure(minor_mode_body_proc), optional :: body
+    !> The defined minor mode with index K (from `minor_mode_index`).
+    function minor_mode_at(k) result(p)
+        integer, intent(in) :: k
+        type(minor_mode_type), pointer :: p
+        p => defined(k)%p
+    end function minor_mode_at
+
+    !> Define the minor mode SELF named NAME.  It is buffer-local unless
+    !> GLOBAL; its state is its own unless VARIABLE names the variable
+    !> holding it.  LIGHTER (if not empty) is shown in the mode line
+    !> while the mode is on.  BODY, if present, runs every time the mode
+    !> is turned on or off.  Port of easy-mmode.el:define-minor-mode.
+    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook)
+        class(minor_mode_type), intent(inout), target :: self
+        character(len=*), intent(in) :: name
+        character(len=*), intent(in), optional :: lighter, variable
         logical, intent(in), optional :: global
-        character(len=*), intent(in), optional :: variable
-        type(minor_mode_type), allocatable :: grown(:)
+        procedure(minor_mode_body_proc), optional :: body
+        type(hook_type), intent(inout), target, optional :: hook
+        type(minor_mode_ref_type), allocatable :: grown(:)
         type(status_type) :: st
-        logical :: bound
-        integer :: k
-        character(len=:), allocatable :: hook
-        k = find_mode(mode)
-        if (k == 0) then
-            if (.not. allocated(modes)) allocate (modes(16))
-            if (nmodes == size(modes)) then
-                allocate (grown(2*nmodes))
-                grown(1:nmodes) = modes
-                call move_alloc(grown, modes)
-            end if
-            nmodes = nmodes + 1
-            k = nmodes
-            modes(k)%name = mode
+        integer :: n
+        integer(int64) :: id
+        self%name = name
+        self%state%name = name
+        self%lighter = ""
+        if (present(lighter)) self%lighter = lighter
+        if (present(global)) self%global = global
+        if (present(variable)) self%variable = variable
+        self%body => null()
+        if (present(body)) self%body => body
+        self%hook => null()
+        if (present(hook)) then
+            self%hook => hook
+            if (len_trim(hook%name) == 0) hook%name = name//"-hook"
         end if
-        modes(k)%variable = mode
-        modes(k)%own_variable = .true.
-        if (present(variable)) then
-            modes(k)%variable = variable
-            modes(k)%own_variable = variable == mode
+        self%on_hook%name = name//"-on-hook"
+        self%off_hook%name = name//"-off-hook"
+        if (.not. associated(minor_mode_named(name))) then
+            if (.not. allocated(defined)) allocate (defined(0))
+            n = size(defined)
+            allocate (grown(n + 1))
+            grown(1:n) = defined
+            select type (self)
+            type is (minor_mode_type)
+                grown(n + 1)%p => self
+            end select
+            call move_alloc(grown, defined)
         end if
-        modes(k)%global = .false.
-        if (present(global)) modes(k)%global = global
-        modes(k)%body => null()
-        if (present(body)) modes(k)%body => body
-        if (modes(k)%own_variable) then
-            call boundp(sym(mode), bound, st)
-            if (.not. bound) call set(sym(mode), nil(), st)
-            if (.not. modes(k)%global) call make_variable_buffer_local(sym(mode), st)
+        ! A mode with another variable makes that variable local when set
+        ! (a buffer-local mode).
+        if (len_trim(self%variable) > 0 .and. .not. self%global) then
+            call make_variable_buffer_local(sym(trim(self%variable)), st)
         end if
-        if (len(lighter) > 0) call add_minor_mode_lighter(modes(k)%variable, lighter)
-        if (.not. keymap_live_p(modes(k)%map)) then
-            call make_sparse_keymap(modes(k)%map)
-            call set(sym(mode//"-map"), make_keymap_ref(modes(k)%map), st)
-            call add_minor_mode_map(modes(k)%variable, modes(k)%map)
+        ! The mode's variable is now known by its name (data_fm forwards it
+        ! to `state`).
+        id = intern(name)
+        symbols(id)%fwd = 0
+        if (len(self%lighter) > 0) call add_minor_mode_lighter(state_name(self), self%lighter)
+        if (.not. keymap_live_p(self%map)) then
+            call make_sparse_keymap(self%map)
+            call add_minor_mode_map(state_name(self), self%map)
         end if
-        hook = mode//"-hook"
-        call boundp(sym(hook), bound, st)
-        if (.not. bound) call set(sym(hook), nil(), st)
-    end subroutine define_minor_mode
+    end subroutine minor_mode_define
 
-    !> The keymap of minor mode MODE (`MODE-map`), or the null handle.
-    function minor_mode_map(mode) result(h)
-        character(len=*), intent(in) :: mode
-        type(handle_type) :: h
-        integer :: k
-        h = null_handle()
-        k = find_mode(mode)
-        if (k > 0) h = modes(k)%map
-    end function minor_mode_map
+    !> The name of the variable holding the mode's state.
+    function state_name(self) result(name)
+        class(minor_mode_type), intent(in) :: self
+        character(len=:), allocatable :: name
+        if (len_trim(self%variable) > 0) then
+            name = trim(self%variable)
+        else
+            name = trim(self%name)
+        end if
+    end function state_name
 
-    !> Whether minor mode MODE is on (its variable is non-nil).
-    logical function minor_mode_enabled_p(mode) result(on)
-        character(len=*), intent(in) :: mode
+    !> Whether the mode is on in buffer slot B.
+    logical function minor_mode_enabled_in(self, b) result(on)
+        class(minor_mode_type), intent(in) :: self
+        integer(int64), intent(in) :: b
         type(value_type) :: v
         type(status_type) :: st
-        integer :: k
         on = .false.
-        k = find_mode(mode)
-        if (k == 0) return
-        call symbol_value(sym(modes(k)%variable), v, st)
-        on = st%ok() .and. .not. nilp(v)
-    end function minor_mode_enabled_p
+        if (len_trim(self%variable) == 0 .and. self%global) then
+            on = self%state%value
+        else if (b > 0) then
+            call buffer_local_value(sym(state_name(self)), b, v, st)
+            on = st%ok() .and. .not. nilp(v)
+        end if
+    end function minor_mode_enabled_in
 
-    !> Turn minor mode MODE on or off, as its function does: with ARG nil
-    !> (or absent) turn it on, unless TOGGLE, then toggle it; with a
-    !> number, turn it on if positive and off otherwise.  INTERACTIVE
-    !> shows the "... enabled" message.  Port of the function defined by
-    !> easy-mmode.el:define-minor-mode.
-    recursive subroutine set_minor_mode(mode, status, arg, toggle, interactive)
-        character(len=*), intent(in) :: mode
+    logical function minor_mode_enabled(self) result(on)
+        class(minor_mode_type), intent(in) :: self
+        type(value_type) :: v
+        type(status_type) :: st
+        if (len_trim(self%variable) > 0) then
+            call symbol_value(sym(trim(self%variable)), v, st)
+            on = st%ok() .and. .not. nilp(v)
+        else
+            on = self%state%value
+        end if
+    end function minor_mode_enabled
+
+    !> Set the mode's own state: globally, or (a buffer-local mode) in
+    !> the current buffer, as `(setq MODE ON)` does.
+    subroutine minor_mode_set_state(self, on)
+        class(minor_mode_type), intent(inout) :: self
+        logical, intent(in) :: on
+        if (self%global) then
+            self%state = on
+        else
+            call self%state%set_local(on)
+        end if
+    end subroutine minor_mode_set_state
+
+    !> Turn the mode on or off (ENABLE), run its body and hooks, and with
+    !> INTERACTIVE say so.  Port of the function easy-mmode.el's
+    !> define-minor-mode defines.
+    recursive subroutine set_mode(self, enable, status, interactive)
+        class(minor_mode_type), intent(inout) :: self
+        logical, intent(in) :: enable
         type(status_type), intent(out) :: status
-        type(value_type), intent(in), optional :: arg
-        logical, intent(in), optional :: toggle, interactive
-        logical :: enable, on, do_toggle, verbose, had_message
+        logical, intent(in) :: interactive
+        logical :: on, had_message
         character(len=:), allocatable :: before
-        character(len=128) :: hooks(2)
-        integer :: k
         status = status_type()
-        k = find_mode(mode)
-        if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Undefined minor mode: "//mode)
-            return
-        end if
-        do_toggle = .false.
-        if (present(toggle)) do_toggle = toggle
-        verbose = .false.
-        if (present(interactive)) verbose = interactive
-        enable = .true.
-        if (present(arg)) then
-            if (nilp(arg)) then
-                if (do_toggle) enable = .not. minor_mode_enabled_p(mode)
-            else
-                enable = prefix_numeric_value(arg) >= 1
-            end if
-        else if (do_toggle) then
-            enable = .not. minor_mode_enabled_p(mode)
-        end if
         had_message = allocated(last_message)
         if (had_message) before = last_message
-        if (modes(k)%own_variable) then
-            if (modes(k)%global) then
-                if (enable) then
-                    call set_default(sym(mode), t_value(), status)
+        if (len_trim(self%variable) > 0) then
+            ! The state is a variable of its own; a mode with a body sets
+            ! it there (:variable with a setter).
+            if (.not. associated(self%body)) then
+                if (self%global) then
+                    call set_default(sym(trim(self%variable)), bool(enable), status)
                 else
-                    call set_default(sym(mode), nil(), status)
+                    call set(sym(trim(self%variable)), bool(enable), status)
                 end if
-            else if (enable) then
-                call set(sym(mode), t_value(), status)
-            else
-                call set(sym(mode), nil(), status)
+                if (.not. status%ok()) return
             end if
-            if (.not. status%ok()) return
-        end if
-        if (associated(modes(k)%body)) then
-            call modes(k)%body(enable, status)
-            if (.not. status%ok()) return
-        end if
-        on = minor_mode_enabled_p(mode)
-        ! The on/off hooks are here for backward compatibility only.
-        hooks(1) = mode//"-hook"
-        if (on) then
-            hooks(2) = mode//"-on-hook"
         else
-            hooks(2) = mode//"-off-hook"
+            call self%set_state(enable)
         end if
-        call run_hooks(hooks, status)
+        if (associated(self%body)) then
+            call self%body(enable, status)
+            if (.not. status%ok()) return
+        end if
+        on = self%enabled()
+        ! The on/off hooks are here for backward compatibility only.
+        if (associated(self%hook)) call self%hook%run(status)
         if (.not. status%ok()) return
-        if (.not. verbose) return
+        if (on) then
+            call self%on_hook%run(status)
+        else
+            call self%off_hook%run(status)
+        end if
+        if (.not. status%ok()) return
+        if (.not. interactive) return
         ! Avoid overwriting a message shown by the body, but do overwrite
         ! previous messages.
         if (allocated(last_message)) then
@@ -299,27 +394,65 @@ contains
             end if
         end if
         if (on) then
-            call message(easy_mmode_pretty_mode_name(mode)//" enabled"//local_text(k))
+            call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" enabled"//local_text(self))
         else
-            call message(easy_mmode_pretty_mode_name(mode)//" disabled"//local_text(k))
+            call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" disabled"//local_text(self))
         end if
-    end subroutine set_minor_mode
+    end subroutine set_mode
 
-    function local_text(k) result(s)
-        integer, intent(in) :: k
+    function bool(b) result(v)
+        logical, intent(in) :: b
+        type(value_type) :: v
+        if (b) then
+            v = t_value()
+        else
+            v = nil()
+        end if
+    end function bool
+
+    function local_text(self) result(s)
+        class(minor_mode_type), intent(in) :: self
         character(len=:), allocatable :: s
-        if (modes(k)%global) then
+        if (self%global) then
             s = ""
         else
             s = " in current buffer"
         end if
     end function local_text
 
-    !> Run minor mode MODE as its command: toggle it, or with a prefix
-    !> argument turn it on if the argument is positive and off otherwise.
-    recursive subroutine minor_mode_command(mode, status)
-        character(len=*), intent(in) :: mode
+    !> Turn the mode on (upstream's (MODE 1), or (MODE) from Lisp).
+    recursive subroutine minor_mode_enable(self, status)
+        class(minor_mode_type), intent(inout) :: self
         type(status_type), intent(out) :: status
-        call set_minor_mode(mode, status, current_prefix_arg, toggle=.true., interactive=.true.)
+        call set_mode(self, .true., status, .false.)
+    end subroutine minor_mode_enable
+
+    !> Turn the mode off (upstream's (MODE -1)).
+    recursive subroutine minor_mode_disable(self, status)
+        class(minor_mode_type), intent(inout) :: self
+        type(status_type), intent(out) :: status
+        call set_mode(self, .false., status, .false.)
+    end subroutine minor_mode_disable
+
+    !> Toggle the mode (upstream's (MODE 'toggle)).
+    recursive subroutine minor_mode_toggle(self, status)
+        class(minor_mode_type), intent(inout) :: self
+        type(status_type), intent(out) :: status
+        call set_mode(self,.not. self%enabled(), status, .false.)
+    end subroutine minor_mode_toggle
+
+    !> Run the mode as its command: toggle it, or with a prefix argument
+    !> turn it on if the argument is positive and off otherwise; say
+    !> which.
+    recursive subroutine minor_mode_command(self, status)
+        class(minor_mode_type), intent(inout) :: self
+        type(status_type), intent(out) :: status
+        logical :: enable
+        if (nilp(current_prefix_arg)) then
+            enable = .not. self%enabled()
+        else
+            enable = prefix_numeric_value(current_prefix_arg) >= 1
+        end if
+        call set_mode(self, enable, status, .true.)
     end subroutine minor_mode_command
 end module easy_mmode_fm

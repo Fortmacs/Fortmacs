@@ -32,6 +32,7 @@ module files_fm
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nilp
+    use data_fm, only: integer_setting
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
@@ -49,6 +50,9 @@ module files_fm
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: request_exit
     use xdisp_fm, only: message
+    use editfns_fm, only: point, goto_char, point_min, point_max, char_after, widen, narrow_to_region, &
+                          format_message
+    use insdel_fm, only: insert
     use subr_fm, only: y_or_n_p
     use fns_fm, only: yes_or_no_p
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
@@ -154,6 +158,51 @@ module files_fm
     !> The file's owner and group are unchanged.  Port of files.el
     !> make-backup-files.
     logical, public :: make_backup_files = .true.
+
+    !> Values of `require_final_newline` and `mode_require_final_newline`
+    !> (upstream nil, t, visit, visit-save and any other value).
+    integer, parameter, public :: FINAL_NEWLINE_NEVER = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
+                                  FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
+
+    !> Whether to add a newline automatically at the end of the file.
+    !>
+    !> A value of t means do this only when the file is about to be saved.
+    !> A value of `visit' means do this right after the file is visited.
+    !> A value of `visit-save' means do it at both of those times.
+    !> Any other non-nil value means ask user whether to add a newline, when saving.
+    !> A value of nil means don't add newlines.
+    !>
+    !> Certain major modes set this locally to the value obtained
+    !> from `mode-require-final-newline'.
+    !>
+    !> This variable is heeded only when visiting files (or saving
+    !> buffers into files they visit).  Writing data to the file system
+    !> with `write-region' and the like is not influenced by this variable.
+    !> Port of files.el require-final-newline (FINAL_NEWLINE_NEVER is
+    !> nil, FINAL_NEWLINE_SAVE t, FINAL_NEWLINE_VISIT `visit',
+    !> FINAL_NEWLINE_VISIT_SAVE `visit-save', FINAL_NEWLINE_ASK any other
+    !> value).
+    type(integer_setting), public :: require_final_newline = &
+                                     integer_setting(name="require-final-newline", value=FINAL_NEWLINE_NEVER)
+
+    !> Whether to add a newline at end of file, in certain major modes.
+    !> Those modes set `require-final-newline' to this value when you enable them.
+    !> They do so because they are often used for files that are supposed
+    !> to end in newlines, and the question is how to arrange that.
+    !>
+    !> A value of t means do this only when the file is about to be saved.
+    !> A value of `visit' means do this right after the file is visited.
+    !> A value of `visit-save' means do it at both of those times.
+    !> Any other non-nil value means ask user whether to add a newline, when saving.
+    !>
+    !> A value of nil means do not add newlines.  That is a risky choice in this
+    !> variable since this value is used for modes for files that ought to have
+    !> final newlines.  So if you set this to nil, you must explicitly check and
+    !> add a final newline, whenever you save a file that really needs one.
+    !> Port of files.el mode-require-final-newline (values as for
+    !> `require_final_newline`).
+    type(integer_setting), public :: mode_require_final_newline = &
+                                     integer_setting(name="mode-require-final-newline", value=FINAL_NEWLINE_SAVE)
 
     !> Buffers save_some_buffers is asking about (its map-y-or-n-p list).
     type(handle_type), allocatable :: pending(:)
@@ -294,6 +343,11 @@ contains
             end if
         end if
         call normal_mode(st, .true.)
+        ! If requested, add a newline at the end of the file.
+        if (require_final_newline%value == FINAL_NEWLINE_VISIT .or. &
+            require_final_newline%value == FINAL_NEWLINE_VISIT_SAVE) then
+            if (missing_final_newline()) call insert_final_newline(st)
+        end if
     end subroutine after_find_file
 
     !> Visit `filename` and make its buffer current (and so shown in the
@@ -472,19 +526,37 @@ contains
             if (called_interactively) call message("(No changes need to be saved)")
             return
         end if
+        if (allocated(buffers(cur)%filename)) then
+            file = buffers(cur)%filename
+            if (.not. verify_visited_file_modtime() .and. file_exists_p(file)) then
+                call yes_or_no_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
+                                 ok, status)
+                if (.not. status%ok()) return
+                if (.not. ok) then
+                    call set_error(status, FM_USER_ERROR, "Save not confirmed")
+                    return
+                end if
+            end if
+        end if
+        call final_newline_on_save(status)
+        if (.not. status%ok()) return
+        ! If buffer has no file name, ask user for one.
         if (.not. allocated(buffers(cur)%filename)) then
-            call read_file_name_in_minibuffer("File to save in: ", file, status, &
-                                              default_filename=file_in_default_directory(buffers(cur)%name))
+            call expand_file_name(buffers(cur)%name, dir, status)
+            if (.not. status%ok()) return
+            call read_file_name_in_minibuffer("File to save in: ", file, status, default_filename=dir)
             if (.not. status%ok()) return
             call expand_file_name(file, dir, status)
             if (.not. status%ok()) return
             file = dir
             if (file_exists_p(file)) then
                 if (file_directory_p(file)) then
+                    ! Signal an error if the user specified the name of an
+                    ! existing directory.
                     call set_error(status, FM_GENERIC_ERROR, file//" is a directory")
                     return
                 end if
-                call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
+                call y_or_n_p(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
                 if (.not. ok) then
                     call set_error(status, FM_GENERIC_ERROR, "Canceled")
@@ -495,21 +567,19 @@ contains
             if (.not. status%ok()) return
         end if
         file = buffers(cur)%filename
-        if (.not. verify_visited_file_modtime() .and. file_exists_p(file)) then
-            call yes_or_no_p(file_name_nondirectory(file)//" has changed since visited or saved.  Save anyway? ", &
-                             ok, status)
+        call expand_file_name(file, dir, status)
+        if (.not. status%ok()) return
+        dir = file_name_directory(dir)
+        if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
+            call y_or_n_p(format_message("Directory `")//dir//format_message("' does not exist; create? "), &
+                          ok, status)
             if (.not. status%ok()) return
             if (.not. ok) then
-                call set_error(status, FM_USER_ERROR, "Save not confirmed")
+                call set_error(status, FM_GENERIC_ERROR, "Canceled")
                 return
             end if
-        end if
-        ! basic-save-buffer offers to create a missing directory
-        ! (make-directory is not ported yet).
-        dir = file_name_directory(file)
-        if (.not. file_exists_p(file) .and. .not. file_exists_p(dir)) then
-            call set_error(status, FM_GENERIC_ERROR, dir//": No such directory")
-            return
+            call make_directory(dir, status, parents=.true.)
+            if (.not. status%ok()) return
         end if
         ! basic-save-buffer-2
         tempsetmodes = .false.
@@ -548,6 +618,56 @@ contains
         if (.not. status%ok()) return
         call message(wrote)
     end subroutine basic_save_buffer
+
+    !> Add a newline at the end of the current buffer if
+    !> `require-final-newline' says so (asking if it is neither t nor
+    !> visit-save).  Part of files.el:basic-save-buffer.
+    subroutine final_newline_on_save(status)
+        type(status_type), intent(out) :: status
+        logical :: add
+        status = status_type()
+        if (.not. missing_final_newline()) return
+        select case (require_final_newline%value)
+        case (FINAL_NEWLINE_NEVER)
+            add = .false.
+        case (FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT_SAVE)
+            add = .true.
+        case default
+            call y_or_n_p("Buffer "//buffers(cur)%name//" does not end in newline.  Add one? ", add, status)
+            if (.not. status%ok()) return
+        end select
+        if (add) call insert_final_newline(status)
+    end subroutine final_newline_on_save
+
+    !> Whether the whole current buffer is non-empty, writable and does
+    !> not end in a newline.
+    logical function missing_final_newline() result(missing)
+        integer(int32) :: c
+        logical :: found
+        integer(int64) :: z
+        missing = .false.
+        if (buffers(cur)%read_only) return
+        z = buffers(cur)%text%z
+        if (z <= 1) return
+        call char_after(c, found, z - 1)
+        missing = found .and. c /= 10
+    end function missing_final_newline
+
+    !> (save-excursion (save-restriction (widen) (goto-char (point-max))
+    !> (insert ?\n)))
+    subroutine insert_final_newline(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, savedb, savedz
+        type(status_type) :: st
+        opoint = point()
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call widen()
+        call goto_char(point_max())
+        call insert(achar(10), status)
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+        call goto_char(opoint)
+    end subroutine insert_final_newline
 
     !> map-y-or-n-p prompter for save_some_buffers.
     subroutine save_prompter(k, how, prompt)

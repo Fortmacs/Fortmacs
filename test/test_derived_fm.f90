@@ -24,38 +24,37 @@
 !> Buffers are global state; every test creates its buffers and kills
 !> them before returning.
 module test_derived_fm
-    use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type, null_handle
-    use lisp_fm, only: value_type, nil, nilp, list, list_length, list_elt, t_value, xstring
+    use lisp_fm, only: value_type, nil
     use lread_fm, only: sym
-    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur
-    use data_fm, only: symbol_value, set, set_default, value_eq, setq_local, local_variable_p
-    use callint_fm, only: command_type
-    use eval_fm, only: run_hooks
-    use subr_fm, only: add_hook, remove_hook, provided_mode_derived_p, derived_mode_p
+    use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur, fill_column
+    use data_fm, only: value_eq
+    use eval_fm, only: hook_type
+    use subr_fm, only: after_change_major_mode_hook
     use keymap_fm, only: current_local_map, keymap_parent, keymap_set, key_binding, key_parse
-    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
+    use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p
+    use modes_fm, only: major_modes
     use syntax_fm, only: syntax_table, standard_syntax_table, char_syntax
-    use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table
-    use prog_mode_fm, only: prog_mode, syms_of_prog_mode
+    use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
+    use prog_mode_fm, only: syms_of_prog_mode
     use simple_fm, only: fundamental_mode, special_mode, syms_of_simple_modes
-    use files_fm, only: normal_mode, auto_mode_spec, file_name_sans_versions, add_auto_mode
+    use files_fm, only: normal_mode, auto_mode_spec, file_name_sans_versions, add_auto_mode, require_final_newline, &
+                        mode_require_final_newline, FINAL_NEWLINE_SAVE
     implicit none(type, external)
     private
 
     public :: collect_derived_fm
 
-    type(command_type), target :: cmd_test_derived_hook_a
-    type(command_type), target :: cmd_test_derived_hook_b
-    type(command_type), target :: cmd_test_derived_child_mode
-    type(command_type), target :: cmd_test_derived_hook_text
-    type(command_type), target :: cmd_test_derived_hook_child
-    type(command_type), target :: cmd_test_derived_hook_after
-
     !> The hook functions that ran, in order.
     character(len=:), allocatable :: trace
+
+    !> Hooks of the hook tests.
+    type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
+
+    !> Modes of the derived-mode tests.
+    type(major_mode_type), target :: child_mode_obj, parent_mode_obj, derived_mode_1_obj, derived_mode_2_obj
 
 contains
 
@@ -63,6 +62,7 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
+                    new_unittest("add-hook-remembers-depth", test_depth_memory), &
                     new_unittest("run-hooks-local-and-global", test_run_hooks_local), &
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
@@ -81,17 +81,65 @@ contains
         same = a%index == b%index .and. a%generation == b%generation
     end function same
 
-    subroutine hook_a(status)
+    subroutine f1(status)
         type(status_type), intent(out) :: status
         status = status_type()
-        trace = trace//"a"
-    end subroutine hook_a
+        trace = trace//" f1"
+    end subroutine f1
 
-    subroutine hook_b(status)
+    subroutine f2(status)
         type(status_type), intent(out) :: status
         status = status_type()
-        trace = trace//"b"
-    end subroutine hook_b
+        trace = trace//" f2"
+    end subroutine f2
+
+    subroutine f3(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f3"
+    end subroutine f3
+
+    subroutine f4(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f4"
+    end subroutine f4
+
+    subroutine f5(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f5"
+    end subroutine f5
+
+    subroutine f6(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f6"
+    end subroutine f6
+
+    subroutine f7(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f7"
+    end subroutine f7
+
+    subroutine f8(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f8"
+    end subroutine f8
+
+    subroutine f9(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f9"
+    end subroutine f9
+
+    subroutine f10(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" f10"
+    end subroutine f10
 
     subroutine hook_text(status)
         type(status_type), intent(out) :: status
@@ -115,110 +163,90 @@ contains
     recursive subroutine child_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
-        call derived_mode_begin("test-derived-child-mode", saved, status)
+        call child_mode_obj%begin(saved, status)
         if (.not. status%ok()) return
         trace = trace//"c"
-        call derived_mode_end("test-derived-child-mode", saved, status)
+        call child_mode_obj%finish(saved, status)
     end subroutine child_mode
 
-    !> The names in the hook value of NAME, joined by spaces.
-    function hook_names(name) result(s)
-        character(len=*), intent(in) :: name
+    !> A mode with an empty body (the provided-mode-derived-p modes).
+    recursive subroutine empty_mode(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+    end subroutine empty_mode
+
+    !> The functions of HOOK in the order they run, by name.
+    function hook_names(hook) result(s)
+        type(hook_type), intent(in) :: hook
         character(len=:), allocatable :: s
-        type(value_type) :: v, e
         type(status_type) :: st
-        integer(int64) :: i
-        call symbol_value(sym(name), v, st)
-        s = ""
-        do i = 1, list_length(v)
-            e = list_elt(v, i)
-            if (value_eq(e, t_value())) then
-                s = s//" t"
-            else
-                s = s//" "//symbol_text(e)
-            end if
-        end do
-        s = adjustl(s)
+        trace = ""
+        call hook%run(st)
+        s = adjustl(trace)
         s = trim(s)
     end function hook_names
-
-    function symbol_text(v) result(s)
-        type(value_type), intent(in) :: v
-        character(len=:), allocatable :: s
-        integer :: k
-        s = "?"
-        do k = 1, 10
-            if (value_eq(v, sym("f"//digits(k)))) s = "f"//digits(k)
-        end do
-    end function symbol_text
-
-    function digits(k) result(s)
-        integer, intent(in) :: k
-        character(len=:), allocatable :: s
-        character(len=4) :: buf
-        write (buf, "(i0)") k
-        s = trim(buf)
-    end function digits
 
     !> subr-tests.el: subr-tests-add-hook-depth.
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
-        type(status_type) :: st
-        call set_default(sym("subr-tests--hook"), nil(), st)
-        call add_hook("subr-tests--hook", "f1", st)
-        call add_hook("subr-tests--hook", "f2", st)
-        call check(error, hook_names("subr-tests--hook"), "f2 f1")
+        call subr_tests_hook%add(f1)
+        call subr_tests_hook%add(f2)
+        call check(error, hook_names(subr_tests_hook), "f2 f1")
         if (allocated(error)) return
-        call add_hook("subr-tests--hook", "f3", st, depth=90)
-        call check(error, hook_names("subr-tests--hook"), "f2 f1 f3")
+        call subr_tests_hook%add(f3, depth=90)
+        call check(error, hook_names(subr_tests_hook), "f2 f1 f3")
         if (allocated(error)) return
-        call add_hook("subr-tests--hook", "f4", st, depth=50)
-        call check(error, hook_names("subr-tests--hook"), "f2 f1 f4 f3")
+        call subr_tests_hook%add(f4, depth=50)
+        call check(error, hook_names(subr_tests_hook), "f2 f1 f4 f3")
         if (allocated(error)) return
-        call add_hook("subr-tests--hook", "f5", st, depth=-50)
-        call check(error, hook_names("subr-tests--hook"), "f5 f2 f1 f4 f3")
+        call subr_tests_hook%add(f5, depth=-50)
+        call check(error, hook_names(subr_tests_hook), "f5 f2 f1 f4 f3")
         if (allocated(error)) return
-        call add_hook("subr-tests--hook", "f6", st)
-        call check(error, hook_names("subr-tests--hook"), "f5 f6 f2 f1 f4 f3")
+        call subr_tests_hook%add(f6)
+        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3")
         if (allocated(error)) return
         ! Make sure t is equivalent to 90.
-        call add_hook("subr-tests--hook", "f7", st, depth=90)
-        call add_hook("subr-tests--hook", "f8", st, depth=90)
-        call check(error, hook_names("subr-tests--hook"), "f5 f6 f2 f1 f4 f3 f7 f8")
+        call subr_tests_hook%add(f7, depth=90)
+        call subr_tests_hook%add(f8, depth=90)
+        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
         if (allocated(error)) return
         ! Make sure nil is equivalent to 0.
-        call add_hook("subr-tests--hook", "f9", st, depth=0)
-        call add_hook("subr-tests--hook", "f10", st)
-        call check(error, hook_names("subr-tests--hook"), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
+        call subr_tests_hook%add(f9, depth=0)
+        call subr_tests_hook%add(f10)
+        call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
-    !> A local hook value with t runs the global functions there.
+    !> subr.el keeps a function's depth (hook--depth-alist) after it is
+    !> removed: added again without a depth, it goes back there.
+    subroutine test_depth_memory(error)
+        type(error_type), allocatable, intent(out) :: error
+        call depth_hook%add(f1, depth=50)
+        call depth_hook%add(f2)
+        call check(error, hook_names(depth_hook), "f2 f1")
+        if (allocated(error)) return
+        call depth_hook%remove(f1)
+        call depth_hook%add(f3)
+        call depth_hook%add(f1)
+        call check(error, hook_names(depth_hook), "f3 f2 f1")
+    end subroutine test_depth_memory
+
+    !> A buffer's own functions run first, then the global ones in the
+    !> place of `t`.
     subroutine test_run_hooks_local(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
-        cmd_test_derived_hook_a = command_type("test-derived-hook-a", hook_a)
-        call cmd_test_derived_hook_a%define()
-        cmd_test_derived_hook_b = command_type("test-derived-hook-b", hook_b)
-        call cmd_test_derived_hook_b%define()
         call get_buffer_create("test-derived-hooks-A", a, st)
         call get_buffer_create("test-derived-hooks-B", b, st)
         call set_buffer(a, st)
-        call set_default(sym("test-derived--hook"), nil(), st)
-        call add_hook("test-derived--hook", "test-derived-hook-a", st)
-        call add_hook("test-derived--hook", "test-derived-hook-b", st, local=.true.)
-        call check(error, local_variable_p(sym("test-derived--hook")), "local hook")
+        call test_hook%add(f1)
+        call test_hook%add(f2, local=.true.)
+        call check(error, test_hook%local_p(), "local hook")
         if (allocated(error)) return
-        trace = ""
-        call run_hooks(["test-derived--hook"], st)
-        call check(error, st%ok(), "run-hooks")
-        if (allocated(error)) return
-        call check(error, trace, "ba", "local, then global")
+        call check(error, hook_names(test_hook), "f2 f1", "local, then global")
         if (allocated(error)) return
         call set_buffer(b, st)
-        trace = ""
-        call run_hooks(["test-derived--hook"], st)
-        call check(error, trace, "a", "global only in B")
+        call check(error, hook_names(test_hook), "f1", "global only in B")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
     end subroutine test_run_hooks_local
@@ -230,25 +258,23 @@ contains
         type(status_type) :: st
         call get_buffer_create("test-derived-remove", a, st)
         call set_buffer(a, st)
-        call set_default(sym("test-derived--hook2"), nil(), st)
-        call add_hook("test-derived--hook2", "f1", st)
-        call add_hook("test-derived--hook2", "f2", st, local=.true.)
-        call remove_hook("test-derived--hook2", "f2", st, local=.true.)
-        call check(error,.not. local_variable_p(sym("test-derived--hook2")), "local value killed")
+        call test_hook2%add(f1)
+        call test_hook2%add(f2, local=.true.)
+        call test_hook2%remove(f2, local=.true.)
+        call check(error,.not. test_hook2%local_p(), "local value killed")
         if (allocated(error)) return
-        call check(error, hook_names("test-derived--hook2"), "f1")
+        call check(error, hook_names(test_hook2), "f1")
         if (allocated(error)) return
-        call remove_hook("test-derived--hook2", "f1", st)
-        call check(error, hook_names("test-derived--hook2"), "")
+        call test_hook2%remove(f1)
+        call check(error, hook_names(test_hook2), "")
         call kill_buffer(a, st)
     end subroutine test_remove_hook
 
-    !> text-mode sets the mode, its keymap and syntax table.
+    !> text-mode sets the mode, its keymap, syntax table and variables.
     subroutine test_text_mode(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: a, map
+        type(handle_type) :: a
         type(status_type) :: st
-        type(value_type) :: v
         call syms_of_text_mode()
         call get_buffer_create("test-derived-text", a, st)
         call set_buffer(a, st)
@@ -257,25 +283,29 @@ contains
         if (allocated(error)) return
         call check(error, buffers(cur)%major_mode, "text-mode")
         if (allocated(error)) return
-        call symbol_value(sym("mode-name"), v, st)
-        call check(error, xstring(v), "Text")
+        call check(error, buffers(cur)%mode_name, "Text")
         if (allocated(error)) return
-        map = current_local_map()
-        call check(error, same(map, derived_mode_map("text-mode")), "text-mode-map")
+        call check(error, same(current_local_map(), major_modes%text_mode%map), "text-mode-map")
         if (allocated(error)) return
         call check(error, same(syntax_table(), text_mode_syntax_table), "syntax table")
         if (allocated(error)) return
         call check(error, char_syntax(iachar("'")) == "w", "' is a word constituent")
         if (allocated(error)) return
-        call check(error, derived_mode_p([character(len=9) :: "text-mode"]), "derived-mode-p")
+        call check(error, derived_mode_p(major_modes%text_mode), "derived-mode-p")
         if (allocated(error)) return
-        call symbol_value(sym("text-mode-variant"), v, st)
-        call check(error, value_eq(v, t_value()), "text-mode-variant")
+        call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text-mode-variant")
+        if (allocated(error)) return
+        call check(error, require_final_newline%value == FINAL_NEWLINE_SAVE .and. require_final_newline%local_p(), &
+                   "require-final-newline")
         if (allocated(error)) return
         call fundamental_mode(st)
         call check(error, same(syntax_table(), standard_syntax_table()), "standard syntax table")
         if (allocated(error)) return
         call check(error, same(current_local_map(), null_handle()), "no local map")
+        if (allocated(error)) return
+        call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%local_p(), "locals killed")
+        if (allocated(error)) return
+        call check(error, mode_require_final_newline%value == FINAL_NEWLINE_SAVE, "mode-require-final-newline")
         call kill_buffer(a, st)
     end subroutine test_text_mode
 
@@ -283,23 +313,16 @@ contains
     !> after-change-major-mode-hook, all after the bodies.
     subroutine test_hooks_order(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: a, map
+        type(handle_type) :: a
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
         call syms_of_text_mode()
-        call define_derived_mode("test-derived-child-mode", "text-mode", "Child")
-        cmd_test_derived_child_mode = command_type("test-derived-child-mode", child_mode)
-        call cmd_test_derived_child_mode%define()
-        cmd_test_derived_hook_text = command_type("test-derived-hook-text", hook_text)
-        call cmd_test_derived_hook_text%define()
-        cmd_test_derived_hook_child = command_type("test-derived-hook-child", hook_child)
-        call cmd_test_derived_hook_child%define()
-        cmd_test_derived_hook_after = command_type("test-derived-hook-after", hook_after)
-        call cmd_test_derived_hook_after%define()
-        call add_hook("text-mode-hook", "test-derived-hook-text", st)
-        call add_hook("test-derived-child-mode-hook", "test-derived-hook-child", st)
-        call add_hook("after-change-major-mode-hook", "test-derived-hook-after", st)
+        call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
+                                   parent=major_modes%text_mode)
+        call text_mode_hook%add(hook_text)
+        call child_mode_hook%add(hook_child)
+        call after_change_major_mode_hook%add(hook_after)
         call get_buffer_create("test-derived-order", a, st)
         call set_buffer(a, st)
         trace = ""
@@ -310,18 +333,19 @@ contains
         if (allocated(error)) return
         call check(error, buffers(cur)%major_mode, "test-derived-child-mode")
         if (allocated(error)) return
-        map = derived_mode_map("test-derived-child-mode")
-        call check(error, same(keymap_parent(map), derived_mode_map("text-mode")), "keymap parent")
+        call check(error, same(keymap_parent(child_mode_obj%map), major_modes%text_mode%map), "keymap parent")
+        if (allocated(error)) return
+        call check(error, derived_mode_p(major_modes%text_mode), "derived from text-mode")
         if (allocated(error)) return
         ! A key bound in text-mode-map is active in the child.
-        call keymap_set(derived_mode_map("text-mode"), "C-c t", "forward-char", st)
+        call keymap_set(major_modes%text_mode%map, "C-c t", "forward-char", st)
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
         call check(error, value_eq(binding, sym("forward-char")), "inherited binding")
-        call keymap_set(derived_mode_map("text-mode"), "C-c t", nil(), st)
-        call remove_hook("text-mode-hook", "test-derived-hook-text", st)
-        call remove_hook("test-derived-child-mode-hook", "test-derived-hook-child", st)
-        call remove_hook("after-change-major-mode-hook", "test-derived-hook-after", st)
+        call keymap_set(major_modes%text_mode%map, "C-c t", nil(), st)
+        call text_mode_hook%remove(hook_text)
+        call child_mode_hook%remove(hook_child)
+        call after_change_major_mode_hook%remove(hook_after)
         call kill_buffer(a, st)
     end subroutine test_hooks_order
 
@@ -329,9 +353,9 @@ contains
     subroutine test_provided_mode_derived_p(error)
         type(error_type), allocatable, intent(out) :: error
         call syms_of_prog_mode()
-        call define_derived_mode("subr-tests--parent-mode", "prog-mode", "P")
-        call define_derived_mode("subr-tests--derived-mode-1", "prog-mode", "D1")
-        call define_derived_mode("subr-tests--derived-mode-2", "subr-tests--parent-mode", "D2")
+        call parent_mode_obj%define("subr-tests--parent-mode", "P", empty_mode, parent=major_modes%prog_mode)
+        call derived_mode_1_obj%define("subr-tests--derived-mode-1", "D1", empty_mode, parent=major_modes%prog_mode)
+        call derived_mode_2_obj%define("subr-tests--derived-mode-2", "D2", empty_mode, parent=parent_mode_obj)
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-1", [character(len=9) :: "prog-mode"]))
         if (allocated(error)) return
         call check(error, provided_mode_derived_p("subr-tests--parent-mode", &
@@ -342,9 +366,12 @@ contains
         if (allocated(error)) return
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", [character(len=9) :: "prog-mode"]))
         if (allocated(error)) return
-        call check(error, provided_mode_derived_p("prog-mode", [character(len=16) :: "fundamental-mode"]))
+        ! define-derived-mode takes fundamental-mode as no parent.
+        call check(error,.not. provided_mode_derived_p("prog-mode", [character(len=16) :: "fundamental-mode"]))
         if (allocated(error)) return
         call check(error,.not. provided_mode_derived_p("prog-mode", [character(len=9) :: "text-mode"]))
+        if (allocated(error)) return
+        call check(error, derived_mode_2_obj%derived_from(major_modes%prog_mode), "derived_from")
     end subroutine test_provided_mode_derived_p
 
     !> special-mode makes the buffer read-only with special-mode-map.
@@ -376,9 +403,11 @@ contains
         call syms_of_simple_modes()
         call get_buffer_create("test-derived-fundamental", a, st)
         call set_buffer(a, st)
-        call setq_local("test-derived--var", t_value(), st)
+        call fill_column%set_local(60)
+        call check(error, fill_column%local_p() .and. fill_column%value == 60, "local value")
+        if (allocated(error)) return
         call fundamental_mode(st)
-        call check(error,.not. local_variable_p(sym("test-derived--var")), "local killed")
+        call check(error,.not. fill_column%local_p() .and. fill_column%value == 70, "local killed")
         if (allocated(error)) return
         call check(error, buffers(cur)%major_mode, "fundamental-mode")
         call kill_buffer(a, st)
@@ -420,19 +449,17 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
         call syms_of_text_mode()
-        cmd_test_derived_hook_text = command_type("test-derived-hook-text", hook_text)
-        call cmd_test_derived_hook_text%define()
         call get_buffer_create("test-derived-normal", a, st)
         call set_buffer(a, st)
         buffers(cur)%filename = "/tmp/foo.text"
         call normal_mode(st)
-        call check(error, derived_mode_p([character(len=9) :: "text-mode"]), "text-mode from the file name")
+        call check(error, derived_mode_p(major_modes%text_mode), "text-mode from the file name")
         if (allocated(error)) return
-        call add_hook("text-mode-hook", "test-derived-hook-text", st)
+        call text_mode_hook%add(hook_text)
         trace = ""
         buffers(cur)%filename = "/tmp/foo.TXT"
         call normal_mode(st)
-        call remove_hook("text-mode-hook", "test-derived-hook-text", st)
+        call text_mode_hook%remove(hook_text)
         call check(error, trace, "T", "hook ran (case-insensitive match)")
         if (allocated(error)) return
         call add_auto_mode("\.prog\'", "prog-mode")

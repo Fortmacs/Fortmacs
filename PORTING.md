@@ -242,6 +242,9 @@ Copy the FSF year range exactly from the upstream file.
 
 ## Conventions learned while porting
 
+- A function reference can't be the left side of a component assignment
+  (`f(x)%c = v` is invalid, and an `associate` name for a pointer function
+  result is not definable), so compile-time objects are named variables.
 - `.and.` and `.or.` do not short-circuit: guard a substring or element
   with a nested `if` (or `index(s, "x") == 1`), never `len(s) > 0 .and.
   s(1:1) == ...`; newer gfortran on Fedora and Arch evaluates both sides.
@@ -303,11 +306,37 @@ Copy the FSF year range exactly from the upstream file.
   swap, so an unnamed procedure survives it. BVAR slots (`major-mode`,
   `mode-name`, `buffer-read-only`) read buffer fields.
 
-- **Modes (2026-10-23).** A major mode is a command procedure bracketed by
-  `derived_mode_begin`/`derived_mode_end` (derived_fm), a minor mode a
-  registry entry plus a one-line command calling `minor_mode_command`
-  (easy_mmode_fm): the macros' expansions done by hand. Hook functions are
-  `defcommand` procedures named by symbols in the hook's value.
+- **Idiomatic Fortran objects (2026-10-23).** Nothing in the config API
+  looks like Lisp. Things that exist at compile time are named objects of
+  derived types, changed by assignment to components and driven by
+  type-bound procedures: commands are `commands%NAME` (`command_type`,
+  generated src/commands_fm.f90), settings are typed objects
+  (`integer_setting`, `logical_setting`, `string_setting`,
+  `function_setting`; `fill_column = 72`, `call fill_column%set_local(60)`,
+  code reads `fill_column%value`), hooks are `hook_type` objects holding
+  procedure pointers (`call hook%add(proc, depth=90, local=.true.)`), and
+  modes are `major_mode_type` / `minor_mode_type` objects (internally the
+  components of `major_modes` / `minor_modes`, generated src/modes_fm.f90);
+  the configuration reaches a mode through objects named after its Emacs
+  variables: `text_mode_hook`, `text_mode_map`, `text_mode_syntax_table`.
+  Only names that exist
+  solely at run time go through a specific subroutine with intrinsic
+  arguments (`set_command_disabled(name, .false., status)`). `value_type`
+  stays internal: the forwarding table in data_buffer_fm maps variable
+  names to the objects (keeping an exact Lisp value a Fortran type can't
+  hold), so name-based access (`set-variable`, C-h v, minor-mode maps and
+  lighters) sees the same values. API procedures that would need a Lisp
+  value (raw prefix arguments, key vectors, completion tables) are not
+  exported; their commands are reached as `commands%NAME`.
+
+- **Modes (2026-10-23).** A major mode is a `major_mode_type` whose
+  command brackets its body with `%begin`/`%finish` (the expansion of
+  define-derived-mode done by hand; a parent of fundamental-mode is no
+  parent, as in derived.el). A minor mode is a `minor_mode_type` with
+  `%enable`, `%disable`, `%toggle` and `%command`; its own state is a
+  `logical_setting` forwarded by the mode's name (buffer-local unless
+  global), or another variable named by `variable` (upstream's
+  :variable).
 
 - **Docstrings (2026-10-22).** Help reads the docstrings from a generated
   module, src/docstrings_fm.f90, as upstream reads etc/DOC: the
@@ -367,6 +396,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-23 — Hooks and modes are objects (fourth piece of splitting PR #54): `hook_type` (eval_fm) holds procedure pointers with depths (remembered as subr.el's hook--depth-alist) and buffer-local functions; `major_mode_type` (derived_fm) and `minor_mode_type` (easy_mmode_fm) with the generated `modes_fm` (`tools/gen-modes.sh`); each mode's hook and keymap are objects named after their Emacs variables (`text_mode_hook`, `text_mode_map`, `prog_mode_hook`, `auto_fill_mode_hook`, ...). `text-mode-variant`, `parse-sexp-ignore-comments` and `require-final-newline`/`mode-require-final-newline` are settings: saving adds the final newline and offers to create a missing directory, visiting adds it for `visit`; prog-mode has no parent, as in derived.el. The `fortmacs` module no longer exports `value_type` or any Lisp-style procedure; C-h v documents every ported variable. On `split-hooks-modes`, based on main after PR #58. Next: underscore names.
 - 2026-10-23 — Settings are typed objects (third piece of splitting PR #54): `integer_setting`, `logical_setting`, `string_setting` and `function_setting` in data_fm; assigning sets the value seen in the current buffer, `set_local` gives the buffer its own value (setq-local), `local_p`/`kill_local`/`make_local` as upstream; Fortran code reads `%value`. The forwarding table in data_buffer_fm keeps an exact Lisp value a Fortran type can't hold, void variables and makunbound per variable kind, as data.c does. Display uses SANE_TAB_WIDTH. On `split-settings`, based on main after PR #57. Next: hooks and modes.
 - 2026-10-23 — Behaviour fixes, part 1 (second piece of splitting PR #54): indent-rigidly, indent-region and fill keep point with markers (save-excursion); move-to-tab-stop as upstream; indent-to reads the column when there is no prefix argument; paragraphs honour a fill prefix (paragraph-ignore-fill-prefix, current-left-margin); M-q leaves an unchanged buffer unmodified; syntax descriptors `W` (word) and `-`/space, reversed ranges in modify-syntax-entry are a no-op, and cached regexps that used syntax are dropped when an entry changes (clear_regexp_cache). On `split-fixes-1`, based on main after PR #56. Next: settings as typed objects.
 - 2026-10-23 — Commands are objects (first part of splitting the no-deviations work, PR #54): built-in commands are the components of `commands` (generated `commands_fm`, `tools/gen-commands.sh`, checked by check.sh), so a configuration writes `commands%upcase_region%disabled = .false.`; other commands are `command_type` objects made known with `define`. `enable-command` and `disable-command` record the choice in init.f90 in that form, as upstream records it in the init file. On `split-commands`, based on main after PR #53. Next: settings as typed objects.

@@ -75,6 +75,7 @@ module simple_fm
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
                          SEARCH_NOERROR
     use fns_fm, only: value_equal
+    use eval_fm, only: hook_type
     use insdel_fm, only: insert_before_markers
     use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region
     use cmds_fm, only: forward_char
@@ -189,7 +190,8 @@ module simple_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
 
-    public :: do_auto_fill, default_indent_new_line, internal_auto_fill, auto_fill_mode, set_fill_column
+    public :: do_auto_fill, default_indent_new_line, internal_auto_fill, auto_fill_mode, set_fill_column, &
+              turn_on_auto_fill, turn_off_auto_fill
 
     !> Regexp to match lines that should not be auto-filled.  Port of
     !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
@@ -203,6 +205,21 @@ module simple_fm
     !> Some major modes set this.  Port of simple.el
     !> normal-auto-fill-function (null is `do-auto-fill').
     procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
+
+    !> Hook run after entering Special mode (`special-mode-hook`).
+    type(hook_type), target, public :: special_mode_hook = hook_type(name="special-mode-hook")
+
+    !> Keymap for `special-mode`.  Port of simple.el special-mode-map.
+    type(handle_type), public :: special_mode_map
+
+    !> Hook run after entering or leaving `transient-mark-mode`.
+    type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient-mark-mode-hook")
+
+    !> Hook run after entering or leaving `indent-tabs-mode`.
+    type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent-tabs-mode-hook")
+
+    !> Hook run after entering or leaving `auto-fill-mode`.
+    type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto-fill-mode-hook")
 
     interface
         !> The default value for `normal-auto-fill-function'.
@@ -249,11 +266,24 @@ module simple_fm
         !> TOGGLE, else enables; a positive number enables, zero or a
         !> negative number disables.  Port of simple.el:auto-fill-mode.
         !> (In simple_fill_fm.)
-        module subroutine auto_fill_mode(arg, toggle)
+        module subroutine auto_fill_mode(status)
             implicit none(type, external)
-            type(value_type), intent(in), optional :: arg
-            logical, intent(in), optional :: toggle
+            type(status_type), intent(out) :: status
         end subroutine auto_fill_mode
+
+        !> Unconditionally turn on Auto Fill mode.  Port of
+        !> simple.el:turn-on-auto-fill.  (In simple_fill_fm.)
+        module subroutine turn_on_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine turn_on_auto_fill
+
+        !> Unconditionally turn off Auto Fill mode.  Port of
+        !> simple.el:turn-off-auto-fill.  (In simple_fill_fm.)
+        module subroutine turn_off_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine turn_off_auto_fill
 
         !> Set `fill-column' to specified argument.
         !> Use C-u followed by a number to specify a column.
