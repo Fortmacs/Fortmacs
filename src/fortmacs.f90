@@ -131,6 +131,19 @@ module fortmacs
     use subr_fm, only: read_number
     use replace_fm, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
                           replace_regexp, replacement_function
+    use simple_fm, only: count_lines, line_number_at_pos
+    use rect_fm, only: apply_on_rectangle, rectangle_line_action, rectangle_line_type, rectangle_position_as_coordinates, &
+                       rectangle_intersect_p, rectangle_dimensions, delete_rectangle, delete_extract_rectangle, &
+                       extract_rectangle, extract_rectangle_bounds, kill_rectangle, copy_rectangle_as_kill, &
+                       yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, string_rectangle, &
+                       string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string
+    use register_fm, only: register_type, register_value_type, get_register, set_register, point_to_register, &
+                           window_configuration_to_register, jump_to_register, file_to_register, buffer_to_register, &
+                           number_to_register, increment_register, view_register, list_registers, insert_register, &
+                           copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
+                           register_read_with_preview, REGISTER_EMPTY, REGISTER_MARKER, REGISTER_TEXT, &
+                           REGISTER_RECTANGLE, REGISTER_NUMBER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, &
+                           REGISTER_FILE_QUERY, REGISTER_BUFFER
     ! Buffer-local variables, hooks and modes.
     use subr_fm, only: run_mode_hooks
     use simple_fm, only: fundamental_mode, special_mode
@@ -152,6 +165,8 @@ module fortmacs
     use buffer_fm, only: transient_mark_mode
     use callint_fm, only: mark_even_if_inactive
     use simple_fm, only: kill_ring_max, mark_ring_max, kill_whole_line_option, delete_active_region, kill_read_only_ok
+    use rect_fm, only: killed_rectangle
+    use register_fm, only: register_alist, register_separator
     use term_fm, only: visible_bell
     use minibuf_fm, only: completion_ignore_case
     use minibuffer_fm, only: completion_auto_help, completion_show_inline_help, completion_fail_discreetly
@@ -267,6 +282,17 @@ module fortmacs
               fill_single_word_nobreak_p, fill_french_nobreak_p, fill_polish_nobreak_p, fill_single_char_nobreak_p, &
               fill_nobreak_predicate_type, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, &
               JUSTIFY_T, back_to_indentation, do_auto_fill, default_indent_new_line, read_number
+    public :: count_lines, line_number_at_pos, apply_on_rectangle, rectangle_line_action, rectangle_line_type, &
+              rectangle_position_as_coordinates, rectangle_intersect_p, rectangle_dimensions, delete_rectangle, &
+              delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, kill_rectangle, &
+              copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, &
+              string_rectangle, string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
+              killed_rectangle, register_type, register_value_type, register_alist, register_separator, get_register, &
+              set_register, point_to_register, window_configuration_to_register, jump_to_register, file_to_register, &
+              buffer_to_register, number_to_register, increment_register, view_register, list_registers, &
+              insert_register, copy_to_register, append_to_register, prepend_to_register, copy_rectangle_to_register, &
+              register_read_with_preview, REGISTER_EMPTY, REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, &
+              REGISTER_NUMBER, REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
     public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
     public :: history_delete_duplicates, y_or_n_p_use_read_key, use_short_answers, minibuffer_message_timeout, &

@@ -54,19 +54,21 @@ module help_fm
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          restore_buffer_modified_p, buffers, cur, buffer_live_p
     use insdel_fm, only: insert
-    use editfns_fm, only: goto_char
+    use editfns_fm, only: goto_char, widen
+    use marker_fm, only: set_marker
     use xdisp_fm, only: message
     use minibuf_fm, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use help_mode_fm, only: help_mode, help_mode_map, init_help_mode
     use frame_fm, only: selected_frame, selected_window
     use window_fm, only: windows, window_live_p, same_window, window_leaves, temp_buffer_window_show, &
-                         pos_visible_in_window_p, QR_WINDOW, QR_FRAME, QR_OTHER
+                         pos_visible_in_window_p, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
+                         minibuffer_scroll_window
     use derived_fm, only: derived_mode_p
     implicit none(type, external)
     private
 
-    public :: substitute_command_keys, register_keymap_name, keymap_name, with_help_window, &
+    public :: substitute_command_keys, register_keymap_name, keymap_name, with_help_window, with_output_to_temp_buffer, &
               help_buffer_name, describe_key, describe_key_briefly, where_is, help_quit, syms_of_help
 
     !> Keymap for characters following the Help key.  Port of help.el
@@ -342,6 +344,58 @@ contains
         call help_window_setup(window)
         if (buffer_live_p(previous)) call set_buffer(previous, st)
     end subroutine with_help_window
+
+    !> Show TEXT in buffer BUFNAME: the buffer is erased and put in Help
+    !> mode, TEXT is inserted (it is what the body prints to
+    !> `standard_output'), and the buffer is displayed with
+    !> `display_buffer' at its beginning, unmodified and read-only.  Port
+    !> of subr.el:with-output-to-temp-buffer with
+    !> window.c:temp_output_buffer_show and help.el's functions on
+    !> `temp_buffer_setup_hook' and `temp_buffer_show_hook'
+    !> (help-mode-setup, help-mode-finish; no xrefs, no
+    !> `temp_buffer_show_function').
+    subroutine with_output_to_temp_buffer(bufname, text, status)
+        character(len=*), intent(in) :: bufname, text
+        type(status_type), intent(out) :: status
+        type(handle_type) :: previous, buf, window
+        type(status_type) :: st
+        character(len=:), allocatable :: old_dir
+        previous = current_buffer()
+        if (allocated(buffers(cur)%directory)) old_dir = buffers(cur)%directory
+        call get_buffer_create(bufname, buf, status)
+        if (.not. status%ok()) return
+        call set_buffer(buf, status)
+        if (.not. status%ok()) return
+        ! (kill-all-local-variables) and the variables the macro sets; Help
+        ! mode (help-mode-setup) kills the local variables again.
+        if (allocated(old_dir)) buffers(cur)%directory = old_dir
+        call set_buffer_read_only(buf, .false., status)
+        if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
+        buffers(cur)%undo_enabled = .false.
+        call erase_buffer(status)
+        if (.not. status%ok()) return
+        call help_mode(status)
+        if (.not. status%ok()) return
+        call set_buffer_read_only(buf, .false., status)
+        call insert(text, status)
+        if (.not. status%ok()) return
+        ! temp_output_buffer_show
+        if (allocated(old_dir)) buffers(cur)%directory = old_dir
+        call restore_buffer_modified_p(.false.)
+        call widen()
+        call goto_char(buffers(cur)%begv)
+        if (buffer_live_p(previous)) call set_buffer(previous, st)
+        call display_buffer(buf, window, status)
+        if (.not. status%ok()) return
+        if (window_live_p(window)) then
+            minibuffer_scroll_window = window
+            windows(window%index)%hscroll = 0
+            if (windows(window%index)%start%index /= 0) call set_marker(windows(window%index)%start, 1_int64, st, buf)
+            if (windows(window%index)%pointm%index /= 0) call set_marker(windows(window%index)%pointm, 1_int64, st, buf)
+        end if
+        ! help-mode-finish
+        call set_buffer_read_only(buf, .true., st)
+    end subroutine with_output_to_temp_buffer
 
     !> Display message telling how to quit and scroll help window.
     !> QUIT_PART is a string telling how to quit the help window WINDOW.
