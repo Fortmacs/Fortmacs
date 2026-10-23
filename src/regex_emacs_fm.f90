@@ -40,6 +40,7 @@
 module regex_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_INVALID_REGEXP
+    use print_fm, only: prin1_string
     use character_fm, only: ascii_char_p, char_byte8_p, byte8_to_char, char_to_byte8, char_to_byte_safe, &
                             char_byte8_head_p, char_leading_code, char_string, char_head_p, bytes_by_char_head, &
                             string_char_and_length, MAX_MULTIBYTE_LENGTH, MIN_MULTIBYTE_LEADING_CODE, &
@@ -453,6 +454,12 @@ contains
             it = it + 1
         end do
         p = it + 2
+        cc = RECC_ERROR
+        ! The name must match exactly: Fortran's comparison would pad the
+        ! shorter string with blanks, upstream compares the length first.
+        if (it > beg) then
+            if (str(it - 1:it - 1) == " ") return
+        end if
         select case (str(beg:it - 1))
         case ("word")
             cc = RECC_WORD
@@ -587,7 +594,9 @@ contains
         posix_backtracking = .false.
         if (present(posix)) posix_backtracking = posix
         call regex_compile(pattern, posix_backtracking, whitespace_regexp, bufp, err)
-        if (err /= REG_NOERROR) call set_error(status, FM_INVALID_REGEXP, trim(re_error_msgid(err)))
+        ! compile_pattern_1 signals (invalid-regexp MSG): the data print
+        ! as a quoted string.
+        if (err /= REG_NOERROR) call set_error(status, FM_INVALID_REGEXP, prin1_string(trim(re_error_msgid(err))))
     end subroutine re_compile_pattern
 
     !> Compile PATTERN into `bufp' (see re_compile_pattern); `err' is a

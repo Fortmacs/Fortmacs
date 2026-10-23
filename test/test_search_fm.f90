@@ -22,19 +22,24 @@
 module test_search_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, format_error, FM_SEARCH_FAILED
+    use error_fm, only: status_type, format_error, format_message, FM_SEARCH_FAILED, FM_GENERIC_ERROR, &
+                        FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, narrow_to_region, widen
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
-                         SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match
+                         SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match, &
+                         set_match_data
     use editfns_fm, only: buffer_string, point_min, point_max
     use buffer_fm, only: erase_buffer
     implicit none(type, external)
     private
 
     public :: collect_search_fm
+
+    !> A regexp with ten groups.
+    character(len=*), parameter :: groups10 = "\(a\)\(b\)\(c\)\(d\)\(e\)\(f\)\(g\)\(h\)\(i\)\(j\)"
 
 contains
 
@@ -49,7 +54,9 @@ contains
                     new_unittest("search-test--replace-match-update-data", test_replace_match_update_data), &
                     new_unittest("replace-match", test_replace_match), &
                     new_unittest("replace-match-case", test_replace_match_case), &
-                    new_unittest("replace-match-string", test_replace_match_string) &
+                    new_unittest("replace-match-string", test_replace_match_string), &
+                    new_unittest("replace-match-registers", test_replace_match_registers), &
+                    new_unittest("replace-match-trailing-backslash", test_replace_match_backslash) &
                     ]
     end subroutine collect_search_fm
 
@@ -89,6 +96,10 @@ contains
         call check(error, st%code == FM_SEARCH_FAILED .and. point() == 12, "fails")
         if (allocated(error)) return
         call check(error, format_error(st) == 'Search failed: "foo"', format_error(st))
+        if (allocated(error)) return
+        ! The data print as with prin1.
+        call search_forward('q"\', pos, st)
+        call check(error, format_error(st) == 'Search failed: "q\"\\"', format_error(st))
         if (allocated(error)) return
         ! COUNT; the empty string matches at point.
         call goto_char(1_int64)
@@ -317,4 +328,56 @@ contains
         call replace_match("\?", st, string="aéébc", result=r)
         call check(error, r == "a\?c", r)
     end subroutine test_replace_match_string
+
+    !> The match data keep their registers after a match with fewer
+    !> groups (they never shrink), the extra ones unset: \N of such a group
+    !> is empty, and SUBEXP of one does not exist.
+    subroutine test_replace_match_registers(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: r
+        integer(int64) :: i
+        i = string_match(groups10, "abcdefghij", st)
+        i = string_match("\(a\)b", "abc", st)
+        call replace_match("[\5]", st, string="abc", result=r)
+        call check(error, st%ok() .and. r == "[]c", "unset \N is empty: "//r)
+        if (allocated(error)) return
+        call replace_match("x", st, string="abc", subexp=5, result=r)
+        call check(error, st%code == FM_GENERIC_ERROR .and. &
+                   format_error(st) == "replace-match subexpression does not exist: 5", format_error(st))
+        if (allocated(error)) return
+        call replace_match("x", st, string="abc", subexp=10000, result=r)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. index(format_error(st), "Args out of range: 10000, 0, ") == 1, &
+                   format_error(st))
+        if (allocated(error)) return
+        ! set-match-data with fewer elements keeps the registers.
+        call set_match_data([1_int64, 3_int64])
+        call replace_match("x", st, string="abc", subexp=9, result=r)
+        call check(error, format_error(st) == "replace-match subexpression does not exist: 9", format_error(st))
+    end subroutine test_replace_match_registers
+
+    !> A backslash at the end of the replacement is invalid, in a string as
+    !> in a buffer.
+    subroutine test_replace_match_backslash(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: r
+        integer(int64) :: i
+        logical :: found
+        i = string_match("b", "abc", st)
+        call replace_match("x\", st, string="abc", result=r)
+        call check(error, st%code == FM_GENERIC_ERROR .and. &
+                   format_error(st) == format_message("Invalid use of `\' in replacement text"), format_error(st))
+        if (allocated(error)) return
+        call enter("abc", h)
+        i = string_match(groups10, "abcdefghij", st)
+        found = looking_at("\(a\)", st)
+        call replace_match("x\", st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. buffer_string() == "abc", "buffer: "//format_error(st))
+        if (allocated(error)) return
+        call replace_match("[\9]", st)
+        call check(error, st%ok() .and. buffer_string() == "[]bc", "unset \9 in buffer: "//buffer_string())
+        call leave(h)
+    end subroutine test_replace_match_backslash
 end module test_search_fm

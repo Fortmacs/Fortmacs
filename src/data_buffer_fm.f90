@@ -57,6 +57,7 @@ submodule(data_fm) data_buffer_fm
     use easy_mmode_fm, only: minor_mode_type, minor_mode_index, minor_mode_at
     use text_mode_fm, only: text_mode_variant
     use syntax_fm, only: parse_sexp_ignore_comments
+    use casefiddle_fm, only: case_symbols_as_words
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
                         FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     implicit none(type, external)
@@ -68,26 +69,27 @@ submodule(data_fm) data_buffer_fm
     !> The variables forwarded to Fortran settings; slot variables are
     !> per-buffer fields of buffer_type (always local, like buffer.c's
     !> slots with a local flag of -1).
-    integer, parameter :: NFWD = 23
+    integer, parameter :: NFWD = 24
     character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=24) :: &
                                                 "fill_column", "left_margin", "tab_width", "indent_tabs_mode", "case_fold_search", &
                                                       "fill_prefix", "paragraph_start", "paragraph_separate", "sentence_end", &
                                                     "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
-                                                "parse_sexp_ignore_comments", "require_final_newline", "mode_require_final_newline"]
+                                                      "parse_sexp_ignore_comments", "require_final_newline", &
+                                                      "mode_require_final_newline", "case_symbols_as_words"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
-                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT]
+                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT, K_BOOL]
     !> DEFVAR_PER_BUFFER, `make_variable_buffer_local' or `:local t':
     !> local when set.
     logical, parameter :: FWD_PER_BUFFER(NFWD) = [.true., .true., .true., .false., .true., &
                                                   .true., .false., .false., .false., &
                                                   .false., .false., .false., &
                                                   .false., .true., .false., .false., &
-                                                  .true., .true., .true., .false., .false., .false., .false.]
+                                                  .true., .true., .true., .false., .false., .false., .false., .true.]
 
     !> Saved procedure pointers: the default while the current buffer
     !> has a local value, or a buffer's local value while it is not
@@ -338,6 +340,9 @@ contains
         case ("parse_sexp_ignore_comments")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(parse_sexp_ignore_comments%value)
+        case ("case_symbols_as_words")
+            ! A DEFVAR_BOOL: always t or nil.
+            v = bool_value(case_symbols_as_words%value)
         case ("require_final_newline")
             call setting_value(require_final_newline, final_newline_value(require_final_newline%value), v, bound)
         case ("mode_require_final_newline")
@@ -427,6 +432,8 @@ contains
             call set_logical(text_mode_variant, v)
         case ("parse_sexp_ignore_comments")
             parse_sexp_ignore_comments = .not. nilp(v)
+        case ("case_symbols_as_words")
+            case_symbols_as_words = .not. nilp(v)
         case ("require_final_newline")
             call set_final_newline(require_final_newline, v)
         case ("mode_require_final_newline")
@@ -570,6 +577,9 @@ contains
         case ("parse_sexp_ignore_comments")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             parse_sexp_ignore_comments = .true.
+        case ("case_symbols_as_words")
+            ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
+            case_symbols_as_words = .true.
         case ("require_final_newline")
             require_final_newline%void = .true.
         case ("mode_require_final_newline")

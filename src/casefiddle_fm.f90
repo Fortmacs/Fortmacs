@@ -35,6 +35,7 @@ module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
     use error_fm, only: status_type
+    use data_fm, only: logical_setting
     use character_fm, only: char_string, string_char_and_length, MAX_MULTIBYTE_LENGTH, CHAR_ALT, CHAR_SUPER, &
                             CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
     use casetab_fm, only: downcase, upcase
@@ -71,8 +72,10 @@ module casefiddle_fm
     !>
     !> This is useful for programming languages and styles where only the
     !> first letter of a symbol's name is ever capitalized.  Port of
-    !> casefiddle.c case-symbols-as-words (one global value).
-    logical, public :: case_symbols_as_words = .false.
+    !> casefiddle.c case-symbols-as-words (automatically buffer-local
+    !> when set).
+    type(logical_setting), public :: case_symbols_as_words = &
+                                     logical_setting(name="case_symbols_as_words", value=.false.)
 
     !> In Greek, lower case sigma has two forms: one when used in the middle
     !> and one when used at the end of a word.
@@ -115,7 +118,7 @@ contains
     !> Port of casefiddle.c:case_ch_is_word.
     logical function case_ch_is_word(syntax)
         integer, intent(in) :: syntax
-        case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words .and. syntax == SSYMBOL)
+        case_ch_is_word = syntax == SWORD .or. (case_symbols_as_words%value .and. syntax == SSYMBOL)
     end function case_ch_is_word
 
     !> Whether C has the syntax prefix flag `p' (syntax_prefix_flag_p).

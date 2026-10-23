@@ -31,7 +31,8 @@ module test_textprop_fm
     use fns_fm, only: value_equal, put
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, set_buffer, &
                          current_buffer, buffer_live_p, set_buffer_read_only, &
-                         erase_buffer, inhibit_read_only
+                         erase_buffer, inhibit_read_only, vdeactivate_mark, UE_FIRST_CHANGE
+    use undo_fm, only: undo_last_kind
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, delete_and_extract_region, point_max
     use textprop_fm, only: add_text_properties, get_text_property, next_property_change, &
@@ -39,7 +40,7 @@ module test_textprop_fm
                            previous_single_property_change, put_text_property, &
                            remove_list_of_text_properties, remove_text_properties, &
                            set_text_properties, text_properties_at, text_property_any, &
-                           text_property_not_all
+                           text_property_not_all, text_property_stickiness
     implicit none(type, external)
     private
 
@@ -60,7 +61,8 @@ contains
                     new_unittest("property-change-modifies", test_modifies), &
                     new_unittest("odd-plist-and-range-errors", test_errors), &
                     new_unittest("read-only-insertion", test_read_only_insert), &
-                    new_unittest("textprop-interval-immutability", test_immutability) &
+                    new_unittest("textprop-interval-immutability", test_immutability), &
+                    new_unittest("default-nonsticky", test_default_nonsticky) &
                     ]
     end subroutine collect_textprop_fm
 
@@ -293,6 +295,17 @@ contains
         call check(error, buffers(cur)%text%modiff > tick, "modiff did not advance")
         if (allocated(error)) return
         call check(error, buffers(cur)%text%chars_modiff, chars_tick)
+        if (allocated(error)) return
+        ! As textprop.c:modify_text_properties: the first change of an
+        ! unmodified buffer is recorded for undo, and the mark deactivated
+        ! (prepare_to_modify_buffer_1).
+        buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+        vdeactivate_mark = .false.
+        call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
+        call check(error, undo_last_kind() == UE_FIRST_CHANGE, "first change not recorded")
+        if (allocated(error)) return
+        call check(error, vdeactivate_mark, "deactivate-mark not set")
+        vdeactivate_mark = .false.
         call leave(h, old)
     end subroutine test_modifies
 
@@ -420,4 +433,24 @@ contains
             call set(sym("inhibit_read_only"), saved, st2)
         end subroutine refill
     end subroutine test_immutability
+
+    !> The standard text-property-default-nonsticky makes syntax-table,
+    !> display, composition and fill-space rear-nonsticky; other properties
+    !> such as `cursor' are rear-sticky.
+    subroutine test_default_nonsticky(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call enter("tt-nonsticky", h, old)
+        call insert("abc", st)
+        call put_text_property(1_int64, 2_int64, sym("cursor"), t_value(), st)
+        call put_text_property(1_int64, 2_int64, sym("syntax_table"), t_value(), st)
+        call put_text_property(1_int64, 2_int64, sym("fill_space"), t_value(), st)
+        call check(error, text_property_stickiness(sym("cursor"), 2_int64) == -1, "cursor is rear-sticky")
+        if (allocated(error)) return
+        call check(error, text_property_stickiness(sym("syntax_table"), 2_int64) == 0, "syntax_table")
+        if (allocated(error)) return
+        call check(error, text_property_stickiness(sym("fill_space"), 2_int64) == 0, "fill_space")
+        call leave(h, old)
+    end subroutine test_default_nonsticky
 end module test_textprop_fm

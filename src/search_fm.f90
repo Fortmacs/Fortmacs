@@ -37,12 +37,13 @@
 !> Positions in strings are 1-based character indices, as Fortran's
 !> `index' (Emacs counts from 0), so that 0 can stand for nil.
 !>
-!> Deferred: `replace_match' (with query-replace), `match_data' markers,
-!> `inhibit_changing_match_data', Boyer-Moore search, the newline cache.
+!> Deferred: `match_data' markers, `inhibit_changing_match_data',
+!> Boyer-Moore search, the newline cache.
 module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
+    use print_fm, only: prin1_string
     use data_fm, only: logical_setting
     use character_fm, only: string_char_and_length, char_bytes, char_head_p
     use casetab_fm, only: case_canon
@@ -61,11 +62,12 @@ module search_fm
               regexp_quote, match_in_string_p, syms_of_search, replace_match, match_data_translate
     ! For search_regexp_fm (gfortran makes private procedures invisible to
     ! submodules).
-    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, matcher_overflow, &
+    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, ensure_search_regs, &
+              matcher_overflow, &
               search_command
 
     !> Non-nil if searches and matches should ignore case.  Port of
-    !> buffer.c case-fold-search (one global value; not buffer-local yet).
+    !> buffer.c case-fold-search (buffer-local when set).
     type(logical_setting), public :: case_fold_search = logical_setting(name="case_fold_search", value=.true.)
 
     !> Values of NOERROR for `search_forward' and `search_backward': nil
@@ -79,8 +81,11 @@ module search_fm
     character(len=:), allocatable, public :: search_spaces_regexp
 
     !> The match data of the last search (search.c:search_regs), indexed
-    !> by group: buffer positions or string indices, -1 when unset.
+    !> by group: buffer positions or string indices, -1 when unset.  The
+    !> size is search_regs.num_regs: unallocated is 0.
     integer(int64), allocatable :: search_regs_start(:), search_regs_end(:)
+    !> Registers a regexp match first allocates (regex-emacs.c RE_NREGS).
+    integer, parameter :: RE_NREGS = 30
     !> The buffer of the last search (last_thing_searched), unless it was
     !> on a string.
     type(handle_type) :: last_thing_searched
@@ -396,12 +401,30 @@ contains
     !> Make the match data `n' empty registers.
     subroutine clear_search_regs(n)
         integer, intent(in) :: n
-        if (allocated(search_regs_start)) deallocate (search_regs_start)
-        if (allocated(search_regs_end)) deallocate (search_regs_end)
-        allocate (search_regs_start(0:n - 1), search_regs_end(0:n - 1))
+        if (allocated(search_regs_start)) then
+            if (size(search_regs_start) /= n) deallocate (search_regs_start, search_regs_end)
+        end if
+        if (.not. allocated(search_regs_start)) allocate (search_regs_start(0:n - 1), search_regs_end(0:n - 1))
         search_regs_start = -1
         search_regs_end = -1
     end subroutine clear_search_regs
+
+    !> Make room in the match data for the `n' registers of a regexp match
+    !> and unset them all, as re_match_2_internal does with
+    !> REGS_UNALLOCATED (max (RE_NREGS, n) registers the first time) and
+    !> REGS_REALLOCATE (grow by half when too few, never shrink).  Port of
+    !> the register allocation in regex-emacs.c:re_match_2_internal.
+    subroutine ensure_search_regs(n)
+        integer, intent(in) :: n
+        integer :: m
+        if (.not. allocated(search_regs_start)) then
+            m = max(RE_NREGS, n)
+        else
+            m = size(search_regs_start)
+            if (m < n) m = max(m + m/2, n)
+        end if
+        call clear_search_regs(m)
+    end subroutine ensure_search_regs
 
     ! ------------------------------------------------------------------
     ! Matching at point and in strings
@@ -672,7 +695,7 @@ contains
         if (.not. status%ok()) return
         if (np <= 0) then
             if (mode == SEARCH_SIGNAL) then
-                call set_error(status, FM_SEARCH_FAILED, '"'//string//'"')
+                call set_error(status, FM_SEARCH_FAILED, prin1_string(string))
             else if (mode == SEARCH_MOVE) then
                 call temp_set_point_both(buffers(cur), lim, lim_byte)
             end if
@@ -897,10 +920,13 @@ contains
         logical, intent(in) :: beginningp
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
+        character(len=11) :: buf
         status = status_type()
         pos = 0
         if (n < 0) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE)
+            ! args_out_of_range (num, 0).
+            write (buf, "(i0)") n
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buf)//", 0")
             return
         end if
         if (.not. allocated(search_regs_start)) then
@@ -955,9 +981,20 @@ contains
     !> taken to be in the current buffer.  Port of search.c:Fset_match_data.
     subroutine set_match_data(data)
         integer(int64), intent(in) :: data(:)
-        integer :: i
-        call clear_search_regs(max(2, size(data)/2))
-        do i = 0, size(data)/2 - 1
+        integer :: i, length, num_regs
+        ! Allocate registers if they don't already exist (growing as
+        ! xpalloc does: by half, or to 16 when tiny, or by what is needed).
+        length = size(data)/2
+        num_regs = 0
+        if (allocated(search_regs_start)) num_regs = size(search_regs_start)
+        if (length > num_regs) then
+            i = num_regs + num_regs/2
+            if (8*i < 128) i = 16
+            if (i - num_regs < length - num_regs) i = length
+            num_regs = i
+        end if
+        if (num_regs > 0) call clear_search_regs(num_regs)
+        do i = 0, length - 1
             if (data(2*i + 1) > 0 .and. data(2*i + 2) > 0) then
                 search_regs_start(i) = data(2*i + 1)
                 search_regs_end(i) = data(2*i + 2)
