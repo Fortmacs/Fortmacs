@@ -145,7 +145,7 @@ contains
         type(value_type) :: r
         type(status_type) :: st
         call call_process("fortmacs-no-such-program", r, st)
-        call check(error, st%code == FM_FILE_MISSING, "file-missing")
+        call check(error, st%code == FM_FILE_MISSING, "file_missing")
         if (.not. allocated(error)) then
             call check(error, format_error(st), &
                        "Searching for program: No such file or directory, fortmacs-no-such-program")

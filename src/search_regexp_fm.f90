@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The cache of compiled patterns, `looking-at', `string-match' and regexp
+!> The cache of compiled patterns, `looking_at', `string_match' and regexp
 !> search in buffers.  A submodule of search_fm, because the regexp engine
 !> depends (through the syntax table) on modules that use search_fm.
 submodule(search_fm) search_regexp_fm
@@ -286,7 +286,7 @@ contains
     if (.not. is_literal .and. index(newtext, "\") == 0) is_literal = .true.
     case_action = NOCHANGE
     if (.not. allocated(search_regs_start)) then
-        call set_error(status, FM_GENERIC_ERROR, format_message("`replace-match' called before any match found"))
+        call set_error(status, FM_GENERIC_ERROR, format_message("`replace_match' called before any match found"))
         return
     end if
     num_regs = size(search_regs_start)
@@ -506,7 +506,7 @@ contains
         integer :: i
         change = newend - oldend
         do i = 0, size(search_regs_start) - 1
-            ! If the subgroup that `replace-match' is modifying encloses
+            ! If the subgroup that `replace_match' is modifying encloses
             ! the subgroup I, then its start position should stay
             ! unchanged.
             if (search_regs_start(i) <= oldstart) then

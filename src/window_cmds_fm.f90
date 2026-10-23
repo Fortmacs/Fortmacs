@@ -32,11 +32,11 @@
 !> depends on window_fm, so they live in a submodule.
 !>
 !> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window-combination-resize', `split-window-keep-point' nil,
-!> `delete-window-choose-selected' other than `mru', other frames, the
+!> windows, `window_combination_resize', `split_window_keep_point' nil,
+!> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
-!> (C-x C-b), `switch-to-buffer-preserve-window-point',
-!> `kill-buffer-query-functions' and `kill-buffer-hook'.
+!> (C-x C-b), `switch_to_buffer_preserve_window_point',
+!> `kill_buffer_query_functions' and `kill_buffer_hook'.
 submodule(window_fm) window_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
@@ -69,7 +69,7 @@ contains
     !> An error for a window that is not live.
     subroutine not_live(status)
         type(status_type), intent(out) :: status
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-live-p")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
     end subroutine not_live
 
     !> The window commands can't run in the minibuffer yet.
@@ -193,7 +193,7 @@ contains
     !>
     !> Both windows get the same value of point as the WINDOW-TO-SPLIT.
     !> Port of window.el:split-window-below (the command;
-    !> `split-window-keep-point' is t).
+    !> `split_window_keep_point' is t).
     subroutine cmd_split_window_below(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: new
@@ -231,7 +231,7 @@ contains
         logical :: was_selected
         status = status_type()
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-valid-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
             return
         end if
         if (same_window(window, selected_frame%root_window) .or. windows(window%index)%mini) then
@@ -273,7 +273,7 @@ contains
         type(handle_type) :: old_root, parent
         integer :: top, left, lines, cols
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-valid-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
             return
         end if
         status = status_type()
@@ -429,16 +429,16 @@ contains
 
     !> Display buffer BUFFER-OR-NAME in the selected window.
     !>
-    !> If called interactively, read the buffer name using `read-buffer'.
-    !> The variable `confirm-nonexistent-file-or-buffer' determines
+    !> If called interactively, read the buffer name using `read_buffer'.
+    !> The variable `confirm_nonexistent_file_or_buffer' determines
     !> whether to request confirmation before creating a new buffer.
     !>
     !> If BUFFER-OR-NAME is a string that does not identify an existing
     !> buffer, create a buffer with that name.  If BUFFER-OR-NAME is
-    !> empty, switch to the buffer returned by `other-buffer'.
+    !> empty, switch to the buffer returned by `other_buffer'.
     !> Port of window.el:switch-to-buffer (the command, with
-    !> read-buffer-to-switch; `confirm-nonexistent-file-or-buffer' is
-    !> `after-completion').
+    !> read-buffer-to-switch; `confirm_nonexistent_file_or_buffer' is
+    !> `after_completion').
     recursive subroutine cmd_switch_to_buffer(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name

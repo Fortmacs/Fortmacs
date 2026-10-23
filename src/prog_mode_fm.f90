@@ -36,7 +36,7 @@ module prog_mode_fm
 
     !> Normal hook run when entering programming modes.  Port of
     !> prog-mode.el prog-mode-hook.
-    type(hook_type), target, public :: prog_mode_hook = hook_type(name="prog-mode-hook")
+    type(hook_type), target, public :: prog_mode_hook = hook_type(name="prog_mode_hook")
 
     !> Keymap used for programming modes.  Port of prog-mode.el
     !> prog-mode-map.
@@ -59,7 +59,7 @@ contains
     !> Define Prog mode.  Its parent is fundamental-mode, which
     !> define-derived-mode takes as no parent.
     subroutine syms_of_prog_mode()
-        call major_modes%prog_mode%define("prog-mode", "Prog", prog_mode, prog_mode_hook)
+        call major_modes%prog_mode%define("prog_mode", "Prog", prog_mode, prog_mode_hook)
         prog_mode_map = major_modes%prog_mode%map
         commands%prog_mode%run => prog_mode
     end subroutine syms_of_prog_mode

@@ -319,7 +319,7 @@ contains
         type(status_type) :: st
         call enter("tt-ro-ins", h, old)
         call insert("abcdef", st)
-        call put_text_property(3_int64, 5_int64, sym("read-only"), t_value(), st)
+        call put_text_property(3_int64, 5_int64, sym("read_only"), t_value(), st)
         call goto_char(5_int64)
         call insert("x", st)
         call check(error, st%code, FM_TEXT_READ_ONLY)
@@ -332,12 +332,12 @@ contains
         call insert("x", st)
         call check(error, st%code, FM_TEXT_READ_ONLY)
         if (allocated(error)) return
-        call put_text_property(4_int64, 6_int64, sym("rear-nonsticky"), t_value(), st)
+        call put_text_property(4_int64, 6_int64, sym("rear_nonsticky"), t_value(), st)
         call check(error, st%code, FM_TEXT_READ_ONLY)   ! changing read-only text
         if (allocated(error)) return
-        call set(sym("inhibit-read-only"), t_value(), st)
-        call put_text_property(4_int64, 6_int64, sym("rear-nonsticky"), t_value(), st)
-        call set(sym("inhibit-read-only"), nil(), st)
+        call set(sym("inhibit_read_only"), t_value(), st)
+        call put_text_property(4_int64, 6_int64, sym("rear_nonsticky"), t_value(), st)
+        call set(sym("inhibit_read_only"), nil(), st)
         call goto_char(6_int64)
         call insert("y", st)
         call check(error, st%ok(), "rear-nonsticky read-only still refused insertion")
@@ -372,7 +372,7 @@ contains
             call delete_and_extract_region(4_int64, 7_int64, s, st)
             call check(error,.not. st%ok(), "delete 4-7 should fail")
             if (allocated(error)) exit run
-            call set(sym("inhibit-read-only"), list(sym("abcdefg")), st)
+            call set(sym("inhibit_read_only"), list(sym("abcdefg")), st)
             ! The same, with the second section's read-only suppressed.
             call delete_and_extract_region(4_int64, 7_int64, s, st)
             call check(error, st%ok() .and. s == "456", "delete 4-7 with abcdefg suppressed")
@@ -384,29 +384,29 @@ contains
             call check(error, st%ok() .and. s == "7890ABCDEF", "delete 7-17")
             if (allocated(error)) exit run
             call refill()
-            call set(sym("inhibit-read-only"), nil(), st)
+            call set(sym("inhibit_read_only"), nil(), st)
             ! Two inhibit-read-only sections separated by immutable text.
             call delete_and_extract_region(17_int64, 27_int64, s, st)
             call check(error, st%code, FM_BUFFER_READ_ONLY)
             if (allocated(error)) exit run
-            call set(sym("inhibit-read-only"), list(sym("abcdefg")), st)
+            call set(sym("inhibit_read_only"), list(sym("abcdefg")), st)
             ! From an inhibit-read-only section into protected text.
             call delete_and_extract_region(26_int64, 37_int64, s, st)
             call check(error, st%code, FM_TEXT_READ_ONLY)
         end block run
-        call set(sym("inhibit-read-only"), nil(), st)
+        call set(sym("inhibit_read_only"), nil(), st)
         call leave(h, old)
     contains
 
         subroutine fill(st)
             type(status_type), intent(out) :: st
             call insert("1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ", st)
-            call put_text_property(1_int64, 6_int64, sym("inhibit-read-only"), t_value(), st)
-            call put_text_property(6_int64, 11_int64, sym("read-only"), sym("abcdefg"), st)
-            call put_text_property(11_int64, 16_int64, sym("inhibit-read-only"), t_value(), st)
-            call put_text_property(16_int64, 21_int64, sym("inhibit-read-only"), sym("yes"), st)
-            call put_text_property(26_int64, 31_int64, sym("inhibit-read-only"), t_value(), st)
-            call put_text_property(31_int64, 37_int64, sym("read-only"), sym("not-suppressed"), st)
+            call put_text_property(1_int64, 6_int64, sym("inhibit_read_only"), t_value(), st)
+            call put_text_property(6_int64, 11_int64, sym("read_only"), sym("abcdefg"), st)
+            call put_text_property(11_int64, 16_int64, sym("inhibit_read_only"), t_value(), st)
+            call put_text_property(16_int64, 21_int64, sym("inhibit_read_only"), sym("yes"), st)
+            call put_text_property(26_int64, 31_int64, sym("inhibit_read_only"), t_value(), st)
+            call put_text_property(31_int64, 37_int64, sym("read_only"), sym("not-suppressed"), st)
         end subroutine fill
 
         !> (let ((inhibit-read-only t)) (erase-buffer) (insert template))
@@ -414,10 +414,10 @@ contains
             type(value_type) :: saved
             type(status_type) :: st2
             saved = inhibit_read_only()
-            call set(sym("inhibit-read-only"), t_value(), st2)
+            call set(sym("inhibit_read_only"), t_value(), st2)
             call erase_buffer(st2)
             call fill(st2)
-            call set(sym("inhibit-read-only"), saved, st2)
+            call set(sym("inhibit_read_only"), saved, st2)
         end subroutine refill
     end subroutine test_immutability
 end module test_textprop_fm

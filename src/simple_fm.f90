@@ -23,12 +23,12 @@
 !> deletion, keyboard-quit, quoted-insert, and the prefix-argument
 !> commands with universal-argument-map.
 !>
-!> Undo (`undo', `undo-only', `undo-redo', `primitive-undo') is here; the
+!> Undo (`undo', `undo_only', `undo_redo', `primitive_undo') is here; the
 !> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
 !> kill ring are here too.
 !>
 !> Not ported yet: undo in a region, the global mark ring, shift-selection, the
-!> interprogram (system clipboard) cut and paste, `yank-from-kill-ring',
+!> interprogram (system clipboard) cut and paste, `yank_from_kill_ring',
 !> electric indentation, auto-fill and hard newlines, prefix-argument
 !> echoing, octal input in quoted-insert.
 module simple_fm
@@ -126,14 +126,14 @@ module simple_fm
 
     !> String for filling to insert at front of new line, or nil for none.
     !> Unallocated is nil.  Port of simple.el fill-prefix.
-    type(string_setting), public :: fill_prefix = string_setting(name="fill-prefix")
+    type(string_setting), public :: fill_prefix = string_setting(name="fill_prefix")
 
-    !> The actions of `cycle-spacing' (the symbols of
-    !> `cycle-spacing-actions').
+    !> The actions of `cycle_spacing' (the symbols of
+    !> `cycle_spacing_actions').
     integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
                                   CYCLE_DELETE_SPACE_BEFORE = 3, CYCLE_DELETE_ALL_SPACE = 4, CYCLE_RESTORE = 5
     !> The argument forms of an action (ACTION ARG): none (the prefix arg
-    !> of the cycle), a fixed integer, `inverted-arg' and `-'.
+    !> of the cycle), a fixed integer, `inverted_arg' and `-'.
     integer, parameter, public :: CYCLE_ARG_NONE = 0, CYCLE_ARG_FIXED = 1, CYCLE_ARG_INVERTED = 2, &
                                   CYCLE_ARG_MINUS = 3
 
@@ -144,23 +144,23 @@ module simple_fm
         integer(int64) :: arg = 0
     end type cycle_spacing_action_type
 
-    !> List of actions cycled through by `cycle-spacing'.
+    !> List of actions cycled through by `cycle_spacing'.
     !> Supported values are:
-    !> - `just-one-space'      Delete all but N (prefix arg) spaces.
+    !> - `just_one_space'      Delete all but N (prefix arg) spaces.
     !>                         See that command's docstring for details.
-    !> - `delete-space-after'  Delete spaces after point keeping only N.
-    !> - `delete-space-before' Delete spaces before point keeping only N.
-    !> - `delete-all-space'    Delete all spaces around point.
+    !> - `delete_space_after'  Delete spaces after point keeping only N.
+    !> - `delete_space_before' Delete spaces before point keeping only N.
+    !> - `delete_all_space'    Delete all spaces around point.
     !> - `restore'             Restore the original spacing.
     !>
-    !> All actions make use of the prefix arg given to `cycle-spacing'
-    !> in the initial invocation, i.e., `just-one-space' keeps this
-    !> amount of spaces deleting surplus ones.  `just-one-space' and all
+    !> All actions make use of the prefix arg given to `cycle_spacing'
+    !> in the initial invocation, i.e., `just_one_space' keeps this
+    !> amount of spaces deleting surplus ones.  `just_one_space' and all
     !> other actions have the contract that a positive prefix arg (or
     !> zero) only deletes tabs and spaces whereas a negative prefix arg
     !> also deletes newlines.
     !>
-    !> The `delete-space-before' and `delete-space-after' actions handle
+    !> The `delete_space_before' and `delete_space_after' actions handle
     !> the prefix arg M-- without a number provided
     !> specially: all spaces before/after point are deleted (as if N was
     !> 0) including newlines (as if N was negative).
@@ -170,12 +170,12 @@ module simple_fm
     !> and ARG is either
     !> - an integer with the meaning that ACTION should always use this
     !>   fixed integer instead of the actual prefix arg or
-    !> - the symbol `inverted-arg' with the meaning that ACTION should
+    !> - the symbol `inverted_arg' with the meaning that ACTION should
     !>   be performed with the inverted actual prefix arg.
     !> - the symbol `-' with the meaning that ACTION should include
     !>   newlines but it's up to the ACTION to decide how to interpret
-    !>   it as a number, e.g., `delete-space-before' and
-    !>   `delete-space-after' treat it like 0 whereas `just-one-space'
+    !>   it as a number, e.g., `delete_space_before' and
+    !>   `delete_space_after' treat it like 0 whereas `just_one_space'
     !>   treats it like -1 as is usual.  Port of simple.el
     !>   cycle-spacing-actions (no function actions).
     type(cycle_spacing_action_type), allocatable, public :: cycle_spacing_actions(:)
@@ -195,34 +195,34 @@ module simple_fm
 
     !> Regexp to match lines that should not be auto-filled.  Port of
     !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
-    type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto-fill-inhibit-regexp")
+    type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto_fill_inhibit_regexp")
 
-    !> Non-nil means to do as if `auto-fill-mode' was disabled.  Port of
+    !> Non-nil means to do as if `auto_fill_mode' was disabled.  Port of
     !> simple.el inhibit-auto-fill.
     logical, public :: inhibit_auto_fill = .false.
 
-    !> The function to use for `auto-fill-function' if Auto Fill mode is turned on.
+    !> The function to use for `auto_fill_function' if Auto Fill mode is turned on.
     !> Some major modes set this.  Port of simple.el
-    !> normal-auto-fill-function (null is `do-auto-fill').
+    !> normal-auto-fill-function (null is `do_auto_fill').
     procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
 
-    !> Hook run after entering Special mode (`special-mode-hook').
-    type(hook_type), target, public :: special_mode_hook = hook_type(name="special-mode-hook")
+    !> Hook run after entering Special mode (`special_mode_hook').
+    type(hook_type), target, public :: special_mode_hook = hook_type(name="special_mode_hook")
 
-    !> Keymap for `special-mode'.  Port of simple.el special-mode-map.
+    !> Keymap for `special_mode'.  Port of simple.el special-mode-map.
     type(handle_type), public :: special_mode_map
 
-    !> Hook run after entering or leaving `transient-mark-mode'.
-    type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient-mark-mode-hook")
+    !> Hook run after entering or leaving `transient_mark_mode'.
+    type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient_mark_mode_hook")
 
-    !> Hook run after entering or leaving `indent-tabs-mode'.
-    type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent-tabs-mode-hook")
+    !> Hook run after entering or leaving `indent_tabs_mode'.
+    type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent_tabs_mode_hook")
 
-    !> Hook run after entering or leaving `auto-fill-mode'.
-    type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto-fill-mode-hook")
+    !> Hook run after entering or leaving `auto_fill_mode'.
+    type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto_fill_mode_hook")
 
     interface
-        !> The default value for `normal-auto-fill-function'.
+        !> The default value for `normal_auto_fill_function'.
         !> This is the default auto-fill function, some major modes use a different one.
         !> Returns t if it really did any work.  Port of simple.el:do-auto-fill
         !> (no comments).  (In simple_fill_fm.)
@@ -232,9 +232,9 @@ module simple_fm
         end subroutine do_auto_fill
 
         !> Break line at point and indent.
-        !> If a comment syntax is defined, call `comment-line-break-function'.
+        !> If a comment syntax is defined, call `comment_line_break_function'.
         !>
-        !> The inserted newline is marked hard if variable `use-hard-newlines' is true,
+        !> The inserted newline is marked hard if variable `use_hard_newlines' is true,
         !> unless optional argument SOFT is non-nil.  Port of
         !> simple.el:default-indent-new-line (no comments or hard
         !> newlines).  (In simple_fill_fm.)
@@ -244,7 +244,7 @@ module simple_fm
             logical, intent(in), optional :: soft
         end subroutine default_indent_new_line
 
-        !> The function called by `self-insert-command' to perform auto-filling.
+        !> The function called by `self_insert_command' to perform auto-filling.
         !> Port of simple.el:internal-auto-fill.  (In simple_fill_fm.)
         module subroutine internal_auto_fill(status)
             implicit none(type, external)
@@ -254,14 +254,14 @@ module simple_fm
         !> Toggle automatic line breaking (Auto Fill mode).
         !>
         !> When Auto Fill mode is enabled, inserting a space at a column
-        !> beyond `current-fill-column' automatically breaks the line at a
+        !> beyond `current_fill_column' automatically breaks the line at a
         !> previous space.
         !>
-        !> When `auto-fill-mode' is on, the `auto-fill-function' variable is
+        !> When `auto_fill_mode' is on, the `auto_fill_function' variable is
         !> non-nil.
         !>
-        !> The value of `normal-auto-fill-function' specifies the function to use
-        !> for `auto-fill-function' when turning Auto Fill mode on.  ARG is
+        !> The value of `normal_auto_fill_function' specifies the function to use
+        !> for `auto_fill_function' when turning Auto Fill mode on.  ARG is
         !> the raw argument of a minor mode: nil or omitted toggles when
         !> TOGGLE, else enables; a positive number enables, zero or a
         !> negative number disables.  Port of simple.el:auto-fill-mode.
@@ -285,7 +285,7 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine turn_off_auto_fill
 
-        !> Set `fill-column' to specified argument.
+        !> Set `fill_column' to specified argument.
         !> Use C-u followed by a number to specify a column.
         !> Just C-u as argument means to use the current column.  Port of
         !> simple.el:set-fill-column.  (In simple_fill_fm.)
@@ -318,8 +318,8 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine special_mode
 
-        !> Define `fundamental-mode' and `special-mode' (with
-        !> `special-mode-map'); safe to call again.  (In simple_modes_fm.)
+        !> Define `fundamental_mode' and `special_mode' (with
+        !> `special_mode_map'); safe to call again.  (In simple_modes_fm.)
         module subroutine syms_of_simple_modes()
             implicit none(type, external)
         end subroutine syms_of_simple_modes
@@ -339,7 +339,7 @@ module simple_fm
     !> Port of simple.el kill-ring-max.
     integer(int64), public :: kill_ring_max = 120
     !> The tail of the kill ring whose car is the last thing yanked, as an
-    !> index into `kill-ring' (1 for its first element).  Port of simple.el
+    !> index into `kill_ring' (1 for its first element).  Port of simple.el
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
     !> Maximum size of mark ring.  Start discarding off end if gets this
@@ -353,7 +353,7 @@ module simple_fm
     logical, public :: kill_whole_line_option = .false.
     !> Whether single-char deletion commands delete an active region.
     !> This has an effect only if Transient Mark mode is enabled, and
-    !> affects `delete-forward-char' and `delete-backward-char'.  Port of
+    !> affects `delete_forward_char' and `delete_backward_char'.  Port of
     !> simple.el delete-active-region (t; `kill' not yet).
     logical, public :: delete_active_region = .true.
 
@@ -445,17 +445,17 @@ contains
         end if
         call make_sparse_keymap(map)
         key(1) = make_fixnum(21_int64)
-        call define_key(map, key, sym("universal-argument-more"), status)
+        call define_key(map, key, sym("universal_argument_more"), status)
         key(1) = make_fixnum(int(iachar("-"), int64))
-        call define_key(map, key, sym("universal-argument-minus"), status)
+        call define_key(map, key, sym("universal_argument_minus"), status)
         key(1) = sym("kp-subtract")
-        call define_key(map, key, sym("universal-argument-minus"), status)
+        call define_key(map, key, sym("universal_argument_minus"), status)
         do d = 0, 9
             key(1) = make_fixnum(int(iachar("0") + d, int64))
-            call define_key(map, key, sym("digit-argument"), status)
+            call define_key(map, key, sym("digit_argument"), status)
             write (name, '("kp-",i1)') d
             key(1) = sym(name)
-            call define_key(map, key, sym("digit-argument"), status)
+            call define_key(map, key, sym("digit_argument"), status)
         end do
         uarg_map = map
     end function universal_argument_map
@@ -489,7 +489,7 @@ contains
     !> Delete the previous N characters (following if N is negative).
     !> If Transient Mark mode is enabled, the mark is active, and N is 1,
     !> delete the text in the region and deactivate the mark instead.
-    !> To disable this, set option `delete-active-region' to nil.
+    !> To disable this, set option `delete_active_region' to nil.
     !>
     !> A numeric prefix argument specifies N, and if a prefix argument is
     !> used, the characters are killed (saved in the kill ring) instead of
@@ -509,7 +509,7 @@ contains
         end if
     end subroutine cmd_delete_backward_char
 
-    !> The default region-extract-function with METHOD `delete-only'.
+    !> The default region-extract-function with METHOD `delete_only'.
     subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -521,7 +521,7 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> If Transient Mark mode is enabled, the mark is active, and N is 1,
     !> delete the text in the region and deactivate the mark instead.
-    !> To disable this, set variable `delete-active-region' to nil.
+    !> To disable this, set variable `delete_active_region' to nil.
     !>
     !> A numeric prefix argument specifies N, and if a prefix argument is
     !> used, the characters are killed (saved in the kill ring) instead of
@@ -574,14 +574,14 @@ contains
     end subroutine cmd_quoted_insert
 
     !> Begin a numeric argument for the following command.
-    !> Digits or minus sign following \[universal-argument] make up the numeric argument.
-    !> \[universal-argument] following the digits or minus sign ends the argument.
-    !> \[universal-argument] without digits or minus sign provides 4 as argument.
-    !> Repeating \[universal-argument] without digits or minus sign
+    !> Digits or minus sign following \[universal_argument] make up the numeric argument.
+    !> \[universal_argument] following the digits or minus sign ends the argument.
+    !> \[universal_argument] without digits or minus sign provides 4 as argument.
+    !> Repeating \[universal_argument] without digits or minus sign
     !>  multiplies the argument by 4 each time.
-    !> For some commands, just \[universal-argument] by itself serves as a flag
+    !> For some commands, just \[universal_argument] by itself serves as a flag
     !> that is different in effect from any particular numeric argument.
-    !> These commands include \[set-mark-command].
+    !> These commands include \[set_mark_command].
     !> Port of simple.el:universal-argument.
     subroutine cmd_universal_argument(status)
         type(status_type), intent(out) :: status
@@ -609,7 +609,7 @@ contains
     end subroutine cmd_universal_argument_more
 
     !> Begin a negative numeric argument for the next command.
-    !> \[universal-argument] following digits or minus sign ends the argument.
+    !> \[universal_argument] following digits or minus sign ends the argument.
     !> Port of simple.el:negative-argument.
     subroutine cmd_negative_argument(status)
         type(status_type), intent(out) :: status
@@ -628,9 +628,9 @@ contains
     end subroutine cmd_negative_argument
 
     !> Part of the numeric argument for the next command.
-    !> \[universal-argument] following digits or minus sign ends the argument.
+    !> \[universal_argument] following digits or minus sign ends the argument.
     !> Port of simple.el:digit-argument (character events; keypad digits
-    !> need the `ascii-character' property, not ported).
+    !> need the `ascii_character' property, not ported).
     subroutine cmd_digit_argument(status)
         type(status_type), intent(out) :: status
         type(value_type) :: arg
@@ -678,8 +678,8 @@ contains
 
     !> Whether the last command was next-line or previous-line.
     logical function after_line_move()
-        after_line_move = value_eq(last_command, sym("next-line")) .or. &
-                          value_eq(last_command, sym("previous-line"))
+        after_line_move = value_eq(last_command, sym("next_line")) .or. &
+                          value_eq(last_command, sym("previous_line"))
     end function after_line_move
 
     !> Move `arg' lines down (up if negative), keeping the goal column; by
@@ -860,16 +860,16 @@ contains
     !> If there is no line in the buffer after this one, the cursor moves to
     !> the end of the buffer.
     !>
-    !> If the variable `line-move-visual' is non-nil, this command moves
+    !> If the variable `line_move_visual' is non-nil, this command moves
     !> by display lines.  Otherwise, it moves by buffer lines, without
     !> taking variable-width characters or continued lines into account.
     !>
-    !> If the variable `goal-column' is set, instead of trying to move exactly
+    !> If the variable `goal_column' is set, instead of trying to move exactly
     !> vertically (or as close as possible), this command moves to that goal
-    !> column (or as close as possible).  Note that setting `goal-column'
-    !> overrides `line-move-visual' and causes this command to move by buffer
+    !> column (or as close as possible).  Note that setting `goal_column'
+    !> overrides `line_move_visual' and causes this command to move by buffer
     !> lines rather than by display lines.  Port of simple.el:next-line (no
-    !> vscroll, `next-line-add-newlines' or `set-goal-column').
+    !> vscroll, `next_line_add_newlines' or `set_goal_column').
     subroutine cmd_next_line(status)
         type(status_type), intent(out) :: status
         call next_line(prefix_numeric_value(current_prefix_arg), status)
@@ -882,16 +882,16 @@ contains
     !> the cursor is positioned after the character in that line that spans this
     !> column, or at the end of the line if it is not long enough.
     !>
-    !> If the variable `line-move-visual' is non-nil, this command moves
+    !> If the variable `line_move_visual' is non-nil, this command moves
     !> by display lines.  Otherwise, it moves by buffer lines, without
     !> taking variable-width characters or continued lines into account.
     !>
-    !> If the variable `goal-column' is set, instead of trying to move exactly
+    !> If the variable `goal_column' is set, instead of trying to move exactly
     !> vertically (or as close as possible), this command moves to that goal
-    !> column (or as close as possible).  Note that setting `goal-column'
-    !> overrides `line-move-visual' and causes this command to move by buffer
+    !> column (or as close as possible).  Note that setting `goal_column'
+    !> overrides `line_move_visual' and causes this command to move by buffer
     !> lines rather than by display lines.  Port of simple.el:previous-line (no
-    !> vscroll or `set-goal-column').
+    !> vscroll or `set_goal_column').
     subroutine cmd_previous_line(status)
         type(status_type), intent(out) :: status
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
@@ -1001,7 +1001,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Read and return name of command to invoke via
-    !> `execute-extended-command'.  Port of
+    !> `execute_extended_command'.  Port of
     !> simple.el:read-extended-command (with read-extended-command-1; no
     !> M-X cycling, affixations or default from the buffer).
     recursive subroutine read_extended_command(name, status)
@@ -1031,12 +1031,12 @@ contains
         ! defined commands.  Save the command read on the extended-command
         ! history list.
         call completing_read(prompt//"M-x ", completion_obarray_table(), name, status, commandp, &
-                             require_match=REQUIRE_MATCH_T, history="extended-command-history")
+                             require_match=REQUIRE_MATCH_T, history="extended_command_history")
     end subroutine read_extended_command
 
     !> Read a command name, then read the arguments and call the command.
     !> To pass a prefix argument to the command you are invoking, give a
-    !> prefix argument to `execute-extended-command'.
+    !> prefix argument to `execute_extended_command'.
     !>
     !> This command provides completion when reading the command name.
     !> Port of simple.el:execute-extended-command (the key binding
@@ -1069,7 +1069,7 @@ contains
         binding = nil()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
         this_command = function
-        ! Normally `real-this-command' should never be changed, but here we
+        ! Normally `real_this_command' should never be changed, but here we
         ! really want to pretend that M-x <cmd> RET is nothing more than a
         ! "key binding" for <cmd>.
         real_this_command = function
@@ -1229,7 +1229,7 @@ contains
         ! In a writable buffer, enable undoing read-only text that is so
         ! because of text properties.
         saved = inhibit_read_only()
-        call set(sym("inhibit-read-only"), t_value(), st)
+        call set(sym("inhibit_read_only"), t_value(), st)
         undo_records: do while (arg > 0)
             do while (rest > 0)
                 ! Exit inner loop at undo boundary.
@@ -1271,7 +1271,7 @@ contains
             end do
             arg = arg - 1
         end do undo_records
-        call set(sym("inhibit-read-only"), saved, st)
+        call set(sym("inhibit_read_only"), saved, st)
     end subroutine primitive_undo
 
     subroutine outside_error(status)
@@ -1291,7 +1291,7 @@ contains
         end if
     end function time_equal
 
-    !> Set `pending-undo-list' to the front of the undo list.
+    !> Set `pending_undo_list' to the front of the undo list.
     !> The next call to `undo_more' will undo the most recently made
     !> change.  Port of simple.el:undo-start (not in a region).
     subroutine undo_start(status)
@@ -1335,7 +1335,7 @@ contains
         if (.not. status%ok()) return
         ! If we get an error in undo-start, the next command should not be
         ! a "consecutive undo".
-        this_command = sym("undo-start")
+        this_command = sym("undo_start")
         ! If the previous command is `undo`, don't break the undo chain.
         if (.not. (value_eq(last_command, sym("undo")) .and. &
                    (pending_undo_list < 0 .or. last_change_was_undo(buffers(cur)%undo_count) /= EQUIV_NONE))) then
@@ -1678,16 +1678,16 @@ contains
                 return
             end if
         end if
-        if (.not. value_eq(this_command, sym("set-mark-command"))) then
+        if (.not. value_eq(this_command, sym("set_mark_command"))) then
             if (.not. nilp(arg)) then
                 call pop_to_mark_command(status)
             else
                 call push_mark_command(.true.)
             end if
         else if (.not. nilp(arg)) then
-            this_command = sym("pop-to-mark-command")
+            this_command = sym("pop_to_mark_command")
             call pop_to_mark_command(status)
-        else if (value_eq(last_command, sym("set-mark-command"))) then
+        else if (value_eq(last_command, sym("set_mark_command"))) then
             if (region_active_p()) then
                 call deactivate_mark()
                 call message("Mark deactivated")
@@ -1738,11 +1738,11 @@ contains
     ! The kill ring
     ! ------------------------------------------------------------------
 
-    !> The kill ring (the value of `kill-ring'), newest first.
+    !> The kill ring (the value of `kill_ring'), newest first.
     function kill_ring() result(ring)
         type(value_type) :: ring
         type(status_type) :: st
-        call symbol_value(sym("kill-ring"), ring, st)
+        call symbol_value(sym("kill_ring"), ring, st)
         if (.not. st%ok()) ring = nil()
     end function kill_ring
 
@@ -1759,9 +1759,9 @@ contains
         if (flag(replace) .and. list_length(kill_ring()) > 0) then
             call list_elements(kill_ring(), elems)
             elems(1) = make_string(string)
-            call set(sym("kill-ring"), make_list(elems), st)
+            call set(sym("kill_ring"), make_list(elems), st)
         else
-            call add_to_history("kill-ring", string, int(kill_ring_max), keep_all=.true.)
+            call add_to_history("kill_ring", string, int(kill_ring_max), keep_all=.true.)
         end if
         kill_ring_yank_pointer = 1
     end subroutine kill_new
@@ -1838,12 +1838,12 @@ contains
         if (.not. status%ok()) return
         call delete_region(min(s, e), max(s, e), status)
         if (status%ok()) then
-            if (value_eq(last_command, sym("kill-region"))) then
+            if (value_eq(last_command, sym("kill_region"))) then
                 call kill_append(string, end < beg)
             else
                 call kill_new(string)
             end if
-            this_command = sym("kill-region")
+            this_command = sym("kill_region")
             vdeactivate_mark = .true.
             return
         end if
@@ -1851,7 +1851,7 @@ contains
                    condition_matches(status%code, FM_TEXT_READ_ONLY))) return
         ! The text could not be deleted: copy it to the kill ring anyway.
         call copy_region_as_kill(beg, end, st, region)
-        this_command = sym("kill-region")
+        this_command = sym("kill_region")
         if (kill_read_only_ok .or. flag(read_only_ok)) then
             status = status_type()
             call message("Read only text copied to kill ring")
@@ -1877,7 +1877,7 @@ contains
         end if
         call buffer_substring(min(s, e), max(s, e), string, status)
         if (.not. status%ok()) return
-        if (value_eq(last_command, sym("kill-region"))) then
+        if (value_eq(last_command, sym("kill_region"))) then
             call kill_append(string, end < beg)
         else
             call kill_new(string)
@@ -1972,9 +1972,9 @@ contains
                 return
             end if
         end if
-        if (.not. value_eq(last_command, sym("kill-region"))) then
+        if (.not. value_eq(last_command, sym("kill_region"))) then
             call kill_new("")
-            last_command = sym("kill-region")
+            last_command = sym("kill_region")
         end if
         call copy_marker_at(here, regions_begin, .false., st)
         if (arg == 0) then
@@ -2071,9 +2071,9 @@ contains
         before = here < m
         ! (let ((inhibit-read-only t)) ...)
         saved = inhibit_read_only()
-        call set(sym("inhibit-read-only"), t_value(), st)
+        call set(sym("inhibit_read_only"), t_value(), st)
         call delete_region(min(here, m), max(here, m), status)
-        call set(sym("inhibit-read-only"), saved, st)
+        call set(sym("inhibit_read_only"), saved, st)
         if (.not. status%ok()) return
         call set_marker_here()
         call current_kill(n, text, status)
@@ -2210,7 +2210,7 @@ contains
     !>
     !> The word boundaries are normally determined by the buffer's
     !> syntax table and character script (according to
-    !> `char-script-table').  Port of simple.el:backward-word.
+    !> `char_script_table').  Port of simple.el:backward-word.
     subroutine backward_word(arg)
         integer(int64), intent(in) :: arg
         call forward_word(-arg)
@@ -2241,7 +2241,7 @@ contains
     !> With ALLOW-EXTEND false, mark is set ARG words from point.
     !> With ARG given (`have_arg') and ALLOW-EXTEND (interactively, with
     !> prefix argument), the place to which mark goes is the same place
-    !> \[forward-word] would move to with the same argument; if the mark
+    !> \[forward_word] would move to with the same argument; if the mark
     !> is active, it moves ARG words from its current position, otherwise
     !> it is set ARG words from point.
     !> When invoked interactively without a prefix argument and no active
@@ -2251,7 +2251,7 @@ contains
     !> if mark is at or after point, back if mark is before point), thus
     !> extending the region by one word.  Since the direction of region
     !> extension depends on the relative position of mark and point, you
-    !> can change the direction by \[exchange-point-and-mark].
+    !> can change the direction by \[exchange_point_and_mark].
     !> Port of simple.el:mark-word.
     subroutine mark_word(arg, have_arg, allow_extend)
         integer(int64), intent(in) :: arg
@@ -2286,7 +2286,7 @@ contains
     !>
     !> The word boundaries are normally determined by the buffer's
     !> syntax table and character script (according to
-    !> `char-script-table').  Port of simple.el:backward-word (the command).
+    !> `char_script_table').  Port of simple.el:backward-word (the command).
     subroutine cmd_backward_word(status)
         type(status_type), intent(out) :: status
         status = status_type()
@@ -2513,7 +2513,7 @@ contains
     !> Delete all spaces and tabs around point, leaving one space (or N spaces).
     !> Interactively, N is the prefix numeric argument.
     !> If N is negative, delete newlines as well, leaving -N spaces.
-    !> See also `cycle-spacing'.  Port of simple.el:just-one-space.
+    !> See also `cycle_spacing'.  Port of simple.el:just-one-space.
     subroutine just_one_space(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -2540,7 +2540,7 @@ contains
     end subroutine just_one_space
 
     !> Manipulate whitespace around point in a smart way.
-    !> Repeated calls perform the actions in `cycle-spacing-actions' one
+    !> Repeated calls perform the actions in `cycle_spacing_actions' one
     !> after the other, wrapping around after the last one.
     !>
     !> All actions are amendable using a prefix arg N.  In general, a
@@ -2567,7 +2567,7 @@ contains
         integer :: next
         logical :: include_newlines
         status = status_type()
-        ! Initialize `cycle-spacing--context' if needed.
+        ! Initialize `cycle_spacing__context' if needed.
         if (.not. value_eq(last_command, this_command) .or. .not. cycle_spacing_active .or. &
             (.not. nilp(n) .and. .not. value_equal(cycle_spacing_n, n))) then
             orig_pos = point()
@@ -2586,7 +2586,7 @@ contains
         end if
         if (.not. allocated(cycle_spacing_actions)) return
         if (size(cycle_spacing_actions) == 0) return
-        ! Cycle through the actions in `cycle-spacing-actions'.
+        ! Cycle through the actions in `cycle_spacing_actions'.
         next = cycle_spacing_last + 1
         if (next > size(cycle_spacing_actions)) next = 1
         action = cycle_spacing_actions(next)
@@ -2683,7 +2683,7 @@ contains
         type(value_type) :: read_only
         type(status_type) :: st
         if (eolp() .and. .not. bobp()) then
-            call get_text_property(point() - 1, sym("read-only"), read_only, st)
+            call get_text_property(point() - 1, sym("read_only"), read_only, st)
             if (nilp(read_only)) call goto_char(point() - 1)
         end if
         call transpose_subr(move_chars, arg, status)
@@ -2746,7 +2746,7 @@ contains
     !> Subroutine to do the work of transposing objects.
     !> Works for lines, sentences, paragraphs, etc.  MOVER is a function
     !> that moves forward by units of the given
-    !> object (e.g. `forward-sentence', `forward-paragraph').
+    !> object (e.g. `forward_sentence', `forward_paragraph').
     !>
     !>   If ARG is zero, exchanges the current object with the one
     !> containing mark.  If ARG is an integer, moves the current object

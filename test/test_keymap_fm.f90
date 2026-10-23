@@ -296,19 +296,19 @@ contains
         type(value_type) :: key(1), v
         call make_sparse_keymap(map)
         key(1) = t_value()
-        call define_key(map, key, sym("self-insert-command"), st)
+        call define_key(map, key, sym("self_insert_command"), st)
         call define_key(map, ch("a"), sym("foo"), st)
         call check(error, nilp(lookup(ref(map), ch("b"))), "ignored")
         if (allocated(error)) return
         call lookup_key(ref(map), ch("b"), v, st, accept_default=.true.)
-        call check(error, value_eq(v, sym("self-insert-command")), "default")
+        call check(error, value_eq(v, sym("self_insert_command")), "default")
         if (allocated(error)) return
         call lookup_key(ref(map), ch("a"), v, st, accept_default=.true.)
         call check(error, value_eq(v, sym("foo")), "specific wins")
         if (allocated(error)) return
         ! M-b has no ESC map here, so only the default can apply.
         call lookup_key(ref(map), kbd("M-b"), v, st, accept_default=.true.)
-        call check(error, value_eq(v, sym("self-insert-command")), "meta default")
+        call check(error, value_eq(v, sym("self_insert_command")), "meta default")
         call free(map)
     end subroutine test_accept_default
 
@@ -373,12 +373,12 @@ contains
         call make_sparse_keymap(parent)
         call make_sparse_keymap(child)
         call set_keymap_parent(child, parent, st)
-        call define_key(parent, kbd("C-x C-f"), sym("find-file"), st)
-        call define_key(parent, kbd("C-x C-s"), sym("save-buffer"), st)
-        call define_key(child, kbd("C-x k"), sym("kill-buffer"), st)
-        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), sym("kill-buffer")), "child")
+        call define_key(parent, kbd("C-x C-f"), sym("find_file"), st)
+        call define_key(parent, kbd("C-x C-s"), sym("save_buffer"), st)
+        call define_key(child, kbd("C-x k"), sym("kill_buffer"), st)
+        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), sym("kill_buffer")), "child")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), sym("find-file")), "parent")
+        call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), sym("find_file")), "parent")
         if (allocated(error)) return
         v = lookup(ref(child), kbd("C-x"))
         call check(error, vtag(v) == V_LIST .and. keymapp(v), "composite")
@@ -398,12 +398,12 @@ contains
         type(status_type) :: st
         type(value_type) :: key(2)
         call make_sparse_keymap(map)
-        call define_key(map, kbd("M-x"), sym("execute-extended-command"), st)
+        call define_key(map, kbd("M-x"), sym("execute_extended_command"), st)
         call check(error, value_eq(lookup(ref(map), kbd("M-x")), &
-                                   sym("execute-extended-command")), "M-x")
+                                   sym("execute_extended_command")), "M-x")
         if (allocated(error)) return
         call check(error, value_eq(lookup(ref(map), kbd("ESC x")), &
-                                   sym("execute-extended-command")), "ESC x")
+                                   sym("execute_extended_command")), "ESC x")
         if (allocated(error)) return
         call check(error, keymapp(lookup(ref(map), kbd("ESC"))), "ESC map")
         if (allocated(error)) return
@@ -557,8 +557,8 @@ contains
         global = current_global_map()
         call check(error, keymap_live_p(global) .and. keymap_full_p(global), "global")
         if (allocated(error)) return
-        call define_key(global, kbd("C-x C-f"), sym("find-file"), st)
-        call define_key(global, kbd("C-f"), sym("forward-char"), st)
+        call define_key(global, kbd("C-x C-f"), sym("find_file"), st)
+        call define_key(global, kbd("C-f"), sym("forward_char"), st)
         call get_buffer_create("*keymap-test*", buf, st)
         call set_buffer(buf, st)
         call make_sparse_keymap(local)
@@ -571,14 +571,14 @@ contains
         call check(error, value_eq(v, sym("local-forward")), "local wins")
         if (allocated(error)) return
         call key_binding(kbd("C-x C-f"), v, st)
-        call check(error, value_eq(v, sym("find-file")), "global")
+        call check(error, value_eq(v, sym("find_file")), "global")
         if (allocated(error)) return
         call key_binding(kbd("C-f C-f"), v, st)
         call check(error, nilp(v), "too long is nil")
         if (allocated(error)) return
         call use_local_map(null_handle(), st)
         call key_binding(kbd("C-f"), v, st)
-        call check(error, value_eq(v, sym("forward-char")), "no local map")
+        call check(error, value_eq(v, sym("forward_char")), "no local map")
         call free(local)
         call kill_buffer(buf, st)
     end subroutine test_key_binding
@@ -652,16 +652,16 @@ contains
         type(status_type) :: st
         call make_sparse_keymap(k)
         call keymap_set(k, "a", make_string("a"), st)
-        call check(error, st%ok(), "keymap-set")
+        call check(error, st%ok(), "keymap_set")
         if (allocated(error)) return
         a = make_fixnum(97_int64)
         call check(error, value_equal(lookup(ref(k), kbd("a")), list(a)), "a")
         if (allocated(error)) return
-        call keymap_set(k, "C-c b", "backward-char", st)
-        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward-char")), "a command name")
+        call keymap_set(k, "C-c b", "backward_char", st)
+        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward_char")), "a command name")
         if (allocated(error)) return
         call keymap_set(k, "b", make_string("C-xx"), st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key-valid-p'"))
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key_valid_p'"))
         call free(k)
     end subroutine test_keymap_set
 
@@ -670,19 +670,19 @@ contains
         type(value_type) :: global
         type(status_type) :: st
         global = ref(current_global_map())
-        call keymap_global_set("C-c x", "forward-char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward-char")), &
-                   "keymap-global-set")
+        call keymap_global_set("C-c x", "forward_char", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), sym("forward_char")), &
+                   "keymap_global_set")
         if (allocated(error)) return
         call keymap_global_set("C-c x", nil(), st)
         call check(error, nilp(lookup(global, kbd("C-c x"))), "unbound with nil")
         if (allocated(error)) return
-        call keymap_global_set("C-xx", "forward-char", st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key-valid-p'"))
+        call keymap_global_set("C-xx", "forward_char", st)
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key_valid_p'"))
         if (allocated(error)) return
-        call global_set_key(kbd("C-c y"), "backward-char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward-char")), &
-                   "global-set-key")
+        call global_set_key(kbd("C-c y"), "backward_char", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward_char")), &
+                   "global_set_key")
         call define_key(current_global_map(), kbd("C-c y"), nil(), st, remove=.true.)
         call define_key(current_global_map(), kbd("C-c x"), nil(), st, remove=.true.)
     end subroutine test_keymap_global_set

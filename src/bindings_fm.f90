@@ -25,8 +25,8 @@
 !> esc-map, ctl-x-map and function-key-map with the bindings upstream
 !> gives them, as far as their commands exist.  Bindings to commands not
 !> ported yet are left out rather than failing with void-function.
-!> Until `move-beginning-of-line' and `move-end-of-line' are ported,
-!> <home> and <end> use `beginning-of-line' and `end-of-line'.
+!> Until `move_beginning_of_line' and `move_end_of_line' are ported,
+!> <home> and <end> use `beginning_of_line' and `end_of_line'.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -77,7 +77,7 @@ contains
     !> On reaching beginning or end of buffer, stop and signal error.
     !>
     !> In left-to-right text this moves forward in the buffer, like
-    !> \[forward-char].  Port of bindings.el:right-char (left-to-right
+    !> \[forward_char].  Port of bindings.el:right-char (left-to-right
     !> paragraphs only).
     subroutine cmd_right_char(status)
         type(status_type), intent(out) :: status
@@ -88,7 +88,7 @@ contains
     !> On reaching beginning or end of buffer, stop and signal error.
     !>
     !> In left-to-right text this moves backward in the buffer, like
-    !> \[backward-char].  Port of bindings.el:left-char (left-to-right
+    !> \[backward_char].  Port of bindings.el:left-char (left-to-right
     !> paragraphs only).
     subroutine cmd_left_char(status)
         type(status_type), intent(out) :: status
@@ -98,13 +98,13 @@ contains
     !> Move point N words to the right (to the left if N is negative).
     !>
     !> In left-to-right text this moves forward in the buffer, like
-    !> \[forward-word].
+    !> \[forward_word].
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char-script-table').
+    !> table and character script (according to `char_script_table').
     !>
     !> If an edge of the buffer or a field boundary is reached, point is left there.
-    !> Field boundaries are not noticed if `inhibit-field-text-motion' is
+    !> Field boundaries are not noticed if `inhibit_field_text_motion' is
     !> non-nil.  Port of bindings.el:right-word (left-to-right paragraphs
     !> only).
     subroutine cmd_right_word(status)
@@ -116,13 +116,13 @@ contains
     !> Move point N words to the left (to the right if N is negative).
     !>
     !> In left-to-right text this moves backward in the buffer, like
-    !> \[backward-word].
+    !> \[backward_word].
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char-script-table').
+    !> table and character script (according to `char_script_table').
     !>
     !> If an edge of the buffer or a field boundary is reached, point is left there.
-    !> Field boundaries are not noticed if `inhibit-field-text-motion' is
+    !> Field boundaries are not noticed if `inhibit_field_text_motion' is
     !> non-nil.  Port of bindings.el:left-word (left-to-right paragraphs
     !> only).
     subroutine cmd_left_word(status)
@@ -200,127 +200,127 @@ contains
         call define_key(global_map, key, make_keymap_ref(esc_map), status)
         key(1) = make_fixnum(24_int64)
         call define_key(global_map, key, make_keymap_ref(ctl_x_map), status)
-        call bind_char(global_map, 9_int64, "self-insert-command")
+        call bind_char(global_map, 9_int64, "self_insert_command")
         do c = 32, 126
-            call bind_char(global_map, c, "self-insert-command")
+            call bind_char(global_map, c, "self_insert_command")
         end do
         ! mule-conf.el: all non-ASCII characters self-insert (this covers
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
-                              sym("self-insert-command"), status)
-        call bind(global_map, "C-a", "beginning-of-line")
-        call bind(global_map, "C-b", "backward-char")
-        call bind(global_map, "C-e", "end-of-line")
-        call bind(global_map, "C-f", "forward-char")
-        call bind(global_map, "C-n", "next-line")
-        call bind(global_map, "C-p", "previous-line")
+                              sym("self_insert_command"), status)
+        call bind(global_map, "C-a", "beginning_of_line")
+        call bind(global_map, "C-b", "backward_char")
+        call bind(global_map, "C-e", "end_of_line")
+        call bind(global_map, "C-f", "forward_char")
+        call bind(global_map, "C-n", "next_line")
+        call bind(global_map, "C-p", "previous_line")
         ! bindings.el
-        call bind(global_map, "C-g", "keyboard-quit")
+        call bind(global_map, "C-g", "keyboard_quit")
         call bind(global_map, "C-m", "newline")
-        call bind(global_map, "C-o", "open-line")
-        call bind(global_map, "C-q", "quoted-insert")
-        call bind(global_map, "C-u", "universal-argument")
+        call bind(global_map, "C-o", "open_line")
+        call bind(global_map, "C-q", "quoted_insert")
+        call bind(global_map, "C-u", "universal_argument")
         do c = 0, 9
-            call bind_char(esc_map, iachar("0") + c, "digit-argument")
-            call bind_char(global_map, M_CTL + iachar("0") + c, "digit-argument")
-            call bind_char(global_map, M_CTL + M_META + iachar("0") + c, "digit-argument")
+            call bind_char(esc_map, iachar("0") + c, "digit_argument")
+            call bind_char(global_map, M_CTL + iachar("0") + c, "digit_argument")
+            call bind_char(global_map, M_CTL + M_META + iachar("0") + c, "digit_argument")
         end do
-        call bind(esc_map, "-", "negative-argument")
-        call bind_char(global_map, M_CTL + iachar("-"), "negative-argument")
-        call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative-argument")
-        call bind(global_map, "DEL", "delete-backward-char")
-        call bind(global_map, "C-d", "delete-char")
-        call bind(global_map, "<home>", "beginning-of-line")
-        call bind(global_map, "<end>", "end-of-line")
-        call bind(global_map, "<left>", "left-char")
-        call bind(global_map, "<right>", "right-char")
-        call bind(global_map, "<down>", "next-line")
-        call bind(global_map, "<up>", "previous-line")
-        call bind(global_map, "<deletechar>", "delete-forward-char")
-        call bind(esc_map, "x", "execute-extended-command")
-        call bind(global_map, "<next>", "scroll-up-command")
-        call bind(global_map, "<prior>", "scroll-down-command")
-        call bind(global_map, "C-v", "scroll-up-command")
-        call bind(esc_map, "v", "scroll-down-command")
+        call bind(esc_map, "-", "negative_argument")
+        call bind_char(global_map, M_CTL + iachar("-"), "negative_argument")
+        call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative_argument")
+        call bind(global_map, "DEL", "delete_backward_char")
+        call bind(global_map, "C-d", "delete_char")
+        call bind(global_map, "<home>", "beginning_of_line")
+        call bind(global_map, "<end>", "end_of_line")
+        call bind(global_map, "<left>", "left_char")
+        call bind(global_map, "<right>", "right_char")
+        call bind(global_map, "<down>", "next_line")
+        call bind(global_map, "<up>", "previous_line")
+        call bind(global_map, "<deletechar>", "delete_forward_char")
+        call bind(esc_map, "x", "execute_extended_command")
+        call bind(global_map, "<next>", "scroll_up_command")
+        call bind(global_map, "<prior>", "scroll_down_command")
+        call bind(global_map, "C-v", "scroll_up_command")
+        call bind(esc_map, "v", "scroll_down_command")
         ! window.el
-        call bind(global_map, "C-l", "recenter-top-bottom")
-        call bind(esc_map, "r", "move-to-window-line-top-bottom")
+        call bind(global_map, "C-l", "recenter_top_bottom")
+        call bind(esc_map, "r", "move_to_window_line_top_bottom")
         ! Undo (bindings.el).
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
         call bind(ctl_x_map, "u", "undo")
-        call bind(global_map, "C-?", "undo-redo")
-        call bind(global_map, "C-M-_", "undo-redo")
+        call bind(global_map, "C-?", "undo_redo")
+        call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
-        call bind(global_map, "C-@", "set-mark-command")
-        call bind(global_map, "C-SPC", "set-mark-command")
-        call bind(ctl_x_map, "C-x", "exchange-point-and-mark")
-        call bind(ctl_x_map, "h", "mark-whole-buffer")
+        call bind(global_map, "C-@", "set_mark_command")
+        call bind(global_map, "C-SPC", "set_mark_command")
+        call bind(ctl_x_map, "C-x", "exchange_point_and_mark")
+        call bind(ctl_x_map, "h", "mark_whole_buffer")
         ! Windows (window.el) and buffers (subr.el ctl-x-map).
-        call bind(ctl_x_map, "0", "delete-window")
-        call bind(ctl_x_map, "1", "delete-other-windows")
-        call bind(ctl_x_map, "2", "split-window-below")
-        call bind(ctl_x_map, "3", "split-window-right")
-        call bind(ctl_x_map, "o", "other-window")
-        call bind(ctl_x_map, "b", "switch-to-buffer")
-        call bind(ctl_x_map, "k", "kill-buffer")
-        call bind(global_map, "C-w", "kill-region")
-        call bind(esc_map, "w", "kill-ring-save")
-        call bind(global_map, "C-k", "kill-line")
+        call bind(ctl_x_map, "0", "delete_window")
+        call bind(ctl_x_map, "1", "delete_other_windows")
+        call bind(ctl_x_map, "2", "split_window_below")
+        call bind(ctl_x_map, "3", "split_window_right")
+        call bind(ctl_x_map, "o", "other_window")
+        call bind(ctl_x_map, "b", "switch_to_buffer")
+        call bind(ctl_x_map, "k", "kill_buffer")
+        call bind(global_map, "C-w", "kill_region")
+        call bind(esc_map, "w", "kill_ring_save")
+        call bind(global_map, "C-k", "kill_line")
         call bind(global_map, "C-y", "yank")
-        call bind(esc_map, "y", "yank-pop")
-        call bind(global_map, "<C-S-backspace>", "kill-whole-line")
+        call bind(esc_map, "y", "yank_pop")
+        call bind(global_map, "<C-S-backspace>", "kill_whole_line")
         ! Words and paragraphs (bindings.el).
-        call bind(esc_map, "@", "mark-word")
-        call bind(esc_map, "f", "forward-word")
-        call bind(esc_map, "b", "backward-word")
-        call bind(esc_map, "d", "kill-word")
-        call bind(esc_map, "DEL", "backward-kill-word")
-        call bind(global_map, "M-<right>", "right-word")
-        call bind(esc_map, "<right>", "forward-word")
-        call bind(global_map, "M-<left>", "left-word")
-        call bind(esc_map, "<left>", "backward-word")
-        call bind(global_map, "C-<right>", "right-word")
-        call bind(global_map, "C-<left>", "left-word")
-        call bind(global_map, "C-<delete>", "kill-word")
-        call bind(global_map, "C-<backspace>", "backward-kill-word")
-        call bind(global_map, "C-<up>", "backward-paragraph")
-        call bind(global_map, "C-<down>", "forward-paragraph")
-        call bind(esc_map, "{", "backward-paragraph")
-        call bind(esc_map, "}", "forward-paragraph")
-        call bind(esc_map, "h", "mark-paragraph")
-        call bind(esc_map, "a", "backward-sentence")
-        call bind(esc_map, "e", "forward-sentence")
-        call bind(esc_map, "k", "kill-sentence")
-        call bind(ctl_x_map, "DEL", "backward-kill-sentence")
-        call bind(esc_map, "%", "query-replace")
-        call bind(esc_map, "C-%", "query-replace-regexp")
-        call bind(global_map, "C-t", "transpose-chars")
-        call bind(esc_map, "t", "transpose-words")
-        call bind(ctl_x_map, "C-t", "transpose-lines")
-        call bind(esc_map, "SPC", "cycle-spacing")
-        call bind(esc_map, "\", "delete-horizontal-space")
-        call bind(ctl_x_map, "C-o", "delete-blank-lines")
-        call bind(esc_map, "^", "delete-indentation")
-        call bind(esc_map, "u", "upcase-word")
-        call bind(esc_map, "l", "downcase-word")
-        call bind(esc_map, "c", "capitalize-word")
-        call bind(ctl_x_map, "C-u", "upcase-region")
-        call bind(ctl_x_map, "C-l", "downcase-region")
-        call bind(global_map, "TAB", "indent-for-tab-command")
-        call bind(esc_map, "C-\", "indent-region")
-        call bind(ctl_x_map, "TAB", "indent-rigidly")
-        call bind(esc_map, "i", "tab-to-tab-stop")
-        call bind(esc_map, "m", "back-to-indentation")
-        call bind(esc_map, "q", "fill-paragraph")
-        call bind(ctl_x_map, "f", "set-fill-column")
-        call bind(ctl_x_map, ".", "set-fill-prefix")
-        call bind(esc_map, "j", "default-indent-new-line")
-        call bind(esc_map, "C-j", "default-indent-new-line")
-        call bind(esc_map, "<", "beginning-of-buffer")
-        call bind(esc_map, ">", "end-of-buffer")
-        call bind(global_map, "C-<home>", "beginning-of-buffer")
-        call bind(global_map, "C-<end>", "end-of-buffer")
+        call bind(esc_map, "@", "mark_word")
+        call bind(esc_map, "f", "forward_word")
+        call bind(esc_map, "b", "backward_word")
+        call bind(esc_map, "d", "kill_word")
+        call bind(esc_map, "DEL", "backward_kill_word")
+        call bind(global_map, "M-<right>", "right_word")
+        call bind(esc_map, "<right>", "forward_word")
+        call bind(global_map, "M-<left>", "left_word")
+        call bind(esc_map, "<left>", "backward_word")
+        call bind(global_map, "C-<right>", "right_word")
+        call bind(global_map, "C-<left>", "left_word")
+        call bind(global_map, "C-<delete>", "kill_word")
+        call bind(global_map, "C-<backspace>", "backward_kill_word")
+        call bind(global_map, "C-<up>", "backward_paragraph")
+        call bind(global_map, "C-<down>", "forward_paragraph")
+        call bind(esc_map, "{", "backward_paragraph")
+        call bind(esc_map, "}", "forward_paragraph")
+        call bind(esc_map, "h", "mark_paragraph")
+        call bind(esc_map, "a", "backward_sentence")
+        call bind(esc_map, "e", "forward_sentence")
+        call bind(esc_map, "k", "kill_sentence")
+        call bind(ctl_x_map, "DEL", "backward_kill_sentence")
+        call bind(esc_map, "%", "query_replace")
+        call bind(esc_map, "C-%", "query_replace_regexp")
+        call bind(global_map, "C-t", "transpose_chars")
+        call bind(esc_map, "t", "transpose_words")
+        call bind(ctl_x_map, "C-t", "transpose_lines")
+        call bind(esc_map, "SPC", "cycle_spacing")
+        call bind(esc_map, "\", "delete_horizontal_space")
+        call bind(ctl_x_map, "C-o", "delete_blank_lines")
+        call bind(esc_map, "^", "delete_indentation")
+        call bind(esc_map, "u", "upcase_word")
+        call bind(esc_map, "l", "downcase_word")
+        call bind(esc_map, "c", "capitalize_word")
+        call bind(ctl_x_map, "C-u", "upcase_region")
+        call bind(ctl_x_map, "C-l", "downcase_region")
+        call bind(global_map, "TAB", "indent_for_tab_command")
+        call bind(esc_map, "C-\", "indent_region")
+        call bind(ctl_x_map, "TAB", "indent_rigidly")
+        call bind(esc_map, "i", "tab_to_tab_stop")
+        call bind(esc_map, "m", "back_to_indentation")
+        call bind(esc_map, "q", "fill_paragraph")
+        call bind(ctl_x_map, "f", "set_fill_column")
+        call bind(ctl_x_map, ".", "set_fill_prefix")
+        call bind(esc_map, "j", "default_indent_new_line")
+        call bind(esc_map, "C-j", "default_indent_new_line")
+        call bind(esc_map, "<", "beginning_of_buffer")
+        call bind(esc_map, ">", "end_of_buffer")
+        call bind(global_map, "C-<home>", "beginning_of_buffer")
+        call bind(global_map, "C-<end>", "end_of_buffer")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)
@@ -331,12 +331,12 @@ contains
         if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
-        call bind(minibuffer_local_map, "M-n", "next-history-element")
-        call bind(minibuffer_local_map, "<next>", "next-history-element")
-        call bind(minibuffer_local_map, "<down>", "next-history-element")
-        call bind(minibuffer_local_map, "M-p", "previous-history-element")
-        call bind(minibuffer_local_map, "<prior>", "previous-history-element")
-        call bind(minibuffer_local_map, "<up>", "previous-history-element")
+        call bind(minibuffer_local_map, "M-n", "next_history_element")
+        call bind(minibuffer_local_map, "<next>", "next_history_element")
+        call bind(minibuffer_local_map, "<down>", "next_history_element")
+        call bind(minibuffer_local_map, "M-p", "previous_history_element")
+        call bind(minibuffer_local_map, "<prior>", "previous_history_element")
+        call bind(minibuffer_local_map, "<up>", "previous_history_element")
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call syms_of_help(global_map)
         call syms_of_help_fns()

@@ -19,16 +19,16 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Leaving the minibuffer, its basic keys, `read-file-name', and
-!> completion: `completing-read', the completion styles basic and emacs22,
-!> TAB, SPC, ? and RET in the completion maps, `minibuffer-message', and
+!> Leaving the minibuffer, its basic keys, `read_file_name', and
+!> completion: `completing_read', the completion styles basic and emacs22,
+!> TAB, SPC, ? and RET in the completion maps, `minibuffer_message', and
 !> the *Completions* list (shown in the root window while the minibuffer
 !> is active, as there is no window splitting yet).
 !>
 !> Not ported yet: the partial-completion, substring and flex styles,
 !> cycling, completion metadata (categories, annotations, groups),
 !> moving through and choosing from *Completions* (M-<up>, M-<down>,
-!> M-RET, mouse), `completion-at-point' in buffers, `completion-show-help',
+!> M-RET, mouse), `completion_at_point' in buffers, `completion_show_help',
 !> and completion of environment variables and ~USER in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -71,16 +71,16 @@ module minibuffer_fm
               read_file_name_internal
 
     !> Values of REQUIRE-MATCH for `completing_read', also those of
-    !> `minibuffer-completion-confirm': nil, t, `confirm',
-    !> `confirm-after-completion' and any other non-nil value.
+    !> `minibuffer_completion_confirm': nil, t, `confirm',
+    !> `confirm_after_completion' and any other non-nil value.
     integer, parameter, public :: REQUIRE_MATCH_NIL = 0, REQUIRE_MATCH_T = 1, REQUIRE_MATCH_CONFIRM = 2, &
                                   REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION = 3, REQUIRE_MATCH_OTHER = 4
 
-    !> Kinds of `completion-try-completion' result: nil, t, and (STRING .
+    !> Kinds of `completion_try_completion' result: nil, t, and (STRING .
     !> POINT).
     integer, parameter, public :: TRY_NONE = 0, TRY_EXACT = 1, TRY_STRING = 2
 
-    !> A `completion-try-completion' result.
+    !> A `completion_try_completion' result.
     type, public :: try_result_type
         integer :: kind = TRY_NONE
         character(len=:), allocatable :: string
@@ -223,10 +223,10 @@ contains
         minibuffer_completing_file_name = .true.
         if (have_default) then
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
-                                 require_match=match, initial=insdef, history="file-name-history", default=default)
+                                 require_match=match, initial=insdef, history="file_name_history", default=default)
         else
             call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
-                                 require_match=match, initial=insdef, history="file-name-history")
+                                 require_match=match, initial=insdef, history="file_name_history")
         end if
         minibuffer_completing_file_name = saved_completing
         if (.not. status%ok()) return
@@ -272,7 +272,7 @@ contains
         call minibuffer_complete_and_exit(status)
     end subroutine cmd_minibuffer_complete_and_exit
 
-    !> Call `exit-minibuffer' (there is no selected completion to insert
+    !> Call `exit_minibuffer' (there is no selected completion to insert
     !> first yet).  Port of minibuffer.el:minibuffer-completion-exit.
     subroutine cmd_minibuffer_completion_exit(status)
         type(status_type), intent(out) :: status
@@ -290,9 +290,9 @@ contains
         commands%minibuffer_completion_help%run => cmd_minibuffer_completion_help
         commands%minibuffer_complete_and_exit%run => cmd_minibuffer_complete_and_exit
         commands%minibuffer_completion_exit%run => cmd_minibuffer_completion_exit
-        call bind(minibuffer_local_map, "C-g", "abort-minibuffers")
-        call bind(minibuffer_local_map, "C-j", "exit-minibuffer")
-        call bind(minibuffer_local_map, "RET", "exit-minibuffer")
+        call bind(minibuffer_local_map, "C-g", "abort_minibuffers")
+        call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
+        call bind(minibuffer_local_map, "RET", "exit_minibuffer")
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(minibuffer_local_completion_map)) call free_keymap(minibuffer_local_completion_map, status)
         if (keymap_live_p(minibuffer_local_must_match_map)) call free_keymap(minibuffer_local_must_match_map, status)
@@ -304,15 +304,15 @@ contains
         end if
         call make_sparse_keymap(minibuffer_local_completion_map)
         call set_keymap_parent(minibuffer_local_completion_map, minibuffer_local_map, status)
-        call bind(minibuffer_local_completion_map, "TAB", "minibuffer-complete")
-        call bind(minibuffer_local_completion_map, "<backtab>", "minibuffer-complete")
-        call bind(minibuffer_local_completion_map, "SPC", "minibuffer-complete-word")
-        call bind(minibuffer_local_completion_map, "RET", "minibuffer-completion-exit")
-        call bind(minibuffer_local_completion_map, "?", "minibuffer-completion-help")
+        call bind(minibuffer_local_completion_map, "TAB", "minibuffer_complete")
+        call bind(minibuffer_local_completion_map, "<backtab>", "minibuffer_complete")
+        call bind(minibuffer_local_completion_map, "SPC", "minibuffer_complete_word")
+        call bind(minibuffer_local_completion_map, "RET", "minibuffer_completion_exit")
+        call bind(minibuffer_local_completion_map, "?", "minibuffer_completion_help")
         call make_sparse_keymap(minibuffer_local_must_match_map)
         call set_keymap_parent(minibuffer_local_must_match_map, minibuffer_local_completion_map, status)
-        call bind(minibuffer_local_must_match_map, "RET", "minibuffer-complete-and-exit")
-        call bind(minibuffer_local_must_match_map, "C-j", "minibuffer-complete-and-exit")
+        call bind(minibuffer_local_must_match_map, "RET", "minibuffer_complete_and_exit")
+        call bind(minibuffer_local_must_match_map, "C-j", "minibuffer_complete_and_exit")
         ! minibuffer-local-filename-completion-map ("SPC" nil) composed with
         ! each: an explicit nil hides the parent's binding.
         call make_sparse_keymap(minibuffer_local_filename_completion_map)
@@ -416,7 +416,7 @@ contains
         afterpoint = substring(string, point)
         call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, pred)
         if (bend /= 0) return
-        ! `try-completion' may return a subtly different result than
+        ! `try_completion' may return a subtly different result than
         ! `all+merge', so try to use it whenever possible.
         call try_completion(beforepoint, table, completion, status, pred)
         call set_try_result(completion, res)
@@ -458,7 +458,7 @@ contains
         end select
     end subroutine emacs22_try_completion
 
-    !> The `try-completion' value `v' as a try result.
+    !> The `try_completion' value `v' as a try result.
     subroutine set_try_result(v, res)
         type(value_type), intent(in) :: v
         type(try_result_type), intent(out) :: res
@@ -666,8 +666,8 @@ contains
     !>  110  6 some completion happened
     !>  111  7 completed to an exact completion
     !>
-    !> WORD uses `completion--try-word-completion' in place of
-    !> `completion-try-completion'.  EXPECT-EXACT, if non-nil, means that
+    !> WORD uses `completion__try_word_completion' in place of
+    !> `completion_try_completion'.  EXPECT-EXACT, if non-nil, means that
     !> there is no need to tell the user when the buffer's text is already
     !> an exact match.  Port of minibuffer.el:completion--do-completion
     !> (no cycling).
@@ -873,8 +873,8 @@ contains
         if (.not. status%ok()) return
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
-        this_command = sym("completion-at-point")
-        if (.not. value_eq(last_command, sym("completion-at-point"))) completions_scroll_window = .false.
+        this_command = sym("completion_at_point")
+        if (.not. value_eq(last_command, sym("completion_at_point"))) completions_scroll_window = .false.
         if (completions_scroll_window .and. completions_visible()) then
             ! If there's a fresh completion window with a live buffer, and
             ! this command is repeated, scroll that window.
@@ -903,12 +903,12 @@ contains
     !> leads to a valid completion, a repetition of this command will
     !> exit.
     !>
-    !> If `minibuffer-completion-confirm' is `confirm', do not try to
+    !> If `minibuffer_completion_confirm' is `confirm', do not try to
     !> complete; instead, ask for confirmation and accept any input if
-    !> confirmed.  If `minibuffer-completion-confirm' is
-    !> `confirm-after-completion', do not try to complete; instead, ask
+    !> confirmed.  If `minibuffer_completion_confirm' is
+    !> `confirm_after_completion', do not try to complete; instead, ask
     !> for confirmation if the preceding minibuffer command was a member
-    !> of `minibuffer-confirm-exit-commands', and accept the input
+    !> of `minibuffer_confirm_exit_commands', and accept the input
     !> otherwise.  Port of minibuffer.el:minibuffer-complete-and-exit
     !> (with completion-complete-and-exit and
     !> completion--complete-and-exit).
@@ -973,9 +973,9 @@ contains
     !> Whether `cmd' is in minibuffer-confirm-exit-commands.
     logical function confirm_exit_command(cmd)
         type(value_type), intent(in) :: cmd
-        confirm_exit_command = value_eq(cmd, sym("completion-at-point")) .or. &
-                               value_eq(cmd, sym("minibuffer-complete")) .or. &
-                               value_eq(cmd, sym("minibuffer-complete-word"))
+        confirm_exit_command = value_eq(cmd, sym("completion_at_point")) .or. &
+                               value_eq(cmd, sym("minibuffer_complete")) .or. &
+                               value_eq(cmd, sym("minibuffer_complete_word"))
     end function confirm_exit_command
 
     ! ------------------------------------------------------------------
@@ -1077,7 +1077,7 @@ contains
         completions_scroll_window = .true.
     end subroutine minibuffer_completion_help
 
-    !> Sort `strings' as `string-lessp' does.
+    !> Sort `strings' as `string_lessp' does.
     subroutine sort_strings(strings)
         type(string_box), intent(inout) :: strings(:)
         character(len=:), allocatable :: tmp
@@ -1179,7 +1179,7 @@ contains
     !> Optional second arg DEF is value to return if user enters an empty line,
     !>  instead of that empty string; the prompt shows it.
     !> Optional third arg REQUIRE-MATCH has the same meaning as the
-    !>  REQUIRE-MATCH argument of `completing-read'.
+    !>  REQUIRE-MATCH argument of `completing_read'.
     !> The buffer `except' (if given) is left out of the completions, as
     !> internal-complete-buffer-except does.  Port of minibuf.c:Fread_buffer
     !> (with format-prompt; internal buffers are not offered).
@@ -1224,17 +1224,17 @@ contains
                 p = p//" (default "//def//"): "
             end if
             call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
-                                 require_match=match, history="buffer-name-history", default=def)
+                                 require_match=match, history="buffer_name_history", default=def)
         else
             call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
-                                 require_match=match, history="buffer-name-history")
+                                 require_match=match, history="buffer_name_history")
         end if
     end subroutine read_buffer
 
     !> Read a string in the minibuffer, with completion.
     !> PROMPT is a string to prompt with; normally it ends in a colon and
     !> a space.  COLLECTION can be a list of strings, an alist, the
-    !> obarray or a function (see `try-completion').  PREDICATE limits
+    !> obarray or a function (see `try_completion').  PREDICATE limits
     !> completion to a subset of COLLECTION.
     !>
     !> REQUIRE-MATCH can take the following values:
@@ -1247,15 +1247,15 @@ contains
     !>   element of COLLECTION.
     !> - REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION means that the user can
     !>   exit with any input, but she needs to confirm her choice if she
-    !>   called `minibuffer-complete' right before
-    !>   `minibuffer-complete-and-exit' and the input is not an element of
+    !>   called `minibuffer_complete' right before
+    !>   `minibuffer_complete_and_exit' and the input is not an element of
     !>   COLLECTION.
     !> - REQUIRE_MATCH_OTHER means that the user can exit only if the
     !>   input is (or completes to) an element of COLLECTION or is null,
     !>   but typing RET does not exit if it does non-null completion.
     !>
     !> If INITIAL-INPUT is present, insert it in the minibuffer initially.
-    !> HISTORY names the history list (default `minibuffer-history').
+    !> HISTORY names the history list (default `minibuffer_history').
     !> DEFAULT is the value for empty input, and for M-n.  Port of
     !> minibuf.c:Fcompleting_read with
     !> minibuffer.el:completing-read-default.
@@ -1306,9 +1306,9 @@ contains
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine completing_read
 
-    !> Completion table for file names (`read-file-name-internal'):
+    !> Completion table for file names (`read_file_name_internal'):
     !> completion-file-name-table on the input (no environment variables,
-    !> `substitute-in-file-name' quoting or ~USER completion).  Port of
+    !> `substitute_in_file_name' quoting or ~USER completion).  Port of
     !> minibuffer.el:completion-file-name-table.
     recursive subroutine read_file_name_internal(string, action, result, status, pred, suffix)
         character(len=*), intent(in) :: string

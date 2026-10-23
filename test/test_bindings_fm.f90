@@ -86,22 +86,22 @@ contains
     subroutine test_global_map(error)
         type(error_type), allocatable, intent(out) :: error
         call init_bindings()
-        call check(error, value_eq(binding_of("a"), sym("self-insert-command")), "a")
+        call check(error, value_eq(binding_of("a"), sym("self_insert_command")), "a")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("TAB"), sym("indent-for-tab-command")), "TAB")
+        call check(error, value_eq(binding_of("TAB"), sym("indent_for_tab_command")), "TAB")
         if (allocated(error)) return
         ! mule-conf.el: every non-ASCII character self-inserts.
-        call check(error, value_eq(binding_of("é"), sym("self-insert-command")), "é")
+        call check(error, value_eq(binding_of("é"), sym("self_insert_command")), "é")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("C-f"), sym("forward-char")), "C-f")
+        call check(error, value_eq(binding_of("C-f"), sym("forward_char")), "C-f")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("M-5"), sym("digit-argument")), "M-5")
+        call check(error, value_eq(binding_of("M-5"), sym("digit_argument")), "M-5")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("C-M-5"), sym("digit-argument")), "C-M-5")
+        call check(error, value_eq(binding_of("C-M-5"), sym("digit_argument")), "C-M-5")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("<right>"), sym("right-char")), "<right>")
+        call check(error, value_eq(binding_of("<right>"), sym("right_char")), "<right>")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("DEL"), sym("delete-backward-char")), "DEL")
+        call check(error, value_eq(binding_of("DEL"), sym("delete_backward_char")), "DEL")
         if (allocated(error)) return
         ! A modified character is not covered by the self-insert range.
         call check(error, value_eq(binding_of("C-é"), nil()), "C-é")
@@ -117,7 +117,7 @@ contains
         if (allocated(error)) return
         call check(error, point(), 5_int64)
         if (allocated(error)) return
-        call check(error, value_eq(last_command, sym("self-insert-command")), "last-command")
+        call check(error, value_eq(last_command, sym("self_insert_command")), "last-command")
         call done_with(buf)
     end subroutine test_typing
 
@@ -142,7 +142,7 @@ contains
                    repeat("0", 12))
         if (allocated(error)) return
         ! Prefix commands keep last-command.
-        call check(error, value_eq(last_command, sym("self-insert-command")), "last-command")
+        call check(error, value_eq(last_command, sym("self_insert_command")), "last-command")
         call done_with(buf)
     end subroutine test_universal_argument
 

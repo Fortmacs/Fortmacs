@@ -1598,7 +1598,7 @@ contains
         type(status_type), intent(out) :: status
         if (.not. key_valid_p(key)) then
             call set_error(status, FM_GENERIC_ERROR, &
-                           """"//key//""""//format_message(" is not a valid key definition; see `key-valid-p'"))
+                           """"//key//""""//format_message(" is not a valid key definition; see `key_valid_p'"))
         end if
     end subroutine keymap_check
 

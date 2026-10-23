@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Query replace: `query-replace' (M-%), `query-replace-regexp' (C-M-%),
-!> `map-query-replace-regexp', `replace-string', `replace-regexp' and
-!> their engine `perform-replace', with the `query-replace-map' answers
+!> Query replace: `query_replace' (M-%), `query_replace_regexp' (C-M-%),
+!> `map_query_replace_regexp', `replace_string', `replace_regexp' and
+!> their engine `perform_replace', with the `query_replace_map' answers
 !> (act, skip, backup, undo, edit, ...).
 !>
 !> Differences from upstream, for want of Lisp and of display features:
@@ -89,7 +89,7 @@ module replace_fm
     abstract interface
         !> A function computing each replacement string from the number of
         !> replacements done so far: the (FUNCTION . DATA) form of
-        !> `perform-replace''s REPLACEMENTS.
+        !> `perform_replace''s REPLACEMENTS.
         function replacement_function(count) result(text)
             import :: int64
             implicit none(type, external)
@@ -98,25 +98,25 @@ module replace_fm
         end function replacement_function
     end interface
 
-    !> Non-nil means `query-replace' should preserve case in replacements.
+    !> Non-nil means `query_replace' should preserve case in replacements.
     !> Port of replace.el case-replace.
     logical, public :: case_replace = .true.
 
-    !> Non-nil means `query-replace' matches a sequence of whitespace chars.
+    !> Non-nil means `query_replace' matches a sequence of whitespace chars.
     !> When you enter a space or spaces in the strings to be replaced,
     !> it will match any sequence matched by the regexp
-    !> `search-whitespace-regexp'.  Port of replace.el
+    !> `search_whitespace_regexp'.  Port of replace.el
     !> replace-lax-whitespace.
     logical, public :: replace_lax_whitespace = .false.
 
-    !> Non-nil means `query-replace-regexp' matches a sequence of whitespace
+    !> Non-nil means `query_replace_regexp' matches a sequence of whitespace
     !> chars.  When you enter a space or spaces in the regexps to be
     !> replaced, it will match any sequence matched by the regexp
-    !> `search-whitespace-regexp'.  Port of replace.el
+    !> `search_whitespace_regexp'.  Port of replace.el
     !> replace-regexp-lax-whitespace.
     logical, public :: replace_regexp_lax_whitespace = .false.
 
-    !> Default values of FROM-STRING and TO-STRING for `query-replace'.
+    !> Default values of FROM-STRING and TO-STRING for `query_replace'.
     !> This is a list of cons cells (FROM-STRING . TO-STRING), or nil
     !> if there are no default values.  Port of replace.el
     !> query-replace-defaults (most recent first).
@@ -128,36 +128,36 @@ module replace_fm
     !> query-replace-from-to-separator.
     character(len=:), allocatable, public :: query_replace_from_to_separator
 
-    !> History list to use for the FROM argument of `query-replace'
+    !> History list to use for the FROM argument of `query_replace'
     !> commands.  The value of this variable should be a symbol; that
     !> symbol is used as a variable to hold a history list for the strings
     !> or patterns to be replaced.  Port of replace.el
     !> query-replace-from-history-variable.
     character(len=:), allocatable, public :: query_replace_from_history_variable
 
-    !> History list to use for the TO argument of `query-replace'
+    !> History list to use for the TO argument of `query_replace'
     !> commands.  The value of this variable should be a symbol; that
     !> symbol is used as a variable to hold a history list for replacement
     !> strings or patterns.  Port of replace.el
     !> query-replace-to-history-variable.
     character(len=:), allocatable, public :: query_replace_to_history_variable
 
-    !> Non-nil means `query-replace' and friends ignore read-only matches.
+    !> Non-nil means `query_replace' and friends ignore read-only matches.
     !> Port of replace.el query-replace-skip-read-only.
     logical, public :: query_replace_skip_read_only = .false.
 
     !> Non-nil means show substituted replacement text in the minibuffer.
-    !> This variable affects only `query-replace-regexp'.  Port of
+    !> This variable affects only `query_replace_regexp'.  Port of
     !> replace.el query-replace-show-replacement.
     logical, public :: query_replace_show_replacement = .true.
 
     !> Number of replacements done so far.
-    !> See `replace-regexp'.  Port of replace.el replace-count.
+    !> See `replace_regexp'.  Port of replace.el replace-count.
     integer(int64), public :: replace_count = 0
 
     character(len=*), parameter :: LF = achar(10)
 
-    !> Help message while in `query-replace'.  Port of replace.el
+    !> Help message while in `query_replace'.  Port of replace.el
     !> query-replace-help (keys substituted; no multi-buffer answers).
     character(len=*), parameter :: query_replace_help = &
                                    "Type SPC or y to replace one match, Delete or n to skip to next,"//LF// &
@@ -263,7 +263,7 @@ contains
         end do
     end function find_directive
 
-    !> Maybe convert a regexp replacement TO for `perform-replace'.
+    !> Maybe convert a regexp replacement TO for `perform_replace'.
     !> REGEXP-FLAG non-nil means TO is a regexp.  `counted' is true when TO
     !> contains `\#', which stands for the number of replacements done so
     !> far (`replace_expand_count' substitutes it).  `\,' (a Lisp
@@ -358,7 +358,7 @@ contains
         call move_alloc(longer, query_replace_defaults)
     end subroutine push_defaults
 
-    !> The suggestions `query-replace-read-from' offers through M-n (only
+    !> The suggestions `query_replace_read_from' offers through M-n (only
     !> the first one: the minibuffer takes one default): the active
     !> region, else the last search string, else the last string
     !> replaced.  Port of replace.el:query-replace-read-from-suggestions
@@ -379,22 +379,22 @@ contains
             if (found) return
         end if
         if (regexp_flag) then
-            call history_head("regexp-search-ring", suggestion, found)
+            call history_head("regexp_search_ring", suggestion, found)
             if (found) return
-            call history_head("search-ring", suggestion, found)
+            call history_head("search_ring", suggestion, found)
             if (found) then
                 suggestion = regexp_quote(suggestion)
                 return
             end if
-            call history_head("minibuffer-history", suggestion, found)
+            call history_head("minibuffer_history", suggestion, found)
         else
-            call history_head("search-ring", suggestion, found)
+            call history_head("search_ring", suggestion, found)
             if (found) return
             call history_head(query_replace_from_history_variable, suggestion, found)
         end if
     end subroutine read_from_suggestion
 
-    !> Query and return the FROM argument of a `query-replace' operation.
+    !> Query and return the FROM argument of a `query_replace' operation.
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
     !> be a regexp.  The return value can also be a pair (FROM . TO)
     !> indicating that the user wants to replace FROM with TO: then
@@ -417,7 +417,7 @@ contains
         counted = .false.
         have_separator = allocated(query_replace_from_to_separator)
         ! The minibuffer history: the default pairs, then the FROM history.
-        call symbol_value(sym("minibuffer-history"), saved_history, st)
+        call symbol_value(sym("minibuffer_history"), saved_history, st)
         if (.not. st%ok()) saved_history = nil()
         call symbol_value(sym(query_replace_from_history_variable), from_history, st)
         if (.not. st%ok()) from_history = nil()
@@ -430,7 +430,7 @@ contains
                                      query_replace_defaults(k)%to)
         end do
         if (size(older) > 0) entries(n + 1:) = older
-        call set(sym("minibuffer-history"), make_list(entries), st)
+        call set(sym("minibuffer_history"), make_list(entries), st)
         if (n > 0) then
             full_prompt = format_prompt(prompt, query_replace_descr(query_replace_defaults(1)%from)// &
                                         query_replace_from_to_separator// &
@@ -449,12 +449,12 @@ contains
         saved_add = history_add_new_input
         history_add_new_input = .false.
         if (have_suggestion) then
-            call read_from_minibuffer(full_prompt, from, status, history="minibuffer-history", default=suggestion)
+            call read_from_minibuffer(full_prompt, from, status, history="minibuffer_history", default=suggestion)
         else
-            call read_from_minibuffer(full_prompt, from, status, history="minibuffer-history")
+            call read_from_minibuffer(full_prompt, from, status, history="minibuffer_history")
         end if
         history_add_new_input = saved_add
-        call set(sym("minibuffer-history"), saved_history, st)
+        call set(sym("minibuffer_history"), saved_history, st)
         if (.not. status%ok()) return
         if (len(from) == 0 .and. allocated(query_replace_defaults)) then
             if (size(query_replace_defaults) > 0) then
@@ -492,7 +492,7 @@ contains
         call query_replace_compile_replacement(to, regexp_flag, counted, status)
     end subroutine query_replace_read_from
 
-    !> Query and return the TO argument of a `query-replace' operation.
+    !> Query and return the TO argument of a `query_replace' operation.
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response
     !> should a regexp.  `counted' says whether TO uses `\#'.  Port of
     !> replace.el:query-replace-read-to.
@@ -598,13 +598,13 @@ contains
         found = status%ok() .and. pos > 0
     end function replace_search
 
-    !> Make a replacement with `replace-match', editing `\?'.
-    !> FIXEDCASE, LITERAL are passed to `replace-match' (which see).
+    !> Make a replacement with `replace_match', editing `\?'.
+    !> FIXEDCASE, LITERAL are passed to `replace_match' (which see).
     !> After possibly editing it (if `\?' is present), NEWTEXT is also
-    !> passed to `replace-match'.  If NOEDIT is true, no check for `\?'
+    !> passed to `replace_match'.  If NOEDIT is true, no check for `\?'
     !> is made (to save time).
     !> MATCH-DATA is used for the replacement, and is a data structure
-    !> as returned from the `match-data' function.  BACKWARD is
+    !> as returned from the `match_data' function.  BACKWARD is
     !> used to reverse the replacement direction.
     !>
     !> The return value is non-nil if there has been no `\?' or NOEDIT was
@@ -638,7 +638,7 @@ contains
         call set_match_data(data)
         call replace_match(text, status, fixedcase, literal)
         if (.not. status%ok()) return
-        ! `replace-match' leaves point at the end of the replacement text,
+        ! `replace_match' leaves point at the end of the replacement text,
         ! so move point to the beginning when replacing backward.
         if (present_true(backward)) call goto_char(data(1))
     end function replace_match_maybe_edit
@@ -699,17 +699,17 @@ contains
         call goto_char(opoint)
     end function match_data_at
 
-    !> Subroutine of `query-replace'.  Its complexity handles interactive
+    !> Subroutine of `query_replace'.  Its complexity handles interactive
     !> queries.  Don't use this in your own program unless you want to
-    !> query and set the mark just as `query-replace' does.  Instead,
+    !> query and set the mark just as `query_replace' does.  Instead,
     !> write a simple loop like this:
     !>
     !>   (while (re-search-forward "foo[ \t]+bar" nil t)
     !>     (replace-match "foobar" nil nil))
     !>
     !> which will run faster and probably do exactly what you want.  Please
-    !> see the documentation of `replace-match' to find out how to simulate
-    !> `case-replace'.
+    !> see the documentation of `replace_match' to find out how to simulate
+    !> `case_replace'.
     !>
     !> This function returns nil if there were no matches to make, or
     !> the user canceled the call.
@@ -890,7 +890,7 @@ contains
             end if
             ! Optionally ignore matches that have a read-only property.
             if (query_replace_skip_read_only) then
-                call text_property_not_all(real_data(1), real_data(2), sym("read-only"), nil(), ro_pos, &
+                call text_property_not_all(real_data(1), real_data(2), sym("read_only"), nil(), ro_pos, &
                                            ro_found, st)
                 if (ro_found) then
                     skip_read_only_count = skip_read_only_count + 1
@@ -925,7 +925,7 @@ contains
             ! means it has finished handling this occurrence.  Any command
             ! that sets `done' should leave behind proper match data for the
             ! stack.  Commands not setting `done' need to adjust
-            ! `real-match-data'.
+            ! `real_match_data'.
             do while (.not. done)
                 call set_match_data(real_data)
                 ! Obtain the matched groups: needed only when regexp-flag
@@ -1153,7 +1153,7 @@ contains
                 case default
                     ! Any other key (and exit-prefix) exits, and is then
                     ! re-executed as a normal key sequence.
-                    this_command = sym("mode-exited")
+                    this_command = sym("mode_exited")
                     keep_going = .false.
                     call unread_command_events([key])
                     unread = .true.
@@ -1249,32 +1249,32 @@ contains
     !> search with a key sequence like `C-s C-s M-%' to use its current
     !> search string as the string to replace.
     !>
-    !> Matching is independent of case if both `case-fold-search'
-    !> and `search-upper-case' are non-nil and FROM-STRING has no
-    !> uppercase letters; if `search-upper-case' is nil, then whether
-    !> matching ignores case depends on `case-fold-search' regardless
+    !> Matching is independent of case if both `case_fold_search'
+    !> and `search_upper_case' are non-nil and FROM-STRING has no
+    !> uppercase letters; if `search_upper_case' is nil, then whether
+    !> matching ignores case depends on `case_fold_search' regardless
     !> of whether there are uppercase letters in FROM-STRING.
     !> Replacement transfers the case pattern of the old text to the
-    !> new text, if both `case-fold-search' and `case-replace' are
+    !> new text, if both `case_fold_search' and `case_replace' are
     !> non-nil and FROM-STRING has no uppercase letters.
     !> (Transferring the case pattern means that if the old text
     !> matched is all caps, or all of its words are capitalized, then its
     !> replacement is respectively upcased or capitalized.  For more
-    !> details about this, see `replace-match'.)
+    !> details about this, see `replace_match'.)
     !>
-    !> Ignore read-only matches if `query-replace-skip-read-only' is non-nil.
+    !> Ignore read-only matches if `query_replace_skip_read_only' is non-nil.
     !>
-    !> If `replace-lax-whitespace' is non-nil, a space or spaces in the string
+    !> If `replace_lax_whitespace' is non-nil, a space or spaces in the string
     !> to be replaced will match a sequence of whitespace chars defined by the
-    !> regexp in `search-whitespace-regexp'.
+    !> regexp in `search_whitespace_regexp'.
     !>
     !> To customize possible responses, change the bindings in
-    !> `query-replace-map'.
+    !> `query_replace_map'.
     !>
     !> Fourth and fifth arg START and END specify the region to operate on.
     !>
     !> Arguments FROM-STRING, TO-STRING, DELIMITED, START, END and BACKWARD
-    !> are passed to `perform-replace' (which see).  Port of
+    !> are passed to `perform_replace' (which see).  Port of
     !> replace.el:query-replace.
     recursive subroutine query_replace(from_string, to_string, status, delimited, start, end, backward)
         character(len=*), intent(in) :: from_string, to_string
@@ -1298,23 +1298,23 @@ contains
     !> When invoked interactively, matching a newline with `\n' will not work;
     !> use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'.
     !>
-    !> Matching is independent of case if both `case-fold-search'
-    !> and `search-upper-case' are non-nil and REGEXP has no uppercase
-    !> letters; if `search-upper-case' is nil, then whether matching
-    !> ignores case depends on `case-fold-search' regardless of whether
+    !> Matching is independent of case if both `case_fold_search'
+    !> and `search_upper_case' are non-nil and REGEXP has no uppercase
+    !> letters; if `search_upper_case' is nil, then whether matching
+    !> ignores case depends on `case_fold_search' regardless of whether
     !> there are uppercase letters in REGEXP.
     !> Replacement transfers the case pattern of the old text to the new
-    !> text, if both `case-fold-search' and `case-replace' are non-nil
+    !> text, if both `case_fold_search' and `case_replace' are non-nil
     !> and REGEXP has no uppercase letters.  (Transferring the case pattern
     !> means that if the old text matched is all caps, or all of its words
     !> are capitalized, then its replacement is respectively upcased or
-    !> capitalized.  For more details about this, see `replace-match'.)
+    !> capitalized.  For more details about this, see `replace_match'.)
     !>
-    !> Ignore read-only matches if `query-replace-skip-read-only' is non-nil.
+    !> Ignore read-only matches if `query_replace_skip_read_only' is non-nil.
     !>
-    !> If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp
+    !> If `replace_regexp_lax_whitespace' is non-nil, a space or spaces in the regexp
     !> to be replaced will match a sequence of whitespace chars defined by the
-    !> regexp in `search-whitespace-regexp'.
+    !> regexp in `search_whitespace_regexp'.
     !>
     !> Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace
     !> only matches surrounded by word boundaries.  A negative prefix arg means
@@ -1335,7 +1335,7 @@ contains
     !> by a Lisp expression; Fortmacs has no Lisp.)
     !>
     !> Arguments REGEXP, TO-STRING, DELIMITED, START, END, and BACKWARD
-    !> are passed to `perform-replace' (which see).  Port of
+    !> are passed to `perform_replace' (which see).  Port of
     !> replace.el:query-replace-regexp.
     recursive subroutine query_replace_regexp(regexp, to_string, status, delimited, start, end, backward, counted)
         character(len=*), intent(in) :: regexp, to_string
@@ -1349,7 +1349,7 @@ contains
     !> Replace some matches for REGEXP with various strings, in rotation.
     !> The second argument TO-STRINGS contains the replacement strings,
     !> separated by spaces.  This command works like
-    !> `query-replace-regexp' except that each successive replacement
+    !> `query_replace_regexp' except that each successive replacement
     !> uses the next successive replacement string, wrapping around from
     !> the last such string to the first.
     !>
@@ -1366,7 +1366,7 @@ contains
     !> before rotating to the next.
     !> Fourth and fifth arg START and END specify the region to operate on.
     !>
-    !> Arguments REGEXP, START, and END are passed to `perform-replace'
+    !> Arguments REGEXP, START, and END are passed to `perform_replace'
     !> (which see).  Port of replace.el:map-query-replace-regexp.
     recursive subroutine map_query_replace_regexp(regexp, to_strings, status, n, start, end)
         character(len=*), intent(in) :: regexp, to_strings
@@ -1395,16 +1395,16 @@ contains
     end subroutine map_query_replace_regexp
 
     !> Replace occurrences of FROM-STRING with TO-STRING.
-    !> Preserve case in each match if `case-replace' and `case-fold-search'
+    !> Preserve case in each match if `case_replace' and `case_fold_search'
     !> are non-nil and FROM-STRING has no uppercase letters.
     !> (Preserving case means that if the string matched is all caps, or capitalized,
     !> then its replacement is upcased or capitalized.)
     !>
-    !> Ignore read-only matches if `query-replace-skip-read-only' is non-nil.
+    !> Ignore read-only matches if `query_replace_skip_read_only' is non-nil.
     !>
-    !> If `replace-lax-whitespace' is non-nil, a space or spaces in the string
+    !> If `replace_lax_whitespace' is non-nil, a space or spaces in the string
     !> to be replaced will match a sequence of whitespace chars defined by the
-    !> regexp in `search-whitespace-regexp'.
+    !> regexp in `search_whitespace_regexp'.
     !>
     !> Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace
     !> only matches surrounded by word boundaries.  A negative prefix arg means
@@ -1415,7 +1415,7 @@ contains
     !> enabled and the mark is active, operates on the contents of the region;
     !> otherwise from point to the end of the buffer's accessible portion.
     !>
-    !> Argument BACKWARD is passed to `perform-replace' (which see).
+    !> Argument BACKWARD is passed to `perform_replace' (which see).
     !>
     !> This function is usually the wrong thing to use in a program.
     !> What you probably want is a loop like this:
@@ -1434,14 +1434,14 @@ contains
     end subroutine replace_string
 
     !> Replace things after point matching REGEXP with TO-STRING.
-    !> Preserve case in each match if `case-replace' and `case-fold-search'
+    !> Preserve case in each match if `case_replace' and `case_fold_search'
     !> are non-nil and REGEXP has no uppercase letters.
     !>
-    !> Ignore read-only matches if `query-replace-skip-read-only' is non-nil.
+    !> Ignore read-only matches if `query_replace_skip_read_only' is non-nil.
     !>
-    !> If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp
+    !> If `replace_regexp_lax_whitespace' is non-nil, a space or spaces in the regexp
     !> to be replaced will match a sequence of whitespace chars defined by the
-    !> regexp in `search-whitespace-regexp'.
+    !> regexp in `search_whitespace_regexp'.
     !>
     !> In Transient Mark mode, if the mark is active, operate on the contents
     !> of the region.  Otherwise, operate from point to the end of the buffer's
@@ -1453,7 +1453,7 @@ contains
     !>
     !> Fourth and fifth arg START and END specify the region to operate on.
     !>
-    !> Argument BACKWARD is passed to `perform-replace' (which see).
+    !> Argument BACKWARD is passed to `perform_replace' (which see).
     !>
     !> In TO-STRING, `\&' stands for whatever matched the whole of REGEXP,
     !> and `\N' (where N is a digit) stands for whatever matched
@@ -1462,7 +1462,7 @@ contains
     !> at the given position for each replacement.
     !>
     !> In interactive calls, `\#' in the replacement text stands for
-    !> `replace-count', the number of replacements occurred so far,
+    !> `replace_count', the number of replacements occurred so far,
     !> starting from zero; `counted' says that TO-STRING uses it.
     !> `replacement_fn', if given, computes each replacement instead.
     !>
@@ -1583,11 +1583,11 @@ contains
         type(status_type) :: st
         type(value_type) :: history
         query_replace_from_to_separator = " → "
-        query_replace_from_history_variable = "query-replace-history"
-        query_replace_to_history_variable = "query-replace-history"
-        ! Default history list for `query-replace' commands.
-        call symbol_value(sym("query-replace-history"), history, st)
-        if (.not. st%ok()) call set(sym("query-replace-history"), nil(), st)
+        query_replace_from_history_variable = "query_replace_history"
+        query_replace_to_history_variable = "query_replace_history"
+        ! Default history list for `query_replace' commands.
+        call symbol_value(sym("query_replace_history"), history, st)
+        if (.not. st%ok()) call set(sym("query_replace_history"), nil(), st)
         commands%query_replace%run => cmd_query_replace
         commands%query_replace_regexp%run => cmd_query_replace_regexp
         commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp

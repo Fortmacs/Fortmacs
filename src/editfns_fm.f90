@@ -26,10 +26,10 @@
 !> buffer's representation.
 !>
 !> Point is set with `temp_set_point_both': upstream's SET_PT also runs
-!> text-property hooks (`point-entered' etc.), which arrive with
-!> intervals.  Labeled restrictions (`with-restriction') are deferred, as
-!> are `format', fields, `transpose-regions', `compare-buffer-substrings'
-!> and `subst-char-in-region' (they need case tables, intervals or undo).
+!> text-property hooks (`point_entered' etc.), which arrive with
+!> intervals.  Labeled restrictions (`with_restriction') are deferred, as
+!> are `format', fields, `transpose_regions', `compare_buffer_substrings'
+!> and `subst_char_in_region' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
@@ -769,7 +769,7 @@ contains
     !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
     !> Both characters must have the same length of multi-byte form.  Port
     !> of editfns.c:Fsubst_char_in_region (no NOUNDO; each occurrence is
-    !> replaced like `replace-range', so markers and undo follow).
+    !> replaced like `replace_range', so markers and undo follow).
     subroutine subst_char_in_region(start, end, fromchar, tochar, status)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar

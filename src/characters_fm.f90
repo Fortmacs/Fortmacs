@@ -26,13 +26,13 @@
 !> The parts of characters.el that word motion needs: the entries it
 !> makes in the standard syntax table for Unicode characters, in its
 !> order (later entries override earlier ones), and the categories that
-!> `word-combining-categories' and `word-separating-categories' refer to
+!> `word_combining_categories' and `word_separating_categories' refer to
 !> (^ combining, C han, H hiragana, K katakana).
 !>
-!> Deferred: entries made through legacy charsets (`map-charset-chars'
+!> Deferred: entries made through legacy charsets (`map_charset_chars'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
 !> their mapping tables), the other categories, the case-table side of
-!> `set-case-syntax', and everything else characters.el sets up.
+!> `set_case_syntax', and everything else characters.el sets up.
 module characters_fm
     use uni_category_fm, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
@@ -43,7 +43,7 @@ module characters_fm
 
     abstract interface
         !> Give the characters `from' to `to' the syntax `descriptor'
-        !> (as for `modify-syntax-entry').
+        !> (as for `modify_syntax_entry').
         subroutine syntax_entry_proc(from, to, descriptor)
             implicit none(type, external)
             integer, intent(in) :: from, to

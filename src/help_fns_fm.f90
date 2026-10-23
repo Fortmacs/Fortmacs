@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `describe-function' and `describe-variable', from the documentation
+!> `describe_function' and `describe_variable', from the documentation
 !> docstrings_fm collects.  The functions are the commands and the
 !> procedures of the config API (module `fortmacs'), the variables its
 !> settings.  A function's report names the Fortran file defining it and
@@ -28,7 +28,7 @@
 !>
 !> Deferred: the default from the symbol at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
-!> buffer-local values, `describe-symbol', `describe-command'.
+!> buffer-local values, `describe_symbol', `describe_command'.
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -68,7 +68,7 @@ contains
         function_known_p = fboundp(sym(name))
     end function function_known_p
 
-    !> Completion predicate for `describe-function'.
+    !> Completion predicate for `describe_function'.
     logical function function_symbol_p(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name

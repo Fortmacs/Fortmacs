@@ -73,7 +73,7 @@ module xdisp_fm
     !> This controls the width of a TAB character on display.
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
-    type(integer_setting), public :: tab_width = integer_setting(name="tab-width", value=8)
+    type(integer_setting), public :: tab_width = integer_setting(name="tab_width", value=8)
 
     !> An entry of minor-mode-alist.
     type :: lighter_type
@@ -497,8 +497,8 @@ contains
         lighters(n_lighters)%lighter = lighter
     end subroutine add_minor_mode_lighter
 
-    !> The modes part of buffer BI's mode line: `mode-name' and the
-    !> lighters of `minor-mode-alist' whose variables are non-nil there.
+    !> The modes part of buffer BI's mode line: `mode_name' and the
+    !> lighters of `minor_mode_alist' whose variables are non-nil there.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s

@@ -22,7 +22,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Every change to a buffer is recorded in its `buffer-undo-list' (here
+!> Every change to a buffer is recorded in its `buffer_undo_list' (here
 !> the `undo_list' array of buffer_type, newest entry last): insertions,
 !> deletions with the deleted text, where point was, and the first change
 !> after the buffer was saved.  Boundaries (nil entries) separate the
@@ -35,7 +35,7 @@
 !> self-insert-command and delete-char).
 !>
 !> Not ported yet: marker adjustments, text property changes,
-!> `combine-change-calls', the boundary timer, and truncating the list
+!> `combine_change_calls', the boundary timer, and truncating the list
 !> (undo-limit and friends): undo information grows without bound.
 module undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -293,7 +293,7 @@ contains
         deallocate (changed_buffers)
     end subroutine undo_auto_boundaries
 
-    !> Add an `undo-boundary' in appropriate buffers.  The command loop
+    !> Add an `undo_boundary' in appropriate buffers.  The command loop
     !> calls this before each command.  Port of
     !> simple.el:undo-auto--add-boundary.
     subroutine undo_auto_add_boundary()
@@ -306,8 +306,8 @@ contains
 
     !> Amalgamate undo if necessary.
     !> This function can be called before an amalgamating command.  It
-    !> removes the previous `undo-boundary' if a series of such calls
-    !> have been made.  `self-insert-command' and `delete-char' are the
+    !> removes the previous `undo_boundary' if a series of such calls
+    !> have been made.  `self_insert_command' and `delete_char' are the
     !> most common amalgamating commands.  SAME_COMMAND says whether
     !> this-command is last-command.  Port of simple.el:undo-auto-amalgamate.
     subroutine undo_auto_amalgamate(same_command)

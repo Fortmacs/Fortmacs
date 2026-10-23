@@ -222,7 +222,7 @@ contains
             call insert(trim(pres(k))//trim(posts(k))//" world", st)
             call goto_char(7_int64)
             call check(error, looking_at("\(\)"//trim(pres(k))//"\(\)\(\(\)\)\(\)"//trim(posts(k))//"\(\)", &
-                                         st), "looking-at")
+                                         st), "looking_at")
             if (allocated(error)) exit
             beg0 = mb(0)
             beg4 = beg0 + len_trim(pres(k))

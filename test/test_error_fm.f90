@@ -69,11 +69,11 @@ contains
 
     subroutine test_names(error)
         type(error_type), allocatable, intent(out) :: error
-        call check(error, error_name(FM_ARGS_OUT_OF_RANGE), "args-out-of-range")
+        call check(error, error_name(FM_ARGS_OUT_OF_RANGE), "args_out_of_range")
         if (allocated(error)) return
         call check(error, error_message(FM_BUFFER_READ_ONLY), "Buffer is read-only")
         if (allocated(error)) return
-        call check(error, error_name(FM_TEXT_READ_ONLY), "text-read-only")
+        call check(error, error_name(FM_TEXT_READ_ONLY), "text_read_only")
         if (allocated(error)) return
         call check(error, error_message(FM_USER_ERROR), "")
         if (allocated(error)) return

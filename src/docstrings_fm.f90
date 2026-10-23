@@ -95,389 +95,389 @@ module docstrings_fm
 
     !> The documented functions, sorted.
     character(len=34), parameter, public :: function_names(282) = [character(len=34) :: &
-                                                                   "abort-minibuffers", &
-                                                                   "add-auto-mode", &
-                                                                   "auto-fill-mode", &
-                                                                   "back-to-indentation", &
-                                                                   "backward-char", &
-                                                                   "backward-kill-paragraph", &
-                                                                   "backward-kill-sentence", &
-                                                                   "backward-kill-word", &
-                                                                   "backward-paragraph", &
-                                                                   "backward-sentence", &
-                                                                   "backward-word", &
-                                                                   "beginning-of-buffer", &
-                                                                   "beginning-of-line", &
-                                                                   "beginning-of-line-text", &
+                                                                   "abort_minibuffers", &
+                                                                   "add_auto_mode", &
+                                                                   "auto_fill_mode", &
+                                                                   "back_to_indentation", &
+                                                                   "backward_char", &
+                                                                   "backward_kill_paragraph", &
+                                                                   "backward_kill_sentence", &
+                                                                   "backward_kill_word", &
+                                                                   "backward_paragraph", &
+                                                                   "backward_sentence", &
+                                                                   "backward_word", &
+                                                                   "beginning_of_buffer", &
+                                                                   "beginning_of_line", &
+                                                                   "beginning_of_line_text", &
                                                                    "bobp", &
                                                                    "bolp", &
-                                                                   "buffer-name", &
-                                                                   "buffer-substring", &
-                                                                   "canonically-space-region", &
+                                                                   "buffer_name", &
+                                                                   "buffer_substring", &
+                                                                   "canonically_space_region", &
                                                                    "capitalize", &
-                                                                   "capitalize-region", &
-                                                                   "capitalize-word", &
-                                                                   "char-syntax", &
-                                                                   "copy-region-as-kill", &
-                                                                   "copy-syntax-table", &
-                                                                   "current-buffer", &
-                                                                   "current-fill-column", &
-                                                                   "current-global-map", &
-                                                                   "current-indentation", &
-                                                                   "current-justification", &
-                                                                   "current-kill", &
-                                                                   "cycle-spacing", &
-                                                                   "deactivate-mark", &
-                                                                   "default-indent-new-line", &
-                                                                   "delete-all-space", &
-                                                                   "delete-backward-char", &
-                                                                   "delete-blank-lines", &
-                                                                   "delete-char", &
-                                                                   "delete-forward-char", &
-                                                                   "delete-horizontal-space", &
-                                                                   "delete-indentation", &
-                                                                   "delete-other-windows", &
-                                                                   "delete-region", &
-                                                                   "delete-window", &
-                                                                   "derived-mode-p", &
-                                                                   "describe-function", &
-                                                                   "describe-key", &
-                                                                   "describe-key-briefly", &
-                                                                   "describe-variable", &
-                                                                   "digit-argument", &
-                                                                   "disable-command", &
-                                                                   "do-auto-fill", &
+                                                                   "capitalize_region", &
+                                                                   "capitalize_word", &
+                                                                   "char_syntax", &
+                                                                   "copy_region_as_kill", &
+                                                                   "copy_syntax_table", &
+                                                                   "current_buffer", &
+                                                                   "current_fill_column", &
+                                                                   "current_global_map", &
+                                                                   "current_indentation", &
+                                                                   "current_justification", &
+                                                                   "current_kill", &
+                                                                   "cycle_spacing", &
+                                                                   "deactivate_mark", &
+                                                                   "default_indent_new_line", &
+                                                                   "delete_all_space", &
+                                                                   "delete_backward_char", &
+                                                                   "delete_blank_lines", &
+                                                                   "delete_char", &
+                                                                   "delete_forward_char", &
+                                                                   "delete_horizontal_space", &
+                                                                   "delete_indentation", &
+                                                                   "delete_other_windows", &
+                                                                   "delete_region", &
+                                                                   "delete_window", &
+                                                                   "derived_mode_p", &
+                                                                   "describe_function", &
+                                                                   "describe_key", &
+                                                                   "describe_key_briefly", &
+                                                                   "describe_variable", &
+                                                                   "digit_argument", &
+                                                                   "disable_command", &
+                                                                   "do_auto_fill", &
                                                                    "downcase", &
-                                                                   "downcase-region", &
-                                                                   "downcase-word", &
-                                                                   "enable-command", &
-                                                                   "end-of-buffer", &
-                                                                   "end-of-line", &
+                                                                   "downcase_region", &
+                                                                   "downcase_word", &
+                                                                   "enable_command", &
+                                                                   "end_of_buffer", &
+                                                                   "end_of_line", &
                                                                    "eobp", &
                                                                    "eolp", &
-                                                                   "exchange-point-and-mark", &
-                                                                   "execute-extended-command", &
-                                                                   "exit-minibuffer", &
-                                                                   "file-name-sans-versions", &
-                                                                   "fill-french-nobreak-p", &
-                                                                   "fill-paragraph", &
-                                                                   "fill-polish-nobreak-p", &
-                                                                   "fill-region", &
-                                                                   "fill-region-as-paragraph", &
-                                                                   "fill-region-as-paragraph-default", &
-                                                                   "fill-single-char-nobreak-p", &
-                                                                   "fill-single-word-nobreak-p", &
-                                                                   "find-file", &
-                                                                   "fixup-whitespace", &
-                                                                   "format-error", &
-                                                                   "forward-char", &
-                                                                   "forward-line", &
-                                                                   "forward-paragraph", &
-                                                                   "forward-sentence", &
-                                                                   "forward-word", &
-                                                                   "fundamental-mode", &
-                                                                   "get-buffer-create", &
-                                                                   "global-set-key", &
-                                                                   "goto-char", &
-                                                                   "help-mode", &
-                                                                   "help-quit", &
-                                                                   "indent-according-to-mode", &
-                                                                   "indent-for-tab-command", &
-                                                                   "indent-region", &
-                                                                   "indent-relative", &
-                                                                   "indent-relative-first-indent-point", &
-                                                                   "indent-rigidly", &
-                                                                   "indent-rigidly-left", &
-                                                                   "indent-rigidly-left-to-tab-stop", &
-                                                                   "indent-rigidly-right", &
-                                                                   "indent-rigidly-right-to-tab-stop", &
-                                                                   "indent-tabs-mode", &
-                                                                   "indent-to", &
+                                                                   "exchange_point_and_mark", &
+                                                                   "execute_extended_command", &
+                                                                   "exit_minibuffer", &
+                                                                   "file_name_sans_versions", &
+                                                                   "fill_french_nobreak_p", &
+                                                                   "fill_paragraph", &
+                                                                   "fill_polish_nobreak_p", &
+                                                                   "fill_region", &
+                                                                   "fill_region_as_paragraph", &
+                                                                   "fill_region_as_paragraph_default", &
+                                                                   "fill_single_char_nobreak_p", &
+                                                                   "fill_single_word_nobreak_p", &
+                                                                   "find_file", &
+                                                                   "fixup_whitespace", &
+                                                                   "format_error", &
+                                                                   "forward_char", &
+                                                                   "forward_line", &
+                                                                   "forward_paragraph", &
+                                                                   "forward_sentence", &
+                                                                   "forward_word", &
+                                                                   "fundamental_mode", &
+                                                                   "get_buffer_create", &
+                                                                   "global_set_key", &
+                                                                   "goto_char", &
+                                                                   "help_mode", &
+                                                                   "help_quit", &
+                                                                   "indent_according_to_mode", &
+                                                                   "indent_for_tab_command", &
+                                                                   "indent_region", &
+                                                                   "indent_relative", &
+                                                                   "indent_relative_first_indent_point", &
+                                                                   "indent_rigidly", &
+                                                                   "indent_rigidly_left", &
+                                                                   "indent_rigidly_left_to_tab_stop", &
+                                                                   "indent_rigidly_right", &
+                                                                   "indent_rigidly_right_to_tab_stop", &
+                                                                   "indent_tabs_mode", &
+                                                                   "indent_to", &
                                                                    "insert", &
-                                                                   "isearch-abort", &
-                                                                   "isearch-backward", &
-                                                                   "isearch-backward-regexp", &
-                                                                   "isearch-beginning-of-buffer", &
-                                                                   "isearch-cancel", &
-                                                                   "isearch-del-char", &
-                                                                   "isearch-delete-char", &
-                                                                   "isearch-edit-string", &
-                                                                   "isearch-end-of-buffer", &
-                                                                   "isearch-exit", &
-                                                                   "isearch-forward", &
-                                                                   "isearch-forward-regexp", &
-                                                                   "isearch-printing-char", &
-                                                                   "isearch-quote-char", &
-                                                                   "isearch-repeat-backward", &
-                                                                   "isearch-repeat-forward", &
-                                                                   "isearch-ring-advance", &
-                                                                   "isearch-ring-retreat", &
-                                                                   "isearch-toggle-case-fold", &
-                                                                   "isearch-toggle-lax-whitespace", &
-                                                                   "isearch-toggle-regexp", &
-                                                                   "isearch-yank-char", &
-                                                                   "isearch-yank-kill", &
-                                                                   "isearch-yank-line", &
-                                                                   "isearch-yank-pop-only", &
-                                                                   "isearch-yank-word-or-char", &
-                                                                   "join-line", &
-                                                                   "just-one-space", &
-                                                                   "justify-current-line", &
-                                                                   "key-valid-p", &
-                                                                   "keyboard-quit", &
-                                                                   "keymap-global-set", &
-                                                                   "keymap-set", &
-                                                                   "kill-buffer", &
-                                                                   "kill-line", &
-                                                                   "kill-new", &
-                                                                   "kill-paragraph", &
-                                                                   "kill-region", &
-                                                                   "kill-ring-save", &
-                                                                   "kill-sentence", &
-                                                                   "kill-whole-line", &
-                                                                   "kill-word", &
-                                                                   "left-char", &
-                                                                   "left-word", &
-                                                                   "looking-at", &
-                                                                   "looking-at-p", &
-                                                                   "looking-back", &
-                                                                   "major-mode-named", &
-                                                                   "make-syntax-table", &
-                                                                   "map-query-replace-regexp", &
+                                                                   "isearch_abort", &
+                                                                   "isearch_backward", &
+                                                                   "isearch_backward_regexp", &
+                                                                   "isearch_beginning_of_buffer", &
+                                                                   "isearch_cancel", &
+                                                                   "isearch_del_char", &
+                                                                   "isearch_delete_char", &
+                                                                   "isearch_edit_string", &
+                                                                   "isearch_end_of_buffer", &
+                                                                   "isearch_exit", &
+                                                                   "isearch_forward", &
+                                                                   "isearch_forward_regexp", &
+                                                                   "isearch_printing_char", &
+                                                                   "isearch_quote_char", &
+                                                                   "isearch_repeat_backward", &
+                                                                   "isearch_repeat_forward", &
+                                                                   "isearch_ring_advance", &
+                                                                   "isearch_ring_retreat", &
+                                                                   "isearch_toggle_case_fold", &
+                                                                   "isearch_toggle_lax_whitespace", &
+                                                                   "isearch_toggle_regexp", &
+                                                                   "isearch_yank_char", &
+                                                                   "isearch_yank_kill", &
+                                                                   "isearch_yank_line", &
+                                                                   "isearch_yank_pop_only", &
+                                                                   "isearch_yank_word_or_char", &
+                                                                   "join_line", &
+                                                                   "just_one_space", &
+                                                                   "justify_current_line", &
+                                                                   "key_valid_p", &
+                                                                   "keyboard_quit", &
+                                                                   "keymap_global_set", &
+                                                                   "keymap_set", &
+                                                                   "kill_buffer", &
+                                                                   "kill_line", &
+                                                                   "kill_new", &
+                                                                   "kill_paragraph", &
+                                                                   "kill_region", &
+                                                                   "kill_ring_save", &
+                                                                   "kill_sentence", &
+                                                                   "kill_whole_line", &
+                                                                   "kill_word", &
+                                                                   "left_char", &
+                                                                   "left_word", &
+                                                                   "looking_at", &
+                                                                   "looking_at_p", &
+                                                                   "looking_back", &
+                                                                   "major_mode_named", &
+                                                                   "make_syntax_table", &
+                                                                   "map_query_replace_regexp", &
                                                                    "mark", &
-                                                                   "mark-end-of-sentence", &
-                                                                   "mark-paragraph", &
-                                                                   "mark-whole-buffer", &
-                                                                   "mark-word", &
-                                                                   "match-beginning", &
-                                                                   "match-data", &
-                                                                   "match-end", &
-                                                                   "match-string", &
-                                                                   "match-string-no-properties", &
-                                                                   "match-substitute-replacement", &
+                                                                   "mark_end_of_sentence", &
+                                                                   "mark_paragraph", &
+                                                                   "mark_whole_buffer", &
+                                                                   "mark_word", &
+                                                                   "match_beginning", &
+                                                                   "match_data", &
+                                                                   "match_end", &
+                                                                   "match_string", &
+                                                                   "match_string_no_properties", &
+                                                                   "match_substitute_replacement", &
                                                                    "message", &
-                                                                   "minibuffer-complete", &
-                                                                   "minibuffer-complete-and-exit", &
-                                                                   "minibuffer-complete-word", &
-                                                                   "minibuffer-completion-exit", &
-                                                                   "minibuffer-completion-help", &
-                                                                   "modify-syntax-entry", &
-                                                                   "move-to-left-margin", &
-                                                                   "move-to-tab-stop", &
-                                                                   "move-to-window-line", &
-                                                                   "move-to-window-line-top-bottom", &
-                                                                   "negative-argument", &
+                                                                   "minibuffer_complete", &
+                                                                   "minibuffer_complete_and_exit", &
+                                                                   "minibuffer_complete_word", &
+                                                                   "minibuffer_completion_exit", &
+                                                                   "minibuffer_completion_help", &
+                                                                   "modify_syntax_entry", &
+                                                                   "move_to_left_margin", &
+                                                                   "move_to_tab_stop", &
+                                                                   "move_to_window_line", &
+                                                                   "move_to_window_line_top_bottom", &
+                                                                   "negative_argument", &
                                                                    "newline", &
-                                                                   "next-history-element", &
-                                                                   "next-line", &
-                                                                   "normal-mode", &
-                                                                   "open-line", &
-                                                                   "other-buffer", &
-                                                                   "other-window", &
+                                                                   "next_history_element", &
+                                                                   "next_line", &
+                                                                   "normal_mode", &
+                                                                   "open_line", &
+                                                                   "other_buffer", &
+                                                                   "other_window", &
                                                                    "point", &
-                                                                   "point-max", &
-                                                                   "point-min", &
-                                                                   "pop-to-mark-command", &
-                                                                   "posix-looking-at", &
-                                                                   "posix-search-backward", &
-                                                                   "posix-search-forward", &
-                                                                   "posix-string-match", &
-                                                                   "previous-history-element", &
-                                                                   "previous-line", &
-                                                                   "prog-mode", &
-                                                                   "provided-mode-derived-p", &
-                                                                   "push-mark", &
-                                                                   "query-replace", &
-                                                                   "query-replace-regexp", &
-                                                                   "quit-window", &
-                                                                   "quoted-insert", &
-                                                                   "re-search-backward", &
-                                                                   "re-search-forward", &
-                                                                   "read-buffer", &
-                                                                   "read-file-name-default", &
-                                                                   "read-multiple-choice", &
-                                                                   "read-number", &
-                                                                   "read-string", &
+                                                                   "point_max", &
+                                                                   "point_min", &
+                                                                   "pop_to_mark_command", &
+                                                                   "posix_looking_at", &
+                                                                   "posix_search_backward", &
+                                                                   "posix_search_forward", &
+                                                                   "posix_string_match", &
+                                                                   "previous_history_element", &
+                                                                   "previous_line", &
+                                                                   "prog_mode", &
+                                                                   "provided_mode_derived_p", &
+                                                                   "push_mark", &
+                                                                   "query_replace", &
+                                                                   "query_replace_regexp", &
+                                                                   "quit_window", &
+                                                                   "quoted_insert", &
+                                                                   "re_search_backward", &
+                                                                   "re_search_forward", &
+                                                                   "read_buffer", &
+                                                                   "read_file_name_default", &
+                                                                   "read_multiple_choice", &
+                                                                   "read_number", &
+                                                                   "read_string", &
                                                                    "recenter", &
-                                                                   "recenter-top-bottom", &
-                                                                   "regexp-quote", &
-                                                                   "region-active-p", &
-                                                                   "region-beginning", &
-                                                                   "region-end", &
-                                                                   "replace-match", &
-                                                                   "replace-regexp", &
-                                                                   "replace-string", &
-                                                                   "right-char", &
-                                                                   "right-word", &
-                                                                   "rotate-yank-pointer", &
-                                                                   "run-mode-hooks", &
-                                                                   "save-buffer", &
-                                                                   "save-buffers-kill-terminal", &
-                                                                   "save-some-buffers", &
-                                                                   "scroll-down", &
-                                                                   "scroll-down-command", &
-                                                                   "scroll-up", &
-                                                                   "scroll-up-command", &
-                                                                   "search-backward", &
-                                                                   "search-forward", &
-                                                                   "select-window", &
-                                                                   "selected-window", &
-                                                                   "self-insert-command", &
-                                                                   "sentence-end", &
-                                                                   "set-auto-mode", &
-                                                                   "set-buffer", &
-                                                                   "set-command-disabled", &
-                                                                   "set-error", &
-                                                                   "set-fill-column", &
-                                                                   "set-fill-prefix", &
-                                                                   "set-mark", &
-                                                                   "set-mark-command", &
-                                                                   "set-match-data", &
-                                                                   "set-syntax-table", &
-                                                                   "skip-chars-backward", &
-                                                                   "skip-chars-forward", &
-                                                                   "skip-syntax-backward", &
-                                                                   "skip-syntax-forward", &
-                                                                   "special-mode", &
-                                                                   "split-window", &
-                                                                   "split-window-below", &
-                                                                   "split-window-right", &
-                                                                   "standard-syntax-table", &
-                                                                   "string-match", &
-                                                                   "string-match-p", &
-                                                                   "substitute-command-keys", &
-                                                                   "switch-to-buffer", &
-                                                                   "syntax-table", &
-                                                                   "tab-to-tab-stop", &
-                                                                   "text-mode", &
-                                                                   "transient-mark-mode", &
-                                                                   "transpose-chars", &
-                                                                   "transpose-lines", &
-                                                                   "transpose-paragraphs", &
-                                                                   "transpose-sentences", &
-                                                                   "transpose-words", &
-                                                                   "turn-off-auto-fill", &
-                                                                   "turn-on-auto-fill", &
+                                                                   "recenter_top_bottom", &
+                                                                   "regexp_quote", &
+                                                                   "region_active_p", &
+                                                                   "region_beginning", &
+                                                                   "region_end", &
+                                                                   "replace_match", &
+                                                                   "replace_regexp", &
+                                                                   "replace_string", &
+                                                                   "right_char", &
+                                                                   "right_word", &
+                                                                   "rotate_yank_pointer", &
+                                                                   "run_mode_hooks", &
+                                                                   "save_buffer", &
+                                                                   "save_buffers_kill_terminal", &
+                                                                   "save_some_buffers", &
+                                                                   "scroll_down", &
+                                                                   "scroll_down_command", &
+                                                                   "scroll_up", &
+                                                                   "scroll_up_command", &
+                                                                   "search_backward", &
+                                                                   "search_forward", &
+                                                                   "select_window", &
+                                                                   "selected_window", &
+                                                                   "self_insert_command", &
+                                                                   "sentence_end", &
+                                                                   "set_auto_mode", &
+                                                                   "set_buffer", &
+                                                                   "set_command_disabled", &
+                                                                   "set_error", &
+                                                                   "set_fill_column", &
+                                                                   "set_fill_prefix", &
+                                                                   "set_mark", &
+                                                                   "set_mark_command", &
+                                                                   "set_match_data", &
+                                                                   "set_syntax_table", &
+                                                                   "skip_chars_backward", &
+                                                                   "skip_chars_forward", &
+                                                                   "skip_syntax_backward", &
+                                                                   "skip_syntax_forward", &
+                                                                   "special_mode", &
+                                                                   "split_window", &
+                                                                   "split_window_below", &
+                                                                   "split_window_right", &
+                                                                   "standard_syntax_table", &
+                                                                   "string_match", &
+                                                                   "string_match_p", &
+                                                                   "substitute_command_keys", &
+                                                                   "switch_to_buffer", &
+                                                                   "syntax_table", &
+                                                                   "tab_to_tab_stop", &
+                                                                   "text_mode", &
+                                                                   "transient_mark_mode", &
+                                                                   "transpose_chars", &
+                                                                   "transpose_lines", &
+                                                                   "transpose_paragraphs", &
+                                                                   "transpose_sentences", &
+                                                                   "transpose_words", &
+                                                                   "turn_off_auto_fill", &
+                                                                   "turn_on_auto_fill", &
                                                                    "undo", &
-                                                                   "undo-boundary", &
-                                                                   "undo-only", &
-                                                                   "undo-redo", &
-                                                                   "unfill-paragraph", &
-                                                                   "universal-argument", &
-                                                                   "universal-argument-minus", &
-                                                                   "universal-argument-more", &
+                                                                   "undo_boundary", &
+                                                                   "undo_only", &
+                                                                   "undo_redo", &
+                                                                   "unfill_paragraph", &
+                                                                   "universal_argument", &
+                                                                   "universal_argument_minus", &
+                                                                   "universal_argument_more", &
                                                                    "upcase", &
-                                                                   "upcase-initials", &
-                                                                   "upcase-initials-region", &
-                                                                   "upcase-region", &
-                                                                   "upcase-word", &
-                                                                   "where-is", &
-                                                                   "write-file", &
-                                                                   "y-or-n-p", &
+                                                                   "upcase_initials", &
+                                                                   "upcase_initials_region", &
+                                                                   "upcase_region", &
+                                                                   "upcase_word", &
+                                                                   "where_is", &
+                                                                   "write_file", &
+                                                                   "y_or_n_p", &
                                                                    "yank", &
-                                                                   "yank-pop", &
-                                                                   "yes-or-no-p"]
+                                                                   "yank_pop", &
+                                                                   "yes_or_no_p"]
 
     !> The documented variables, sorted.
     character(len=44), parameter, public :: variable_names(98) = [character(len=44) :: &
-                                                                  "adaptive-fill-mode", &
-                                                                  "after-change-major-mode-hook", &
-                                                                  "amalgamating-undo-limit", &
-                                                                  "auto-fill-function", &
-                                                                  "auto-fill-inhibit-regexp", &
-                                                                  "auto-fill-mode-hook", &
-                                                                  "case-fold-search", &
-                                                                  "case-replace", &
-                                                                  "case-symbols-as-words", &
-                                                                  "change-major-mode-after-body-hook", &
-                                                                  "change-major-mode-hook", &
-                                                                  "change-major-mode-with-file-name", &
-                                                                  "colon-double-space", &
+                                                                  "adaptive_fill_mode", &
+                                                                  "after_change_major_mode_hook", &
+                                                                  "amalgamating_undo_limit", &
+                                                                  "auto_fill_function", &
+                                                                  "auto_fill_inhibit_regexp", &
+                                                                  "auto_fill_mode_hook", &
+                                                                  "case_fold_search", &
+                                                                  "case_replace", &
+                                                                  "case_symbols_as_words", &
+                                                                  "change_major_mode_after_body_hook", &
+                                                                  "change_major_mode_hook", &
+                                                                  "change_major_mode_with_file_name", &
+                                                                  "colon_double_space", &
                                                                   "commands", &
-                                                                  "completion-auto-help", &
-                                                                  "completion-fail-discreetly", &
-                                                                  "completion-ignore-case", &
-                                                                  "completion-ignored-extensions", &
-                                                                  "completion-show-inline-help", &
-                                                                  "current-prefix-arg", &
-                                                                  "cycle-spacing-actions", &
-                                                                  "default-justification", &
-                                                                  "delete-active-region", &
-                                                                  "disabled-command-function", &
-                                                                  "enable-recursive-minibuffers", &
-                                                                  "fill-column", &
-                                                                  "fill-indent-according-to-mode", &
-                                                                  "fill-nobreak-predicate", &
-                                                                  "fill-prefix", &
-                                                                  "fill-separate-heterogeneous-words-with-space", &
-                                                                  "goal-column", &
-                                                                  "help-map", &
-                                                                  "help-mode-hook", &
-                                                                  "help-mode-map", &
-                                                                  "history-add-new-input", &
-                                                                  "history-length", &
-                                                                  "indent-line-function", &
-                                                                  "indent-tabs-mode", &
-                                                                  "indent-tabs-mode-hook", &
-                                                                  "inhibit-auto-fill", &
-                                                                  "inhibit-field-text-motion", &
-                                                                  "insert-default-directory", &
-                                                                  "isearch-lax-whitespace", &
-                                                                  "isearch-mode-map", &
-                                                                  "isearch-regexp-lax-whitespace", &
-                                                                  "kill-read-only-ok", &
-                                                                  "kill-ring-max", &
-                                                                  "kill-ring-yank-pointer", &
-                                                                  "kill-whole-line", &
-                                                                  "left-margin", &
-                                                                  "line-move-visual", &
-                                                                  "make-backup-files", &
-                                                                  "mark-even-if-inactive", &
-                                                                  "mark-ring-max", &
-                                                                  "minibuffer-completing-file-name", &
-                                                                  "mode-require-final-newline", &
-                                                                  "next-screen-context-lines", &
-                                                                  "paragraph-ignore-fill-prefix", &
-                                                                  "paragraph-separate", &
-                                                                  "paragraph-start", &
-                                                                  "parse-sexp-ignore-comments", &
-                                                                  "pending-undo-list", &
+                                                                  "completion_auto_help", &
+                                                                  "completion_fail_discreetly", &
+                                                                  "completion_ignore_case", &
+                                                                  "completion_ignored_extensions", &
+                                                                  "completion_show_inline_help", &
+                                                                  "current_prefix_arg", &
+                                                                  "cycle_spacing_actions", &
+                                                                  "default_justification", &
+                                                                  "delete_active_region", &
+                                                                  "disabled_command_function", &
+                                                                  "enable_recursive_minibuffers", &
+                                                                  "fill_column", &
+                                                                  "fill_indent_according_to_mode", &
+                                                                  "fill_nobreak_predicate", &
+                                                                  "fill_prefix", &
+                                                                  "fill_separate_heterogeneous_words_with_space", &
+                                                                  "goal_column", &
+                                                                  "help_map", &
+                                                                  "help_mode_hook", &
+                                                                  "help_mode_map", &
+                                                                  "history_add_new_input", &
+                                                                  "history_length", &
+                                                                  "indent_line_function", &
+                                                                  "indent_tabs_mode", &
+                                                                  "indent_tabs_mode_hook", &
+                                                                  "inhibit_auto_fill", &
+                                                                  "inhibit_field_text_motion", &
+                                                                  "insert_default_directory", &
+                                                                  "isearch_lax_whitespace", &
+                                                                  "isearch_mode_map", &
+                                                                  "isearch_regexp_lax_whitespace", &
+                                                                  "kill_read_only_ok", &
+                                                                  "kill_ring_max", &
+                                                                  "kill_ring_yank_pointer", &
+                                                                  "kill_whole_line", &
+                                                                  "left_margin", &
+                                                                  "line_move_visual", &
+                                                                  "make_backup_files", &
+                                                                  "mark_even_if_inactive", &
+                                                                  "mark_ring_max", &
+                                                                  "minibuffer_completing_file_name", &
+                                                                  "mode_require_final_newline", &
+                                                                  "next_screen_context_lines", &
+                                                                  "paragraph_ignore_fill_prefix", &
+                                                                  "paragraph_separate", &
+                                                                  "paragraph_start", &
+                                                                  "parse_sexp_ignore_comments", &
+                                                                  "pending_undo_list", &
                                                                   "point", &
-                                                                  "prog-mode-hook", &
-                                                                  "prog-mode-map", &
-                                                                  "query-replace-defaults", &
-                                                                  "query-replace-show-replacement", &
-                                                                  "query-replace-skip-read-only", &
-                                                                  "regexp-search-ring-max", &
-                                                                  "replace-count", &
-                                                                  "replace-lax-whitespace", &
-                                                                  "replace-regexp-lax-whitespace", &
-                                                                  "require-final-newline", &
-                                                                  "scroll-error-top-bottom", &
-                                                                  "search-exit-option", &
-                                                                  "search-nonincremental-instead", &
-                                                                  "search-ring-max", &
-                                                                  "search-upper-case", &
-                                                                  "sentence-end", &
-                                                                  "sentence-end-double-space", &
-                                                                  "sentence-end-without-period", &
-                                                                  "special-mode-hook", &
-                                                                  "special-mode-map", &
-                                                                  "standard-indent", &
-                                                                  "suggest-key-bindings", &
-                                                                  "tab-always-indent", &
-                                                                  "tab-stop-list", &
-                                                                  "tab-width", &
-                                                                  "text-mode-hook", &
-                                                                  "text-mode-map", &
-                                                                  "text-mode-syntax-table", &
-                                                                  "text-mode-variant", &
-                                                                  "transient-mark-mode", &
-                                                                  "transient-mark-mode-hook", &
-                                                                  "undo-in-progress", &
-                                                                  "undo-no-redo", &
-                                                                  "visible-bell", &
-                                                                  "words-include-escapes"]
+                                                                  "prog_mode_hook", &
+                                                                  "prog_mode_map", &
+                                                                  "query_replace_defaults", &
+                                                                  "query_replace_show_replacement", &
+                                                                  "query_replace_skip_read_only", &
+                                                                  "regexp_search_ring_max", &
+                                                                  "replace_count", &
+                                                                  "replace_lax_whitespace", &
+                                                                  "replace_regexp_lax_whitespace", &
+                                                                  "require_final_newline", &
+                                                                  "scroll_error_top_bottom", &
+                                                                  "search_exit_option", &
+                                                                  "search_nonincremental_instead", &
+                                                                  "search_ring_max", &
+                                                                  "search_upper_case", &
+                                                                  "sentence_end", &
+                                                                  "sentence_end_double_space", &
+                                                                  "sentence_end_without_period", &
+                                                                  "special_mode_hook", &
+                                                                  "special_mode_map", &
+                                                                  "standard_indent", &
+                                                                  "suggest_key_bindings", &
+                                                                  "tab_always_indent", &
+                                                                  "tab_stop_list", &
+                                                                  "tab_width", &
+                                                                  "text_mode_hook", &
+                                                                  "text_mode_map", &
+                                                                  "text_mode_syntax_table", &
+                                                                  "text_mode_variant", &
+                                                                  "transient_mark_mode", &
+                                                                  "transient_mark_mode_hook", &
+                                                                  "undo_in_progress", &
+                                                                  "undo_no_redo", &
+                                                                  "visible_bell", &
+                                                                  "words_include_escapes"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -496,40 +496,40 @@ contains
         found = .true.
         entry%fortran = ""
         select case (name)
-        case ("abort-minibuffers")
+        case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Abort the current minibuffer."
-        case ("add-auto-mode")
+        case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
-            entry%doc = "Add (REGEXP . MODE) to the front of `auto-mode-alist', so files"//LF// &
+            entry%doc = "Add (REGEXP . MODE) to the front of `auto_mode_alist', so files"//LF// &
                         "whose names match REGEXP get major mode MODE.  The counterpart"//LF// &
                         "of (add-to-list 'auto-mode-alist '(REGEXP . MODE)).  (In"//LF// &
                         "files_mode_fm.)"
-        case ("auto-fill-mode")
+        case ("auto_fill_mode")
             entry%file = "simple_fill_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle automatic line breaking (Auto Fill mode)."//LF// &
                         ""//LF// &
                         "When Auto Fill mode is enabled, inserting a space at a column"//LF// &
-                        "beyond `current-fill-column' automatically breaks the line at a"//LF// &
+                        "beyond `current_fill_column' automatically breaks the line at a"//LF// &
                         "previous space."//LF// &
                         ""//LF// &
-                        "When `auto-fill-mode' is on, the `auto-fill-function' variable is"//LF// &
+                        "When `auto_fill_mode' is on, the `auto_fill_function' variable is"//LF// &
                         "non-nil."//LF// &
                         ""//LF// &
-                        "The value of `normal-auto-fill-function' specifies the function to use"//LF// &
-                        "for `auto-fill-function' when turning Auto Fill mode on.  ARG is"//LF// &
+                        "The value of `normal_auto_fill_function' specifies the function to use"//LF// &
+                        "for `auto_fill_function' when turning Auto Fill mode on.  ARG is"//LF// &
                         "the raw argument of a minor mode: nil or omitted toggles when"//LF// &
                         "TOGGLE, else enables; a positive number enables, zero or a"//LF// &
                         "negative number disables."
-        case ("back-to-indentation")
+        case ("back_to_indentation")
             entry%file = "simple_fm.f90"
             entry%fortran = "call back_to_indentation()"
             entry%interactive = .true.
             entry%doc = "Move point to the first non-whitespace character on this line."
-        case ("backward-char")
+        case ("backward_char")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call backward_char(status, n)"
             entry%interactive = .true.
@@ -540,28 +540,28 @@ contains
                         ""//LF// &
                         "Depending on the bidirectional context, the movement may be to the"//LF// &
                         "right or to the left on the screen.  This is in contrast with"//LF// &
-                        "\[left-char], which see."
-        case ("backward-kill-paragraph")
+                        "\[left_char], which see."
+        case ("backward_kill_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_kill_paragraph(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill back to start of paragraph."//LF// &
                         "With ARG N, kill back to Nth start of paragraph;"//LF// &
                         "negative ARG -N means kill forward to Nth end of paragraph."
-        case ("backward-kill-sentence")
+        case ("backward_kill_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_kill_sentence(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill back from point to start of sentence."//LF// &
                         "With ARG, repeat, or kill forward to Nth end of sentence if"//LF// &
                         "negative ARG -N."
-        case ("backward-kill-word")
+        case ("backward_kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_kill_word(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill characters backward until encountering the beginning of a word."//LF// &
                         "With argument ARG, do this that many times."
-        case ("backward-paragraph")
+        case ("backward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_paragraph(arg)"
             entry%interactive = .true.
@@ -570,20 +570,20 @@ contains
                         "a negative argument ARG = -N means move forward N paragraphs."//LF// &
                         ""//LF// &
                         "A paragraph start is the beginning of a line which is a"//LF// &
-                        "`paragraph-start' or which is ordinary text and follows a"//LF// &
-                        "`paragraph-separate'ing line; except: if the first real line of a"//LF// &
+                        "`paragraph_start' or which is ordinary text and follows a"//LF// &
+                        "`paragraph_separate'ing line; except: if the first real line of a"//LF// &
                         "paragraph is preceded by a blank line, the paragraph starts at that"//LF// &
                         "blank line."//LF// &
                         ""//LF// &
-                        "See `forward-paragraph' for more information."
-        case ("backward-sentence")
+                        "See `forward_paragraph' for more information."
+        case ("backward_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_sentence(arg)"
             entry%interactive = .true.
             entry%doc = "Move backward to start of sentence."//LF// &
-                        "With ARG, do it ARG times.  See `forward-sentence' for more"//LF// &
+                        "With ARG, do it ARG times.  See `forward_sentence' for more"//LF// &
                         "information."
-        case ("backward-word")
+        case ("backward_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_word(arg)"
             entry%interactive = .true.
@@ -593,8 +593,8 @@ contains
                         ""//LF// &
                         "The word boundaries are normally determined by the buffer's"//LF// &
                         "syntax table and character script (according to"//LF// &
-                        "`char-script-table')."
-        case ("beginning-of-buffer")
+                        "`char_script_table')."
+        case ("beginning_of_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point to the beginning of the buffer."//LF// &
@@ -605,7 +605,7 @@ contains
                         "Push mark at previous position, unless either a C-u prefix"//LF// &
                         "is supplied, or Transient Mark mode is enabled and the mark is"//LF// &
                         "active.  ARG is the raw prefix argument."
-        case ("beginning-of-line")
+        case ("beginning_of_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call beginning_of_line(n)"
             entry%interactive = .true.
@@ -617,9 +617,9 @@ contains
                         "point to a different line from the original, unconstrained result."//LF// &
                         "If N is nil or 1, and a front-sticky field starts at point, the point"//LF// &
                         "does not move.  To ignore field boundaries set"//LF// &
-                        "`inhibit-field-text-motion' to t, or use the `forward-line' function"//LF// &
+                        "`inhibit_field_text_motion' to t, or use the `forward_line' function"//LF// &
                         "instead."
-        case ("beginning-of-line-text")
+        case ("beginning_of_line_text")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
@@ -631,27 +631,27 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "bolp()"
             entry%doc = ""
-        case ("buffer-name")
+        case ("buffer_name")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call buffer_name(h, name, status)"
             entry%doc = ""
-        case ("buffer-substring")
+        case ("buffer_substring")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call buffer_substring(start, end, text, status)"
             entry%doc = "Text between `start' and `end' (either order)."
-        case ("canonically-space-region")
+        case ("canonically_space_region")
             entry%file = "fill_fm.f90"
             entry%fortran = "call canonically_space_region(beg, end, status)"
             entry%doc = "Remove extra spaces between words in region."//LF// &
                         "Leave one space between words, two at end of sentences or after colons"//LF// &
-                        "(depending on values of `sentence-end-double-space', `colon-double-space',"//LF// &
-                        "and `sentence-end-without-period')."//LF// &
+                        "(depending on values of `sentence_end_double_space', `colon_double_space',"//LF// &
+                        "and `sentence_end_without_period')."//LF// &
                         "Remove indentation from each line."
         case ("capitalize")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "capitalize_char(ch)"
             entry%doc = "Convert a character to capitalized form: title case or upper case."
-        case ("capitalize-region")
+        case ("capitalize_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call capitalize_region(beg, end, status)"
             entry%interactive = .true.
@@ -660,7 +660,7 @@ contains
                         "title case or upper case, and the rest to lower case."//LF// &
                         "In programs, give two arguments, the starting and ending character"//LF// &
                         "positions to operate on."
-        case ("capitalize-word")
+        case ("capitalize_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call capitalize_word(arg, status)"
             entry%interactive = .true.
@@ -673,67 +673,67 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, capitalize previous words but do not move."
-        case ("char-syntax")
+        case ("char_syntax")
             entry%file = "syntax_fm.f90"
             entry%fortran = "char_syntax(c)"
             entry%doc = "Return the syntax code of CHARACTER, described by a character."//LF// &
                         "For example, if CHARACTER is a word constituent, the"//LF// &
                         "character `w' (119) is returned."//LF// &
                         "The characters that correspond to various syntax codes"//LF// &
-                        "are listed in the documentation of `modify-syntax-entry'."
-        case ("copy-region-as-kill")
+                        "are listed in the documentation of `modify_syntax_entry'."
+        case ("copy_region_as_kill")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark.  Save the text between"//LF// &
                         "BEG and END, or with REGION true the region."
-        case ("copy-syntax-table")
+        case ("copy_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call copy_syntax_table(copy, status, from)"
             entry%doc = "Construct a new syntax table and return it."//LF// &
                         "It is a copy of the TABLE, which defaults to the standard syntax table."
-        case ("current-buffer")
+        case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
             entry%doc = ""
-        case ("current-fill-column")
+        case ("current_fill_column")
             entry%file = "fill_fm.f90"
             entry%fortran = "current_fill_column()"
             entry%doc = "Return the fill-column to use for this line."//LF// &
-                        "The fill-column to use for a buffer is stored in the variable `fill-column',"//LF// &
-                        "but can be locally modified by the `right-margin' text property, which is"//LF// &
-                        "subtracted from `fill-column'."//LF// &
+                        "The fill-column to use for a buffer is stored in the variable `fill_column',"//LF// &
+                        "but can be locally modified by the `right_margin' text property, which is"//LF// &
+                        "subtracted from `fill_column'."//LF// &
                         ""//LF// &
                         "The fill column to use for a line is the first column at which the column"//LF// &
                         "number equals or exceeds the local fill-column - right-margin difference."
-        case ("current-global-map")
+        case ("current_global_map")
             entry%file = "keymap_fm.f90"
             entry%fortran = "current_global_map()"
             entry%doc = "The global keymap, made (full) on first use."
-        case ("current-indentation")
+        case ("current_indentation")
             entry%file = "indent_fm.f90"
             entry%fortran = "current_indentation()"
             entry%doc = "Return the indentation of the current line."//LF// &
                         "This is the horizontal position of the character following any initial"//LF// &
                         "whitespace."
-        case ("current-justification")
+        case ("current_justification")
             entry%file = "fill_fm.f90"
             entry%fortran = "current_justification()"
             entry%doc = "How should we justify this line?"//LF// &
                         "This returns the value of the text-property `justification',"//LF// &
-                        "or the variable `default-justification' if there is no text-property."//LF// &
+                        "or the variable `default_justification' if there is no text-property."//LF// &
                         "However, it returns nil rather than `none' to mean ""don't justify""."
-        case ("current-kill")
+        case ("current_kill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call current_kill(n, text, status, do_not_move)"
             entry%doc = "Rotate the yanking point by N places, and then return that kill."//LF// &
                         "If DO_NOT_MOVE is true, then don't actually move the yanking point;"//LF// &
                         "just return the Nth kill forward."
-        case ("cycle-spacing")
+        case ("cycle_spacing")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Manipulate whitespace around point in a smart way."//LF// &
-                        "Repeated calls perform the actions in `cycle-spacing-actions' one"//LF// &
+                        "Repeated calls perform the actions in `cycle_spacing_actions' one"//LF// &
                         "after the other, wrapping around after the last one."//LF// &
                         ""//LF// &
                         "All actions are amendable using a prefix arg N.  In general, a"//LF// &
@@ -751,72 +751,72 @@ contains
                         "than provided at the initial invocation (except for 1), or by"//LF// &
                         "doing any other command before the next M-SPC.  N is the raw"//LF// &
                         "prefix argument."
-        case ("deactivate-mark")
+        case ("deactivate_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call deactivate_mark(force)"
             entry%doc = "Deactivate the mark."//LF// &
                         "If Transient Mark mode is disabled, this function normally does"//LF// &
                         "nothing; but if FORCE is true, it deactivates the mark anyway."
-        case ("default-indent-new-line")
+        case ("default_indent_new_line")
             entry%file = "simple_fm.f90"
             entry%fortran = "call default_indent_new_line(status, soft)"
             entry%interactive = .true.
             entry%doc = "Break line at point and indent."//LF// &
-                        "If a comment syntax is defined, call `comment-line-break-function'."//LF// &
+                        "If a comment syntax is defined, call `comment_line_break_function'."//LF// &
                         ""//LF// &
-                        "The inserted newline is marked hard if variable `use-hard-newlines' is true,"//LF// &
+                        "The inserted newline is marked hard if variable `use_hard_newlines' is true,"//LF// &
                         "unless optional argument SOFT is non-nil."
-        case ("delete-all-space")
+        case ("delete_all_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_all_space(backward_only, status)"
             entry%interactive = .true.
             entry%doc = "Delete all spaces, tabs, and newlines around point."//LF// &
                         "If BACKWARD-ONLY is non-nil, delete them only before point."
-        case ("delete-backward-char")
+        case ("delete_backward_char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Delete the previous N characters (following if N is negative)."//LF// &
                         "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
                         "delete the text in the region and deactivate the mark instead."//LF// &
-                        "To disable this, set option `delete-active-region' to nil."//LF// &
+                        "To disable this, set option `delete_active_region' to nil."//LF// &
                         ""//LF// &
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are killed (saved in the kill ring) instead of"//LF// &
                         "deleted."
-        case ("delete-blank-lines")
+        case ("delete_blank_lines")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_blank_lines(status)"
             entry%interactive = .true.
             entry%doc = "On blank line, delete all surrounding blank lines, leaving just one."//LF// &
                         "On isolated blank line, delete that one."//LF// &
                         "On nonblank line, delete any immediately following blank lines."
-        case ("delete-char")
+        case ("delete_char")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
                         "Interactively, N is the prefix arg."//LF// &
                         ""//LF// &
-                        "The command `delete-forward-char' is preferable for interactive use, e.g."//LF// &
-                        "because it respects values of `delete-active-region'."
-        case ("delete-forward-char")
+                        "The command `delete_forward_char' is preferable for interactive use, e.g."//LF// &
+                        "because it respects values of `delete_active_region'."
+        case ("delete_forward_char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
                         "If Transient Mark mode is enabled, the mark is active, and N is 1,"//LF// &
                         "delete the text in the region and deactivate the mark instead."//LF// &
-                        "To disable this, set variable `delete-active-region' to nil."//LF// &
+                        "To disable this, set variable `delete_active_region' to nil."//LF// &
                         ""//LF// &
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are killed (saved in the kill ring) instead of"//LF// &
                         "deleted."
-        case ("delete-horizontal-space")
+        case ("delete_horizontal_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_horizontal_space(backward_only, status)"
             entry%interactive = .true.
             entry%doc = "Delete all spaces and tabs around point."//LF// &
                         "If BACKWARD-ONLY is non-nil (interactively, the prefix argument), delete"//LF// &
                         "them only before point."
-        case ("delete-indentation")
+        case ("delete_indentation")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_indentation(arg, status, beg, end)"
             entry%interactive = .true.
@@ -828,17 +828,17 @@ contains
                         "define.  Interactively, BEG and END are, respectively, the start"//LF// &
                         "and end of the region if it is active, else nil.  (The region is"//LF// &
                         "ignored if prefix ARG is given.)"
-        case ("delete-other-windows")
+        case ("delete_other_windows")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_other_windows(window, status)"
             entry%interactive = .true.
             entry%doc = "Make WINDOW fill its frame."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."
-        case ("delete-region")
+        case ("delete_region")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call delete_region(start, end, status)"
             entry%doc = "Delete the text between `start' and `end' (either order)."
-        case ("delete-window")
+        case ("delete_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_window(window, status)"
             entry%interactive = .true.
@@ -849,37 +849,37 @@ contains
                         ""//LF// &
                         "If WINDOW is the selected window on its frame, choose some other"//LF// &
                         "window as that frame's selected window: the most recently used one."
-        case ("derived-mode-p")
+        case ("derived_mode_p")
             entry%file = "derived_fm.f90"
             entry%fortran = "derived_mode_p(mode)"
             entry%doc = "Return non-nil if the current major mode is derived from one of"//LF// &
                         "MODES (mode objects, or names)."
-        case ("describe-function")
+        case ("describe_function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of FUNCTION (a symbol)."
-        case ("describe-key")
+        case ("describe_key")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Display documentation of the function invoked by KEY-LIST."//LF// &
                         "Interactively, this command can't describe prefix commands, but"//LF// &
                         "will always wait for the user to type the complete key sequence."
-        case ("describe-key-briefly")
+        case ("describe_key_briefly")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Print the name of the function KEY-LIST invokes."
-        case ("describe-variable")
+        case ("describe_variable")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_variable(variable, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of VARIABLE (a symbol)."
-        case ("digit-argument")
+        case ("digit_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Part of the numeric argument for the next command."//LF// &
-                        "\[universal-argument] following digits or minus sign ends the argument."
-        case ("disable-command")
+                        "\[universal_argument] following digits or minus sign ends the argument."
+        case ("disable_command")
             entry%file = "novice_fm.f90"
             entry%fortran = "call disable_command(command, status)"
             entry%interactive = .true.
@@ -887,17 +887,17 @@ contains
                         "COMMAND must be a symbol."//LF// &
                         "This command alters your init file so that this choice applies to"//LF// &
                         "future sessions."
-        case ("do-auto-fill")
+        case ("do_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call do_auto_fill(status)"
-            entry%doc = "The default value for `normal-auto-fill-function'."//LF// &
+            entry%doc = "The default value for `normal_auto_fill_function'."//LF// &
                         "This is the default auto-fill function, some major modes use a different one."//LF// &
                         "Returns t if it really did any work."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "downcase_char(ch)"
             entry%doc = "Convert a character to lower case."
-        case ("downcase-region")
+        case ("downcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_region(beg, end, status)"
             entry%interactive = .true.
@@ -905,7 +905,7 @@ contains
                         "These arguments specify the starting and ending character numbers"//LF// &
                         "of the region to operate on.  When used as a command, the text"//LF// &
                         "between point and the mark is operated on."
-        case ("downcase-word")
+        case ("downcase_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_word(arg, status)"
             entry%interactive = .true.
@@ -915,7 +915,7 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."
-        case ("enable-command")
+        case ("enable_command")
             entry%file = "novice_fm.f90"
             entry%fortran = "call enable_command(command, status)"
             entry%interactive = .true.
@@ -923,7 +923,7 @@ contains
                         "COMMAND must be a symbol."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
                         "to future sessions."
-        case ("end-of-buffer")
+        case ("end_of_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point to the end of the buffer."//LF// &
@@ -934,7 +934,7 @@ contains
                         "Push mark at previous position, unless either a C-u prefix"//LF// &
                         "is supplied, or Transient Mark mode is enabled and the mark is"//LF// &
                         "active.  ARG is the raw prefix argument."
-        case ("end-of-line")
+        case ("end_of_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
             entry%interactive = .true.
@@ -945,7 +945,7 @@ contains
                         "This function constrains point to the current field unless this moves"//LF// &
                         "point to a different line from the original, unconstrained result.  If"//LF// &
                         "N is nil or 1, and a rear-sticky field ends at point, the point does"//LF// &
-                        "not move.  To ignore field boundaries set `inhibit-field-text-motion'"//LF// &
+                        "not move.  To ignore field boundaries set `inhibit_field_text_motion'"//LF// &
                         "to t."
         case ("eobp")
             entry%file = "editfns_fm.f90"
@@ -955,7 +955,7 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "eolp()"
             entry%doc = ""
-        case ("exchange-point-and-mark")
+        case ("exchange_point_and_mark")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Put the mark where point is now, and point where the mark is now."//LF// &
@@ -963,66 +963,66 @@ contains
                         "reactivates the mark.  If Transient Mark mode is on, a prefix ARG"//LF// &
                         "deactivates the mark if it is active, and otherwise avoids"//LF// &
                         "reactivating it."
-        case ("execute-extended-command")
+        case ("execute_extended_command")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Read a command name, then read the arguments and call the command."//LF// &
                         "To pass a prefix argument to the command you are invoking, give a"//LF// &
-                        "prefix argument to `execute-extended-command'."//LF// &
+                        "prefix argument to `execute_extended_command'."//LF// &
                         ""//LF// &
                         "This command provides completion when reading the command name."
-        case ("exit-minibuffer")
+        case ("exit_minibuffer")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Terminate this minibuffer argument."
-        case ("file-name-sans-versions")
+        case ("file_name_sans_versions")
             entry%file = "files_fm.f90"
             entry%fortran = "file_name_sans_versions(name)"
             entry%doc = "Return file NAME sans backup versions or strings."//LF// &
                         "This is a separate procedure so your site-init or startup file can"//LF// &
                         "redefine it."
-        case ("fill-french-nobreak-p")
+        case ("fill_french_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_french_nobreak_p()"
             entry%doc = "Return nil if French style allows breaking the line at point."//LF// &
-                        "This is used in `fill-nobreak-predicate' to prevent breaking lines just"//LF// &
+                        "This is used in `fill_nobreak_predicate' to prevent breaking lines just"//LF// &
                         "after an opening paren or just before a closing paren or a punctuation"//LF// &
                         "mark such as `?' or `:'.  It is common in French writing to put a space"//LF// &
                         "at such places, which would normally allow breaking the line at those"//LF// &
                         "places."
-        case ("fill-paragraph")
+        case ("fill_paragraph")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_paragraph(status, justify, region, used)"
             entry%interactive = .true.
             entry%doc = "Fill paragraph at or after point."//LF// &
                         ""//LF// &
                         "If JUSTIFY is non-nil (interactively, with prefix argument), justify as well."//LF// &
-                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "If `sentence_end_double_space' is non-nil, then period followed by one"//LF// &
                         "space does not end a sentence, so don't break a line there."//LF// &
-                        "The variable `fill-column' controls the width for filling."//LF// &
+                        "The variable `fill_column' controls the width for filling."//LF// &
                         ""//LF// &
-                        "Return the `fill-prefix' used for filling (`used')."//LF// &
+                        "Return the `fill_prefix' used for filling (`used')."//LF// &
                         ""//LF// &
                         "The REGION argument is non-nil if called interactively; in that"//LF// &
                         "case, if Transient Mark mode is enabled and the mark is active,"//LF// &
-                        "call `fill-region' to fill each of the paragraphs in the active"//LF// &
+                        "call `fill_region' to fill each of the paragraphs in the active"//LF// &
                         "region, instead of just filling the current paragraph."
-        case ("fill-polish-nobreak-p")
+        case ("fill_polish_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_polish_nobreak_p()"
             entry%doc = "Return nil if Polish style allows breaking the line at point."//LF// &
-                        "This function may be used in the `fill-nobreak-predicate' hook."//LF// &
-                        "It is almost the same as `fill-single-char-nobreak-p', with the"//LF// &
+                        "This function may be used in the `fill_nobreak_predicate' hook."//LF// &
+                        "It is almost the same as `fill_single_char_nobreak_p', with the"//LF// &
                         "exception that it does not require the one-letter word to be"//LF// &
                         "preceded by a space.  This blocks line-breaking in cases like"//LF// &
                         """(a jednak)""."
-        case ("fill-region")
+        case ("fill_region")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_region(from, to, status, justify, nosqueeze, to_eop, used)"
             entry%interactive = .true.
             entry%doc = "Fill each of the paragraphs in the region."//LF// &
                         "A prefix arg means justify as well."//LF// &
-                        "The `fill-column' variable controls the width."//LF// &
+                        "The `fill_column' variable controls the width."//LF// &
                         ""//LF// &
                         "Noninteractively, the third argument JUSTIFY specifies which"//LF// &
                         "kind of justification to do: `full', `left', `right', `center',"//LF// &
@@ -1032,81 +1032,81 @@ contains
                         "The fourth arg NOSQUEEZE non-nil means to leave whitespace other"//LF// &
                         "than line breaks untouched, and fifth arg TO-EOP non-nil means"//LF// &
                         "to keep filling to the end of the paragraph (or next hard newline,"//LF// &
-                        "if variable `use-hard-newlines' is on)."//LF// &
+                        "if variable `use_hard_newlines' is on)."//LF// &
                         ""//LF// &
-                        "Return the `fill-prefix' used for filling the last paragraph."//LF// &
+                        "Return the `fill_prefix' used for filling the last paragraph."//LF// &
                         ""//LF// &
-                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "If `sentence_end_double_space' is non-nil, then period followed by one"//LF// &
                         "space does not end a sentence, so don't break a line there."
-        case ("fill-region-as-paragraph")
+        case ("fill_region_as_paragraph")
             entry%file = "fill_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("fill-region-as-paragraph-default")
+        case ("fill_region_as_paragraph_default")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, u"// &
                             "sed, have_used)"
             entry%doc = "Fill the region as if it were a single paragraph."//LF// &
                         "This command removes any paragraph breaks in the region and"//LF// &
                         "extra newlines at the end, and indents and fills lines between the"//LF// &
-                        "margins given by the `current-left-margin' and `current-fill-column'"//LF// &
-                        "functions.  (In most cases, the variable `fill-column' controls the"//LF// &
+                        "margins given by the `current_left_margin' and `current_fill_column'"//LF// &
+                        "functions.  (In most cases, the variable `fill_column' controls the"//LF// &
                         "width.)  It leaves point at the beginning of the line following the"//LF// &
                         "region."//LF// &
                         ""//LF// &
                         "Normally, the command performs justification according to"//LF// &
-                        "the `current-justification' function, but with a prefix arg, it"//LF// &
+                        "the `current_justification' function, but with a prefix arg, it"//LF// &
                         "does full justification instead."//LF// &
                         ""//LF// &
-                        "JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current-justification')"//LF// &
-                        "can specify any type of justification; see `default-justification'"//LF// &
+                        "JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current_justification')"//LF// &
+                        "can specify any type of justification; see `default_justification'"//LF// &
                         "for the possible values."//LF// &
                         "Optional fourth arg NOSQUEEZE non-nil means not to make spaces"//LF// &
                         "between words canonical before filling."//LF// &
                         "Fifth arg SQUEEZE-AFTER, if non-nil, should be a buffer position; it"//LF// &
                         "means canonicalize spaces only starting from that position."//LF// &
-                        "See `canonically-space-region' for the meaning of canonicalization"//LF// &
+                        "See `canonically_space_region' for the meaning of canonicalization"//LF// &
                         "of spaces."//LF// &
                         ""//LF// &
-                        "Return the `fill-prefix' used for filling (`used', with"//LF// &
+                        "Return the `fill_prefix' used for filling (`used', with"//LF// &
                         "`have_used' false for nil)."//LF// &
                         ""//LF// &
-                        "If `sentence-end-double-space' is non-nil, then period followed by one"//LF// &
+                        "If `sentence_end_double_space' is non-nil, then period followed by one"//LF// &
                         "space does not end a sentence, so don't break a line there."
-        case ("fill-single-char-nobreak-p")
+        case ("fill_single_char_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_single_char_nobreak_p()"
             entry%doc = "Return non-nil if a one-letter word is before point."//LF// &
-                        "This function is suitable for adding to the hook `fill-nobreak-predicate',"//LF// &
+                        "This function is suitable for adding to the hook `fill_nobreak_predicate',"//LF// &
                         "to prevent the breaking of a line just after a one-letter word,"//LF// &
                         "which is an error according to some typographical conventions.  Port"//LF// &
                         "of fill.el:fill-single-char-nobreak-p."
-        case ("fill-single-word-nobreak-p")
+        case ("fill_single_word_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_single_word_nobreak_p()"
             entry%doc = "Don't break a line after the first or before the last word of a sentence."
-        case ("find-file")
+        case ("find_file")
             entry%file = "files_fm.f90"
             entry%fortran = "call find_file(filename, status)"
             entry%interactive = .true.
             entry%doc = "Edit file FILENAME."//LF// &
-                        "\<minibuffer-local-map>Switch to a buffer visiting file FILENAME, creating one if none"//LF// &
+                        "\<minibuffer_local_map>Switch to a buffer visiting file FILENAME, creating one if none"//LF// &
                         "already exists."//LF// &
                         "Interactively, the default if you just type RET is the current directory,"//LF// &
                         "but the visited file name is available through the minibuffer history:"//LF// &
-                        "type \[next-history-element] to pull it into the minibuffer."
-        case ("fixup-whitespace")
+                        "type \[next_history_element] to pull it into the minibuffer."
+        case ("fixup_whitespace")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fixup_whitespace(status)"
             entry%interactive = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
-        case ("format-error")
+        case ("format_error")
             entry%file = "error_fm.f90"
             entry%fortran = "format_error(status)"
-            entry%doc = "Human-readable text for `status', like `error-message-string':"//LF// &
+            entry%doc = "Human-readable text for `status', like `error_message_string':"//LF// &
                         """MESSAGE: DETAIL"", or just DETAIL for user-error."
-        case ("forward-char")
+        case ("forward_char")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call forward_char(status, n)"
             entry%interactive = .true.
@@ -1117,8 +1117,8 @@ contains
                         ""//LF// &
                         "Depending on the bidirectional context, the movement may be to the"//LF// &
                         "right or to the left on the screen.  This is in contrast with"//LF// &
-                        "\[right-char], which see."
-        case ("forward-line")
+                        "\[right_char], which see."
+        case ("forward_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "forward_line(n)"
             entry%interactive = .true.
@@ -1136,9 +1136,9 @@ contains
                         "line successfully moved (for the return value).  This means in that case"//LF// &
                         "it returns one less than the number of lines left to move."//LF// &
                         ""//LF// &
-                        "The command C-n (\[next-line]) can also be used to move to the next"//LF// &
+                        "The command C-n (\[next_line]) can also be used to move to the next"//LF// &
                         "line."
-        case ("forward-paragraph")
+        case ("forward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "forward_paragraph(arg)"
             entry%interactive = .true.
@@ -1146,21 +1146,21 @@ contains
                         "With argument ARG, do it ARG times;"//LF// &
                         "a negative argument ARG = -N means move backward N paragraphs."//LF// &
                         ""//LF// &
-                        "A line which `paragraph-start' matches either separates paragraphs"//LF// &
-                        "(if `paragraph-separate' matches it also) or is the first line of a paragraph."//LF// &
+                        "A line which `paragraph_start' matches either separates paragraphs"//LF// &
+                        "(if `paragraph_separate' matches it also) or is the first line of a paragraph."//LF// &
                         "A paragraph end is the beginning of a line which is not part of the paragraph"//LF// &
                         "to which the end of the previous line belongs, or the end of the buffer."
-        case ("forward-sentence")
+        case ("forward_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call forward_sentence(arg)"
             entry%interactive = .true.
             entry%doc = "Move forward to next end of sentence.  With argument ARG, repeat."//LF// &
                         "If ARG is negative, move backward repeatedly to start of sentence."//LF// &
                         ""//LF// &
-                        "The variable `sentence-end' is a regular expression that matches"//LF// &
+                        "The variable `sentence_end' is a regular expression that matches"//LF// &
                         "ends of sentences.  Also, every paragraph boundary terminates"//LF// &
                         "sentences as well."
-        case ("forward-word")
+        case ("forward_word")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call forward_word(arg, ok)"
             entry%interactive = .true.
@@ -1170,80 +1170,80 @@ contains
                         "left there."//LF// &
                         ""//LF// &
                         "The word boundaries are normally determined by the buffer's syntax"//LF// &
-                        "table and character script (according to `char-script-table')."
-        case ("fundamental-mode")
+                        "table and character script (according to `char_script_table')."
+        case ("fundamental_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fundamental_mode(status)"
             entry%interactive = .true.
             entry%doc = "Major mode not specialized for anything in particular."//LF// &
                         "Other major modes are defined by comparison with this one."
-        case ("get-buffer-create")
+        case ("get_buffer_create")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
             entry%doc = "Live buffer named `name', created (empty, multibyte) if needed."//LF// &
                         "The first buffer created becomes current."
-        case ("global-set-key")
+        case ("global_set_key")
             entry%file = "subr_fm.f90"
             entry%fortran = "call global_set_key(key, command, status)"
             entry%doc = "Give KEY a global binding as COMMAND (a command name or any key"//LF// &
                         "definition)."
-        case ("goto-char")
+        case ("goto_char")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call goto_char(position)"
             entry%doc = "Set point to `position', clipped to the accessible region."
-        case ("help-mode")
+        case ("help_mode")
             entry%file = "help_mode_fm.f90"
             entry%interactive = .true.
             entry%doc = "Major mode for viewing help text and navigating references in it."
-        case ("help-quit")
+        case ("help_quit")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Just exit from the Help command's command loop."
-        case ("indent-according-to-mode")
+        case ("indent_according_to_mode")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-for-tab-command")
+        case ("indent_for_tab_command")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-region")
+        case ("indent_region")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-relative")
+        case ("indent_relative")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-relative-first-indent-point")
+        case ("indent_relative_first_indent_point")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-rigidly")
+        case ("indent_rigidly")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-rigidly-left")
+        case ("indent_rigidly_left")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-rigidly-left-to-tab-stop")
+        case ("indent_rigidly_left_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-rigidly-right")
+        case ("indent_rigidly_right")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-rigidly-right-to-tab-stop")
+        case ("indent_rigidly_right_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("indent-tabs-mode")
+        case ("indent_tabs_mode")
             entry%file = "simple_modes_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle whether indentation can insert TAB characters."
-        case ("indent-to")
+        case ("indent_to")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_to(column, status, minimum)"
             entry%interactive = .true.
@@ -1251,80 +1251,80 @@ contains
                         "Optional second argument MINIMUM says always do at least MINIMUM spaces"//LF// &
                         "even if that goes past COLUMN; by default, MINIMUM is zero."//LF// &
                         ""//LF// &
-                        "Whether this uses tabs or spaces depends on `indent-tabs-mode'."//LF// &
+                        "Whether this uses tabs or spaces depends on `indent_tabs_mode'."//LF// &
                         ""//LF// &
                         "The return value is the column where the insertion ends."
         case ("insert")
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
             entry%doc = "Insert `string' (in the buffer's representation) before point."
-        case ("isearch-abort")
+        case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Abort incremental search mode if searching is successful, signaling"//LF// &
                         "quit.  Otherwise, revert to previous successful search and continue"//LF// &
-                        "searching.  Use `isearch-exit' to quit without signaling."
-        case ("isearch-backward")
+                        "searching.  Use `isearch_exit' to quit without signaling."
+        case ("isearch_backward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_command(status)"
             entry%interactive = .true.
             entry%doc = "Do incremental search backward."//LF// &
                         "With a prefix argument, do a regular expression search instead."//LF// &
-                        "See the command `isearch-forward' for more information."
-        case ("isearch-backward-regexp")
+                        "See the command `isearch_forward' for more information."
+        case ("isearch_backward_regexp")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_backward_regexp_command(status)"
             entry%interactive = .true.
             entry%doc = "Do incremental search backward for regular expression."//LF// &
                         "With a prefix argument, do a regular string search instead."//LF// &
                         "Like ordinary incremental search except that your input is treated"//LF// &
-                        "as a regexp.  See the command `isearch-forward-regexp' for more"//LF// &
+                        "as a regexp.  See the command `isearch_forward_regexp' for more"//LF// &
                         "information."
-        case ("isearch-beginning-of-buffer")
+        case ("isearch_beginning_of_buffer")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Go to the first occurrence of the current search string."//LF// &
                         "Move point to the beginning of the buffer and search forwards from"//LF// &
                         "the top.  With a numeric argument, go to the ARGth absolute"//LF// &
                         "occurrence counting from the beginning of the buffer."
-        case ("isearch-cancel")
+        case ("isearch_cancel")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Terminate the search and go back to the starting point."
-        case ("isearch-del-char")
+        case ("isearch_del_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Delete character from end of search string and search again."//LF// &
-                        "Unlike `isearch-delete-char', it only deletes the last character,"//LF// &
+                        "Unlike `isearch_delete_char', it only deletes the last character,"//LF// &
                         "but doesn't cancel the effect of other isearch command."//LF// &
                         "If search string is empty, just beep."
-        case ("isearch-delete-char")
+        case ("isearch_delete_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Undo last input item during a search."//LF// &
                         "An input item is the result of a command that pushes a new state"//LF// &
-                        "of isearch to `isearch-cmds'.  If no input items have been entered"//LF// &
+                        "of isearch to `isearch_cmds'.  If no input items have been entered"//LF// &
                         "yet, just beep."
-        case ("isearch-edit-string")
+        case ("isearch_edit_string")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Edit the search string in the minibuffer."//LF// &
                         "RET resumes incremental searching with the edited string."
-        case ("isearch-end-of-buffer")
+        case ("isearch_end_of_buffer")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Go to the last occurrence of the current search string."//LF// &
                         "Move point to the end of the buffer and search backwards from the"//LF// &
                         "bottom.  With a numeric argument, go to the ARGth absolute"//LF// &
                         "occurrence counting from the end of the buffer."
-        case ("isearch-exit")
+        case ("isearch_exit")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Exit search normally."//LF// &
                         "However, if this is the first command after starting incremental"//LF// &
-                        "search and `search-nonincremental-instead' is non-nil, do a"//LF// &
-                        "nonincremental search instead via `isearch-edit-string'."
-        case ("isearch-forward")
+                        "search and `search_nonincremental_instead' is non-nil, do a"//LF// &
+                        "nonincremental search instead via `isearch_edit_string'."
+        case ("isearch_forward")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_forward_command(status)"
             entry%interactive = .true.
@@ -1342,124 +1342,124 @@ contains
                         "executed normally.  C-g while searching or when search has failed"//LF// &
                         "cancels input back to what has been found successfully.  C-g when"//LF// &
                         "search is successful aborts and moves point to starting point."
-        case ("isearch-forward-regexp")
+        case ("isearch_forward_regexp")
             entry%file = "isearch_fm.f90"
             entry%fortran = "call isearch_forward_regexp_command(status)"
             entry%interactive = .true.
             entry%doc = "Do incremental search forward for regular expression."//LF// &
                         "With a prefix argument, do a regular string search instead."//LF// &
                         "Like ordinary incremental search except that your input is treated"//LF// &
-                        "as a regexp.  See the command `isearch-forward' for more"//LF// &
+                        "as a regexp.  See the command `isearch_forward' for more"//LF// &
                         "information."//LF// &
                         ""//LF// &
                         "In incremental searches, a space or spaces normally matches any"//LF// &
-                        "whitespace defined by the variable `search-whitespace-regexp'.  To"//LF// &
+                        "whitespace defined by the variable `search_whitespace_regexp'.  To"//LF// &
                         "search for a literal space and nothing else, enter C-q SPC.  To"//LF// &
-                        "toggle whitespace matching, use `isearch-toggle-lax-whitespace',"//LF// &
+                        "toggle whitespace matching, use `isearch_toggle_lax_whitespace',"//LF// &
                         "usually bound to `M-s SPC' during isearch.  This command does not"//LF// &
                         "support character folding."
-        case ("isearch-printing-char")
+        case ("isearch_printing_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Add this ordinary printing CHAR to the search string and search."//LF// &
                         "With argument, add COUNT copies of the character."
-        case ("isearch-quote-char")
+        case ("isearch_quote_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Quote special characters for incremental search."//LF// &
                         "With argument, add COUNT copies of the character."
-        case ("isearch-repeat-backward")
+        case ("isearch_repeat_backward")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Repeat incremental search backwards."//LF// &
                         "With a numeric argument, repeat the search ARG times."//LF// &
                         "A negative argument searches forwards."
-        case ("isearch-repeat-forward")
+        case ("isearch_repeat_forward")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Repeat incremental search forwards."//LF// &
                         "With a numeric argument, repeat the search ARG times."//LF// &
                         "A negative argument searches backwards."
-        case ("isearch-ring-advance")
+        case ("isearch_ring_advance")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Advance to the next search string in the ring."
-        case ("isearch-ring-retreat")
+        case ("isearch_ring_retreat")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Retreat to the previous search string in the ring."
-        case ("isearch-toggle-case-fold")
+        case ("isearch_toggle_case_fold")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle case folding in searching on or off."//LF// &
-                        "Toggles the value of the variable `isearch-case-fold-search'."
-        case ("isearch-toggle-lax-whitespace")
+                        "Toggles the value of the variable `isearch_case_fold_search'."
+        case ("isearch_toggle_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle lax-whitespace searching on or off."//LF// &
                         "In ordinary search, toggles the value of the variable"//LF// &
-                        "`isearch-lax-whitespace'.  In regexp search, toggles the value of"//LF// &
-                        "the variable `isearch-regexp-lax-whitespace'."
-        case ("isearch-toggle-regexp")
+                        "`isearch_lax_whitespace'.  In regexp search, toggles the value of"//LF// &
+                        "the variable `isearch_regexp_lax_whitespace'."
+        case ("isearch_toggle_regexp")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle regexp searching on or off."
-        case ("isearch-yank-char")
+        case ("isearch_yank_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Pull next character from buffer into search string."//LF// &
                         "If optional ARG is non-nil, pull in the next ARG characters.  Port"//LF// &
                         "of isearch.el:isearch-yank-char."
-        case ("isearch-yank-kill")
+        case ("isearch_yank_kill")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Pull string from kill ring into search string."
-        case ("isearch-yank-line")
+        case ("isearch_yank_line")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Pull rest of line from buffer into search string."//LF// &
                         "If optional ARG is non-nil, yank the next ARG lines."
-        case ("isearch-yank-pop-only")
+        case ("isearch_yank_pop_only")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Replace just-yanked search string with previously killed string."//LF// &
                         "When this command is called not immediately after a"//LF// &
-                        "`isearch-yank-kill' or a `isearch-yank-pop-only', it only pops the"//LF// &
+                        "`isearch_yank_kill' or a `isearch_yank_pop_only', it only pops the"//LF// &
                         "last killed string."
-        case ("isearch-yank-word-or-char")
+        case ("isearch_yank_word_or_char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
             entry%doc = "Pull next character or word from buffer into search string."//LF// &
                         "If optional ARG is non-nil, pull in the next ARG characters/words."
-        case ("join-line")
+        case ("join_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("just-one-space")
+        case ("just_one_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call just_one_space(n, status)"
             entry%interactive = .true.
             entry%doc = "Delete all spaces and tabs around point, leaving one space (or N spaces)."//LF// &
                         "Interactively, N is the prefix numeric argument."//LF// &
                         "If N is negative, delete newlines as well, leaving -N spaces."//LF// &
-                        "See also `cycle-spacing'."
-        case ("justify-current-line")
+                        "See also `cycle_spacing'."
+        case ("justify_current_line")
             entry%file = "fill_fm.f90"
             entry%fortran = "call justify_current_line(status, how_in, eop, nosqueeze)"
             entry%interactive = .true.
             entry%doc = "Do some kind of justification on this line."//LF// &
                         "Normally does full justification: adds spaces to the line to make it end at"//LF// &
-                        "the column given by `current-fill-column'."//LF// &
+                        "the column given by `current_fill_column'."//LF// &
                         "Optional first argument HOW specifies alternate type of justification:"//LF// &
                         "it can be `left', `right', `full', `center', or `none'; for their"//LF// &
-                        "meaning, see `default-justification'."//LF// &
-                        "If HOW is t, will justify however the `current-justification' function says to."//LF// &
+                        "meaning, see `default_justification'."//LF// &
+                        "If HOW is t, will justify however the `current_justification' function says to."//LF// &
                         "If HOW is nil or missing, full justification is done by default."//LF// &
                         "Second arg EOP non-nil means that this is the last line of the paragraph, so"//LF// &
                         "it will not be stretched by full justification."//LF// &
                         "Third arg NOSQUEEZE non-nil means to leave interior whitespace unchanged,"//LF// &
                         "otherwise it is made canonical."
-        case ("key-valid-p")
+        case ("key_valid_p")
             entry%file = "keymap_fm.f90"
             entry%fortran = "key_valid_p(keys)"
             entry%doc = "Return non-nil if KEYS, a key sequence, is valid."//LF// &
@@ -1471,21 +1471,21 @@ contains
                         """<f1>"" or ""<mouse-1>"", or one of NUL, RET, TAB, LFD, ESC, SPC, DEL."//LF// &
                         "Keys of a sequence are separated by single spaces.  Control and"//LF// &
                         "Meta'd characters are not accepted as keys: write ""C-a"" and ""M-a""."
-        case ("keyboard-quit")
+        case ("keyboard_quit")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Signal a `quit' condition."//LF// &
                         "At top-level, as an editor command, this simply beeps."
-        case ("keymap-global-set")
+        case ("keymap_global_set")
             entry%file = "keymap_fm.f90"
             entry%fortran = "call keymap_global_set(key, command, status)"
             entry%doc = "Bind a key in the global map; see `keymap_set'."
-        case ("keymap-set")
+        case ("keymap_set")
             entry%file = "keymap_fm.f90"
             entry%fortran = "call keymap_set(keymap, key, definition, status)"
             entry%doc = "Bind a key given as a `key_valid_p' string.  A character `command'"//LF// &
                         "names a command (a symbol); a value is any key definition."
-        case ("kill-buffer")
+        case ("kill_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call kill_buffer(h, status)"
             entry%interactive = .true.
@@ -1495,28 +1495,28 @@ contains
                         ""//LF// &
                         "A modified buffer visiting a file is killed only after asking (and"//LF// &
                         "perhaps saving it)."
-        case ("kill-line")
+        case ("kill_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Kill the rest of the current line; if no nonblanks there, kill thru"//LF// &
                         "newline.  With prefix argument ARG, kill that many lines from point."//LF// &
                         "Negative arguments kill lines backward.  With zero argument, kills"//LF// &
                         "the text before point on the current line."
-        case ("kill-new")
+        case ("kill_new")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_new(string, replace)"
             entry%doc = "Make STRING the latest kill in the kill ring."//LF// &
                         "Set `kill_ring_yank_pointer' to point to it."//LF// &
                         "REPLACE true means that STRING will replace the front of the kill"//LF// &
                         "ring, rather than being added to the list."
-        case ("kill-paragraph")
+        case ("kill_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_paragraph(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill forward to end of paragraph."//LF// &
                         "With ARG N, kill forward to Nth end of paragraph;"//LF// &
                         "negative ARG -N means kill backward to Nth start of paragraph."
-        case ("kill-region")
+        case ("kill_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_region(beg, end, status, region, read_only_ok)"
             entry%interactive = .true.
@@ -1534,70 +1534,70 @@ contains
                         ""//LF// &
                         "With REGION true, kill the region instead of BEG to END (the"//LF// &
                         "command always does)."
-        case ("kill-ring-save")
+        case ("kill_ring_save")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark."
-        case ("kill-sentence")
+        case ("kill_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_sentence(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill from point to end of sentence."//LF// &
                         "With ARG, repeat; negative ARG -N means kill back to Nth start of"//LF// &
                         "sentence."
-        case ("kill-whole-line")
+        case ("kill_whole_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Kill current line."//LF// &
                         "With prefix ARG, kill that many lines starting from the current line."//LF// &
                         "If ARG is negative, kill backward.  Also kill the preceding newline."//LF// &
                         "If ARG is zero, kill current line but exclude the trailing newline."
-        case ("kill-word")
+        case ("kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_word(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill characters forward until encountering the end of a word."//LF// &
                         "With argument ARG, do this that many times."
-        case ("left-char")
+        case ("left_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N characters to the left (to the right if N is negative)."//LF// &
                         "On reaching beginning or end of buffer, stop and signal error."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
-                        "\[backward-char]."
-        case ("left-word")
+                        "\[backward_char]."
+        case ("left_word")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N words to the left (to the right if N is negative)."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves backward in the buffer, like"//LF// &
-                        "\[backward-word]."//LF// &
+                        "\[backward_word]."//LF// &
                         ""//LF// &
                         "The word boundaries are normally determined by the buffer's syntax"//LF// &
-                        "table and character script (according to `char-script-table')."//LF// &
+                        "table and character script (according to `char_script_table')."//LF// &
                         ""//LF// &
                         "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
-                        "Field boundaries are not noticed if `inhibit-field-text-motion' is"//LF// &
+                        "Field boundaries are not noticed if `inhibit_field_text_motion' is"//LF// &
                         "non-nil."
-        case ("looking-at")
+        case ("looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "looking_at(regexp, status, inhibit_modify)"
             entry%doc = "Return t if text after point matches regular expression REGEXP."//LF// &
                         "By default, this function modifies the match data that"//LF// &
-                        "`match-beginning', `match-end' and `match-data' access.  If"//LF// &
+                        "`match_beginning', `match_end' and `match_data' access.  If"//LF// &
                         "INHIBIT-MODIFY is non-nil, don't modify the match data."
-        case ("looking-at-p")
+        case ("looking_at_p")
             entry%file = "subr_fm.f90"
             entry%fortran = "looking_at_p(regexp, status)"
-            entry%doc = "Same as `looking-at' except this function does not change the match"//LF// &
+            entry%doc = "Same as `looking_at' except this function does not change the match"//LF// &
                         "data."
-        case ("looking-back")
+        case ("looking_back")
             entry%file = "subr_fm.f90"
             entry%fortran = "looking_back(regexp, status, limit, greedy)"
             entry%doc = "Return non-nil if text before point matches regular expression"//LF// &
-                        "REGEXP.  Like `looking-at' except matches before point, and is"//LF// &
+                        "REGEXP.  Like `looking_at' except matches before point, and is"//LF// &
                         "slower.  LIMIT if non-nil speeds up the search by specifying a"//LF// &
                         "minimum starting position, to avoid checking matches that would"//LF// &
                         "start before LIMIT."//LF// &
@@ -1607,26 +1607,26 @@ contains
                         "of a match for REGEXP.  When the match is extended, its starting"//LF// &
                         "position is allowed to occur before LIMIT."//LF// &
                         ""//LF// &
-                        "As a general recommendation, try to avoid using `looking-back'"//LF// &
+                        "As a general recommendation, try to avoid using `looking_back'"//LF// &
                         "wherever possible, since it is slow."
-        case ("major-mode-named")
+        case ("major_mode_named")
             entry%file = "derived_fm.f90"
             entry%fortran = "major_mode_named(name)"
             entry%doc = "The defined major mode named NAME, or null."
-        case ("make-syntax-table")
+        case ("make_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call make_syntax_table(h, status, oldtable)"
             entry%doc = "Return a new syntax table."//LF// &
                         "Create a syntax table that inherits from OLDTABLE (if non-nil) or"//LF// &
-                        "from `standard-syntax-table' otherwise."
-        case ("map-query-replace-regexp")
+                        "from `standard_syntax_table' otherwise."
+        case ("map_query_replace_regexp")
             entry%file = "replace_fm.f90"
             entry%fortran = "call map_query_replace_regexp(regexp, to_strings, status, n, start, end)"
             entry%interactive = .true.
             entry%doc = "Replace some matches for REGEXP with various strings, in rotation."//LF// &
                         "The second argument TO-STRINGS contains the replacement strings,"//LF// &
                         "separated by spaces.  This command works like"//LF// &
-                        "`query-replace-regexp' except that each successive replacement"//LF// &
+                        "`query_replace_regexp' except that each successive replacement"//LF// &
                         "uses the next successive replacement string, wrapping around from"//LF// &
                         "the last such string to the first."//LF// &
                         ""//LF// &
@@ -1643,7 +1643,7 @@ contains
                         "before rotating to the next."//LF// &
                         "Fourth and fifth arg START and END specify the region to operate on."//LF// &
                         ""//LF// &
-                        "Arguments REGEXP, START, and END are passed to `perform-replace'"//LF// &
+                        "Arguments REGEXP, START, and END are passed to `perform_replace'"//LF// &
                         "(which see)."
         case ("mark")
             entry%file = "simple_fm.f90"
@@ -1654,15 +1654,15 @@ contains
                         "the mark is not active.  However, if `mark_even_if_inactive' is true,"//LF// &
                         "or the argument FORCE is true, it disregards whether the mark"//LF// &
                         "is active, and returns an integer or 0 in the usual way."
-        case ("mark-end-of-sentence")
+        case ("mark_end_of_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call mark_end_of_sentence(arg)"
             entry%interactive = .true.
             entry%doc = "Put mark at end of sentence."//LF// &
-                        "ARG works as in `forward-sentence'.  If this command is repeated,"//LF// &
+                        "ARG works as in `forward_sentence'.  If this command is repeated,"//LF// &
                         "it marks the next ARG sentences after the ones already marked.  Port"//LF// &
                         "of paragraphs.el:mark-end-of-sentence."
-        case ("mark-paragraph")
+        case ("mark_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call mark_paragraph(arg, allow_extend, status)"
             entry%interactive = .true.
@@ -1678,14 +1678,14 @@ contains
                         "Interactively (or if ALLOW-EXTEND is non-nil), if this command is"//LF// &
                         "repeated or (in Transient Mark mode) if the mark is active,"//LF// &
                         "it marks the next ARG paragraphs after the ones already marked."
-        case ("mark-whole-buffer")
+        case ("mark_whole_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Put point at beginning and mark at end of buffer."//LF// &
                         "Also push mark at point before pushing mark at end of buffer."//LF// &
                         "If narrowing is in effect, uses only the accessible part of the"//LF// &
                         "buffer."
-        case ("mark-word")
+        case ("mark_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call mark_word(arg, have_arg, allow_extend)"
             entry%interactive = .true.
@@ -1693,7 +1693,7 @@ contains
                         "With ALLOW-EXTEND false, mark is set ARG words from point."//LF// &
                         "With ARG given (`have_arg') and ALLOW-EXTEND (interactively, with"//LF// &
                         "prefix argument), the place to which mark goes is the same place"//LF// &
-                        "\[forward-word] would move to with the same argument; if the mark"//LF// &
+                        "\[forward_word] would move to with the same argument; if the mark"//LF// &
                         "is active, it moves ARG words from its current position, otherwise"//LF// &
                         "it is set ARG words from point."//LF// &
                         "When invoked interactively without a prefix argument and no active"//LF// &
@@ -1703,8 +1703,8 @@ contains
                         "if mark is at or after point, back if mark is before point), thus"//LF// &
                         "extending the region by one word.  Since the direction of region"//LF// &
                         "extension depends on the relative position of mark and point, you"//LF// &
-                        "can change the direction by \[exchange-point-and-mark]."
-        case ("match-beginning")
+                        "can change the direction by \[exchange_point_and_mark]."
+        case ("match_beginning")
             entry%file = "search_fm.f90"
             entry%fortran = "match_beginning(subexp, status)"
             entry%doc = "Return position of start of text matched by last search."//LF// &
@@ -1716,7 +1716,7 @@ contains
                         "whole string."//LF// &
                         ""//LF// &
                         "Return value is undefined if the last search failed."
-        case ("match-data")
+        case ("match_data")
             entry%file = "search_fm.f90"
             entry%fortran = "match_data()"
             entry%doc = "Return a list of positions that record text matched by the last"//LF// &
@@ -1724,13 +1724,13 @@ contains
                         "beginning of the match of the Nth subexpression; it corresponds to"//LF// &
                         "`(match-beginning N)'; element 2N + 1 is the position of the end of"//LF// &
                         "the match of the Nth subexpression; it corresponds to `(match-end"//LF// &
-                        "N)'.  See `match-beginning' and `match-end'.  Positions are"//LF// &
+                        "N)'.  See `match_beginning' and `match_end'.  Positions are"//LF// &
                         "integers, 0 (nil) when the Nth pair didn't match; trailing nils are"//LF// &
                         "left out."//LF// &
                         ""//LF// &
-                        "Use `set-match-data' to reinstate the match data from the elements"//LF// &
+                        "Use `set_match_data' to reinstate the match data from the elements"//LF// &
                         "of this list."
-        case ("match-end")
+        case ("match_end")
             entry%file = "search_fm.f90"
             entry%fortran = "match_end(subexp, status)"
             entry%doc = "Return position of end of text matched by last search."//LF// &
@@ -1742,7 +1742,7 @@ contains
                         "whole string."//LF// &
                         ""//LF// &
                         "Return value is undefined if the last search failed."
-        case ("match-string")
+        case ("match_string")
             entry%file = "subr_fm.f90"
             entry%fortran = "match_string(num, string, matched)"
             entry%doc = "Return the string of text matched by the previous search or regexp"//LF// &
@@ -1753,10 +1753,10 @@ contains
                         "The return value is nil (`matched' false, an empty string) if NUMth"//LF// &
                         "pair didn't match, or there were less than NUM pairs."//LF// &
                         ""//LF// &
-                        "STRING should be given if the last search was by `string-match' on"//LF// &
+                        "STRING should be given if the last search was by `string_match' on"//LF// &
                         "STRING.  If STRING is nil, the current buffer should be the same"//LF// &
                         "buffer as the one in which the search/match was performed."
-        case ("match-string-no-properties")
+        case ("match_string_no_properties")
             entry%file = "subr_fm.f90"
             entry%fortran = "match_string_no_properties(num, string, matched)"
             entry%doc = "Return string of text matched by last search, without text"//LF// &
@@ -1764,22 +1764,22 @@ contains
                         "last regexp.  Value is nil if NUMth pair didn't match, or there"//LF// &
                         "were less than NUM pairs.  Zero means the entire text matched by"//LF// &
                         "the whole regexp or whole string.  STRING should be given if the"//LF// &
-                        "last search was by `string-match' on STRING.  If STRING is nil, the"//LF// &
+                        "last search was by `string_match' on STRING.  If STRING is nil, the"//LF// &
                         "current buffer should be the same buffer as the one in which the"//LF// &
                         "search/match was performed."
-        case ("match-substitute-replacement")
+        case ("match_substitute_replacement")
             entry%file = "subr_fm.f90"
             entry%fortran = "match_substitute_replacement(replacement, status, fixedcase, literal, string, subexp)"
-            entry%doc = "Return REPLACEMENT as it will be inserted by `replace-match'."//LF// &
+            entry%doc = "Return REPLACEMENT as it will be inserted by `replace_match'."//LF// &
                         "In other words, all back-references in the form `\&' and `\N'"//LF// &
                         "are substituted with actual strings matched by the last search."//LF// &
                         "Optional FIXEDCASE, LITERAL, STRING and SUBEXP have the same"//LF// &
-                        "meaning as for `replace-match'."
+                        "meaning as for `replace_match'."
         case ("message")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "call message(text)"
             entry%doc = "Show `text' in the echo area."
-        case ("minibuffer-complete")
+        case ("minibuffer_complete")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Complete the minibuffer contents as far as possible."//LF// &
@@ -1787,7 +1787,7 @@ contains
                         "characters can be completed, display a list of possible"//LF// &
                         "completions.  If you repeat this command after it displayed such a"//LF// &
                         "list, scroll the window of possible completions."
-        case ("minibuffer-complete-and-exit")
+        case ("minibuffer_complete_and_exit")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Exit if the minibuffer contains a valid completion."//LF// &
@@ -1795,33 +1795,33 @@ contains
                         "leads to a valid completion, a repetition of this command will"//LF// &
                         "exit."//LF// &
                         ""//LF// &
-                        "If `minibuffer-completion-confirm' is `confirm', do not try to"//LF// &
+                        "If `minibuffer_completion_confirm' is `confirm', do not try to"//LF// &
                         "complete; instead, ask for confirmation and accept any input if"//LF// &
-                        "confirmed.  If `minibuffer-completion-confirm' is"//LF// &
-                        "`confirm-after-completion', do not try to complete; instead, ask"//LF// &
+                        "confirmed.  If `minibuffer_completion_confirm' is"//LF// &
+                        "`confirm_after_completion', do not try to complete; instead, ask"//LF// &
                         "for confirmation if the preceding minibuffer command was a member"//LF// &
-                        "of `minibuffer-confirm-exit-commands', and accept the input"//LF// &
+                        "of `minibuffer_confirm_exit_commands', and accept the input"//LF// &
                         "otherwise."
-        case ("minibuffer-complete-word")
+        case ("minibuffer_complete_word")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Complete the minibuffer contents at most a single word."//LF// &
                         "After one word is completed as much as possible, a space or hyphen"//LF// &
                         "is added, provided that matches some possible completion.  Return"//LF// &
                         "nil if there is no valid completion, else t."
-        case ("minibuffer-completion-exit")
+        case ("minibuffer_completion_exit")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Call `exit-minibuffer' (there is no selected completion to insert"//LF// &
+            entry%doc = "Call `exit_minibuffer' (there is no selected completion to insert"//LF// &
                         "first yet)."
-        case ("minibuffer-completion-help")
+        case ("minibuffer_completion_help")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
                         "contents.  The list goes in buffer *Completions*, shown in the"//LF// &
                         "frame's root window until the minibuffer is done (there is no"//LF// &
                         "window splitting yet)."
-        case ("modify-syntax-entry")
+        case ("modify_syntax_entry")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call modify_syntax_entry(from, to, newentry, status, syntax_table_h)"
             entry%doc = "Set syntax for character CHAR according to string NEWENTRY."//LF// &
@@ -1841,15 +1841,15 @@ contains
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
                         "(comment sequences and prefix characters; see the Emacs manual)."
-        case ("move-to-left-margin")
+        case ("move_to_left_margin")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("move-to-tab-stop")
+        case ("move_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("move-to-window-line")
+        case ("move_to_window_line")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Position point relative to window."//LF// &
@@ -1861,34 +1861,34 @@ contains
                         ""//LF// &
                         "`line' is the screen line of the window point moved to, counting"//LF// &
                         "from the top of the window."
-        case ("move-to-window-line-top-bottom")
+        case ("move_to_window_line_top_bottom")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Position point relative to window."//LF// &
                         ""//LF// &
-                        "With a prefix argument ARG, acts like `move-to-window-line'."//LF// &
+                        "With a prefix argument ARG, acts like `move_to_window_line'."//LF// &
                         ""//LF// &
                         "With no argument, positions point at center of window."//LF// &
                         "Successive calls position point at positions defined"//LF// &
-                        "by `recenter-positions'."
-        case ("negative-argument")
+                        "by `recenter_positions'."
+        case ("negative_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Begin a negative numeric argument for the next command."//LF// &
-                        "\[universal-argument] following digits or minus sign ends the argument."
+                        "\[universal_argument] following digits or minus sign ends the argument."
         case ("newline")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert a newline, and move to left margin of the new line."//LF// &
                         "With prefix argument ARG, insert that many newlines."
-        case ("next-history-element")
+        case ("next_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert into the minibuffer the Nth next element of minibuffer history."//LF// &
                         "Interactively, N is the prefix numeric argument and defaults to 1."//LF// &
                         "The value N can go beyond the current position in the minibuffer"//LF// &
                         "history,  and invoke ""future history."""
-        case ("next-line")
+        case ("next_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move cursor vertically down ARG lines."//LF// &
@@ -1900,16 +1900,16 @@ contains
                         "If there is no line in the buffer after this one, the cursor moves to"//LF// &
                         "the end of the buffer."//LF// &
                         ""//LF// &
-                        "If the variable `line-move-visual' is non-nil, this command moves"//LF// &
+                        "If the variable `line_move_visual' is non-nil, this command moves"//LF// &
                         "by display lines.  Otherwise, it moves by buffer lines, without"//LF// &
                         "taking variable-width characters or continued lines into account."//LF// &
                         ""//LF// &
-                        "If the variable `goal-column' is set, instead of trying to move exactly"//LF// &
+                        "If the variable `goal_column' is set, instead of trying to move exactly"//LF// &
                         "vertically (or as close as possible), this command moves to that goal"//LF// &
-                        "column (or as close as possible).  Note that setting `goal-column'"//LF// &
-                        "overrides `line-move-visual' and causes this command to move by buffer"//LF// &
+                        "column (or as close as possible).  Note that setting `goal_column'"//LF// &
+                        "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
-        case ("normal-mode")
+        case ("normal_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call normal_mode(status, find_file)"
             entry%interactive = .true.
@@ -1918,28 +1918,28 @@ contains
                         ""//LF// &
                         "By default, makes the previous version into a backup file"//LF// &
                         " if previously requested or if this is the first save."//LF// &
-                        "Prefixed with one \[universal-argument], marks this version"//LF// &
+                        "Prefixed with one \[universal_argument], marks this version"//LF// &
                         " to become a backup when the next save is done."//LF// &
-                        "Prefixed with two \[universal-argument]'s,"//LF// &
+                        "Prefixed with two \[universal_argument]'s,"//LF// &
                         " makes the previous version into a backup file."//LF// &
-                        "Prefixed with three \[universal-argument]'s, marks this version"//LF// &
+                        "Prefixed with three \[universal_argument]'s, marks this version"//LF// &
                         " to become a backup when the next save is done,"//LF// &
                         " and makes the previous version into a backup file."//LF// &
                         ""//LF// &
                         "With a numeric prefix argument of 0, never make the previous version"//LF// &
                         "into a backup file."//LF// &
                         ""//LF// &
-                        "Note that `make-backup-files' and `backup-enable-predicate' still"//LF// &
+                        "Note that `make_backup_files' and `backup_enable_predicate' still"//LF// &
                         "control whether a backup will actually be produced, even when you"//LF// &
-                        "invoke this command prefixed with two or three \[universal-argument]'s."//LF// &
+                        "invoke this command prefixed with two or three \[universal_argument]'s."//LF// &
                         ""//LF// &
                         "If a file's name is FOO, its backup file is called FOO~."
-        case ("open-line")
+        case ("open_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert a newline and leave point before it."//LF// &
                         "With arg N, insert N newlines."
-        case ("other-buffer")
+        case ("other_buffer")
             entry%file = "window_fm.f90"
             entry%fortran = "other_buffer(buffer)"
             entry%doc = "Return most recently selected buffer other than BUFFER."//LF// &
@@ -1947,7 +1947,7 @@ contains
                         "Ignore internal buffers (names starting with a space).  If no"//LF// &
                         "other buffer exists, return the buffer `*scratch*' (creating it"//LF// &
                         "if necessary)."
-        case ("other-window")
+        case ("other_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call other_window(count, status)"
             entry%interactive = .true.
@@ -1962,19 +1962,19 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
             entry%doc = ""
-        case ("point-max")
+        case ("point_max")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point_max()"
             entry%doc = ""
-        case ("point-min")
+        case ("point_min")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point_min()"
             entry%doc = ""
-        case ("pop-to-mark-command")
+        case ("pop_to_mark_command")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Jump to mark, and pop a new position for mark off the ring."
-        case ("posix-looking-at")
+        case ("posix_looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "posix_looking_at(regexp, status, inhibit_modify)"
             entry%doc = "Return t if text after point matches REGEXP according to Posix rules."//LF// &
@@ -1982,48 +1982,48 @@ contains
                         "rules."//LF// &
                         ""//LF// &
                         "By default, this function modifies the match data that"//LF// &
-                        "`match-beginning', `match-end' and `match-data' access.  If"//LF// &
+                        "`match_beginning', `match_end' and `match_data' access.  If"//LF// &
                         "INHIBIT-MODIFY is non-nil, don't modify the match data."
-        case ("posix-search-backward")
+        case ("posix_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call posix_search_backward(regexp, found, status, bound, noerror, count)"
             entry%interactive = .true.
             entry%doc = "Search backward from point for match for REGEXP according to Posix"//LF// &
                         "rules.  Find the longest match in accord with Posix regular"//LF// &
                         "expression rules.  This function is almost identical to"//LF// &
-                        "`posix-search-forward', except that by default it searches backward"//LF// &
+                        "`posix_search_forward', except that by default it searches backward"//LF// &
                         "instead of forward, and the sign of COUNT also indicates exactly the"//LF// &
                         "opposite searching direction."
-        case ("posix-search-forward")
+        case ("posix_search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call posix_search_forward(regexp, found, status, bound, noerror, count)"
             entry%interactive = .true.
             entry%doc = "Search forward from point for REGEXP according to Posix rules."//LF// &
                         "Find the longest match in accord with Posix regular expression rules."//LF// &
                         "Set point to the end of the occurrence found, and return point."//LF// &
-                        "BOUND, NOERROR and COUNT are as for `re-search-forward'."
-        case ("posix-string-match")
+                        "BOUND, NOERROR and COUNT are as for `re_search_forward'."
+        case ("posix_string_match")
             entry%file = "search_fm.f90"
             entry%fortran = "posix_string_match(regexp, string, status, start, inhibit_modify)"
             entry%doc = "Return index of start of first match for Posix REGEXP in STRING, or"//LF// &
                         "nil (0).  Find the longest match, in accord with Posix regular"//LF// &
-                        "expression rules.  Case is ignored if `case-fold-search' is non-nil"//LF// &
+                        "expression rules.  Case is ignored if `case_fold_search' is non-nil"//LF// &
                         "in the current buffer."//LF// &
                         ""//LF// &
                         "If INHIBIT-MODIFY is non-nil, match data is not changed."//LF// &
                         ""//LF// &
                         "If INHIBIT-MODIFY is nil or missing, match data is changed, and"//LF// &
-                        "`match-end' and `match-beginning' give indices of substrings matched"//LF// &
+                        "`match_end' and `match_beginning' give indices of substrings matched"//LF// &
                         "by parenthesis constructs in the pattern.  You can use the function"//LF// &
-                        "`match-string' to extract the substrings matched by the parenthesis"//LF// &
+                        "`match_string' to extract the substrings matched by the parenthesis"//LF// &
                         "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
                         "do (match-end 0)."
-        case ("previous-history-element")
+        case ("previous_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert into the minibuffer the Nth previous element of minibuffer history."//LF// &
                         "Interactively, N is the prefix numeric argument and defaults to 1."
-        case ("previous-line")
+        case ("previous_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move cursor vertically up ARG lines."//LF// &
@@ -2033,33 +2033,33 @@ contains
                         "the cursor is positioned after the character in that line that spans this"//LF// &
                         "column, or at the end of the line if it is not long enough."//LF// &
                         ""//LF// &
-                        "If the variable `line-move-visual' is non-nil, this command moves"//LF// &
+                        "If the variable `line_move_visual' is non-nil, this command moves"//LF// &
                         "by display lines.  Otherwise, it moves by buffer lines, without"//LF// &
                         "taking variable-width characters or continued lines into account."//LF// &
                         ""//LF// &
-                        "If the variable `goal-column' is set, instead of trying to move exactly"//LF// &
+                        "If the variable `goal_column' is set, instead of trying to move exactly"//LF// &
                         "vertically (or as close as possible), this command moves to that goal"//LF// &
-                        "column (or as close as possible).  Note that setting `goal-column'"//LF// &
-                        "overrides `line-move-visual' and causes this command to move by buffer"//LF// &
+                        "column (or as close as possible).  Note that setting `goal_column'"//LF// &
+                        "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
-        case ("prog-mode")
+        case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
             entry%interactive = .true.
             entry%doc = "Major mode for editing programming language source code."
-        case ("provided-mode-derived-p")
+        case ("provided_mode_derived_p")
             entry%file = "derived_fm.f90"
             entry%fortran = "provided_mode_derived_p(mode, modes)"
             entry%doc = "Non-nil if MODE (a mode name) is derived from a mode that is a"//LF// &
                         "member of the list MODES (names)."
-        case ("push-mark")
+        case ("push_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
             entry%doc = "Set mark at LOCATION (point, by default) and push old mark on mark"//LF// &
                         "ring.  Display `Mark set' unless the optional second arg NOMSG is"//LF// &
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
-        case ("query-replace")
+        case ("query_replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
             entry%interactive = .true.
@@ -2082,33 +2082,33 @@ contains
                         "search with a key sequence like `C-s C-s M-%' to use its current"//LF// &
                         "search string as the string to replace."//LF// &
                         ""//LF// &
-                        "Matching is independent of case if both `case-fold-search'"//LF// &
-                        "and `search-upper-case' are non-nil and FROM-STRING has no"//LF// &
-                        "uppercase letters; if `search-upper-case' is nil, then whether"//LF// &
-                        "matching ignores case depends on `case-fold-search' regardless"//LF// &
+                        "Matching is independent of case if both `case_fold_search'"//LF// &
+                        "and `search_upper_case' are non-nil and FROM-STRING has no"//LF// &
+                        "uppercase letters; if `search_upper_case' is nil, then whether"//LF// &
+                        "matching ignores case depends on `case_fold_search' regardless"//LF// &
                         "of whether there are uppercase letters in FROM-STRING."//LF// &
                         "Replacement transfers the case pattern of the old text to the"//LF// &
-                        "new text, if both `case-fold-search' and `case-replace' are"//LF// &
+                        "new text, if both `case_fold_search' and `case_replace' are"//LF// &
                         "non-nil and FROM-STRING has no uppercase letters."//LF// &
                         "(Transferring the case pattern means that if the old text"//LF// &
                         "matched is all caps, or all of its words are capitalized, then its"//LF// &
                         "replacement is respectively upcased or capitalized.  For more"//LF// &
-                        "details about this, see `replace-match'.)"//LF// &
+                        "details about this, see `replace_match'.)"//LF// &
                         ""//LF// &
-                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        "Ignore read-only matches if `query_replace_skip_read_only' is non-nil."//LF// &
                         ""//LF// &
-                        "If `replace-lax-whitespace' is non-nil, a space or spaces in the string"//LF// &
+                        "If `replace_lax_whitespace' is non-nil, a space or spaces in the string"//LF// &
                         "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
-                        "regexp in `search-whitespace-regexp'."//LF// &
+                        "regexp in `search_whitespace_regexp'."//LF// &
                         ""//LF// &
                         "To customize possible responses, change the bindings in"//LF// &
-                        "`query-replace-map'."//LF// &
+                        "`query_replace_map'."//LF// &
                         ""//LF// &
                         "Fourth and fifth arg START and END specify the region to operate on."//LF// &
                         ""//LF// &
                         "Arguments FROM-STRING, TO-STRING, DELIMITED, START, END and BACKWARD"//LF// &
-                        "are passed to `perform-replace' (which see)."
-        case ("query-replace-regexp")
+                        "are passed to `perform_replace' (which see)."
+        case ("query_replace_regexp")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace_regexp(regexp, to_string, status, delimited, start, end, backward, coun"// &
                             "ted)"
@@ -2126,23 +2126,23 @@ contains
                         "When invoked interactively, matching a newline with `\n' will not work;"//LF// &
                         "use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'."//LF// &
                         ""//LF// &
-                        "Matching is independent of case if both `case-fold-search'"//LF// &
-                        "and `search-upper-case' are non-nil and REGEXP has no uppercase"//LF// &
-                        "letters; if `search-upper-case' is nil, then whether matching"//LF// &
-                        "ignores case depends on `case-fold-search' regardless of whether"//LF// &
+                        "Matching is independent of case if both `case_fold_search'"//LF// &
+                        "and `search_upper_case' are non-nil and REGEXP has no uppercase"//LF// &
+                        "letters; if `search_upper_case' is nil, then whether matching"//LF// &
+                        "ignores case depends on `case_fold_search' regardless of whether"//LF// &
                         "there are uppercase letters in REGEXP."//LF// &
                         "Replacement transfers the case pattern of the old text to the new"//LF// &
-                        "text, if both `case-fold-search' and `case-replace' are non-nil"//LF// &
+                        "text, if both `case_fold_search' and `case_replace' are non-nil"//LF// &
                         "and REGEXP has no uppercase letters.  (Transferring the case pattern"//LF// &
                         "means that if the old text matched is all caps, or all of its words"//LF// &
                         "are capitalized, then its replacement is respectively upcased or"//LF// &
-                        "capitalized.  For more details about this, see `replace-match'.)"//LF// &
+                        "capitalized.  For more details about this, see `replace_match'.)"//LF// &
                         ""//LF// &
-                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        "Ignore read-only matches if `query_replace_skip_read_only' is non-nil."//LF// &
                         ""//LF// &
-                        "If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp"//LF// &
+                        "If `replace_regexp_lax_whitespace' is non-nil, a space or spaces in the regexp"//LF// &
                         "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
-                        "regexp in `search-whitespace-regexp'."//LF// &
+                        "regexp in `search_whitespace_regexp'."//LF// &
                         ""//LF// &
                         "Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace"//LF// &
                         "only matches surrounded by word boundaries.  A negative prefix arg means"//LF// &
@@ -2163,32 +2163,32 @@ contains
                         "by a Lisp expression; Fortmacs has no Lisp.)"//LF// &
                         ""//LF// &
                         "Arguments REGEXP, TO-STRING, DELIMITED, START, END, and BACKWARD"//LF// &
-                        "are passed to `perform-replace' (which see)."
-        case ("quit-window")
+                        "are passed to `perform_replace' (which see)."
+        case ("quit_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call quit_window(status)"
             entry%interactive = .true.
             entry%doc = "Quit WINDOW and bury its buffer.  WINDOW is the selected one: it"//LF// &
                         "shows the buffer it showed before, or some other buffer."
-        case ("quoted-insert")
+        case ("quoted_insert")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Read next input character and insert it."//LF// &
                         "This is useful for inserting control characters."//LF// &
                         "With argument, insert ARG copies of the character."
-        case ("re-search-backward")
+        case ("re_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
             entry%interactive = .true.
             entry%doc = "Search backward from point for regular expression REGEXP."//LF// &
-                        "This function is almost identical to `re-search-forward', except that"//LF// &
+                        "This function is almost identical to `re_search_forward', except that"//LF// &
                         "by default it searches backward instead of forward, and the sign of"//LF// &
                         "COUNT also indicates exactly the opposite searching direction."//LF// &
-                        "See `re-search-forward' for details."//LF// &
+                        "See `re_search_forward' for details."//LF// &
                         ""//LF// &
                         "Note that searching backwards may give a shorter match than expected,"//LF// &
                         "because REGEXP is still matched in the forward direction."
-        case ("re-search-forward")
+        case ("re_search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_forward(regexp, found, status, bound, noerror, count)"
             entry%interactive = .true.
@@ -2212,11 +2212,11 @@ contains
                         "the origin of the search."//LF// &
                         ""//LF// &
                         "Search case-sensitivity is determined by the value of the variable"//LF// &
-                        "`case-fold-search', which see."//LF// &
+                        "`case_fold_search', which see."//LF// &
                         ""//LF// &
-                        "See also the functions `match-beginning', `match-end', `match-string',"//LF// &
-                        "and `replace-match'."
-        case ("read-buffer")
+                        "See also the functions `match_beginning', `match_end', `match_string',"//LF// &
+                        "and `replace_match'."
+        case ("read_buffer")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_buffer(prompt, result, status, def, require_match, except)"
             entry%doc = "Read the name of a buffer and return it as a string."//LF// &
@@ -2225,10 +2225,10 @@ contains
                         "Optional second arg DEF is value to return if user enters an empty line,"//LF// &
                         " instead of that empty string; the prompt shows it."//LF// &
                         "Optional third arg REQUIRE-MATCH has the same meaning as the"//LF// &
-                        " REQUIRE-MATCH argument of `completing-read'."//LF// &
+                        " REQUIRE-MATCH argument of `completing_read'."//LF// &
                         "The buffer `except' (if given) is left out of the completions, as"//LF// &
                         "internal-complete-buffer-except does."
-        case ("read-file-name-default")
+        case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
             entry%doc = "Read a file name in the minibuffer, starting with directory `dir'"//LF// &
@@ -2236,7 +2236,7 @@ contains
                         "Unchanged input gives `default_filename' (default: the buffer's"//LF// &
                         "file); the result goes through substitute-in-file-name, so typing"//LF// &
                         """~/x"" or ""/x"" after the directory means just that."
-        case ("read-multiple-choice")
+        case ("read_multiple_choice")
             entry%file = "rmc_fm.f90"
             entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help)"
             entry%doc = "Ask user to select an entry from CHOICES, prompting with PROMPT."//LF// &
@@ -2260,19 +2260,19 @@ contains
                         "If the user types the `?' key, the help is displayed; other keys"//LF// &
                         "not in CHOICES ask again after ""Invalid choice.""; C-g quits.  Port"//LF// &
                         "of rmc.el:read-multiple-choice (short answers)."
-        case ("read-number")
+        case ("read_number")
             entry%file = "subr_fm.f90"
             entry%fortran = "call read_number(prompt, n, status, default, hist)"
             entry%doc = "Read from the minibuffer and return a numeric value, prompting with PROMPT."//LF// &
                         "DEFAULT specifies a default value to return if the user just types RET."//LF// &
                         "For historical reasons, the value of DEFAULT is always inserted into"//LF// &
-                        "PROMPT, so it's recommended to use `format' instead of `format-prompt'"//LF// &
+                        "PROMPT, so it's recommended to use `format' instead of `format_prompt'"//LF// &
                         "to generate PROMPT.  HIST specifies a history list variable.  See"//LF// &
-                        "`read-from-minibuffer' for details of the HIST argument."//LF// &
+                        "`read_from_minibuffer' for details of the HIST argument."//LF// &
                         ""//LF// &
                         "This function is used by the `interactive' code letter ""n"".  Port"//LF// &
                         "of subr.el:read-number (integers only).  (In subr_read_fm.)"
-        case ("read-string")
+        case ("read_string")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call read_string(prompt, result, status, initial, history, default)"
             entry%doc = "Read a string; empty input gives `default' if present."
@@ -2292,38 +2292,38 @@ contains
                         ""//LF// &
                         "Just C-u as prefix means put point in the center of the window"//LF// &
                         "and redisplay normally--don't erase and redraw the frame."
-        case ("recenter-top-bottom")
+        case ("recenter_top_bottom")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Scroll the window so that current line is in the middle of the"//LF// &
                         "window.  Successive invocations scroll the window in a cyclical"//LF// &
                         "order to put the current line at certain places within the"//LF// &
-                        "window, as determined by `recenter-positions'.  By default, the"//LF// &
+                        "window, as determined by `recenter_positions'.  By default, the"//LF// &
                         "second invocation puts the current line at the top-most window"//LF// &
                         "line, the third invocation puts it on the bottom-most window"//LF// &
                         "line, and then the order is reused in a cyclical manner."//LF// &
                         ""//LF// &
                         "With numeric prefix ARG, move current line ARG lines below the"//LF// &
-                        "window top.  With plain \[universal-argument], move current line"//LF// &
+                        "window top.  With plain \[universal_argument], move current line"//LF// &
                         "to window center."
-        case ("regexp-quote")
+        case ("regexp_quote")
             entry%file = "search_fm.f90"
             entry%fortran = "regexp_quote(string)"
             entry%doc = "Return a regexp string which matches exactly STRING and nothing"//LF// &
                         "else."
-        case ("region-active-p")
+        case ("region_active_p")
             entry%file = "simple_fm.f90"
             entry%fortran = "region_active_p()"
             entry%doc = "Return t if Transient Mark mode is enabled and the mark is active."
-        case ("region-beginning")
+        case ("region_beginning")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_beginning(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is smaller."
-        case ("region-end")
+        case ("region_end")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_end(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is larger."
-        case ("replace-match")
+        case ("replace_match")
             entry%file = "search_fm.f90"
             entry%fortran = "call replace_match(newtext, status, fixedcase, literal, string, subexp, result)"
             entry%doc = "Replace text matched by last search with NEWTEXT."//LF// &
@@ -2337,7 +2337,7 @@ contains
                         "Otherwise if all words are capitalized in the replaced text,"//LF// &
                         "capitalize each word in NEWTEXT.  Note that what exactly is a"//LF// &
                         "word is determined by the syntax tables in effect in the current"//LF// &
-                        "buffer, and the variable `case-symbols-as-words'."//LF// &
+                        "buffer, and the variable `case_symbols_as_words'."//LF// &
                         ""//LF// &
                         "If optional third arg LITERAL is non-nil, insert NEWTEXT"//LF// &
                         "literally.  Otherwise treat `\' as special:"//LF// &
@@ -2346,34 +2346,34 @@ contains
                         "       If Nth parens didn't match, substitute nothing."//LF// &
                         "  `\\' means insert one `\'."//LF// &
                         "  `\?' is treated literally"//LF// &
-                        "       (for compatibility with `query-replace-regexp')."//LF// &
+                        "       (for compatibility with `query_replace_regexp')."//LF// &
                         "  Any other character following `\' signals an error."//LF// &
                         "Case conversion does not apply to these substitutions."//LF// &
                         ""//LF// &
                         "If optional fourth argument STRING is non-nil, it should be a"//LF// &
                         "string to act on; this should be the string on which the"//LF// &
-                        "previous match was done via `string-match'.  In this case,"//LF// &
-                        "`replace-match' creates and returns a new string (in RESULT),"//LF// &
+                        "previous match was done via `string_match'.  In this case,"//LF// &
+                        "`replace_match' creates and returns a new string (in RESULT),"//LF// &
                         "made by copying STRING and replacing the part of STRING that was"//LF// &
                         "matched (the original STRING itself is not altered)."//LF// &
                         ""//LF// &
                         "The optional fifth argument SUBEXP specifies a subexpression;"//LF// &
                         "it says to replace just that subexpression with NEWTEXT, rather"//LF// &
                         "than replacing the entire matched text."
-        case ("replace-regexp")
+        case ("replace_regexp")
             entry%file = "replace_fm.f90"
             entry%fortran = "call replace_regexp(regexp, to_string, status, delimited, start, end, backward, counted, r"// &
                             "eplacement_fn)"
             entry%interactive = .true.
             entry%doc = "Replace things after point matching REGEXP with TO-STRING."//LF// &
-                        "Preserve case in each match if `case-replace' and `case-fold-search'"//LF// &
+                        "Preserve case in each match if `case_replace' and `case_fold_search'"//LF// &
                         "are non-nil and REGEXP has no uppercase letters."//LF// &
                         ""//LF// &
-                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        "Ignore read-only matches if `query_replace_skip_read_only' is non-nil."//LF// &
                         ""//LF// &
-                        "If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp"//LF// &
+                        "If `replace_regexp_lax_whitespace' is non-nil, a space or spaces in the regexp"//LF// &
                         "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
-                        "regexp in `search-whitespace-regexp'."//LF// &
+                        "regexp in `search_whitespace_regexp'."//LF// &
                         ""//LF// &
                         "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
                         "of the region.  Otherwise, operate from point to the end of the buffer's"//LF// &
@@ -2385,7 +2385,7 @@ contains
                         ""//LF// &
                         "Fourth and fifth arg START and END specify the region to operate on."//LF// &
                         ""//LF// &
-                        "Argument BACKWARD is passed to `perform-replace' (which see)."//LF// &
+                        "Argument BACKWARD is passed to `perform_replace' (which see)."//LF// &
                         ""//LF// &
                         "In TO-STRING, `\&' stands for whatever matched the whole of REGEXP,"//LF// &
                         "and `\N' (where N is a digit) stands for whatever matched"//LF// &
@@ -2394,7 +2394,7 @@ contains
                         "at the given position for each replacement."//LF// &
                         ""//LF// &
                         "In interactive calls, `\#' in the replacement text stands for"//LF// &
-                        "`replace-count', the number of replacements occurred so far,"//LF// &
+                        "`replace_count', the number of replacements occurred so far,"//LF// &
                         "starting from zero; `counted' says that TO-STRING uses it."//LF// &
                         "`replacement_fn', if given, computes each replacement instead."//LF// &
                         ""//LF// &
@@ -2403,21 +2403,21 @@ contains
                         "  (while (re-search-forward REGEXP nil t)"//LF// &
                         "    (replace-match TO-STRING nil nil))"//LF// &
                         "which will run faster and will not set the mark or print anything."
-        case ("replace-string")
+        case ("replace_string")
             entry%file = "replace_fm.f90"
             entry%fortran = "call replace_string(from_string, to_string, status, delimited, start, end, backward)"
             entry%interactive = .true.
             entry%doc = "Replace occurrences of FROM-STRING with TO-STRING."//LF// &
-                        "Preserve case in each match if `case-replace' and `case-fold-search'"//LF// &
+                        "Preserve case in each match if `case_replace' and `case_fold_search'"//LF// &
                         "are non-nil and FROM-STRING has no uppercase letters."//LF// &
                         "(Preserving case means that if the string matched is all caps, or capitalized,"//LF// &
                         "then its replacement is upcased or capitalized.)"//LF// &
                         ""//LF// &
-                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        "Ignore read-only matches if `query_replace_skip_read_only' is non-nil."//LF// &
                         ""//LF// &
-                        "If `replace-lax-whitespace' is non-nil, a space or spaces in the string"//LF// &
+                        "If `replace_lax_whitespace' is non-nil, a space or spaces in the string"//LF// &
                         "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
-                        "regexp in `search-whitespace-regexp'."//LF// &
+                        "regexp in `search_whitespace_regexp'."//LF// &
                         ""//LF// &
                         "Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace"//LF// &
                         "only matches surrounded by word boundaries.  A negative prefix arg means"//LF// &
@@ -2428,7 +2428,7 @@ contains
                         "enabled and the mark is active, operates on the contents of the region;"//LF// &
                         "otherwise from point to the end of the buffer's accessible portion."//LF// &
                         ""//LF// &
-                        "Argument BACKWARD is passed to `perform-replace' (which see)."//LF// &
+                        "Argument BACKWARD is passed to `perform_replace' (which see)."//LF// &
                         ""//LF// &
                         "This function is usually the wrong thing to use in a program."//LF// &
                         "What you probably want is a loop like this:"//LF// &
@@ -2437,60 +2437,60 @@ contains
                         "which will run faster and will not set the mark or print anything."//LF// &
                         "(You may need a more complex loop if FROM-STRING can match the null string"//LF// &
                         "and TO-STRING is also null.)"
-        case ("right-char")
+        case ("right_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N characters to the right (to the left if N is negative)."//LF// &
                         "On reaching beginning or end of buffer, stop and signal error."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
-                        "\[forward-char]."
-        case ("right-word")
+                        "\[forward_char]."
+        case ("right_word")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point N words to the right (to the left if N is negative)."//LF// &
                         ""//LF// &
                         "In left-to-right text this moves forward in the buffer, like"//LF// &
-                        "\[forward-word]."//LF// &
+                        "\[forward_word]."//LF// &
                         ""//LF// &
                         "The word boundaries are normally determined by the buffer's syntax"//LF// &
-                        "table and character script (according to `char-script-table')."//LF// &
+                        "table and character script (according to `char_script_table')."//LF// &
                         ""//LF// &
                         "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
-                        "Field boundaries are not noticed if `inhibit-field-text-motion' is"//LF// &
+                        "Field boundaries are not noticed if `inhibit_field_text_motion' is"//LF// &
                         "non-nil."
-        case ("rotate-yank-pointer")
+        case ("rotate_yank_pointer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Rotate the yanking point in the kill ring."//LF// &
                         "With ARG, rotate that many kills forward (or backward, if negative)."
-        case ("run-mode-hooks")
+        case ("run_mode_hooks")
             entry%file = "subr_fm.f90"
             entry%fortran = "call run_mode_hooks(status, hook)"
-            entry%doc = "Run mode hooks `delayed-mode-hooks' and HOOK, or delay HOOK."//LF// &
+            entry%doc = "Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK."//LF// &
                         ""//LF// &
-                        "If the variable `delay-mode-hooks' is non-nil, does not do anything,"//LF// &
-                        "just adds HOOK to the list `delayed-mode-hooks'."//LF// &
-                        "Otherwise, runs hooks in the sequence: `change-major-mode-after-body-hook',"//LF// &
-                        "`delayed-mode-hooks' (in reverse order), HOOK, then"//LF// &
-                        "runs the hook `after-change-major-mode-hook'."//LF// &
+                        "If the variable `delay_mode_hooks' is non-nil, does not do anything,"//LF// &
+                        "just adds HOOK to the list `delayed_mode_hooks'."//LF// &
+                        "Otherwise, runs hooks in the sequence: `change_major_mode_after_body_hook',"//LF// &
+                        "`delayed_mode_hooks' (in reverse order), HOOK, then"//LF// &
+                        "runs the hook `after_change_major_mode_hook'."//LF// &
                         ""//LF// &
-                        "Major mode functions should use this instead of `run-hooks' when"//LF// &
+                        "Major mode functions should use this instead of `run_hooks' when"//LF// &
                         "running their FOO-mode-hook."
-        case ("save-buffer")
+        case ("save_buffer")
             entry%file = "files_fm.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
             entry%interactive = .true.
             entry%doc = "Save the current buffer in its visited file if modified.  `arg' is"//LF// &
                         "the numeric prefix: 4 (C-u) backs up the previous version on the"//LF// &
                         "next save, 16 (C-u C-u) now, 64 both; 0 never."
-        case ("save-buffers-kill-terminal")
+        case ("save_buffers_kill_terminal")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
             entry%doc = "Offer to save each buffer, then kill Emacs."//LF// &
                         ""//LF// &
                         "With prefix ARG, silently save all file-visiting buffers, then kill."
-        case ("save-some-buffers")
+        case ("save_some_buffers")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
             entry%doc = "Save some modified file-visiting buffers.  Asks user about each one."//LF// &
@@ -2501,16 +2501,16 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
-        case ("scroll-down")
+        case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Scroll text of selected window down ARG lines."//LF// &
                         "If ARG is omitted or nil, scroll down by a near full screen."//LF// &
-                        "A near full screen is `next-screen-context-lines' less than a"//LF// &
+                        "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward.  If ARG is the"//LF// &
                         "atom `-', scroll upward by nearly full screen.  When calling"//LF// &
                         "from a program, supply as argument a number, nil, or `-'."
-        case ("scroll-down-command")
+        case ("scroll_down_command")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Scroll text of selected window down ARG lines; or near full"//LF// &
@@ -2520,26 +2520,26 @@ contains
                         "by a full screen.  If given a `C-u -' prefix, scroll a full page"//LF// &
                         "up instead."//LF// &
                         ""//LF// &
-                        "If `scroll-error-top-bottom' is non-nil and `scroll-down' cannot"//LF// &
+                        "If `scroll_error_top_bottom' is non-nil and `scroll_down' cannot"//LF// &
                         "scroll window further, move cursor to the top line."//LF// &
                         "When point is already on that position, then signal an error."//LF// &
-                        "A near full screen is `next-screen-context-lines' less than a"//LF// &
+                        "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll upward."//LF// &
                         ""//LF// &
                         "If ARG is the atom `-', scroll upward by nearly full screen."//LF// &
                         ""//LF// &
-                        "The command \[set-goal-column] can be used to create a"//LF// &
+                        "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
-        case ("scroll-up")
+        case ("scroll_up")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Scroll text of selected window upward ARG lines."//LF// &
                         "If ARG is omitted or nil, scroll upward by a near full screen."//LF// &
-                        "A near full screen is `next-screen-context-lines' less than a"//LF// &
+                        "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward.  If ARG is the"//LF// &
                         "atom `-', scroll downward by nearly full screen.  When calling"//LF// &
                         "from a program, supply as argument a number, nil, or `-'."
-        case ("scroll-up-command")
+        case ("scroll_up_command")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
             entry%doc = "Scroll text of selected window upward ARG lines; or near full"//LF// &
@@ -2549,26 +2549,26 @@ contains
                         "a full screen.  If given a `C-u -' prefix, scroll a full page"//LF// &
                         "down instead."//LF// &
                         ""//LF// &
-                        "If `scroll-error-top-bottom' is non-nil and `scroll-up' cannot"//LF// &
+                        "If `scroll_error_top_bottom' is non-nil and `scroll_up' cannot"//LF// &
                         "scroll window further, move cursor to the bottom line."//LF// &
                         "When point is already on that position, then signal an error."//LF// &
-                        "A near full screen is `next-screen-context-lines' less than a"//LF// &
+                        "A near full screen is `next_screen_context_lines' less than a"//LF// &
                         "full screen.  Negative ARG means scroll downward."//LF// &
                         ""//LF// &
                         "If ARG is the atom `-', scroll downward by nearly full screen."//LF// &
                         ""//LF// &
-                        "The command \[set-goal-column] can be used to create a"//LF// &
+                        "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
-        case ("search-backward")
+        case ("search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_backward(string, found, status, bound, noerror, count)"
             entry%interactive = .true.
             entry%doc = "Search backward from point for STRING."//LF// &
-                        "This function is almost identical to `search-forward', except that"//LF// &
+                        "This function is almost identical to `search_forward', except that"//LF// &
                         "by default it searches backward instead of forward, and the sign of"//LF// &
                         "COUNT also indicates exactly the opposite searching direction."//LF// &
-                        "See `search-forward' for details."
-        case ("search-forward")
+                        "See `search_forward' for details."
+        case ("search_forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_forward(string, found, status, bound, noerror, count)"
             entry%interactive = .true.
@@ -2592,75 +2592,75 @@ contains
                         "the origin of the search."//LF// &
                         ""//LF// &
                         "Search case-sensitivity is determined by the value of the variable"//LF// &
-                        "`case-fold-search', which see."//LF// &
+                        "`case_fold_search', which see."//LF// &
                         ""//LF// &
-                        "See also the functions `match-beginning', `match-end', `match-string',"//LF// &
-                        "and `replace-match'."
-        case ("select-window")
+                        "See also the functions `match_beginning', `match_end', `match_string',"//LF// &
+                        "and `replace_match'."
+        case ("select_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call select_window(h, status, norecord)"
             entry%doc = "Select WINDOW which must be a live window.  Also make WINDOW's"//LF// &
                         "buffer current and make WINDOW the frame's selected window; point"//LF// &
                         "becomes WINDOW's point.  Unless `norecord', record the buffer as"//LF// &
                         "most recently selected."
-        case ("selected-window")
+        case ("selected_window")
             entry%file = "frame_fm.f90"
             entry%fortran = "selected_window()"
             entry%doc = "Return the selected window.  The selected window is the window in"//LF// &
                         "which the standard cursor for selected windows appears and to"//LF// &
                         "which many commands apply."
-        case ("self-insert-command")
+        case ("self_insert_command")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert the character you type."//LF// &
                         "Whichever character C you type to run this command is inserted."//LF// &
                         "The numeric prefix argument N says how many times to repeat the insertion."
-        case ("sentence-end")
+        case ("sentence_end")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_regexp()"
             entry%doc = "Return the regexp describing the end of a sentence."//LF// &
                         ""//LF// &
                         "This function returns either the value of the variable"//LF// &
-                        "`sentence-end' if it is non-nil, or the default value constructed"//LF// &
-                        "from the variables `sentence-end-base', `sentence-end-double-space',"//LF// &
-                        "`sentence-end-without-period' and `sentence-end-without-space'."//LF// &
+                        "`sentence_end' if it is non-nil, or the default value constructed"//LF// &
+                        "from the variables `sentence_end_base', `sentence_end_double_space',"//LF// &
+                        "`sentence_end_without_period' and `sentence_end_without_space'."//LF// &
                         ""//LF// &
                         "The default value specifies that in order to be recognized as the"//LF// &
                         "end of a sentence, the ending period, question mark, or exclamation"//LF// &
                         "point must be followed by two spaces, with perhaps some closing"//LF// &
                         "delimiters in between."
-        case ("set-auto-mode")
+        case ("set_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call set_auto_mode(status, keep_mode_if_same)"
             entry%doc = "Select major mode appropriate for current buffer."//LF// &
                         ""//LF// &
                         "To find the right major mode, this function checks for a -*- mode tag,"//LF// &
-                        "then compares the file name against the entries in `auto-mode-alist'"//LF// &
-                        "(case-sensitively first, then ignoring case, as `auto-mode-case-fold')."//LF// &
+                        "then compares the file name against the entries in `auto_mode_alist'"//LF// &
+                        "(case-sensitively first, then ignoring case, as `auto_mode_case_fold')."//LF// &
                         ""//LF// &
                         "If the optional argument KEEP-MODE-IF-SAME is non-nil, then we"//LF// &
                         "set the major mode only if that would change it."
-        case ("set-buffer")
+        case ("set_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call set_buffer(h, status)"
             entry%doc = "Make `h' the current buffer."
-        case ("set-command-disabled")
+        case ("set_command_disabled")
             entry%file = "callint_fm.f90"
             entry%fortran = "call set_command_disabled(name, disabled, status)"
             entry%doc = "Make the command named NAME disabled or not (its `disabled'"//LF// &
                         "property), for a name only known at run time; built-in commands"//LF// &
                         "are `commands%NAME%disabled'."
-        case ("set-error")
+        case ("set_error")
             entry%file = "error_fm.f90"
             entry%fortran = "call set_error(status, code, detail)"
             entry%doc = "Record an error.  The analogue of upstream `xsignal'."
-        case ("set-fill-column")
+        case ("set_fill_column")
             entry%file = "simple_fill_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Set `fill-column' to specified argument."//LF// &
+            entry%doc = "Set `fill_column' to specified argument."//LF// &
                         "Use C-u followed by a number to specify a column."//LF// &
                         "Just C-u as argument means to use the current column."
-        case ("set-fill-prefix")
+        case ("set_fill_prefix")
             entry%file = "fill_fm.f90"
             entry%fortran = "call set_fill_prefix(arg)"
             entry%interactive = .true.
@@ -2668,13 +2668,13 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
-        case ("set-mark")
+        case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
             entry%doc = "Set this buffer's mark to POS (0 for none) and activate it."//LF// &
                         "Normally, when a new mark is set, the old one should go on the stack."//LF// &
                         "This is why most applications should use `push_mark', not `set_mark'."
-        case ("set-mark-command")
+        case ("set_mark_command")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Set the mark where point is, and activate it; or jump to the mark."//LF// &
@@ -2691,25 +2691,25 @@ contains
                         ""//LF// &
                         "With C-u C-u as prefix argument, unconditionally set mark where point"//LF// &
                         "is."
-        case ("set-match-data")
+        case ("set_match_data")
             entry%file = "search_fm.f90"
             entry%fortran = "call set_match_data(data)"
             entry%doc = "Set internal data on last search match from elements of LIST."//LF// &
-                        "LIST should have been created by calling `match-data' previously;"//LF// &
+                        "LIST should have been created by calling `match_data' previously;"//LF// &
                         "nil (0) elements mark groups that didn't match.  The positions are"//LF// &
                         "taken to be in the current buffer."
-        case ("set-syntax-table")
+        case ("set_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
-        case ("skip-chars-backward")
+        case ("skip_chars_backward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_chars_backward(string, status, lim)"
             entry%doc = "Move point backward, stopping after a char not in STRING, or at pos LIM."//LF// &
-                        "See `skip-chars-forward' for details."//LF// &
+                        "See `skip_chars_forward' for details."//LF// &
                         "Returns the distance traveled, either zero or negative."
-        case ("skip-chars-forward")
+        case ("skip_chars_forward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_chars_forward(string, status, lim)"
             entry%doc = "Move point forward, stopping before a char not in STRING, or at pos LIM."//LF// &
@@ -2721,7 +2721,7 @@ contains
                         "Char classes, e.g. `[:alpha:]', are supported."//LF// &
                         ""//LF// &
                         "Returns the distance traveled, either zero or positive."
-        case ("skip-syntax-backward")
+        case ("skip_syntax_backward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_syntax_backward(syntax, lim)"
             entry%doc = "Move point backward across chars in specified syntax classes."//LF// &
@@ -2730,7 +2730,7 @@ contains
                         "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
                         "This function returns either zero or a negative number, and the absolute value"//LF// &
                         "of this is the distance traveled."
-        case ("skip-syntax-forward")
+        case ("skip_syntax_forward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_syntax_forward(syntax, lim)"
             entry%doc = "Move point forward across chars in specified syntax classes."//LF// &
@@ -2738,7 +2738,7 @@ contains
                         "Stop before a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
                         "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
                         "This function returns the distance traveled, either zero or positive."
-        case ("special-mode")
+        case ("special_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call special_mode(status)"
             entry%interactive = .true.
@@ -2746,7 +2746,7 @@ contains
                         ""//LF// &
                         "A special major mode is intended to view specially formatted data"//LF// &
                         "rather than files.  These modes usually use read-only buffers."
-        case ("split-window")
+        case ("split_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call split_window(window, size, have_size, horizontal, new, status)"
             entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
@@ -2755,7 +2755,7 @@ contains
                         "WINDOW, a negative one minus the size of the new window, in lines"//LF// &
                         "or columns.  The new window shows WINDOW's buffer, start and"//LF// &
                         "point."
-        case ("split-window-below")
+        case ("split_window_below")
             entry%file = "window_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = "Split WINDOW-TO-SPLIT into two windows, one above the other."//LF// &
@@ -2770,7 +2770,7 @@ contains
                         "the prefix numeric argument."//LF// &
                         ""//LF// &
                         "Both windows get the same value of point as the WINDOW-TO-SPLIT."
-        case ("split-window-right")
+        case ("split_window_right")
             entry%file = "window_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = "Split WINDOW-TO-SPLIT into two side-by-side windows."//LF// &
@@ -2784,35 +2784,35 @@ contains
                         "right-hand (new) window gets -SIZE columns.  Here, SIZE includes"//LF// &
                         "the width of the divider column to the window's right."//LF// &
                         "Interactively, SIZE is the prefix numeric argument."
-        case ("standard-syntax-table")
+        case ("standard_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "standard_syntax_table()"
             entry%doc = "Return the standard syntax table."//LF// &
                         "This is the one used for new buffers."
-        case ("string-match")
+        case ("string_match")
             entry%file = "search_fm.f90"
             entry%fortran = "string_match(regexp, string, status, start, inhibit_modify)"
             entry%doc = "Return index of start of first match for REGEXP in STRING, or nil"//LF// &
-                        "(0).  Matching ignores case if `case-fold-search' is non-nil.  If"//LF// &
+                        "(0).  Matching ignores case if `case_fold_search' is non-nil.  If"//LF// &
                         "START is present, start search at that index in STRING."//LF// &
                         ""//LF// &
                         "If INHIBIT-MODIFY is non-nil, match data is not changed."//LF// &
                         ""//LF// &
                         "If INHIBIT-MODIFY is nil or missing, match data is changed, and"//LF// &
-                        "`match-end' and `match-beginning' give indices of substrings matched"//LF// &
+                        "`match_end' and `match_beginning' give indices of substrings matched"//LF// &
                         "by parenthesis constructs in the pattern.  You can use the function"//LF// &
-                        "`match-string' to extract the substrings matched by the parenthesis"//LF// &
+                        "`match_string' to extract the substrings matched by the parenthesis"//LF// &
                         "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
                         "do (match-end 0)."//LF// &
                         ""//LF// &
                         "Indices are 1-based character indices, as Fortran's `index' (Emacs"//LF// &
                         "counts from 0); a negative START counts from the end."
-        case ("string-match-p")
+        case ("string_match_p")
             entry%file = "subr_fm.f90"
             entry%fortran = "string_match_p(regexp, string, status, start)"
-            entry%doc = "Same as `string-match' except this function does not change the"//LF// &
+            entry%doc = "Same as `string_match' except this function does not change the"//LF// &
                         "match data."
-        case ("substitute-command-keys")
+        case ("substitute_command_keys")
             entry%file = "help_fm.f90"
             entry%fortran = "substitute_command_keys(string)"
             entry%doc = "Substitute key descriptions for command names in STRING."//LF// &
@@ -2828,43 +2828,43 @@ contains
                         ""//LF// &
                         "Each grave accent ` is replaced by left quote, and each apostrophe '"//LF// &
                         "is replaced by right quote.  Left and right quote characters are"//LF// &
-                        "specified by `text-quoting-style'."//LF// &
+                        "specified by `text_quoting_style'."//LF// &
                         ""//LF// &
                         "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
                         "into the output, \=\[ puts \[ into the output, and \=` puts ' into the"//LF// &
                         "output."
-        case ("switch-to-buffer")
+        case ("switch_to_buffer")
             entry%file = "window_fm.f90"
             entry%fortran = "call switch_to_buffer(name, status)"
             entry%interactive = .true.
             entry%doc = "Display buffer BUFFER-OR-NAME in the selected window."//LF// &
                         ""//LF// &
-                        "If called interactively, read the buffer name using `read-buffer'."//LF// &
-                        "The variable `confirm-nonexistent-file-or-buffer' determines"//LF// &
+                        "If called interactively, read the buffer name using `read_buffer'."//LF// &
+                        "The variable `confirm_nonexistent_file_or_buffer' determines"//LF// &
                         "whether to request confirmation before creating a new buffer."//LF// &
                         ""//LF// &
                         "If BUFFER-OR-NAME is a string that does not identify an existing"//LF// &
                         "buffer, create a buffer with that name.  If BUFFER-OR-NAME is"//LF// &
-                        "empty, switch to the buffer returned by `other-buffer'."
-        case ("syntax-table")
+                        "empty, switch to the buffer returned by `other_buffer'."
+        case ("syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "syntax_table()"
             entry%doc = "Return the current syntax table."//LF// &
                         "This is the one specified by the current buffer."
-        case ("tab-to-tab-stop")
+        case ("tab_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
-        case ("text-mode")
+        case ("text_mode")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "call text_mode(status)"
             entry%interactive = .true.
             entry%doc = "Major mode for editing text written for humans to read."//LF// &
                         "In this mode, paragraphs are delimited only by blank or white lines."//LF// &
                         "You can thus get the full benefit of adaptive filling"//LF// &
-                        " (see the variable `adaptive-fill-mode')."//LF// &
-                        "Turning on Text mode runs the normal hook `text-mode-hook'."
-        case ("transient-mark-mode")
+                        " (see the variable `adaptive_fill_mode')."//LF// &
+                        "Turning on Text mode runs the normal hook `text_mode_hook'."
+        case ("transient_mark_mode")
             entry%file = "simple_modes_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle Transient Mark mode."//LF// &
@@ -2879,7 +2879,7 @@ contains
                         "Many commands change their behavior when Transient Mark mode is"//LF// &
                         "in effect and the mark is active, by acting on the region instead"//LF// &
                         "of their usual default part of the buffer's text."
-        case ("transpose-chars")
+        case ("transpose_chars")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_chars(arg, status)"
             entry%interactive = .true.
@@ -2887,14 +2887,14 @@ contains
                         "With prefix arg ARG, effect is to take character before point"//LF// &
                         "and drag it forward past ARG other characters (backward if ARG negative)."//LF// &
                         "If at end of line, the previous two chars are exchanged."
-        case ("transpose-lines")
+        case ("transpose_lines")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_lines(arg, status)"
             entry%interactive = .true.
             entry%doc = "Exchange current line and previous line, leaving point after both."//LF// &
                         "With argument ARG, takes previous line and moves it past ARG lines."//LF// &
                         "With argument 0, interchanges line point is in with line mark is in."
-        case ("transpose-paragraphs")
+        case ("transpose_paragraphs")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call transpose_paragraphs(arg, status)"
             entry%interactive = .true.
@@ -2904,7 +2904,7 @@ contains
                         "If ARG is positive, moves the current paragraph forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current paragraph with the one containing the mark."
-        case ("transpose-sentences")
+        case ("transpose_sentences")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call transpose_sentences(arg, status)"
             entry%interactive = .true.
@@ -2914,7 +2914,7 @@ contains
                         "If ARG is positive, moves the current sentence forwards, if"//LF// &
                         "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
                         "the current sentence with the one containing the mark."
-        case ("transpose-words")
+        case ("transpose_words")
             entry%file = "simple_fm.f90"
             entry%fortran = "call transpose_words(arg, status)"
             entry%interactive = .true.
@@ -2923,11 +2923,11 @@ contains
                         "and drag it forward past ARG other words (backward if ARG negative)."//LF// &
                         "If ARG is zero, the words around or after point and around or after mark"//LF// &
                         "are interchanged."
-        case ("turn-off-auto-fill")
+        case ("turn_off_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_off_auto_fill(status)"
             entry%doc = "Unconditionally turn off Auto Fill mode."
-        case ("turn-on-auto-fill")
+        case ("turn_on_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
@@ -2938,13 +2938,13 @@ contains
                         "Repeat this command to undo more changes."//LF// &
                         "A numeric ARG serves as a repeat count (ARG is the raw prefix"//LF// &
                         "argument)."
-        case ("undo-boundary")
+        case ("undo_boundary")
             entry%file = "undo_fm.f90"
             entry%fortran = "call undo_boundary()"
             entry%doc = "Mark a boundary between units of undo."//LF// &
                         "An undo command will stop at this point,"//LF// &
                         "but another undo command will undo to the previous boundary."
-        case ("undo-only")
+        case ("undo_only")
             entry%file = "simple_fm.f90"
             entry%fortran = "call undo_only(n, status)"
             entry%interactive = .true.
@@ -2952,12 +2952,12 @@ contains
                         "Repeat this command to undo more changes."//LF// &
                         "A numeric ARG serves as a repeat count."//LF// &
                         "Contrary to `undo', this will not redo a previous undo."
-        case ("undo-redo")
+        case ("undo_redo")
             entry%file = "simple_fm.f90"
             entry%fortran = "call undo_redo(arg, status)"
             entry%interactive = .true.
             entry%doc = "Undo the last ARG undos, i.e., redo the last ARG changes."
-        case ("unfill-paragraph")
+        case ("unfill_paragraph")
             entry%file = "fill_fm.f90"
             entry%fortran = "call unfill_paragraph(arg, status, beg, end)"
             entry%interactive = .true.
@@ -2967,7 +2967,7 @@ contains
                         "following ARG paragraphs.  In this case an active region is ignored."//LF// &
                         ""//LF// &
                         "With an active region and no prefix argument this is roughly the same as"//LF// &
-                        "`delete-indentation' with that active region, except that this command"//LF// &
+                        "`delete_indentation' with that active region, except that this command"//LF// &
                         "only joins lines within paragraphs, preserving the paragraphs"//LF// &
                         "themselves."//LF// &
                         ""//LF// &
@@ -2975,25 +2975,25 @@ contains
                         "lines within, or if ARG is nil, optional arguments BEG and END non-nil"//LF// &
                         "means to join the lines of each paragraph in the region delimited by BEG"//LF// &
                         "and END."
-        case ("universal-argument")
+        case ("universal_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Begin a numeric argument for the following command."//LF// &
-                        "Digits or minus sign following \[universal-argument] make up the numeric argument."//LF// &
-                        "\[universal-argument] following the digits or minus sign ends the argument."//LF// &
-                        "\[universal-argument] without digits or minus sign provides 4 as argument."//LF// &
-                        "Repeating \[universal-argument] without digits or minus sign"//LF// &
+                        "Digits or minus sign following \[universal_argument] make up the numeric argument."//LF// &
+                        "\[universal_argument] following the digits or minus sign ends the argument."//LF// &
+                        "\[universal_argument] without digits or minus sign provides 4 as argument."//LF// &
+                        "Repeating \[universal_argument] without digits or minus sign"//LF// &
                         " multiplies the argument by 4 each time."//LF// &
-                        "For some commands, just \[universal-argument] by itself serves as a flag"//LF// &
+                        "For some commands, just \[universal_argument] by itself serves as a flag"//LF// &
                         "that is different in effect from any particular numeric argument."//LF// &
-                        "These commands include \[set-mark-command]."
-        case ("universal-argument-minus")
+                        "These commands include \[set_mark_command]."
+        case ("universal_argument_minus")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "`-' in universal-argument-map: negative-argument, unless digits"//LF// &
                         "were typed already (upstream's menu-item filter), in which case it"//LF// &
                         "inserts itself as the global binding would."
-        case ("universal-argument-more")
+        case ("universal_argument_more")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
@@ -3002,15 +3002,15 @@ contains
             entry%fortran = "upcase_string(str)"
             entry%doc = "Convert argument to upper case and return that."//LF// &
                         "The argument object is not altered--the value is a copy.  See also"//LF// &
-                        "`capitalize', `downcase' and `upcase-initials'."
-        case ("upcase-initials")
+                        "`capitalize', `downcase' and `upcase_initials'."
+        case ("upcase_initials")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "upcase_initials_string(str)"
             entry%doc = "Convert the initial of each word in the argument to upper case."//LF// &
                         "This means that each word's first character is converted to either"//LF// &
                         "title case or upper case, and the rest are left unchanged."//LF// &
                         "The argument object is not altered--the value is a copy."
-        case ("upcase-initials-region")
+        case ("upcase_initials_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_initials_region(beg, end, status)"
             entry%interactive = .true.
@@ -3019,7 +3019,7 @@ contains
                         "title case or upper case, and the rest are left unchanged."//LF// &
                         "In programs, give two arguments, the starting and ending character"//LF// &
                         "positions to operate on."
-        case ("upcase-region")
+        case ("upcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_region(beg, end, status)"
             entry%interactive = .true.
@@ -3027,8 +3027,8 @@ contains
                         "These arguments specify the starting and ending character numbers"//LF// &
                         "of the region to operate on.  When used as a command, the text"//LF// &
                         "between point and the mark is operated on."//LF// &
-                        "See also `capitalize-region'."
-        case ("upcase-word")
+                        "See also `capitalize_region'."
+        case ("upcase_word")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_word(arg, status)"
             entry%interactive = .true.
@@ -3038,12 +3038,12 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."//LF// &
-                        "See also `capitalize-word'."
-        case ("where-is")
+                        "See also `capitalize_word'."
+        case ("where_is")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Print message listing key sequences that invoke the command DEFINITION."
-        case ("write-file")
+        case ("write_file")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
             entry%doc = "Write current buffer into file FILENAME."//LF// &
@@ -3057,11 +3057,11 @@ contains
                         "visiting a file."//LF// &
                         ""//LF// &
                         "You can also yank the file name into the minibuffer to edit it,"//LF// &
-                        "using \<minibuffer-local-map>\[next-history-element]."//LF// &
+                        "using \<minibuffer_local_map>\[next_history_element]."//LF// &
                         ""//LF// &
                         "Confirmation is required before overwriting an existing file, unless"//LF// &
                         "you supply a prefix argument."
-        case ("y-or-n-p")
+        case ("y_or_n_p")
             entry%file = "subr_fm.f90"
             entry%fortran = "call y_or_n_p(prompt, answer, status)"
             entry%doc = "Ask a ""y or n"" question in the echo area: `answer' is true for y"//LF// &
@@ -3077,7 +3077,7 @@ contains
                         "activating it.  With just C-u as argument, put point at beginning, and"//LF// &
                         "mark at end.  With argument N, reinsert the Nth most recent kill."//LF// &
                         "ARG is the raw prefix argument."
-        case ("yank-pop")
+        case ("yank_pop")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Replace just-yanked stretch of killed text with a different stretch."//LF// &
@@ -3092,7 +3092,7 @@ contains
                         ""//LF// &
                         "The sequence of kills wraps around, so that after the oldest one"//LF// &
                         "comes the newest one."
-        case ("yes-or-no-p")
+        case ("yes_or_no_p")
             entry%file = "fns_fm.f90"
             entry%fortran = "call yes_or_no_p(prompt, answer, status)"
             entry%doc = "Ask a yes-or-no question in the minibuffer: `answer' is true for"//LF// &
@@ -3111,18 +3111,18 @@ contains
         found = .true.
         entry%original = ""
         select case (name)
-        case ("adaptive-fill-mode")
+        case ("adaptive_fill_mode")
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_mode"
             entry%original = ".true."
             entry%value = repr(adaptive_fill_mode%value)
             entry%doc = "Non-nil means determine a paragraph's fill prefix from its text."
-        case ("after-change-major-mode-hook")
+        case ("after_change_major_mode_hook")
             entry%file = "subr_fm.f90"
             entry%fortran = "after_change_major_mode_hook"
-            entry%original = "hook_type(name=""after-change-major-mode-hook"")"
+            entry%original = "hook_type(name=""after_change_major_mode_hook"")"
             entry%doc = "Normal hook run at the very end of major mode functions."
-        case ("amalgamating-undo-limit")
+        case ("amalgamating_undo_limit")
             entry%file = "undo_fm.f90"
             entry%fortran = "amalgamating_undo_limit"
             entry%original = "20"
@@ -3130,44 +3130,44 @@ contains
             entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
                         "changes.  The `undo' command will normally consider ""similar"""//LF// &
                         "changes (like inserting characters) to be part of the same change."
-        case ("auto-fill-function")
+        case ("auto_fill_function")
             entry%file = "buffer_fm.f90"
             entry%fortran = "auto_fill_function"
             entry%doc = "Function called (if non-nil) to perform auto-fill."//LF// &
                         "It is called after self-inserting any character specified in"//LF// &
-                        "the `auto-fill-chars' table."//LF// &
+                        "the `auto_fill_chars' table."//LF// &
                         "NOTE: This variable is not a hook;"//LF// &
                         "its value may not be a list of functions."
-        case ("auto-fill-inhibit-regexp")
+        case ("auto_fill_inhibit_regexp")
             entry%file = "simple_fm.f90"
             entry%fortran = "auto_fill_inhibit_regexp"
             if (allocated(auto_fill_inhibit_regexp%value)) entry%value = repr(auto_fill_inhibit_regexp%value)
             entry%doc = "Regexp to match lines that should not be auto-filled."
-        case ("auto-fill-mode-hook")
+        case ("auto_fill_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "auto_fill_mode_hook"
-            entry%original = "hook_type(name=""auto-fill-mode-hook"")"
-            entry%doc = "Hook run after entering or leaving `auto-fill-mode'."
-        case ("case-fold-search")
+            entry%original = "hook_type(name=""auto_fill_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `auto_fill_mode'."
+        case ("case_fold_search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
             entry%original = ".true."
             entry%value = repr(case_fold_search%value)
             entry%doc = "Non-nil if searches and matches should ignore case."
-        case ("case-replace")
+        case ("case_replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "case_replace"
             entry%original = ".true."
             entry%value = repr(case_replace)
-            entry%doc = "Non-nil means `query-replace' should preserve case in replacements."
-        case ("case-symbols-as-words")
+            entry%doc = "Non-nil means `query_replace' should preserve case in replacements."
+        case ("case_symbols_as_words")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "case_symbols_as_words"
             entry%original = ".false."
             entry%value = repr(case_symbols_as_words)
             entry%doc = "If non-nil, case functions treat symbol syntax as part of words."//LF// &
                         ""//LF// &
-                        "Functions such as `upcase-initials' and `replace-match' check or"//LF// &
+                        "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
                         "modify the case pattern of sequences of characters.  Normally, these"//LF// &
                         "operate on sequences of characters whose syntax is word constituent."//LF// &
                         "If this variable is non-nil, then they operate on sequences of"//LF// &
@@ -3176,29 +3176,29 @@ contains
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
                         "first letter of a symbol's name is ever capitalized."
-        case ("change-major-mode-after-body-hook")
+        case ("change_major_mode_after_body_hook")
             entry%file = "subr_fm.f90"
             entry%fortran = "change_major_mode_after_body_hook"
             entry%doc = "Normal hook run in major mode functions, before the mode hooks."
-        case ("change-major-mode-hook")
+        case ("change_major_mode_hook")
             entry%file = "eval_fm.f90"
             entry%fortran = "change_major_mode_hook"
-            entry%original = "hook_type(name=""change-major-mode-hook"")"
+            entry%original = "hook_type(name=""change_major_mode_hook"")"
             entry%doc = "Normal hook run before changing the major mode of a buffer."//LF// &
-                        "The function `kill-all-local-variables' runs this before doing"//LF// &
+                        "The function `kill_all_local_variables' runs this before doing"//LF// &
                         "anything else."
-        case ("change-major-mode-with-file-name")
+        case ("change_major_mode_with_file_name")
             entry%file = "files_fm.f90"
             entry%fortran = "change_major_mode_with_file_name"
             entry%original = ".true."
             entry%value = repr(change_major_mode_with_file_name)
-            entry%doc = "Non-nil means \[write-file] should set the major mode from the file name."//LF// &
+            entry%doc = "Non-nil means \[write_file] should set the major mode from the file name."//LF// &
                         "However, the mode will not be changed if"//LF// &
                         "(1) a local variables list or the `-*-' line specifies a major mode, or"//LF// &
                         "(2) the current major mode is a ""special"" mode,"//LF// &
                         "    not suitable for ordinary files, or"//LF// &
                         "(3) the new file name does not particularly specify any mode."
-        case ("colon-double-space")
+        case ("colon_double_space")
             entry%file = "fill_fm.f90"
             entry%fortran = "colon_double_space"
             entry%original = ".false."
@@ -3208,7 +3208,7 @@ contains
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
             entry%doc = "The built-in commands."
-        case ("completion-auto-help")
+        case ("completion_auto_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
             entry%original = ".true."
@@ -3216,23 +3216,23 @@ contains
             entry%doc = "Non-nil means automatically provide help for invalid completion"//LF// &
                         "input.  (Only t and nil: `lazy', `always' and `visible' are not"//LF// &
                         "ported.)"
-        case ("completion-fail-discreetly")
+        case ("completion_fail_discreetly")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_fail_discreetly"
             entry%original = ".false."
             entry%value = repr(completion_fail_discreetly)
             entry%doc = "If non-nil, stay quiet when there is no match."
-        case ("completion-ignore-case")
+        case ("completion_ignore_case")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "completion_ignore_case"
             entry%original = ".false."
             entry%value = repr(completion_ignore_case)
             entry%doc = "Non-nil means don't consider case significant in completion."//LF// &
-                        "For file-name completion, `read-file-name-completion-ignore-case'"//LF// &
+                        "For file-name completion, `read_file_name_completion_ignore_case'"//LF// &
                         "controls the behavior, rather than this variable."//LF// &
-                        "For buffer name completion, `read-buffer-completion-ignore-case'"//LF// &
+                        "For buffer name completion, `read_buffer_completion_ignore_case'"//LF// &
                         "controls the behavior, rather than this variable."
-        case ("completion-ignored-extensions")
+        case ("completion_ignored_extensions")
             entry%file = "dired_fm.f90"
             entry%fortran = "completion_ignored_extensions"
             entry%value = repr(completion_ignored_extensions)
@@ -3241,14 +3241,14 @@ contains
                         "these strings or when displaying a list of completions.  It ignores"//LF// &
                         "directory names if they match any string in this list which ends in"//LF// &
                         "a slash."
-        case ("completion-show-inline-help")
+        case ("completion_show_inline_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_show_inline_help"
             entry%original = ".true."
             entry%value = repr(completion_show_inline_help)
             entry%doc = "If non-nil, print helpful inline messages during completion.  Port"//LF// &
                         "of minibuffer.el completion-show-inline-help."
-        case ("current-prefix-arg")
+        case ("current_prefix_arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
             entry%value = prin1_to_string(current_prefix_arg)
@@ -3257,26 +3257,26 @@ contains
                         "or a list whose car is a number for just one or more C-u's"//LF// &
                         "or nil if no argument has been specified."//LF// &
                         "This is what `(interactive ""P"")' returns."
-        case ("cycle-spacing-actions")
+        case ("cycle_spacing_actions")
             entry%file = "simple_fm.f90"
             entry%fortran = "cycle_spacing_actions"
-            entry%doc = "List of actions cycled through by `cycle-spacing'."//LF// &
+            entry%doc = "List of actions cycled through by `cycle_spacing'."//LF// &
                         "Supported values are:"//LF// &
-                        "- `just-one-space'      Delete all but N (prefix arg) spaces."//LF// &
+                        "- `just_one_space'      Delete all but N (prefix arg) spaces."//LF// &
                         "                        See that command's docstring for details."//LF// &
-                        "- `delete-space-after'  Delete spaces after point keeping only N."//LF// &
-                        "- `delete-space-before' Delete spaces before point keeping only N."//LF// &
-                        "- `delete-all-space'    Delete all spaces around point."//LF// &
+                        "- `delete_space_after'  Delete spaces after point keeping only N."//LF// &
+                        "- `delete_space_before' Delete spaces before point keeping only N."//LF// &
+                        "- `delete_all_space'    Delete all spaces around point."//LF// &
                         "- `restore'             Restore the original spacing."//LF// &
                         ""//LF// &
-                        "All actions make use of the prefix arg given to `cycle-spacing'"//LF// &
-                        "in the initial invocation, i.e., `just-one-space' keeps this"//LF// &
-                        "amount of spaces deleting surplus ones.  `just-one-space' and all"//LF// &
+                        "All actions make use of the prefix arg given to `cycle_spacing'"//LF// &
+                        "in the initial invocation, i.e., `just_one_space' keeps this"//LF// &
+                        "amount of spaces deleting surplus ones.  `just_one_space' and all"//LF// &
                         "other actions have the contract that a positive prefix arg (or"//LF// &
                         "zero) only deletes tabs and spaces whereas a negative prefix arg"//LF// &
                         "also deletes newlines."//LF// &
                         ""//LF// &
-                        "The `delete-space-before' and `delete-space-after' actions handle"//LF// &
+                        "The `delete_space_before' and `delete_space_after' actions handle"//LF// &
                         "the prefix arg M-- without a number provided"//LF// &
                         "specially: all spaces before/after point are deleted (as if N was"//LF// &
                         "0) including newlines (as if N was negative)."//LF// &
@@ -3286,14 +3286,14 @@ contains
                         "and ARG is either"//LF// &
                         "- an integer with the meaning that ACTION should always use this"//LF// &
                         "  fixed integer instead of the actual prefix arg or"//LF// &
-                        "- the symbol `inverted-arg' with the meaning that ACTION should"//LF// &
+                        "- the symbol `inverted_arg' with the meaning that ACTION should"//LF// &
                         "  be performed with the inverted actual prefix arg."//LF// &
                         "- the symbol `-' with the meaning that ACTION should include"//LF// &
                         "  newlines but it's up to the ACTION to decide how to interpret"//LF// &
-                        "  it as a number, e.g., `delete-space-before' and"//LF// &
-                        "  `delete-space-after' treat it like 0 whereas `just-one-space'"//LF// &
+                        "  it as a number, e.g., `delete_space_before' and"//LF// &
+                        "  `delete_space_after' treat it like 0 whereas `just_one_space'"//LF// &
                         "  treats it like -1 as is usual."
-        case ("default-justification")
+        case ("default_justification")
             entry%file = "fill_fm.f90"
             entry%fortran = "default_justification"
             entry%original = "JUSTIFY_LEFT"
@@ -3321,58 +3321,58 @@ contains
                         "line is centered.  `none' means no justification or centering."//LF// &
                         "The requested kind of justification is done whenever lines are filled."//LF// &
                         "The `justification' text-property can locally override this variable."
-        case ("delete-active-region")
+        case ("delete_active_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "delete_active_region"
             entry%original = ".true."
             entry%value = repr(delete_active_region)
             entry%doc = "Whether single-char deletion commands delete an active region."//LF// &
                         "This has an effect only if Transient Mark mode is enabled, and"//LF// &
-                        "affects `delete-forward-char' and `delete-backward-char'."
-        case ("disabled-command-function")
+                        "affects `delete_forward_char' and `delete_backward_char'."
+        case ("disabled_command_function")
             entry%file = "novice_fm.f90"
             entry%fortran = "disabled_command_function_p"
             entry%original = ".true."
             entry%value = repr(disabled_command_function_p)
             entry%doc = "Function to call to handle disabled commands."//LF// &
                         "If nil, the feature is disabled, i.e., all commands work normally."
-        case ("enable-recursive-minibuffers")
+        case ("enable_recursive_minibuffers")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "enable_recursive_minibuffers"
             entry%original = ".false."
             entry%value = repr(enable_recursive_minibuffers)
             entry%doc = "Non-nil means to allow minibuffer commands while in the minibuffer."//LF// &
                         "This variable makes a difference whenever the minibuffer window is active."
-        case ("fill-column")
+        case ("fill_column")
             entry%file = "buffer_fm.f90"
             entry%fortran = "fill_column"
             entry%original = "70"
             entry%value = repr(fill_column%value)
             entry%doc = "Column beyond which automatic line-wrapping should happen."//LF// &
-                        "It is used by filling commands, such as `fill-region' and `fill-paragraph',"//LF// &
-                        "and by `auto-fill-mode', which see."//LF// &
-                        "See also `current-fill-column'."//LF// &
-                        "Interactively, you can set the buffer local value using \[set-fill-column]."
-        case ("fill-indent-according-to-mode")
+                        "It is used by filling commands, such as `fill_region' and `fill_paragraph',"//LF// &
+                        "and by `auto_fill_mode', which see."//LF// &
+                        "See also `current_fill_column'."//LF// &
+                        "Interactively, you can set the buffer local value using \[set_fill_column]."
+        case ("fill_indent_according_to_mode")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_indent_according_to_mode"
             entry%original = ".false."
             entry%value = repr(fill_indent_according_to_mode)
             entry%doc = "Whether or not filling should try to use the major mode's indentation."
-        case ("fill-nobreak-predicate")
+        case ("fill_nobreak_predicate")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_nobreak_predicate"
             entry%doc = "List of predicates for recognizing places not to break a line."//LF// &
                         "The predicates are called with no arguments, with point at the place to"//LF// &
                         "be tested.  If it returns a non-nil value, fill commands do not break"//LF// &
                         "the line there."
-        case ("fill-prefix")
+        case ("fill_prefix")
             entry%file = "simple_fm.f90"
             entry%fortran = "fill_prefix"
             if (allocated(fill_prefix%value)) entry%value = repr(fill_prefix%value)
             entry%doc = "String for filling to insert at front of new line, or nil for none."//LF// &
                         "Unallocated is nil."
-        case ("fill-separate-heterogeneous-words-with-space")
+        case ("fill_separate_heterogeneous_words_with_space")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_separate_heterogeneous_words_with_space"
             entry%original = ".false."
@@ -3382,9 +3382,9 @@ contains
                         "at the beginning of the next line are joined into a single line, they"//LF// &
                         "will be separated by a space if this variable is non-nil."//LF// &
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
-                        "in `fill-nospace-between-words-table' for the characters before and"//LF// &
+                        "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
-        case ("goal-column")
+        case ("goal_column")
             entry%file = "simple_fm.f90"
             entry%fortran = "goal_column"
             entry%original = "-1"
@@ -3392,20 +3392,20 @@ contains
             entry%doc = "Semipermanent goal column for vertical motion, or -1 for none (nil"//LF// &
                         "upstream).  A setting other than -1 overrides the variable"//LF// &
                         "`line_move_visual', which see."
-        case ("help-map")
+        case ("help_map")
             entry%file = "help_fm.f90"
             entry%fortran = "help_map"
             entry%doc = "Keymap for characters following the Help key."
-        case ("help-mode-hook")
+        case ("help_mode_hook")
             entry%file = "help_mode_fm.f90"
             entry%fortran = "help_mode_hook"
-            entry%original = "hook_type(name=""help-mode-hook"")"
-            entry%doc = "Hook run by `help-mode'."
-        case ("help-mode-map")
+            entry%original = "hook_type(name=""help_mode_hook"")"
+            entry%doc = "Hook run by `help_mode'."
+        case ("help_mode_map")
             entry%file = "help_mode_fm.f90"
             entry%fortran = "help_mode_map"
             entry%doc = "Keymap for Help mode."
-        case ("history-add-new-input")
+        case ("history_add_new_input")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "history_add_new_input"
             entry%original = ".true."
@@ -3414,7 +3414,7 @@ contains
                         "If set to false, minibuffer reading functions don't add new elements to the"//LF// &
                         "history list, so it is possible to do this afterwards by calling"//LF// &
                         "`add_to_history' explicitly."
-        case ("history-length")
+        case ("history_length")
             entry%file = "subr_fm.f90"
             entry%fortran = "history_length"
             entry%original = "100"
@@ -3422,7 +3422,7 @@ contains
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
                         "elements, and is done just after inserting a new element."
-        case ("indent-line-function")
+        case ("indent_line_function")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_line_function"
             entry%doc = "Function to indent the current line."//LF// &
@@ -3431,30 +3431,30 @@ contains
                         "should return `noindent' to signal that it didn't."//LF// &
                         "Setting this function is all you need to make TAB indent appropriately."//LF// &
                         "Don't rebind TAB unless you really need to."
-        case ("indent-tabs-mode")
+        case ("indent_tabs_mode")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_tabs_mode"
             entry%original = ".true."
             entry%value = repr(indent_tabs_mode%value)
             entry%doc = "Indentation can insert tabs if this is non-nil."
-        case ("indent-tabs-mode-hook")
+        case ("indent_tabs_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "indent_tabs_mode_hook"
-            entry%original = "hook_type(name=""indent-tabs-mode-hook"")"
-            entry%doc = "Hook run after entering or leaving `indent-tabs-mode'."
-        case ("inhibit-auto-fill")
+            entry%original = "hook_type(name=""indent_tabs_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `indent_tabs_mode'."
+        case ("inhibit_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "inhibit_auto_fill"
             entry%original = ".false."
             entry%value = repr(inhibit_auto_fill)
-            entry%doc = "Non-nil means to do as if `auto-fill-mode' was disabled."
-        case ("inhibit-field-text-motion")
+            entry%doc = "Non-nil means to do as if `auto_fill_mode' was disabled."
+        case ("inhibit_field_text_motion")
             entry%file = "editfns_fm.f90"
             entry%fortran = "inhibit_field_text_motion"
             entry%original = ".false."
             entry%value = repr(inhibit_field_text_motion)
             entry%doc = "Non-nil means text motion commands don't notice fields."
-        case ("insert-default-directory")
+        case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
             entry%original = ".true."
@@ -3470,7 +3470,7 @@ contains
                         "default name, if one is provided."//LF// &
                         ""//LF// &
                         "If this variable is nil, the minibuffer often starts out empty."
-        case ("isearch-lax-whitespace")
+        case ("isearch_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_lax_whitespace"
             entry%original = ".true."
@@ -3478,16 +3478,16 @@ contains
             entry%doc = "If non-nil, a space will match a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in ordinary incremental search, it"//LF// &
                         "will match any sequence matched by the regexp defined by the"//LF// &
-                        "variable `search-whitespace-regexp'.  If the value is nil, each"//LF// &
+                        "variable `search_whitespace_regexp'.  If the value is nil, each"//LF// &
                         "space you type matches literally, against one space.  You can"//LF// &
                         "toggle the value of this variable by the command"//LF// &
-                        "`isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during"//LF// &
+                        "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
-        case ("isearch-mode-map")
+        case ("isearch_mode_map")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_mode_map"
-            entry%doc = "Keymap for `isearch-mode'."
-        case ("isearch-regexp-lax-whitespace")
+            entry%doc = "Keymap for `isearch_mode'."
+        case ("isearch_regexp_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_regexp_lax_whitespace"
             entry%original = ".false."
@@ -3495,45 +3495,45 @@ contains
             entry%doc = "If non-nil, a space will match a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in regexp incremental search, it"//LF// &
                         "will match any sequence matched by the regexp defined by the"//LF// &
-                        "variable `search-whitespace-regexp'.  If the value is nil, each"//LF// &
+                        "variable `search_whitespace_regexp'.  If the value is nil, each"//LF// &
                         "space you type matches literally, against one space.  You can"//LF// &
                         "toggle the value of this variable by the command"//LF// &
-                        "`isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during"//LF// &
+                        "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
-        case ("kill-read-only-ok")
+        case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
             entry%original = ".false."
             entry%value = repr(kill_read_only_ok)
             entry%doc = "Non-nil means don't signal an error for killing read-only text."
-        case ("kill-ring-max")
+        case ("kill_ring_max")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_ring_max"
             entry%original = "120"
             entry%value = repr(kill_ring_max)
             entry%doc = "Maximum length of kill ring before oldest elements are thrown away."
-        case ("kill-ring-yank-pointer")
+        case ("kill_ring_yank_pointer")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_ring_yank_pointer"
             entry%original = "1"
             entry%value = repr(kill_ring_yank_pointer)
             entry%doc = "The tail of the kill ring whose car is the last thing yanked, as an"//LF// &
-                        "index into `kill-ring' (1 for its first element)."
-        case ("kill-whole-line")
+                        "index into `kill_ring' (1 for its first element)."
+        case ("kill_whole_line")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_whole_line_option"
             entry%original = ".false."
             entry%value = repr(kill_whole_line_option)
             entry%doc = "If true, `kill_line' with no arg at start of line kills the whole"//LF// &
                         "line."
-        case ("left-margin")
+        case ("left_margin")
             entry%file = "buffer_fm.f90"
             entry%fortran = "left_margin"
             entry%original = "0"
             entry%value = repr(left_margin%value)
-            entry%doc = "Column for the default `indent-line-function' to indent to."//LF// &
+            entry%doc = "Column for the default `indent_line_function' to indent to."//LF// &
                         "Linefeed indents to this column in Fundamental mode."
-        case ("line-move-visual")
+        case ("line_move_visual")
             entry%file = "simple_fm.f90"
             entry%fortran = "line_move_visual"
             entry%original = ".true."
@@ -3547,7 +3547,7 @@ contains
                         "and forces movement by logical lines."//LF// &
                         "A window that is horizontally scrolled also forces movement by logical"//LF// &
                         "lines."
-        case ("make-backup-files")
+        case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
             entry%original = ".true."
@@ -3564,7 +3564,7 @@ contains
                         "file, then writes the buffer on top of the existing file.  Any other"//LF// &
                         "names that the old file had will now refer to the new (edited) file."//LF// &
                         "The file's owner and group are unchanged."
-        case ("mark-even-if-inactive")
+        case ("mark_even_if_inactive")
             entry%file = "callint_fm.f90"
             entry%fortran = "mark_even_if_inactive"
             entry%original = ".true."
@@ -3574,63 +3574,63 @@ contains
                         "When the option is non-nil, deactivation of the mark"//LF// &
                         "turns off region highlighting, but commands that use the mark"//LF// &
                         "behave as if the mark were still active."
-        case ("mark-ring-max")
+        case ("mark_ring_max")
             entry%file = "simple_fm.f90"
             entry%fortran = "mark_ring_max"
             entry%original = "16"
             entry%value = repr(mark_ring_max)
             entry%doc = "Maximum size of mark ring.  Start discarding off end if gets this"//LF// &
                         "big."
-        case ("minibuffer-completing-file-name")
+        case ("minibuffer_completing_file_name")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "minibuffer_completing_file_name"
             entry%original = ".false."
             entry%value = repr(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
-        case ("mode-require-final-newline")
+        case ("mode_require_final_newline")
             entry%file = "files_fm.f90"
             entry%fortran = "mode_require_final_newline"
             entry%value = repr(mode_require_final_newline%value)
             entry%doc = "Whether to add a newline at end of file, in certain major modes."//LF// &
-                        "Those modes set `require-final-newline' to this value when you enable them."//LF// &
+                        "Those modes set `require_final_newline' to this value when you enable them."//LF// &
                         "They do so because they are often used for files that are supposed"//LF// &
                         "to end in newlines, and the question is how to arrange that."//LF// &
                         ""//LF// &
                         "A value of t means do this only when the file is about to be saved."//LF// &
                         "A value of `visit' means do this right after the file is visited."//LF// &
-                        "A value of `visit-save' means do it at both of those times."//LF// &
+                        "A value of `visit_save' means do it at both of those times."//LF// &
                         "Any other non-nil value means ask user whether to add a newline, when saving."//LF// &
                         ""//LF// &
                         "A value of nil means do not add newlines.  That is a risky choice in this"//LF// &
                         "variable since this value is used for modes for files that ought to have"//LF// &
                         "final newlines.  So if you set this to nil, you must explicitly check and"//LF// &
                         "add a final newline, whenever you save a file that really needs one."
-        case ("next-screen-context-lines")
+        case ("next_screen_context_lines")
             entry%file = "window_fm.f90"
             entry%fortran = "next_screen_context_lines"
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
-        case ("paragraph-ignore-fill-prefix")
+        case ("paragraph_ignore_fill_prefix")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_ignore_fill_prefix"
             entry%original = ".false."
             entry%value = repr(paragraph_ignore_fill_prefix)
-            entry%doc = "Non-nil means the paragraph commands are not affected by `fill-prefix'."//LF// &
+            entry%doc = "Non-nil means the paragraph commands are not affected by `fill_prefix'."//LF// &
                         "This is desirable in modes where blank lines are the paragraph delimiters."
-        case ("paragraph-separate")
+        case ("paragraph_separate")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_separate"
             if (allocated(paragraph_separate%value)) entry%value = repr(paragraph_separate%value)
             entry%doc = "Regexp for beginning of a line that separates paragraphs."//LF// &
-                        "If you change this, you may have to change `paragraph-start' also."//LF// &
+                        "If you change this, you may have to change `paragraph_start' also."//LF// &
                         ""//LF// &
                         "This is matched against the text at the left margin, which is not"//LF// &
                         "necessarily the beginning of the line, so it should not use ""^"" as"//LF// &
                         "an anchor.  This ensures that the paragraph functions will work"//LF// &
                         "equally within a region of text indented by a margin setting.  Port"//LF// &
                         "of paragraphs.el paragraph-separate."
-        case ("paragraph-start")
+        case ("paragraph_start")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_start"
             if (allocated(paragraph_start%value)) entry%value = repr(paragraph_start%value)
@@ -3644,17 +3644,17 @@ contains
                         "as an anchor.  This ensures that the paragraph functions will work"//LF// &
                         "equally well within a region of text indented by a margin setting."//LF// &
                         ""//LF// &
-                        "The variable `paragraph-separate' specifies how to distinguish lines"//LF// &
+                        "The variable `paragraph_separate' specifies how to distinguish lines"//LF// &
                         "that start paragraphs from lines that separate them."//LF// &
                         ""//LF// &
-                        "If the variable `use-hard-newlines' is non-nil, then only lines"//LF// &
+                        "If the variable `use_hard_newlines' is non-nil, then only lines"//LF// &
                         "following a hard newline are considered to match."
-        case ("parse-sexp-ignore-comments")
+        case ("parse_sexp_ignore_comments")
             entry%file = "syntax_fm.f90"
             entry%fortran = "parse_sexp_ignore_comments"
             entry%value = repr(parse_sexp_ignore_comments%value)
-            entry%doc = "Non-nil means `forward-sexp', etc., should treat comments as whitespace."
-        case ("pending-undo-list")
+            entry%doc = "Non-nil means `forward_sexp', etc., should treat comments as whitespace."
+        case ("pending_undo_list")
             entry%file = "simple_fm.f90"
             entry%fortran = "pending_undo_list"
             entry%original = "0"
@@ -3669,67 +3669,67 @@ contains
             entry%value = repr(point_before_last_command_or_undo)
             entry%doc = "Where point was before the last command or `undo_boundary', and in"//LF// &
                         "which buffer (its serial number), for `record_point'."
-        case ("prog-mode-hook")
+        case ("prog_mode_hook")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_hook"
-            entry%original = "hook_type(name=""prog-mode-hook"")"
+            entry%original = "hook_type(name=""prog_mode_hook"")"
             entry%doc = "Normal hook run when entering programming modes."
-        case ("prog-mode-map")
+        case ("prog_mode_map")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_map"
             entry%doc = "Keymap used for programming modes."
-        case ("query-replace-defaults")
+        case ("query_replace_defaults")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_defaults"
-            entry%doc = "Default values of FROM-STRING and TO-STRING for `query-replace'."//LF// &
+            entry%doc = "Default values of FROM-STRING and TO-STRING for `query_replace'."//LF// &
                         "This is a list of cons cells (FROM-STRING . TO-STRING), or nil"//LF// &
                         "if there are no default values."
-        case ("query-replace-show-replacement")
+        case ("query_replace_show_replacement")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_show_replacement"
             entry%original = ".true."
             entry%value = repr(query_replace_show_replacement)
             entry%doc = "Non-nil means show substituted replacement text in the minibuffer."//LF// &
-                        "This variable affects only `query-replace-regexp'."
-        case ("query-replace-skip-read-only")
+                        "This variable affects only `query_replace_regexp'."
+        case ("query_replace_skip_read_only")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_skip_read_only"
             entry%original = ".false."
             entry%value = repr(query_replace_skip_read_only)
-            entry%doc = "Non-nil means `query-replace' and friends ignore read-only matches."
-        case ("regexp-search-ring-max")
+            entry%doc = "Non-nil means `query_replace' and friends ignore read-only matches."
+        case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
             entry%original = "16"
             entry%value = repr(regexp_search_ring_max)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
-        case ("replace-count")
+        case ("replace_count")
             entry%file = "replace_fm.f90"
             entry%fortran = "replace_count"
             entry%original = "0"
             entry%value = repr(replace_count)
             entry%doc = "Number of replacements done so far."//LF// &
-                        "See `replace-regexp'."
-        case ("replace-lax-whitespace")
+                        "See `replace_regexp'."
+        case ("replace_lax_whitespace")
             entry%file = "replace_fm.f90"
             entry%fortran = "replace_lax_whitespace"
             entry%original = ".false."
             entry%value = repr(replace_lax_whitespace)
-            entry%doc = "Non-nil means `query-replace' matches a sequence of whitespace chars."//LF// &
+            entry%doc = "Non-nil means `query_replace' matches a sequence of whitespace chars."//LF// &
                         "When you enter a space or spaces in the strings to be replaced,"//LF// &
                         "it will match any sequence matched by the regexp"//LF// &
-                        "`search-whitespace-regexp'."
-        case ("replace-regexp-lax-whitespace")
+                        "`search_whitespace_regexp'."
+        case ("replace_regexp_lax_whitespace")
             entry%file = "replace_fm.f90"
             entry%fortran = "replace_regexp_lax_whitespace"
             entry%original = ".false."
             entry%value = repr(replace_regexp_lax_whitespace)
-            entry%doc = "Non-nil means `query-replace-regexp' matches a sequence of whitespace"//LF// &
+            entry%doc = "Non-nil means `query_replace_regexp' matches a sequence of whitespace"//LF// &
                         "chars.  When you enter a space or spaces in the regexps to be"//LF// &
                         "replaced, it will match any sequence matched by the regexp"//LF// &
-                        "`search-whitespace-regexp'."
-        case ("require-final-newline")
+                        "`search_whitespace_regexp'."
+        case ("require_final_newline")
             entry%file = "files_fm.f90"
             entry%fortran = "require_final_newline"
             entry%value = repr(require_final_newline%value)
@@ -3737,17 +3737,17 @@ contains
                         ""//LF// &
                         "A value of t means do this only when the file is about to be saved."//LF// &
                         "A value of `visit' means do this right after the file is visited."//LF// &
-                        "A value of `visit-save' means do it at both of those times."//LF// &
+                        "A value of `visit_save' means do it at both of those times."//LF// &
                         "Any other non-nil value means ask user whether to add a newline, when saving."//LF// &
                         "A value of nil means don't add newlines."//LF// &
                         ""//LF// &
                         "Certain major modes set this locally to the value obtained"//LF// &
-                        "from `mode-require-final-newline'."//LF// &
+                        "from `mode_require_final_newline'."//LF// &
                         ""//LF// &
                         "This variable is heeded only when visiting files (or saving"//LF// &
                         "buffers into files they visit).  Writing data to the file system"//LF// &
-                        "with `write-region' and the like is not influenced by this variable."
-        case ("scroll-error-top-bottom")
+                        "with `write_region' and the like is not influenced by this variable."
+        case ("scroll_error_top_bottom")
             entry%file = "window_fm.f90"
             entry%fortran = "scroll_error_top_bottom"
             entry%original = ".false."
@@ -3756,15 +3756,15 @@ contains
                         "If nil, scroll commands signal an error when no more scrolling is"//LF// &
                         "possible.  If non-nil, they move point to the beginning or end of"//LF// &
                         "the buffer instead (and then signal at the edge)."
-        case ("search-exit-option")
+        case ("search_exit_option")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_exit_option"
             entry%original = ".true."
             entry%value = repr(search_exit_option)
             entry%doc = "Non-nil means random control characters terminate incremental"//LF// &
                         "search.  (Only t and nil: `edit', `append', `move' and"//LF// &
-                        "`shift-move' are not ported.)"
-        case ("search-nonincremental-instead")
+                        "`shift_move' are not ported.)"
+        case ("search_nonincremental_instead")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_nonincremental_instead"
             entry%original = ".true."
@@ -3772,14 +3772,14 @@ contains
             entry%doc = "If non-nil, do a nonincremental search instead of an incremental"//LF// &
                         "one.  This applies to RET typed immediately after entering"//LF// &
                         "incremental search."
-        case ("search-ring-max")
+        case ("search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_ring_max"
             entry%original = "16"
             entry%value = repr(search_ring_max)
             entry%doc = "Maximum length of search ring before oldest elements are thrown"//LF// &
                         "away."
-        case ("search-upper-case")
+        case ("search_upper_case")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_upper_case"
             entry%original = "UPPER_CASE_NOT_YANKS"
@@ -3797,9 +3797,9 @@ contains
                         "That is, upper and lower case chars must match exactly."//LF// &
                         "This applies no matter where the chars come from, but does not"//LF// &
                         "apply to chars in regexps that are prefixed with `\'."//LF// &
-                        "If this value is `not-yanks', text yanked into the search string"//LF// &
+                        "If this value is `not_yanks', text yanked into the search string"//LF// &
                         "in Isearch mode is always downcased."
-        case ("sentence-end")
+        case ("sentence_end")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end"
             if (allocated(sentence_end%value)) entry%value = repr(sentence_end%value)
@@ -3808,9 +3808,9 @@ contains
                         "All paragraph boundaries also end sentences, regardless."//LF// &
                         ""//LF// &
                         "The value nil (unallocated) means to use the default value defined"//LF// &
-                        "by the function `sentence-end'.  You should always use this function"//LF// &
+                        "by the function `sentence_end'.  You should always use this function"//LF// &
                         "to obtain the value of this variable."
-        case ("sentence-end-double-space")
+        case ("sentence_end_double_space")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_double_space"
             entry%value = repr(sentence_end_double_space%value)
@@ -3819,7 +3819,7 @@ contains
                         ""//LF// &
                         "If this variable is non-nil, Emacs considers a period followed by"//LF// &
                         "two spaces or by a newline as the end of a sentence."
-        case ("sentence-end-without-period")
+        case ("sentence_end_without_period")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_without_period"
             entry%original = ".false."
@@ -3828,25 +3828,25 @@ contains
                         "For example, a sentence in Thai text ends with double space but"//LF// &
                         "without a period."//LF// &
                         ""//LF// &
-                        "This value is used by the function `sentence-end' to construct the"//LF// &
+                        "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
-                        "variable `sentence-end' is nil."
-        case ("special-mode-hook")
+                        "variable `sentence_end' is nil."
+        case ("special_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_hook"
-            entry%original = "hook_type(name=""special-mode-hook"")"
-            entry%doc = "Hook run after entering Special mode (`special-mode-hook')."
-        case ("special-mode-map")
+            entry%original = "hook_type(name=""special_mode_hook"")"
+            entry%doc = "Hook run after entering Special mode (`special_mode_hook')."
+        case ("special_mode_map")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_map"
-            entry%doc = "Keymap for `special-mode'."
-        case ("standard-indent")
+            entry%doc = "Keymap for `special_mode'."
+        case ("standard_indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "standard_indent"
             entry%original = "4"
             entry%value = repr(standard_indent%value)
             entry%doc = "Default number of columns for margin-changing functions to indent."
-        case ("suggest-key-bindings")
+        case ("suggest_key_bindings")
             entry%file = "simple_fm.f90"
             entry%fortran = "suggest_key_bindings"
             entry%original = ".true."
@@ -3854,7 +3854,7 @@ contains
             entry%doc = "Non-nil means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported: the suggestion shows until the"//LF// &
                         "next command.)"
-        case ("tab-always-indent")
+        case ("tab_always_indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "tab_always_indent"
             entry%original = ".true."
@@ -3863,17 +3863,17 @@ contains
                         "If t, hitting TAB always just indents the current line."//LF// &
                         "If nil, hitting TAB indents the current line if point is at the left margin"//LF// &
                         "or in the line's indentation, otherwise it inserts a ""real"" TAB character."
-        case ("tab-stop-list")
+        case ("tab_stop_list")
             entry%file = "indent_fm.f90"
             entry%fortran = "tab_stop_list"
             if (allocated(tab_stop_list)) entry%value = repr(tab_stop_list)
-            entry%doc = "List of tab stop positions used by `tab-to-tab-stop'."//LF// &
+            entry%doc = "List of tab stop positions used by `tab_to_tab_stop'."//LF// &
                         "This should be nil, or a list of integers, ordered from smallest to largest."//LF// &
                         "It implicitly extends to infinity through repetition of the last step."//LF// &
                         "For example, (1 2 5) is equivalent to (1 2 5 8 11 ...).  If the list has"//LF// &
-                        "fewer than 2 elements, `tab-width' is used as the ""last step""."//LF// &
-                        "A value of nil means a tab stop every `tab-width' columns."
-        case ("tab-width")
+                        "fewer than 2 elements, `tab_width' is used as the ""last step""."//LF// &
+                        "A value of nil means a tab stop every `tab_width' columns."
+        case ("tab_width")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "tab_width"
             entry%original = "8"
@@ -3881,30 +3881,30 @@ contains
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
-        case ("text-mode-hook")
+        case ("text_mode_hook")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_hook"
-            entry%original = "hook_type(name=""text-mode-hook"")"
+            entry%original = "hook_type(name=""text_mode_hook"")"
             entry%doc = "Normal hook run when entering Text mode and many related modes."
-        case ("text-mode-map")
+        case ("text_mode_map")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_map"
-            entry%doc = "Keymap for `text-mode'."//LF// &
-                        "Many other modes, such as `mail-mode' and `outline-mode', inherit"//LF// &
+            entry%doc = "Keymap for `text_mode'."//LF// &
+                        "Many other modes, such as `mail_mode' and `outline_mode', inherit"//LF// &
                         "all the commands defined in this map."
-        case ("text-mode-syntax-table")
+        case ("text_mode_syntax_table")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_syntax_table"
-            entry%doc = "Syntax table used while in `text-mode'."
-        case ("text-mode-variant")
+            entry%doc = "Syntax table used while in `text_mode'."
+        case ("text_mode_variant")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_variant"
             entry%original = ".false."
             entry%value = repr(text_mode_variant%value)
             entry%doc = "Non-nil if this buffer's major mode is a variant of Text mode."//LF// &
                         "Obsolete since 27.1: don't set it, and instead of testing its value"//LF// &
-                        "use `derived-mode-p'."
-        case ("transient-mark-mode")
+                        "use `derived_mode_p'."
+        case ("transient_mark_mode")
             entry%file = "buffer_fm.f90"
             entry%fortran = "transient_mark_mode"
             entry%original = ".true."
@@ -3912,36 +3912,36 @@ contains
             entry%doc = "Non-nil if Transient Mark mode is enabled."//LF// &
                         "Non-nil also enables highlighting of the region whenever the mark is"//LF// &
                         "active.  The region is highlighted with the `region' face."
-        case ("transient-mark-mode-hook")
+        case ("transient_mark_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "transient_mark_mode_hook"
-            entry%original = "hook_type(name=""transient-mark-mode-hook"")"
-            entry%doc = "Hook run after entering or leaving `transient-mark-mode'."
-        case ("undo-in-progress")
+            entry%original = "hook_type(name=""transient_mark_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `transient_mark_mode'."
+        case ("undo_in_progress")
             entry%file = "simple_fm.f90"
             entry%fortran = "undo_in_progress"
             entry%original = ".false."
             entry%value = repr(undo_in_progress)
             entry%doc = "Non-nil while performing an undo."
-        case ("undo-no-redo")
+        case ("undo_no_redo")
             entry%file = "simple_fm.f90"
             entry%fortran = "undo_no_redo"
             entry%original = ".false."
             entry%value = repr(undo_no_redo)
             entry%doc = "If t, `undo' doesn't go through redo entries."
-        case ("visible-bell")
+        case ("visible_bell")
             entry%file = "term_fm.f90"
             entry%fortran = "visible_bell"
             entry%original = ".false."
             entry%value = repr(visible_bell)
             entry%doc = "term.c's Lisp variables visible-bell, inverse-video and"//LF// &
                         "visible-cursor."
-        case ("words-include-escapes")
+        case ("words_include_escapes")
             entry%file = "syntax_fm.f90"
             entry%fortran = "words_include_escapes"
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
-            entry%doc = "Non-nil means `forward-word', etc., should treat escape chars part of words."
+            entry%doc = "Non-nil means `forward_word', etc., should treat escape chars part of words."
         case default
             found = .false.
         end select

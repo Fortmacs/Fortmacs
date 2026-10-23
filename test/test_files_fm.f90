@@ -637,7 +637,7 @@ contains
         call delete_directory_internal(dir, st)
     end subroutine test_make_directory
 
-    !> basic-save-buffer adds a final newline as `require-final-newline'
+    !> basic-save-buffer adds a final newline as `require_final_newline'
     !> says (asking for other values than t and visit-save), visiting adds
     !> one for `visit', and saving into a missing directory asks to create
     !> it.
@@ -715,24 +715,24 @@ contains
             if (allocated(error)) exit body
             call check(error, slurp(path("ro")) == "text", "file named after the buffer")
             if (allocated(error)) exit body
-            call check(error, mode_name_of_current() == "fundamental-mode", "no mode for the name")
+            call check(error, mode_name_of_current() == "fundamental_mode", "no mode for the name")
             if (allocated(error)) exit body
             call set_file_modes(path("ro"), int(o'755', int32), st)
             call write_file(path("new"), .false., st)
-            call check(error, mode_name_of_current() == "fundamental-mode")
+            call check(error, mode_name_of_current() == "fundamental_mode")
             if (allocated(error)) exit body
             call check(error, iand(file_modes(path("new")), int(o'111', int32)) == int(o'111', int32), "executable")
             if (allocated(error)) exit body
             call write_file(path("c.txt"), .false., st)
-            call check(error, buffers(cur)%major_mode == "text-mode", "mode from the new name")
+            call check(error, buffers(cur)%major_mode == "text_mode", "mode from the new name")
         end block body
         call kill_file_buffers()
     end subroutine test_write_file
 
-    !> The current buffer's `major-mode'.
+    !> The current buffer's `major_mode'.
     function mode_name_of_current() result(mode)
         character(len=:), allocatable :: mode
-        mode = "fundamental-mode"
+        mode = "fundamental_mode"
         if (allocated(buffers(cur)%major_mode)) mode = buffers(cur)%major_mode
     end function mode_name_of_current
 end module test_files_fm

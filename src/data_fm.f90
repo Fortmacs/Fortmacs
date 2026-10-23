@@ -49,7 +49,7 @@ module data_fm
     !> (upstream any variable can be buffer-local).  Assigning to it sets
     !> the value seen in the current buffer (the default, unless the
     !> buffer has its own); `set_local' gives the current buffer its own
-    !> value, as upstream's `setq-local':
+    !> value, as upstream's `setq_local':
     !>
     !>     fill_column = 72               ! the default
     !>     call fill_column%set_local(60) ! this buffer only
@@ -59,7 +59,7 @@ module data_fm
         !> The variable's name, as the help commands show it.
         character(len=48) :: name = ""
         !> The exact value last given through the variable's name (as
-        !> `set-variable' does) when the Fortran value can't hold it, such
+        !> `set_variable' does) when the Fortran value can't hold it, such
         !> as a symbol in a logical setting; cleared by any assignment.
         type(value_type) :: exact
         logical :: has_exact = .false.
@@ -166,7 +166,7 @@ module data_fm
         end function local_in_current
 
         !> Whether symbol ID becomes buffer-local when set (made so by
-        !> `make-variable-buffer-local', or a per-buffer variable of
+        !> `make_variable_buffer_local', or a per-buffer variable of
         !> buffer.c).  (In data_buffer_fm.)
         module logical function auto_local(id)
             implicit none(type, external)
@@ -214,20 +214,20 @@ module data_fm
         !> Switch to Fundamental mode by killing current buffer's local variables.
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
-        !> `standard-syntax-table', the local keymap is set to nil,
-        !> and the abbrev table from `fundamental-mode-abbrev-table'.
+        !> `standard_syntax_table', the local keymap is set to nil,
+        !> and the abbrev table from `fundamental_mode_abbrev_table'.
         !> This function also forces redisplay of the mode line.
         !>
         !> Every function to select a new major mode starts by
         !> calling this function.
         !>
         !> As a special exception, local variables whose names have
-        !> a non-nil `permanent-local' property are not eliminated by this function.
+        !> a non-nil `permanent_local' property are not eliminated by this function.
         !> If the optional KILL-PERMANENT argument is non-nil, clear out these local
         !> variables, too.
         !>
         !> The first thing this function does is run
-        !> the normal hook `change-major-mode-hook'.  Port of
+        !> the normal hook `change_major_mode_hook'.  Port of
         !> buffer.c:Fkill_all_local_variables.  (In data_buffer_fm.)
         module subroutine kill_all_local_variables(kill_permanent)
             implicit none(type, external)
@@ -248,7 +248,7 @@ module data_fm
         !>
         !> More precisely, return non-nil if either VARIABLE already has a local
         !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
-        !> `make-variable-buffer-local').  Port of
+        !> `make_variable_buffer_local').  Port of
         !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
         module logical function local_variable_if_set_p(variable, buffer)
             implicit none(type, external)

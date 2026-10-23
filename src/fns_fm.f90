@@ -475,7 +475,7 @@ contains
     end function plist_member
 
     !> Property `prop' of `symbol'.  Port of fns.c:Fget (without
-    !> `overriding-plist-environment').
+    !> `overriding_plist_environment').
     subroutine get(symbol, prop, v, status)
         type(value_type), intent(in) :: symbol, prop
         type(value_type), intent(out) :: v

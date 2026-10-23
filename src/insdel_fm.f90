@@ -28,7 +28,7 @@
 !>
 !> Deferred until their subsystems exist: interval/text-property offsets,
 !> overlay adjustment, undo recording, change hooks and
-!> `inhibit-modification-hooks', compositions, tree-sitter, quitting
+!> `inhibit_modification_hooks', compositions, tree-sitter, quitting
 !> in the middle of a gap move, `copy_text' conversions, `replace_range'
 !> with a buffer as the new text, and `insert_from_buffer'.
 module insdel_fm
@@ -697,8 +697,8 @@ contains
     end subroutine modify_text
 
     !> Check that the region may be modified: the buffer's read-only state
-    !> and `read-only' text properties.  Upstream also locks the visited
-    !> file, saves the region for `select-active-regions' and runs
+    !> and `read_only' text properties.  Upstream also locks the visited
+    !> file, saves the region for `select_active_regions' and runs
     !> before-change hooks (pending).
     !> Port of insdel.c:prepare_to_modify_buffer(_1).
     subroutine prepare_to_modify_buffer(start, end, status)

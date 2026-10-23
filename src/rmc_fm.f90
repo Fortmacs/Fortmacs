@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `read-multiple-choice', the short-answers path (one key per choice,
+!> `read_multiple_choice', the short-answers path (one key per choice,
 !> read in the echo area), for a terminal: the key of each name is shown
 !> in [brackets].  The help is shown in a window split off the bottom of
 !> the selected one, removed afterwards (save-window-excursion).
