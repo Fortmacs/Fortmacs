@@ -72,7 +72,9 @@ contains
         if (allocated(error)) return
         call check(error, decoded(ESC//"[1;5C"), "C-<right>")
         if (allocated(error)) return
-        call check(error, decoded(ESC//"[1;8D"), "C-M-S-<left>")
+        ! C-M-S-<left>, read as C-M-<left> (backward_sexp): an unbound
+        ! shifted key falls back to its unshifted binding.
+        call check(error, decoded(ESC//"[1;8D"), "C-M-<left>")
         if (allocated(error)) return
         call check(error, decoded(ESC//"OP"), "<f1>")
         if (allocated(error)) return

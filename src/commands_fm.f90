@@ -39,9 +39,13 @@ module commands_fm
         type(command_type) :: backward_char
         type(command_type) :: backward_kill_paragraph
         type(command_type) :: backward_kill_sentence
+        type(command_type) :: backward_kill_sexp
         type(command_type) :: backward_kill_word
+        type(command_type) :: backward_list
         type(command_type) :: backward_paragraph
         type(command_type) :: backward_sentence
+        type(command_type) :: backward_sexp
+        type(command_type) :: backward_up_list
         type(command_type) :: backward_word
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
@@ -68,6 +72,7 @@ module commands_fm
         type(command_type) :: digit_argument
         type(command_type) :: disable_command
         type(command_type) :: do_auto_fill
+        type(command_type) :: down_list
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: enable_command
@@ -83,8 +88,10 @@ module commands_fm
         type(command_type) :: fixup_whitespace
         type(command_type) :: forward_char
         type(command_type) :: forward_line
+        type(command_type) :: forward_list
         type(command_type) :: forward_paragraph
         type(command_type) :: forward_sentence
+        type(command_type) :: forward_sexp
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
         type(command_type) :: help_mode
@@ -137,6 +144,7 @@ module commands_fm
         type(command_type) :: kill_region
         type(command_type) :: kill_ring_save
         type(command_type) :: kill_sentence
+        type(command_type) :: kill_sexp
         type(command_type) :: kill_whole_line
         type(command_type) :: kill_word
         type(command_type) :: left_char
@@ -144,6 +152,7 @@ module commands_fm
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
         type(command_type) :: mark_paragraph
+        type(command_type) :: mark_sexp
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
         type(command_type) :: minibuffer_complete
@@ -227,6 +236,7 @@ module commands_fm
         type(command_type) :: universal_argument
         type(command_type) :: universal_argument_minus
         type(command_type) :: universal_argument_more
+        type(command_type) :: up_list
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
@@ -243,7 +253,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(205) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(215) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "auto_fill_mode", &
@@ -251,9 +261,13 @@ module commands_fm
                                                                  "backward_char", &
                                                                  "backward_kill_paragraph", &
                                                                  "backward_kill_sentence", &
+                                                                 "backward_kill_sexp", &
                                                                  "backward_kill_word", &
+                                                                 "backward_list", &
                                                                  "backward_paragraph", &
                                                                  "backward_sentence", &
+                                                                 "backward_sexp", &
+                                                                 "backward_up_list", &
                                                                  "backward_word", &
                                                                  "beginning_of_buffer", &
                                                                  "beginning_of_line", &
@@ -280,6 +294,7 @@ module commands_fm
                                                                  "digit_argument", &
                                                                  "disable_command", &
                                                                  "do_auto_fill", &
+                                                                 "down_list", &
                                                                  "downcase_region", &
                                                                  "downcase_word", &
                                                                  "enable_command", &
@@ -295,8 +310,10 @@ module commands_fm
                                                                  "fixup_whitespace", &
                                                                  "forward_char", &
                                                                  "forward_line", &
+                                                                 "forward_list", &
                                                                  "forward_paragraph", &
                                                                  "forward_sentence", &
+                                                                 "forward_sexp", &
                                                                  "forward_word", &
                                                                  "fundamental_mode", &
                                                                  "help_mode", &
@@ -349,6 +366,7 @@ module commands_fm
                                                                  "kill_region", &
                                                                  "kill_ring_save", &
                                                                  "kill_sentence", &
+                                                                 "kill_sexp", &
                                                                  "kill_whole_line", &
                                                                  "kill_word", &
                                                                  "left_char", &
@@ -356,6 +374,7 @@ module commands_fm
                                                                  "map_query_replace_regexp", &
                                                                  "mark_end_of_sentence", &
                                                                  "mark_paragraph", &
+                                                                 "mark_sexp", &
                                                                  "mark_whole_buffer", &
                                                                  "mark_word", &
                                                                  "minibuffer_complete", &
@@ -439,6 +458,7 @@ module commands_fm
                                                                  "universal_argument", &
                                                                  "universal_argument_minus", &
                                                                  "universal_argument_more", &
+                                                                 "up_list", &
                                                                  "upcase_initials_region", &
                                                                  "upcase_region", &
                                                                  "upcase_word", &
@@ -473,12 +493,20 @@ contains
             p => commands%backward_kill_paragraph
         case ("backward_kill_sentence")
             p => commands%backward_kill_sentence
+        case ("backward_kill_sexp")
+            p => commands%backward_kill_sexp
         case ("backward_kill_word")
             p => commands%backward_kill_word
+        case ("backward_list")
+            p => commands%backward_list
         case ("backward_paragraph")
             p => commands%backward_paragraph
         case ("backward_sentence")
             p => commands%backward_sentence
+        case ("backward_sexp")
+            p => commands%backward_sexp
+        case ("backward_up_list")
+            p => commands%backward_up_list
         case ("backward_word")
             p => commands%backward_word
         case ("beginning_of_buffer")
@@ -531,6 +559,8 @@ contains
             p => commands%disable_command
         case ("do_auto_fill")
             p => commands%do_auto_fill
+        case ("down_list")
+            p => commands%down_list
         case ("downcase_region")
             p => commands%downcase_region
         case ("downcase_word")
@@ -561,10 +591,14 @@ contains
             p => commands%forward_char
         case ("forward_line")
             p => commands%forward_line
+        case ("forward_list")
+            p => commands%forward_list
         case ("forward_paragraph")
             p => commands%forward_paragraph
         case ("forward_sentence")
             p => commands%forward_sentence
+        case ("forward_sexp")
+            p => commands%forward_sexp
         case ("forward_word")
             p => commands%forward_word
         case ("fundamental_mode")
@@ -669,6 +703,8 @@ contains
             p => commands%kill_ring_save
         case ("kill_sentence")
             p => commands%kill_sentence
+        case ("kill_sexp")
+            p => commands%kill_sexp
         case ("kill_whole_line")
             p => commands%kill_whole_line
         case ("kill_word")
@@ -683,6 +719,8 @@ contains
             p => commands%mark_end_of_sentence
         case ("mark_paragraph")
             p => commands%mark_paragraph
+        case ("mark_sexp")
+            p => commands%mark_sexp
         case ("mark_whole_buffer")
             p => commands%mark_whole_buffer
         case ("mark_word")
@@ -849,6 +887,8 @@ contains
             p => commands%universal_argument_minus
         case ("universal_argument_more")
             p => commands%universal_argument_more
+        case ("up_list")
+            p => commands%up_list
         case ("upcase_initials_region")
             p => commands%upcase_initials_region
         case ("upcase_region")

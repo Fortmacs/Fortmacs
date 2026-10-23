@@ -194,7 +194,12 @@ module fortmacs
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use simple_fm, only: turn_on_auto_fill, turn_off_auto_fill
     use text_mode_fm, only: text_mode_variant
-    use syntax_fm, only: parse_sexp_ignore_comments
+    use syntax_fm, only: parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+                         open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss
+    use syntax_fm, only: forward_comment, scan_lists, scan_sexps, parse_partial_sexp, parse_state_type, &
+                         ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
+    use lisp_cmds_fm, only: forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
+                            backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     implicit none(type, external)
@@ -232,7 +237,10 @@ module fortmacs
               replace_regexp, replacement_function, transpose_chars, transpose_words, transpose_lines, &
               transpose_sentences, transpose_paragraphs, delete_horizontal_space, delete_all_space, just_one_space, &
               fixup_whitespace, delete_blank_lines, delete_indentation, skip_chars_forward, skip_chars_backward, &
-              skip_syntax_forward, skip_syntax_backward, enable_command, disable_command, rmc_choice_type, &
+              skip_syntax_forward, skip_syntax_backward, forward_comment, scan_lists, scan_sexps, &
+              parse_partial_sexp, parse_state_type, ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, &
+              COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE, forward_sexp, backward_sexp, forward_list, backward_list, &
+ down_list, up_list, backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp, enable_command, disable_command, rmc_choice_type, &
               read_multiple_choice, indent_to, current_indentation, indent_according_to_mode, indent_rigidly, &
               indent_line_to, current_left_margin, move_to_left_margin, indent_region, indent_relative, &
               tab_to_tab_stop, move_to_tab_stop, beginning_of_line_text, indent_line_proc, indent_region_proc, &
@@ -272,6 +280,8 @@ module fortmacs
               major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
-              parse_sexp_ignore_comments, require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
+              parse_sexp_ignore_comments, comment_end_can_be_escaped, multibyte_syntax_as_symbol, &
+              open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss, require_final_newline, &
+              mode_require_final_newline, FINAL_NEWLINE_NEVER, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
 end module fortmacs

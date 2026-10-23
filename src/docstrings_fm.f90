@@ -73,7 +73,9 @@ module docstrings_fm
                          transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_use_read_key
-    use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
+    use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
+                         multibyte_syntax_as_symbol, open_paren_in_column_0_is_defun_start, &
+                         parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
     use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo, &
@@ -106,7 +108,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(299) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(313) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "add_auto_mode", &
@@ -115,9 +117,13 @@ module docstrings_fm
                                                                    "backward_char", &
                                                                    "backward_kill_paragraph", &
                                                                    "backward_kill_sentence", &
+                                                                   "backward_kill_sexp", &
                                                                    "backward_kill_word", &
+                                                                   "backward_list", &
                                                                    "backward_paragraph", &
                                                                    "backward_sentence", &
+                                                                   "backward_sexp", &
+                                                                   "backward_up_list", &
                                                                    "backward_word", &
                                                                    "beginning_of_buffer", &
                                                                    "beginning_of_line", &
@@ -161,6 +167,7 @@ module docstrings_fm
                                                                    "digit_argument", &
                                                                    "disable_command", &
                                                                    "do_auto_fill", &
+                                                                   "down_list", &
                                                                    "downcase", &
                                                                    "downcase_region", &
                                                                    "downcase_word", &
@@ -185,9 +192,12 @@ module docstrings_fm
                                                                    "fixup_whitespace", &
                                                                    "format_error", &
                                                                    "forward_char", &
+                                                                   "forward_comment", &
                                                                    "forward_line", &
+                                                                   "forward_list", &
                                                                    "forward_paragraph", &
                                                                    "forward_sentence", &
+                                                                   "forward_sexp", &
                                                                    "forward_word", &
                                                                    "fundamental_mode", &
                                                                    "get_buffer_create", &
@@ -248,6 +258,7 @@ module docstrings_fm
                                                                    "kill_region", &
                                                                    "kill_ring_save", &
                                                                    "kill_sentence", &
+                                                                   "kill_sexp", &
                                                                    "kill_whole_line", &
                                                                    "kill_word", &
                                                                    "left_char", &
@@ -261,6 +272,7 @@ module docstrings_fm
                                                                    "mark", &
                                                                    "mark_end_of_sentence", &
                                                                    "mark_paragraph", &
+                                                                   "mark_sexp", &
                                                                    "mark_whole_buffer", &
                                                                    "mark_word", &
                                                                    "match_beginning", &
@@ -295,6 +307,7 @@ module docstrings_fm
                                                                    "open_line", &
                                                                    "other_buffer", &
                                                                    "other_window", &
+                                                                   "parse_partial_sexp", &
                                                                    "point", &
                                                                    "point_max", &
                                                                    "point_min", &
@@ -337,6 +350,8 @@ module docstrings_fm
                                                                    "save_buffer", &
                                                                    "save_buffers_kill_terminal", &
                                                                    "save_some_buffers", &
+                                                                   "scan_lists", &
+                                                                   "scan_sexps", &
                                                                    "scroll_down", &
                                                                    "scroll_down_command", &
                                                                    "scroll_other_window", &
@@ -392,6 +407,7 @@ module docstrings_fm
                                                                    "universal_argument", &
                                                                    "universal_argument_minus", &
                                                                    "universal_argument_more", &
+                                                                   "up_list", &
                                                                    "upcase", &
                                                                    "upcase_initials", &
                                                                    "upcase_initials_region", &
@@ -408,7 +424,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(121) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(125) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
@@ -424,6 +440,8 @@ module docstrings_fm
                                                                    "change_major_mode_with_file_name", &
                                                                    "colon_double_space", &
                                                                    "commands", &
+                                                                   "comment_end_can_be_escaped", &
+                                                                   "comment_use_syntax_ppss", &
                                                                    "completion_auto_help", &
                                                                    "completion_fail_discreetly", &
                                                                    "completion_ignore_case", &
@@ -473,7 +491,9 @@ module docstrings_fm
                                                                    "minibuffer_message_timeout", &
                                                                    "minibuffer_scroll_window", &
                                                                    "mode_require_final_newline", &
+                                                                   "multibyte_syntax_as_symbol", &
                                                                    "next_screen_context_lines", &
+                                                                   "open_paren_in_column_0_is_defun_start", &
                                                                    "paragraph_ignore_fill_prefix", &
                                                                    "paragraph_separate", &
                                                                    "paragraph_start", &
@@ -613,12 +633,35 @@ contains
             entry%doc = "Kill back from point to start of sentence."//LF// &
                         "With ARG, repeat, or kill forward to Nth end of sentence if"//LF// &
                         "negative ARG -N."
+        case ("backward_kill_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_kill_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Kill the sexp (balanced expression) preceding point."//LF// &
+                        "With ARG, kill that many sexps before point."//LF// &
+                        "Negative arg -N means kill N sexps after point."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("backward_kill_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_kill_word(arg, status)"
             entry%interactive = .true.
             entry%doc = "Kill characters backward until encountering the beginning of a word."//LF// &
                         "With argument ARG, do this that many times."
+        case ("backward_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move backward across one balanced group of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do it that many times."//LF// &
+                        "Negative arg -N means move forward across N groups of parentheses."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "Uses `forward_list' to do the work."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("backward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_paragraph(arg)"
@@ -641,6 +684,35 @@ contains
             entry%doc = "Move backward to start of sentence."//LF// &
                         "With ARG, do it ARG times.  See `forward_sentence' for more"//LF// &
                         "information."
+        case ("backward_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move backward across one balanced expression (sexp)."//LF// &
+                        "With ARG, do it that many times.  Negative arg -N means"//LF// &
+                        "move forward across N balanced expressions."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "Uses `forward_sexp' to do the work."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
+        case ("backward_up_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call backward_up_list(arg, status, escape_strings, no_syntax_crossing)"
+            entry%interactive = .true.
+            entry%doc = "Move backward out of one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode.  With ARG, do this that"//LF// &
+                        "many times.  A negative argument means move forward but still to"//LF// &
+                        "a less deep spot."//LF// &
+                        ""//LF// &
+                        "If ESCAPE_STRINGS is true (as it is interactively), move out"//LF// &
+                        "of enclosing strings as well."//LF// &
+                        ""//LF// &
+                        "If NO_SYNTAX_CROSSING is true (as it is interactively), prefer"//LF// &
+                        "to break out of any enclosing string instead of moving to the"//LF// &
+                        "start of a list broken across multiple strings."//LF// &
+                        ""//LF// &
+                        "On error, location of point is unspecified."
         case ("backward_word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_word(arg)"
@@ -969,6 +1041,18 @@ contains
             entry%doc = "The default value for `normal_auto_fill_function'."//LF// &
                         "This is the default auto-fill function, some major modes use a different one."//LF// &
                         "Returns t if it really did any work."
+        case ("down_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call down_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward down one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do this that many times."//LF// &
+                        "A negative argument means move backward but still go down a level."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "downcase_char(ch)"
@@ -1194,6 +1278,14 @@ contains
                         "Depending on the bidirectional context, the movement may be to the"//LF// &
                         "right or to the left on the screen.  This is in contrast with"//LF// &
                         "\[right_char], which see."
+        case ("forward_comment")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "forward_comment(count)"
+            entry%doc = "Move forward across up to COUNT comments.  If COUNT is negative, move backward."//LF// &
+                        "Stop scanning if we find something other than a comment or whitespace."//LF// &
+                        "Set point to where scanning stops."//LF// &
+                        "If COUNT comments are found as expected, with nothing except whitespace"//LF// &
+                        "between them, return true; otherwise return false."
         case ("forward_line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "forward_line(n)"
@@ -1214,6 +1306,18 @@ contains
                         ""//LF// &
                         "The command C-n (\[next_line]) can also be used to move to the next"//LF// &
                         "line."
+        case ("forward_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call forward_list(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward across one balanced group of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode."//LF// &
+                        "With ARG, do it that many times."//LF// &
+                        "Negative arg -N means move backward across N groups of parentheses."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("forward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "forward_paragraph(arg)"
@@ -1236,6 +1340,19 @@ contains
                         "The variable `sentence_end' is a regular expression that matches"//LF// &
                         "ends of sentences.  Also, every paragraph boundary terminates"//LF// &
                         "sentences as well."
+        case ("forward_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call forward_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Move forward across one balanced expression (sexp)."//LF// &
+                        "With ARG, do it that many times.  Negative arg -N means move"//LF// &
+                        "backward across N balanced expressions.  This command assumes"//LF// &
+                        "point is not in a string or comment."//LF// &
+                        "If unable to move over a sexp, signal `scan_error' with three"//LF// &
+                        "arguments: a message, the start of the obstacle (usually a"//LF// &
+                        "parenthesis or list marker of some kind), and end of the"//LF// &
+                        "obstacle.  If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("forward_word")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call forward_word(arg, ok)"
@@ -1625,6 +1742,16 @@ contains
             entry%doc = "Kill from point to end of sentence."//LF// &
                         "With ARG, repeat; negative ARG -N means kill back to Nth start of"//LF// &
                         "sentence."
+        case ("kill_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call kill_sexp(arg, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Kill the sexp (balanced expression) following point."//LF// &
+                        "With ARG, kill that many sexps after point."//LF// &
+                        "Negative arg -N means kill N sexps before point."//LF// &
+                        "This command assumes point is not in a string or comment."//LF// &
+                        "If INTERACTIVE is true, as it is interactively,"//LF// &
+                        "report errors as appropriate for this kind of usage."
         case ("kill_whole_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1757,6 +1884,26 @@ contains
                         "Interactively (or if ALLOW-EXTEND is non-nil), if this command is"//LF// &
                         "repeated or (in Transient Mark mode) if the mark is active,"//LF// &
                         "it marks the next ARG paragraphs after the ones already marked."
+        case ("mark_sexp")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call mark_sexp(arg, have_arg, allow_extend, status)"
+            entry%interactive = .true.
+            entry%doc = "Set mark ARG sexps from point or move mark one sexp."//LF// &
+                        "With ALLOW_EXTEND false, mark is set ARG sexps from point."//LF// &
+                        "With ARG given (HAVE_ARG) and ALLOW_EXTEND both true (interactively,"//LF// &
+                        "with prefix argument), the place to which mark goes is the same"//LF// &
+                        "place \[forward_sexp] would move to with the same argument; if the"//LF// &
+                        "mark is active, it moves ARG sexps from its current position,"//LF// &
+                        "otherwise it is set ARG sexps from point."//LF// &
+                        "When invoked interactively without a prefix argument and no active"//LF// &
+                        "region, mark moves one sexp forward."//LF// &
+                        "When invoked interactively without a prefix argument, and region"//LF// &
+                        "is active, mark moves one sexp away of point (i.e., forward"//LF// &
+                        "if mark is at or after point, back if mark is before point), thus"//LF// &
+                        "extending the region by one sexp.  Since the direction of region"//LF// &
+                        "extension depends on the relative position of mark and point, you"//LF// &
+                        "can change the direction by \[exchange_point_and_mark]."//LF// &
+                        "This command assumes point is not in a string or comment."
         case ("mark_whole_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2102,6 +2249,32 @@ contains
                         "skip -COUNT windows backwards.  COUNT zero means do not skip any"//LF// &
                         "window, so select the selected window.  In an interactive call,"//LF// &
                         "COUNT is the numeric prefix argument."
+        case ("parse_partial_sexp")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "call parse_partial_sexp(from, to, state, status, targetdepth, stopbefore, oldstate, commen"// &
+                            "tstop)"
+            entry%doc = "Parse Lisp syntax starting at FROM until TO; return status of parse at TO."//LF// &
+                        "Parsing stops at TO or when certain criteria are met;"//LF// &
+                        " point is set to where parsing stops."//LF// &
+                        ""//LF// &
+                        "If OLDSTATE is omitted, parsing assumes that FROM is the"//LF// &
+                        " beginning of a function.  If not, OLDSTATE should be the state at"//LF// &
+                        " FROM."//LF// &
+                        ""//LF// &
+                        "The value, STATE, describes the final state of parsing (see"//LF// &
+                        "`parse_state_type')."//LF// &
+                        ""//LF// &
+                        "If third arg TARGETDEPTH is present, parsing stops if the depth"//LF// &
+                        "in parentheses becomes equal to TARGETDEPTH."//LF// &
+                        "Fourth arg STOPBEFORE true means stop when we come to"//LF// &
+                        " any character that starts a sexp."//LF// &
+                        "Fifth arg OLDSTATE is a state like what this function returns."//LF// &
+                        " It is used to initialize the state of the parse.  Components"//LF// &
+                        " `innermost_start', `last_sexp_start' and `mindepth' are ignored."//LF// &
+                        "Sixth arg COMMENTSTOP COMMENTSTOP_COMMENT means stop after the start"//LF// &
+                        " of a comment.  If it is COMMENTSTOP_SYNTAX_TABLE, stop after the"//LF// &
+                        " start of a comment or a string, or after end of a comment or a"//LF// &
+                        " string."
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
@@ -2728,6 +2901,40 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
+        case ("scan_lists")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "scan_lists(from, count, depth, status)"
+            entry%doc = "Scan from character number FROM by COUNT lists."//LF// &
+                        "Scan forward if COUNT is positive, backward if COUNT is negative."//LF// &
+                        "Return the character number of the position thus found."//LF// &
+                        ""//LF// &
+                        "A ""list"", in this context, refers to a balanced parenthetical"//LF// &
+                        "grouping, as determined by the syntax table."//LF// &
+                        ""//LF// &
+                        "If DEPTH is nonzero, treat that as the nesting depth of the starting"//LF// &
+                        "point (i.e. the starting point is DEPTH parentheses deep).  This"//LF// &
+                        "function scans over parentheses until the depth goes to zero COUNT"//LF// &
+                        "times.  Hence, positive DEPTH moves out that number of levels of"//LF// &
+                        "parentheses, while negative DEPTH moves to a deeper level."//LF// &
+                        ""//LF// &
+                        "Comments are ignored if `parse_sexp_ignore_comments' is true."//LF// &
+                        ""//LF// &
+                        "If we reach the beginning or end of the accessible part of the buffer"//LF// &
+                        "before we have scanned over COUNT lists, return 0 (nil) if the depth at"//LF// &
+                        "that point is zero, and signal an error if the depth is nonzero."
+        case ("scan_sexps")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "scan_sexps(from, count, status)"
+            entry%doc = "Scan from character number FROM by COUNT balanced expressions."//LF// &
+                        "If COUNT is negative, scan backwards."//LF// &
+                        "Returns the character number of the position thus found."//LF// &
+                        ""//LF// &
+                        "Comments are ignored if `parse_sexp_ignore_comments' is true."//LF// &
+                        ""//LF// &
+                        "If the beginning or end of (the accessible part of) the buffer is reached"//LF// &
+                        "in the middle of a parenthetical grouping, an error is signaled."//LF// &
+                        "If the beginning or end is reached between groupings"//LF// &
+                        "but before count is used up, 0 (nil) is returned."
         case ("scroll_down")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -3240,6 +3447,24 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("up_list")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "call up_list(arg, status, escape_strings, no_syntax_crossing)"
+            entry%interactive = .true.
+            entry%doc = "Move forward out of one level of parentheses."//LF// &
+                        "This command will also work on other parentheses-like expressions"//LF// &
+                        "defined by the current language mode.  With ARG, do this that"//LF// &
+                        "many times.  A negative argument means move backward but still to"//LF// &
+                        "a less deep spot."//LF// &
+                        ""//LF// &
+                        "If ESCAPE_STRINGS is true (as it is interactively), move out"//LF// &
+                        "of enclosing strings as well."//LF// &
+                        ""//LF// &
+                        "If NO_SYNTAX_CROSSING is true (as it is interactively), prefer"//LF// &
+                        "to break out of any enclosing string instead of moving to the"//LF// &
+                        "end of a list broken across multiple strings."//LF// &
+                        ""//LF// &
+                        "On error, location of point is unspecified."
         case ("upcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "upcase_string(str)"
@@ -3506,6 +3731,17 @@ contains
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
             entry%doc = "The built-in commands."
+        case ("comment_end_can_be_escaped")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "comment_end_can_be_escaped"
+            entry%value = repr(comment_end_can_be_escaped%value)
+            entry%doc = "True means an escaped ender inside a comment doesn't end the comment."
+        case ("comment_use_syntax_ppss")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "comment_use_syntax_ppss"
+            entry%original = ".true."
+            entry%value = repr(comment_use_syntax_ppss)
+            entry%doc = "True means `forward_comment' can use `syntax_ppss' internally."
         case ("completion_auto_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -3968,12 +4204,24 @@ contains
                         "variable since this value is used for modes for files that ought to have"//LF// &
                         "final newlines.  So if you set this to nil, you must explicitly check and"//LF// &
                         "add a final newline, whenever you save a file that really needs one."
+        case ("multibyte_syntax_as_symbol")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "multibyte_syntax_as_symbol"
+            entry%original = ".false."
+            entry%value = repr(multibyte_syntax_as_symbol)
+            entry%doc = "True means `scan_sexps' treats all multibyte characters as symbol."
         case ("next_screen_context_lines")
             entry%file = "window_fm.f90"
             entry%fortran = "next_screen_context_lines"
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("open_paren_in_column_0_is_defun_start")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "open_paren_in_column_0_is_defun_start"
+            entry%original = ".true."
+            entry%value = repr(open_paren_in_column_0_is_defun_start)
+            entry%doc = "True means an open paren in column 0 denotes the start of a defun."
         case ("paragraph_ignore_fill_prefix")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_ignore_fill_prefix"

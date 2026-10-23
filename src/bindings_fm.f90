@@ -42,6 +42,7 @@ module bindings_fm
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
     use paragraphs_fm, only: syms_of_paragraphs
+    use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
     use replace_fm, only: syms_of_replace
     use casefiddle_fm, only: syms_of_casefiddle
@@ -189,6 +190,7 @@ contains
         commands%left_word%run => cmd_left_word
         call syms_of_syntax()
         call syms_of_paragraphs()
+        call syms_of_lisp_cmds()
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
@@ -328,6 +330,28 @@ contains
         call bind(esc_map, "e", "forward_sentence")
         call bind(esc_map, "k", "kill_sentence")
         call bind(ctl_x_map, "DEL", "backward_kill_sentence")
+        ! Balanced expressions (bindings.el).
+        call bind(global_map, "C-M-<left>", "backward_sexp")
+        call bind(esc_map, "C-<left>", "backward_sexp")
+        call bind(global_map, "C-M-<right>", "forward_sexp")
+        call bind(esc_map, "C-<right>", "forward_sexp")
+        call bind(global_map, "C-M-<up>", "backward_up_list")
+        call bind(esc_map, "C-<up>", "backward_up_list")
+        call bind(global_map, "C-M-<down>", "down_list")
+        call bind(esc_map, "C-<down>", "down_list")
+        call bind(esc_map, "C-f", "forward_sexp")
+        call bind(esc_map, "C-b", "backward_sexp")
+        call bind(esc_map, "C-u", "backward_up_list")
+        call bind(esc_map, "C-@", "mark_sexp")
+        call bind(esc_map, "C-SPC", "mark_sexp")
+        call bind(esc_map, "C-d", "down_list")
+        call bind(esc_map, "C-k", "kill_sexp")
+        call bind(global_map, "C-M-<delete>", "backward_kill_sexp")
+        call bind(global_map, "C-M-<backspace>", "backward_kill_sexp")
+        call bind(esc_map, "C-<delete>", "backward_kill_sexp")
+        call bind(esc_map, "C-<backspace>", "backward_kill_sexp")
+        call bind(esc_map, "C-n", "forward_list")
+        call bind(esc_map, "C-p", "backward_list")
         call bind(esc_map, "%", "query_replace")
         call bind(esc_map, "C-%", "query_replace_regexp")
         call bind(global_map, "C-t", "transpose_chars")
