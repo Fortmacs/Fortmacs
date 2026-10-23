@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `xterm_function_map` maps the escape sequences xterm (and most
+!> `xterm_function_map' maps the escape sequences xterm (and most
 !> terminals emulating it) send for cursor, editing, function and keypad
-!> keys, with modifiers, to function-key events; `terminal_init_xterm`
+!> keys, with modifiers, to function-key events; `terminal_init_xterm'
 !> installs it in input-decode-map.  Upstream spells the ~350 sequences
 !> out; here the regular families are generated from xterm's modifier
 !> encoding (parameter 1 + Shift 1 + Meta 2 + Control 4).
@@ -52,7 +52,7 @@ module term_xterm_fm
 
 contains
 
-    !> Modifier bits for xterm modifier parameter `m` (2..8; also 13 and
+    !> Modifier bits for xterm modifier parameter `m' (2..8; also 13 and
     !> 14, which some keyboards send for Control-Meta).
     integer(int64) function xterm_modifiers(m) result(bits)
         integer, intent(in) :: m
@@ -73,7 +73,7 @@ contains
         s = trim(buf)
     end function itoa
 
-    !> In `map`, translate byte sequence `seq` to the single event `ev`.
+    !> In `map', translate byte sequence `seq' to the single event `ev'.
     subroutine def(map, seq, ev)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: seq
@@ -88,7 +88,7 @@ contains
         call define_key(map, key, list(ev), status)
     end subroutine def
 
-    !> Translate `seq` to function key `name` with modifiers `bits`.
+    !> Translate `seq' to function key `name' with modifiers `bits'.
     subroutine defkey(map, seq, bits, name)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: seq, name

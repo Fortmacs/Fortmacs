@@ -23,11 +23,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The general category of each assigned character, as sorted runs
-!> from `category_starts` to `category_ends` (inclusive) of category
-!> `category_codes` (character.h unicode_category_t: 1 Lu, 2 Ll, ...
+!> from `category_starts' to `category_ends' (inclusive) of category
+!> `category_codes' (character.h unicode_category_t: 1 Lu, 2 Ll, ...
 !> 30 Cn); and the cased letters (general categories Lu, Ll and Lt)
-!> and the nonspacing marks (Mn), each as sorted runs from `..._starts`
-!> to `..._ends`.  Used by character_fm and characters_fm.
+!> and the nonspacing marks (Mn), each as sorted runs from `..._starts'
+!> to `..._ends'.  Used by character_fm and characters_fm.
 module uni_category_fm
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)

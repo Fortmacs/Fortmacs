@@ -25,12 +25,12 @@
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
 !> word-constituent characters (and symbol constituents with
-!> `case-symbols-as-words`) by the current syntax table.
+!> `case-symbols-as-words') by the current syntax table.
 !>
 !> Strings are always multibyte (the unibyte paths are left out).  The
-!> word commands (`upcase-word` and friends) are registered here; their
+!> word commands (`upcase-word' and friends) are registered here; their
 !> keys come with the rest of the case commands.  Deferred: noncontiguous
-!> regions (`region-extract-function`), compositions, after-change hooks.
+!> regions (`region-extract-function'), compositions, after-change hooks.
 module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -198,7 +198,7 @@ contains
 
     !> Based on CTX, case character CH.  With BUF, save the result in it
     !> (using the special casings) and return whether the character has
-    !> been changed (as `changed`); always return the cased character.
+    !> been changed (as `changed'); always return the cased character.
     !> Port of casefiddle.c:case_character_impl.
     integer(int32) function case_character_impl(ctx, ch, buf, changed) result(cased)
         type(casing_context), intent(inout) :: ctx

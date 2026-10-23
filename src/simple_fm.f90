@@ -23,18 +23,18 @@
 !> deletion, keyboard-quit, quoted-insert, and the prefix-argument
 !> commands with universal-argument-map.
 !>
-!> Undo (`undo`, `undo-only`, `undo-redo`, `primitive-undo`) is here; the
+!> Undo (`undo', `undo-only', `undo-redo', `primitive-undo') is here; the
 !> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
 !> kill ring are here too.
 !>
 !> Not ported yet: undo in a region, the global mark ring, shift-selection, the
-!> interprogram (system clipboard) cut and paste, `yank-from-kill-ring`,
+!> interprogram (system clipboard) cut and paste, `yank-from-kill-ring',
 !> electric indentation, auto-fill and hard newlines, prefix-argument
 !> echoing, octal input in quoted-insert.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
+    use error_fm, only: format_message, status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY
     use handle_fm, only: handle_type
@@ -103,7 +103,7 @@ module simple_fm
     !> undone (a list position); -1 (t) if we undid all the way to the end
     !> of it.  Port of simple.el pending-undo-list.
     integer(int64), public :: pending_undo_list = 0
-    !> If t, `undo` doesn't go through redo entries.  Port of simple.el
+    !> If t, `undo' doesn't go through redo entries.  Port of simple.el
     !> undo-no-redo.
     logical, public :: undo_no_redo = .false.
     !> Non-nil while performing an undo.  Port of simple.el
@@ -128,16 +128,16 @@ module simple_fm
     !> Unallocated is nil.  Port of simple.el fill-prefix.
     type(string_setting), public :: fill_prefix = string_setting(name="fill-prefix")
 
-    !> The actions of `cycle-spacing` (the symbols of
-    !> `cycle-spacing-actions`).
+    !> The actions of `cycle-spacing' (the symbols of
+    !> `cycle-spacing-actions').
     integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
                                   CYCLE_DELETE_SPACE_BEFORE = 3, CYCLE_DELETE_ALL_SPACE = 4, CYCLE_RESTORE = 5
     !> The argument forms of an action (ACTION ARG): none (the prefix arg
-    !> of the cycle), a fixed integer, `inverted-arg` and `-`.
+    !> of the cycle), a fixed integer, `inverted-arg' and `-'.
     integer, parameter, public :: CYCLE_ARG_NONE = 0, CYCLE_ARG_FIXED = 1, CYCLE_ARG_INVERTED = 2, &
                                   CYCLE_ARG_MINUS = 3
 
-    !> An element of `cycle_spacing_actions`: ACTION, or (ACTION ARG).
+    !> An element of `cycle_spacing_actions': ACTION, or (ACTION ARG).
     type, public :: cycle_spacing_action_type
         integer :: action = CYCLE_JUST_ONE_SPACE
         integer :: arg_kind = CYCLE_ARG_NONE
@@ -206,19 +206,19 @@ module simple_fm
     !> normal-auto-fill-function (null is `do-auto-fill').
     procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
 
-    !> Hook run after entering Special mode (`special-mode-hook`).
+    !> Hook run after entering Special mode (`special-mode-hook').
     type(hook_type), target, public :: special_mode_hook = hook_type(name="special-mode-hook")
 
-    !> Keymap for `special-mode`.  Port of simple.el special-mode-map.
+    !> Keymap for `special-mode'.  Port of simple.el special-mode-map.
     type(handle_type), public :: special_mode_map
 
-    !> Hook run after entering or leaving `transient-mark-mode`.
+    !> Hook run after entering or leaving `transient-mark-mode'.
     type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient-mark-mode-hook")
 
-    !> Hook run after entering or leaving `indent-tabs-mode`.
+    !> Hook run after entering or leaving `indent-tabs-mode'.
     type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent-tabs-mode-hook")
 
-    !> Hook run after entering or leaving `auto-fill-mode`.
+    !> Hook run after entering or leaving `auto-fill-mode'.
     type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto-fill-mode-hook")
 
     interface
@@ -318,15 +318,15 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine special_mode
 
-        !> Define `fundamental-mode` and `special-mode` (with
-        !> `special-mode-map`); safe to call again.  (In simple_modes_fm.)
+        !> Define `fundamental-mode' and `special-mode' (with
+        !> `special-mode-map'); safe to call again.  (In simple_modes_fm.)
         module subroutine syms_of_simple_modes()
             implicit none(type, external)
         end subroutine syms_of_simple_modes
     end interface
 
     abstract interface
-        !> A motion for `transpose_subr`: move over N objects.
+        !> A motion for `transpose_subr': move over N objects.
         subroutine transpose_mover(n, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -339,7 +339,7 @@ module simple_fm
     !> Port of simple.el kill-ring-max.
     integer(int64), public :: kill_ring_max = 120
     !> The tail of the kill ring whose car is the last thing yanked, as an
-    !> index into `kill-ring` (1 for its first element).  Port of simple.el
+    !> index into `kill-ring' (1 for its first element).  Port of simple.el
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
     !> Maximum size of mark ring.  Start discarding off end if gets this
@@ -348,31 +348,31 @@ module simple_fm
     !> Non-nil means don't signal an error for killing read-only text.
     !> Port of simple.el kill-read-only-ok.
     logical, public :: kill_read_only_ok = .false.
-    !> If true, `kill_line` with no arg at start of line kills the whole
+    !> If true, `kill_line' with no arg at start of line kills the whole
     !> line.  Port of simple.el kill-whole-line (the variable).
     logical, public :: kill_whole_line_option = .false.
     !> Whether single-char deletion commands delete an active region.
     !> This has an effect only if Transient Mark mode is enabled, and
-    !> affects `delete-forward-char` and `delete-backward-char`.  Port of
-    !> simple.el delete-active-region (t; `kill` not yet).
+    !> affects `delete-forward-char' and `delete-backward-char'.  Port of
+    !> simple.el delete-active-region (t; `kill' not yet).
     logical, public :: delete_active_region = .true.
 
     !> Semipermanent goal column for vertical motion, or -1 for none (nil
     !> upstream).  A setting other than -1 overrides the variable
-    !> `line_move_visual`, which see.  Port of simple.el goal-column.
+    !> `line_move_visual', which see.  Port of simple.el goal-column.
     integer(int64), public :: goal_column = -1
-    !> When true, `line_move` moves point by visual lines.
+    !> When true, `line_move' moves point by visual lines.
     !> This movement is based on where the cursor is displayed on the
     !> screen, instead of relying on buffer contents alone.  It takes
     !> into account variable-width characters and line continuation.
-    !> If false, `line_move` moves point by logical lines.
-    !> A setting of `goal_column` overrides the value of this variable
+    !> If false, `line_move' moves point by logical lines.
+    !> A setting of `goal_column' overrides the value of this variable
     !> and forces movement by logical lines.
     !> A window that is horizontally scrolled also forces movement by logical
     !> lines.  Port of simple.el line-move-visual.
     logical, public :: line_move_visual = .true.
     !> temporary-goal-column: the column vertical motion tries to keep;
-    !> `tgc_visual` when it is a screen x (upstream's (X . HSCROLL) form)
+    !> `tgc_visual' when it is a screen x (upstream's (X . HSCROLL) form)
     !> rather than a current-column.
     integer(int64) :: temporary_goal_column = 0
     logical :: tgc_visual = .false.
@@ -385,7 +385,7 @@ contains
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p
 
-    !> Insert `n` newlines.  Port of simple.el:newline (no margins,
+    !> Insert `n' newlines.  Port of simple.el:newline (no margins,
     !> electric indentation, auto-fill or hard newlines).
     subroutine newline(n, status)
         integer(int64), intent(in) :: n
@@ -400,7 +400,7 @@ contains
         call self_insert_command(n, 10_int64, status)
     end subroutine newline
 
-    !> Insert `n` newlines, leaving point before them.  Port of
+    !> Insert `n' newlines, leaving point before them.  Port of
     !> simple.el:open-line (no fill prefix or left margin).
     subroutine open_line(n, status)
         integer(int64), intent(in) :: n
@@ -412,7 +412,7 @@ contains
         call goto_char(loc)
     end subroutine open_line
 
-    !> Delete `n` characters before point.  Port of
+    !> Delete `n' characters before point.  Port of
     !> simple.el:delete-backward-char (no region, untabify or kill).
     subroutine delete_backward_char(n, status)
         integer(int64), intent(in) :: n
@@ -421,7 +421,7 @@ contains
     end subroutine delete_backward_char
 
     !> Pass the prefix-argument state on to the next command, which keeps
-    !> `last_command` too.  Port of simple.el:prefix-command-preserve-state
+    !> `last_command' too.  Port of simple.el:prefix-command-preserve-state
     !> with universal-argument--preserve as its hook.
     subroutine prefix_command_preserve_state()
         prefix_arg = current_prefix_arg
@@ -431,7 +431,7 @@ contains
     end subroutine prefix_command_preserve_state
 
     !> The keymap active after C-u: digits, minus and C-u build the
-    !> argument.  Port of simple.el:universal-argument-map (`-` is a
+    !> argument.  Port of simple.el:universal-argument-map (`-' is a
     !> command here rather than a filtered menu item).
     function universal_argument_map() result(map)
         type(handle_type) :: map
@@ -509,7 +509,7 @@ contains
         end if
     end subroutine cmd_delete_backward_char
 
-    !> The default region-extract-function with METHOD `delete-only`.
+    !> The default region-extract-function with METHOD `delete-only'.
     subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -659,7 +659,7 @@ contains
         call universal_argument_mode()
     end subroutine cmd_digit_argument
 
-    !> `-` in universal-argument-map: negative-argument, unless digits
+    !> `-' in universal-argument-map: negative-argument, unless digits
     !> were typed already (upstream's menu-item filter), in which case it
     !> inserts itself as the global binding would.
     subroutine cmd_universal_argument_minus(status)
@@ -682,9 +682,9 @@ contains
                           value_eq(last_command, sym("previous-line"))
     end function after_line_move
 
-    !> Move `arg` lines down (up if negative), keeping the goal column; by
+    !> Move `arg' lines down (up if negative), keeping the goal column; by
     !> screen lines unless a goal column is set or line-move-visual is
-    !> off.  With `noerror`, stopping early is not an error.  Port of
+    !> off.  With `noerror', stopping early is not an error.  Port of
     !> simple.el:line-move (no vscroll, which terminals don't have).
     subroutine line_move(arg, status, noerror)
         integer(int64), intent(in) :: arg
@@ -784,8 +784,8 @@ contains
         end if
     end subroutine line_move_1
 
-    !> Go to `column` on the line reached, without moving backward when
-    !> moving forward, and stay in the field of `opoint`.  Port of
+    !> Go to `column' on the line reached, without moving backward when
+    !> moving forward, and stay in the field of `opoint'.  Port of
     !> simple.el:line-move-finish (no invisible text).
     subroutine line_move_finish(column, opoint, forward)
         integer(int64), intent(in) :: column, opoint
@@ -836,7 +836,7 @@ contains
         end do
     end subroutine line_move_finish
 
-    !> Move down `arg` lines (C-n, <down>).  Port of simple.el:next-line
+    !> Move down `arg' lines (C-n, <down>).  Port of simple.el:next-line
     !> (no next-line-add-newlines).
     subroutine next_line(arg, status)
         integer(int64), intent(in) :: arg
@@ -844,7 +844,7 @@ contains
         call line_move(arg, status)
     end subroutine next_line
 
-    !> Move up `arg` lines (C-p, <up>).  Port of simple.el:previous-line.
+    !> Move up `arg' lines (C-p, <up>).  Port of simple.el:previous-line.
     subroutine previous_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -912,7 +912,7 @@ contains
         if (.not. status%ok()) history = nil()
     end function history_value
 
-    !> Put history element `nabs` in the minibuffer: 0 is the input typed
+    !> Put history element `nabs' in the minibuffer: 0 is the input typed
     !> before moving into the history, N > 0 the Nth previous input, -1
     !> the default ("future history").  Point stays where it was unless it
     !> was at the end or in the prompt.  Port of
@@ -1063,7 +1063,7 @@ contains
         function = nil()
         if (id /= 0) function = sym(name)
         if (id == 0 .or. .not. commandp(function)) then
-            call set_error(status, FM_GENERIC_ERROR, "`"//name//"' is not a valid command name")
+            call set_error(status, FM_GENERIC_ERROR, format_message("`")//name//format_message("' is not a valid command name"))
             return
         end if
         binding = nil()
@@ -1168,7 +1168,7 @@ contains
     ! Undo
     ! ------------------------------------------------------------------
 
-    !> The undo-equiv-table value of list position `k` in the current
+    !> The undo-equiv-table value of list position `k' in the current
     !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
     integer(int64) function equiv_of(k) result(v)
         integer(int64), intent(in) :: k
@@ -1178,7 +1178,7 @@ contains
         v = buffers(cur)%undo_equiv(k)
     end function equiv_of
 
-    !> Map list position `k` to `v` in undo-equiv-table.
+    !> Map list position `k' to `v' in undo-equiv-table.
     subroutine set_equiv(k, v)
         integer(int64), intent(in) :: k, v
         integer(int64), allocatable :: grown(:)
@@ -1196,7 +1196,7 @@ contains
         end associate
     end subroutine set_equiv
 
-    !> List position `k` without its leading boundaries.
+    !> List position `k' without its leading boundaries.
     integer(int64) function sans_leading_nil(k) result(j)
         integer(int64), intent(in) :: k
         j = k
@@ -1206,7 +1206,7 @@ contains
         end do
     end function sans_leading_nil
 
-    !> Whether the list at position `k` begins with a redo record: its
+    !> Whether the list at position `k' begins with a redo record: its
     !> undo-equiv-table value.  Port of simple.el:undo--last-change-was-undo-p.
     integer(int64) function last_change_was_undo(k) result(v)
         integer(int64), intent(in) :: k
@@ -1291,8 +1291,8 @@ contains
         end if
     end function time_equal
 
-    !> Set `pending-undo-list` to the front of the undo list.
-    !> The next call to `undo_more` will undo the most recently made
+    !> Set `pending-undo-list' to the front of the undo list.
+    !> The next call to `undo_more' will undo the most recently made
     !> change.  Port of simple.el:undo-start (not in a region).
     subroutine undo_start(status)
         type(status_type), intent(out) :: status
@@ -1304,8 +1304,8 @@ contains
     end subroutine undo_start
 
     !> Undo back N undo-boundaries beyond what was already undone recently.
-    !> Call `undo_start` to get ready to undo recent changes,
-    !> then call `undo_more` one or more times to undo them.  Port of
+    !> Call `undo_start' to get ready to undo recent changes,
+    !> then call `undo_more' one or more times to undo them.  Port of
     !> simple.el:undo-more.
     subroutine undo_more(n, status)
         integer(int64), intent(in) :: n
@@ -1391,7 +1391,7 @@ contains
     end subroutine undo
 
     !> Remove from the newest change group the point entry (and the later
-    !> ones for the same position), as `undo` does.
+    !> ones for the same position), as `undo' does.
     subroutine strip_undo_point()
         integer(int64) :: k, j, pos
         associate (b => buffers(cur))
@@ -1419,7 +1419,7 @@ contains
     !> Undo some previous changes.
     !> Repeat this command to undo more changes.
     !> A numeric ARG serves as a repeat count.
-    !> Contrary to `undo`, this will not redo a previous undo.  Port of
+    !> Contrary to `undo', this will not redo a previous undo.  Port of
     !> simple.el:undo-only.
     subroutine undo_only(n, status)
         integer(int64), intent(in) :: n
@@ -1476,7 +1476,7 @@ contains
     !> Return this buffer's mark value as integer, or 0 (nil) if never set.
     !>
     !> In Transient Mark mode, this function signals an error if
-    !> the mark is not active.  However, if `mark_even_if_inactive` is true,
+    !> the mark is not active.  However, if `mark_even_if_inactive' is true,
     !> or the argument FORCE is true, it disregards whether the mark
     !> is active, and returns an integer or 0 in the usual way.  Port of
     !> simple.el:mark.
@@ -1533,7 +1533,7 @@ contains
 
     !> Set this buffer's mark to POS (0 for none) and activate it.
     !> Normally, when a new mark is set, the old one should go on the stack.
-    !> This is why most applications should use `push_mark`, not `set_mark`.
+    !> This is why most applications should use `push_mark', not `set_mark'.
     !> Port of simple.el:set-mark.
     subroutine set_mark(pos)
         integer(int64), intent(in) :: pos
@@ -1615,7 +1615,7 @@ contains
         call deactivate_mark()
     end subroutine pop_mark
 
-    !> Whether optional logical `x` is present and true.
+    !> Whether optional logical `x' is present and true.
     pure logical function flag(x)
         logical, intent(in), optional :: x
         flag = .false.
@@ -1738,7 +1738,7 @@ contains
     ! The kill ring
     ! ------------------------------------------------------------------
 
-    !> The kill ring (the value of `kill-ring`), newest first.
+    !> The kill ring (the value of `kill-ring'), newest first.
     function kill_ring() result(ring)
         type(value_type) :: ring
         type(status_type) :: st
@@ -1747,7 +1747,7 @@ contains
     end function kill_ring
 
     !> Make STRING the latest kill in the kill ring.
-    !> Set `kill_ring_yank_pointer` to point to it.
+    !> Set `kill_ring_yank_pointer' to point to it.
     !> REPLACE true means that STRING will replace the front of the kill
     !> ring, rather than being added to the list.  Port of simple.el:kill-new
     !> (no interprogram cut and paste yet).
@@ -1807,7 +1807,7 @@ contains
 
     !> Kill ("cut") text between BEG and END.
     !> This deletes the text from the buffer and saves it in the kill ring.
-    !> The command `yank` can retrieve it from there.
+    !> The command `yank' can retrieve it from there.
     !>
     !> If the previous command was also a kill command,
     !> the text killed this time appends to the text killed last time
@@ -1916,7 +1916,7 @@ contains
     !> newline.  With prefix argument ARG, kill that many lines from point.
     !> Negative arguments kill lines backward.  With zero argument, kills
     !> the text before point on the current line.  Port of simple.el:kill-line.
-    !> `have_arg` false means no argument.
+    !> `have_arg' false means no argument.
     subroutine kill_line(arg, have_arg, status)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: have_arg
@@ -2007,7 +2007,7 @@ contains
 
     !> Reinsert ("paste") the last stretch of killed text.
     !> More precisely, reinsert the most recent kill, which is the stretch of
-    !> text most recently killed OR yanked, as returned by `current_kill`.
+    !> text most recently killed OR yanked, as returned by `current_kill'.
     !> Put point at the end, and set mark at the beginning without
     !> activating it.  With just C-u as argument, put point at beginning, and
     !> mark at end.  With argument N, reinsert the Nth most recent kill.
@@ -2040,9 +2040,9 @@ contains
     end subroutine yank
 
     !> Replace just-yanked stretch of killed text with a different stretch.
-    !> This command is allowed only immediately after a `yank` or a
-    !> `yank_pop`.  At such a time, the region contains a stretch of
-    !> reinserted previously-killed text.  `yank_pop` deletes that text and
+    !> This command is allowed only immediately after a `yank' or a
+    !> `yank_pop'.  At such a time, the region contains a stretch of
+    !> reinserted previously-killed text.  `yank_pop' deletes that text and
     !> inserts in its place a different stretch of killed text.
     !>
     !> With no argument, the previous kill is inserted.
@@ -2095,7 +2095,7 @@ contains
         call set_marker(m, point(), st)
     end subroutine set_marker_here
 
-    !> Insert STRING at point for the `yank` command.  Port of
+    !> Insert STRING at point for the `yank' command.  Port of
     !> subr.el:insert-for-yank (no yank handlers or excluded properties:
     !> the kill ring holds plain strings).
     subroutine insert_for_yank(string, status)
@@ -2239,7 +2239,7 @@ contains
 
     !> Set mark ARG words from point or move mark one word.
     !> With ALLOW-EXTEND false, mark is set ARG words from point.
-    !> With ARG given (`have_arg`) and ALLOW-EXTEND (interactively, with
+    !> With ARG given (`have_arg') and ALLOW-EXTEND (interactively, with
     !> prefix argument), the place to which mark goes is the same place
     !> \[forward-word] would move to with the same argument; if the mark
     !> is active, it moves ARG words from its current position, otherwise
@@ -2628,7 +2628,7 @@ contains
                     call delete_horizontal_space(.false., status)
                 end if
             case default
-                call set_error(status, FM_GENERIC_ERROR, "Don't know how to handle action")
+                call set_error(status, FM_GENERIC_ERROR, format_message("Don't know how to handle action"))
             end select
             if (.not. status%ok()) return
         end if
@@ -2830,7 +2830,7 @@ contains
             pos2 = swap
         end if
         if (pos1(2) > pos2(1)) then
-            call set_error(status, FM_GENERIC_ERROR, "Don't have two things to transpose")
+            call set_error(status, FM_GENERIC_ERROR, format_message("Don't have two things to transpose"))
             return
         end if
         ! This sequence of insertions attempts to preserve marker

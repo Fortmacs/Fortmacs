@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `run-mode-hooks` and `delay-mode-hooks`: a submodule because they use
-!> the buffers.  `delay-mode-hooks` (permanent-local) and
-!> `delayed-mode-hooks` (buffer-local) are kept per buffer, by the
+!> `run-mode-hooks' and `delay-mode-hooks': a submodule because they use
+!> the buffers.  `delay-mode-hooks' (permanent-local) and
+!> `delayed-mode-hooks' (buffer-local) are kept per buffer, by the
 !> buffer's serial number.
 submodule(subr_fm) subr_hooks_fm
     use buffer_fm, only: buffers, cur
@@ -43,7 +43,7 @@ submodule(subr_fm) subr_hooks_fm
 
 contains
 
-    !> The index of the current buffer's entry in `delays`, made if MAKE.
+    !> The index of the current buffer's entry in `delays', made if MAKE.
     integer function delay_index(make) result(k)
         logical, intent(in) :: make
         type(delay_type), allocatable :: grown(:)

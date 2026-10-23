@@ -21,21 +21,21 @@
 
 !> The regular expression compiler and matcher.
 !>
-!> A pattern compiles to the same byte code as upstream (`buffer(0:used-1)`,
+!> A pattern compiles to the same byte code as upstream (`buffer(0:used-1)',
 !> one byte per element), so the compiler, the first-character analysis and
 !> the backtracking matcher follow regex-emacs.c closely.  Differences:
 !>
-!> - The text is a `re_subject_type`: a string, or the accessible part of
+!> - The text is a `re_subject_type': a string, or the accessible part of
 !>   the current buffer read across the gap.  Offsets into it are 0-based
 !>   byte offsets, as upstream's offsets into the virtual concatenation of
 !>   STRING1 and STRING2.  Pointers into the pattern or the text become
 !>   offsets, and NULL becomes -1.
 !> - Patterns and text are always multibyte (Emacs's internal encoding), so
 !>   the unibyte paths are left out.
-!> - Case folding (`translate`) is the case canon table of casetab_fm.
+!> - Case folding (`translate') is the case canon table of casetab_fm.
 !> - Syntax comes from the current buffer's syntax table (there are no
-!>   `syntax-table` text properties yet), categories from characters_fm.
-!> - Errors are returned as a status of `invalid-regexp`; a matcher that
+!>   `syntax-table' text properties yet), categories from characters_fm.
+!> - Errors are returned as a status of `invalid-regexp'; a matcher that
 !>   runs out of failure stack returns -2.
 module regex_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -123,7 +123,7 @@ module regex_emacs_fm
 
     !> A compiled pattern (regex-emacs.h struct re_pattern_buffer).
     type :: re_pattern_buffer_type
-        !> The compiled pattern, `buffer(0:used-1)`, one byte per element.
+        !> The compiled pattern, `buffer(0:used-1)', one byte per element.
         !> The matcher changes it (loop counters and on_failure_jump_smart).
         integer, allocatable :: buffer(:)
         integer :: used = 0
@@ -131,7 +131,7 @@ module regex_emacs_fm
         integer :: re_nsub = 0
         !> Fold case through the case canon table.
         logical :: translate = .false.
-        !> Which bytes can start a match, if `fastmap_accurate`.
+        !> Which bytes can start a match, if `fastmap_accurate'.
         logical :: fastmap(0:255) = .false.
         logical :: fastmap_accurate = .false.
         !> The pattern can match the empty string.
@@ -166,7 +166,7 @@ module regex_emacs_fm
 
 contains
 
-    !> The string `str` as a subject.
+    !> The string `str' as a subject.
     function subject_from_string(str) result(s)
         character(len=*), intent(in) :: str
         type(re_subject_type) :: s
@@ -187,7 +187,7 @@ contains
         end associate
     end function subject_from_buffer
 
-    !> The byte at offset `d` of the subject.
+    !> The byte at offset `d' of the subject.
     integer function sbyte(s, d)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
@@ -201,7 +201,7 @@ contains
         end if
     end function sbyte
 
-    !> The character at offset `d` of the subject and its length
+    !> The character at offset `d' of the subject and its length
     !> (GET_CHAR_AFTER).
     subroutine schar(s, d, c, length)
         type(re_subject_type), intent(in) :: s
@@ -220,7 +220,7 @@ contains
         call string_char_and_length(tmp(1:n), 1_int64, c, length)
     end subroutine schar
 
-    !> The character before offset `d` (GET_CHAR_BEFORE_2).
+    !> The character before offset `d' (GET_CHAR_BEFORE_2).
     integer(int32) function schar_before(s, d) result(c)
         type(re_subject_type), intent(in) :: s
         integer(int64), intent(in) :: d
@@ -234,7 +234,7 @@ contains
         call schar(s, dtemp, c, length)
     end function schar_before
 
-    !> The character of the compiled pattern at `p` and its length.
+    !> The character of the compiled pattern at `p' and its length.
     subroutine pchar(buf, p, c, length)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
@@ -248,7 +248,7 @@ contains
         call string_char_and_length(tmp(1:n), 1_int64, c, length)
     end subroutine pchar
 
-    !> Store NUMBER in two contiguous bytes at `at` (STORE_NUMBER).
+    !> Store NUMBER in two contiguous bytes at `at' (STORE_NUMBER).
     pure subroutine store_number(buf, at, number)
         integer, intent(inout) :: buf(0:)
         integer, intent(in) :: at, number
@@ -256,7 +256,7 @@ contains
         buf(at + 1) = iand(ishft(number, -8), 255)
     end subroutine store_number
 
-    !> The number stored in two bytes at `at` (extract_number).
+    !> The number stored in two bytes at `at' (extract_number).
     pure integer function extract_number(buf, at) result(n)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
@@ -266,14 +266,14 @@ contains
         n = leading_byte*256 + buf(at)
     end function extract_number
 
-    !> The target of the relative address at `at` (extract_address).
+    !> The target of the relative address at `at' (extract_address).
     pure integer function extract_address(buf, at)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
         extract_address = at + 2 + extract_number(buf, at)
     end function extract_address
 
-    !> Store a character in three bytes at `at` (STORE_CHARACTER_AND_INCR).
+    !> Store a character in three bytes at `at' (STORE_CHARACTER_AND_INCR).
     pure subroutine store_character(buf, at, c)
         integer, intent(inout) :: buf(0:)
         integer, intent(in) :: at
@@ -283,28 +283,28 @@ contains
         buf(at + 2) = ishft(c, -16)
     end subroutine store_character
 
-    !> The character stored in three bytes at `at` (EXTRACT_CHARACTER).
+    !> The character stored in three bytes at `at' (EXTRACT_CHARACTER).
     pure integer(int32) function extract_character(buf, at)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: at
         extract_character = ior(ior(buf(at), ishft(buf(at + 1), 8)), ishft(buf(at + 2), 16))
     end function extract_character
 
-    !> Size of the bitmap of the charset at `p` (CHARSET_BITMAP_SIZE).
+    !> Size of the bitmap of the charset at `p' (CHARSET_BITMAP_SIZE).
     pure integer function charset_bitmap_size(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
         charset_bitmap_size = iand(buf(p + 1), 127)
     end function charset_bitmap_size
 
-    !> The charset at `p` has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
+    !> The charset at `p' has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
     pure logical function charset_range_table_exists_p(buf, p)
         integer, intent(in) :: buf(0:)
         integer, intent(in) :: p
         charset_range_table_exists_p = iand(buf(p + 1), 128) /= 0
     end function charset_range_table_exists_p
 
-    !> Where the count of the range table of the charset at `p` is
+    !> Where the count of the range table of the charset at `p' is
     !> (CHARSET_RANGE_TABLE).
     pure integer function charset_range_table(buf, p)
         integer, intent(in) :: buf(0:)
@@ -433,8 +433,8 @@ contains
         isword = char_syntax_class(c) == SWORD
     end function isword
 
-    !> Parse a character class "[:name:]" at `str(p:pend-1)`.  If it is
-    !> one, advance `p` past it and return its RECC_ constant (RECC_ERROR
+    !> Parse a character class "[:name:]" at `str(p:pend-1)'.  If it is
+    !> one, advance `p' past it and return its RECC_ constant (RECC_ERROR
     !> for an unknown name); otherwise return -1.  Port of
     !> regex-emacs.c:re_wctype_parse.
     integer function re_wctype_parse(str, p, pend) result(cc)
@@ -570,10 +570,10 @@ contains
         end select
     end function re_wctype_to_bit
 
-    !> Compile PATTERN into `bufp`, with `translate` (case folding) as set
-    !> in `bufp`.  Unless `posix`, the match succeeds the first time the
+    !> Compile PATTERN into `bufp', with `translate' (case folding) as set
+    !> in `bufp'.  Unless `posix', the match succeeds the first time the
     !> end of the pattern is reached (no backtracking for a longer match).
-    !> A nonempty `whitespace_regexp` replaces each run of spaces.  Port of
+    !> A nonempty `whitespace_regexp' replaces each run of spaces.  Port of
     !> regex-emacs.c:re_compile_pattern.
     subroutine re_compile_pattern(pattern, bufp, status, posix, whitespace_regexp)
         character(len=*), intent(in) :: pattern
@@ -590,7 +590,7 @@ contains
         if (err /= REG_NOERROR) call set_error(status, FM_INVALID_REGEXP, trim(re_error_msgid(err)))
     end subroutine re_compile_pattern
 
-    !> Compile PATTERN into `bufp` (see re_compile_pattern); `err` is a
+    !> Compile PATTERN into `bufp' (see re_compile_pattern); `err' is a
     !> REG_ code.  Port of regex-emacs.c:regex_compile.
     subroutine regex_compile(pattern, posix_backtracking, whitespace_regexp, bufp, err)
         character(len=*), intent(in) :: pattern
@@ -749,7 +749,7 @@ contains
         bufp%used = b
     contains
 
-        !> The byte at `i` of the pattern source, or 0 past its end.
+        !> The byte at `i' of the pattern source, or 0 past its end.
         integer function byte_of(i)
             integer(int64), intent(in) :: i
             if (i >= 1 .and. i <= len(src, kind=int64)) then
@@ -771,7 +771,7 @@ contains
             p = p + clen
         end subroutine patfetch
 
-        !> Ensure at least `n` more bytes of buffer space
+        !> Ensure at least `n' more bytes of buffer space
         !> (GET_BUFFER_SPACE); too big a pattern is an error.
         subroutine buffer_space(n)
             integer, intent(in) :: n
@@ -872,7 +872,7 @@ contains
             end if
         end function tr
 
-        !> Set the bit for character CC in the bitmap at `b`
+        !> Set the bit for character CC in the bitmap at `b'
         !> (SET_LIST_BIT).
         subroutine set_list_bit(cc_in)
             integer(int32), intent(in) :: cc_in
@@ -1166,7 +1166,7 @@ contains
             end if
         end subroutine bracket
 
-        !> The character after a backslash, in `c`.
+        !> The character after a backslash, in `c'.
         subroutine backslash()
             select case (c)
             case (iachar("("))
@@ -1477,7 +1477,7 @@ contains
             end do
         end subroutine get_interval_count
 
-        !> An ordinary character, in `c`.
+        !> An ordinary character, in `c'.
         subroutine normal_char()
             logical :: new_exactn
             ! If no exactn currently being built, or the last one is not
@@ -1749,7 +1749,7 @@ contains
     !> Iterate through all the char-matching operations directly reachable
     !> from P.  Return true if P is "safe", meaning that PEND cannot be
     !> reached directly from P and all visits returned true.  With
-    !> `whole`, P is in the complete compiled pattern; otherwise P..PEND is
+    !> `whole', P is in the complete compiled pattern; otherwise P..PEND is
     !> a block being built.  PEND -1 is never reached.  Port of
     !> regex-emacs.c:forall_firstchar.
     recursive logical function forall_firstchar(bufp, whole, p, pend, data)
@@ -1764,7 +1764,7 @@ contains
         end if
     end function forall_firstchar
 
-    !> The visitor of forall_firstchar, by `data%mode`: analyze_first_null,
+    !> The visitor of forall_firstchar, by `data%mode': analyze_first_null,
     !> analyze_first_fastmap or mutually_exclusive_one.
     recursive logical function visit(bufp, p, data)
         type(re_pattern_buffer_type), intent(inout) :: bufp
@@ -1893,7 +1893,7 @@ contains
         end select
     end function analyze_first_null
 
-    !> If `with_fastmap`, go through the pattern and fill the fastmap with
+    !> If `with_fastmap', go through the pattern and fill the fastmap with
     !> all the possible leading chars.  Otherwise only return whether P to
     !> PEND could match the empty string.  Return false if P matches at
     !> least one char before reaching PEND.  Port of
@@ -1922,7 +1922,7 @@ contains
 
     !> Test if C matches the charset at P, and advance P past it.  C is
     !> the character to test (after translation), CORIG the original one.
-    !> `unibyte` says C is a unibyte character.  Port of
+    !> `unibyte' says C is a unibyte character.  Port of
     !> regex-emacs.c:execute_charset.
     logical function execute_charset(buf, p, c, corig, unibyte, canon) result(matched)
         integer, intent(in) :: buf(0:)
@@ -2003,7 +2003,7 @@ contains
         end function class_match
     end function execute_charset
 
-    !> Case where `p2` points to an `exactn` or `endline`.  Port of
+    !> Case where `p2' points to an `exactn' or `endline'.  Port of
     !> regex-emacs.c:mutually_exclusive_exactn.
     logical function mutually_exclusive_exactn(buf, p1, p2) result(excl)
         integer, intent(in) :: buf(0:)
@@ -2027,7 +2027,7 @@ contains
         end if
     end function mutually_exclusive_exactn
 
-    !> Case where `p2` points to a `charset`.  Port of
+    !> Case where `p2' points to a `charset'.  Port of
     !> regex-emacs.c:mutually_exclusive_charset.
     logical function mutually_exclusive_charset(buf, p1, p2) result(excl)
         integer, intent(in) :: buf(0:)
@@ -2771,7 +2771,7 @@ contains
             retval = d - pos
         end subroutine accept
 
-        !> Make room for `space` more items on the failure stack
+        !> Make room for `space' more items on the failure stack
         !> (ENSURE_FAIL_STACK).
         subroutine ensure_fail_stack(space)
             integer(int64), intent(in) :: space

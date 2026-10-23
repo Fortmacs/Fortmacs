@@ -26,8 +26,8 @@
 !>
 !> The value of a variable is always the current buffer's.  When a
 !> buffer has its own value for a variable, the default is kept in the
-!> symbol (`default_val`) while that buffer is current, and the local
-!> value in the buffer (`local_values`) while it is not; the swap
+!> symbol (`default_val') while that buffer is current, and the local
+!> value in the buffer (`local_values') while it is not; the swap
 !> happens in set_buffer_internal.  Variables forwarded to procedure
 !> pointers (auto-fill-function, indent-line-function) keep the pointers
 !> themselves in this submodule, so a procedure without a name survives
@@ -81,7 +81,7 @@ submodule(data_fm) data_buffer_fm
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
                                             K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT]
-    !> DEFVAR_PER_BUFFER, `make-variable-buffer-local` or `:local t`:
+    !> DEFVAR_PER_BUFFER, `make-variable-buffer-local' or `:local t':
     !> local when set.
     logical, parameter :: FWD_PER_BUFFER(NFWD) = [.true., .true., .true., .false., .true., &
                                                   .true., .false., .false., .false., &

@@ -19,16 +19,16 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> indent.el: `indent-for-tab-command` (TAB), `indent-according-to-mode`,
-!> `indent-rigidly` (C-x TAB, with its transient map), `indent-region`
-!> (C-M-\), `indent-relative`, `tab-to-tab-stop` (M-i), `indent-line-to`,
-!> the left margin and `beginning-of-line-text`.  A submodule because
+!> indent.el: `indent-for-tab-command' (TAB), `indent-according-to-mode',
+!> `indent-rigidly' (C-x TAB, with its transient map), `indent-region'
+!> (C-M-\), `indent-relative', `tab-to-tab-stop' (M-i), `indent-line-to',
+!> the left margin and `beginning-of-line-text'.  A submodule because
 !> these use simple_fm and fill_fm, which use indent_fm.
 !>
-!> Not ported: `tab-always-indent` `complete` and `tab-first-completion`,
-!> `indent-for-tab-command` with a prefix argument (needs sexps),
-!> `edit-tab-stops`, right-to-left paragraphs, the margin text-property
-!> commands (`set-left-margin` and friends), abbrevs.
+!> Not ported: `tab-always-indent' `complete' and `tab-first-completion',
+!> `indent-for-tab-command' with a prefix argument (needs sexps),
+!> `edit-tab-stops', right-to-left paragraphs, the margin text-property
+!> commands (`set-left-margin' and friends), abbrevs.
 submodule(indent_fm) indent_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR
@@ -637,7 +637,7 @@ contains
     end procedure indent_region
 
     !> Indent each nonblank line from START to END with
-    !> `indent-according-to-mode`.  Port of
+    !> `indent-according-to-mode'.  Port of
     !> indent.el:indent-region-line-by-line.
     module procedure indent_region_line_by_line
     type(handle_type) :: end_marker, opoint_marker

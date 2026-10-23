@@ -19,20 +19,20 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Filling: `fill-paragraph` (M-q), `fill-region`,
-!> `fill-region-as-paragraph`, `set-fill-prefix` (C-x .), adaptive fill
+!> Filling: `fill-paragraph' (M-q), `fill-region',
+!> `fill-region-as-paragraph', `set-fill-prefix' (C-x .), adaptive fill
 !> prefixes, the no-break predicates, canonical spacing and
 !> justification (left, right, full, center).
 !>
-!> Not ported yet: comments (`fill-comment-paragraph`; no comment syntax
-!> yet), hard newlines, `fill-paragraph-function` and
-!> `fill-region-as-paragraph-function`, the semantic-linefeed variants,
-!> kinsoku (`fill-find-break-point`), invisible text,
-!> `fill-individual-paragraphs` and `set-justification`.
+!> Not ported yet: comments (`fill-comment-paragraph'; no comment syntax
+!> yet), hard newlines, `fill-paragraph-function' and
+!> `fill-region-as-paragraph-function', the semantic-linefeed variants,
+!> kinsoku (`fill-find-break-point'), invisible text,
+!> `fill-individual-paragraphs' and `set-justification'.
 module fill_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
@@ -75,8 +75,8 @@ module fill_fm
               unjustify_current_line, unjustify_region, string_width, syms_of_fill
     public :: fill_nobreak_predicate_proc
 
-    !> Justification styles: the values of `default-justification` (and
-    !> `none`), and t for "as `current-justification` says".
+    !> Justification styles: the values of `default-justification' (and
+    !> `none'), and t for "as `current-justification' says".
     integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
                                   JUSTIFY_CENTER = 4, JUSTIFY_T = 5
 
@@ -136,14 +136,14 @@ module fill_fm
     integer, public :: default_justification = JUSTIFY_LEFT
 
     abstract interface
-        !> A predicate of `fill-nobreak-predicate`: true forbids breaking
+        !> A predicate of `fill-nobreak-predicate': true forbids breaking
         !> the line at point.
         logical function fill_nobreak_predicate_proc()
             implicit none(type, external)
         end function fill_nobreak_predicate_proc
     end interface
 
-    !> An element of `fill_nobreak_predicate`.
+    !> An element of `fill_nobreak_predicate'.
     type, public :: fill_nobreak_predicate_type
         procedure(fill_nobreak_predicate_proc), pointer, nopass :: fn => null()
     end type fill_nobreak_predicate_type
@@ -327,7 +327,7 @@ contains
     end subroutine canonically_space_region
 
     !> Return the longest common prefix of strings S1 and S2, or nil if none.
-    !> `found` is false for nil.  Port of fill.el:fill-common-string-prefix.
+    !> `found' is false for nil.  Port of fill.el:fill-common-string-prefix.
     subroutine fill_common_string_prefix(s1, s2, prefix, found)
         character(len=*), intent(in) :: s1, s2
         character(len=:), allocatable, intent(out) :: prefix
@@ -377,7 +377,7 @@ contains
     !> This uses the variables `adaptive-fill-regexp' and `adaptive-fill-function'
     !> and `adaptive-fill-first-line-regexp'.  `paragraph-start' also plays a role;
     !> we reject a prefix based on a one-line paragraph if that prefix would
-    !> act as a paragraph-separator.  `found` is false for nil.  Port of
+    !> act as a paragraph-separator.  `found' is false for nil.  Port of
     !> fill.el:fill-context-prefix.
     subroutine fill_context_prefix(from, to, prefix, found, first_line_regexp)
         integer(int64), intent(in) :: from, to
@@ -835,7 +835,7 @@ contains
 
     !> Replace whitespace here with one newline, then indent to left
     !> margin, and insert the fill prefix.  Port of fill.el:fill-newline
-    !> (no text properties other than `fill-space`).
+    !> (no text properties other than `fill-space').
     subroutine fill_newline(prefix, have_prefix, status)
         character(len=*), intent(in) :: prefix
         logical, intent(in) :: have_prefix
@@ -889,7 +889,7 @@ contains
     !> the `current-justification' function, but with a prefix arg, it
     !> does full justification instead.
     !>
-    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current-justification`)
+    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current-justification')
     !> can specify any type of justification; see `default-justification'
     !> for the possible values.
     !> Optional fourth arg NOSQUEEZE non-nil means not to make spaces
@@ -899,14 +899,14 @@ contains
     !> See `canonically-space-region' for the meaning of canonicalization
     !> of spaces.
     !>
-    !> Return the `fill-prefix' used for filling (`used`, with
-    !> `have_used` false for nil).
+    !> Return the `fill-prefix' used for filling (`used', with
+    !> `have_used' false for nil).
     !>
     !> If `sentence-end-double-space' is non-nil, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
     !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_T, as the
-    !> `current-justification` default).
+    !> `current-justification' default).
     recursive subroutine fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, &
                                                   used, have_used)
         integer(int64), intent(in) :: from_in, to_in
@@ -1078,7 +1078,7 @@ contains
     !> space does not end a sentence, so don't break a line there.
     !> The variable `fill-column' controls the width for filling.
     !>
-    !> Return the `fill-prefix' used for filling (`used`).
+    !> Return the `fill-prefix' used for filling (`used').
     !>
     !> The REGION argument is non-nil if called interactively; in that
     !> case, if Transient Mark mode is enabled and the mark is active,
@@ -1200,7 +1200,7 @@ contains
             e = end
         else
             if (arg == 0) then
-                call set_error(status, FM_USER_ERROR, "Invalid numeric argument to `unfill-paragraph'")
+                call set_error(status, FM_USER_ERROR, format_message("Invalid numeric argument to `unfill-paragraph'"))
                 return
             end if
             opoint = point()

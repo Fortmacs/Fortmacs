@@ -20,8 +20,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Running a program and waiting for it: `call_process` and
-!> `call_process_region`.  The program's output (standard output and
+!> Running a program and waiting for it: `call_process' and
+!> `call_process_region'.  The program's output (standard output and
 !> error together) goes into a buffer or is discarded; the result is its
 !> exit status, or a description of the signal that killed it.
 !>
@@ -29,9 +29,9 @@
 !>                       args=list(make_string("-l")))
 !>
 !> Not ported yet: DESTINATION 0 (not waiting, which needs SIGCHLD
-!> reaping), `(:file FILE)` and `(REAL-BUFFER STDERR-FILE)`, DISPLAY,
+!> reaping), `(:file FILE)' and `(REAL-BUFFER STDERR-FILE)', DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
-!> decoded as UTF-8), `exec-path` (PATH is searched), `process-environment`
+!> decoded as UTF-8), `exec-path' (PATH is searched), `process-environment'
 !> (the editor's environment is passed), remote directories, executable
 !> suffixes.
 module callproc_fm
@@ -69,7 +69,7 @@ contains
     !> `null-device').  If INFILE is a relative path, it will be looked for
     !> relative to the directory where the process is run (see below).  If
     !> you want to make the input come from a buffer, use
-    !> `call_process_region` instead.
+    !> `call_process_region' instead.
     !>
     !> DESTINATION specifies how to handle program's output.
     !> ("Output" here means both standard output and standard error
@@ -81,17 +81,17 @@ contains
     !>
     !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
     !>
-    !> If PROGRAM is not an absolute file name, `call_process` will look
+    !> If PROGRAM is not an absolute file name, `call_process' will look
     !> for PROGRAM in PATH.
     !>
     !> If executable PROGRAM can't be found as an executable,
-    !> `call_process` signals an error.  `call_process` reports errors in
+    !> `call_process' signals an error.  `call_process' reports errors in
     !> execution of the program only through its return and output.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.
     !>
-    !> The process runs in `default-directory`.  Port of
+    !> The process runs in `default-directory'.  Port of
     !> callproc.c:Fcall_process and call_process.
     subroutine call_process(program, result, status, infile, destination, args)
         character(len=*), intent(in) :: program
@@ -222,9 +222,9 @@ contains
     end subroutine call_process
 
     !> The executable file PROGRAM names: itself if it has a slash (relative
-    !> to `dir`), else the first one in a directory of PATH (an empty entry
-    !> means `dir`).  `path` is "" if there is none.  Port of the part of
-    !> lread.c:openp that call_process uses (`exec-path` is PATH here).
+    !> to `dir'), else the first one in a directory of PATH (an empty entry
+    !> means `dir').  `path' is "" if there is none.  Port of the part of
+    !> lread.c:openp that call_process uses (`exec-path' is PATH here).
     subroutine locate_program(program, dir, path)
         character(len=*), intent(in) :: program, dir
         character(len=:), allocatable, intent(out) :: path
@@ -265,7 +265,7 @@ contains
         end function executable_file_p
     end subroutine locate_program
 
-    !> Insert the program output `bytes` at point, decoded as UTF-8 in a
+    !> Insert the program output `bytes' at point, decoded as UTF-8 in a
     !> multibyte buffer.
     subroutine insert_output(bytes, status)
         character(len=*), intent(in) :: bytes
@@ -295,7 +295,7 @@ contains
     !> ARGS, a list of strings, are passed to PROGRAM at startup as
     !> command-line arguments.
     !>
-    !> If PROGRAM is not an absolute file name, `call_process_region` will
+    !> If PROGRAM is not an absolute file name, `call_process_region' will
     !> look for PROGRAM in PATH.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
@@ -355,8 +355,8 @@ contains
         end if
     end subroutine call_process_region
 
-    !> Write the text from `start` to `end` (the whole buffer if absent) to
-    !> a new temporary file, named `tempfile`.  Port of
+    !> Write the text from `start' to `end' (the whole buffer if absent) to
+    !> a new temporary file, named `tempfile'.  Port of
     !> callproc.c:create_temp_file.
     subroutine create_temp_file(tempfile, status, start, end)
         character(len=:), allocatable, intent(out) :: tempfile

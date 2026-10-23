@@ -19,18 +19,18 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Incremental search: C-s and C-r.  As upstream, `isearch_mode` makes
-!> `isearch-mode-map` the overriding terminal-local map and installs a
+!> Incremental search: C-s and C-r.  As upstream, `isearch_mode' makes
+!> `isearch-mode-map' the overriding terminal-local map and installs a
 !> pre-command hook; keys bound there extend or move the search, and any
 !> other command ends the search first and then runs as usual.
 !>
 !> Literal and regexp search (C-M-s, C-M-r, M-r), with lax whitespace
 !> matching (M-s SPC).  Not ported yet: word, symbol and char-fold search
-!> (`isearch-regexp-function`, `search-default-mode`),
+!> (`isearch-regexp-function', `search-default-mode'),
 !> highlighting the match and lazy highlighting (faces from overlays),
 !> C-M-w (symbol syntax: forward-symbol), reading a kill with the
-!> minibuffer (`isearch-yank-from-kill-ring`, C-u M-y), search through invisible text, scrolling during search
-!> (`isearch-allow-scroll`), `isearch-allow-motion`, query-replace and
+!> minibuffer (`isearch-yank-from-kill-ring', C-u M-y), search through invisible text, scrolling during search
+!> (`isearch-allow-scroll'), `isearch-allow-motion', query-replace and
 !> occur from isearch, the help map, input methods, completion, the
 !> minibuffer's own isearch keys while editing the string.
 module isearch_fm
@@ -80,11 +80,11 @@ module isearch_fm
               isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
               isearch_no_upper_case_p, word_search_regexp
 
-    !> Values of `isearch_case_fold_search`: nil, t, and `yes` (set by
+    !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NIL = 0, CASE_FOLD_T = 1, CASE_FOLD_YES = 2
 
-    !> Values of `search_upper_case`: nil, t and `not-yanks`.
+    !> Values of `search_upper_case': nil, t and `not-yanks'.
     integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
 
     !> If non-nil, upper case chars disable case fold searching.
@@ -97,8 +97,8 @@ module isearch_fm
     integer, public :: search_upper_case = UPPER_CASE_NOT_YANKS
 
     !> Non-nil means random control characters terminate incremental
-    !> search.  (Only t and nil: `edit`, `append`, `move` and
-    !> `shift-move` are not ported.)  Port of isearch.el search-exit-option.
+    !> search.  (Only t and nil: `edit', `append', `move' and
+    !> `shift-move' are not ported.)  Port of isearch.el search-exit-option.
     logical, public :: search_exit_option = .true.
 
     !> If non-nil, do a nonincremental search instead of an incremental
@@ -157,7 +157,7 @@ module isearch_fm
     type(handle_type), public, protected :: isearch_mode_map
 
     !> The search state, as isearch.el's global variables.  Strings are
-    !> UTF-8; an unallocated `isearch_error` is nil; position 0 is nil.
+    !> UTF-8; an unallocated `isearch_error' is nil; position 0 is nil.
     character(len=:), allocatable, public, protected :: isearch_string, isearch_message
     character(len=:), allocatable, public, protected :: isearch_error
     logical, public, protected :: isearch_forward = .true., isearch_success = .true.
@@ -201,7 +201,7 @@ contains
     ! Strings
     ! ------------------------------------------------------------------
 
-    !> The characters of UTF-8 `s`.
+    !> The characters of UTF-8 `s'.
     subroutine decode(s, chars, n)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -219,7 +219,7 @@ contains
         end do
     end subroutine decode
 
-    !> The UTF-8 encoding of character `c`.
+    !> The UTF-8 encoding of character `c'.
     function encode(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
@@ -230,14 +230,14 @@ contains
         s = buf(1:nbytes)
     end function encode
 
-    !> Number of characters in UTF-8 `s`.
+    !> Number of characters in UTF-8 `s'.
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer(int32), allocatable :: chars(:)
         call decode(s, chars, nchars)
     end function nchars
 
-    !> `s` without its last `n` characters.
+    !> `s' without its last `n' characters.
     function drop_chars(s, n) result(r)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n
@@ -366,7 +366,7 @@ contains
     ! The search ring
     ! ------------------------------------------------------------------
 
-    !> The name of the search ring for regexp search if `regexp`, else of
+    !> The name of the search ring for regexp search if `regexp', else of
     !> the ordinary search ring.
     function ring_name(regexp) result(name)
         logical, intent(in) :: regexp
@@ -853,7 +853,7 @@ contains
 
     !> Search for the first occurrence of STRING.  If found, move point
     !> to the end of the occurrence, update the match data, and return
-    !> true.  An invalid regexp is an error in `status`.  Port of
+    !> true.  An invalid regexp is an error in `status'.  Port of
     !> isearch.el:isearch-search-string (BOUND nil, NOERROR t; no
     !> translation-table-for-input) with isearch-search-fun-default.
     logical function isearch_search_string(string, status) result(found)
@@ -928,7 +928,7 @@ contains
     end subroutine isearch_search
 
     !> Whether the text at point matches the search string (as a regexp,
-    !> or literally), folding case with `fold`; `mend` is where the match
+    !> or literally), folding case with `fold'; `mend' is where the match
     !> ends.  An invalid regexp doesn't match.
     logical function looking_at_string(string, fold, mend) result(found)
         character(len=*), intent(in) :: string
@@ -1357,9 +1357,9 @@ contains
         call isearch_process_search_string(s, s)
     end subroutine isearch_yank_string
 
-    !> Pull the text from point to the point reached by `jump`: 1 moves
-    !> forward `arg` characters, 2 to the end of the line (`arg` lines
-    !> on), 3 over `arg` words or characters (isearch--yank-char-or-syntax
+    !> Pull the text from point to the point reached by `jump': 1 moves
+    !> forward `arg' characters, 2 to the end of the line (`arg' lines
+    !> on), 3 over `arg' words or characters (isearch--yank-char-or-syntax
     !> with word syntax).  Port of isearch.el:isearch-yank-internal.
     subroutine isearch_yank_internal(jump, arg)
         integer, intent(in) :: jump
@@ -1407,7 +1407,7 @@ contains
         call isearch_yank_internal(3, arg)
     end subroutine isearch_yank_word_or_char
 
-    !> The character at `pos`, or 0 at the end of the accessible region
+    !> The character at `pos', or 0 at the end of the accessible region
     !> ((or (char-after POS) 0)).
     integer function char_after(pos)
         integer(int64), intent(in) :: pos
@@ -1766,7 +1766,7 @@ contains
         call isearch_ring_retreat(status)
     end subroutine cmd_isearch_ring_retreat
 
-    !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
+    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -1776,8 +1776,8 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
 
-    !> Register the isearch commands, build `isearch-mode-map`, and bind
-    !> C-s, C-r, C-M-s and C-M-r in `global_map`.  Port of isearch.el's
+    !> Register the isearch commands, build `isearch-mode-map', and bind
+    !> C-s, C-r, C-M-s and C-M-r in `global_map'.  Port of isearch.el's
     !> isearch-mode-map and global bindings.
     subroutine syms_of_isearch(global_map)
         type(handle_type), intent(in) :: global_map

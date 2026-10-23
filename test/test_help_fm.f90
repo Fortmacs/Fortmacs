@@ -166,9 +166,6 @@ contains
         call test_sck(error, "'", RQ)
         if (allocated(error)) return
         call test_sck(error, "\`", "\"//LQ)
-        if (allocated(error)) return
-        ! A FORD-style `x` closes with a right quote too.
-        call test_sck(error, "`x`", LQ//"x"//RQ)
     end subroutine test_quotes
 
     subroutine test_literals(error)

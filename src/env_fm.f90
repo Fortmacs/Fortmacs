@@ -21,7 +21,7 @@
 
 !> Reading environment variables and substituting them into strings.
 !> The process environment is read directly (there is no
-!> `process-environment` list yet).
+!> `process-environment' list yet).
 module env_fm
     implicit none(type, external)
     private
@@ -30,7 +30,7 @@ module env_fm
 
 contains
 
-    !> The value of environment variable `variable`; `found` is false if
+    !> The value of environment variable `variable'; `found' is false if
     !> it is not set.  Port of env.el:getenv (no FRAME argument).
     subroutine getenv(variable, value, found)
         character(len=*), intent(in) :: variable
@@ -43,9 +43,9 @@ contains
         if (found .and. length > 0) call get_environment_variable(variable, value)
     end subroutine getenv
 
-    !> `string` with $FOO and ${FOO} replaced by environment variables and
+    !> `string' with $FOO and ${FOO} replaced by environment variables and
     !> $$ by $.  References to unset variables are left unchanged with
-    !> `keep_undefined`, else replaced by "".  Port of
+    !> `keep_undefined', else replaced by "".  Port of
     !> env.el:substitute-env-vars (WHEN-UNDEFINED nil or t).
     function substitute_env_vars(string, keep_undefined) result(out)
         character(len=*), intent(in) :: string

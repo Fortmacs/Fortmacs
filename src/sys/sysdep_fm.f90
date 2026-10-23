@@ -24,7 +24,7 @@
 !> System-dependent terminal handling.  Only Linux is supported, so the
 !> DOS_NT and old-BSD branches of sysdep.c are not ported.
 !>
-!> File descriptors are `int32` (the same kind as C int on both targets),
+!> File descriptors are `int32' (the same kind as C int on both targets),
 !> so callers need no ISO_C_BINDING.  Errors from the C library come back
 !> as file-error statuses whose detail names the call and errno.
 module sysdep_fm
@@ -83,7 +83,7 @@ module sysdep_fm
         character(len=:), allocatable :: s
     end type sys_string_type
 
-    !> A C argument vector: the strings, NUL-terminated, in `buf`, and a
+    !> A C argument vector: the strings, NUL-terminated, in `buf', and a
     !> null-terminated array of pointers to them.
     type :: c_argv_type
         character(kind=c_char), allocatable :: buf(:)
@@ -103,14 +103,14 @@ module sysdep_fm
     end type file_stat_type
 
     !> Set (to the signal number) asynchronously by the SIGWINCH handler;
-    !> read and cleared by `window_change_pending`.
+    !> read and cleared by `window_change_pending'.
     integer(c_int), volatile :: winch_flag = 0
-    !> Set by the SIGINT handler; read and cleared by `interrupt_pending`.
+    !> Set by the SIGINT handler; read and cleared by `interrupt_pending'.
     integer(c_int), volatile :: sigint_flag = 0
 
 contains
 
-    !> Fill `status` from errno after the C call `what` failed.
+    !> Fill `status' from errno after the C call `what' failed.
     subroutine sys_error(status, what, err)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: what
@@ -125,7 +125,7 @@ contains
         call set_error(status, FM_FILE_ERROR, what//" failed, errno "//trim(num))
     end subroutine sys_error
 
-    !> Read the terminal modes of `fd`.  Port of sysdep.c:emacs_get_tty.
+    !> Read the terminal modes of `fd'.  Port of sysdep.c:emacs_get_tty.
     subroutine emacs_get_tty(fd, settings, status)
         integer(int32), intent(in) :: fd
         type(emacs_tty_type), intent(out) :: settings
@@ -133,7 +133,7 @@ contains
         if (c_tcgetattr(fd, settings%main) /= 0) call sys_error(status, "tcgetattr")
     end subroutine emacs_get_tty
 
-    !> Set the terminal modes of `fd`, discarding pending input if `flushp`.
+    !> Set the terminal modes of `fd', discarding pending input if `flushp'.
     !> Reads the settings back and retries (up to 10 times) until they
     !> stick, as POSIX lets tcsetattr succeed partially.
     !> Port of sysdep.c:emacs_set_tty.
@@ -162,7 +162,7 @@ contains
         end do
     end subroutine emacs_set_tty
 
-    !> The modes Emacs runs a terminal in, derived from `old`: no echo, no
+    !> The modes Emacs runs a terminal in, derived from `old': no echo, no
     !> line editing, no CR/NL mapping, 8-bit input, reads of at least one
     !> byte, and special characters disabled except C-g for SIGINT/SIGQUIT
     !> on the controlling terminal.  The termios part of
@@ -217,7 +217,7 @@ contains
         end associate
     end function tty_raw_settings
 
-    !> Save the modes of `fd` in `old` and switch it to Emacs's modes.
+    !> Save the modes of `fd' in `old' and switch it to Emacs's modes.
     !> Port of the termios part of sysdep.c:init_sys_modes.
     subroutine init_sys_modes(fd, old, status, flow_control, meta_key, controlling)
         integer(int32), intent(in) :: fd
@@ -236,7 +236,7 @@ contains
         call emacs_set_tty(fd, tty_raw_settings(old, flow, meta, ctl), .false., status)
     end subroutine init_sys_modes
 
-    !> Restore the modes saved by `init_sys_modes`.
+    !> Restore the modes saved by `init_sys_modes'.
     !> Port of the termios part of sysdep.c:reset_sys_modes.
     subroutine reset_sys_modes(fd, old, status)
         integer(int32), intent(in) :: fd
@@ -245,13 +245,13 @@ contains
         call emacs_set_tty(fd, old, .false., status)
     end subroutine reset_sys_modes
 
-    !> Whether `fd` is a terminal.  The isatty check of emacs.c:main.
+    !> Whether `fd' is a terminal.  The isatty check of emacs.c:main.
     logical function emacs_isatty(fd)
         integer(int32), intent(in) :: fd
         emacs_isatty = c_isatty(int(fd, c_int)) == 1
     end function emacs_isatty
 
-    !> Whether the terminal on `fd` passes tabs through (does not expand
+    !> Whether the terminal on `fd' passes tabs through (does not expand
     !> them to spaces).  Port of sysdep.c:tabs_safe_p.
     logical function tabs_safe_p(fd)
         integer(int32), intent(in) :: fd
@@ -261,7 +261,7 @@ contains
         tabs_safe_p = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
     end function tabs_safe_p
 
-    !> Width and height of the terminal on `fd`.
+    !> Width and height of the terminal on `fd'.
     !> Port of sysdep.c:get_tty_size.
     subroutine get_tty_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
@@ -278,7 +278,7 @@ contains
         height = int(ws%ws_row, int32)
     end subroutine get_tty_size
 
-    !> Set the size of the terminal on `fd` (used on pseudo-terminals).
+    !> Set the size of the terminal on `fd' (used on pseudo-terminals).
     !> Port of sysdep.c:set_window_size.
     subroutine set_tty_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
@@ -294,8 +294,8 @@ contains
         if (c_ioctl_winsize(fd, TIOCSWINSZ, ws) < 0) call sys_error(status, "ioctl(TIOCSWINSZ)")
     end subroutine set_tty_size
 
-    !> Read up to len(buf) bytes from `fd` into `buf`, retrying on EINTR.
-    !> `nread` is the count (0 at end of file).
+    !> Read up to len(buf) bytes from `fd' into `buf', retrying on EINTR.
+    !> `nread' is the count (0 at end of file).
     !> Port of sysdep.c:emacs_read (via emacs_intr_read, not interruptible).
     subroutine emacs_read(fd, buf, nread, status, err)
         integer(int32), intent(in) :: fd
@@ -323,8 +323,8 @@ contains
         nread = int(r, int64)
     end subroutine emacs_read
 
-    !> Write all of `buf` to `fd`, retrying on EINTR and partial writes.
-    !> `written` is the number of bytes written before any error.
+    !> Write all of `buf' to `fd', retrying on EINTR and partial writes.
+    !> `written' is the number of bytes written before any error.
     !> Port of sysdep.c:emacs_full_write.
     subroutine emacs_full_write(fd, buf, written, status, err)
         integer(int32), intent(in) :: fd
@@ -352,7 +352,7 @@ contains
         end do
     end subroutine emacs_full_write
 
-    !> Write `buf` to `fd`.  Port of sysdep.c:emacs_write.
+    !> Write `buf' to `fd'.  Port of sysdep.c:emacs_write.
     subroutine emacs_write(fd, buf, status)
         integer(int32), intent(in) :: fd
         character(len=*), intent(in) :: buf
@@ -361,7 +361,7 @@ contains
         call emacs_full_write(fd, buf, written, status)
     end subroutine emacs_write
 
-    !> True if `fd` has input within `timeout_ms` milliseconds (0: just
+    !> True if `fd' has input within `timeout_ms' milliseconds (0: just
     !> check; negative: wait indefinitely).  Not a port: the poll(2) core
     !> of what process.c:wait_reading_process_output does for keyboard input.
     logical function input_available(fd, timeout_ms)
@@ -419,7 +419,7 @@ contains
         winch_flag = 0
     end function window_change_pending
 
-    !> Open a pseudo-terminal pair: `master` and the matching `slave`.
+    !> Open a pseudo-terminal pair: `master' and the matching `slave'.
     !> Port of the Unix98 path of process.c:allocate_pty (plus opening the
     !> slave, as process.c:create_process does).
     subroutine open_pty(master, slave, status)
@@ -445,7 +445,7 @@ contains
         end if
     end subroutine open_pty
 
-    !> Close `fd`, ignoring errors.  Cf. sysdep.c:emacs_close.
+    !> Close `fd', ignoring errors.  Cf. sysdep.c:emacs_close.
     subroutine close_fd(fd)
         integer(int32), intent(in) :: fd
         integer(c_int) :: r
@@ -457,14 +457,14 @@ contains
     ! can build their messages (report_file_errno) without ISO_C_BINDING.
     ! ------------------------------------------------------------------
 
-    !> `name` as a NUL-terminated C string.
+    !> `name' as a NUL-terminated C string.
     pure function c_path(name) result(p)
         character(len=*), intent(in) :: name
         character(len=len(name) + 1) :: p
         p = name//c_null_char
     end function c_path
 
-    !> Open `file` for reading.  Cf. sysdep.c:emacs_open (O_CLOEXEC added,
+    !> Open `file' for reading.  Cf. sysdep.c:emacs_open (O_CLOEXEC added,
     !> retrying on EINTR).
     integer(int32) function emacs_open_read(file, fd) result(err)
         character(len=*), intent(in) :: file
@@ -478,7 +478,7 @@ contains
         end do
     end function emacs_open_read
 
-    !> Create (or truncate) `file` for writing with permission bits `mode`
+    !> Create (or truncate) `file' for writing with permission bits `mode'
     !> (before the umask).  Cf. sysdep.c:emacs_open with O_CREAT | O_TRUNC.
     integer(int32) function emacs_creat(file, mode, fd) result(err)
         character(len=*), intent(in) :: file
@@ -493,7 +493,7 @@ contains
         end do
     end function emacs_creat
 
-    !> access(2) with `mode` (F_OK, R_OK, W_OK, X_OK); 0 if allowed.
+    !> access(2) with `mode' (F_OK, R_OK, W_OK, X_OK); 0 if allowed.
     integer(int32) function sys_access(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
@@ -515,7 +515,7 @@ contains
         if (c_unlink(c_path(file)) /= 0) err = errno()
     end function sys_unlink
 
-    !> mkdir(2) with permission bits `mode` (before the umask).
+    !> mkdir(2) with permission bits `mode' (before the umask).
     integer(int32) function sys_mkdir(dir, mode) result(err)
         character(len=*), intent(in) :: dir
         integer(int32), intent(in) :: mode
@@ -530,7 +530,7 @@ contains
         if (c_rmdir(c_path(dir)) /= 0) err = errno()
     end function sys_rmdir
 
-    !> Set environment variable `name` to `value` for this process (and
+    !> Set environment variable `name' to `value' for this process (and
     !> so for get_environment_variable).
     integer(int32) function sys_setenv(name, value) result(err)
         character(len=*), intent(in) :: name, value
@@ -538,7 +538,7 @@ contains
         if (c_setenv(c_path(name), c_path(value), 1) /= 0) err = errno()
     end function sys_setenv
 
-    !> Remove environment variable `name`.
+    !> Remove environment variable `name'.
     integer(int32) function sys_unsetenv(name) result(err)
         character(len=*), intent(in) :: name
         err = 0
@@ -553,7 +553,7 @@ contains
         if (c_chmod(c_path(file), mode) /= 0) err = errno()
     end function sys_chmod
 
-    !> Status of `file`, following symbolic links unless `nofollow`.
+    !> Status of `file', following symbolic links unless `nofollow'.
     !> Cf. emacs_fstatat (statx is used because its layout is the same on
     !> both targets).
     integer(int32) function sys_stat(file, st, nofollow) result(err)
@@ -624,7 +624,7 @@ contains
         dir = buf(1:index(buf, c_null_char) - 1)
     end function emacs_get_current_dir_name
 
-    !> Home directory of the user called `name` (getpwnam).  `found` is
+    !> Home directory of the user called `name' (getpwnam).  `found' is
     !> false when there is no such user.
     subroutine passwd_home_by_name(name, home, found)
         character(len=*), intent(in) :: name
@@ -641,7 +641,7 @@ contains
     end subroutine passwd_home_of_user
 
     !> Login name of the real user (getpwuid (getuid ())), as
-    !> editfns.c:Fuser_real_login_name finds it.  `found` is false when the
+    !> editfns.c:Fuser_real_login_name finds it.  `found' is false when the
     !> user has no passwd entry.
     subroutine passwd_name_of_user(name, found)
         character(len=:), allocatable, intent(out) :: name
@@ -678,7 +678,7 @@ contains
         emacs_getegid = c_getegid()
     end function emacs_getegid
 
-    !> Text describing errno value `err`.  Cf. sysdep.c:emacs_strerror.
+    !> Text describing errno value `err'.  Cf. sysdep.c:emacs_strerror.
     function emacs_strerror(err) result(text)
         integer(int32), intent(in) :: err
         character(len=:), allocatable :: text
@@ -689,7 +689,7 @@ contains
     ! Processes.  Like the file calls, each returns 0 or the errno value.
     ! ------------------------------------------------------------------
 
-    !> Fill `argv` (which must be a target) from `args`.
+    !> Fill `argv' (which must be a target) from `args'.
     subroutine make_argv(args, argv)
         type(sys_string_type), intent(in) :: args(:)
         type(c_argv_type), intent(out), target :: argv
@@ -709,12 +709,12 @@ contains
         argv%ptrs(size(args) + 1) = c_null_ptr
     end subroutine make_argv
 
-    !> Start the program `path` (a file name, found by the caller) with
-    !> arguments `args` (args(1) is its name), standard input from file
-    !> `infile`, standard output and error to `out_fd` (or /dev/null if it
-    !> is negative), in directory `dir` (unless empty), with the editor's
-    !> environment.  `pid` is the child.  The caller checks that `path`,
-    !> `infile` and `dir` can be used first; if the child still fails to
+    !> Start the program `path' (a file name, found by the caller) with
+    !> arguments `args' (args(1) is its name), standard input from file
+    !> `infile', standard output and error to `out_fd' (or /dev/null if it
+    !> is negative), in directory `dir' (unless empty), with the editor's
+    !> environment.  `pid' is the child.  The caller checks that `path',
+    !> `infile' and `dir' can be used first; if the child still fails to
     !> start, it exits with status 127.  Port of callproc.c:emacs_spawn
     !> (the fork path, without a pty).
     integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid) result(err)
@@ -759,8 +759,8 @@ contains
         call c_exit(127)
     end function emacs_spawn
 
-    !> Wait for child `pid` to exit.  `code` is its exit status, or -1 if
-    !> it was killed by signal `sig` (0 otherwise).  Port of
+    !> Wait for child `pid' to exit.  `code' is its exit status, or -1 if
+    !> it was killed by signal `sig' (0 otherwise).  Port of
     !> sysdep.c:wait_for_termination (get_child_status, blocking).
     integer(int32) function wait_for_termination(pid, code, sig) result(err)
         integer(int32), intent(in) :: pid
@@ -785,7 +785,7 @@ contains
         end if
     end function wait_for_termination
 
-    !> A pipe: `fds(1)` reads what is written to `fds(2)`; both are
+    !> A pipe: `fds(1)' reads what is written to `fds(2)'; both are
     !> close-on-exec.  Port of sysdep.c:emacs_pipe.
     integer(int32) function emacs_pipe(fds) result(err)
         integer(int32), intent(out) :: fds(2)
@@ -799,7 +799,7 @@ contains
         end if
     end function emacs_pipe
 
-    !> The description of signal `sig` ("Killed"), as strsignal gives it.
+    !> The description of signal `sig' ("Killed"), as strsignal gives it.
     function emacs_strsignal(sig) result(text)
         integer(int32), intent(in) :: sig
         character(len=:), allocatable :: text
@@ -807,7 +807,7 @@ contains
         if (len(text) == 0) text = "unknown"
     end function emacs_strsignal
 
-    !> The target of symbolic link `path`.  Cf. sysdep.c:emacs_readlinkat.
+    !> The target of symbolic link `path'.  Cf. sysdep.c:emacs_readlinkat.
     integer(int32) function emacs_readlink(path, target) result(err)
         character(len=*), intent(in) :: path
         character(len=:), allocatable, intent(out) :: target
@@ -836,8 +836,8 @@ contains
         end do
     end function emacs_readlink
 
-    !> Replace this process with the program `path`, given arguments
-    !> `args` (args(1) is its name) and the same environment.  Returns
+    !> Replace this process with the program `path', given arguments
+    !> `args' (args(1) is its name) and the same environment.  Returns
     !> only on failure.
     integer(int32) function emacs_execv(path, args) result(err)
         character(len=*), intent(in) :: path
@@ -849,8 +849,8 @@ contains
         err = errno()
     end function emacs_execv
 
-    !> Create a new file from `template`, whose last six characters are
-    !> "XXXXXX" (replaced to make the name unique); `fd` is open for
+    !> Create a new file from `template', whose last six characters are
+    !> "XXXXXX" (replaced to make the name unique); `fd' is open for
     !> writing, close-on-exec.  Cf. sysdep.c's use of mkostemp.
     integer(int32) function emacs_mkostemp(template, fd) result(err)
         ! The name is filled in, so its length is the caller's.
@@ -868,7 +868,7 @@ contains
         end if
     end function emacs_mkostemp
 
-    !> The names of the entries of directory `dir`, "." and ".." included,
+    !> The names of the entries of directory `dir', "." and ".." included,
     !> in the order the file system gives them.  Cf. dired.c's use of
     !> opendir and readdir.
     integer(int32) function emacs_directory_entries(dir, names) result(err)
@@ -913,14 +913,14 @@ contains
         names = names(1:n)
     end function emacs_directory_entries
 
-    !> symlink(2): make `link` a symbolic link to `target`.
+    !> symlink(2): make `link' a symbolic link to `target'.
     integer(int32) function sys_symlink(target, link) result(err)
         character(len=*), intent(in) :: target, link
         err = 0
         if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
     end function sys_symlink
 
-    !> The local time of `seconds` since the epoch: year, month (1-12),
+    !> The local time of `seconds' since the epoch: year, month (1-12),
     !> day, hour, minute and second.
     function emacs_localtime(seconds) result(parts)
         integer(int64), intent(in) :: seconds

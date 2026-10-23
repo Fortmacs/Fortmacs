@@ -19,16 +19,16 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `describe-function` and `describe-variable`, from the documentation
+!> `describe-function' and `describe-variable', from the documentation
 !> docstrings_fm collects.  The functions are the commands and the
-!> procedures of the config API (module `fortmacs`), the variables its
+!> procedures of the config API (module `fortmacs'), the variables its
 !> settings.  A function's report names the Fortran file defining it and
 !> shows how Fortran calls it where the Lisp version shows its argument
 !> list; a variable's shows its Fortran name and its value as Fortran.
 !>
 !> Deferred: the default from the symbol at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
-!> buffer-local values, `describe-symbol`, `describe-command`.
+!> buffer-local values, `describe-symbol', `describe-command'.
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -56,7 +56,7 @@ module help_fns_fm
 
 contains
 
-    !> Whether `name` is a function help knows: a documented one or a
+    !> Whether `name' is a function help knows: a documented one or a
     !> command.
     logical function function_known_p(name)
         character(len=*), intent(in) :: name
@@ -68,7 +68,7 @@ contains
         function_known_p = fboundp(sym(name))
     end function function_known_p
 
-    !> Completion predicate for `describe-function`.
+    !> Completion predicate for `describe-function'.
     logical function function_symbol_p(elt)
         type(value_type), intent(in) :: elt
         character(len=:), allocatable :: name
@@ -78,7 +78,7 @@ contains
         if (function_symbol_p) function_symbol_p = function_known_p(name)
     end function function_symbol_p
 
-    !> The keys that run command `name`, as "C-f, <right>"; "" for none.
+    !> The keys that run command `name', as "C-f, <right>"; "" for none.
     function bindings_text(name) result(s)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: s
@@ -96,7 +96,7 @@ contains
         end do
     end function bindings_text
 
-    !> What describe-function says about function `name` after "NAME is ":
+    !> What describe-function says about function `name' after "NAME is ":
     !> its kind and file, its keys, how Fortran calls it and its
     !> documentation.  Port of help-fns.el:describe-function-1 (with
     !> help-fns-function-description-header, help-fns--key-bindings and
@@ -148,7 +148,7 @@ contains
         call with_help_window(function//" is "//text, status)
     end subroutine describe_function
 
-    !> The report describe-variable shows for variable `name`; `found`
+    !> The report describe-variable shows for variable `name'; `found'
     !> false if help doesn't know it.  Port of the text help-fns.el:
     !> describe-variable inserts.
     subroutine describe_variable_text(name, text, found)
@@ -219,7 +219,7 @@ contains
     end subroutine cmd_describe_variable
 
     !> Register the commands, intern the documented function names (for
-    !> completion) and install `describe_function_1` for describe-key.
+    !> completion) and install `describe_function_1' for describe-key.
     subroutine syms_of_help_fns()
         type(value_type) :: s
         integer :: k

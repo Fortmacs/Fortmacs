@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Major modes.  A major mode is a `major_mode_type` object: built-in
-!> ones are the components of `major_modes` (modes_fm), others are
-!> `target` variables made known with `define`.  Upstream's
-!> `define-derived-mode` macro expands into a function; here the mode's
-!> command brackets its body with `begin` and `finish`:
+!> Major modes.  A major mode is a `major_mode_type' object: built-in
+!> ones are the components of `major_modes' (modes_fm), others are
+!> `target' variables made known with `define'.  Upstream's
+!> `define-derived-mode' macro expands into a function; here the mode's
+!> command brackets its body with `begin' and `finish':
 !>
 !>     subroutine my_mode(status)
 !>         type(status_type), intent(out) :: status
@@ -34,8 +34,9 @@
 !>         call my_mode_object%finish(saved, status)
 !>     end subroutine my_mode
 !>
-!> with `call my_mode_object%define("my-mode", "My", my_mode,
-!> parent=major_modes%text_mode)`.
+!> with `call my_mode_object%define("my-mode", "My", my_mode, my_mode_hook,
+!> parent=major_mode_named("text-mode"))', where `my_mode_hook' is a
+!> `hook_type' target variable.
 module derived_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
@@ -62,18 +63,18 @@ module derived_fm
     type, public :: major_mode_type
         !> The mode's name, as M-x and the help commands show it.
         character(len=64) :: name = ""
-        !> Shown in the mode line (`mode-name`).
+        !> Shown in the mode line (`mode-name').
         character(len=:), allocatable :: mode_name
         !> The mode's command.
         procedure(command_proc), pointer, nopass :: run => null()
-        !> The mode it is derived from (`derived-mode-parent`), or null.
+        !> The mode it is derived from (`derived-mode-parent'), or null.
         type(major_mode_type), pointer :: parent => null()
-        !> Its keymap (`MODE-map`), inheriting the parent's.
+        !> Its keymap (`MODE-map'), inheriting the parent's.
         type(handle_type) :: map
         !> Its syntax table, or the null handle to keep the parent's.
         type(handle_type) :: syntax_table
-        !> Run after the mode is set up (`MODE-hook`).
-        !> (A pointer to the hook object, e.g. `text_mode_hook`; null for
+        !> Run after the mode is set up (`MODE-hook').
+        !> (A pointer to the hook object, e.g. `text_mode_hook'; null for
         !> none.)
         type(hook_type), pointer :: hook => null()
     contains
@@ -158,9 +159,9 @@ contains
     end subroutine major_mode_define
 
     !> Start the body of the mode: run the parent mode with its mode hooks
-    !> delayed (or kill all local variables), then set `major-mode`,
-    !> `mode-name`, the local keymap and syntax table.  SAVED is for
-    !> `finish`.  Port of the first part of define-derived-mode's
+    !> delayed (or kill all local variables), then set `major-mode',
+    !> `mode-name', the local keymap and syntax table.  SAVED is for
+    !> `finish'.  Port of the first part of define-derived-mode's
     !> expansion.
     recursive subroutine major_mode_begin(self, saved, status)
         class(major_mode_type), intent(in) :: self

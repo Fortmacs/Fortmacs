@@ -65,7 +65,7 @@ module window_fm
         !> Position on the frame (0-based rows) and size, in lines and
         !> columns, including the mode line.
         integer :: top_line = 0, total_lines = 0, left_col = 0, total_cols = 0
-        !> The buffer shown before `buffer` (window.el window-prev-buffers,
+        !> The buffer shown before `buffer' (window.el window-prev-buffers,
         !> one deep); the null handle for none.
         type(handle_type) :: prev_buffer
         !> The window tree: the parent (internal) window, the next and
@@ -157,7 +157,7 @@ module window_fm
         !> of window, -1 meaning the last fully visible display line
         !> of the window.
         !>
-        !> `line` is the screen line of the window point moved to, counting
+        !> `line' is the screen line of the window point moved to, counting
         !> from the top of the window.  Port of window.c:Fmove_to_window_line.
         module subroutine move_to_window_line(arg, line, status)
             implicit none(type, external)
@@ -255,7 +255,7 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine quit_window
 
-        !> Register the scrolling commands and `quit-window`.
+        !> Register the scrolling commands and `quit-window'.
         module subroutine syms_of_window()
             implicit none(type, external)
         end subroutine syms_of_window
@@ -264,7 +264,7 @@ module window_fm
 
         !> Select WINDOW which must be a live window.  Also make WINDOW's
         !> buffer current and make WINDOW the frame's selected window; point
-        !> becomes WINDOW's point.  Unless `norecord`, record the buffer as
+        !> becomes WINDOW's point.  Unless `norecord', record the buffer as
         !> most recently selected.  Port of window.c:Fselect_window.
         module subroutine select_window(h, status, norecord)
             implicit none(type, external)
@@ -274,7 +274,7 @@ module window_fm
         end subroutine select_window
 
         !> Make a new window adjacent to WINDOW: below it, or with
-        !> `horizontal` to its right.  Without `have_size` both get half its
+        !> `horizontal' to its right.  Without `have_size' both get half its
         !> size (or close to it); a nonnegative SIZE is the new size of
         !> WINDOW, a negative one minus the size of the new window, in lines
         !> or columns.  The new window shows WINDOW's buffer, start and
@@ -329,7 +329,7 @@ module window_fm
         end function other_buffer
 
         !> Replace BUFFER with some other buffer in all windows showing it:
-        !> the buffer the window showed before, or else `other_buffer`.
+        !> the buffer the window showed before, or else `other_buffer'.
         !> Port of window.el:replace-buffer-in-windows (with
         !> switch-to-prev-buffer).
         module subroutine replace_buffer_in_windows(buffer)
@@ -354,10 +354,10 @@ module window_fm
 
 contains
 
-    !> Show buffer `buffer` in `w`, starting at its accessible beginning,
+    !> Show buffer `buffer' in `w', starting at its accessible beginning,
     !> with the window's point at the buffer's point.  The buffer shown
-    !> before is recorded as `prev_buffer` (window.el
-    !> record-window-buffer) unless `record` is false, as for a temporary
+    !> before is recorded as `prev_buffer' (window.el
+    !> record-window-buffer) unless `record' is false, as for a temporary
     !> display.  Port of window.c:set_window_buffer (no hooks).
     subroutine set_window_buffer(w, buffer, status, record)
         type(window_type), intent(inout) :: w
@@ -384,7 +384,7 @@ contains
         w%window_end_valid = .false.
     end subroutine set_window_buffer
 
-    !> Where the display of `w` starts (1 if it shows no buffer).  Port of
+    !> Where the display of `w' starts (1 if it shows no buffer).  Port of
     !> window.c:Fwindow_start.
     integer(int64) function window_start(w) result(pos)
         type(window_type), intent(in) :: w
@@ -395,7 +395,7 @@ contains
         if (.not. status%ok()) pos = 1
     end function window_start
 
-    !> Make `w` start at `pos`; with `noforce`, redisplay may move it to
+    !> Make `w' start at `pos'; with `noforce', redisplay may move it to
     !> show point.  Port of window.c:Fset_window_start.
     subroutine set_window_start(w, pos, status, noforce)
         type(window_type), intent(inout) :: w
@@ -468,7 +468,7 @@ contains
         windows(h%index) = window_type()
     end subroutine make_window
 
-    !> Free window `h`: its markers and its slot.  Not a port (upstream
+    !> Free window `h': its markers and its slot.  Not a port (upstream
     !> relies on GC).
     subroutine delete_window_object(h)
         type(handle_type), intent(in) :: h
@@ -479,7 +479,7 @@ contains
         call wtable%release(h, status)
     end subroutine delete_window_object
 
-    !> Window `h`, or a null pointer if it doesn't exist.  Valid until the
+    !> Window `h', or a null pointer if it doesn't exist.  Valid until the
     !> next make_window.
     function window_ref(h) result(w)
         type(handle_type), intent(in) :: h
@@ -488,14 +488,14 @@ contains
         if (wtable%is_live(h)) w => windows(h%index)
     end function window_ref
 
-    !> Whether `h` is a valid window (live or internal).  Port of
+    !> Whether `h' is a valid window (live or internal).  Port of
     !> window.c:Fwindow_valid_p.
     logical function window_valid_p(h)
         type(handle_type), intent(in) :: h
         window_valid_p = wtable%is_live(h)
     end function window_valid_p
 
-    !> Whether `h` is a live window: one that shows a buffer (a leaf).
+    !> Whether `h' is a live window: one that shows a buffer (a leaf).
     !> Port of window.c:Fwindow_live_p.
     logical function window_live_p(h)
         type(handle_type), intent(in) :: h
@@ -508,7 +508,7 @@ contains
         same_window = a%index == b%index .and. a%generation == b%generation
     end function same_window
 
-    !> The live windows of the tree under `root`, in cyclic order (top to
+    !> The live windows of the tree under `root', in cyclic order (top to
     !> bottom, left to right).  window.c:window_list_1 for one frame.
     recursive subroutine window_leaves(root, list)
         type(handle_type), intent(in) :: root
@@ -531,15 +531,15 @@ contains
         end do
     end subroutine window_leaves
 
-    !> Columns for text in `w`: its width less the vertical border.
+    !> Columns for text in `w': its width less the vertical border.
     integer function window_text_cols(w)
         type(window_type), intent(in) :: w
         window_text_cols = w%total_cols
         if (w%divider) window_text_cols = max(1, w%total_cols - 1)
     end function window_text_cols
 
-    !> Give the tree under `h` the place `top`, `left`, `lines` by `cols`
-    !> on a frame `frame_cols` wide.  Children share the size along their
+    !> Give the tree under `h' the place `top', `left', `lines' by `cols'
+    !> on a frame `frame_cols' wide.  Children share the size along their
     !> combination in proportion to their sizes before (equally if they
     !> had none), the last taking what is left.  The terminal part of
     !> window.c:window_resize_apply.
@@ -590,7 +590,7 @@ contains
 
     contains
 
-        !> The new size of the k-th child out of `total`.
+        !> The new size of the k-th child out of `total'.
         integer function new_size(total)
             integer, intent(in) :: total
             if (k == n) then
@@ -604,7 +604,7 @@ contains
         end function new_size
     end subroutine resize_window_tree
 
-    !> Free window `h` and the windows under it.  Not a port (GC upstream).
+    !> Free window `h' and the windows under it.  Not a port (GC upstream).
     recursive subroutine delete_window_tree(h)
         type(handle_type), intent(in) :: h
         type(handle_type) :: c, nxt
@@ -618,8 +618,8 @@ contains
         call delete_window_object(h)
     end subroutine delete_window_tree
 
-    !> Put window `new` in `old`'s place in the tree (same parent and
-    !> siblings), leaving `old` out of it.  Port of window.c:replace_window.
+    !> Put window `new' in `old''s place in the tree (same parent and
+    !> siblings), leaving `old' out of it.  Port of window.c:replace_window.
     subroutine replace_window(old, new)
         type(handle_type), intent(in) :: old, new
         associate (o => windows(old%index), n => windows(new%index))
@@ -643,13 +643,13 @@ contains
         end associate
     end subroutine replace_window
 
-    !> Split live window `old` in two: make `new` (a new window showing the
+    !> Split live window `old' in two: make `new' (a new window showing the
     !> same buffer, with the same start and point) below it or, with
-    !> `horizontal`, to its right.  `new_size` is the size of the new
-    !> window in lines or columns.  If `old` isn't already in a combination
-    !> of that kind, an internal window replaces it there, with `old` and
-    !> `new` as its children.  `root` is the frame's root window, updated
-    !> if it was `old`.  Port of window.c:Fsplit_window_internal (the
+    !> `horizontal', to its right.  `new_size' is the size of the new
+    !> window in lines or columns.  If `old' isn't already in a combination
+    !> of that kind, an internal window replaces it there, with `old' and
+    !> `new' as its children.  `root' is the frame's root window, updated
+    !> if it was `old'.  Port of window.c:Fsplit_window_internal (the
     !> sizes are worked out by the caller, window.el:split-window).
     subroutine split_window_internal(old, horizontal, new_size, root, new, status)
         type(handle_type), intent(in) :: old
@@ -706,11 +706,11 @@ contains
         call set_window_point(windows(new%index), window_point(windows(old%index)), status)
     end subroutine split_window_internal
 
-    !> Take window `h` out of the tree: its space goes to the sibling
+    !> Take window `h' out of the tree: its space goes to the sibling
     !> before it (or else after it), and a parent left with one child is
-    !> replaced by that child.  `root` is the frame's root window, updated
-    !> as needed.  `heir` is the sibling that got the space.  The tree part
-    !> of window.c:Fdelete_window_internal; `h` itself is not freed.
+    !> replaced by that child.  `root' is the frame's root window, updated
+    !> as needed.  `heir' is the sibling that got the space.  The tree part
+    !> of window.c:Fdelete_window_internal; `h' itself is not freed.
     subroutine remove_window_from_tree(h, root, heir, frame_cols)
         type(handle_type), intent(in) :: h
         type(handle_type), intent(inout) :: root

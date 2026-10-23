@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Auto Fill mode (`do-auto-fill`, `internal-auto-fill`,
-!> `auto-fill-mode`), `default-indent-new-line` (M-j) and
-!> `set-fill-column` (C-x f): a submodule because they use fill_fm,
+!> Auto Fill mode (`do-auto-fill', `internal-auto-fill',
+!> `auto-fill-mode'), `default-indent-new-line' (M-j) and
+!> `set-fill-column' (C-x f): a submodule because they use fill_fm,
 !> which uses simple_fm.
 submodule(simple_fm) simple_fill_fm
     use commands_fm, only: commands
@@ -255,8 +255,8 @@ contains
         if (status%ok()) call default_indent_new_line(status)
     end subroutine cmd_default_indent_new_line
 
-    !> auto-fill-mode's :variable setter: set `auto-fill-function`
-    !> (buffer-locally) to `normal-auto-fill-function` or nil.
+    !> auto-fill-mode's :variable setter: set `auto-fill-function'
+    !> (buffer-locally) to `normal-auto-fill-function' or nil.
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status

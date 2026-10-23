@@ -23,12 +23,12 @@
 !>
 !> Not yet: file name completion, wildcards and dired, auto-save, file
 !> locks, major modes and local variables, uniquify (buffer names get
-!> "<2>"), version-control backups and `backup-directory-alist`, and
-!> `file-precious-flag`.
+!> "<2>"), version-control backups and `backup-directory-alist', and
+!> `file-precious-flag'.
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
+    use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nilp
@@ -69,10 +69,10 @@ module files_fm
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
 
     interface
-        !> minibuffer.el:read-file-name.  With `confirm_nonexistent`, a
+        !> minibuffer.el:read-file-name.  With `confirm_nonexistent', a
         !> name that is not an existing file needs confirming right after
         !> completion (confirm-nonexistent-file-or-buffer's value
-        !> `after-completion`).  (In submodule files_read_fm, as the
+        !> `after-completion').  (In submodule files_read_fm, as the
         !> minibuffer code depends on this module.)
         recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
                                                                  default_filename, initial, &
@@ -159,7 +159,7 @@ module files_fm
     !> make-backup-files.
     logical, public :: make_backup_files = .true.
 
-    !> Values of `require_final_newline` and `mode_require_final_newline`
+    !> Values of `require_final_newline' and `mode_require_final_newline'
     !> (upstream nil, t, visit, visit-save and any other value).
     integer, parameter, public :: FINAL_NEWLINE_NEVER = 0, FINAL_NEWLINE_SAVE = 1, FINAL_NEWLINE_VISIT = 2, &
                                   FINAL_NEWLINE_VISIT_SAVE = 3, FINAL_NEWLINE_ASK = 4
@@ -200,7 +200,7 @@ module files_fm
     !> final newlines.  So if you set this to nil, you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
     !> Port of files.el mode-require-final-newline (values as for
-    !> `require_final_newline`).
+    !> `require_final_newline').
     type(integer_setting), public :: mode_require_final_newline = &
                                      integer_setting(name="mode-require-final-newline", value=FINAL_NEWLINE_SAVE)
 
@@ -213,7 +213,7 @@ contains
     ! Visiting
     ! ------------------------------------------------------------------
 
-    !> `filename` with the home directory replaced by "~".  Port of
+    !> `filename' with the home directory replaced by "~".  Port of
     !> files.el:abbreviate-file-name (no directory-abbrev-alist).
     function abbreviate_file_name(filename) result(abbrev)
         character(len=*), intent(in) :: filename
@@ -234,7 +234,7 @@ contains
         end if
     end function abbreviate_file_name
 
-    !> A new buffer named after `filename` (sans directory), made unique
+    !> A new buffer named after `filename' (sans directory), made unique
     !> with "<N>"; a leading space gets a "|" before it.
     !> Port of files.el:create-file-buffer (no uniquify).
     subroutine create_file_buffer(filename, h, status)
@@ -248,7 +248,7 @@ contains
         call get_buffer_create(generate_new_buffer_name(lastname), h, status)
     end subroutine create_file_buffer
 
-    !> The buffer visiting `filename`, reading the file into a new buffer
+    !> The buffer visiting `filename', reading the file into a new buffer
     !> if none does yet.  The buffer is not selected.  A file that doesn't
     !> exist still gets a buffer, which will create it when saved.
     !> Port of files.el:find-file-noselect with find-file-noselect-1 (no
@@ -307,7 +307,7 @@ contains
 
     !> Set up the current buffer after visiting its file: read-only if the
     !> file can't be written, and a message about new or protected files
-    !> when `warn`, then the major mode.  Port of files.el:after-find-file
+    !> when `warn', then the major mode.  Port of files.el:after-find-file
     !> (no auto-save, local variables or hooks).
     subroutine after_find_file(error, warn)
         logical, intent(in) :: error, warn
@@ -350,7 +350,7 @@ contains
         end if
     end subroutine after_find_file
 
-    !> Visit `filename` and make its buffer current (and so shown in the
+    !> Visit `filename' and make its buffer current (and so shown in the
     !> selected window).  Port of files.el:find-file for programs (the
     !> interactive file name prompt needs the minibuffer).
     subroutine find_file(filename, status)
@@ -366,7 +366,7 @@ contains
     ! Backups
     ! ------------------------------------------------------------------
 
-    !> Whether `file` is a backup file name (ends in "~").  Port of
+    !> Whether `file' is a backup file name (ends in "~").  Port of
     !> files.el:backup-file-name-p (without numbered versions).
     pure logical function backup_file_name_p(file)
         character(len=*), intent(in) :: file
@@ -374,7 +374,7 @@ contains
         if (len(file) > 0) backup_file_name_p = file(len(file):len(file)) == "~"
     end function backup_file_name_p
 
-    !> The backup name of `file`: FILE~.  Port of
+    !> The backup name of `file': FILE~.  Port of
     !> files.el:make-backup-file-name (backup-directory-alist nil).
     pure function make_backup_file_name(file) result(backup)
         character(len=*), intent(in) :: file
@@ -397,14 +397,14 @@ contains
         dir = file_name_as_directory(dir)
     end function temporary_file_directory
 
-    !> Whether to back up `name`: not for files under the temporary
+    !> Whether to back up `name': not for files under the temporary
     !> directory or "/tmp".  Port of files.el:normal-backup-enable-predicate.
     logical function normal_backup_enable_predicate(name)
         character(len=*), intent(in) :: name
         normal_backup_enable_predicate = .not. (under(temporary_file_directory()) .or. under("/tmp"))
     contains
 
-        !> compare-strings says `name` extends `dir`.
+        !> compare-strings says `name' extends `dir'.
         logical function under(dir)
             character(len=*), intent(in) :: dir
             under = len(name) > len(dir)
@@ -412,8 +412,8 @@ contains
         end function under
     end function normal_backup_enable_predicate
 
-    !> Whether deleting and rewriting `file` keeps its owner (and with
-    !> `group`, its group); true if it doesn't exist.
+    !> Whether deleting and rewriting `file' keeps its owner (and with
+    !> `group', its group); true if it doesn't exist.
     !> Port of files.el:file-ownership-preserved-p.
     logical function file_ownership_preserved_p(file, group)
         character(len=*), intent(in) :: file
@@ -440,7 +440,7 @@ contains
 
     !> Back up the current buffer's file before its first save, if
     !> appropriate, by renaming it to FILE~ or (to keep its owner, links
-    !> or special bits) by copying it there.  After a rename, `setmodes`
+    !> or special bits) by copying it there.  After a rename, `setmodes'
     !> is the old file's permission bits, to give the new file; otherwise
     !> it is -1.  Port of files.el:backup-buffer (no numbered versions; a
     !> symbolic link is backed up by copying, beside the link).
@@ -485,7 +485,7 @@ contains
     ! Saving
     ! ------------------------------------------------------------------
 
-    !> Save the current buffer in its visited file if modified.  `arg` is
+    !> Save the current buffer in its visited file if modified.  `arg' is
     !> the numeric prefix: 4 (C-u) backs up the previous version on the
     !> next save, 16 (C-u C-u) now, 64 both; 0 never.
     !> Port of files.el:save-buffer.
@@ -601,7 +601,7 @@ contains
             if (.not. status%ok()) return
             if (.not. ok) then
                 call set_error(status, FM_GENERIC_ERROR, &
-                               "Attempt to save to a file that you aren't allowed to write")
+                               format_message("Attempt to save to a file that you aren't allowed to write"))
                 return
             end if
             tempsetmodes = .true.
@@ -705,7 +705,7 @@ contains
     end subroutine save_actor
 
     !> Ask about saving each modified file-visiting buffer, then save
-    !> those the user accepts (all, without asking, if `arg`).
+    !> those the user accepts (all, without asking, if `arg').
     !> Port of files.el:save-some-buffers (PRED nil; no
     !> buffer-save-without-query, buffer-offer-save or
     !> save-some-buffers-functions).
@@ -779,7 +779,7 @@ contains
         call request_exit()
     end subroutine save_buffers_kill_emacs
 
-    !> `name` in the current buffer's default directory.
+    !> `name' in the current buffer's default directory.
     function file_in_default_directory(name) result(file)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: file
@@ -788,10 +788,10 @@ contains
         if (.not. status%ok()) file = name
     end function file_in_default_directory
 
-    !> Make the current buffer visit `filename` (no file if ""): its name,
+    !> Make the current buffer visit `filename' (no file if ""): its name,
     !> default directory and backup state follow, and it counts as
-    !> modified unless `along_with_file`.  Asks first if another buffer
-    !> visits that file, unless `no_query`.  Port of
+    !> modified unless `along_with_file'.  Asks first if another buffer
+    !> visits that file, unless `no_query'.  Port of
     !> files.el:set-visited-file-name (no truenames, locks, auto-save or
     !> major-mode change).
     subroutine set_visited_file_name(filename, status, no_query, along_with_file)
@@ -838,9 +838,9 @@ contains
         if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
     end subroutine set_visited_file_name
 
-    !> Write the current buffer to `filename` and visit it there; a
+    !> Write the current buffer to `filename' and visit it there; a
     !> directory name means the buffer's file (or buffer) name in that
-    !> directory.  With `confirm`, ask before overwriting.  Port of
+    !> directory.  With `confirm', ask before overwriting.  Port of
     !> files.el:write-file.
     subroutine write_file(filename, confirm, status)
         character(len=*), intent(in) :: filename
@@ -859,7 +859,7 @@ contains
                 end if
             end if
             if (confirm .and. file_exists_p(file)) then
-                call y_or_n_p("File `"//file//"' exists; overwrite? ", ok, status)
+                call y_or_n_p(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
                 if (.not. ok) then
                     call set_error(status, FM_USER_ERROR, "Canceled")
@@ -984,7 +984,7 @@ contains
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_save_buffers_kill_terminal
 
-    !> Register the commands and their keys in `ctl_x_map`.
+    !> Register the commands and their keys in `ctl_x_map'.
     subroutine syms_of_files(ctl_x_map)
         type(handle_type), intent(in) :: ctl_x_map
         type(value_type) :: key(1)
@@ -1013,7 +1013,7 @@ contains
     end subroutine syms_of_files
 
     !> Make directory DIR if it is not already a directory.
-    !> `already` is true if DIR is already a directory.  Port of
+    !> `already' is true if DIR is already a directory.  Port of
     !> files.el:files--ensure-directory.
     subroutine ensure_directory(dir, already, status)
         character(len=*), intent(in) :: dir

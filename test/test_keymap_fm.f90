@@ -22,6 +22,7 @@
 module test_keymap_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use error_fm, only: format_message
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: fixnump, list, make_fixnum, make_keymap_ref, make_string, nil, nilp, t_value, &
@@ -660,7 +661,7 @@ contains
         call check(error, value_eq(lookup(ref(k), kbd("C-c b")), sym("backward-char")), "a command name")
         if (allocated(error)) return
         call keymap_set(k, "b", make_string("C-xx"), st)
-        call check(error, st%detail, """C-xx"" is not a valid key definition; see `key-valid-p'")
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key-valid-p'"))
         call free(k)
     end subroutine test_keymap_set
 
@@ -677,7 +678,7 @@ contains
         call check(error, nilp(lookup(global, kbd("C-c x"))), "unbound with nil")
         if (allocated(error)) return
         call keymap_global_set("C-xx", "forward-char", st)
-        call check(error, st%detail, """C-xx"" is not a valid key definition; see `key-valid-p'")
+        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `key-valid-p'"))
         if (allocated(error)) return
         call global_set_key(kbd("C-c y"), "backward-char", st)
         call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), sym("backward-char")), &

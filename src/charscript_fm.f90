@@ -24,8 +24,8 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> char-script-table: the characters with a script, as sorted runs
-!> (`script_starts` to `script_ends`, both inclusive) of script
-!> `script_names(script_ids(k))`.  Used by `char_script`.
+!> (`script_starts' to `script_ends', both inclusive) of script
+!> `script_names(script_ids(k))'.  Used by `char_script'.
 module charscript_fm
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)
@@ -243,8 +243,8 @@ module charscript_fm
 
 contains
 
-    !> The script number of character `c` (an index into
-    !> `script_names`), or 0 if it has none.  CHAR_TABLE_REF
+    !> The script number of character `c' (an index into
+    !> `script_names'), or 0 if it has none.  CHAR_TABLE_REF
     !> (Vchar_script_table, c).
     pure integer function char_script(c)
         integer, intent(in) :: c

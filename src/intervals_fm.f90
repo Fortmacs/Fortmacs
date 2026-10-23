@@ -30,7 +30,7 @@
 !> intervals.c so the tree can be swapped in later if profiling asks for it.
 !>
 !> Interval structure is not observable except through
-!> `next-property-change` with LIMIT t, as upstream.
+!> `next-property-change' with LIMIT t, as upstream.
 module intervals_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, nilp, symbolp, symbols, &
@@ -47,7 +47,7 @@ module intervals_fm
         type(value_type) :: plist
     end type interval_type
 
-    !> All intervals of one text, in order.  `n` == 0 means "no intervals"
+    !> All intervals of one text, in order.  `n' == 0 means "no intervals"
     !> (upstream: a NULL tree).
     type, public :: intervals_type
         type(interval_type), allocatable :: runs(:)
@@ -60,7 +60,7 @@ module intervals_fm
 
 contains
 
-    !> Make `iv` one interval covering `length` characters from `beg`.
+    !> Make `iv' one interval covering `length' characters from `beg'.
     !> Port of intervals.c:create_root_interval.
     pure subroutine create_root_interval(iv, beg, length)
         type(intervals_type), intent(inout) :: iv
@@ -72,14 +72,14 @@ contains
         iv%runs(1)%length = length
     end subroutine create_root_interval
 
-    !> Position just past interval `k`.
+    !> Position just past interval `k'.
     elemental integer(int64) function interval_end(iv, k)
         type(intervals_type), intent(in) :: iv
         integer(int64), intent(in) :: k
         interval_end = iv%runs(k)%position + iv%runs(k)%length
     end function interval_end
 
-    !> Index of the interval containing `pos` (the last one when `pos` is
+    !> Index of the interval containing `pos' (the last one when `pos' is
     !> the end of the text).  Port of intervals.c:find_interval.
     pure integer(int64) function find_interval(iv, pos) result(k)
         type(intervals_type), intent(in) :: iv
@@ -98,7 +98,7 @@ contains
         k = lo
     end function find_interval
 
-    !> Make room for a run at index `k` (shifting k..n up by one).
+    !> Make room for a run at index `k' (shifting k..n up by one).
     pure subroutine open_slot(iv, k)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k
@@ -117,7 +117,7 @@ contains
         iv%n = iv%n + 1
     end subroutine open_slot
 
-    !> Remove run `k`.
+    !> Remove run `k'.
     pure subroutine close_slot(iv, k)
         type(intervals_type), intent(inout) :: iv
         integer(int64), intent(in) :: k
@@ -129,7 +129,7 @@ contains
         iv%n = iv%n - 1
     end subroutine close_slot
 
-    !> Split interval `k` `offset` characters in; return the index of the
+    !> Split interval `k' `offset' characters in; return the index of the
     !> new right-hand part.  Both parts keep the plist (upstream callers
     !> copy it with copy_properties).  Port of intervals.c:split_interval_right.
     pure subroutine split_interval_right(iv, k, offset, r)
@@ -144,8 +144,8 @@ contains
         iv%runs(k)%length = offset
     end subroutine split_interval_right
 
-    !> Split interval `k` so that its first `length` characters become their
-    !> own interval; return the index of that left part (`k`).
+    !> Split interval `k' so that its first `length' characters become their
+    !> own interval; return the index of that left part (`k').
     !> Port of intervals.c:split_interval_left.
     pure subroutine split_interval_left(iv, k, length, l)
         type(intervals_type), intent(inout) :: iv
@@ -156,7 +156,7 @@ contains
         l = r - 1
     end subroutine split_interval_left
 
-    !> Value of `prop` in `plist` compared with eq, and whether it is there.
+    !> Value of `prop' in `plist' compared with eq, and whether it is there.
     !> Port of fns.c:plist_get (also property_value's role in textprop.c).
     subroutine plist_get_eq(plist, prop, val, found)
         type(value_type), intent(in) :: plist, prop
@@ -175,8 +175,8 @@ contains
         end do
     end subroutine plist_get_eq
 
-    !> Value of text property `prop` in `plist`, falling back to the
-    !> `category` symbol's property.  Port of intervals.c:textget /
+    !> Value of text property `prop' in `plist', falling back to the
+    !> `category' symbol's property.  Port of intervals.c:textget /
     !> lookup_char_property (char-property-alias-alist and
     !> default-text-properties are not consulted yet).
     function textget(plist, prop) result(val)
@@ -204,7 +204,7 @@ contains
         val = fallback
     end function textget
 
-    !> True if `sym` is in list `set`, or `set` is a non-nil non-list.
+    !> True if `sym' is in list `set', or `set' is a non-nil non-list.
     !> Port of textprop.c:TMEM.
     logical function tmem(sym, set)
         type(value_type), intent(in) :: sym, set
@@ -244,9 +244,9 @@ contains
         intervals_equal = .true.
     end function intervals_equal
 
-    !> Adjust `iv` for `length` characters inserted (length > 0) or deleted
-    !> (length < 0) at `start`.  Inserted text gets its own interval with no
-    !> properties; inheriting through stickiness (`insert-and-inherit`) is
+    !> Adjust `iv' for `length' characters inserted (length > 0) or deleted
+    !> (length < 0) at `start'.  Inserted text gets its own interval with no
+    !> properties; inheriting through stickiness (`insert-and-inherit') is
     !> pending.  Port of intervals.c:offset_intervals,
     !> adjust_intervals_for_insertion and adjust_intervals_for_deletion.
     pure subroutine offset_intervals(iv, start, length)

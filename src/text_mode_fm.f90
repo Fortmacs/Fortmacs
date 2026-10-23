@@ -44,8 +44,8 @@ module text_mode_fm
     !> Port of text-mode.el text-mode-hook.
     type(hook_type), target, public :: text_mode_hook = hook_type(name="text-mode-hook")
 
-    !> Keymap for `text-mode`.
-    !> Many other modes, such as `mail-mode` and `outline-mode`, inherit
+    !> Keymap for `text-mode'.
+    !> Many other modes, such as `mail-mode' and `outline-mode', inherit
     !> all the commands defined in this map.  Port of text-mode.el
     !> text-mode-map.
     type(handle_type), public :: text_mode_map

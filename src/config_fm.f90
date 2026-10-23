@@ -17,21 +17,21 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The user's configuration is a Fortran module, `user_config`, in
-!> init.f90.  `fortmacs --recompile` compiles it with gfortran together
+!> The user's configuration is a Fortran module, `user_config', in
+!> init.f90.  `fortmacs --recompile' compiles it with gfortran together
 !> with a small main program against the installed library
 !> (PREFIX/lib/libfortmacs.a and the module files in PREFIX/include) into a
 !> binary of its own, and an installed fortmacs runs that binary instead
 !> of itself.  As in Guix, each build is a numbered generation, kept with
-!> the init.f90 it was built from, and `current` points at the one in use:
-!> `--list-generations` shows them, `--rollback` goes back to the one
-!> before, and `--switch-generation N` picks one.
+!> the init.f90 it was built from, and `current' points at the one in use:
+!> `--list-generations' shows them, `--rollback' goes back to the one
+!> before, and `--switch-generation N' picks one.
 !>
 !> The files follow the XDG base directory specification:
 !>
 !> - init file: $XDG_CONFIG_HOME/fortmacs/init.f90 (~/.config/fortmacs/)
 !> - generations: $XDG_STATE_HOME/fortmacs/generations/N/ (~/.local/state/fortmacs/),
-!>   each with `fortmacs` and `init.f90`, and the symbolic link `current`
+!>   each with `fortmacs' and `init.f90', and the symbolic link `current'
 !> - build scratch: $XDG_CACHE_HOME/fortmacs/ (~/.cache/fortmacs/)
 !>
 !> Not a port: upstream loads its init file at startup instead.
@@ -60,7 +60,7 @@ module config_fm
               generation_of, switch_generation, rollback, list_generations
     public :: running_executable, install_prefix, driver_source, recompile
 
-    !> The compiler `--recompile` runs.
+    !> The compiler `--recompile' runs.
     character(len=*), parameter :: compiler = "gfortran"
 
 contains
@@ -94,7 +94,7 @@ contains
         dir = xdg_directory("XDG_STATE_HOME", ".local/state")
     end function state_directory
 
-    !> The directory `--recompile` builds in.
+    !> The directory `--recompile' builds in.
     function cache_directory() result(dir)
         character(len=:), allocatable :: dir
         dir = xdg_directory("XDG_CACHE_HOME", ".cache")
@@ -124,8 +124,8 @@ contains
         if (emacs_readlink("/proc/self/exe", name) /= 0) name = ""
     end function running_executable
 
-    !> The installation `executable` belongs to: PREFIX when it is
-    !> PREFIX/bin/fortmacs and PREFIX/lib/libfortmacs.a exists (`found`).
+    !> The installation `executable' belongs to: PREFIX when it is
+    !> PREFIX/bin/fortmacs and PREFIX/lib/libfortmacs.a exists (`found').
     subroutine install_prefix(executable, prefix, found)
         character(len=*), intent(in) :: executable
         character(len=:), allocatable, intent(out) :: prefix
@@ -140,8 +140,8 @@ contains
         found = file_exists_p(prefix//"lib/libfortmacs.a")
     end subroutine install_prefix
 
-    !> The main program of a user build: `run` with the user's
-    !> `configure`, knowing the installation it was built against.
+    !> The main program of a user build: `run' with the user's
+    !> `configure', knowing the installation it was built against.
     function driver_source(prefix) result(text)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: text
@@ -159,7 +159,7 @@ contains
                "end program fortmacs_user"//nl
     end function driver_source
 
-    !> `s` as a Fortran string literal, split over continuation lines so
+    !> `s' as a Fortran string literal, split over continuation lines so
     !> that no line gets too long.
     function fortran_string(s) result(literal)
         character(len=*), intent(in) :: s
@@ -188,8 +188,8 @@ contains
         literal = literal//'"'
     end function fortran_string
 
-    !> Build the init file against the installation at `prefix` into a new
-    !> generation, `generation`, which becomes the current one.  `log` gets
+    !> Build the init file against the installation at `prefix' into a new
+    !> generation, `generation', which becomes the current one.  `log' gets
     !> the compiler's output.  Errors: no init file, no installed library,
     !> or the compilation failed (no generation is made then).
     subroutine recompile(prefix, log, status, generation)
@@ -285,7 +285,7 @@ contains
         if (present(generation)) generation = n
     end subroutine recompile
 
-    !> `n` in decimal.
+    !> `n' in decimal.
     pure function itoa(n) result(s)
         integer, intent(in) :: n
         character(len=:), allocatable :: s
@@ -294,7 +294,7 @@ contains
         s = trim(buf)
     end function itoa
 
-    !> The number `s` is made of, or 0 if it isn't only digits.
+    !> The number `s' is made of, or 0 if it isn't only digits.
     pure integer function number_of(s) result(n)
         character(len=*), intent(in) :: s
         integer :: k
@@ -338,7 +338,7 @@ contains
         numbers = all(1:n)
     end subroutine generation_numbers
 
-    !> The generation `current` points at, or 0 if none.
+    !> The generation `current' points at, or 0 if none.
     integer function current_generation() result(n)
         character(len=:), allocatable :: target
         n = 0
@@ -346,7 +346,7 @@ contains
         n = number_of(file_name_nondirectory(directory_file_name(target)))
     end function current_generation
 
-    !> The generation `executable` belongs to (GENERATIONS/N/fortmacs), or 0.
+    !> The generation `executable' belongs to (GENERATIONS/N/fortmacs), or 0.
     integer function generation_of(executable) result(n)
         character(len=*), intent(in) :: executable
         character(len=:), allocatable :: dir
@@ -356,7 +356,7 @@ contains
         n = number_of(directory_file_name(dir(len(generations_directory()) + 1:)))
     end function generation_of
 
-    !> Make generation `n` the current one: `current` is replaced in one
+    !> Make generation `n' the current one: `current' is replaced in one
     !> step (a new link renamed over it).
     subroutine switch_generation(n, status)
         integer, intent(in) :: n
@@ -372,8 +372,8 @@ contains
         call rename_file(dir//"current.new", dir//"current", status)
     end subroutine switch_generation
 
-    !> Go back to the generation before the current one: `from` was
-    !> current, `to` is now.
+    !> Go back to the generation before the current one: `from' was
+    !> current, `to' is now.
     subroutine rollback(from, to, status)
         integer, intent(out) :: from, to
         type(status_type), intent(out) :: status
