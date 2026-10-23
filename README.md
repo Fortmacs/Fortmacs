@@ -139,17 +139,12 @@ What an assistant changes:
    consistently across thousands of functions.
 3. **It ports the tests too,** so each port is checked against Emacs's own
    expectations.
-4. **It works on several modules at once.** Up to eight agents run in
-   parallel, each porting a different module in its own git worktree, and
-   one lead session reviews their branches and combines them into pull
-   requests. Usage limits still pause the work now and then.
-5. **It is fast, with caveats.** In the first three days (October 2026)
-   the project reached about 65,000 hand-written lines of Fortran and
-   tests, around 850 lines per hour of elapsed time. Someone porting by
-   hand, reading the C or Elisp and writing tested Fortran, might manage a
-   few hundred lines on a good day. Line counts say nothing about quality,
-   though: a fair share of that output was later rewritten after review,
-   and human direction and review remain the bottleneck.
+4. **It works in parallel.** Up to eight agents port separate modules at
+   once; one lead session reviews and combines their work.
+5. **It is fast, with caveats.** About 65,000 hand-written lines of
+   Fortran and tests in the first three days (roughly 850 an hour), where
+   a person porting by hand might manage a few hundred a day. Much of it
+   was later rewritten after review, which remains the bottleneck.
 6. **It isn't free.** Every agent run costs tokens, and the project is
    funded entirely by one person, so cost limits the pace as much as
    review does.
