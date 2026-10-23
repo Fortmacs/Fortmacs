@@ -36,14 +36,16 @@ module subr_fm
     use xdisp_fm, only: message, cursor_in_echo_area
     use keymap_fm, only: define_key, current_global_map
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
-                         match_in_string_p, string_index_to_offset, SEARCH_NOERROR
+                         match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
+                         set_match_data, match_data_translate, replace_match
     use editfns_fm, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
     public :: global_set_key
-    public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back
+    public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
+              match_substitute_replacement
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -57,12 +59,19 @@ module subr_fm
     !> Port of minibuf.c history-length (no t for "no truncation" yet).
     integer, public :: history_length = 100
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
-              ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE
+              ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE, &
+              ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, &
+              ANSWER_EDIT, ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, &
+              ANSWER_DIFF, ANSWER_SCROLL_UP, ANSWER_EXIT_PREFIX
 
     ! The `query-replace-map` bindings in use (replace.el).
     integer, parameter :: ANSWER_NONE = 0, ANSWER_ACT = 1, ANSWER_SKIP = 2, ANSWER_EXIT = 3, &
                           ANSWER_ACT_AND_EXIT = 4, ANSWER_AUTOMATIC = 5, ANSWER_RECENTER = 6, &
-                          ANSWER_HELP = 7, ANSWER_QUIT = 8
+                          ANSWER_HELP = 7, ANSWER_QUIT = 8, ANSWER_EDIT_REPLACEMENT = 9, &
+                          ANSWER_EDIT_REPLACEMENT_EXACT_CASE = 10, ANSWER_ACT_AND_SHOW = 11, &
+                          ANSWER_EDIT = 12, ANSWER_DELETE_AND_EDIT = 13, ANSWER_BACKUP = 14, &
+                          ANSWER_UNDO = 15, ANSWER_UNDO_ALL = 16, ANSWER_DIFF = 17, &
+                          ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19
 
 contains
 
@@ -83,7 +92,9 @@ contains
     end subroutine read_key
 
     !> What `key` means in replace.el:query-replace-map (the bindings
-    !> y-or-n-p and map-y-or-n-p use), or ANSWER_NONE.
+    !> y-or-n-p, map-y-or-n-p and perform-replace use), or ANSWER_NONE.
+    !> ESC is `exit-prefix` (upstream binds [escape]; a terminal reads
+    !> it as ESC).
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
         answer = ANSWER_NONE
@@ -93,19 +104,40 @@ contains
             answer = ANSWER_ACT
         case (127, iachar("n"), iachar("N"))
             answer = ANSWER_SKIP
+        case (iachar("e"))
+            answer = ANSWER_EDIT_REPLACEMENT
+        case (iachar("E"))
+            answer = ANSWER_EDIT_REPLACEMENT_EXACT_CASE
+        case (iachar(","))
+            answer = ANSWER_ACT_AND_SHOW
         case (iachar("q"), 13)
             answer = ANSWER_EXIT
         case (iachar("."))
             answer = ANSWER_ACT_AND_EXIT
-        case (iachar("!"))
-            answer = ANSWER_AUTOMATIC
+        case (18)
+            answer = ANSWER_EDIT
+        case (23)
+            answer = ANSWER_DELETE_AND_EDIT
         case (12)
             answer = ANSWER_RECENTER
+        case (iachar("!"))
+            answer = ANSWER_AUTOMATIC
+        case (iachar("^"))
+            answer = ANSWER_BACKUP
+        case (iachar("u"))
+            answer = ANSWER_UNDO
+        case (iachar("U"))
+            answer = ANSWER_UNDO_ALL
+        case (iachar("d"))
+            answer = ANSWER_DIFF
         case (8, iachar("?"))
             answer = ANSWER_HELP
-            ! C-g, C-], and ESC (exit-prefix)
-        case (7, 29, 27)
+        case (7, 29)
             answer = ANSWER_QUIT
+        case (22)
+            answer = ANSWER_SCROLL_UP
+        case (27)
+            answer = ANSWER_EXIT_PREFIX
         case default
             answer = ANSWER_NONE
         end select
@@ -144,7 +176,7 @@ contains
                 exit
             case (ANSWER_RECENTER)
                 first = .true.
-            case (ANSWER_QUIT)
+            case (ANSWER_QUIT, ANSWER_EXIT_PREFIX)
                 ! quit, or exit-prefix (ESC)
                 call set_error(status, FM_QUIT)
                 return
@@ -224,6 +256,7 @@ contains
         type(status_type), intent(out) :: status
         call define_key(current_global_map(), key, sym(command), status)
     end subroutine global_set_key_command
+
     !> Return the string of text matched by the previous search or regexp
     !> operation.  NUM specifies the number of the parenthesized
     !> sub-expression in the last regexp whose match to return.  Zero
@@ -272,6 +305,32 @@ contains
         character(len=:), allocatable :: text
         text = match_string(num, string, matched)
     end function match_string_no_properties
+
+    !> Return REPLACEMENT as it will be inserted by `replace-match'.
+    !> In other words, all back-references in the form `\&' and `\N'
+    !> are substituted with actual strings matched by the last search.
+    !> Optional FIXEDCASE, LITERAL, STRING and SUBEXP have the same
+    !> meaning as for `replace-match'.  Port of
+    !> subr.el:match-substitute-replacement.
+    function match_substitute_replacement(replacement, status, fixedcase, literal, string, subexp) result(text)
+        character(len=*), intent(in) :: replacement
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: fixedcase, literal
+        character(len=*), intent(in), optional :: string
+        integer, intent(in), optional :: subexp
+        character(len=:), allocatable :: text, match
+        integer(int64), allocatable :: saved(:)
+        integer(int64) :: start
+        text = ""
+        match = match_string(0, string)
+        ! save-match-data
+        saved = match_data()
+        start = match_beginning(0, status)
+        if (.not. status%ok()) return
+        call match_data_translate(1 - start)
+        call replace_match(replacement, status, fixedcase, literal, match, subexp, text)
+        call set_match_data(saved)
+    end function match_substitute_replacement
 
     !> Same as `string-match' except this function does not change the
     !> match data.  Port of subr.el:string-match-p.

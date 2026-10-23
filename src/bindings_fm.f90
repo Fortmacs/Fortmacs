@@ -44,6 +44,8 @@ module bindings_fm
     use syntax_fm, only: syms_of_syntax, forward_word
     use paragraphs_fm, only: syms_of_paragraphs
     use search_fm, only: syms_of_search
+    use replace_fm, only: syms_of_replace
+    use casefiddle_fm, only: syms_of_casefiddle
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -176,6 +178,8 @@ contains
         call syms_of_syntax()
         call syms_of_paragraphs()
         call syms_of_search()
+        call syms_of_replace()
+        call syms_of_casefiddle()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -277,6 +281,8 @@ contains
         call bind(esc_map, "e", "forward-sentence")
         call bind(esc_map, "k", "kill-sentence")
         call bind(ctl_x_map, "DEL", "backward-kill-sentence")
+        call bind(esc_map, "%", "query-replace")
+        call bind(esc_map, "C-%", "query-replace-regexp")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)

@@ -17,8 +17,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: search-tests.el covers replace-match and regexps, which
-!> aren't ported yet.
+!> Ports test/src/search-tests.el (search-test--replace-match-update-data);
+!> own tests.
 module test_search_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -28,7 +28,9 @@ module test_search_fm
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, point, narrow_to_region, widen
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
-                         SEARCH_NOERROR, SEARCH_MOVE
+                         SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match
+    use editfns_fm, only: buffer_string, point_min, point_max
+    use buffer_fm, only: erase_buffer
     implicit none(type, external)
     private
 
@@ -43,7 +45,11 @@ contains
                     new_unittest("search-backward", test_backward), &
                     new_unittest("search-case-fold", test_case_fold), &
                     new_unittest("search-bound-noerror", test_bound), &
-                    new_unittest("search-multibyte", test_multibyte) &
+                    new_unittest("search-multibyte", test_multibyte), &
+                    new_unittest("search-test--replace-match-update-data", test_replace_match_update_data), &
+                    new_unittest("replace-match", test_replace_match), &
+                    new_unittest("replace-match-case", test_replace_match_case), &
+                    new_unittest("replace-match-string", test_replace_match_string) &
                     ]
     end subroutine collect_search_fm
 
@@ -189,4 +195,126 @@ contains
         call check(error, pos == 5, "lower-case final sigma")
         call leave(h)
     end subroutine test_multibyte
+    integer(int64) function mb(n)
+        integer, intent(in) :: n
+        type(status_type) :: st
+        mb = match_beginning(n, st)
+    end function mb
+
+    integer(int64) function me(n)
+        integer, intent(in) :: n
+        type(status_type) :: st
+        me = match_end(n, st)
+    end function me
+
+    subroutine test_replace_match_update_data(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=1), parameter :: pres(4) = [character(len=1) :: "", "a", "", "a"], &
+                                                  posts(4) = [character(len=1) :: "", "", "b", "b"]
+        integer :: k
+        integer(int64) :: beg0, beg4, end4, end0
+        call enter("", h)
+        do k = 1, 4
+            call erase_buffer(st)
+            call insert("hello ", st)
+            call insert(trim(pres(k))//trim(posts(k))//" world", st)
+            call goto_char(7_int64)
+            call check(error, looking_at("\(\)"//trim(pres(k))//"\(\)\(\(\)\)\(\)"//trim(posts(k))//"\(\)", &
+                                         st), "looking-at")
+            if (allocated(error)) exit
+            beg0 = mb(0)
+            beg4 = beg0 + len_trim(pres(k))
+            end4 = beg4 + 3
+            end0 = end4 + len_trim(posts(k))
+            call replace_match("BOO", st, fixedcase=.true., literal=.true., subexp=4)
+            call check(error, st%ok(), "replace")
+            if (allocated(error)) exit
+            call check(error, mb(0) == beg0 .and. mb(1) == beg0 .and. mb(2) == beg4 .and. mb(3) == beg4 .and. &
+                       mb(4) == beg4, "beginnings")
+            if (allocated(error)) exit
+            call check(error, me(6) == end0 .and. me(5) == end4 .and. me(4) == end4 .and. me(3) == end4 .and. &
+                       me(0) == end0, "ends")
+            if (allocated(error)) exit
+            if (len_trim(posts(k)) > 0) call check(error, mb(6) == end0, "beginning 6")
+            if (allocated(error)) exit
+            if (len_trim(pres(k)) > 0) call check(error, me(1) == beg0, "end 1")
+            if (allocated(error)) exit
+        end do
+        call leave(h)
+    end subroutine test_replace_match_update_data
+
+    subroutine test_replace_match(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: pos
+        call enter("key = value; x = y", h)
+        body: block
+            call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
+            call replace_match("\2 := \1 (\&)", st)
+            call check(error, st%ok() .and. buffer_string() == "value := key (key = value); x = y", buffer_string())
+            if (allocated(error)) exit body
+            call check(error, point() == 27 .and. mb(0) == 1 .and. me(0) == 27, "point and data")
+            if (allocated(error)) exit body
+            call re_search_forward("x", pos, st)
+            call replace_match("a\\b", st)
+            call check(error, buffer_string() == "value := key (key = value); a\b = y", buffer_string())
+            if (allocated(error)) exit body
+            call replace_match("\q", st)
+            call check(error,.not. st%ok(), "invalid \q")
+            if (allocated(error)) exit body
+            call replace_match("lit\1", st, literal=.true.)
+            call check(error, buffer_string() == "value := key (key = value); lit\1 = y", buffer_string())
+        end block body
+        call leave(h)
+    end subroutine test_replace_match
+
+    !> Case conversion follows the replaced text.
+    subroutine test_replace_match_case(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: pos
+        call enter("FOO Foo Bar foo X", h)
+        body: block
+            call search_forward("FOO", pos, st)
+            call replace_match("new text", st)
+            call check(error, buffer_string() == "NEW TEXT Foo Bar foo X", "all caps: "//buffer_string())
+            if (allocated(error)) exit body
+            call search_forward("Foo Bar", pos, st)
+            call replace_match("new text", st)
+            call check(error, buffer_string() == "NEW TEXT New Text foo X", "capitalized: "//buffer_string())
+            if (allocated(error)) exit body
+            call search_forward("foo", pos, st)
+            call replace_match("new text", st)
+            call check(error, buffer_string() == "NEW TEXT New Text new text X", "lower: "//buffer_string())
+            if (allocated(error)) exit body
+            call search_forward("X", pos, st)
+            call replace_match("yz", st)
+            call check(error, buffer_string() == "NEW TEXT New Text new text YZ", "single capital: "//buffer_string())
+            if (allocated(error)) exit body
+            call search_forward("YZ", pos, st, count=-1_int64)
+            call replace_match("ab", st, fixedcase=.true.)
+            call check(error, buffer_string() == "NEW TEXT New Text new text ab", "fixedcase: "//buffer_string())
+        end block body
+        call leave(h)
+    end subroutine test_replace_match_case
+
+    subroutine test_replace_match_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: r
+        integer(int64) :: i
+        i = string_match("\(é+\)b", "aéébc", st)
+        call replace_match("[\1]", st, string="aéébc", result=r)
+        call check(error, st%ok() .and. r == "a[éé]c", r)
+        if (allocated(error)) return
+        call replace_match("X", st, string="aéébc", subexp=1, result=r)
+        call check(error, r == "aXbc", r)
+        if (allocated(error)) return
+        call replace_match("\?", st, string="aéébc", result=r)
+        call check(error, r == "a\?c", r)
+    end subroutine test_replace_match_string
 end module test_search_fm

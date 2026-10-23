@@ -29,6 +29,7 @@ module docstrings_fm
     use print_fm, only: prin1_to_string
     use buffer_fm, only: transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
+    use casefiddle_fm, only: case_symbols_as_words
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use files_fm, only: make_backup_files
@@ -40,6 +41,8 @@ module docstrings_fm
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
                              completion_show_inline_help, insert_default_directory
     use paragraphs_fm, only: sentence_end_double_space, sentence_end_without_period
+    use replace_fm, only: case_replace, query_replace_show_replacement, query_replace_skip_read_only, &
+                          replace_lax_whitespace, replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
     use simple_fm, only: delete_active_region, goal_column, kill_read_only_ok, kill_ring_max, &
                          kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
@@ -70,7 +73,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(211) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(230) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
@@ -86,6 +89,9 @@ module docstrings_fm
                                                                    "buffer-name", &
                                                                    "buffer-substring", &
                                                                    "call-interactively", &
+                                                                   "capitalize", &
+                                                                   "capitalize-region", &
+                                                                   "capitalize-word", &
                                                                    "char-syntax", &
                                                                    "completing-read", &
                                                                    "completion-function-table", &
@@ -110,6 +116,9 @@ module docstrings_fm
                                                                    "describe-key-briefly", &
                                                                    "describe-variable", &
                                                                    "digit-argument", &
+                                                                   "downcase", &
+                                                                   "downcase-region", &
+                                                                   "downcase-word", &
                                                                    "end-of-line", &
                                                                    "eobp", &
                                                                    "eolp", &
@@ -179,6 +188,7 @@ module docstrings_fm
                                                                    "make-sparse-keymap", &
                                                                    "make-string", &
                                                                    "make-syntax-table", &
+                                                                   "map-query-replace-regexp", &
                                                                    "mark", &
                                                                    "mark-end-of-sentence", &
                                                                    "mark-paragraph", &
@@ -189,6 +199,7 @@ module docstrings_fm
                                                                    "match-end", &
                                                                    "match-string", &
                                                                    "match-string-no-properties", &
+                                                                   "match-substitute-replacement", &
                                                                    "message", &
                                                                    "minibuffer-complete", &
                                                                    "minibuffer-complete-and-exit", &
@@ -206,6 +217,7 @@ module docstrings_fm
                                                                    "open-line", &
                                                                    "other-buffer", &
                                                                    "other-window", &
+                                                                   "perform-replace", &
                                                                    "point", &
                                                                    "point-max", &
                                                                    "point-min", &
@@ -218,6 +230,8 @@ module docstrings_fm
                                                                    "previous-history-element", &
                                                                    "previous-line", &
                                                                    "push-mark", &
+                                                                   "query-replace", &
+                                                                   "query-replace-regexp", &
                                                                    "quit-window", &
                                                                    "quoted-insert", &
                                                                    "re-search-backward", &
@@ -231,6 +245,9 @@ module docstrings_fm
                                                                    "region-active-p", &
                                                                    "region-beginning", &
                                                                    "region-end", &
+                                                                   "replace-match", &
+                                                                   "replace-regexp", &
+                                                                   "replace-string", &
                                                                    "right-char", &
                                                                    "right-word", &
                                                                    "rotate-yank-pointer", &
@@ -275,6 +292,11 @@ module docstrings_fm
                                                                    "universal-argument", &
                                                                    "universal-argument-minus", &
                                                                    "universal-argument-more", &
+                                                                   "upcase", &
+                                                                   "upcase-initials", &
+                                                                   "upcase-initials-region", &
+                                                                   "upcase-region", &
+                                                                   "upcase-word", &
                                                                    "where-is", &
                                                                    "where-is-internal", &
                                                                    "write-file", &
@@ -284,8 +306,10 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=29), parameter, public :: variable_names(37) = [character(len=29) :: &
+    character(len=30), parameter, public :: variable_names(43) = [character(len=30) :: &
                                                                   "case-fold-search", &
+                                                                  "case-replace", &
+                                                                  "case-symbols-as-words", &
                                                                   "completion-auto-help", &
                                                                   "completion-fail-discreetly", &
                                                                   "completion-ignore-case", &
@@ -309,7 +333,11 @@ module docstrings_fm
                                                                   "mark-even-if-inactive", &
                                                                   "mark-ring-max", &
                                                                   "next-screen-context-lines", &
+                                                                  "query-replace-show-replacement", &
+                                                                  "query-replace-skip-read-only", &
                                                                   "regexp-search-ring-max", &
+                                                                  "replace-lax-whitespace", &
+                                                                  "replace-regexp-lax-whitespace", &
                                                                   "scroll-error-top-bottom", &
                                                                   "search-exit-option", &
                                                                   "search-nonincremental-instead", &
@@ -467,6 +495,32 @@ contains
             entry%file = "callint_fm.f90"
             entry%fortran = "call call_interactively(cmd, status)"
             entry%doc = "Run command `cmd`."
+        case ("capitalize")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "capitalize_char(ch)"
+            entry%doc = "Convert a character to capitalized form: title case or upper case."
+        case ("capitalize-region")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call capitalize_region(beg, end, status)"
+            entry%interactive = .true.
+            entry%doc = "Convert the region to capitalized form."//LF// &
+                        "This means that each word's first character is converted to either"//LF// &
+                        "title case or upper case, and the rest to lower case."//LF// &
+                        "In programs, give two arguments, the starting and ending character"//LF// &
+                        "positions to operate on."
+        case ("capitalize-word")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call capitalize_word(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Capitalize from point to the end of word, moving over."//LF// &
+                        "With numerical argument ARG, capitalize the next ARG-1 words as"//LF// &
+                        "well.  This gives the word(s) a first character in upper case and"//LF// &
+                        "the rest lower case."//LF// &
+                        ""//LF// &
+                        "If point is in the middle of a word, the part of that word before"//LF// &
+                        "point is ignored when moving forward."//LF// &
+                        ""//LF// &
+                        "With negative argument, capitalize previous words but do not move."
         case ("char-syntax")
             entry%file = "syntax_fm.f90"
             entry%fortran = "char_syntax(c)"
@@ -636,6 +690,28 @@ contains
             entry%interactive = .true.
             entry%doc = "Part of the numeric argument for the next command."//LF// &
                         "\[universal-argument] following digits or minus sign ends the argument."
+        case ("downcase")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "downcase_char(ch)"
+            entry%doc = "Convert a character to lower case."
+        case ("downcase-region")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call downcase_region(beg, end, status)"
+            entry%interactive = .true.
+            entry%doc = "Convert the region to lower case.  In programs, wants two arguments."//LF// &
+                        "These arguments specify the starting and ending character numbers"//LF// &
+                        "of the region to operate on.  When used as a command, the text"//LF// &
+                        "between point and the mark is operated on."
+        case ("downcase-word")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call downcase_word(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Convert to lower case from point to end of word, moving over."//LF// &
+                        ""//LF// &
+                        "If point is in the middle of a word, the part of that word before"//LF// &
+                        "point is ignored when moving forward."//LF// &
+                        ""//LF// &
+                        "With negative argument, convert previous words but do not move."
         case ("end-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
@@ -1135,6 +1211,32 @@ contains
             entry%doc = "Return a new syntax table."//LF// &
                         "Create a syntax table that inherits from OLDTABLE (if non-nil) or"//LF// &
                         "from `standard-syntax-table' otherwise."
+        case ("map-query-replace-regexp")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call map_query_replace_regexp(regexp, to_strings, status, n, start, end)"
+            entry%interactive = .true.
+            entry%doc = "Replace some matches for REGEXP with various strings, in rotation."//LF// &
+                        "The second argument TO-STRINGS contains the replacement strings,"//LF// &
+                        "separated by spaces.  This command works like"//LF// &
+                        "`query-replace-regexp' except that each successive replacement"//LF// &
+                        "uses the next successive replacement string, wrapping around from"//LF// &
+                        "the last such string to the first."//LF// &
+                        ""//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
+                        "of the region.  Otherwise, operate from point to the end of the buffer's"//LF// &
+                        "accessible portion."//LF// &
+                        ""//LF// &
+                        "As each match is found, the user must type a character saying"//LF// &
+                        "what to do with it.  Type SPC or `y' to replace the match,"//LF// &
+                        "DEL or `n' to skip and go to the next match.  For more directions,"//LF// &
+                        "type C-h at that time."//LF// &
+                        ""//LF// &
+                        "A prefix argument N says to use each replacement string N times"//LF// &
+                        "before rotating to the next."//LF// &
+                        "Fourth and fifth arg START and END specify the region to operate on."//LF// &
+                        ""//LF// &
+                        "Arguments REGEXP, START, and END are passed to `perform-replace'"//LF// &
+                        "(which see)."
         case ("mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call mark(pos, status, force)"
@@ -1257,6 +1359,14 @@ contains
                         "last search was by `string-match' on STRING.  If STRING is nil, the"//LF// &
                         "current buffer should be the same buffer as the one in which the"//LF// &
                         "search/match was performed."
+        case ("match-substitute-replacement")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "match_substitute_replacement(replacement, status, fixedcase, literal, string, subexp)"
+            entry%doc = "Return REPLACEMENT as it will be inserted by `replace-match'."//LF// &
+                        "In other words, all back-references in the form `\&' and `\N'"//LF// &
+                        "are substituted with actual strings matched by the last search."//LF// &
+                        "Optional FIXEDCASE, LITERAL, STRING and SUBEXP have the same"//LF// &
+                        "meaning as for `replace-match'."
         case ("message")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "call message(text)"
@@ -1411,6 +1521,38 @@ contains
                         "skip -COUNT windows backwards.  COUNT zero means do not skip any"//LF// &
                         "window, so select the selected window.  In an interactive call,"//LF// &
                         "COUNT is the numeric prefix argument."
+        case ("perform-replace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call perform_replace(from_string, replacements, query_flag, regexp_flag, delimited_flag, s"// &
+                            "tatus, repeat_count, start, end, backward, replacement_list, replacement_fn, counted, resu"// &
+                            "lt)"
+            entry%doc = "Subroutine of `query-replace'.  Its complexity handles interactive"//LF// &
+                        "queries.  Don't use this in your own program unless you want to"//LF// &
+                        "query and set the mark just as `query-replace' does.  Instead,"//LF// &
+                        "write a simple loop like this:"//LF// &
+                        ""//LF// &
+                        "  (while (re-search-forward ""foo[ \t]+bar"" nil t)"//LF// &
+                        "    (replace-match ""foobar"" nil nil))"//LF// &
+                        ""//LF// &
+                        "which will run faster and probably do exactly what you want.  Please"//LF// &
+                        "see the documentation of `replace-match' to find out how to simulate"//LF// &
+                        "`case-replace'."//LF// &
+                        ""//LF// &
+                        "This function returns nil if there were no matches to make, or"//LF// &
+                        "the user canceled the call."//LF// &
+                        ""//LF// &
+                        "REPLACEMENTS is either a string, a list of strings, or a cons cell"//LF// &
+                        "containing a function and its first argument.  The function is"//LF// &
+                        "called to generate each replacement like this:"//LF// &
+                        "  (funcall (car replacements) (cdr replacements) replace-count)"//LF// &
+                        "It must return a string."//LF// &
+                        ""//LF// &
+                        "In Fortmacs, REPLACEMENTS is the string `replacements`, unless"//LF// &
+                        "`replacement_list` (a list of strings, each used REPEAT-COUNT times"//LF// &
+                        "in turn) or `replacement_fn` (called with the replacement count) is"//LF// &
+                        "given; `counted` means the string uses `\#` (see"//LF// &
+                        "`query_replace_compile_replacement`).  START and END give the"//LF// &
+                        "region to operate on.  `result` is the return value."
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
@@ -1507,6 +1649,111 @@ contains
                         "ring.  Display `Mark set' unless the optional second arg NOMSG is"//LF// &
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
+        case ("query-replace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
+            entry%interactive = .true.
+            entry%doc = "Replace some occurrences of FROM-STRING with TO-STRING."//LF// &
+                        "As each match is found, the user must type a character saying"//LF// &
+                        "what to do with it.  Type SPC or `y' to replace the match,"//LF// &
+                        "DEL or `n' to skip and go to the next match.  For more directions,"//LF// &
+                        "type C-h at that time."//LF// &
+                        ""//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
+                        "of the region.  Otherwise, operate from point to the end of the buffer's"//LF// &
+                        "accessible portion."//LF// &
+                        ""//LF// &
+                        "In interactive use, the prefix arg (non-nil DELIMITED in"//LF// &
+                        "non-interactive use), means replace only matches surrounded by"//LF// &
+                        "word boundaries.  A negative prefix arg means replace backward."//LF// &
+                        ""//LF// &
+                        "Use M-n to pull the last incremental search string to the minibuffer"//LF// &
+                        "that reads FROM-STRING, or invoke replacements from incremental"//LF// &
+                        "search with a key sequence like `C-s C-s M-%' to use its current"//LF// &
+                        "search string as the string to replace."//LF// &
+                        ""//LF// &
+                        "Matching is independent of case if both `case-fold-search'"//LF// &
+                        "and `search-upper-case' are non-nil and FROM-STRING has no"//LF// &
+                        "uppercase letters; if `search-upper-case' is nil, then whether"//LF// &
+                        "matching ignores case depends on `case-fold-search' regardless"//LF// &
+                        "of whether there are uppercase letters in FROM-STRING."//LF// &
+                        "Replacement transfers the case pattern of the old text to the"//LF// &
+                        "new text, if both `case-fold-search' and `case-replace' are"//LF// &
+                        "non-nil and FROM-STRING has no uppercase letters."//LF// &
+                        "(Transferring the case pattern means that if the old text"//LF// &
+                        "matched is all caps, or all of its words are capitalized, then its"//LF// &
+                        "replacement is respectively upcased or capitalized.  For more"//LF// &
+                        "details about this, see `replace-match'.)"//LF// &
+                        ""//LF// &
+                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        ""//LF// &
+                        "If `replace-lax-whitespace' is non-nil, a space or spaces in the string"//LF// &
+                        "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
+                        "regexp in `search-whitespace-regexp'."//LF// &
+                        ""//LF// &
+                        "To customize possible responses, change the bindings in"//LF// &
+                        "`query-replace-map'."//LF// &
+                        ""//LF// &
+                        "Fourth and fifth arg START and END specify the region to operate on."//LF// &
+                        ""//LF// &
+                        "Arguments FROM-STRING, TO-STRING, DELIMITED, START, END and BACKWARD"//LF// &
+                        "are passed to `perform-replace' (which see)."
+        case ("query-replace-regexp")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call query_replace_regexp(regexp, to_string, status, delimited, start, end, backward, coun"// &
+                            "ted)"
+            entry%interactive = .true.
+            entry%doc = "Replace some things after point matching REGEXP with TO-STRING."//LF// &
+                        "As each match is found, the user must type a character saying"//LF// &
+                        "what to do with it.  Type SPC or `y' to replace the match,"//LF// &
+                        "DEL or `n' to skip and go to the next match.  For more directions,"//LF// &
+                        "type C-h at that time."//LF// &
+                        ""//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
+                        "of the region.  Otherwise, operate from point to the end of the buffer's"//LF// &
+                        "accessible portion."//LF// &
+                        ""//LF// &
+                        "When invoked interactively, matching a newline with `\n' will not work;"//LF// &
+                        "use `C-q C-j' instead.  To match a tab character (`\t'), just press `TAB'."//LF// &
+                        ""//LF// &
+                        "Matching is independent of case if both `case-fold-search'"//LF// &
+                        "and `search-upper-case' are non-nil and REGEXP has no uppercase"//LF// &
+                        "letters; if `search-upper-case' is nil, then whether matching"//LF// &
+                        "ignores case depends on `case-fold-search' regardless of whether"//LF// &
+                        "there are uppercase letters in REGEXP."//LF// &
+                        "Replacement transfers the case pattern of the old text to the new"//LF// &
+                        "text, if both `case-fold-search' and `case-replace' are non-nil"//LF// &
+                        "and REGEXP has no uppercase letters.  (Transferring the case pattern"//LF// &
+                        "means that if the old text matched is all caps, or all of its words"//LF// &
+                        "are capitalized, then its replacement is respectively upcased or"//LF// &
+                        "capitalized.  For more details about this, see `replace-match'.)"//LF// &
+                        ""//LF// &
+                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        ""//LF// &
+                        "If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp"//LF// &
+                        "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
+                        "regexp in `search-whitespace-regexp'."//LF// &
+                        ""//LF// &
+                        "Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace"//LF// &
+                        "only matches surrounded by word boundaries.  A negative prefix arg means"//LF// &
+                        "replace backward."//LF// &
+                        ""//LF// &
+                        "Fourth and fifth arg START and END specify the region to operate on."//LF// &
+                        ""//LF// &
+                        "In TO-STRING, `\&' stands for whatever matched the whole of REGEXP,"//LF// &
+                        "and `\N' (where N is a digit) stands for whatever matched"//LF// &
+                        "the Nth `\(...\)' (1-based) in REGEXP.  The `\(...\)' groups are"//LF// &
+                        "counted from 1."//LF// &
+                        "`\?' lets you edit the replacement text in the minibuffer"//LF// &
+                        "at the given position for each replacement."//LF// &
+                        ""//LF// &
+                        "In interactive calls, `\#' in the replacement text stands for the"//LF// &
+                        "number of replacements done so far (starting with zero); `counted`"//LF// &
+                        "says that TO-STRING uses it.  (Upstream also accepts `\,' followed"//LF// &
+                        "by a Lisp expression; Fortmacs has no Lisp.)"//LF// &
+                        ""//LF// &
+                        "Arguments REGEXP, TO-STRING, DELIMITED, START, END, and BACKWARD"//LF// &
+                        "are passed to `perform-replace' (which see)."
         case ("quit-window")
             entry%file = "window_fm.f90"
             entry%fortran = "call quit_window(status)"
@@ -1632,6 +1879,120 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_end(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is larger."
+        case ("replace-match")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call replace_match(newtext, status, fixedcase, literal, string, subexp, result)"
+            entry%doc = "Replace text matched by last search with NEWTEXT."//LF// &
+                        "Leave point at the end of the replacement text."//LF// &
+                        ""//LF// &
+                        "If optional second arg FIXEDCASE is non-nil, do not alter the"//LF// &
+                        "case of the replacement text.  Otherwise, maybe capitalize the"//LF// &
+                        "whole text, or maybe just word initials, based on the replaced"//LF// &
+                        "text.  If the replaced text has only capital letters and has at"//LF// &
+                        "least one multiletter word, convert NEWTEXT to all caps."//LF// &
+                        "Otherwise if all words are capitalized in the replaced text,"//LF// &
+                        "capitalize each word in NEWTEXT.  Note that what exactly is a"//LF// &
+                        "word is determined by the syntax tables in effect in the current"//LF// &
+                        "buffer, and the variable `case-symbols-as-words'."//LF// &
+                        ""//LF// &
+                        "If optional third arg LITERAL is non-nil, insert NEWTEXT"//LF// &
+                        "literally.  Otherwise treat `\' as special:"//LF// &
+                        "  `\&' in NEWTEXT means substitute original matched text."//LF// &
+                        "  `\N' means substitute what matched the Nth `\(...\)'."//LF// &
+                        "       If Nth parens didn't match, substitute nothing."//LF// &
+                        "  `\\' means insert one `\'."//LF// &
+                        "  `\?' is treated literally"//LF// &
+                        "       (for compatibility with `query-replace-regexp')."//LF// &
+                        "  Any other character following `\' signals an error."//LF// &
+                        "Case conversion does not apply to these substitutions."//LF// &
+                        ""//LF// &
+                        "If optional fourth argument STRING is non-nil, it should be a"//LF// &
+                        "string to act on; this should be the string on which the"//LF// &
+                        "previous match was done via `string-match'.  In this case,"//LF// &
+                        "`replace-match' creates and returns a new string (in RESULT),"//LF// &
+                        "made by copying STRING and replacing the part of STRING that was"//LF// &
+                        "matched (the original STRING itself is not altered)."//LF// &
+                        ""//LF// &
+                        "The optional fifth argument SUBEXP specifies a subexpression;"//LF// &
+                        "it says to replace just that subexpression with NEWTEXT, rather"//LF// &
+                        "than replacing the entire matched text."
+        case ("replace-regexp")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call replace_regexp(regexp, to_string, status, delimited, start, end, backward, counted, r"// &
+                            "eplacement_fn)"
+            entry%interactive = .true.
+            entry%doc = "Replace things after point matching REGEXP with TO-STRING."//LF// &
+                        "Preserve case in each match if `case-replace' and `case-fold-search'"//LF// &
+                        "are non-nil and REGEXP has no uppercase letters."//LF// &
+                        ""//LF// &
+                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        ""//LF// &
+                        "If `replace-regexp-lax-whitespace' is non-nil, a space or spaces in the regexp"//LF// &
+                        "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
+                        "regexp in `search-whitespace-regexp'."//LF// &
+                        ""//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
+                        "of the region.  Otherwise, operate from point to the end of the buffer's"//LF// &
+                        "accessible portion."//LF// &
+                        ""//LF// &
+                        "Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace"//LF// &
+                        "only matches surrounded by word boundaries.  A negative prefix arg means"//LF// &
+                        "replace backward."//LF// &
+                        ""//LF// &
+                        "Fourth and fifth arg START and END specify the region to operate on."//LF// &
+                        ""//LF// &
+                        "Argument BACKWARD is passed to `perform-replace' (which see)."//LF// &
+                        ""//LF// &
+                        "In TO-STRING, `\&' stands for whatever matched the whole of REGEXP,"//LF// &
+                        "and `\N' (where N is a digit) stands for whatever matched"//LF// &
+                        "the Nth `\(...\)' (1-based) in REGEXP."//LF// &
+                        "`\?' lets you edit the replacement text in the minibuffer"//LF// &
+                        "at the given position for each replacement."//LF// &
+                        ""//LF// &
+                        "In interactive calls, `\#' in the replacement text stands for"//LF// &
+                        "`replace-count', the number of replacements occurred so far,"//LF// &
+                        "starting from zero; `counted` says that TO-STRING uses it."//LF// &
+                        "`replacement_fn`, if given, computes each replacement instead."//LF// &
+                        ""//LF// &
+                        "This function is usually the wrong thing to use in a program."//LF// &
+                        "What you probably want is a loop like this:"//LF// &
+                        "  (while (re-search-forward REGEXP nil t)"//LF// &
+                        "    (replace-match TO-STRING nil nil))"//LF// &
+                        "which will run faster and will not set the mark or print anything."
+        case ("replace-string")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "call replace_string(from_string, to_string, status, delimited, start, end, backward)"
+            entry%interactive = .true.
+            entry%doc = "Replace occurrences of FROM-STRING with TO-STRING."//LF// &
+                        "Preserve case in each match if `case-replace' and `case-fold-search'"//LF// &
+                        "are non-nil and FROM-STRING has no uppercase letters."//LF// &
+                        "(Preserving case means that if the string matched is all caps, or capitalized,"//LF// &
+                        "then its replacement is upcased or capitalized.)"//LF// &
+                        ""//LF// &
+                        "Ignore read-only matches if `query-replace-skip-read-only' is non-nil."//LF// &
+                        ""//LF// &
+                        "If `replace-lax-whitespace' is non-nil, a space or spaces in the string"//LF// &
+                        "to be replaced will match a sequence of whitespace chars defined by the"//LF// &
+                        "regexp in `search-whitespace-regexp'."//LF// &
+                        ""//LF// &
+                        "Third arg DELIMITED (prefix arg if interactive), if non-nil, means replace"//LF// &
+                        "only matches surrounded by word boundaries.  A negative prefix arg means"//LF// &
+                        "replace backward."//LF// &
+                        ""//LF// &
+                        "Operates on the region between START and END (if both are nil, from point"//LF// &
+                        "to the end of the buffer).  Interactively, if Transient Mark mode is"//LF// &
+                        "enabled and the mark is active, operates on the contents of the region;"//LF// &
+                        "otherwise from point to the end of the buffer's accessible portion."//LF// &
+                        ""//LF// &
+                        "Argument BACKWARD is passed to `perform-replace' (which see)."//LF// &
+                        ""//LF// &
+                        "This function is usually the wrong thing to use in a program."//LF// &
+                        "What you probably want is a loop like this:"//LF// &
+                        "  (while (search-forward FROM-STRING nil t)"//LF// &
+                        "    (replace-match TO-STRING nil t))"//LF// &
+                        "which will run faster and will not set the mark or print anything."//LF// &
+                        "(You may need a more complex loop if FROM-STRING can match the null string"//LF// &
+                        "and TO-STRING is also null.)"
         case ("right-char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -2093,6 +2454,48 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("upcase")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "upcase_string(str)"
+            entry%doc = "Convert argument to upper case and return that."//LF// &
+                        "The argument object is not altered--the value is a copy.  See also"//LF// &
+                        "`capitalize', `downcase' and `upcase-initials'."
+        case ("upcase-initials")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "upcase_initials_string(str)"
+            entry%doc = "Convert the initial of each word in the argument to upper case."//LF// &
+                        "This means that each word's first character is converted to either"//LF// &
+                        "title case or upper case, and the rest are left unchanged."//LF// &
+                        "The argument object is not altered--the value is a copy."
+        case ("upcase-initials-region")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call upcase_initials_region(beg, end, status)"
+            entry%interactive = .true.
+            entry%doc = "Upcase the initial of each word in the region."//LF// &
+                        "This means that each word's first character is converted to either"//LF// &
+                        "title case or upper case, and the rest are left unchanged."//LF// &
+                        "In programs, give two arguments, the starting and ending character"//LF// &
+                        "positions to operate on."
+        case ("upcase-region")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call upcase_region(beg, end, status)"
+            entry%interactive = .true.
+            entry%doc = "Convert the region to upper case.  In programs, wants two arguments."//LF// &
+                        "These arguments specify the starting and ending character numbers"//LF// &
+                        "of the region to operate on.  When used as a command, the text"//LF// &
+                        "between point and the mark is operated on."//LF// &
+                        "See also `capitalize-region'."
+        case ("upcase-word")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "call upcase_word(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Convert to upper case from point to end of word, moving over."//LF// &
+                        ""//LF// &
+                        "If point is in the middle of a word, the part of that word before"//LF// &
+                        "point is ignored when moving forward."//LF// &
+                        ""//LF// &
+                        "With negative argument, convert previous words but do not move."//LF// &
+                        "See also `capitalize-word'."
         case ("where-is")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
@@ -2184,6 +2587,28 @@ contains
             entry%original = ".true."
             entry%value = repr(case_fold_search)
             entry%doc = "Non-nil if searches and matches should ignore case."
+        case ("case-replace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "case_replace"
+            entry%original = ".true."
+            entry%value = repr(case_replace)
+            entry%doc = "Non-nil means `query-replace' should preserve case in replacements."
+        case ("case-symbols-as-words")
+            entry%file = "casefiddle_fm.f90"
+            entry%fortran = "case_symbols_as_words"
+            entry%original = ".false."
+            entry%value = repr(case_symbols_as_words)
+            entry%doc = "If non-nil, case functions treat symbol syntax as part of words."//LF// &
+                        ""//LF// &
+                        "Functions such as `upcase-initials' and `replace-match' check or"//LF// &
+                        "modify the case pattern of sequences of characters.  Normally, these"//LF// &
+                        "operate on sequences of characters whose syntax is word constituent."//LF// &
+                        "If this variable is non-nil, then they operate on sequences of"//LF// &
+                        "characters whose syntax is either word constituent or symbol"//LF// &
+                        "constituent."//LF// &
+                        ""//LF// &
+                        "This is useful for programming languages and styles where only the"//LF// &
+                        "first letter of a symbol's name is ever capitalized."
         case ("completion-auto-help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -2391,6 +2816,19 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("query-replace-show-replacement")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_show_replacement"
+            entry%original = ".true."
+            entry%value = repr(query_replace_show_replacement)
+            entry%doc = "Non-nil means show substituted replacement text in the minibuffer."//LF// &
+                        "This variable affects only `query-replace-regexp'."
+        case ("query-replace-skip-read-only")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_skip_read_only"
+            entry%original = ".false."
+            entry%value = repr(query_replace_skip_read_only)
+            entry%doc = "Non-nil means `query-replace' and friends ignore read-only matches."
         case ("regexp-search-ring-max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
@@ -2398,6 +2836,24 @@ contains
             entry%value = repr(regexp_search_ring_max)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
+        case ("replace-lax-whitespace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "replace_lax_whitespace"
+            entry%original = ".false."
+            entry%value = repr(replace_lax_whitespace)
+            entry%doc = "Non-nil means `query-replace' matches a sequence of whitespace chars."//LF// &
+                        "When you enter a space or spaces in the strings to be replaced,"//LF// &
+                        "it will match any sequence matched by the regexp"//LF// &
+                        "`search-whitespace-regexp'."
+        case ("replace-regexp-lax-whitespace")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "replace_regexp_lax_whitespace"
+            entry%original = ".false."
+            entry%value = repr(replace_regexp_lax_whitespace)
+            entry%doc = "Non-nil means `query-replace-regexp' matches a sequence of whitespace"//LF// &
+                        "chars.  When you enter a space or spaces in the regexps to be"//LF// &
+                        "replaced, it will match any sequence matched by the regexp"//LF// &
+                        "`search-whitespace-regexp'."
         case ("scroll-error-top-bottom")
             entry%file = "window_fm.f90"
             entry%fortran = "scroll_error_top_bottom"

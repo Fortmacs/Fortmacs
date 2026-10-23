@@ -37,7 +37,13 @@ data=${1:-upstream/emacs/admin/unidata/UnicodeData.txt}
 out=src/uni_case_fm.f90
 
 awk -F ';' '
-function hex(s) { return sprintf("%d", ("0x" s) + 0) }
+function hex(s,    i, v) {
+    # Portable: gawk does not convert "0x..." strings to numbers.
+    s = toupper(s)
+    v = 0
+    for (i = 1; i <= length(s); i++) v = v * 16 + index("0123456789ABCDEF", substr(s, i, 1)) - 1
+    return v
+}
 function emit(name, tbl,    keys, n, k, line, i, c) {
     n = 0
     for (k in tbl) if (k + 0 >= 128 && tbl[k] != k + 0) keys[++n] = k + 0
