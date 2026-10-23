@@ -32,7 +32,7 @@
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
-    use error_fm, only: status_type
+    use error_fm, only: status_type, set_error, format_message, FM_USER_ERROR
     use lisp_fm, only: value_type, nilp, make_string, make_list, list_elements
     use lread_fm, only: sym
     use data_fm, only: symbol_name
@@ -164,13 +164,18 @@ contains
         end if
         text = name//" is a variable defined in "//LQUOTE//entry%file//RQUOTE//"."//LF//LF
         ! A value too long for the line starts on the next.
-        if (len("Its value is "//entry%value) < 68) then
+        if (len(entry%value) + len("Its value is") < 68) then
             text = text//"Its value is "//entry%value//LF
         else
             text = text//"Its value is"//LF//entry%value//LF
         end if
         if (len(entry%original) > 0 .and. entry%original /= entry%value) then
-            text = text//"Original value was "//entry%original//LF
+            ! A short value stays on the line.
+            if (len(entry%original) < 20) then
+                text = text//"Original value was "//entry%original//LF
+            else
+                text = text//"Original value was "//LF//entry%original//LF
+            end if
         end if
         text = text//"Its Fortran name is "//LQUOTE//entry%fortran//RQUOTE//"."//LF//LF
         doc = entry%doc
@@ -197,7 +202,13 @@ contains
         character(len=:), allocatable :: name
         call completing_read("Describe function: ", completion_obarray_table(), name, status, &
                              function_symbol_p, require_match=REQUIRE_MATCH_T)
-        if (.not. status%ok() .or. len(name) == 0) return
+        if (.not. status%ok()) return
+        ! help-fns--describe-function-or-command-prompt (no function at
+        ! point yet)
+        if (len(name) == 0) then
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a function symbol"))
+            return
+        end if
         call describe_function(name, status)
     end subroutine cmd_describe_function
 
@@ -214,7 +225,12 @@ contains
         end do
         call completing_read("Describe variable: ", completion_list_table(make_list(names)), name, status, &
                              require_match=REQUIRE_MATCH_T)
-        if (.not. status%ok() .or. len(name) == 0) return
+        if (.not. status%ok()) return
+        ! (No variable at point yet.)
+        if (len(name) == 0) then
+            call set_error(status, FM_USER_ERROR, format_message("You didn't specify a variable"))
+            return
+        end if
         call describe_variable(name, status)
     end subroutine cmd_describe_variable
 

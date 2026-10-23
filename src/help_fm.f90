@@ -40,7 +40,7 @@
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
-    use error_fm, only: status_type
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
     use lread_fm, only: sym
@@ -459,7 +459,11 @@ contains
         integer :: k
         call completing_read("Where is command: ", completion_obarray_table(), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T)
-        if (.not. status%ok() .or. len(name) == 0) return
+        if (.not. status%ok()) return
+        if (len(name) == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "No command")
+            return
+        end if
         call where_is_internal(sym(name), all)
         if (nilp(all)) then
             call message(name//" is not on any key")

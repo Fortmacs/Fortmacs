@@ -32,6 +32,8 @@ module test_help_fm
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
+    use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use simple_fm, only: fill_prefix
     use help_fm, only: substitute_command_keys, with_help_window
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
@@ -59,6 +61,7 @@ contains
                     new_unittest("describe-function-command", test_describe_command), &
                     new_unittest("describe-function-api", test_describe_api), &
                     new_unittest("describe-variable", test_describe_variable), &
+                    new_unittest("help-empty-input", test_empty_input), &
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
                     new_unittest("describe-key-undefined", test_describe_key_undefined), &
@@ -248,6 +251,7 @@ contains
         logical :: found
         integer :: saved
         call fresh_scratch()
+        if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         saved = tab_width%value
         tab_width = 4
         call describe_variable_text("tab_width", text, found)
@@ -271,7 +275,45 @@ contains
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
         call check(error,.not. found)
+        if (allocated(error)) return
+        ! An original value of 20 characters or more starts on the next
+        ! line.
+        search_upper_case = UPPER_CASE_T
+        call describe_variable_text("search_upper_case", text, found)
+        search_upper_case = UPPER_CASE_NOT_YANKS
+        call check(error, index(text, "Its value is UPPER_CASE_T"//LF// &
+                                "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
+        if (allocated(error)) return
+        ! A value fits on the "Its value is" line when it is shorter than
+        ! 56 characters.
+        ! (fill_prefix is nil: unallocated.)
+        fill_prefix = repeat("x", 53)
+        call describe_variable_text("fill_prefix", text, found)
+        call check(error, index(text, "Its value is """//repeat("x", 53)//""""//LF) > 0, text)
+        if (allocated(error)) return
+        fill_prefix = repeat("x", 54)
+        call describe_variable_text("fill_prefix", text, found)
+        deallocate (fill_prefix%value)
+        call check(error, index(text, "Its value is"//LF//""""//repeat("x", 54)//""""//LF) > 0, text)
     end subroutine test_describe_variable
+
+    !> Empty input to C-h f, C-h v and C-h w is an error.
+    subroutine test_empty_input(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call fresh_scratch()
+        call type_keys("C-h f RET")
+        call command_loop(st)
+        call check(error, last_message, "You didn"//RQ//"t specify a function symbol")
+        if (allocated(error)) return
+        call type_keys("C-h v RET")
+        call command_loop(st)
+        call check(error, last_message, "You didn"//RQ//"t specify a variable")
+        if (allocated(error)) return
+        call type_keys("C-h w RET")
+        call command_loop(st)
+        call check(error, last_message, "No command")
+    end subroutine test_empty_input
 
     !> *Help* is read-only, in Help mode; q goes back.
     subroutine test_help_window(error)
