@@ -34,13 +34,15 @@
 !> Deferred: `help_for_help' and the rest of the help map, the
 !> `help_key_binding' face, \{MAP} keymap summaries, key translations in
 !> `describe_key''s report, mouse and menu events, the help-xref stack,
-!> and `function_called_at_point' defaults.
+!> `function_called_at_point' defaults, and describing a key bound to a
+!> keyboard macro (upstream names the macro by an address hash,
+!> help-fns-function-name; here the key "runs a keyboard macro").
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, symbolp, keymap_ref_p, xhandle, list_elements, make_keymap_ref
+    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, keymap_ref_p, xhandle, list_elements, make_keymap_ref
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
     use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap, keymap_set, define_key, key_parse, &
@@ -371,39 +373,49 @@ contains
         end do
     end function found_in
 
-    !> Read a key sequence for a help command; `ok' false at end of input.
-    subroutine read_help_key(prompt, keys, binding, ok, status)
-        character(len=*), intent(in) :: prompt
+    !> Read a key sequence from the user; `ok' false at end of input.
+    !> Port of help.el:help--read-key-sequence (one key sequence).
+    subroutine read_help_key(keys, binding, ok, status)
         type(value_type), allocatable, intent(out) :: keys(:)
         type(value_type), intent(out) :: binding
         logical, intent(out) :: ok
         type(status_type), intent(out) :: status
         logical :: eof
-        call message(prompt)
+        call message("Describe the following key, mouse click, or menu item: ")
         call read_key_sequence(keys, binding, eof, status)
         call message("")
         ok = status%ok() .and. .not. eof
     end subroutine read_help_key
 
+    !> Whether `defn' leaves a key undefined: nil, a number (a key too
+    !> long) or `undefined'.  Port of help.el:help--binding-undefined-p.
+    logical function binding_undefined_p(defn)
+        type(value_type), intent(in) :: defn
+        binding_undefined_p = nilp(defn) .or. fixnump(defn)
+        if (.not. binding_undefined_p .and. symbolp(defn)) binding_undefined_p = value_eq(defn, sym("undefined"))
+    end function binding_undefined_p
+
     !> Display documentation of the function invoked by KEY-LIST.
     !> Interactively, this command can't describe prefix commands, but
     !> will always wait for the user to type the complete key sequence.
-    !> Port of help.el:describe-key (one key sequence, no translations).
+    !> Port of help.el:describe-key (one key sequence, no translations;
+    !> a keyboard macro binding is deferred: upstream names it by an
+    !> address hash, help-fns-function-name).
     subroutine describe_key(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         character(len=:), allocatable :: desc, name, text
         logical :: ok
-        call read_help_key("Describe the following key, mouse click, or menu item: ", keys, binding, ok, status)
+        call read_help_key(keys, binding, ok, status)
         if (.not. ok) return
         desc = key_description(keys)
-        if (.not. symbolp(binding) .or. nilp(binding)) then
-            if (nilp(binding)) then
-                call message(desc//" is undefined")
-            else
-                call message(desc//" runs a keyboard macro")
-            end if
+        if (binding_undefined_p(binding)) then
+            call message(desc//" is undefined")
+            return
+        end if
+        if (.not. symbolp(binding)) then
+            call message(desc//" runs a keyboard macro")
             return
         end if
         call symbol_name(binding, name, status)
@@ -414,19 +426,19 @@ contains
                               status)
     end subroutine describe_key
 
-    !> Print the name of the function KEY-LIST invokes.
-    !> Port of help.el:describe-key-briefly (no INSERT).
+    !> Print the name of the functions KEY-LIST invokes.
+    !> Port of help.el:describe-key-briefly (no INSERT; a keyboard macro
+    !> binding is deferred, as in `describe_key').
     subroutine describe_key_briefly(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
         character(len=:), allocatable :: desc, name
         logical :: ok
-        call read_help_key("Describe the following key, mouse click, or menu item briefly: ", keys, binding, &
-                           ok, status)
+        call read_help_key(keys, binding, ok, status)
         if (.not. ok) return
         desc = key_description(keys)
-        if (nilp(binding)) then
+        if (binding_undefined_p(binding)) then
             call message(desc//" is undefined")
         else if (symbolp(binding)) then
             call symbol_name(binding, name, status)

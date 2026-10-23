@@ -28,7 +28,7 @@ module test_help_fm
     use lisp_fm, only: value_type
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, buffer_modified_p
     use editfns_fm, only: buffer_string
-    use keymap_fm, only: key_parse
+    use keymap_fm, only: key_parse, keymap_global_set
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
@@ -64,6 +64,7 @@ contains
                     new_unittest("describe-key-undefined", test_describe_key_undefined), &
                     new_unittest("describe-key-briefly", test_describe_key_briefly), &
                     new_unittest("where-is", test_where_is), &
+                    new_unittest("advertised-binding", test_advertised_binding), &
                     new_unittest("describe-function-keys", test_describe_function_keys), &
                     new_unittest("describe-variable-keys", test_describe_variable_keys) &
                     ]
@@ -321,7 +322,29 @@ contains
         call type_keys("C-h k C-x z")
         call command_loop(st)
         call check(error, last_message == "C-x z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        if (allocated(error)) return
+        ! A key bound to `undefined' is undefined too
+        ! (help--binding-undefined-p).
+        call keymap_global_set("C-c z", "undefined", st)
+        call type_keys("C-h k C-c z")
+        call command_loop(st)
+        call check(error, last_message == "C-c z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        if (allocated(error)) return
+        call type_keys("C-h c C-c z")
+        call command_loop(st)
+        call check(error, last_message == "C-c z is undefined", last_message)
     end subroutine test_describe_key_undefined
+
+    !> bindings.el's :advertised-binding of undo and set-mark-command.
+    subroutine test_advertised_binding(error)
+        type(error_type), allocatable, intent(out) :: error
+        call fresh_scratch()
+        call test_sck(error, "\[undo]", "C-x u")
+        if (allocated(error)) return
+        call test_sck(error, "\[set_mark_command]", "C-SPC")
+        if (allocated(error)) return
+        call test_sck(error, "\[undo_redo]", "C-M-_")
+    end subroutine test_advertised_binding
 
     subroutine test_describe_key_briefly(error)
         type(error_type), allocatable, intent(out) :: error

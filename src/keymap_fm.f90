@@ -65,6 +65,8 @@ module keymap_fm
                             MAX_MULTIBYTE_LENGTH, char_string, &
                             string_char_and_length, multibyte_length
     use buffer_fm, only: buffers, cur
+    use lisp_fm, only: command_type, defined_command
+    use commands_fm, only: builtin_command
     implicit none(type, external)
     private
 
@@ -1704,9 +1706,10 @@ contains
     !> list of events (nil for none); else a list of all of them, each a
     !> list of events.  Prefix keys of the meta-prefix-char (ESC) followed
     !> by a character are given as one Meta character.  Bindings shadowed
-    !> by another binding of the same key are left out.  Port of
-    !> keymap.c:Fwhere_is_internal (no remapping, advertised bindings,
-    !> menus or composed keymaps; character ranges are not searched).
+    !> by another binding of the same key are left out.  With FIRSTONLY,
+    !> the command's `advertised_binding' comes first if it runs it.
+    !> Port of keymap.c:Fwhere_is_internal (no remapping, menus or
+    !> composed keymaps; character ranges are not searched).
     subroutine where_is_internal(definition, keys, firstonly, keymap)
         type(value_type), intent(in) :: definition
         type(value_type), intent(out) :: keys
@@ -1735,6 +1738,18 @@ contains
             maps = [active]
         else
             call list_elements(active, maps)
+        end if
+        if (first .and. symbolp(definition) .and. .not. nilp(definition)) then
+            ! We have an advertised binding.
+            call advertised_key(symbols(xsymbol(definition))%name, seq)
+            if (size(seq) > 0) then
+                call lookup_key(active, seq, binding, status)
+                if (status%ok() .and. value_eq(binding, definition)) then
+                    keys = make_list(seq)
+                    return
+                end if
+            end if
+            deallocate (seq)
         end if
         ! Faccessible_keymaps of each active map, breadth first.
         allocate (queue(16), found(16))
@@ -1841,6 +1856,23 @@ contains
             end do
         end function cycle_p
     end subroutine where_is_internal
+
+    !> The `advertised_binding' of the command named `name' as events;
+    !> none if it has none (or it doesn't parse).
+    subroutine advertised_key(name, key)
+        character(len=*), intent(in) :: name
+        type(value_type), allocatable, intent(out) :: key(:)
+        type(command_type), pointer :: p
+        type(status_type) :: status
+        allocate (key(0))
+        p => defined_command(name)
+        if (.not. associated(p)) p => builtin_command(name)
+        if (.not. associated(p)) return
+        if (.not. allocated(p%advertised_binding)) return
+        if (len(p%advertised_binding) == 0) return
+        call key_parse(p%advertised_binding, key, status)
+        if (.not. status%ok()) key = key(1:0)
+    end subroutine advertised_key
 
     !> The order upstream's map_keymap visits a keymap's entries in: for a
     !> full keymap its char-table first (characters in order), then the

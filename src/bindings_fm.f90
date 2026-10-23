@@ -262,12 +262,14 @@ contains
         call bind(global_map, "C-l", "recenter_top_bottom")
         call bind(esc_map, "r", "move_to_window_line_top_bottom")
         ! Undo (bindings.el).
+        commands%undo%advertised_binding = "C-x u"
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
         call bind(ctl_x_map, "u", "undo")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
+        commands%set_mark_command%advertised_binding = "C-SPC"
         call bind(global_map, "C-@", "set_mark_command")
         call bind(global_map, "C-SPC", "set_mark_command")
         call bind(ctl_x_map, "C-x", "exchange_point_and_mark")
