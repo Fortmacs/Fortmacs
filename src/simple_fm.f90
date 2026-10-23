@@ -32,7 +32,7 @@
 !> electric indentation, auto-fill and hard newlines, prefix-argument
 !> echoing, octal input in quoted-insert.
 module simple_fm
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY
@@ -69,7 +69,13 @@ module simple_fm
     use lread_fm, only: intern_soft
     use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
-    use syntax_fm, only: forward_word
+    use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward
+    use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
+                         SEARCH_NOERROR
+    use fns_fm, only: value_equal
+    use insdel_fm, only: insert_before_markers
+    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region
+    use cmds_fm, only: forward_char
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
@@ -108,6 +114,86 @@ module simple_fm
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
               forward_visible_line
     public :: backward_word, kill_word, backward_kill_word, mark_word
+
+    public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
+              delete_all_space, just_one_space, cycle_spacing, transpose_chars, transpose_words, &
+              transpose_lines, transpose_subr, transpose_subr_1, transpose_mover
+
+    !> String for filling to insert at front of new line, or nil for none.
+    !> Unallocated is nil.  Port of simple.el fill-prefix.
+    character(len=:), allocatable, public :: fill_prefix
+
+    !> The actions of `cycle-spacing` (the symbols of
+    !> `cycle-spacing-actions`).
+    integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
+                                  CYCLE_DELETE_SPACE_BEFORE = 3, CYCLE_DELETE_ALL_SPACE = 4, CYCLE_RESTORE = 5
+    !> The argument forms of an action (ACTION ARG): none (the prefix arg
+    !> of the cycle), a fixed integer, `inverted-arg` and `-`.
+    integer, parameter, public :: CYCLE_ARG_NONE = 0, CYCLE_ARG_FIXED = 1, CYCLE_ARG_INVERTED = 2, &
+                                  CYCLE_ARG_MINUS = 3
+
+    !> An element of `cycle_spacing_actions`: ACTION, or (ACTION ARG).
+    type, public :: cycle_spacing_action_type
+        integer :: action = CYCLE_JUST_ONE_SPACE
+        integer :: arg_kind = CYCLE_ARG_NONE
+        integer(int64) :: arg = 0
+    end type cycle_spacing_action_type
+
+    !> List of actions cycled through by `cycle-spacing'.
+    !> Supported values are:
+    !> - `just-one-space'      Delete all but N (prefix arg) spaces.
+    !>                         See that command's docstring for details.
+    !> - `delete-space-after'  Delete spaces after point keeping only N.
+    !> - `delete-space-before' Delete spaces before point keeping only N.
+    !> - `delete-all-space'    Delete all spaces around point.
+    !> - `restore'             Restore the original spacing.
+    !>
+    !> All actions make use of the prefix arg given to `cycle-spacing'
+    !> in the initial invocation, i.e., `just-one-space' keeps this
+    !> amount of spaces deleting surplus ones.  `just-one-space' and all
+    !> other actions have the contract that a positive prefix arg (or
+    !> zero) only deletes tabs and spaces whereas a negative prefix arg
+    !> also deletes newlines.
+    !>
+    !> The `delete-space-before' and `delete-space-after' actions handle
+    !> the prefix arg M-- without a number provided
+    !> specially: all spaces before/after point are deleted (as if N was
+    !> 0) including newlines (as if N was negative).
+    !>
+    !> In addition, an action may take the form (ACTION ARG) where
+    !> ACTION is one of the predefined actions (except for `restore')
+    !> and ARG is either
+    !> - an integer with the meaning that ACTION should always use this
+    !>   fixed integer instead of the actual prefix arg or
+    !> - the symbol `inverted-arg' with the meaning that ACTION should
+    !>   be performed with the inverted actual prefix arg.
+    !> - the symbol `-' with the meaning that ACTION should include
+    !>   newlines but it's up to the ACTION to decide how to interpret
+    !>   it as a number, e.g., `delete-space-before' and
+    !>   `delete-space-after' treat it like 0 whereas `just-one-space'
+    !>   treats it like -1 as is usual.  Port of simple.el
+    !>   cycle-spacing-actions (no function actions).
+    type(cycle_spacing_action_type), allocatable, public :: cycle_spacing_actions(:)
+
+    ! cycle-spacing--context: :orig-pos, :whitespace-string, :n and
+    ! :last-action (an index into cycle_spacing_actions, 0 for nil).
+    logical :: cycle_spacing_active = .false.
+    integer(int64) :: cycle_spacing_orig_pos = 0
+    character(len=:), allocatable :: cycle_spacing_whitespace
+    type(value_type) :: cycle_spacing_n
+    integer :: cycle_spacing_last = 0
+
+    character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
+
+    abstract interface
+        !> A motion for `transpose_subr`: move over N objects.
+        subroutine transpose_mover(n, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: n
+            type(status_type), intent(out) :: status
+        end subroutine transpose_mover
+    end interface
 
     !> Maximum length of kill ring before oldest elements are thrown away.
     !> Port of simple.el kill-ring-max.
@@ -912,6 +998,21 @@ contains
         call defcommand("backward-word", cmd_backward_word)
         call defcommand("kill-word", cmd_kill_word)
         call defcommand("backward-kill-word", cmd_backward_kill_word)
+        call defcommand("transpose-chars", cmd_transpose_chars)
+        call defcommand("transpose-words", cmd_transpose_words)
+        call defcommand("transpose-lines", cmd_transpose_lines)
+        call defcommand("delete-horizontal-space", cmd_delete_horizontal_space)
+        call defcommand("delete-all-space", cmd_delete_all_space)
+        call defcommand("just-one-space", cmd_just_one_space)
+        call defcommand("cycle-spacing", cmd_cycle_spacing)
+        call defcommand("fixup-whitespace", cmd_fixup_whitespace)
+        call defcommand("delete-blank-lines", cmd_delete_blank_lines)
+        call defcommand("delete-indentation", cmd_delete_indentation)
+        ! (defalias 'join-line #'delete-indentation)
+        call defcommand("join-line", cmd_delete_indentation)
+        cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
+                                 cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
+                                 cycle_spacing_action_type(CYCLE_RESTORE)]
         call defcommand("mark-word", cmd_mark_word)
     end subroutine syms_of_simple
 
@@ -2059,4 +2160,622 @@ contains
         status = status_type()
         call mark_word(prefix_numeric_value(current_prefix_arg),.not. nilp(current_prefix_arg), .true.)
     end subroutine cmd_mark_word
+
+    ! ------------------------------------------------------------------
+    ! Whitespace
+    ! ------------------------------------------------------------------
+
+    !> Join this line to previous and fix up whitespace at join.
+    !> If there is a fill prefix, delete it from the beginning of this
+    !> line.
+    !> With prefix ARG, join the current line to the following line.
+    !> When BEG and END are non-nil, join all lines in the region they
+    !> define.  Interactively, BEG and END are, respectively, the start
+    !> and end of the region if it is active, else nil.  (The region is
+    !> ignored if prefix ARG is given.)  Port of
+    !> simple.el:delete-indentation.
+    subroutine delete_indentation(arg, status, beg, end)
+        logical, intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: beg, end
+        integer(int64) :: sentinel, shortage
+        integer(int32) :: c
+        logical :: found, matched
+        character(len=:), allocatable :: prefix
+        status = status_type()
+        ! Consistently deactivate mark even when no text is changed.
+        vdeactivate_mark = .true.
+        if (present(beg) .and. present(end) .and. .not. arg) then
+            ! Region is active.  Go to END, but only if region spans
+            ! multiple lines.
+            sentinel = beg
+            call goto_char(beg)
+            if (end > line_end_position()) call goto_char(end)
+        else
+            ! Region is inactive.  Set a loop sentinel (subtracting 1 in
+            ! order to compare less than BOB).
+            if (arg) then
+                sentinel = line_beginning_position(2_int64) - 1
+                shortage = forward_line()
+            else
+                sentinel = line_beginning_position() - 1
+            end if
+        end if
+        prefix = ""
+        if (allocated(fill_prefix)) prefix = regexp_quote(fill_prefix)
+        do while (line_beginning_position() > sentinel)
+            shortage = forward_line(0_int64)
+            call char_before(c, found)
+            if (.not. found .or. c /= 10) exit
+            call delete_char(-1_int64, status)
+            if (.not. status%ok()) return
+            ! If the appended line started with the fill prefix, delete
+            ! the prefix.
+            if (len(prefix) > 0) then
+                matched = looking_at(prefix, status)
+                if (.not. status%ok()) return
+                if (matched) then
+                    call replace_match("", status, .true., .true.)
+                    if (.not. status%ok()) return
+                end if
+            end if
+            call fixup_whitespace(status)
+            if (.not. status%ok()) return
+        end do
+    end subroutine delete_indentation
+
+    !> On blank line, delete all surrounding blank lines, leaving just one.
+    !> On isolated blank line, delete that one.
+    !> On nonblank line, delete any immediately following blank lines.
+    !> Port of simple.el:delete-blank-lines.
+    subroutine delete_blank_lines(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint, from, pos, shortage
+        logical :: thisblank, singleblank
+        status = status_type()
+        ! save-excursion
+        opoint = point()
+        call beginning_of_line()
+        thisblank = looking_at("[ "//TAB//"]*$", status)
+        ! Set singleblank if there is just one blank line here.
+        singleblank = .false.
+        if (thisblank) then
+            if (.not. looking_at("[ "//TAB//"]*"//LF//"[ "//TAB//"]*$", status)) then
+                if (bobp()) then
+                    singleblank = .true.
+                else
+                    shortage = forward_line(-1_int64)
+                    singleblank = .not. looking_at("[ "//TAB//"]*$", status)
+                end if
+            end if
+        end if
+        call goto_char(opoint)
+        ! Delete preceding blank lines, and this one too if it's the only
+        ! one.
+        if (thisblank) then
+            call beginning_of_line()
+            if (singleblank) shortage = forward_line(1_int64)
+            from = point()
+            call re_search_backward("[^ "//TAB//LF//"]", pos, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) return
+            if (pos > 0) then
+                shortage = forward_line(1_int64)
+                pos = point()
+            else
+                pos = point_min()
+            end if
+            call delete_region(from, pos, status)
+            if (.not. status%ok()) return
+        end if
+        ! Delete following blank lines, unless the current line is blank
+        ! and there are no following blank lines.
+        if (.not. (thisblank .and. singleblank)) then
+            opoint = point()
+            call end_of_line()
+            shortage = forward_line(1_int64)
+            from = point()
+            call re_search_forward("[^ "//TAB//LF//"]", pos, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) return
+            if (pos > 0) then
+                call beginning_of_line()
+                pos = point()
+            else
+                pos = point_max()
+            end if
+            call delete_region(from, pos, status)
+            if (.not. status%ok()) return
+            call goto_char(min(opoint, point_max()))
+        end if
+        ! Handle the special case where point is followed by newline and
+        ! eob.  Delete the line, leaving point at eob.
+        if (looking_at("^[ "//TAB//"]*"//LF//"\'", status)) call delete_region(point(), point_max(), status)
+    end subroutine delete_blank_lines
+
+    !> Fixup white space between objects around point.
+    !> Leave one space or none, according to the context.  Port of
+    !> simple.el:fixup-whitespace.
+    subroutine fixup_whitespace(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: saved
+        type(status_type) :: st
+        integer(int64) :: opoint, pos
+        logical :: no_space
+        call point_marker(saved)
+        call delete_horizontal_space(.false., status)
+        if (status%ok()) then
+            no_space = looking_at("^\|$\|\s)", status)
+            if (.not. no_space .and. status%ok()) then
+                opoint = point()
+                call forward_char(status, -1_int64)
+                if (status%ok()) no_space = looking_at("$\|\s(\|\s'", status)
+                call goto_char(opoint)
+            end if
+            if (status%ok() .and. .not. no_space) then
+                ! (insert ?\s) inside save-excursion: point stays before it.
+                call insert(" ", status)
+            end if
+        end if
+        call marker_position(saved, pos, st)
+        call goto_char(pos)
+        call free_marker(saved, st)
+    end subroutine fixup_whitespace
+
+    !> Delete all spaces and tabs around point.
+    !> If BACKWARD-ONLY is non-nil (interactively, the prefix argument), delete
+    !> them only before point.  Port of simple.el:delete-horizontal-space.
+    subroutine delete_horizontal_space(backward_only, status)
+        logical, intent(in) :: backward_only
+        type(status_type), intent(out) :: status
+        call delete_space_internal(" "//TAB, backward_only, status)
+    end subroutine delete_horizontal_space
+
+    !> Delete all spaces, tabs, and newlines around point.
+    !> If BACKWARD-ONLY is non-nil, delete them only before point.  Port of
+    !> simple.el:delete-all-space.
+    subroutine delete_all_space(backward_only, status)
+        logical, intent(in) :: backward_only
+        type(status_type), intent(out) :: status
+        call delete_space_internal(" "//TAB//CR//LF, backward_only, status)
+    end subroutine delete_all_space
+
+    !> Delete CHARS around point.
+    !> If BACKWARD-ONLY is non-nil, delete them only before point.  Port of
+    !> simple.el:delete-space--internal.
+    subroutine delete_space_internal(chars, backward_only, status)
+        character(len=*), intent(in) :: chars
+        logical, intent(in) :: backward_only
+        type(status_type), intent(out) :: status
+        integer(int64) :: orig_pos, from, to, moved
+        orig_pos = point()
+        if (backward_only) then
+            from = orig_pos
+        else
+            moved = skip_chars_forward(chars, status)
+            if (.not. status%ok()) return
+            from = constrain_to_field(point(), orig_pos, .true., .false.)
+            call goto_char(from)
+        end if
+        moved = skip_chars_backward(chars, status)
+        if (.not. status%ok()) return
+        to = constrain_to_field(point(), orig_pos, .false., .false.)
+        call goto_char(to)
+        call delete_region(from, to, status)
+    end subroutine delete_space_internal
+
+    !> Delete all spaces and tabs around point, leaving one space (or N spaces).
+    !> Interactively, N is the prefix numeric argument.
+    !> If N is negative, delete newlines as well, leaving -N spaces.
+    !> See also `cycle-spacing'.  Port of simple.el:just-one-space.
+    subroutine just_one_space(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        integer(int64) :: orig_pos, num, mid, end, moved
+        character(len=:), allocatable :: skip_characters
+        orig_pos = point()
+        if (n < 0) then
+            skip_characters = " "//TAB//LF//CR
+        else
+            skip_characters = " "//TAB
+        end if
+        num = abs(n)
+        moved = skip_chars_backward(skip_characters, status)
+        if (.not. status%ok()) return
+        call goto_char(constrain_to_field(point(), orig_pos, .false., .false.))
+        num = num - skip_chars_forward(" ", status, num + point())
+        mid = point()
+        moved = skip_chars_forward(skip_characters, status)
+        end = constrain_to_field(point(), orig_pos, .true., .false.)
+        call goto_char(end)
+        call delete_region(mid, end, status)
+        if (.not. status%ok()) return
+        if (num > 0) call insert(repeat(" ", int(num)), status)
+    end subroutine just_one_space
+
+    !> Manipulate whitespace around point in a smart way.
+    !> Repeated calls perform the actions in `cycle-spacing-actions' one
+    !> after the other, wrapping around after the last one.
+    !>
+    !> All actions are amendable using a prefix arg N.  In general, a
+    !> zero or positive prefix arg allows only for deletion of tabs and
+    !> spaces whereas a negative prefix arg also allows for deleting
+    !> newlines.
+    !>
+    !> The prefix arg given at the first invocation starting a cycle is
+    !> provided to all following actions, i.e.,
+    !>     M-- M-SPC M-SPC M-SPC
+    !> is equivalent to
+    !>     M-- M-SPC M-- M-SPC M-- M-SPC.
+    !>
+    !> A new sequence can be started by providing a different prefix arg
+    !> than provided at the initial invocation (except for 1), or by
+    !> doing any other command before the next M-SPC.  N is the raw
+    !> prefix argument.  Port of simple.el:cycle-spacing.
+    subroutine cycle_spacing(n, status)
+        type(value_type), intent(in) :: n
+        type(status_type), intent(out) :: status
+        integer(int64) :: orig_pos, start, end, moved, numeric_n
+        type(value_type) :: actual_n
+        type(cycle_spacing_action_type) :: action
+        integer :: next
+        logical :: include_newlines
+        status = status_type()
+        ! Initialize `cycle-spacing--context' if needed.
+        if (.not. value_eq(last_command, this_command) .or. .not. cycle_spacing_active .or. &
+            (.not. nilp(n) .and. .not. value_equal(cycle_spacing_n, n))) then
+            orig_pos = point()
+            moved = skip_chars_backward(" "//TAB//LF//CR, status)
+            call goto_char(constrain_to_field(point(), orig_pos, .false., .false.))
+            start = point()
+            moved = skip_chars_forward(" "//TAB//LF//CR, status)
+            end = constrain_to_field(point(), orig_pos, .true., .false.)
+            call buffer_substring(start, end, cycle_spacing_whitespace, status)
+            call goto_char(orig_pos)
+            if (.not. status%ok()) return
+            cycle_spacing_orig_pos = orig_pos
+            cycle_spacing_n = n
+            cycle_spacing_last = 0
+            cycle_spacing_active = .true.
+        end if
+        if (.not. allocated(cycle_spacing_actions)) return
+        if (size(cycle_spacing_actions) == 0) return
+        ! Cycle through the actions in `cycle-spacing-actions'.
+        next = cycle_spacing_last + 1
+        if (next > size(cycle_spacing_actions)) next = 1
+        action = cycle_spacing_actions(next)
+        ! restore
+        call delete_all_space(.false., status)
+        if (.not. status%ok()) return
+        call insert(cycle_spacing_whitespace, status)
+        if (.not. status%ok()) return
+        call goto_char(cycle_spacing_orig_pos)
+        if (action%action /= CYCLE_RESTORE) then
+            ! The action may have a fixed numeric arg, the inverted
+            ! prefix arg or `-'.
+            select case (action%arg_kind)
+            case (CYCLE_ARG_FIXED)
+                actual_n = make_fixnum(action%arg)
+            case (CYCLE_ARG_INVERTED)
+                actual_n = make_fixnum(-prefix_numeric_value(cycle_spacing_n))
+            case (CYCLE_ARG_MINUS)
+                actual_n = sym("-")
+            case default
+                actual_n = cycle_spacing_n
+            end select
+            numeric_n = prefix_numeric_value(actual_n)
+            include_newlines = value_eq(actual_n, sym("-"))
+            if (fixnump(actual_n)) include_newlines = xfixnum(actual_n) < 0
+            select case (action%action)
+            case (CYCLE_JUST_ONE_SPACE)
+                call just_one_space(numeric_n, status)
+            case (CYCLE_DELETE_SPACE_AFTER)
+                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, sym("-"))), &
+                                  include_newlines, .true.)
+            case (CYCLE_DELETE_SPACE_BEFORE)
+                call delete_space(merge(0_int64, abs(numeric_n), value_eq(actual_n, sym("-"))), &
+                                  include_newlines, .false.)
+            case (CYCLE_DELETE_ALL_SPACE)
+                if (include_newlines) then
+                    call delete_all_space(.false., status)
+                else
+                    call delete_horizontal_space(.false., status)
+                end if
+            case default
+                call set_error(status, FM_GENERIC_ERROR, "Don't know how to handle action")
+            end select
+            if (.not. status%ok()) return
+        end if
+        cycle_spacing_last = next
+    contains
+        ! Delete the spaces after (FORWARD) or before point beyond the
+        ! first N (all with N 0).
+        subroutine delete_space(n, include_newlines, forward)
+            integer(int64), intent(in) :: n
+            logical, intent(in) :: include_newlines, forward
+            integer(int64) :: orig_point, from, to, skipped
+            character(len=:), allocatable :: chars
+            orig_point = point()
+            chars = " "//TAB
+            if (include_newlines) chars = " "//TAB//CR//LF
+            if (n /= 0) then
+                if (forward) then
+                    skipped = skip_chars_forward(chars, status, point() + n)
+                else
+                    skipped = skip_chars_backward(chars, status, point() - n)
+                end if
+                if (n /= abs(skipped)) return
+            end if
+            from = point()
+            if (forward) then
+                skipped = skip_chars_forward(chars, status)
+            else
+                skipped = skip_chars_backward(chars, status)
+            end if
+            to = point()
+            if (from /= to) call delete_region(from, to, status)
+            if (forward) then
+                call goto_char(orig_point)
+            else
+                call goto_char(n + to)
+            end if
+        end subroutine delete_space
+    end subroutine cycle_spacing
+
+    ! ------------------------------------------------------------------
+    ! Transposition
+    ! ------------------------------------------------------------------
+
+    !> Interchange characters around point, moving forward one character.
+    !> With prefix arg ARG, effect is to take character before point
+    !> and drag it forward past ARG other characters (backward if ARG negative).
+    !> If at end of line, the previous two chars are exchanged.  Port of
+    !> simple.el:transpose-chars.
+    subroutine transpose_chars(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        type(value_type) :: read_only
+        type(status_type) :: st
+        if (eolp() .and. .not. bobp()) then
+            call get_text_property(point() - 1, sym("read-only"), read_only, st)
+            if (nilp(read_only)) call goto_char(point() - 1)
+        end if
+        call transpose_subr(move_chars, arg, status)
+    end subroutine transpose_chars
+
+    !> Interchange words around point, leaving point at end of them.
+    !> With prefix arg ARG, effect is to take word before or around point
+    !> and drag it forward past ARG other words (backward if ARG negative).
+    !> If ARG is zero, the words around or after point and around or after mark
+    !> are interchanged.  Port of simple.el:transpose-words.
+    subroutine transpose_words(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call transpose_subr(move_words, arg, status)
+    end subroutine transpose_words
+
+    !> Exchange current line and previous line, leaving point after both.
+    !> With argument ARG, takes previous line and moves it past ARG lines.
+    !> With argument 0, interchanges line point is in with line mark is in.
+    !> Port of simple.el:transpose-lines.
+    subroutine transpose_lines(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call transpose_subr(move_lines, arg, status)
+    end subroutine transpose_lines
+
+    subroutine move_chars(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        call forward_char(status, n)
+    end subroutine move_chars
+
+    subroutine move_words(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call forward_word(n)
+    end subroutine move_words
+
+    ! The mover of transpose-lines.
+    subroutine move_lines(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        integer(int64) :: arg
+        integer(int32) :: c
+        logical :: found
+        status = status_type()
+        if (n > 0) then
+            ! Move forward over ARG lines, but create newlines if
+            ! necessary.
+            arg = forward_line(n)
+            call char_before(c, found)
+            if (.not. found .or. c /= 10) arg = arg + 1
+            if (arg > 0) call newline(arg, status)
+        else
+            arg = forward_line(n)
+        end if
+    end subroutine move_lines
+
+    !> Subroutine to do the work of transposing objects.
+    !> Works for lines, sentences, paragraphs, etc.  MOVER is a function
+    !> that moves forward by units of the given
+    !> object (e.g. `forward-sentence', `forward-paragraph').
+    !>
+    !>   If ARG is zero, exchanges the current object with the one
+    !> containing mark.  If ARG is an integer, moves the current object
+    !> past ARG following (if ARG is positive) or preceding (if ARG is
+    !> negative) objects, leaving point after the current object.  Port of
+    !> simple.el:transpose-subr (no SPECIAL movers).
+    recursive subroutine transpose_subr(mover, arg, status)
+        procedure(transpose_mover) :: mover
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: pos1(2), pos2(2), m, opoint
+        type(handle_type) :: saved
+        type(status_type) :: st
+        if (arg == 0) then
+            ! save-excursion
+            call point_marker(saved)
+            call aux(1_int64, pos1)
+            if (status%ok()) then
+                m = mark_position()
+                if (m == 0) then
+                    call set_error(status, FM_GENERIC_ERROR, "No mark set in this buffer")
+                else
+                    call goto_char(m)
+                    call aux(1_int64, pos2)
+                    if (status%ok()) call transpose_subr_1(pos1, pos2, status)
+                end if
+            end if
+            call marker_position(saved, opoint, st)
+            call goto_char(opoint)
+            call free_marker(saved, st)
+            if (status%ok()) call exchange_point_and_mark(.false., status)
+        else if (arg > 0) then
+            call aux(-1_int64, pos1)
+            if (.not. status%ok()) return
+            call aux(arg, pos2)
+            if (.not. status%ok()) return
+            call transpose_subr_1(pos1, pos2, status)
+            if (.not. status%ok()) return
+            call goto_char(pos2(1))
+        else
+            call aux(-1_int64, pos1)
+            if (.not. status%ok()) return
+            call goto_char(pos1(1))
+            call aux(arg, pos2)
+            if (.not. status%ok()) return
+            call transpose_subr_1(pos1, pos2, status)
+            if (.not. status%ok()) return
+            call goto_char(pos2(1) + (pos1(2) - pos1(1)))
+        end if
+    contains
+        ! (cons (progn (funcall mover x) (point))
+        !       (progn (funcall mover (- x)) (point)))
+        subroutine aux(x, pos)
+            integer(int64), intent(in) :: x
+            integer(int64), intent(out) :: pos(2)
+            pos = 0
+            call mover(x, status)
+            if (.not. status%ok()) return
+            pos(1) = point()
+            call mover(-x, status)
+            if (.not. status%ok()) return
+            pos(2) = point()
+        end subroutine aux
+    end subroutine transpose_subr
+
+    !> Exchange the text of the ranges POS1 and POS2 (each a pair of
+    !> positions in either order), preserving markers at their ends.
+    !> Port of simple.el:transpose-subr-1.
+    subroutine transpose_subr_1(pos1_in, pos2_in, status)
+        integer(int64), intent(in) :: pos1_in(2), pos2_in(2)
+        type(status_type), intent(out) :: status
+        integer(int64) :: pos1(2), pos2(2), swap(2), len1, len2, boundary_pos
+        character(len=:), allocatable :: word
+        type(handle_type) :: boundary
+        type(status_type) :: st
+        pos1 = [minval(pos1_in), maxval(pos1_in)]
+        pos2 = [minval(pos2_in), maxval(pos2_in)]
+        if (pos1(1) > pos2(1)) then
+            swap = pos1
+            pos1 = pos2
+            pos2 = swap
+        end if
+        if (pos1(2) > pos2(1)) then
+            call set_error(status, FM_GENERIC_ERROR, "Don't have two things to transpose")
+            return
+        end if
+        ! This sequence of insertions attempts to preserve marker
+        ! positions at the start and end of the transposed objects.
+        call buffer_substring(pos2(1), pos2(2), word, status)
+        if (.not. status%ok()) return
+        len1 = pos1(2) - pos1(1)
+        len2 = pos2(2) - pos2(1)
+        call copy_marker_at(pos2(1), boundary, .false., st)
+        call goto_char(pos1(2))
+        call insert_before_markers(word, status)
+        if (status%ok()) call delete_and_extract_region(pos1(1), pos1(1) + len1, word, status)
+        if (status%ok()) then
+            call marker_position(boundary, boundary_pos, st)
+            call goto_char(boundary_pos)
+            call insert(word, status)
+        end if
+        if (status%ok()) then
+            call goto_char(boundary_pos + len1)
+            call delete_region(point(), point() + len2, status)
+        end if
+        call free_marker(boundary, st)
+    end subroutine transpose_subr_1
+
+    ! The interactive whitespace and transposition commands ("*p", "*P"
+    ! and "*" read the prefix argument after checking the buffer is
+    ! writable).
+
+    subroutine cmd_transpose_chars(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call transpose_chars(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_transpose_chars
+
+    subroutine cmd_transpose_words(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call transpose_words(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_transpose_words
+
+    subroutine cmd_transpose_lines(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call transpose_lines(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_transpose_lines
+
+    subroutine cmd_delete_horizontal_space(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call delete_horizontal_space(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_delete_horizontal_space
+
+    subroutine cmd_delete_all_space(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call delete_all_space(.not. nilp(current_prefix_arg), status)
+    end subroutine cmd_delete_all_space
+
+    subroutine cmd_just_one_space(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call just_one_space(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_just_one_space
+
+    subroutine cmd_cycle_spacing(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call cycle_spacing(current_prefix_arg, status)
+    end subroutine cmd_cycle_spacing
+
+    subroutine cmd_fixup_whitespace(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call fixup_whitespace(status)
+    end subroutine cmd_fixup_whitespace
+
+    subroutine cmd_delete_blank_lines(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call delete_blank_lines(status)
+    end subroutine cmd_delete_blank_lines
+
+    subroutine cmd_delete_indentation(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: b, e
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        if (use_region_p()) then
+            call region_beginning(b, status)
+            call region_end(e, status)
+            call delete_indentation(.not. nilp(current_prefix_arg), status, b, e)
+        else
+            call delete_indentation(.not. nilp(current_prefix_arg), status)
+        end if
+    end subroutine cmd_delete_indentation
 end module simple_fm
