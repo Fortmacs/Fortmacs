@@ -195,17 +195,17 @@ contains
     subroutine test_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=16), parameter :: keys(19) = [character(len=16) :: "C-a", "C-e", "<home>", "<end>", &
-                                                   "S-<insert>", "S-<insertchar>", "<paste>", "C-<insert>", &
-                                                   "C-<insertchar>", "<copy>", "S-<delete>", "<cut>", &
-                                                   "<insertline>", "<deleteline>", "<undo>", "<begin>", &
-                                                   "<find>", "<execute>", "<menu>"]
+                                                                          "S-<insert>", "S-<insertchar>", "<paste>", "C-<insert>", &
+                                                                                "C-<insertchar>", "<copy>", "S-<delete>", "<cut>", &
+                                                                              "<insertline>", "<deleteline>", "<undo>", "<begin>", &
+                                                                                                    "<find>", "<execute>", "<menu>"]
         character(len=24), parameter :: cmds(19) = [character(len=24) :: "move_beginning_of_line", &
-                                                    "move_end_of_line", "move_beginning_of_line", &
-                                                    "move_end_of_line", "yank", "yank", "yank", "kill_ring_save", &
-                                                    "kill_ring_save", "kill_ring_save", "kill_region", &
-                                                    "kill_region", "open_line", "kill_line", "undo", &
-                                                    "beginning_of_buffer", "search_forward", &
-                                                    "execute_extended_command", "execute_extended_command"]
+                                                                                     "move_end_of_line", "move_beginning_of_line", &
+                                                                     "move_end_of_line", "yank", "yank", "yank", "kill_ring_save", &
+                                                                                "kill_ring_save", "kill_ring_save", "kill_region", &
+                                                                                  "kill_region", "open_line", "kill_line", "undo", &
+                                                                                          "beginning_of_buffer", "search_forward", &
+                                                                             "execute_extended_command", "execute_extended_command"]
         integer :: k
         call init_bindings()
         do k = 1, size(keys)

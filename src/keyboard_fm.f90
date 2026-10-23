@@ -552,7 +552,7 @@ contains
         integer :: t, mock_input, first_unbound, diff, i, &
                    original_uppercase_position
         integer(int64) :: k, c, bits
-        logical :: have, done, shift_translated
+        logical :: have, done, shift_translated, macro_end
         eof = .false.
         t = 0
         mock_input = 0
@@ -590,9 +590,11 @@ contains
                     call set_error(status, FM_GENERIC_ERROR, "Key sequence too long")
                     return
                 end if
+                macro_end = .false.
+                if (macro_active .and. nunread == 0) macro_end = at_end_of_macro_p()
                 if (t < mock_input) then
                     key = keybuf(t + 1)
-                else if (macro_active .and. nunread == 0 .and. at_end_of_macro_p()) then
+                else if (macro_end) then
                     ! If we're at the end of a macro, exit it by returning
                     ! 0, unless there are unread events pending.
                     t = 0
@@ -748,7 +750,7 @@ contains
     !> This should be called only while executing a macro.  Port of
     !> macros.c:at_end_of_macro_p.
     logical function at_end_of_macro_p()
-        at_end_of_macro_p = macro_forced_end
+        at_end_of_macro_p = macro_forced_end .or. .not. allocated(macro_events)
         if (.not. at_end_of_macro_p) then
             at_end_of_macro_p = executing_kbd_macro_index >= size(macro_events, kind=int64)
         end if

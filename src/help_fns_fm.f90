@@ -61,7 +61,7 @@ module help_fns_fm
     !> The modifier bits of a character event, and shift.
     integer(int64), parameter :: M_SHIFT = int(CHAR_SHIFT, int64), &
                                  M_MODS = int(CHAR_ALT, int64) + int(CHAR_SUPER, int64) + int(CHAR_HYPER, int64) + &
-                                          int(CHAR_SHIFT, int64) + int(CHAR_CTL, int64) + int(CHAR_META, int64)
+                                 int(CHAR_SHIFT, int64) + int(CHAR_CTL, int64) + int(CHAR_META, int64)
 
     !> Left and right single quotes.
     character(len=*), parameter :: LQUOTE = char(226)//char(128)//char(152), &
