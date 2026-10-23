@@ -28,6 +28,7 @@
 module test_replace_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil
@@ -94,6 +95,7 @@ contains
         call set(sym("query_replace_history"), nil(), st)
         call set(sym("search_ring"), nil(), st)
         call set(sym("regexp_search_ring"), nil(), st)
+        call show_alone()
     end subroutine enter
 
     subroutine leave(h)

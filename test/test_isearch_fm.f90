@@ -25,6 +25,7 @@
 module test_isearch_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, list_length, list_elt, xstring
@@ -84,6 +85,7 @@ contains
         call goto_char(1_int64)
         last_message = ""
         call set(sym("search_ring"), nil(), st)
+        call show_alone()
     end subroutine enter
 
     subroutine leave(h)

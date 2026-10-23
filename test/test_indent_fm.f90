@@ -23,6 +23,7 @@
 module test_indent_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum
@@ -97,6 +98,7 @@ contains
         type(window_type), pointer :: sw
         call get_buffer_create("indent-test", h, st)
         call set_buffer(h, st)
+        call show_alone()
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(1_int64)

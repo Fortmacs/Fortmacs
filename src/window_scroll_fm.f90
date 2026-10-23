@@ -437,40 +437,124 @@ contains
         call move_to_window_line_top_bottom(current_prefix_arg, status)
     end subroutine cmd_move_to_window_line_top_bottom
 
-    module subroutine quit_window(status)
-        type(status_type), intent(out) :: status
-        type(window_type), pointer :: w
-        type(handle_type), allocatable :: all(:)
-        type(handle_type) :: other
-        integer :: k
-        integer(int64) :: bi
-        status = status_type()
-        w => selected_window()
-        other = w%prev_buffer
-        if (buffer_live_p(other)) then
-            call resolve_buffer(other, bi, status)
-            if (status%ok() .and. bi /= cur) then
-                call set_buffer(other, status)
-                return
-            end if
+    module logical function pos_visible_in_window_p(pos, window) result(visible)
+        integer(int64), intent(in) :: pos
+        type(handle_type), intent(in) :: window
+        type(handle_type) :: old
+        type(status_type) :: status
+        integer(int64) :: opoint, start, moved
+        integer :: ht
+        visible = .false.
+        if (.not. window_live_p(window)) return
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        start = window_start(windows(window%index))
+        ht = window_body_lines(windows(window%index))
+        if (pos >= start .and. start >= buffers(cur)%begv .and. start <= buffers(cur)%zv .and. ht > 0) then
+            opoint = point()
+            call goto_char(start)
+            call vertical_motion(int(ht, int64), moved)
+            visible = pos < point() .or. (moved < ht .and. pos <= point())
+            call goto_char(opoint)
         end if
-        ! switch-to-prev-buffer without history: the newest other buffer
-        ! that is not internal (its name starts with a space).
-        all = buffer_list()
-        do k = size(all), 1, -1
-            call resolve_buffer(all(k), bi, status)
-            if (.not. status%ok() .or. bi == cur) cycle
-            if (buffers(bi)%name(1:min(1, len(buffers(bi)%name))) == " ") cycle
-            call set_buffer(all(k), status)
-            return
-        end do
-        status = status_type()
-    end subroutine quit_window
+        if (buffer_live_p(old)) call set_buffer(old, status)
+    end function pos_visible_in_window_p
 
-    subroutine cmd_quit_window(status)
+    module subroutine scroll_window(window, direction, status)
+        type(handle_type), intent(in) :: window
+        integer, intent(in) :: direction
         type(status_type), intent(out) :: status
-        call quit_window(status)
-    end subroutine cmd_quit_window
+        type(handle_type) :: old
+        type(window_type), pointer :: w
+        type(status_type) :: st
+        status = status_type()
+        if (.not. window_live_p(window)) return
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        w => windows(window%index)
+        call goto_char(window_point(w))
+        call window_scroll(w, int(direction, int64), .true., status)
+        call set_window_point(w, point(), st)
+        if (buffer_live_p(old)) call set_buffer(old, st)
+    end subroutine scroll_window
+
+    module subroutine other_window_for_scrolling(window, status)
+        type(handle_type), intent(out) :: window
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: leaves(:)
+        integer :: k
+        status = status_type()
+        window = null_handle()
+        ! Look for a neighboring window on the same frame.
+        call window_leaves(selected_frame%root_window, leaves)
+        do k = 1, size(leaves)
+            if (same_window(leaves(k), selected_frame%selected_window)) then
+                window = leaves(modulo(k, size(leaves)) + 1)
+                exit
+            end if
+        end do
+        if (.not. window_live_p(window) .or. same_window(window, selected_frame%selected_window)) then
+            call set_error(status, FM_GENERIC_ERROR, "There is no other window")
+            window = null_handle()
+        end if
+    end subroutine other_window_for_scrolling
+
+    !> Run `scroll_up_command' (DIRECTION 1) or `scroll_down_command' (-1)
+    !> with LINES in the other window, as with-selected-window.
+    recursive subroutine scroll_other(lines, direction, status)
+        type(value_type), intent(in) :: lines
+        integer, intent(in) :: direction
+        type(status_type), intent(out) :: status
+        type(handle_type) :: window, old_window, old_buffer
+        type(status_type) :: st
+        if (selected_frame%minibuffer_selected) then
+            call set_error(status, FM_GENERIC_ERROR, format_message("Window commands don't work in the minibuffer yet"))
+            return
+        end if
+        call other_window_for_scrolling(window, status)
+        if (.not. status%ok()) return
+        old_window = selected_frame%selected_window
+        old_buffer = current_buffer()
+        call select_window(window, status, norecord=.true.)
+        if (.not. status%ok()) return
+        if (direction > 0) then
+            call scroll_up_command(lines, status)
+        else
+            call scroll_down_command(lines, status)
+        end if
+        if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
+        if (buffer_live_p(old_buffer)) call set_buffer(old_buffer, st)
+    end subroutine scroll_other
+
+    recursive module subroutine scroll_other_window(lines, status)
+        type(value_type), intent(in) :: lines
+        type(status_type), intent(out) :: status
+        call scroll_other(lines, 1, status)
+    end subroutine scroll_other_window
+
+    recursive module subroutine scroll_other_window_down(lines, status)
+        type(value_type), intent(in) :: lines
+        type(status_type), intent(out) :: status
+        call scroll_other(lines, -1, status)
+    end subroutine scroll_other_window_down
+
+    !> Scroll next window upward LINES lines; or near full screen if no
+    !> ARG.  See `scroll_up_command' for details.  Port of
+    !> window.el:scroll-other-window (interactive "P").
+    recursive subroutine cmd_scroll_other_window(status)
+        type(status_type), intent(out) :: status
+        call scroll_other_window(current_prefix_arg, status)
+    end subroutine cmd_scroll_other_window
+
+    !> Scroll next window downward LINES lines; or near full screen if no
+    !> ARG.  See `scroll_down_command' for details.  Port of
+    !> window.el:scroll-other-window-down (interactive "P").
+    recursive subroutine cmd_scroll_other_window_down(status)
+        type(status_type), intent(out) :: status
+        call scroll_other_window_down(current_prefix_arg, status)
+    end subroutine cmd_scroll_other_window_down
 
     module subroutine syms_of_window()
         commands%scroll_up%run => cmd_scroll_up
@@ -478,10 +562,12 @@ contains
         commands%scroll_up_command%run => cmd_scroll_up_command
         commands%scroll_down_command%run => cmd_scroll_down_command
         commands%recenter%run => cmd_recenter
+        commands%scroll_other_window%run => cmd_scroll_other_window
+        commands%scroll_other_window_down%run => cmd_scroll_other_window_down
         commands%recenter_top_bottom%run => cmd_recenter_top_bottom
         commands%move_to_window_line%run => cmd_move_to_window_line
         commands%move_to_window_line_top_bottom%run => cmd_move_to_window_line_top_bottom
-        commands%quit_window%run => cmd_quit_window
         call syms_of_window_cmds()
+        call syms_of_window_display()
     end subroutine syms_of_window
 end submodule window_scroll_fm

@@ -382,7 +382,6 @@ contains
     !> rmc--show-help: fill the help buffer and show it at the bottom.
     subroutine show_help_window()
         type(handle_type) :: previous
-        type(window_type), pointer :: w
         character(len=:), allocatable :: text
         type(status_type) :: st
         integer :: lines, i
@@ -416,8 +415,7 @@ contains
             call split_window(selected_window(), 0, .false., .false., rmc_help_window, st)
             if (.not. st%ok()) return
         end if
-        w => window_ref(rmc_help_window)
-        call set_window_buffer(w, rmc_buf, st, record=.false.)
+        call set_window_buffer(rmc_help_window, rmc_buf, st)
     end subroutine show_help_window
     ! (/ (window-width) 25): the columns of the generated help.
     integer function help_columns() result(columns)

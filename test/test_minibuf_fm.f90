@@ -24,6 +24,7 @@
 module test_minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
@@ -45,7 +46,7 @@ module test_minibuf_fm
                              last_minibuffer_message
     use dired_fm, only: file_name_completion, file_name_all_completions
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type
+    use window_fm, only: window_type, get_buffer_window, window_leaves, same_window
     use bindings_fm, only: init_bindings
     use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
                           completion_table_type, completion_list_table, completion_obarray_table, &
@@ -194,6 +195,7 @@ contains
         call get_buffer_create("*scratch*", buf, st)
         call set_buffer(buf, st)
         last_message = ""
+        call show_alone()
     end subroutine fresh_scratch
 
     subroutine test_read(error)
@@ -1118,12 +1120,17 @@ contains
     end subroutine record_completion_state
 
     logical function showing_completions()
-        type(handle_type) :: c
-        type(window_type), pointer :: sw
+        type(handle_type) :: c, w
+        type(handle_type), allocatable :: leaves(:)
         c = get_buffer("*Completions*")
-        sw => frame_selected_window_ref()
-        showing_completions = c%index /= 0 .and. c%index == sw%buffer%index .and. &
-                              c%generation == sw%buffer%generation
+        showing_completions = .false.
+        if (c%index == 0) return
+        w = get_buffer_window(c)
+        if (w%index == 0) return
+        ! A window of its own at the bottom of the frame.
+        call window_leaves(selected_frame%root_window, leaves)
+        showing_completions = size(leaves) == 2 .and. same_window(w, leaves(2)) .and. &
+                              .not. same_window(w, selected_frame%selected_window)
     end function showing_completions
 
     !> Fresh scratch with <f9> recording the completion state.

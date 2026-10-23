@@ -492,17 +492,23 @@ contains
     !> `moved' is the number of screen lines moved, closer to zero at the
     !> beginning or end of the buffer.  Screen lines are those redisplay
     !> shows (xdisp_fm:display_line_rows).  Port of
-    !> indent.c:Fvertical_motion for the selected window (LINES or
-    !> (COLS . LINES); no CUR-COL).
-    subroutine vertical_motion(lines, moved, goal)
+    !> indent.c:Fvertical_motion (LINES or (COLS . LINES); no CUR-COL).
+    !> Lines are as wide as in WINDOW, by default the selected window.
+    subroutine vertical_motion(lines, moved, goal, window)
         integer(int64), intent(in) :: lines
         integer(int64), intent(out) :: moved
         integer, intent(in), optional :: goal
+        type(window_type), intent(in), optional :: window
         type(row_start_type), allocatable :: rows(:)
         integer(int64) :: bol, eol, target, pos, byte, row_end
         integer(int32) :: c
         integer :: nrows, width, x, n
-        width = window_text_width()
+        if (present(window)) then
+            width = window_text_cols(window) - 1
+            if (width < 1) width = DEFAULT_WIDTH - 1
+        else
+            width = window_text_width()
+        end if
         bol = pos_bol()
         call display_line_rows(cur, bol, width, rows, nrows, eol)
         target = display_row_of(buffers(cur)%pt, rows, nrows) + lines

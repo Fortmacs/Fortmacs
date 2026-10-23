@@ -24,6 +24,7 @@
 module test_simple_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
@@ -123,6 +124,7 @@ contains
         call erase_buffer(st)
         call deactivate_mark(.true.)
         call set(sym("kill_ring"), nil(), st)
+        call show_alone()
     end subroutine fresh
 
     !> Set the current buffer's text, point and mark according to
@@ -1163,7 +1165,7 @@ contains
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => frame_selected_window_ref()
-        call set_window_buffer(w, h, st)
+        call set_window_buffer(selected_frame%selected_window, h, st)
         this_command = nil()
         last_command = nil()
     end subroutine enter_window

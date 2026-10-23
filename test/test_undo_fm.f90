@@ -25,6 +25,7 @@
 module test_undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
     use lisp_fm, only: nil
@@ -70,6 +71,7 @@ contains
         call set_buffer(h, st)
         last_command = nil()
         this_command = nil()
+        call show_alone()
     end subroutine fresh
 
     !> Run the commands in `cmds` as the command loop would, each followed

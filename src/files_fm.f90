@@ -57,6 +57,7 @@ module files_fm
     use fns_fm, only: yes_or_no_p
     use derived_fm, only: major_mode_type, major_mode_named
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
+    use window_fm, only: pop_to_buffer_same_window
     implicit none(type, external)
     private
 
@@ -360,16 +361,16 @@ contains
         end if
     end subroutine after_find_file
 
-    !> Visit `filename' and make its buffer current (and so shown in the
-    !> selected window).  Port of files.el:find-file for programs (the
-    !> interactive file name prompt needs the minibuffer).
+    !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
+    !> its buffer in the selected window (`pop_to_buffer_same_window').  Port
+    !> of files.el:find-file (one file; WILDCARDS deferred).
     subroutine find_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
         call find_file_noselect(filename, buf, status)
         if (.not. status%ok()) return
-        call set_buffer(buf, status)
+        call pop_to_buffer_same_window(buf, status)
     end subroutine find_file
 
     ! ------------------------------------------------------------------

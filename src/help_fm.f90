@@ -52,15 +52,17 @@ module help_fm
     use keyboard_fm, only: read_key_sequence
     use callint_fm, only: commandp
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
-                         restore_buffer_modified_p, buffers, cur
+                         restore_buffer_modified_p, buffers, cur, buffer_live_p
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
     use xdisp_fm, only: message
     use minibuf_fm, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use help_mode_fm, only: help_mode, help_mode_map, init_help_mode
-    use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type, set_window_buffer
+    use frame_fm, only: selected_frame, selected_window
+    use window_fm, only: windows, window_live_p, same_window, window_leaves, temp_buffer_window_show, &
+                         pos_visible_in_window_p, QR_WINDOW, QR_FRAME, QR_OTHER
+    use derived_fm, only: derived_mode_p
     implicit none(type, external)
     private
 
@@ -310,43 +312,130 @@ contains
         end if
     end function utf8_length
 
-    !> Show `text' in the help buffer, in Help mode, and say how to get
-    !> back.  Port of help.el:with-help-window with help-window-setup (the
-    !> help buffer is shown in the selected window, which shows the
-    !> current buffer: so it becomes current).
+    !> Show `text' in the help buffer, in Help mode, in a window chosen by
+    !> `temp_buffer_window_show', and say how to quit it.  Port of
+    !> help.el:with-help-window and help--window-setup (no xrefs;
+    !> `help_window_point_marker' is deferred).
     subroutine with_help_window(text, status)
         character(len=*), intent(in) :: text
         type(status_type), intent(out) :: status
-        type(handle_type) :: buf, previous
-        type(window_type), pointer :: sw
+        type(handle_type) :: buf, previous, window
+        type(status_type) :: st
         previous = current_buffer()
         call get_buffer_create(help_buffer_name, buf, status)
         if (.not. status%ok()) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
+        if (.not. derived_mode_p(["help_mode"])) then
+            call help_mode(status)
+            if (.not. status%ok()) return
+        end if
         buffers(cur)%undo_enabled = .false.
         call set_buffer_read_only(buf, .false., status)
         call erase_buffer(status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
-        call restore_buffer_modified_p(.false.)
-        call goto_char(1_int64)
-        call help_mode(status)
+        call set_buffer_read_only(buf, .true., status)
+        call temp_buffer_window_show(buf, window, status)
         if (.not. status%ok()) return
-        ! display-buffer: the selected window (the root window, unless the
-        ! minibuffer is active) shows it, recording the buffer it showed.
-        if (.not. selected_frame%minibuffer_selected) then
-            sw => frame_selected_window_ref()
-            call set_window_buffer(sw, buf, status, record=.false.)
-            if (.not. status%ok()) return
-            ! The window showed the buffer that was current.
-            if (previous%index /= buf%index .or. previous%generation /= buf%generation) then
-                sw%prev_buffer = previous
-            end if
-        end if
-        call message(substitute_command_keys("Type \<help_mode_map>\[quit_window] to restore previous buffer"))
+        call help_window_setup(window)
+        if (buffer_live_p(previous)) call set_buffer(previous, st)
     end subroutine with_help_window
+
+    !> Display message telling how to quit and scroll help window.
+    !> QUIT_PART is a string telling how to quit the help window WINDOW.
+    !> SCROLL is 0 (don't tell how to scroll), 1 (tell how to scroll
+    !> WINDOW) or 2 (tell how to scroll the "other" window).  Port of
+    !> help.el:help-window-display-message.
+    subroutine help_window_display_message(quit_part, window, scroll)
+        character(len=*), intent(in) :: quit_part
+        type(handle_type), intent(in) :: window
+        integer, intent(in) :: scroll
+        character(len=:), allocatable :: scroll_part
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: zv
+        ! If we don't have QUIT_PART we probably reuse a window showing the
+        ! same buffer so we don't show any message.
+        if (len(quit_part) == 0) then
+            call message("")
+            return
+        end if
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, st)
+        zv = buffers(cur)%zv
+        if (buffer_live_p(old)) call set_buffer(old, st)
+        if (pos_visible_in_window_p(zv, window)) then
+            ! Buffer end is at least partially visible, no need to talk
+            ! about scrolling.
+            scroll_part = "."
+        else if (scroll == 2) then
+            scroll_part = ", \[scroll_other_window] to scroll help."
+        else if (scroll == 1) then
+            scroll_part = ", \[scroll_up_command] to scroll help."
+        else
+            scroll_part = ""
+        end if
+        call message(substitute_command_keys(quit_part//scroll_part))
+    end subroutine help_window_display_message
+
+    !> Set up help window WINDOW for `with_help_window'.  WINDOW is the
+    !> window used for displaying the help buffer.  Port of
+    !> help.el:help-window-setup (`help_window_select' nil, one frame).
+    subroutine help_window_setup(window)
+        type(handle_type), intent(in) :: window
+        integer :: help_setup, nwindows
+        type(handle_type), allocatable :: leaves(:)
+        if (.not. window_live_p(window)) return
+        help_setup = windows(window%index)%quit_restore%kind
+        call window_leaves(selected_frame%root_window, leaves)
+        nwindows = size(leaves)
+        if (same_window(window, selected_window())) then
+            ! The help window is or gets selected ...
+            select case (help_setup)
+            case (QR_WINDOW)
+                ! ... and is new, ...
+                call help_window_display_message("Type \<help_map>\[help_quit] to delete help window", window, 1)
+            case (QR_FRAME)
+                ! ... on a new frame, ...
+                call help_window_display_message("Type \<help_map>\[help_quit] to quit the help frame", window, 1)
+            case (QR_OTHER)
+                ! ... or displayed some other buffer before.
+                call help_window_display_message("Type \<help_map>\[help_quit] to restore previous buffer", &
+                                                 window, 1)
+            case default
+                call help_window_display_message("", window, 1)
+            end select
+        else if (nwindows == 2) then
+            ! There are two windows on the help window's frame and the
+            ! other one is the selected one.
+            select case (help_setup)
+            case (QR_WINDOW)
+                call help_window_display_message("Type \[delete_other_windows] to delete the help window", &
+                                                 window, 2)
+            case (QR_OTHER)
+                call help_window_display_message( &
+                    "Type \<help_map>\[help_quit] in help window to restore its previous buffer", window, 2)
+            case default
+                call help_window_display_message("", window, 2)
+            end select
+        else
+            ! The help window is not selected ...
+            select case (help_setup)
+            case (QR_WINDOW)
+                ! ... and is new, ...
+                call help_window_display_message("Type \<help_map>\[help_quit] in help window to delete it", &
+                                                 window, 0)
+            case (QR_OTHER)
+                ! ... or displayed some other buffer before.
+                call help_window_display_message( &
+                    "Type \<help_map>\[help_quit] in help window to restore previous buffer", window, 0)
+            case default
+                call help_window_display_message("", window, 0)
+            end select
+        end if
+    end subroutine help_window_setup
 
     !> " (found in MAP)" for the keymap variable holding the active map
     !> in which `keys' is bound; "" if none holds it.  The locus of

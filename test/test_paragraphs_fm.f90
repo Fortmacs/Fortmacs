@@ -22,6 +22,7 @@
 module test_paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type
@@ -85,6 +86,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call goto_char(point_min())
+        call show_alone()
     end subroutine temp_buffer
 
     subroutine test_forward_backward(error)

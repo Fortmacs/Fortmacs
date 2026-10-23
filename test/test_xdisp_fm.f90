@@ -33,12 +33,11 @@ module test_xdisp_fm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
-    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal
-    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, mode_line_row, &
+    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
+    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
                         mode_line_percent, recenter_start, message, mode_line_modes
     use keyboard_fm, only: last_message, set_minibuffer_message_text
     use frame_fm, only: selected_frame, ensure_frame_windows
-    use window_fm, only: windows, set_window_buffer
     use handle_fm, only: null_handle
     use editfns_fm, only: narrow_to_region, widen
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
@@ -392,6 +391,9 @@ contains
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        ! The selected window shows the buffer.
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
         ! Point at the start of line 60.
         call goto_char(line_start(60))
         call redisplay(f, st)
@@ -476,7 +478,7 @@ contains
         call buffer_with(" *Minibuf-1*", "", h, bi)
         call ensure_frame_windows()
         last_message = ""
-        call set_window_buffer(windows(selected_frame%minibuffer_window%index), h, st)
+        call set_window_buffer(selected_frame%minibuffer_window, h, st)
         call message("Mark set")
         call check(error, allocated(set_minibuffer_message_text), "shown")
         if (allocated(error)) return
@@ -550,6 +552,9 @@ contains
         call buffer_with("*xdisp-split*", text, h, bi)
         call builtin_xterm(ti)
         call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        ! The selected window shows the buffer.
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
         call goto_char(1_int64)
         call redisplay(f, st)
         top_left = f%root_window
