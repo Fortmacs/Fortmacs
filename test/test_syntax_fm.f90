@@ -35,6 +35,7 @@ module test_syntax_fm
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
     use simple_fm, only: current_kill
+    use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
     use syntax_fm, only: syntax_descriptor_type, string_to_syntax, syntax_class_to_char, char_syntax, &
                          modify_syntax_entry, make_syntax_table, copy_syntax_table, free_syntax_table, &
                          set_syntax_table, standard_syntax_table, matching_paren, syntax_entry, scan_words, &
@@ -58,7 +59,9 @@ contains
                     new_unittest("char-script", test_char_script), &
                     new_unittest("word-boundaries", test_word_boundaries), &
                     new_unittest("forward-word", test_forward_word), &
-                    new_unittest("word-keys", test_word_keys) &
+                    new_unittest("word-keys", test_word_keys), &
+                    new_unittest("skip-chars", test_skip_chars), &
+                    new_unittest("skip-syntax", test_skip_syntax) &
                     ]
     end subroutine collect_syntax_fm
 
@@ -324,4 +327,62 @@ contains
         call check(error, point() == 1 .and. mark_position() == 11 .and. buffers(cur)%mark_active, &
                    "M-@ twice marks two words")
     end subroutine test_word_keys
+
+    !> skip-chars-forward and -backward: ranges, negation, quoting,
+    !> character classes, limits and the return value.
+    subroutine test_skip_chars(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        integer(int64) :: moved
+        call temp_buffer("abcXYZ-123 éü!")
+        call goto_char(1_int64)
+        moved = skip_chars_forward("a-z", st)
+        call check(error, moved == 3 .and. point() == 4)
+        if (allocated(error)) return
+        moved = skip_chars_forward("^0-9", st)
+        call check(error, moved == 4 .and. point() == 8)
+        if (allocated(error)) return
+        moved = skip_chars_backward("A-Z\-", st)
+        call check(error, moved == -4 .and. point() == 4)
+        if (allocated(error)) return
+        call goto_char(8_int64)
+        moved = skip_chars_forward("[:digit:][:space:]", st)
+        call check(error, point() == 12)
+        if (allocated(error)) return
+        moved = skip_chars_forward("[:alpha:]", st)
+        call check(error, point() == 14, "multibyte letters")
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        moved = skip_chars_forward("a-z", st, 3_int64)
+        call check(error, point() == 3, "limit")
+        if (allocated(error)) return
+        ! `-' at the end is a literal; a reversed range is empty.
+        call goto_char(7_int64)
+        moved = skip_chars_forward("z-a-", st)
+        call check(error, point() == 8)
+        if (allocated(error)) return
+        moved = skip_chars_forward("[:bogus:]", st)
+        call check(error,.not. st%ok())
+    end subroutine test_skip_chars
+
+    subroutine test_skip_syntax(error)
+        type(error_type), allocatable, intent(out) :: error
+        integer(int64) :: moved
+        call temp_buffer("foo_bar  (baz)")
+        call goto_char(1_int64)
+        moved = skip_syntax_forward("w")
+        call check(error, moved == 3 .and. point() == 4)
+        if (allocated(error)) return
+        moved = skip_syntax_forward("w_")
+        call check(error, point() == 8)
+        if (allocated(error)) return
+        moved = skip_syntax_forward(" ")
+        call check(error, point() == 10)
+        if (allocated(error)) return
+        moved = skip_syntax_forward("^)")
+        call check(error, point() == 14)
+        if (allocated(error)) return
+        moved = skip_syntax_backward("^-")
+        call check(error, moved == -4 .and. point() == 10)
+    end subroutine test_skip_syntax
 end module test_syntax_fm

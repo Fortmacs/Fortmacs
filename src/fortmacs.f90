@@ -117,6 +117,13 @@ module fortmacs
                              upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &
                              downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
                              downcase_word, capitalize_word
+    use simple_fm, only: transpose_chars, transpose_words, transpose_lines, delete_horizontal_space, &
+                         delete_all_space, just_one_space, cycle_spacing, fixup_whitespace, delete_blank_lines, &
+                         delete_indentation
+    use paragraphs_fm, only: transpose_sentences, transpose_paragraphs
+    use syntax_fm, only: skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward
+    use novice_fm, only: enable_command, disable_command
+    use rmc_fm, only: rmc_choice_type, read_multiple_choice
     use replace_fm, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
                           replace_regexp, perform_replace, replacement_function
     ! Settings.
@@ -147,6 +154,10 @@ module fortmacs
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, sentence_end_base, &
                              sentence_end_double_space, sentence_end_without_period, sentence_end_without_space
     use casefiddle_fm, only: case_symbols_as_words
+    use simple_fm, only: fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, CYCLE_JUST_ONE_SPACE, &
+                         CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, CYCLE_RESTORE, &
+                         CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS
+    use novice_fm, only: disabled_command_function_p
     use replace_fm, only: case_replace, replace_lax_whitespace, replace_regexp_lax_whitespace, &
                           query_replace_skip_read_only, query_replace_show_replacement, &
                           query_replace_from_to_separator
@@ -192,7 +203,11 @@ module fortmacs
               upcase_initials_string, upcase_char, downcase_char, capitalize_char, upcase_initials_char, &
               upcase_region, downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
               downcase_word, capitalize_word, query_replace, query_replace_regexp, map_query_replace_regexp, &
-              replace_string, replace_regexp, perform_replace, replacement_function
+              replace_string, replace_regexp, perform_replace, replacement_function, transpose_chars, &
+              transpose_words, transpose_lines, transpose_sentences, transpose_paragraphs, delete_horizontal_space, &
+              delete_all_space, just_one_space, cycle_spacing, fixup_whitespace, delete_blank_lines, &
+              delete_indentation, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
+              skip_syntax_backward, enable_command, disable_command, rmc_choice_type, read_multiple_choice
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
@@ -208,5 +223,8 @@ module fortmacs
               sentence_end_base, sentence_end_double_space, sentence_end_without_period, &
               sentence_end_without_space, case_symbols_as_words, case_replace, replace_lax_whitespace, &
               replace_regexp_lax_whitespace, query_replace_skip_read_only, query_replace_show_replacement, &
-              query_replace_from_to_separator
+              query_replace_from_to_separator, fill_prefix, cycle_spacing_actions, cycle_spacing_action_type, &
+              CYCLE_JUST_ONE_SPACE, CYCLE_DELETE_SPACE_AFTER, CYCLE_DELETE_SPACE_BEFORE, CYCLE_DELETE_ALL_SPACE, &
+              CYCLE_RESTORE, CYCLE_ARG_NONE, CYCLE_ARG_FIXED, CYCLE_ARG_INVERTED, CYCLE_ARG_MINUS, &
+              disabled_command_function_p
 end module fortmacs

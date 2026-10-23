@@ -31,12 +31,12 @@
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode
+    use buffer_fm, only: buffers, cur, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, bobp, eobp, bolp, point_min, point_max, constrain_to_field
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
     use indent_fm, only: current_column
-    use simple_fm, only: kill_region, set_mark, push_mark
+    use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr
     use editfns_fm, only: mark_position
     use data_fm, only: value_eq
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
@@ -46,6 +46,7 @@ module paragraphs_fm
     implicit none(type, external)
     private
 
+    public :: transpose_paragraphs, transpose_sentences
     public :: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, backward_kill_paragraph, &
               start_of_paragraph_text, end_of_paragraph_text, syms_of_paragraphs
     public :: sentence_end_regexp, forward_sentence, backward_sentence, kill_sentence, backward_kill_sentence, &
@@ -643,6 +644,59 @@ contains
         call mark_end_of_sentence(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_mark_end_of_sentence
 
+    !> Interchange the current paragraph with the next one.
+    !> With prefix argument ARG a non-zero integer, moves the current
+    !> paragraph past ARG paragraphs, leaving point after the current paragraph.
+    !> If ARG is positive, moves the current paragraph forwards, if
+    !> ARG is negative moves it backwards.  If ARG is zero, exchanges
+    !> the current paragraph with the one containing the mark.  Port of
+    !> paragraphs.el:transpose-paragraphs.
+    subroutine transpose_paragraphs(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call transpose_subr(move_paragraphs, arg, status)
+    end subroutine transpose_paragraphs
+
+    !> Interchange the current sentence with the next one.
+    !> With prefix argument ARG a non-zero integer, moves the current
+    !> sentence past ARG sentences, leaving point after the current sentence.
+    !> If ARG is positive, moves the current sentence forwards, if
+    !> ARG is negative moves it backwards.  If ARG is zero, exchanges
+    !> the current sentence with the one containing the mark.  Port of
+    !> paragraphs.el:transpose-sentences.
+    subroutine transpose_sentences(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        call transpose_subr(move_sentences, arg, status)
+    end subroutine transpose_sentences
+
+    subroutine move_paragraphs(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        integer(int64) :: left
+        status = status_type()
+        left = forward_paragraph(n)
+    end subroutine move_paragraphs
+
+    subroutine move_sentences(n, status)
+        integer(int64), intent(in) :: n
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call forward_sentence(n)
+    end subroutine move_sentences
+
+    subroutine cmd_transpose_paragraphs(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call transpose_paragraphs(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_transpose_paragraphs
+
+    subroutine cmd_transpose_sentences(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (status%ok()) call transpose_sentences(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_transpose_sentences
+
     !> Give the variables their defaults and register the commands.
     subroutine syms_of_paragraphs()
         call init_paragraph_variables()
@@ -656,5 +710,7 @@ contains
         call defcommand("mark-paragraph", cmd_mark_paragraph)
         call defcommand("kill-paragraph", cmd_kill_paragraph)
         call defcommand("backward-kill-paragraph", cmd_backward_kill_paragraph)
+        call defcommand("transpose-paragraphs", cmd_transpose_paragraphs)
+        call defcommand("transpose-sentences", cmd_transpose_sentences)
     end subroutine syms_of_paragraphs
 end module paragraphs_fm

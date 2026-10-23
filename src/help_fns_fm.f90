@@ -40,7 +40,7 @@ module help_fns_fm
     use minibuf_fm, only: completion_obarray_table, completion_list_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use docstrings_fm, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
-    use help_fm, only: substitute_command_keys, with_help_window, describe_function_1_hook
+    use help_fm, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook
     implicit none(type, external)
     private
 
@@ -226,7 +226,20 @@ contains
             s = sym(trim(function_names(k)))
         end do
         describe_function_1_hook => describe_function_1
+        documentation_hook => documentation
         call defcommand("describe-function", cmd_describe_function)
         call defcommand("describe-variable", cmd_describe_variable)
     end subroutine syms_of_help_fns
+
+    !> The raw docstring of function NAME.  Port of doc.c:Fdocumentation
+    !> (RAW t; the compiled-in docstrings).
+    subroutine documentation(name, doc, found)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable, intent(out) :: doc
+        logical, intent(out) :: found
+        type(doc_entry_type) :: entry
+        doc = ""
+        call function_doc(name, entry, found)
+        if (found .and. allocated(entry%doc)) doc = entry%doc
+    end subroutine documentation
 end module help_fns_fm

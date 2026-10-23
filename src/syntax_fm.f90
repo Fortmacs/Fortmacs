@@ -61,7 +61,9 @@ module syntax_fm
     public :: syntax_descriptor_type, standard_syntax_table, make_syntax_table, copy_syntax_table, &
               free_syntax_table, syntax_table_live_p, syntax_table, set_syntax_table, string_to_syntax, &
               modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
-              matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax
+              matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
+              skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
+              skip_limit
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -99,6 +101,19 @@ module syntax_fm
 
     !> The table characters_syntax paints (it can't take arguments).
     integer(int64) :: painting = 0
+
+    interface
+        !> Port of syntax.c:skip_chars.  (In syntax_skip_fm, which can use
+        !> regex_emacs_fm for the character classes.)
+        module function skip_chars(forwardp, string, status, lim) result(moved)
+            implicit none(type, external)
+            logical, intent(in) :: forwardp
+            character(len=*), intent(in) :: string
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: lim
+            integer(int64) :: moved
+        end function skip_chars
+    end interface
 
 contains
 
@@ -732,4 +747,130 @@ contains
     subroutine syms_of_syntax()
         call defcommand("forward-word", cmd_forward_word)
     end subroutine syms_of_syntax
+
+    ! ------------------------------------------------------------------
+    ! Skipping characters and syntax classes
+    ! ------------------------------------------------------------------
+
+    !> Move point forward, stopping before a char not in STRING, or at pos LIM.
+    !> STRING is like the inside of a `[...]' in a regular expression
+    !> except that `]' is never special and `\' quotes `^', `-' or `\'
+    !>  (but not at the end of a range; quoting is never needed there).
+    !> Thus, with arg "a-zA-Z", this skips letters stopping before first nonletter.
+    !> With arg "^a-zA-Z", skips nonletters stopping before first letter.
+    !> Char classes, e.g. `[:alpha:]', are supported.
+    !>
+    !> Returns the distance traveled, either zero or positive.  Port of
+    !> syntax.c:Fskip_chars_forward.
+    integer(int64) function skip_chars_forward(string, status, lim) result(moved)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: lim
+        moved = skip_chars(.true., string, status, lim)
+    end function skip_chars_forward
+
+    !> Move point backward, stopping after a char not in STRING, or at pos LIM.
+    !> See `skip-chars-forward' for details.
+    !> Returns the distance traveled, either zero or negative.  Port of
+    !> syntax.c:Fskip_chars_backward.
+    integer(int64) function skip_chars_backward(string, status, lim) result(moved)
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: lim
+        moved = skip_chars(.false., string, status, lim)
+    end function skip_chars_backward
+
+    !> Move point forward across chars in specified syntax classes.
+    !> SYNTAX is a string of syntax code characters.
+    !> Stop before a char whose syntax is not in SYNTAX, or at position LIM.
+    !> If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX.
+    !> This function returns the distance traveled, either zero or positive.
+    !> Port of syntax.c:Fskip_syntax_forward.
+    integer(int64) function skip_syntax_forward(syntax, lim) result(moved)
+        character(len=*), intent(in) :: syntax
+        integer(int64), intent(in), optional :: lim
+        moved = skip_syntaxes(.true., syntax, lim)
+    end function skip_syntax_forward
+
+    !> Move point backward across chars in specified syntax classes.
+    !> SYNTAX is a string of syntax code characters.
+    !> Stop on reaching a char whose syntax is not in SYNTAX, or at position LIM.
+    !> If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX.
+    !> This function returns either zero or a negative number, and the absolute value
+    !> of this is the distance traveled.  Port of
+    !> syntax.c:Fskip_syntax_backward.
+    integer(int64) function skip_syntax_backward(syntax, lim) result(moved)
+        character(len=*), intent(in) :: syntax
+        integer(int64), intent(in), optional :: lim
+        moved = skip_syntaxes(.false., syntax, lim)
+    end function skip_syntax_backward
+
+    !> The limit of a skip: LIM (default the end of the accessible region
+    !> in the direction of motion), kept inside the accessible region.
+    integer(int64) function skip_limit(forwardp, lim) result(limit)
+        logical, intent(in) :: forwardp
+        integer(int64), intent(in), optional :: lim
+        associate (b => buffers(cur))
+            limit = merge(b%zv, b%begv, forwardp)
+            if (present(lim)) limit = lim
+            limit = max(b%begv, min(b%zv, limit))
+        end associate
+    end function skip_limit
+
+    !> Port of syntax.c:skip_syntaxes.
+    integer(int64) function skip_syntaxes(forwardp, syntax, lim) result(moved)
+        logical, intent(in) :: forwardp
+        character(len=*), intent(in) :: syntax
+        integer(int64), intent(in), optional :: lim
+        logical :: classes(0:15), negate
+        integer :: i, at
+        integer(int64) :: limit, start, pos, pos_byte
+        integer(int32) :: c
+        classes = .false.
+        negate = .false.
+        i = 1
+        if (len(syntax) > 0) then
+            if (syntax(1:1) == "^") then
+                negate = .true.
+                i = 2
+            end if
+        end if
+        do while (i <= len(syntax))
+            ! syntax_spec_code: `-' also stands for whitespace.
+            if (syntax(i:i) == "-") then
+                classes(SWHITESPACE) = .true.
+            else
+                at = index(syntax_code_spec, syntax(i:i))
+                if (at > 0) classes(at - 1) = .true.
+            end if
+            i = i + 1
+        end do
+        limit = skip_limit(forwardp, lim)
+        start = point()
+        pos = start
+        associate (b => buffers(cur))
+            if (forwardp) then
+                do while (pos < limit)
+                    pos_byte = char_to_byte(pos)
+                    c = buf_fetch_char(b, pos_byte)
+                    if (classes(char_syntax_class(int(c))) .eqv. negate) exit
+                    pos = pos + 1
+                end do
+            else
+                do while (pos > limit)
+                    pos_byte = char_to_byte(pos)
+                    if (b%multibyte) then
+                        pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+                    else
+                        pos_byte = pos_byte - 1
+                    end if
+                    c = buf_fetch_char(b, pos_byte)
+                    if (classes(char_syntax_class(int(c))) .eqv. negate) exit
+                    pos = pos - 1
+                end do
+            end if
+        end associate
+        call goto_char(pos)
+        moved = pos - start
+    end function skip_syntaxes
 end module syntax_fm

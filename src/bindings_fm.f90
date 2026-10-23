@@ -46,6 +46,7 @@ module bindings_fm
     use search_fm, only: syms_of_search
     use replace_fm, only: syms_of_replace
     use casefiddle_fm, only: syms_of_casefiddle
+    use novice_fm, only: syms_of_novice
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -180,6 +181,7 @@ contains
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
+        call syms_of_novice()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -283,6 +285,18 @@ contains
         call bind(ctl_x_map, "DEL", "backward-kill-sentence")
         call bind(esc_map, "%", "query-replace")
         call bind(esc_map, "C-%", "query-replace-regexp")
+        call bind(global_map, "C-t", "transpose-chars")
+        call bind(esc_map, "t", "transpose-words")
+        call bind(ctl_x_map, "C-t", "transpose-lines")
+        call bind(esc_map, "SPC", "cycle-spacing")
+        call bind(esc_map, "\", "delete-horizontal-space")
+        call bind(ctl_x_map, "C-o", "delete-blank-lines")
+        call bind(esc_map, "^", "delete-indentation")
+        call bind(esc_map, "u", "upcase-word")
+        call bind(esc_map, "l", "downcase-word")
+        call bind(esc_map, "c", "capitalize-word")
+        call bind(ctl_x_map, "C-u", "upcase-region")
+        call bind(ctl_x_map, "C-l", "downcase-region")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)

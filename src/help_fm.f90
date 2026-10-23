@@ -73,10 +73,22 @@ module help_fm
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: text
         end subroutine describe_function_1_proc
+
+        !> The raw docstring of function `name` (`found` false if none).
+        subroutine documentation_proc(name, doc, found)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable, intent(out) :: doc
+            logical, intent(out) :: found
+        end subroutine documentation_proc
     end interface
 
     !> help-fns.el:describe-function-1, set by help_fns_fm.
     procedure(describe_function_1_proc), pointer, public :: describe_function_1_hook => null()
+
+    !> doc.c:Fdocumentation (RAW), set by help_fns_fm, which holds the
+    !> compiled-in docstrings.
+    procedure(documentation_proc), pointer, public :: documentation_hook => null()
 
     !> Name of the help buffer.  help.el (help-buffer).
     character(len=*), parameter :: help_buffer_name = "*Help*"

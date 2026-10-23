@@ -120,7 +120,22 @@ module keyboard_fm
         subroutine redisplay_proc()
             implicit none(type, external)
         end subroutine redisplay_proc
+
+        !> Run a disabled command's handler instead of the command, if
+        !> CMD is disabled: `handled` says it was.
+        subroutine disabled_command_proc(cmd, handled, status)
+            import :: value_type, status_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: cmd
+            logical, intent(out) :: handled
+            type(status_type), intent(out) :: status
+        end subroutine disabled_command_proc
     end interface
+
+    !> Checks for disabled commands (simple.el:command-execute's `disabled`
+    !> property test and `disabled-command-function`), set by novice_fm;
+    !> null for none.
+    procedure(disabled_command_proc), pointer, public :: disabled_command_hook => null()
 
     !> Called by read_event before it waits for terminal input, so the
     !> screen is current.  Set by the program (xdisp_fm sits above this
@@ -702,7 +717,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: cmd
-        logical :: eof
+        logical :: eof, handled
         done = .false.
         this_command = nil()
         real_this_command = nil()
@@ -754,7 +769,9 @@ contains
         else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
             call execute_kbd_macro(cmd, prefix_numeric_value(current_prefix_arg))
         else
-            call call_interactively(cmd, status)
+            handled = .false.
+            if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
+            if (.not. handled) call call_interactively(cmd, status)
             if (.not. status%ok()) last_message = format_error(status)
         end if
         last_prefix_arg = current_prefix_arg

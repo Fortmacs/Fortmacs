@@ -31,6 +31,7 @@ module test_paragraphs_fm
     use keymap_fm, only: key_parse
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
+    use paragraphs_fm, only: transpose_paragraphs, transpose_sentences
     use paragraphs_fm, only: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
                              backward_kill_paragraph, start_of_paragraph_text, end_of_paragraph_text, &
                              sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, kill_sentence, &
@@ -54,6 +55,8 @@ contains
                     new_unittest("paragraphs-tests-mark-paragraph", test_mark), &
                     new_unittest("paragraphs-tests-kill-paragraph", test_kill), &
                     new_unittest("paragraphs-tests-backward-kill-paragraph", test_backward_kill), &
+                    new_unittest("paragraphs-tests-transpose-paragraphs", test_transpose_paragraphs), &
+                    new_unittest("paragraphs-tests-transpose-sentences", test_transpose_sentences), &
                     new_unittest("paragraphs-tests-start-of-paragraph-text", test_start_text), &
                     new_unittest("paragraphs-tests-end-of-paragraph-text", test_end_text), &
                     new_unittest("test-mark-paragraphs", test_mark_paragraphs), &
@@ -121,6 +124,28 @@ contains
         call kill_paragraph(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF)
     end subroutine test_kill
+
+    subroutine test_transpose_paragraphs(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call temp_buffer(AB)
+        call goto_char(1_int64)
+        call transpose_paragraphs(1_int64, st)
+        call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF//"AA"//LF//"AA"//LF, buffer_string())
+    end subroutine test_transpose_paragraphs
+
+    subroutine test_transpose_sentences(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call temp_buffer("First sentence.  Second sentence.  Third sentence.")
+        call goto_char(1_int64)
+        call transpose_sentences(1_int64, st)
+        call check(error, buffer_string() == "Second sentence.  First sentence.  Third sentence.", buffer_string())
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call transpose_sentences(2_int64, st)
+        call check(error, buffer_string() == "First sentence.  Third sentence.  Second sentence.", buffer_string())
+    end subroutine test_transpose_sentences
 
     subroutine test_backward_kill(error)
         type(error_type), allocatable, intent(out) :: error
