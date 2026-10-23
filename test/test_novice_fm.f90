@@ -27,7 +27,8 @@ module test_novice_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp
     use lread_fm, only: sym
-    use fns_fm, only: get
+    use callint_fm, only: find_command, command_type
+    use commands_fm, only: commands
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string, point_max
@@ -62,7 +63,7 @@ contains
         call discard_input()
         prefix_arg = nil()
         disabled_command_function_p = .true.
-        call disable_command("upcase-region", st)
+        commands%upcase_region%disabled = .true.
         call get_buffer_create("novice-test", h, st)
         call set_buffer(h, st)
         call insert("abc", st)
@@ -82,10 +83,9 @@ contains
 
     logical function disabled(name)
         character(len=*), intent(in) :: name
-        type(value_type) :: v
-        type(status_type) :: st
-        call get(sym(name), sym("disabled"), v, st)
-        disabled = .not. nilp(v)
+        type(command_type), pointer :: p
+        p => find_command(name)
+        disabled = p%disabled
     end function disabled
 
     subroutine test_answers(error)
@@ -137,7 +137,7 @@ contains
         user_init_file = path
         call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                         "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
-                        "        call put(""upcase-region"", ""disabled"", .true., st)"//LF// &
+                        "        commands%upcase_region%disabled = .true."//LF// &
                         "    end subroutine configure"//LF//"end module user_config"//LF)
         call enter(h)
         call enable_command("upcase-region", st)
@@ -150,15 +150,15 @@ contains
         text = read_text(user_init_file)
         call check(error, text == "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                    "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
-                   "        call put(""upcase-region"", ""disabled"", .false., st)"//LF// &
+                   "        commands%upcase_region%disabled = .false."//LF// &
                    "    end subroutine configure"//LF//"end module user_config"//LF, text)
         if (allocated(error)) return
         call disable_command("upcase-region", st)
         call check(error, disabled("upcase-region"))
         if (allocated(error)) return
         text = read_text(user_init_file)
-        call check(error, index(text, """disabled"", .true., st)") > 0 .and. &
-                   index(text, ".false., st)") == 0, text)
+        call check(error, index(text, "commands%upcase_region%disabled = .true.") > 0 .and. &
+                   index(text, ".false.") == 0, text)
         if (allocated(error)) return
         call enable_command("no-such-command", st)
         call check(error,.not. st%ok())

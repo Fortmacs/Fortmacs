@@ -38,6 +38,7 @@
 !>   `diff` answer yet; `occur` is a later step.
 module replace_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_string, make_list, stringp, xstring, nilp, list_elements, &
@@ -65,7 +66,7 @@ module replace_fm
                           isearch_no_upper_case_p, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit_1
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: push_mark, use_region_p, deactivate_mark
     use window_fm, only: recenter_top_bottom, scroll_up_command
     use help_fm, only: with_help_window
@@ -1587,10 +1588,10 @@ contains
         ! Default history list for `query-replace' commands.
         call symbol_value(sym("query-replace-history"), history, st)
         if (.not. st%ok()) call set(sym("query-replace-history"), nil(), st)
-        call defcommand("query-replace", cmd_query_replace)
-        call defcommand("query-replace-regexp", cmd_query_replace_regexp)
-        call defcommand("map-query-replace-regexp", cmd_map_query_replace_regexp)
-        call defcommand("replace-string", cmd_replace_string)
-        call defcommand("replace-regexp", cmd_replace_regexp)
+        commands%query_replace%run => cmd_query_replace
+        commands%query_replace_regexp%run => cmd_query_replace_regexp
+        commands%map_query_replace_regexp%run => cmd_map_query_replace_regexp
+        commands%replace_string%run => cmd_replace_string
+        commands%replace_regexp%run => cmd_replace_regexp
     end subroutine syms_of_replace
 end module replace_fm

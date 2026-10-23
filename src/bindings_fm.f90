@@ -29,6 +29,7 @@
 !> <home> and <end> use `beginning-of-line` and `end-of-line`.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list
@@ -37,7 +38,7 @@ module bindings_fm
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
                          define_key_range, use_global_map, set_keymap_parent, &
                          key_parse, keymap_live_p, free_keymap
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use keyboard_fm, only: local_function_key_map
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple, backward_word
@@ -168,6 +169,7 @@ contains
         type(status_type) :: status
         type(value_type) :: key(1)
         integer(int64) :: c
+        call intern_command_names()
         ! Rebuilding: drop the old maps.
         if (keymap_live_p(global_map)) call free_keymap(global_map, status)
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
@@ -176,10 +178,10 @@ contains
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
-        call defcommand("right-char", cmd_right_char)
-        call defcommand("left-char", cmd_left_char)
-        call defcommand("right-word", cmd_right_word)
-        call defcommand("left-word", cmd_left_word)
+        commands%right_char%run => cmd_right_char
+        commands%left_char%run => cmd_left_char
+        commands%right_word%run => cmd_right_word
+        commands%left_word%run => cmd_left_word
         call syms_of_syntax()
         call syms_of_paragraphs()
         call syms_of_search()

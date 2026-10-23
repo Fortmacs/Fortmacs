@@ -32,7 +32,7 @@ module test_derived_fm
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, buffers, cur
     use data_fm, only: symbol_value, set, set_default, value_eq, setq_local, local_variable_p
-    use callint_fm, only: defcommand
+    use callint_fm, only: command_type
     use eval_fm, only: run_hooks
     use subr_fm, only: add_hook, remove_hook, provided_mode_derived_p, derived_mode_p
     use keymap_fm, only: current_local_map, keymap_parent, keymap_set, key_binding, key_parse
@@ -46,6 +46,13 @@ module test_derived_fm
     private
 
     public :: collect_derived_fm
+
+    type(command_type), target :: cmd_test_derived_hook_a
+    type(command_type), target :: cmd_test_derived_hook_b
+    type(command_type), target :: cmd_test_derived_child_mode
+    type(command_type), target :: cmd_test_derived_hook_text
+    type(command_type), target :: cmd_test_derived_hook_child
+    type(command_type), target :: cmd_test_derived_hook_after
 
     !> The hook functions that ran, in order.
     character(len=:), allocatable :: trace
@@ -190,8 +197,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
         type(status_type) :: st
-        call defcommand("test-derived-hook-a", hook_a)
-        call defcommand("test-derived-hook-b", hook_b)
+        cmd_test_derived_hook_a = command_type("test-derived-hook-a", hook_a)
+        call cmd_test_derived_hook_a%define()
+        cmd_test_derived_hook_b = command_type("test-derived-hook-b", hook_b)
+        call cmd_test_derived_hook_b%define()
         call get_buffer_create("test-derived-hooks-A", a, st)
         call get_buffer_create("test-derived-hooks-B", b, st)
         call set_buffer(a, st)
@@ -280,10 +289,14 @@ contains
         type(value_type), allocatable :: key(:)
         call syms_of_text_mode()
         call define_derived_mode("test-derived-child-mode", "text-mode", "Child")
-        call defcommand("test-derived-child-mode", child_mode)
-        call defcommand("test-derived-hook-text", hook_text)
-        call defcommand("test-derived-hook-child", hook_child)
-        call defcommand("test-derived-hook-after", hook_after)
+        cmd_test_derived_child_mode = command_type("test-derived-child-mode", child_mode)
+        call cmd_test_derived_child_mode%define()
+        cmd_test_derived_hook_text = command_type("test-derived-hook-text", hook_text)
+        call cmd_test_derived_hook_text%define()
+        cmd_test_derived_hook_child = command_type("test-derived-hook-child", hook_child)
+        call cmd_test_derived_hook_child%define()
+        cmd_test_derived_hook_after = command_type("test-derived-hook-after", hook_after)
+        call cmd_test_derived_hook_after%define()
         call add_hook("text-mode-hook", "test-derived-hook-text", st)
         call add_hook("test-derived-child-mode-hook", "test-derived-hook-child", st)
         call add_hook("after-change-major-mode-hook", "test-derived-hook-after", st)
@@ -407,7 +420,8 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
         call syms_of_text_mode()
-        call defcommand("test-derived-hook-text", hook_text)
+        cmd_test_derived_hook_text = command_type("test-derived-hook-text", hook_text)
+        call cmd_test_derived_hook_text%define()
         call get_buffer_create("test-derived-normal", a, st)
         call set_buffer(a, st)
         buffers(cur)%filename = "/tmp/foo.text"

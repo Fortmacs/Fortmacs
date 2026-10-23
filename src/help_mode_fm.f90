@@ -27,10 +27,10 @@
 !> `n`, `p`), `s` (help-view-source), `i`/`I` (Info), `c` (customize),
 !> `g` (revert), `h`/`?` (describe-mode).
 module help_mode_fm
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use keymap_fm, only: keymap_live_p
-    use callint_fm, only: defcommand
     use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
     use simple_fm, only: syms_of_simple_modes
     implicit none(type, external)
@@ -49,7 +49,7 @@ contains
         call syms_of_simple_modes()
         call define_derived_mode("help-mode", "special-mode", "Help")
         help_mode_map = derived_mode_map("help-mode")
-        call defcommand("help-mode", help_mode)
+        commands%help_mode%run => help_mode
     end subroutine init_help_mode
 
     !> Major mode for viewing help text and navigating references in it.

@@ -54,10 +54,21 @@ if $style; then
         echo "fortitude $FORTITUDE_VERSION not found" >&2
         exit 1
     fi
-    # src/docstrings_fm.f90 is generated from the docstrings (help).
+    # src/commands_fm.f90 is generated from the `commands%NAME%run =>`
+    # assignments, src/docstrings_fm.f90 from the docstrings (help).
     if $fix; then
+        tools/gen-commands.sh
         tools/gen-docstrings.sh
     else
+        fresh=${TMPDIR:-/tmp}/commands_fm.$$.f90
+        tools/gen-commands.sh "$fresh"
+        if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
+            src/commands_fm.f90 "$fresh"; then
+            rm -f "$fresh"
+            echo "src/commands_fm.f90 is out of date: run tools/gen-commands.sh" >&2
+            exit 1
+        fi
+        rm -f "$fresh"
         fresh=${TMPDIR:-/tmp}/docstrings_fm.$$.f90
         tools/gen-docstrings.sh "$fresh"
         # (awk, not cmp or diff: the distro containers lack diffutils)

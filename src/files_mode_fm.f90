@@ -25,7 +25,7 @@ submodule(files_fm) files_mode_fm
     use lisp_fm, only: nil
     use data_fm, only: kill_all_local_variables, symbol_value
     use eval_fm, only: run_hooks, funcall_noargs
-    use callint_fm, only: command_defined_p
+    use callint_fm, only: fboundp
     use search_fm, only: string_match, case_fold_search
     use editfns_fm, only: point_min, point_max, buffer_substring
     implicit none(type, external)
@@ -202,7 +202,7 @@ contains
                 return
             end if
         end if
-        if (.not. command_defined_p(sym(mode))) then
+        if (.not. fboundp(sym(mode))) then
             call message("Ignoring unknown mode `"//mode//"'")
             return
         end if

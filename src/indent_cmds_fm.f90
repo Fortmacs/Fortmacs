@@ -30,6 +30,7 @@
 !> `edit-tab-stops`, right-to-left paragraphs, the margin text-property
 !> commands (`set-left-margin` and friends), abbrevs.
 submodule(indent_fm) indent_cmds_fm
+    use commands_fm, only: commands
     use error_fm, only: set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: nil, nilp, fixnump, xfixnum, make_keymap_ref
@@ -46,7 +47,7 @@ submodule(indent_fm) indent_cmds_fm
     use search_fm, only: looking_at, re_search_backward, re_search_forward, regexp_quote, SEARCH_NOERROR
     use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
     use keyboard_fm, only: this_command, last_command, set_transient_map
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation
     use buffer_fm, only: barf_if_buffer_read_only, vdeactivate_mark, left_margin
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
@@ -949,21 +950,21 @@ contains
     module procedure syms_of_indent
     type(value_type), allocatable :: key(:)
     type(status_type) :: st
-    call defcommand("indent-for-tab-command", cmd_indent_for_tab_command)
-    call defcommand("indent-according-to-mode", cmd_indent_according_to_mode)
-    call defcommand("indent-rigidly", cmd_indent_rigidly)
-    call defcommand("indent-rigidly-left", cmd_indent_rigidly_left)
-    call defcommand("indent-rigidly-right", cmd_indent_rigidly_right)
-    call defcommand("indent-rigidly-left-to-tab-stop", cmd_indent_rigidly_left_to_tab_stop)
-    call defcommand("indent-rigidly-right-to-tab-stop", cmd_indent_rigidly_right_to_tab_stop)
-    call defcommand("indent-region", cmd_indent_region)
-    call defcommand("indent-relative", cmd_indent_relative)
-    call defcommand("indent-relative-first-indent-point", cmd_indent_relative_first_indent_point)
-    call defcommand("tab-to-tab-stop", cmd_tab_to_tab_stop)
-    call defcommand("move-to-tab-stop", cmd_move_to_tab_stop)
-    call defcommand("move-to-left-margin", cmd_move_to_left_margin)
-    call defcommand("beginning-of-line-text", cmd_beginning_of_line_text)
-    call defcommand("indent-to", cmd_indent_to)
+    commands%indent_for_tab_command%run => cmd_indent_for_tab_command
+    commands%indent_according_to_mode%run => cmd_indent_according_to_mode
+    commands%indent_rigidly%run => cmd_indent_rigidly
+    commands%indent_rigidly_left%run => cmd_indent_rigidly_left
+    commands%indent_rigidly_right%run => cmd_indent_rigidly_right
+    commands%indent_rigidly_left_to_tab_stop%run => cmd_indent_rigidly_left_to_tab_stop
+    commands%indent_rigidly_right_to_tab_stop%run => cmd_indent_rigidly_right_to_tab_stop
+    commands%indent_region%run => cmd_indent_region
+    commands%indent_relative%run => cmd_indent_relative
+    commands%indent_relative_first_indent_point%run => cmd_indent_relative_first_indent_point
+    commands%tab_to_tab_stop%run => cmd_tab_to_tab_stop
+    commands%move_to_tab_stop%run => cmd_move_to_tab_stop
+    commands%move_to_left_margin%run => cmd_move_to_left_margin
+    commands%beginning_of_line_text%run => cmd_beginning_of_line_text
+    commands%indent_to%run => cmd_indent_to
     if (indent_rigidly_map%index == 0) then
         call make_sparse_keymap(indent_rigidly_map)
         call key_parse("TAB", key, st)

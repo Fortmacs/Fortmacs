@@ -55,8 +55,59 @@
 module lisp_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use handle_fm, only: handle_type
+    use error_fm, only: status_type
     implicit none(type, external)
     private
+
+    abstract interface
+        !> A command or function: it reads the prefix argument (commands
+        !> only) and reports errors through `status`.
+        subroutine command_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine command_proc
+    end interface
+
+    !> A named function: what upstream keeps in a symbol's function cell,
+    !> its interactive spec (`interactive`: a command) and its `disabled`
+    !> property.  Built-in ones are the components of `commands`
+    !> (commands_fm); define your own as a `target` variable and call
+    !> its `define`:
+    !>
+    !>     type(command_type), target :: insert_date_stamp_command
+    !>     insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+    !>     call insert_date_stamp_command%define()
+    type, public :: command_type
+        !> The name, as M-x and the help commands show it.
+        character(len=:), allocatable :: name
+        !> The procedure; null if the command is not defined.
+        procedure(command_proc), pointer, nopass :: run => null()
+        !> Whether it is a command (has an interactive spec), so M-x and
+        !> keys can run it.
+        logical :: interactive = .true.
+        !> Non-nil means running it interactively asks for confirmation
+        !> first (novice.el; the `disabled` property).
+        logical :: disabled = .false.
+        !> A message to show instead of the standard one when `disabled`
+        !> (a string `disabled` property).
+        character(len=:), allocatable :: disabled_message
+    contains
+        !> Make this command known by its name, to M-x, keymaps and the
+        !> help commands (upstream's defun).
+        procedure :: define => define_command
+    end type command_type
+
+    !> The pointer to a defined command.
+    type :: command_ref_type
+        type(command_type), pointer :: p => null()
+    end type command_ref_type
+
+    !> Commands defined with `define`, not built in.
+    type(command_ref_type), allocatable :: defined_commands(:)
+    integer :: n_defined_commands = 0
+
+    public :: command_proc, defined_command
 
     !> Value tags.
     integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
@@ -463,4 +514,47 @@ contains
         atoms(1)%span = size(atoms)
         call move_alloc(atoms, tail%a)
     end function list_tail
+
+    !> Make command SELF known by its name (replacing an earlier one of
+    !> the same name).
+    subroutine define_command(self)
+        class(command_type), target, intent(inout) :: self
+        type(command_ref_type), allocatable :: grown(:)
+        integer :: i
+        do i = 1, n_defined_commands
+            if (same_name(defined_commands(i)%p%name, self%name)) then
+                defined_commands(i)%p => self
+                return
+            end if
+        end do
+        if (.not. allocated(defined_commands)) allocate (defined_commands(16))
+        if (n_defined_commands == size(defined_commands)) then
+            allocate (grown(2*n_defined_commands))
+            grown(1:n_defined_commands) = defined_commands
+            call move_alloc(grown, defined_commands)
+        end if
+        n_defined_commands = n_defined_commands + 1
+        defined_commands(n_defined_commands)%p => self
+    end subroutine define_command
+
+    !> The command defined with `define` named NAME, or null.
+    function defined_command(name) result(p)
+        character(len=*), intent(in) :: name
+        type(command_type), pointer :: p
+        integer :: i
+        p => null()
+        do i = n_defined_commands, 1, -1
+            if (same_name(defined_commands(i)%p%name, name)) then
+                p => defined_commands(i)%p
+                return
+            end if
+        end do
+    end function defined_command
+
+    !> Whether A and B are the same string (`==` ignores trailing blanks).
+    pure logical function same_name(a, b)
+        character(len=*), intent(in) :: a, b
+        same_name = len(a) == len(b)
+        if (same_name) same_name = a == b
+    end function same_name
 end module lisp_fm

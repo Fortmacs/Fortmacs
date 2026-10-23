@@ -33,6 +33,7 @@
 !> echoing, octal input in quoted-insert.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_QUIT, &
                         FM_USER_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, FM_MARK_INACTIVE, &
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY
@@ -67,7 +68,7 @@ module simple_fm
     use minibuf_fm, only: completion_obarray_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use lread_fm, only: intern_soft
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_arg, &
+    use callint_fm, only: current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, mark_even_if_inactive, commandp, call_interactively
     use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          backward_prefix_chars
@@ -1076,61 +1077,61 @@ contains
     subroutine syms_of_simple()
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
-        call defcommand("execute-extended-command", cmd_execute_extended_command)
-        call defcommand("next-line", cmd_next_line)
-        call defcommand("previous-line", cmd_previous_line)
-        call defcommand("previous-history-element", cmd_previous_history_element)
-        call defcommand("next-history-element", cmd_next_history_element)
-        call defcommand("newline", cmd_newline)
-        call defcommand("open-line", cmd_open_line)
-        call defcommand("delete-backward-char", cmd_delete_backward_char)
-        call defcommand("delete-forward-char", cmd_delete_forward_char)
-        call defcommand("keyboard-quit", cmd_keyboard_quit)
-        call defcommand("quoted-insert", cmd_quoted_insert)
-        call defcommand("universal-argument", cmd_universal_argument)
-        call defcommand("universal-argument-more", cmd_universal_argument_more)
-        call defcommand("universal-argument-minus", cmd_universal_argument_minus)
-        call defcommand("negative-argument", cmd_negative_argument)
-        call defcommand("digit-argument", cmd_digit_argument)
-        call defcommand("undo", cmd_undo)
-        call defcommand("undo-only", cmd_undo_only)
-        call defcommand("undo-redo", cmd_undo_redo)
-        call defcommand("set-mark-command", cmd_set_mark_command)
-        call defcommand("exchange-point-and-mark", cmd_exchange_point_and_mark)
-        call defcommand("mark-whole-buffer", cmd_mark_whole_buffer)
-        call defcommand("pop-to-mark-command", cmd_pop_to_mark_command)
-        call defcommand("kill-region", cmd_kill_region)
-        call defcommand("copy-region-as-kill", cmd_copy_region_as_kill)
-        call defcommand("kill-ring-save", cmd_kill_ring_save)
-        call defcommand("kill-line", cmd_kill_line)
-        call defcommand("kill-whole-line", cmd_kill_whole_line)
-        call defcommand("yank", cmd_yank)
-        call defcommand("yank-pop", cmd_yank_pop)
-        call defcommand("rotate-yank-pointer", cmd_rotate_yank_pointer)
-        call defcommand("backward-word", cmd_backward_word)
-        call defcommand("kill-word", cmd_kill_word)
-        call defcommand("backward-kill-word", cmd_backward_kill_word)
-        call defcommand("transpose-chars", cmd_transpose_chars)
-        call defcommand("transpose-words", cmd_transpose_words)
-        call defcommand("transpose-lines", cmd_transpose_lines)
-        call defcommand("delete-horizontal-space", cmd_delete_horizontal_space)
-        call defcommand("delete-all-space", cmd_delete_all_space)
-        call defcommand("just-one-space", cmd_just_one_space)
-        call defcommand("cycle-spacing", cmd_cycle_spacing)
-        call defcommand("fixup-whitespace", cmd_fixup_whitespace)
-        call defcommand("delete-blank-lines", cmd_delete_blank_lines)
-        call defcommand("delete-indentation", cmd_delete_indentation)
+        commands%execute_extended_command%run => cmd_execute_extended_command
+        commands%next_line%run => cmd_next_line
+        commands%previous_line%run => cmd_previous_line
+        commands%previous_history_element%run => cmd_previous_history_element
+        commands%next_history_element%run => cmd_next_history_element
+        commands%newline%run => cmd_newline
+        commands%open_line%run => cmd_open_line
+        commands%delete_backward_char%run => cmd_delete_backward_char
+        commands%delete_forward_char%run => cmd_delete_forward_char
+        commands%keyboard_quit%run => cmd_keyboard_quit
+        commands%quoted_insert%run => cmd_quoted_insert
+        commands%universal_argument%run => cmd_universal_argument
+        commands%universal_argument_more%run => cmd_universal_argument_more
+        commands%universal_argument_minus%run => cmd_universal_argument_minus
+        commands%negative_argument%run => cmd_negative_argument
+        commands%digit_argument%run => cmd_digit_argument
+        commands%undo%run => cmd_undo
+        commands%undo_only%run => cmd_undo_only
+        commands%undo_redo%run => cmd_undo_redo
+        commands%set_mark_command%run => cmd_set_mark_command
+        commands%exchange_point_and_mark%run => cmd_exchange_point_and_mark
+        commands%mark_whole_buffer%run => cmd_mark_whole_buffer
+        commands%pop_to_mark_command%run => cmd_pop_to_mark_command
+        commands%kill_region%run => cmd_kill_region
+        commands%copy_region_as_kill%run => cmd_copy_region_as_kill
+        commands%kill_ring_save%run => cmd_kill_ring_save
+        commands%kill_line%run => cmd_kill_line
+        commands%kill_whole_line%run => cmd_kill_whole_line
+        commands%yank%run => cmd_yank
+        commands%yank_pop%run => cmd_yank_pop
+        commands%rotate_yank_pointer%run => cmd_rotate_yank_pointer
+        commands%backward_word%run => cmd_backward_word
+        commands%kill_word%run => cmd_kill_word
+        commands%backward_kill_word%run => cmd_backward_kill_word
+        commands%transpose_chars%run => cmd_transpose_chars
+        commands%transpose_words%run => cmd_transpose_words
+        commands%transpose_lines%run => cmd_transpose_lines
+        commands%delete_horizontal_space%run => cmd_delete_horizontal_space
+        commands%delete_all_space%run => cmd_delete_all_space
+        commands%just_one_space%run => cmd_just_one_space
+        commands%cycle_spacing%run => cmd_cycle_spacing
+        commands%fixup_whitespace%run => cmd_fixup_whitespace
+        commands%delete_blank_lines%run => cmd_delete_blank_lines
+        commands%delete_indentation%run => cmd_delete_indentation
         ! (defalias 'join-line #'delete-indentation)
-        call defcommand("join-line", cmd_delete_indentation)
-        call defcommand("back-to-indentation", cmd_back_to_indentation)
-        call defcommand("beginning-of-buffer", cmd_beginning_of_buffer)
-        call defcommand("end-of-buffer", cmd_end_of_buffer)
+        commands%join_line%run => cmd_delete_indentation
+        commands%back_to_indentation%run => cmd_back_to_indentation
+        commands%beginning_of_buffer%run => cmd_beginning_of_buffer
+        commands%end_of_buffer%run => cmd_end_of_buffer
         call syms_of_simple_fill()
         call syms_of_simple_modes()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
-        call defcommand("mark-word", cmd_mark_word)
+        commands%mark_word%run => cmd_mark_word
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------

@@ -30,6 +30,7 @@ module docstrings_fm
     use buffer_fm, only: fill_column, left_margin, transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use casefiddle_fm, only: case_symbols_as_words
+    use commands_fm, only: commands
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use files_fm, only: make_backup_files
@@ -80,7 +81,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(328) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(330) = [character(len=34) :: &
                                                                    "abort-minibuffers", &
                                                                    "add-auto-mode", &
                                                                    "add-hook", &
@@ -126,7 +127,6 @@ module docstrings_fm
                                                                    "default-boundp", &
                                                                    "default-indent-new-line", &
                                                                    "default-value", &
-                                                                   "defcommand", &
                                                                    "define-derived-mode", &
                                                                    "define-key", &
                                                                    "define-minor-mode", &
@@ -180,6 +180,7 @@ module docstrings_fm
                                                                    "forward-sentence", &
                                                                    "forward-word", &
                                                                    "fundamental-mode", &
+                                                                   "get", &
                                                                    "get-buffer-create", &
                                                                    "global-set-key", &
                                                                    "goto-char", &
@@ -308,6 +309,7 @@ module docstrings_fm
                                                                    "prog-mode", &
                                                                    "provided-mode-derived-p", &
                                                                    "push-mark", &
+                                                                   "put", &
                                                                    "query-replace", &
                                                                    "query-replace-regexp", &
                                                                    "quit-window", &
@@ -350,6 +352,7 @@ module docstrings_fm
                                                                    "set", &
                                                                    "set-auto-mode", &
                                                                    "set-buffer", &
+                                                                   "set-command-disabled", &
                                                                    "set-default", &
                                                                    "set-error", &
                                                                    "set-fill-column", &
@@ -411,12 +414,13 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(58) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(59) = [character(len=44) :: &
                                                                   "adaptive-fill-mode", &
                                                                   "case-fold-search", &
                                                                   "case-replace", &
                                                                   "case-symbols-as-words", &
                                                                   "colon-double-space", &
+                                                                  "commands", &
                                                                   "completion-auto-help", &
                                                                   "completion-fail-discreetly", &
                                                                   "completion-ignore-case", &
@@ -885,11 +889,6 @@ contains
                         "This is the value that is seen in buffers that do not have their own values"//LF// &
                         "for this variable.  The default value is meaningful for variables with"//LF// &
                         "local bindings in certain buffers."
-        case ("defcommand")
-            entry%file = "callint_fm.f90"
-            entry%fortran = "call defcommand(name, proc)"
-            entry%doc = "Register `proc` as the command named `name` (replacing any earlier"//LF// &
-                        "one).  The counterpart of defining an interactive function."
         case ("define-derived-mode")
             entry%file = "derived_fm.f90"
             entry%fortran = "call define_derived_mode(child, parent, name, syntax_table)"
@@ -1053,7 +1052,9 @@ contains
             entry%fortran = "call disable_command(command, status)"
             entry%interactive = .true.
             entry%doc = "Require special confirmation to execute COMMAND from now on."//LF// &
-                        "COMMAND must be a symbol."
+                        "COMMAND must be a symbol."//LF// &
+                        "This command alters your init file so that this choice applies to"//LF// &
+                        "future sessions."
         case ("do-auto-fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call do_auto_fill(status)"
@@ -1087,7 +1088,9 @@ contains
             entry%fortran = "call enable_command(command, status)"
             entry%interactive = .true.
             entry%doc = "Allow COMMAND to be executed without special confirmation from now on."//LF// &
-                        "COMMAND must be a symbol."
+                        "COMMAND must be a symbol."//LF// &
+                        "This command alters the user's init file so that this will apply"//LF// &
+                        "to future sessions."
         case ("end-of-buffer")
             entry%file = "simple_fm.f90"
             entry%fortran = "call end_of_buffer(arg)"
@@ -1344,6 +1347,10 @@ contains
             entry%interactive = .true.
             entry%doc = "Major mode not specialized for anything in particular."//LF// &
                         "Other major modes are defined by comparison with this one."
+        case ("get")
+            entry%file = "fns_fm.f90"
+            entry%fortran = "call get(symbol, prop, v, status)"
+            entry%doc = "Property `prop` of `symbol`."
         case ("get-buffer-create")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
@@ -2363,6 +2370,12 @@ contains
                         "ring.  Display `Mark set' unless the optional second arg NOMSG is"//LF// &
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
+        case ("put")
+            entry%file = "fns_fm.f90"
+            entry%fortran = "call put(symbol, prop, val, status)"
+            entry%doc = "`put` also takes the symbol and property by name and a logical"//LF// &
+                        "value (.false. is nil, .true. is t), so configuration code can"//LF// &
+                        "write `call put(""upcase-region"", ""disabled"", .false., status)`."
         case ("query-replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
@@ -2982,6 +2995,12 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "call set_buffer(h, status)"
             entry%doc = "Make `h` the current buffer."
+        case ("set-command-disabled")
+            entry%file = "callint_fm.f90"
+            entry%fortran = "call set_command_disabled(name, disabled, status)"
+            entry%doc = "Make the command named NAME disabled or not (its `disabled`"//LF// &
+                        "property), for a name only known at run time; built-in commands"//LF// &
+                        "are `commands%NAME%disabled`."
         case ("set-default")
             entry%file = "data_fm.f90"
             entry%fortran = "call set_default(symbol, v, status)"
@@ -3336,11 +3355,9 @@ contains
                         "from the user's input or from one of the possible completions."
         case ("turn-off-auto-fill")
             entry%file = "simple_fill_fm.f90"
-            entry%interactive = .true.
             entry%doc = ""
         case ("turn-on-auto-fill")
             entry%file = "simple_fill_fm.f90"
-            entry%interactive = .true.
             entry%doc = ""
         case ("undo")
             entry%file = "simple_fm.f90"
@@ -3576,6 +3593,10 @@ contains
             entry%original = ".false."
             entry%value = repr(colon_double_space)
             entry%doc = "Non-nil means put two spaces after a colon when filling."
+        case ("commands")
+            entry%file = "commands_fm.f90"
+            entry%fortran = "commands"
+            entry%doc = "The built-in commands."
         case ("completion-auto-help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"

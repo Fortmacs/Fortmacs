@@ -20,45 +20,31 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Commands are Fortran subroutines registered under a symbol, which is
-!> what keymaps bind.  Upstream a command is a function with an
-!> `interactive` spec, stored in the symbol's function cell; here the
-!> registry plays the function cell and a command reads its own
-!> arguments (the prefix argument is `current_prefix_arg`).
+!> Running commands.  A command is a `command_type` object (lisp_fm):
+!> built-in ones are the components of `commands` (commands_fm), others
+!> are defined with `define`.  Keymaps bind command names; upstream a
+!> command is a function with an `interactive` spec, stored in the
+!> symbol's function cell, and here a command reads its own arguments
+!> (the prefix argument is `current_prefix_arg`).
 !>
-!>     call defcommand("forward-char", cmd_forward_char)
-!>     call call_interactively(sym("forward-char"), status)
+!>     commands%forward_char%run => cmd_forward_char
 module callint_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, &
-                        FM_VOID_FUNCTION
+                        FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, V_LIST, V_STRING, nsymbols, vtag, nilp, &
                        fixnump, symbolp, consp, xfixnum, xsymbol, symbols, &
                        list_elt
     use lread_fm, only: intern, sym
+    use lisp_fm, only: command_type, command_proc, defined_command
+    use commands_fm, only: builtin_command, BUILTIN_COMMAND_NAMES
     use data_fm, only: value_eq
     implicit none(type, external)
     private
 
-    public :: command_proc, defcommand, commandp, command_defined_p
-    public :: call_interactively, prefix_numeric_value
-
-    abstract interface
-        !> A command.  It reads the prefix argument from
-        !> `current_prefix_arg` and reports errors through `status`.
-        subroutine command_proc(status)
-            import :: status_type
-            implicit none(type, external)
-            type(status_type), intent(out) :: status
-        end subroutine command_proc
-    end interface
-
-    type :: command_type
-        procedure(command_proc), pointer, nopass :: proc => null()
-    end type command_type
-
-    !> The registry, indexed by symbol id.
-    type(command_type), allocatable :: commands(:)
+    public :: command_proc, command_type, find_command, commandp, fboundp, command_defined_p, &
+              set_command_disabled, intern_command_names
+    public :: call_interactively, funcall, prefix_numeric_value
 
     !> callint.c:Vcurrent_prefix_arg: the raw prefix argument of the
     !> command being run.
@@ -76,35 +62,56 @@ module callint_fm
 
 contains
 
-    !> Register `proc` as the command named `name` (replacing any earlier
-    !> one).  The counterpart of defining an interactive function.
-    subroutine defcommand(name, proc)
+    !> The function named NAME: one defined with `command_type%define`,
+    !> else a built-in one (`commands`); null if there is none or it has no
+    !> procedure.
+    function find_command(name) result(p)
         character(len=*), intent(in) :: name
-        procedure(command_proc) :: proc
-        type(command_type), allocatable :: grown(:)
-        integer(int64) :: id
-        id = intern(name)
-        if (.not. allocated(commands)) allocate (commands(max(256_int64, 2*nsymbols)))
-        if (id > size(commands, kind=int64)) then
-            allocate (grown(max(id, 2*size(commands, kind=int64))))
-            grown(1:size(commands)) = commands
-            call move_alloc(grown, commands)
+        type(command_type), pointer :: p
+        p => defined_command(name)
+        if (.not. associated(p)) p => builtin_command(name)
+        if (associated(p)) then
+            if (.not. associated(p%run)) p => null()
         end if
-        commands(id)%proc => proc
-    end subroutine defcommand
+    end function find_command
 
-    !> Whether symbol `v` names a registered command.
+    !> The function named by symbol V, or null.
+    function symbol_command(v) result(p)
+        type(value_type), intent(in) :: v
+        type(command_type), pointer :: p
+        p => null()
+        if (.not. symbolp(v) .or. nilp(v)) return
+        p => find_command(symbols(xsymbol(v))%name)
+    end function symbol_command
+
+    !> Intern the names of the built-in commands, so that completion over
+    !> the obarray (M-x) sees them.
+    subroutine intern_command_names()
+        integer :: i
+        integer(int64) :: id
+        do i = 1, size(BUILTIN_COMMAND_NAMES)
+            id = intern(trim(BUILTIN_COMMAND_NAMES(i)))
+        end do
+    end subroutine intern_command_names
+
+    !> Return t if SYMBOL's function definition is not void.  Port of
+    !> data.c:Ffboundp.
+    logical function fboundp(v)
+        type(value_type), intent(in) :: v
+        fboundp = associated(symbol_command(v))
+    end function fboundp
+
+    !> Whether symbol `v` names a defined command (a function with an
+    !> interactive spec).
     logical function command_defined_p(v)
         type(value_type), intent(in) :: v
-        integer(int64) :: id
-        command_defined_p = .false.
-        if (.not. symbolp(v) .or. .not. allocated(commands)) return
-        id = xsymbol(v)
-        if (id > size(commands, kind=int64)) return
-        command_defined_p = associated(commands(id)%proc)
+        type(command_type), pointer :: p
+        p => symbol_command(v)
+        command_defined_p = associated(p)
+        if (command_defined_p) command_defined_p = p%interactive
     end function command_defined_p
 
-    !> Whether `v` can be run as a command: a registered command, or a
+    !> Whether `v` can be run as a command: a defined command, or a
     !> keyboard macro (a string or a list of events).  Port of
     !> eval.c:Fcommandp (for the kinds of commands that exist here).
     logical function commandp(v)
@@ -119,22 +126,64 @@ contains
         end select
     end function commandp
 
+    !> Make the command named NAME disabled or not (its `disabled`
+    !> property), for a name only known at run time; built-in commands
+    !> are `commands%NAME%disabled`.
+    subroutine set_command_disabled(name, disabled, status)
+        character(len=*), intent(in) :: name
+        logical, intent(in) :: disabled
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: p
+        status = status_type()
+        p => defined_command(name)
+        if (.not. associated(p)) p => builtin_command(name)
+        if (.not. associated(p)) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid command name `"//name//"'")
+            return
+        end if
+        p%disabled = disabled
+        if (allocated(p%disabled_message)) deallocate (p%disabled_message)
+    end subroutine set_command_disabled
+
     !> Run command `cmd`.  Port of callint.c:Fcall_interactively (the
     !> interactive spec is the command's own business here).  Recursive:
     !> a command may read the minibuffer, running commands in turn.
     recursive subroutine call_interactively(cmd, status)
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
-        if (.not. command_defined_p(cmd)) then
+        type(command_type), pointer :: p
+        p => symbol_command(cmd)
+        if (associated(p)) then
+            if (.not. p%interactive) p => null()
+        end if
+        if (.not. associated(p)) then
             if (symbolp(cmd)) then
-                call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(cmd))%name)
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//symbols(xsymbol(cmd))%name)
             else
-                call set_error(status, FM_GENERIC_ERROR, "Not a command")
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp")
             end if
             return
         end if
-        call commands(xsymbol(cmd))%proc(status)
+        call p%run(status)
     end subroutine call_interactively
+
+    !> Call function FN with no arguments.  Port of eval.c:Ffuncall (no
+    !> arguments).
+    recursive subroutine funcall(fn, status)
+        type(value_type), intent(in) :: fn
+        type(status_type), intent(out) :: status
+        type(command_type), pointer :: p
+        p => symbol_command(fn)
+        if (.not. associated(p)) then
+            if (symbolp(fn)) then
+                call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(fn))%name)
+            else
+                call set_error(status, FM_GENERIC_ERROR, "Invalid function")
+            end if
+            return
+        end if
+        call p%run(status)
+    end subroutine funcall
 
     !> The numeric value of raw prefix argument `raw`: nil gives 1, `-`
     !> gives -1, (N) and N give N.  Port of callint.c:Fprefix_numeric_value.
