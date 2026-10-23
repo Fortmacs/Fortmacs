@@ -35,17 +35,17 @@ module minibuffer_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
-                         set_buffer_read_only
+                         set_buffer_read_only, buffer_list
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
                          free_keymap
     use lisp_fm, only: value_type, nil, t_value, make_string, make_fixnum, list, list_elements, list_length, &
-                       list_elt, fixnump, xfixnum, stringp, xstring, nilp
+                       list_elt, fixnump, xfixnum, stringp, xstring, nilp, make_list
     use data_fm, only: value_eq
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
-    use frame_fm, only: selected_frame
-    use window_fm, only: set_window_buffer, set_window_start
+    use frame_fm, only: selected_frame, frame_selected_window_ref
+    use window_fm, only: window_type, set_window_buffer, set_window_start
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp
@@ -57,14 +57,14 @@ module minibuffer_fm
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
                           completion_predicate, completion_function_table, try_completion, all_completions, &
                           test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
-                          COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer
+                          COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table
     use fileio_fm, only: file_name_absolute_p, expand_file_name, substitute_in_file_name, file_name_directory, &
                          file_name_nondirectory, file_exists_p
     use files_fm, only: abbreviate_file_name
     implicit none(type, external)
     private
 
-    public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer
+    public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer, read_buffer
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               minibuffer_complete, minibuffer_complete_word, minibuffer_complete_and_exit, &
               minibuffer_completion_help, minibuffer_hide_completions, minibuffer_message, &
@@ -985,10 +985,12 @@ contains
     !> Whether the root window shows *Completions* (minibuffer--completions-visible).
     logical function completions_visible()
         type(handle_type) :: buf
+        type(window_type), pointer :: sw
+        sw => frame_selected_window_ref()
         buf = get_buffer("*Completions*")
         completions_visible = buf%index /= 0 .and. &
-                              selected_frame%root_window%buffer%index == buf%index .and. &
-                              selected_frame%root_window%buffer%generation == buf%generation
+                              sw%buffer%index == buf%index .and. &
+                              sw%buffer%generation == buf%generation
     end function completions_visible
 
     !> Scroll the window of possible completions: to the top when its end
@@ -996,13 +998,13 @@ contains
     !> completion--in-region-1.
     subroutine scroll_completions()
         type(status_type) :: status
-        associate (w => selected_frame%root_window)
-            if (w%window_end_valid) then
-                call set_window_start(w, 1_int64, status, noforce=.true.)
-            else
-                call set_window_start(w, w%window_end_pos, status)
-            end if
-        end associate
+        type(window_type), pointer :: w
+        w => frame_selected_window_ref()
+        if (w%window_end_valid) then
+            call set_window_start(w, 1_int64, status, noforce=.true.)
+        else
+            call set_window_start(w, w%window_end_pos, status)
+        end if
     end subroutine scroll_completions
 
     !> Display a list of possible completions of the current minibuffer
@@ -1021,6 +1023,7 @@ contains
         character(len=:), allocatable :: string
         integer(int64) :: s, e, base_size
         integer :: k
+        type(window_type), pointer :: sw
         call message("Making completion list...")
         s = minibuffer_prompt_end()
         if (present(start)) s = start
@@ -1064,11 +1067,12 @@ contains
         call set_buffer_read_only(buf, .true., status)
         call goto_char(1_int64)
         call set_buffer(mini, status)
+        sw => frame_selected_window_ref()
         if (.not. completions_visible()) then
-            completions_previous_buffer = selected_frame%root_window%buffer
-            call set_window_buffer(selected_frame%root_window, buf, status, record=.false.)
+            completions_previous_buffer = sw%buffer
+            call set_window_buffer(sw, buf, status, record=.false.)
         else
-            call set_window_start(selected_frame%root_window, 1_int64, status, noforce=.true.)
+            call set_window_start(sw, 1_int64, status, noforce=.true.)
         end if
         completions_scroll_window = .true.
     end subroutine minibuffer_completion_help
@@ -1103,6 +1107,7 @@ contains
         integer(int64) :: length, wwidth, columns, colwidth, column, cur_col, width
         integer :: k
         logical :: first
+        type(window_type), pointer :: sw
         call goto_char(point_max())
         ! completions-header-format
         write (count, "(i0)") size(strings)
@@ -1113,7 +1118,8 @@ contains
             length = max(length, schars(strings(k)%s))
         end do
         wwidth = 79
-        if (selected_frame%root_window%total_cols > 0) wwidth = selected_frame%root_window%total_cols - 1
+        sw => frame_selected_window_ref()
+        if (sw%total_cols > 0) wwidth = sw%total_cols - 1
         ! At least 2 spaces between columns; don't allocate more columns
         ! than we can fill.
         columns = min(max(1_int64, wwidth/(2 + length)), max(1_int64, int(size(strings), int64)/2))
@@ -1154,16 +1160,76 @@ contains
     subroutine minibuffer_hide_completions()
         type(status_type) :: status
         type(handle_type) :: previous
+        type(window_type), pointer :: sw
         if (.not. completions_visible()) return
         previous = completions_previous_buffer
         if (previous%index == 0) previous = minibuffer_calling_buffer
         if (previous%index == 0) return
-        call set_window_buffer(selected_frame%root_window, previous, status, record=.false.)
+        sw => frame_selected_window_ref()
+        call set_window_buffer(sw, previous, status, record=.false.)
     end subroutine minibuffer_hide_completions
 
     ! ------------------------------------------------------------------
     ! Reading with completion
     ! ------------------------------------------------------------------
+
+    !> Read the name of a buffer and return it as a string.
+    !> Prompt with PROMPT, which should be a string ending with a colon and a space.
+    !> Provides completion on buffer names the user types.
+    !> Optional second arg DEF is value to return if user enters an empty line,
+    !>  instead of that empty string; the prompt shows it.
+    !> Optional third arg REQUIRE-MATCH has the same meaning as the
+    !>  REQUIRE-MATCH argument of `completing-read'.
+    !> The buffer `except` (if given) is left out of the completions, as
+    !> internal-complete-buffer-except does.  Port of minibuf.c:Fread_buffer
+    !> (with format-prompt; internal buffers are not offered).
+    recursive subroutine read_buffer(prompt, result, status, def, require_match, except)
+        character(len=*), intent(in) :: prompt
+        character(len=:), allocatable, intent(out) :: result
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: def
+        integer, intent(in), optional :: require_match
+        type(handle_type), intent(in), optional :: except
+        type(handle_type), allocatable :: all(:)
+        type(value_type), allocatable :: names(:)
+        character(len=:), allocatable :: p
+        integer :: k, n, match
+        all = buffer_list()
+        allocate (names(size(all)))
+        n = 0
+        ! Most recently selected first.
+        do k = size(all), 1, -1
+            if (present(except)) then
+                if (all(k)%index == except%index .and. all(k)%generation == except%generation) cycle
+            end if
+            if (len(buffers(all(k)%index)%name) > 0) then
+                if (buffers(all(k)%index)%name(1:1) == " ") cycle
+            end if
+            n = n + 1
+            names(n) = make_string(buffers(all(k)%index)%name)
+        end do
+        match = REQUIRE_MATCH_NIL
+        if (present(require_match)) match = require_match
+        p = prompt
+        if (present(def)) then
+            if (len(def) > 0) then
+                ! Edit the default in before the colon (format-prompt with
+                ! minibuffer-default-prompt-format " (default %s)").
+                if (len(p) >= 2) then
+                    if (p(len(p) - 1:) == ": ") p = p(1:len(p) - 2)
+                end if
+                if (len(p) >= 1) then
+                    if (p(len(p):) == ":" .or. p(len(p):) == " ") p = p(1:len(p) - 1)
+                end if
+                p = p//" (default "//def//"): "
+            end if
+            call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
+                                 require_match=match, history="buffer-name-history", default=def)
+        else
+            call completing_read(p, completion_list_table(make_list(names(1:n))), result, status, &
+                                 require_match=match, history="buffer-name-history")
+        end if
+    end subroutine read_buffer
 
     !> Read a string in the minibuffer, with completion.
     !> PROMPT is a string to prompt with; normally it ends in a colon and

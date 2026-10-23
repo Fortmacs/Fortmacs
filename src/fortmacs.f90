@@ -99,6 +99,11 @@ module fortmacs
                              backward_kill_paragraph
     use help_fns_fm, only: describe_function, describe_variable
     use help_fm, only: substitute_command_keys
+    use window_fm, only: split_window, delete_window, delete_other_windows, other_window, select_window, &
+                         other_buffer, switch_to_buffer, quit_window
+    use frame_fm, only: selected_window
+    use buffer_fm, only: kill_buffer
+    use minibuffer_fm, only: read_buffer
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -152,6 +157,8 @@ module fortmacs
               char_syntax, standard_syntax_table, make_syntax_table, copy_syntax_table, set_syntax_table, &
               syntax_table, forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
               backward_kill_paragraph, describe_function, describe_variable, substitute_command_keys
+    public :: split_window, delete_window, delete_other_windows, other_window, select_window, selected_window, &
+              other_buffer, switch_to_buffer, quit_window, kill_buffer, read_buffer
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &

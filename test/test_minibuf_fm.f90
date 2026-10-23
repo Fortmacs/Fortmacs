@@ -43,7 +43,8 @@ module test_minibuf_fm
     use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
                              last_minibuffer_message
     use dired_fm, only: file_name_completion, file_name_all_completions
-    use frame_fm, only: selected_frame
+    use frame_fm, only: selected_frame, frame_selected_window_ref
+    use window_fm, only: window_type
     use bindings_fm, only: init_bindings
     use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
                           completion_table_type, completion_list_table, completion_obarray_table, &
@@ -742,9 +743,11 @@ contains
 
     logical function showing_completions()
         type(handle_type) :: c
+        type(window_type), pointer :: sw
         c = get_buffer("*Completions*")
-        showing_completions = c%index /= 0 .and. c%index == selected_frame%root_window%buffer%index .and. &
-                              c%generation == selected_frame%root_window%buffer%generation
+        sw => frame_selected_window_ref()
+        showing_completions = c%index /= 0 .and. c%index == sw%buffer%index .and. &
+                              c%generation == sw%buffer%generation
     end function showing_completions
 
     !> Fresh scratch with <f9> recording the completion state.

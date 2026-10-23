@@ -49,8 +49,8 @@ module minibuf_fm
     use keymap_fm, only: make_sparse_keymap, use_local_map, keymap_live_p
     use keyboard_fm, only: recursive_edit_1, throw_exit, command_loop_level, post_command_hook, &
                            redisplay_proc, last_message
-    use frame_fm, only: selected_frame
-    use window_fm, only: set_window_buffer, window_start, set_window_start
+    use frame_fm, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
+    use window_fm, only: window_type, set_window_buffer, window_start, set_window_start
     use subr_fm, only: add_to_history
     implicit none(type, external)
     private
@@ -253,6 +253,7 @@ contains
         type(handle_type), intent(in), optional :: keymap
         type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
         integer(int64) :: old_root_start, bi
+        type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
                                          saved_before
@@ -290,11 +291,13 @@ contains
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
         old_selected = selected_frame%minibuffer_selected
-        old_mini_buffer = selected_frame%minibuffer_window%buffer
+        sw => frame_selected_window_ref()
+        mw => minibuffer_window_ref()
+        old_mini_buffer = mw%buffer
         ! read-minibuffer-restore-windows: what the root window shows (the
         ! *Completions* list may replace it while reading).
-        old_root_buffer = selected_frame%root_window%buffer
-        old_root_start = window_start(selected_frame%root_window)
+        old_root_buffer = sw%buffer
+        old_root_start = window_start(sw)
         saved_hook => post_command_hook
         call set_buffer(minibuffer, status)
         if (.not. status%ok()) then
@@ -304,9 +307,9 @@ contains
         end if
         ! The minibuffer works in the caller's directory.
         if (have_dir) buffers(cur)%directory = ambient_dir
-        call set_window_buffer(selected_frame%minibuffer_window, minibuffer, st)
+        call set_window_buffer(mw, minibuffer, st)
         selected_frame%minibuffer_selected = .true.
-        selected_frame%minibuffer_window%hscroll = 0
+        mw%hscroll = 0
         ! The prompt: read-only text in its own field.
         call set(sym("inhibit-read-only"), t_value(), st)
         call erase_buffer(st)
@@ -344,14 +347,16 @@ contains
         call set(sym("inhibit-read-only"), nil(), st)
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
-        selected_frame%minibuffer_window%buffer = old_mini_buffer
-        if (old_root_buffer%index /= 0 .and. (selected_frame%root_window%buffer%index /= old_root_buffer%index .or. &
-                                              selected_frame%root_window%buffer%generation /= &
-                                              old_root_buffer%generation)) then
+        ! (Windows may have been made meanwhile: fetch them again.)
+        sw => frame_selected_window_ref()
+        mw => minibuffer_window_ref()
+        mw%buffer = old_mini_buffer
+        if (old_root_buffer%index /= 0 .and. (sw%buffer%index /= old_root_buffer%index .or. &
+                                              sw%buffer%generation /= old_root_buffer%generation)) then
             call resolve_buffer(old_root_buffer, bi, st)
             if (st%ok()) then
-                call set_window_buffer(selected_frame%root_window, old_root_buffer, st, record=.false.)
-                call set_window_start(selected_frame%root_window, old_root_start, st, noforce=.true.)
+                call set_window_buffer(sw, old_root_buffer, st, record=.false.)
+                call set_window_start(sw, old_root_start, st, noforce=.true.)
             end if
         end if
         call set_buffer(calling_buffer, st)

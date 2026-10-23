@@ -31,7 +31,7 @@ module emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_fm, only: version_string
-    use handle_fm, only: handle_type
+    use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
     use editfns_fm, only: goto_char, point_min
     use cmds_fm, only: forward_line
@@ -39,7 +39,7 @@ module emacs_fm
                          file_exists_p, file_executable_p, file_newer_than_file_p
     use files_fm, only: find_file_noselect
     use frame_fm, only: selected_frame
-    use window_fm, only: free_window
+    use window_fm, only: delete_window_tree, delete_window_object
     use sysdep_fm, only: install_interrupt_handler, emacs_isatty, sys_string_type, emacs_execv, emacs_strerror
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
@@ -226,7 +226,12 @@ contains
         ! buffer.c:init_buffer: *scratch* starts in the working directory.
         if (len(emacs_wd) > 0) buffers(cur)%directory = file_name_as_directory(emacs_wd)
         ! A fresh frame (emacs_main may run more than once in tests).
-        call free_window(selected_frame%root_window)
+        call delete_window_tree(selected_frame%root_window)
+        call delete_window_object(selected_frame%minibuffer_window)
+        selected_frame%root_window = null_handle()
+        selected_frame%selected_window = null_handle()
+        selected_frame%minibuffer_window = null_handle()
+        selected_frame%minibuffer_selected = .false.
         selected_frame%garbaged = .true.
         call init_tty(selected_frame%tty, terminal_type, fd, status)
         if (.not. status%ok()) return

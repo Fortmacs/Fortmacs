@@ -68,7 +68,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(173) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(185) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
@@ -98,7 +98,9 @@ module docstrings_fm
                                                                    "delete-backward-char", &
                                                                    "delete-char", &
                                                                    "delete-forward-char", &
+                                                                   "delete-other-windows", &
                                                                    "delete-region", &
+                                                                   "delete-window", &
                                                                    "describe-function", &
                                                                    "describe-key", &
                                                                    "describe-key-briefly", &
@@ -149,6 +151,7 @@ module docstrings_fm
                                                                    "keyboard-quit", &
                                                                    "keymap-global-set", &
                                                                    "keymap-set", &
+                                                                   "kill-buffer", &
                                                                    "kill-line", &
                                                                    "kill-new", &
                                                                    "kill-paragraph", &
@@ -184,6 +187,8 @@ module docstrings_fm
                                                                    "next-line", &
                                                                    "nil", &
                                                                    "open-line", &
+                                                                   "other-buffer", &
+                                                                   "other-window", &
                                                                    "point", &
                                                                    "point-max", &
                                                                    "point-min", &
@@ -194,6 +199,7 @@ module docstrings_fm
                                                                    "push-mark", &
                                                                    "quit-window", &
                                                                    "quoted-insert", &
+                                                                   "read-buffer", &
                                                                    "read-file-name-default", &
                                                                    "read-string", &
                                                                    "recenter", &
@@ -213,6 +219,8 @@ module docstrings_fm
                                                                    "scroll-up-command", &
                                                                    "search-backward", &
                                                                    "search-forward", &
+                                                                   "select-window", &
+                                                                   "selected-window", &
                                                                    "self-insert-command", &
                                                                    "set", &
                                                                    "set-buffer", &
@@ -220,8 +228,12 @@ module docstrings_fm
                                                                    "set-mark", &
                                                                    "set-mark-command", &
                                                                    "set-syntax-table", &
+                                                                   "split-window", &
+                                                                   "split-window-below", &
+                                                                   "split-window-right", &
                                                                    "standard-syntax-table", &
                                                                    "substitute-command-keys", &
+                                                                   "switch-to-buffer", &
                                                                    "sym", &
                                                                    "symbol-value", &
                                                                    "syntax-table", &
@@ -531,10 +543,27 @@ contains
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are killed (saved in the kill ring) instead of"//LF// &
                         "deleted."
+        case ("delete-other-windows")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call delete_other_windows(window, status)"
+            entry%interactive = .true.
+            entry%doc = "Make WINDOW fill its frame."//LF// &
+                        "WINDOW must be a valid window and defaults to the selected one."
         case ("delete-region")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call delete_region(start, end, status)"
             entry%doc = "Delete the text between `start` and `end` (either order)."
+        case ("delete-window")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call delete_window(window, status)"
+            entry%interactive = .true.
+            entry%doc = "Delete specified WINDOW."//LF// &
+                        "WINDOW must be a valid window and defaults to the selected one."//LF// &
+                        ""//LF// &
+                        "Signal an error if WINDOW is the only window on its frame."//LF// &
+                        ""//LF// &
+                        "If WINDOW is the selected window on its frame, choose some other"//LF// &
+                        "window as that frame's selected window: the most recently used one."
         case ("describe-function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
@@ -866,6 +895,16 @@ contains
             entry%fortran = "call keymap_set(keymap, key, definition, status)"
             entry%doc = "Bind a key given as a `key_valid_p` string.  A character `command`"//LF// &
                         "names a command (a symbol); a value is any key definition."
+        case ("kill-buffer")
+            entry%file = "buffer_fm.f90"
+            entry%fortran = "call kill_buffer(h, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill the buffer specified by BUFFER-OR-NAME."//LF// &
+                        "The argument may be a buffer or the name of an existing buffer."//LF// &
+                        "Argument nil or omitted means kill the current buffer."//LF// &
+                        ""//LF// &
+                        "A modified buffer visiting a file is killed only after asking (and"//LF// &
+                        "perhaps saving it)."
         case ("kill-line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1177,6 +1216,25 @@ contains
             entry%interactive = .true.
             entry%doc = "Insert a newline and leave point before it."//LF// &
                         "With arg N, insert N newlines."
+        case ("other-buffer")
+            entry%file = "window_fm.f90"
+            entry%fortran = "other_buffer(buffer)"
+            entry%doc = "Return most recently selected buffer other than BUFFER."//LF// &
+                        "Buffers not visible in windows are preferred to visible buffers."//LF// &
+                        "Ignore internal buffers (names starting with a space).  If no"//LF// &
+                        "other buffer exists, return the buffer `*scratch*' (creating it"//LF// &
+                        "if necessary)."
+        case ("other-window")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call other_window(count, status)"
+            entry%interactive = .true.
+            entry%doc = "Select another window in cyclic ordering of windows."//LF// &
+                        "COUNT specifies the number of windows to skip, starting with the"//LF// &
+                        "selected window, before making the selection.  If COUNT is"//LF// &
+                        "positive, skip COUNT windows forwards.  If COUNT is negative,"//LF// &
+                        "skip -COUNT windows backwards.  COUNT zero means do not skip any"//LF// &
+                        "window, so select the selected window.  In an interactive call,"//LF// &
+                        "COUNT is the numeric prefix argument."
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
@@ -1230,7 +1288,8 @@ contains
                         "true.  In Transient Mark mode, activate mark if optional third arg"//LF// &
                         "ACTIVATE is true."
         case ("quit-window")
-            entry%file = "window_scroll_fm.f90"
+            entry%file = "window_fm.f90"
+            entry%fortran = "call quit_window(status)"
             entry%interactive = .true.
             entry%doc = "Quit WINDOW and bury its buffer.  WINDOW is the selected one: it"//LF// &
                         "shows the buffer it showed before, or some other buffer."
@@ -1240,6 +1299,18 @@ contains
             entry%doc = "Read next input character and insert it."//LF// &
                         "This is useful for inserting control characters."//LF// &
                         "With argument, insert ARG copies of the character."
+        case ("read-buffer")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "call read_buffer(prompt, result, status, def, require_match, except)"
+            entry%doc = "Read the name of a buffer and return it as a string."//LF// &
+                        "Prompt with PROMPT, which should be a string ending with a colon and a space."//LF// &
+                        "Provides completion on buffer names the user types."//LF// &
+                        "Optional second arg DEF is value to return if user enters an empty line,"//LF// &
+                        " instead of that empty string; the prompt shows it."//LF// &
+                        "Optional third arg REQUIRE-MATCH has the same meaning as the"//LF// &
+                        " REQUIRE-MATCH argument of `completing-read'."//LF// &
+                        "The buffer `except` (if given) is left out of the completions, as"//LF// &
+                        "internal-complete-buffer-except does."
         case ("read-file-name-default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
@@ -1459,6 +1530,19 @@ contains
                         "`case-fold-search', which see."//LF// &
                         ""//LF// &
                         "See also the functions `match-beginning' and `match-end'."
+        case ("select-window")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call select_window(h, status, norecord)"
+            entry%doc = "Select WINDOW which must be a live window.  Also make WINDOW's"//LF// &
+                        "buffer current and make WINDOW the frame's selected window; point"//LF// &
+                        "becomes WINDOW's point.  Unless `norecord`, record the buffer as"//LF// &
+                        "most recently selected."
+        case ("selected-window")
+            entry%file = "frame_fm.f90"
+            entry%fortran = "selected_window()"
+            entry%doc = "Return the selected window.  The selected window is the window in"//LF// &
+                        "which the standard cursor for selected windows appears and to"//LF// &
+                        "which many commands apply."
         case ("self-insert-command")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
@@ -1506,6 +1590,44 @@ contains
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
+        case ("split-window")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call split_window(window, size, have_size, horizontal, new, status)"
+            entry%doc = "Make a new window adjacent to WINDOW: below it, or with"//LF// &
+                        "`horizontal` to its right.  Without `have_size` both get half its"//LF// &
+                        "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
+                        "WINDOW, a negative one minus the size of the new window, in lines"//LF// &
+                        "or columns.  The new window shows WINDOW's buffer, start and"//LF// &
+                        "point."
+        case ("split-window-below")
+            entry%file = "window_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Split WINDOW-TO-SPLIT into two windows, one above the other."//LF// &
+                        "WINDOW-TO-SPLIT defaults to the selected window if omitted or nil."//LF// &
+                        "The newly created window will be below WINDOW-TO-SPLIT and will show"//LF// &
+                        "the same buffer as WINDOW-TO-SPLIT."//LF// &
+                        ""//LF// &
+                        "If optional argument SIZE is omitted or nil, both windows get the"//LF// &
+                        "same height, or close to it.  If SIZE is positive, the upper"//LF// &
+                        "(selected) window gets SIZE lines.  If SIZE is negative, the"//LF// &
+                        "lower (new) window gets -SIZE lines.  Interactively, SIZE is"//LF// &
+                        "the prefix numeric argument."//LF// &
+                        ""//LF// &
+                        "Both windows get the same value of point as the WINDOW-TO-SPLIT."
+        case ("split-window-right")
+            entry%file = "window_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Split WINDOW-TO-SPLIT into two side-by-side windows."//LF// &
+                        "WINDOW-TO-SPLIT defaults to the selected window if omitted or nil."//LF// &
+                        "The newly created window will be to the right of WINDOW-TO-SPLIT and"//LF// &
+                        "will show the same buffer as WINDOW-TO-SPLIT."//LF// &
+                        ""//LF// &
+                        "If optional argument SIZE is omitted or nil, both windows get the"//LF// &
+                        "same width, or close to it.  If SIZE is positive, the left-hand"//LF// &
+                        "(selected) window gets SIZE columns.  If SIZE is negative, the"//LF// &
+                        "right-hand (new) window gets -SIZE columns.  Here, SIZE includes"//LF// &
+                        "the width of the divider column to the window's right."//LF// &
+                        "Interactively, SIZE is the prefix numeric argument."
         case ("standard-syntax-table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "standard_syntax_table()"
@@ -1532,6 +1654,19 @@ contains
                         "\= quotes the following character and is discarded; thus, \=\= puts \="//LF// &
                         "into the output, \=\[ puts \[ into the output, and \=` puts ` into the"//LF// &
                         "output."
+        case ("switch-to-buffer")
+            entry%file = "window_fm.f90"
+            entry%fortran = "call switch_to_buffer(name, status)"
+            entry%interactive = .true.
+            entry%doc = "Display buffer BUFFER-OR-NAME in the selected window."//LF// &
+                        ""//LF// &
+                        "If called interactively, read the buffer name using `read-buffer'."//LF// &
+                        "The variable `confirm-nonexistent-file-or-buffer' determines"//LF// &
+                        "whether to request confirmation before creating a new buffer."//LF// &
+                        ""//LF// &
+                        "If BUFFER-OR-NAME is a string that does not identify an existing"//LF// &
+                        "buffer, create a buffer with that name.  If BUFFER-OR-NAME is"//LF// &
+                        "empty, switch to the buffer returned by `other-buffer'."
         case ("sym")
             entry%file = "lread_fm.f90"
             entry%fortran = "sym(name)"

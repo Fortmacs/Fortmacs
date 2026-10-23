@@ -173,10 +173,25 @@ module buffer_fm
     integer(int64), protected, public :: cur = 0
 
     type(slot_table_type) :: table
-    !> Live buffers in creation order (upstream Vbuffer_alist).
+    !> Live buffers, least recently selected first (upstream Vbuffer_alist,
+    !> most recent first): made or `record_buffer`ed ones go last.
     type(handle_type), allocatable :: alist(:)
     integer(int64) :: alist_count = 0
     integer(int64) :: last_serial = 0
+
+    abstract interface
+        !> Something to do with buffer `h`.
+        subroutine buffer_proc(h)
+            import :: handle_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: h
+        end subroutine buffer_proc
+    end interface
+
+    !> Called by kill_buffer before it kills a buffer, to have the windows
+    !> showing it show another (window.el replace-buffer-in-windows, set by
+    !> window_fm; buffer_fm is below the windows).
+    procedure(buffer_proc), pointer, public :: replace_buffer_in_windows_hook => null()
 
     interface
         !> Kill buffer `h`: unchain its markers, free its text, and if it was
@@ -198,7 +213,7 @@ module buffer_fm
 
     public :: resolve_buffer, buffer_live_p, current_buffer, buffer_handle
     public :: get_buffer, get_buffer_create, generate_new_buffer_name, get_file_buffer
-    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list
+    public :: buffer_name, buffer_last_name, rename_buffer, buffer_list, record_buffer
     public :: set_buffer, kill_buffer, erase_buffer
     public :: buffer_modified_p, restore_buffer_modified_p, &
               buffer_modified_tick, buffer_chars_modified_tick
@@ -452,8 +467,8 @@ contains
         buffers(cur)%name = actual
     end subroutine rename_buffer
 
-    !> Live buffers in creation order.  Port of buffer.c:Fbuffer_list
-    !> (without frame-local ordering).
+    !> Live buffers, least recently selected (or made) first.  Port of
+    !> buffer.c:Fbuffer_list in reverse (and without frame-local ordering).
     function buffer_list() result(list)
         type(handle_type), allocatable :: list(:)
         if (alist_count == 0) then
@@ -475,6 +490,22 @@ contains
         end if
         cur = i
     end subroutine set_buffer
+
+    !> Move buffer `h` to the most recently selected end of the buffer
+    !> list.  Port of buffer.c:record_buffer.
+    subroutine record_buffer(h)
+        type(handle_type), intent(in) :: h
+        integer(int64) :: k, j
+        do k = 1, alist_count
+            if (alist(k)%index == h%index .and. alist(k)%generation == h%generation) then
+                do j = k, alist_count - 1
+                    alist(j) = alist(j + 1)
+                end do
+                alist(alist_count) = h
+                return
+            end if
+        end do
+    end subroutine record_buffer
 
     subroutine alist_append(h)
         type(handle_type), intent(in) :: h

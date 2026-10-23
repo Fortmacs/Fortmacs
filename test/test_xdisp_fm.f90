@@ -33,7 +33,7 @@ module test_xdisp_fm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
-    use window_fm, only: free_window
+    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal
     use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width
     use keyboard_fm, only: last_message
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
@@ -57,6 +57,7 @@ contains
                     new_unittest("layout-region-face", test_region), &
                     new_unittest("mode-line-text", test_mode_line), &
                     new_unittest("redisplay-recenters", test_redisplay), &
+                    new_unittest("redisplay-split-windows", test_split_redisplay), &
                     new_unittest("emacs-main-on-a-pty", test_emacs_main) &
                     ]
     end subroutine collect_xdisp_fm
@@ -266,7 +267,8 @@ contains
         call redisplay(f, st)
         call check(error, row_text(f%current_matrix%rows(23)), "Hello")
         last_message = ""
-        call free_window(f%root_window)
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
         call kill_buffer(h, st)
     contains
 
@@ -315,4 +317,55 @@ contains
         call close_fd(slave)
         call close_fd(master)
     end subroutine test_emacs_main
+
+    !> A frame split in three: two windows side by side above one, each
+    !> with its mode line, a vertical border between the upper two.
+    subroutine test_split_redisplay(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h, below, right, top_left
+        type(status_type) :: st
+        character(len=:), allocatable :: text, out, row
+        character(len=12) :: line
+        integer(int64) :: bi
+        integer :: k
+        text = ""
+        do k = 1, 40
+            write (line, '("line ",i0)') k
+            text = text//trim(line)//achar(10)
+        end do
+        call buffer_with("*xdisp-split*", text, h, bi)
+        call builtin_xterm(ti)
+        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call goto_char(1_int64)
+        call redisplay(f, st)
+        top_left = f%root_window
+        call split_window_internal(top_left, .false., 11, f%root_window, below, st)
+        call split_window_internal(top_left, .true., 40, f%root_window, right, st)
+        call redisplay(f, st)
+        out = tty_take_output(f%tty)
+        row = row_text(f%current_matrix%rows(0))
+        call check(error, row(1:6) == "line 1" .and. row(40:40) == "|" .and. row(41:46) == "line 1", row)
+        if (allocated(error)) return
+        row = row_text(f%current_matrix%rows(10))
+        call check(error, row(1:7) == "line 11" .and. row(40:40) == "|" .and. row(41:47) == "line 11", row)
+        if (allocated(error)) return
+        ! The upper windows' mode lines, then the lower window's text.
+        row = row_text(f%current_matrix%rows(11))
+        call check(error, row(1:5) == "-UUU:" .and. row(41:45) == "-UUU:" .and. &
+                   index(row(1:40), "*xdisp-split*") > 0 .and. index(row(41:), "*xdisp-split*") > 0, row)
+        if (allocated(error)) return
+        row = row_text(f%current_matrix%rows(12))
+        call check(error, row(1:6) == "line 1" .and. len_trim(row) == 6, row)
+        if (allocated(error)) return
+        row = row_text(f%current_matrix%rows(22))
+        call check(error, row(1:5) == "-UUU:" .and. index(row, "(Fundamental)") > 0, row)
+        if (allocated(error)) return
+        ! The cursor is in the selected (upper left) window.
+        call check(error, f%cursor_vpos == 0 .and. f%cursor_hpos == 0, "cursor")
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call kill_buffer(h, st)
+    end subroutine test_split_redisplay
 end module test_xdisp_fm
