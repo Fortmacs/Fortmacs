@@ -111,7 +111,6 @@ module easy_mmode_fm
     !> The defined minor modes.
     type(minor_mode_ref_type), allocatable :: defined(:)
 
-
     ! Characters of whitespace syntax in the standard syntax table.
     character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)//achar(12)//achar(13)
 contains

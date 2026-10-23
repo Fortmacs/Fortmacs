@@ -26,7 +26,7 @@ submodule(simple_fm) simple_modes_fm
     use commands_fm, only: commands
     use data_fm, only: kill_all_local_variables
     use subr_fm, only: run_mode_hooks
-    use keymap_fm, only: keymap_set
+    use keymap_fm, only: keymap_set, define_key
     use modes_fm, only: major_modes, minor_modes
     implicit none(type, external)
 
@@ -91,6 +91,8 @@ contains
     commands%indent_tabs_mode%run => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map
+    ! subr.el:suppress-keymap: (define-key map [remap self-insert-command] #'undefined).
+    call define_key(map, [sym("remap"), sym("self_insert_command")], sym("undefined"), st)
     call keymap_set(map, "q", "quit_window", st)
     call keymap_set(map, "SPC", "scroll_up_command", st)
     call keymap_set(map, "S-SPC", "scroll_down_command", st)

@@ -42,8 +42,7 @@ module test_fill_fm
     use paragraphs_fm, only: sentence_end_double_space
     use bindings_fm, only: init_bindings
     use fill_fm, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
-                       fill_nobreak_predicate, fill_polish_nobreak_p, set_fill_prefix, fill_context_prefix, &
-                       adaptive_fill_regexp
+                       fill_nobreak_predicate, fill_polish_nobreak_p, set_fill_prefix, fill_context_prefix
     implicit none(type, external)
     private
 
@@ -375,28 +374,22 @@ contains
     end subroutine run_erts_test
 
     !> fill-match-adaptive-prefix limits the prefix by its length in
-    !> characters, not its width: three wide characters (width 6) are a
-    !> prefix with fill-column 5.
+    !> characters, not its width: a tab (width 8) is a prefix with
+    !> fill-column 5.
     subroutine test_prefix_length(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        character(len=:), allocatable :: saved, prefix
+        character(len=:), allocatable :: prefix
         logical :: found
-        character(len=*), parameter :: WIDE = "全全全"
         call get_buffer_create("*fill-prefix-length*", h, st)
         call set_buffer(h, st)
-        call insert(WIDE//"abc"//LF//WIDE//"def"//LF, st)
+        call insert(achar(9)//"abc"//LF//achar(9)//"def"//LF, st)
         call init_bindings()
-        ! (The first call gives the fill variables their defaults.)
-        call fill_context_prefix(point_min(), point_max(), prefix, found)
-        saved = adaptive_fill_regexp
-        adaptive_fill_regexp = "全*"
         fill_column = 5_int64
         call fill_context_prefix(point_min(), point_max(), prefix, found)
         fill_column = 70_int64
-        adaptive_fill_regexp = saved
-        call check(error, found .and. prefix == WIDE, prefix)
+        call check(error, found .and. prefix == achar(9), "["//prefix//"]")
         call kill_buffer(h, st)
     end subroutine test_prefix_length
 end module test_fill_fm

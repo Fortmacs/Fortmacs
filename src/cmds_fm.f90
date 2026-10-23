@@ -388,7 +388,7 @@ contains
     !> Port of cmds.c:Fdelete_char (the command).
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
-        call delete_char(arg_p(), status, .not. nilp(current_prefix_arg))
+        call delete_char(arg_p(), status,.not. nilp(current_prefix_arg))
     end subroutine cmd_delete_char
 
     !> Insert the character you type.

@@ -157,7 +157,6 @@ module fill_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-
     ! fill-paragraph-function is t: fill_minibuffer_function is running.
     logical :: filling_minibuffer = .false.
 contains

@@ -79,7 +79,7 @@ module keymap_fm
     public :: key_parse, key_description, single_key_description, &
               push_key_description
     public :: key_valid_p, keymap_set, keymap_global_set
-    public :: where_is_internal, keymap_events
+    public :: where_is_internal, keymap_events, command_remapping
 
     !> Bind a key given as a `key_valid_p' string.  A character `command'
     !> names a command (a symbol); a value is any key definition.
@@ -310,13 +310,14 @@ contains
     end function keymap_parent
 
     !> The events `km' binds to non-nil definitions, as subr.el's
-    !> set-transient-map collects them by pushing what map-keymap visits:
-    !> the parent's first, then each map's in the order they were first
-    !> defined.  Character ranges are not included.
+    !> set-transient-map collects them by pushing what map-keymap visits
+    !> (so in the reverse order): the parent's first.  Character ranges
+    !> are not included.
     recursive subroutine keymap_events(km, events)
         type(handle_type), intent(in) :: km
         type(value_type), allocatable, intent(out) :: events(:)
         type(value_type), allocatable :: inherited(:), all(:)
+        integer, allocatable :: order(:)
         integer(int64) :: j, n, k
         if (.not. table%is_live(km)) then
             allocate (events(0))
@@ -327,14 +328,15 @@ contains
         else
             allocate (inherited(0))
         end if
-        n = keymaps(km%index)%n
+        call entry_order(keymaps(km%index), order)
+        n = size(order, kind=int64)
         allocate (all(size(inherited, kind=int64) + n))
         k = size(inherited, kind=int64)
         if (k > 0) all(1:k) = inherited
-        do j = 1, n
-            if (nilp(keymaps(km%index)%bindings(j))) cycle
+        do j = n, 1, -1
+            if (nilp(keymaps(km%index)%bindings(order(j)))) cycle
             k = k + 1
-            all(k) = keymaps(km%index)%events(j)
+            all(k) = keymaps(km%index)%events(order(j))
         end do
         allocate (events(k))
         if (k > 0) events = all(1:k)
@@ -1098,17 +1100,53 @@ contains
     end function current_active_maps
 
     !> Binding of `key' in the active maps (local, then global); nil if
-    !> none.  Port of keymap.c:Fkey_binding without remapping.
-    subroutine key_binding(key, val, status, accept_default)
+    !> none.  If the binding is a command, its remapping (a binding of
+    !> [remap COMMAND]) is returned instead, unless NO_REMAP is true.
+    !> Port of keymap.c:Fkey_binding (no POSITION).
+    recursive subroutine key_binding(key, val, status, accept_default, no_remap)
         type(value_type), intent(in) :: key(:)
         type(value_type), intent(out) :: val
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: accept_default
-        type(value_type) :: maps
+        logical, intent(in), optional :: accept_default, no_remap
+        type(value_type) :: maps, remapped
+        logical :: remap
         maps = current_active_maps()
         call lookup_key(maps, key, val, status, accept_default)
         if (fixnump(val)) val = nil()
+        remap = .true.
+        if (present(no_remap)) remap = .not. no_remap
+        ! If the result of the ordinary keymap lookup is an interactive
+        ! command, look for a key binding (ie. remapping) for that command.
+        if (remap .and. symbolp(val) .and. .not. nilp(val)) then
+            call command_remapping(val, remapped)
+            if (.not. nilp(remapped)) val = remapped
+        end if
     end subroutine key_binding
+
+    !> Return the remapping for command COMMAND.
+    !> Returns nil if COMMAND is not remapped (or not a symbol).
+    !>
+    !> If the optional argument KEYMAPS is present, it should be a keymap
+    !> or list of keymaps to search for command remapping.  Otherwise,
+    !> search for the remapping in all currently active keymaps.  Port of
+    !> keymap.c:Fcommand_remapping (no POSITION).
+    recursive subroutine command_remapping(command, remapped, keymaps)
+        type(value_type), intent(in) :: command
+        type(value_type), intent(out) :: remapped
+        type(value_type), intent(in), optional :: keymaps
+        type(value_type) :: key(2)
+        type(status_type) :: st
+        remapped = nil()
+        if (.not. symbolp(command)) return
+        key(1) = make_symbol_ref(intern("remap"))
+        key(2) = command
+        if (present(keymaps)) then
+            call lookup_key(keymaps, key, remapped, st)
+        else
+            call key_binding(key, remapped, st, no_remap=.true.)
+        end if
+        if (.not. st%ok() .or. fixnump(remapped)) remapped = nil()
+    end subroutine command_remapping
 
     ! ------------------------------------------------------------------
     ! Descriptions

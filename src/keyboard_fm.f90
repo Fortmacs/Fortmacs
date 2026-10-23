@@ -51,7 +51,7 @@ module keyboard_fm
     use keymap_fm, only: keymapp, keymap_live_p, access_keymap, &
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
-                         overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key
+                         overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping
     use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
@@ -403,12 +403,18 @@ contains
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
-    !> Port of keyboard.c:test_undefined (without command remapping).
+    !> Whether BINDING is undefined: nil, `undefined', or a command
+    !> remapped to `undefined'.  Port of keyboard.c:test_undefined.
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
+        type(value_type) :: remapped
         test_undefined = nilp(binding)
         if (.not. test_undefined .and. symbolp(binding)) then
             test_undefined = xsymbol(binding) == intern("undefined")
+            if (.not. test_undefined) then
+                call command_remapping(binding, remapped)
+                if (symbolp(remapped)) test_undefined = xsymbol(remapped) == intern("undefined")
+            end if
         end if
     end function test_undefined
 
@@ -792,7 +798,7 @@ contains
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(value_type) :: cmd
+        type(value_type) :: cmd, remapped
         logical :: eof, handled
         done = .false.
         this_command = nil()
@@ -812,6 +818,11 @@ contains
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
+        ! Remap command through active keymaps (read_key_sequence_remapped).
+        if (symbolp(cmd) .and. .not. nilp(cmd)) then
+            call command_remapping(cmd, remapped)
+            if (.not. nilp(remapped)) cmd = remapped
+        end if
         last_command_event = keys(size(keys))
         this_command_keys = keys
         this_command = cmd

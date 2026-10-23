@@ -48,7 +48,9 @@ module test_simple_fm
                          cycle_spacing
     use cmds_fm, only: forward_line, end_of_line, self_insert_command, delete_char, auto_fill_chars
     use simple_fm, only: newline, open_line, turn_on_auto_fill, turn_off_auto_fill, inhibit_auto_fill, &
-                         end_of_buffer, indicate_copied_region, transient_mark_mode_hook
+                         end_of_buffer, indicate_copied_region, transient_mark_mode_hook, special_mode, &
+                         fundamental_mode
+    use keymap_fm, only: key_parse, key_binding
     use buffer_fm, only: left_margin, fill_column, transient_mark_mode, auto_fill_function
     use undo_fm, only: this_command_amalgamating
     use callint_fm, only: mark_even_if_inactive, current_prefix_arg
@@ -106,7 +108,8 @@ contains
                     new_unittest("transpose-with-inactive-mark", test_transpose_mark), &
                     new_unittest("yank-pop-read-only", test_yank_pop_read_only), &
                     new_unittest("end-of-buffer-recenters", test_end_of_buffer), &
-                    new_unittest("kill-ring-save-indicates", test_indicate_copied_region) &
+                    new_unittest("kill-ring-save-indicates", test_indicate_copied_region), &
+                    new_unittest("special-mode-suppresses-self-insert", test_special_mode_suppress) &
                     ]
     end subroutine collect_simple_fm
 
@@ -1198,15 +1201,15 @@ contains
         call goto_char(7_int64*25 + 1)
         last_message = ""
         call indicate_copied_region()
-        call check(error, last_message, 'Copied text from "line01'//"^J"//'line02'//"^J"//'line03'//"^J"//'line04'// &
-                   "^J"//'line05'//"^J"//'line0"')
+        call check(error, last_message, 'Copied text from "line01'//"^J"//"line02"//"^J"//"line03"//"^J"//"line04"// &
+                   "^J"//"line05"//"^J"//'line0"')
         if (allocated(error)) return
         call set_window_start(frame_selected_window_ref(), 1_int64, st)
         call goto_char(1_int64)
         call set_mark(7_int64*25 + 1)
         last_message = ""
         call indicate_copied_region(10_int64)
-        call check(error, last_message, 'Copied text until "24'//"^J"//'line25'//"^J"//'"')
+        call check(error, last_message, 'Copied text until "24'//"^J"//"line25"//"^J"//'"')
         if (allocated(error)) return
         ! Visible: no message; point and mark are back.
         call set_mark(8_int64)
@@ -1216,4 +1219,31 @@ contains
         call check(error, last_message == "" .and. point() == 1 .and. mark_position() == 8, "blink")
         call leave_window(h)
     end subroutine test_indicate_copied_region
+
+    !> special-mode-map is a suppressed keymap: self-insert-command is
+    !> remapped to `undefined', so letters are undefined keys there.
+    subroutine test_special_mode_suppress(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        type(value_type) :: binding
+        type(value_type), allocatable :: key(:)
+        call fresh(h)
+        call init_bindings()
+        call discard_input()
+        prefix_arg = nil()
+        call special_mode(st)
+        call key_parse("x", key, st)
+        call key_binding(key, binding, st)
+        call check(error, value_eq(binding, sym("undefined")), "key-binding remaps")
+        if (allocated(error)) return
+        call key_binding(key, binding, st, no_remap=.true.)
+        call check(error, value_eq(binding, sym("self_insert_command")), "no remap")
+        if (allocated(error)) return
+        call kbd_store_bytes("x")
+        call command_loop(st)
+        call check(error, buffer_string() == "" .and. last_message == "x is undefined", last_message)
+        call fundamental_mode(st)
+        call kill_buffer(h, st)
+    end subroutine test_special_mode_suppress
 end module test_simple_fm

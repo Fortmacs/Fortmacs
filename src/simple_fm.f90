@@ -27,10 +27,13 @@
 !> recording is undo_fm's.  The mark and region (Transient Mark mode) and the
 !> kill ring are here too.
 !>
-!> Not ported yet: undo in a region, the global mark ring, shift-selection, the
-!> interprogram (system clipboard) cut and paste, `yank_from_kill_ring',
-!> electric indentation, auto-fill and hard newlines, prefix-argument
-!> echoing, octal input in quoted-insert.
+!> Not ported yet: undo in a region (undo-make-selective-list), temporary
+!> Transient Mark mode ((only . OLD) and lambda), the global mark ring,
+!> shift-selection, the interprogram (system clipboard) cut and paste,
+!> `yank_from_kill_ring' (read-from-kill-ring needs completion metadata,
+!> history positions and display properties), the timer of the M-x key
+!> binding suggestion, electric indentation, hard newlines and
+!> prefix-argument echoing.
 module simple_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -69,7 +72,7 @@ module simple_fm
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p, &
-                         key_description, where_is_internal, lookup_key
+                         key_description, where_is_internal, lookup_key, command_remapping
     use minibuf_fm, only: completion_obarray_table
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use lread_fm, only: intern_soft
@@ -96,8 +99,8 @@ module simple_fm
     public :: fundamental_mode, special_mode, syms_of_simple_modes
 
     !> Non-nil means show the equivalent keybinding when M-x has one.
-    !> (A length of time is not supported: the suggestion shows until the
-    !> next command.)  Port of simple.el suggest-key-bindings.
+    !> (A length of time is not supported, nor the timer: the suggestion
+    !> shows at once if the echo area is empty, until the next command.)  Port of simple.el suggest-key-bindings.
     logical, public :: suggest_key_bindings = .true.
 
     public :: read_quoted_char, ascii_character
@@ -590,7 +593,7 @@ contains
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_backward_char(n, status, .not. nilp(current_prefix_arg))
+            call delete_backward_char(n, status,.not. nilp(current_prefix_arg))
         end if
     end subroutine cmd_delete_backward_char
 
@@ -620,7 +623,7 @@ contains
         if (use_region_p() .and. delete_active_region .and. n == 1) then
             call delete_the_region(status)
         else
-            call delete_char(n, status, .not. nilp(current_prefix_arg))
+            call delete_char(n, status,.not. nilp(current_prefix_arg))
         end if
     end subroutine cmd_delete_forward_char
 
@@ -653,7 +656,7 @@ contains
         done = .false.
         first = .true.
         code = 0
-        digits = min(10, read_quoted_char_radix)
+        digits = min(10_int64, read_quoted_char_radix)
         do while (.not. done)
             call read_event(ev, have, status)
             if (.not. status%ok() .or. .not. have) return
@@ -706,7 +709,7 @@ contains
             integer(int64), intent(out) :: lc
             lc = c
             if (c <= MAX_CHAR) lc = downcase(int(c, int32))
-            downcase_in_radix = iachar("a") <= lc .and. lc < iachar("a") - 10 + min(36, read_quoted_char_radix)
+            downcase_in_radix = iachar("a") <= lc .and. lc < iachar("a") - 10 + min(36_int64, read_quoted_char_radix)
         end function downcase_in_radix
     end subroutine read_quoted_char
 
@@ -793,6 +796,8 @@ contains
             c = 12
         case ("escape")
             c = 27
+        case default
+            c = -1
         end select
     end function ascii_character
 
@@ -1282,7 +1287,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: command_name
         character(len=:), allocatable :: name
-        type(value_type) :: function, binding
+        type(value_type) :: function, binding, remapped
         type(value_type), allocatable :: keys(:)
         integer(int64) :: id
         logical :: handled
@@ -1303,6 +1308,13 @@ contains
         end if
         binding = nil()
         if (suggest_key_bindings) call where_is_internal(function, binding, firstonly=.true.)
+        ! If we're executing a command that's remapped, we can't actually
+        ! execute that command with the keymapping we've found with
+        ! `where_is_internal'.
+        if (.not. nilp(binding)) then
+            call command_remapping(function, remapped)
+            if (.not. nilp(remapped)) binding = nil()
+        end if
         this_command = function
         ! Normally `real_this_command' should never be changed, but here we
         ! really want to pretend that M-x <cmd> RET is nothing more than a
