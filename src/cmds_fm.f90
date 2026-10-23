@@ -32,7 +32,7 @@ module cmds_fm
                         FM_BEGINNING_OF_BUFFER, &
                         FM_END_OF_BUFFER
     use buffer_fm, only: buffers, cur, BUF_BYTES_MAX, buf_fetch_byte, &
-                         temp_set_point_both
+                         temp_set_point_both, auto_fill_function, auto_fill_proc
     use search_fm, only: scan_newline_from_point
     use insdel_fm, only: del_range
     use editfns_fm, only: line_beginning_position, line_end_position, goto_char, &
@@ -48,6 +48,10 @@ module cmds_fm
 
     public :: forward_char, backward_char, forward_line, beginning_of_line, &
               end_of_line, delete_char, self_insert_command, syms_of_cmds
+
+    !> simple.el:internal-auto-fill, which `self-insert-command' calls to
+    !> perform auto-filling; set by simple_fm (null: no auto-filling).
+    procedure(auto_fill_proc), pointer, public :: internal_auto_fill_hook => null()
 
 contains
 
@@ -170,8 +174,8 @@ contains
     end subroutine delete_char
 
     !> Insert character `c` `n` times.  Port of cmds.c:Fself_insert_command
-    !> with internal_self_insert reduced to the insertion (no overwrite,
-    !> abbrevs, auto-fill or hooks).  A non-character `c` does nothing
+    !> with internal_self_insert reduced to the insertion and auto-fill
+    !> (no overwrite, abbrevs or hooks).  A non-character `c` does nothing
     !> (upstream rings the bell).
     subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
@@ -186,6 +190,17 @@ contains
         if (n < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         if (c < 0 .or. c > MAX_CHAR) return
         call insert_char_n(int(c, int32), n, status)
+        if (.not. status%ok()) return
+        ! auto-fill-chars: space and newline.
+        if ((c == 32 .or. c == 10) .and. associated(auto_fill_function) .and. associated(internal_auto_fill_hook)) then
+            ! After inserting a newline, move to previous line and fill
+            ! that.  Must have the newline in place already so filling and
+            ! justification, if any, know where the end is going to be.
+            if (c == 10) call goto_char(buffers(cur)%pt - 1)
+            call internal_auto_fill_hook(status)
+            ! Test PT < ZV in case the auto-fill-function is strange.
+            if (c == 10 .and. buffers(cur)%pt < buffers(cur)%zv) call goto_char(buffers(cur)%pt + 1)
+        end if
     end subroutine self_insert_command
 
     ! ------------------------------------------------------------------

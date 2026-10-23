@@ -88,7 +88,7 @@ contains
         call init_bindings()
         call check(error, value_eq(binding_of("a"), sym("self-insert-command")), "a")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("TAB"), sym("self-insert-command")), "TAB")
+        call check(error, value_eq(binding_of("TAB"), sym("indent-for-tab-command")), "TAB")
         if (allocated(error)) return
         ! mule-conf.el: every non-ASCII character self-inserts.
         call check(error, value_eq(binding_of("é"), sym("self-insert-command")), "é")

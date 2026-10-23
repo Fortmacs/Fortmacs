@@ -43,7 +43,7 @@ module subr_fm
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
-    public :: global_set_key
+    public :: global_set_key, read_number
     public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
               match_substitute_replacement
 
@@ -72,6 +72,26 @@ module subr_fm
                           ANSWER_EDIT = 12, ANSWER_DELETE_AND_EDIT = 13, ANSWER_BACKUP = 14, &
                           ANSWER_UNDO = 15, ANSWER_UNDO_ALL = 16, ANSWER_DIFF = 17, &
                           ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19
+
+    interface
+        !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
+        !> DEFAULT specifies a default value to return if the user just types RET.
+        !> For historical reasons, the value of DEFAULT is always inserted into
+        !> PROMPT, so it's recommended to use `format' instead of `format-prompt'
+        !> to generate PROMPT.  HIST specifies a history list variable.  See
+        !> `read-from-minibuffer' for details of the HIST argument.
+        !>
+        !> This function is used by the `interactive' code letter "n".  Port
+        !> of subr.el:read-number (integers only).  (In subr_read_fm.)
+        module subroutine read_number(prompt, n, status, default, hist)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            integer(int64), intent(out) :: n
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: default
+            character(len=*), intent(in), optional :: hist
+        end subroutine read_number
+    end interface
 
 contains
 

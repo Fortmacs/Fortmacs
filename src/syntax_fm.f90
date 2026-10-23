@@ -63,7 +63,7 @@ module syntax_fm
               modify_syntax_entry, syntax_entry, char_syntax_class, char_syntax, syntax_class_to_char, &
               matching_paren, scan_words, forward_word, word_boundary_p, syms_of_syntax, &
               skip_chars_forward, skip_chars_backward, skip_syntax_forward, skip_syntax_backward, &
-              skip_limit
+              skip_limit, backward_prefix_chars
 
     !> Syntax classes (syntax.h enum syntaxcode).
     integer, parameter, public :: SWHITESPACE = 0, SPUNCT = 1, SWORD = 2, SSYMBOL = 3, SOPEN = 4, &
@@ -873,4 +873,57 @@ contains
         call goto_char(pos)
         moved = pos - start
     end function skip_syntaxes
+
+    !> Move point backward over any number of chars with prefix syntax.
+    !> This includes chars with expression prefix syntax class (') and those with
+    !> the prefix syntax flag (p).  Port of syntax.c:Fbackward_prefix_chars
+    !> (no syntax-table properties).
+    subroutine backward_prefix_chars()
+        integer(int64) :: pos, opoint
+        integer :: c
+        type(syntax_descriptor_type) :: d
+        opoint = point()
+        pos = opoint
+        do while (pos > buffers(cur)%begv)
+            c = fetch_char_before(pos)
+            if (char_quoted(pos - 1)) exit
+            d = syntax_entry(c)
+            if (iand(d%code, 255) /= SQUOTE .and. .not. btest(d%code, 20)) exit
+            pos = pos - 1
+            opoint = pos
+        end do
+        call goto_char(opoint)
+    end subroutine backward_prefix_chars
+
+    ! The character before POS.
+    integer function fetch_char_before(pos) result(c)
+        integer(int64), intent(in) :: pos
+        integer(int64) :: pos_byte
+        associate (b => buffers(cur))
+            pos_byte = char_to_byte(pos)
+            if (b%multibyte) then
+                pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+            else
+                pos_byte = pos_byte - 1
+            end if
+            c = int(buf_fetch_char(b, pos_byte))
+        end associate
+    end function fetch_char_before
+
+    !> Whether the character at POS is quoted by an odd number of escape
+    !> or character-quote characters before it.  Port of
+    !> syntax.c:char_quoted.
+    logical function char_quoted(pos)
+        integer(int64), intent(in) :: pos
+        integer(int64) :: p
+        integer :: k
+        char_quoted = .false.
+        p = pos
+        do while (p > buffers(cur)%begv)
+            k = char_syntax_class(fetch_char_before(p))
+            if (k /= SESCAPE .and. k /= SCHARQUOTE) exit
+            char_quoted = .not. char_quoted
+            p = p - 1
+        end do
+    end function char_quoted
 end module syntax_fm

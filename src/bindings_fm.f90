@@ -47,6 +47,8 @@ module bindings_fm
     use replace_fm, only: syms_of_replace
     use casefiddle_fm, only: syms_of_casefiddle
     use novice_fm, only: syms_of_novice
+    use indent_fm, only: syms_of_indent
+    use fill_fm, only: syms_of_fill
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -181,6 +183,8 @@ contains
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
+        call syms_of_indent()
+        call syms_of_fill()
         call syms_of_novice()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
@@ -297,6 +301,20 @@ contains
         call bind(esc_map, "c", "capitalize-word")
         call bind(ctl_x_map, "C-u", "upcase-region")
         call bind(ctl_x_map, "C-l", "downcase-region")
+        call bind(global_map, "TAB", "indent-for-tab-command")
+        call bind(esc_map, "C-\", "indent-region")
+        call bind(ctl_x_map, "TAB", "indent-rigidly")
+        call bind(esc_map, "i", "tab-to-tab-stop")
+        call bind(esc_map, "m", "back-to-indentation")
+        call bind(esc_map, "q", "fill-paragraph")
+        call bind(ctl_x_map, "f", "set-fill-column")
+        call bind(ctl_x_map, ".", "set-fill-prefix")
+        call bind(esc_map, "j", "default-indent-new-line")
+        call bind(esc_map, "C-j", "default-indent-new-line")
+        call bind(esc_map, "<", "beginning-of-buffer")
+        call bind(esc_map, ">", "end-of-buffer")
+        call bind(global_map, "C-<home>", "beginning-of-buffer")
+        call bind(global_map, "C-<end>", "end-of-buffer")
         call use_global_map(global_map, status)
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)
