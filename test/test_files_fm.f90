@@ -24,6 +24,7 @@ module test_files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use bindings_fm, only: init_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
+    use error_fm, only: format_message
     use error_fm, only: status_type, format_error, condition_matches, FM_QUIT, FM_USER_ERROR, &
                         FM_FILE_ERROR
     use handle_fm, only: handle_type
@@ -549,7 +550,8 @@ contains
             allocate (args(1))
             args(1)%s = "--bogus"
             call command_line_1(args, st)
-            call check(error, format_error(st) == "Unknown option `--bogus'", format_error(st))
+            call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
+                       format_error(st))
         end block body
         call kill_file_buffers()
         call find_file(path("-dashed"), st)

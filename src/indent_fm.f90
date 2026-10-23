@@ -63,8 +63,8 @@ module indent_fm
               indent_accumulate_tab_stops, tab_to_tab_stop, move_to_tab_stop, syms_of_indent
 
     abstract interface
-        !> An `indent-line-function`: indent the current line; `noindent`
-        !> says it could not (the value `noindent`).
+        !> An `indent-line-function': indent the current line; `noindent'
+        !> says it could not (the value `noindent').
         subroutine indent_line_proc(status, noindent)
             import :: status_type
             implicit none(type, external)
@@ -72,7 +72,7 @@ module indent_fm
             logical, intent(out) :: noindent
         end subroutine indent_line_proc
 
-        !> An `indent-region-function`.
+        !> An `indent-region-function'.
         subroutine indent_region_proc(start, end, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -89,7 +89,7 @@ module indent_fm
     !> If t, hitting TAB always just indents the current line.
     !> If nil, hitting TAB indents the current line if point is at the left margin
     !> or in the line's indentation, otherwise it inserts a "real" TAB character.
-    !> Port of indent.el tab-always-indent (no `complete`).
+    !> Port of indent.el tab-always-indent (no `complete').
     logical, public :: tab_always_indent = .true.
 
     !> List of tab stop positions used by `tab-to-tab-stop'.
@@ -102,7 +102,7 @@ module indent_fm
     integer(int64), allocatable, public :: tab_stop_list(:)
 
     !> A setting whose value is an indent-line function; null is the
-    !> default, `indent-relative'.  Assign with `=>` to `value`.
+    !> default, `indent-relative'.  Assign with `=>' to `value'.
     type, extends(setting_type), public :: indent_line_setting
         procedure(indent_line_proc), pointer, nopass :: value => null()
     contains
@@ -116,13 +116,13 @@ module indent_fm
     !> should return `noindent' to signal that it didn't.
     !> Setting this function is all you need to make TAB indent appropriately.
     !> Don't rebind TAB unless you really need to.  Port of indent.el
-    !> indent-line-function (null is the default, `indent-relative`).
+    !> indent-line-function (null is the default, `indent-relative').
     type(indent_line_setting), public :: indent_line_function = indent_line_setting(name="indent-line-function")
 
     !> Short cut function to indent region using `indent-according-to-mode'.
     !> Default is to really run `indent-according-to-mode' on each line.
     !> Port of indent.el indent-region-function (null is
-    !> `indent-region-line-by-line`).
+    !> `indent-region-line-by-line').
     procedure(indent_region_proc), pointer, public :: indent_region_function => null()
 
     interface
@@ -237,7 +237,7 @@ module indent_fm
         end function indent_line_function_name
 
         !> Point P at the indent-line function named NAME; any other
-        !> function is called by name with `funcall`.  (In indent_cmds_fm.)
+        !> function is called by name with `funcall'.  (In indent_cmds_fm.)
         module subroutine indent_line_function_named(name, p)
             implicit none(type, external)
             character(len=*), intent(in) :: name
@@ -325,7 +325,7 @@ contains
     !> COLUMN (otherwise).  In addition, if FORCE is t, and the line is too short
     !> to reach COLUMN, add spaces/tabs to get there.
     !>
-    !> The return value is the current column (`reached`).  Port of
+    !> The return value is the current column (`reached').  Port of
     !> indent.c:Fmove_to_column (FORCE is t or nil).
     subroutine move_to_column(column, reached, force, status)
         integer(int64), intent(in) :: column
@@ -449,7 +449,7 @@ contains
         end if
     end function window_text_width
 
-    !> Screen rows of the line starting at `bol`, `width` columns wide:
+    !> Screen rows of the line starting at `bol', `width' columns wide:
     !> where each row starts, and where the line ends.  Rows continue as
     !> redisplay continues them (xdisp.c's display_line on a terminal).
     subroutine line_rows(bol, width, starts, nrows, eol)
@@ -493,7 +493,7 @@ contains
         eol = pos
     end subroutine line_rows
 
-    !> The screen row (1-based) of `pos` among `starts(1:nrows)`.
+    !> The screen row (1-based) of `pos' among `starts(1:nrows)'.
     pure integer function row_of(pos, starts, nrows) result(k)
         integer(int64), intent(in) :: pos
         integer(int64), intent(in) :: starts(:)
@@ -526,10 +526,10 @@ contains
         end do
     end function screen_column
 
-    !> Move point `lines` screen lines down (up if negative), to the start
-    !> of that screen line or, with `goal`, to the character at column
-    !> `goal` on it (the last one on a continued row if it is shorter).
-    !> `moved` is the number of screen lines moved, closer to zero at the
+    !> Move point `lines' screen lines down (up if negative), to the start
+    !> of that screen line or, with `goal', to the character at column
+    !> `goal' on it (the last one on a continued row if it is shorter).
+    !> `moved' is the number of screen lines moved, closer to zero at the
     !> beginning or end of the buffer.  Port of indent.c:Fvertical_motion
     !> for the selected window (LINES or (COLS . LINES); no CUR-COL).
     subroutine vertical_motion(lines, moved, goal)

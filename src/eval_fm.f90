@@ -21,15 +21,15 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Hooks.  A hook is a `hook_type` object holding procedures of no
-!> arguments (`command_proc`), run in order:
+!> Hooks.  A hook is a `hook_type' object holding procedures of no
+!> arguments (`command_proc'), run in order:
 !>
 !>     call major_modes%text_mode%hook%add(turn_on_auto_fill)
 !>
 !> Upstream a hook is a variable whose value is a list of functions; a
-!> buffer-local value holds `t` where the default value's functions run.
+!> buffer-local value holds `t' where the default value's functions run.
 !> Here a buffer's own functions are kept in the hook by buffer, with a
-!> `t` entry in the same place.
+!> `t' entry in the same place.
 module eval_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type
@@ -49,7 +49,7 @@ module eval_fm
     !> Hooks that have been given buffers' own functions.
     type(hook_ref_type), allocatable :: local_hooks(:)
 
-    !> One function of a hook, or the `t` marker of a buffer's own value.
+    !> One function of a hook, or the `t' marker of a buffer's own value.
     type :: hook_entry_type
         procedure(command_proc), pointer, nopass :: fn => null()
         integer :: depth = 0
@@ -308,7 +308,7 @@ contains
     !> This makes the hook buffer-local, and it makes t a member of the
     !> buffer-local value.  That acts as a flag to run the hook
     !> functions of the global value as well as in the local value.
-    !> Port of subr.el:add-hook (`t` for DEPTH is 90).
+    !> Port of subr.el:add-hook (`t' for DEPTH is 90).
     subroutine hook_add(self, fn, depth, local)
         class(hook_type), intent(inout), target :: self
         procedure(command_proc) :: fn
@@ -377,7 +377,7 @@ contains
 
     !> Run each function of the hook, in order, stopping at the first
     !> error.  In a buffer with its own functions, those run, with the
-    !> default functions in the place of `t`.  Port of eval.c:run_hook
+    !> default functions in the place of `t'.  Port of eval.c:run_hook
     !> (via run_hook_with_args).
     recursive subroutine hook_run(self, status)
         class(hook_type), intent(in) :: self

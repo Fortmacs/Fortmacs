@@ -20,11 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Motion, deletion and insertion commands on the current buffer, and
-!> their registration as commands (`syms_of_cmds`).
+!> their registration as commands (`syms_of_cmds').
 !>
 !> Deferred: overwrite mode, abbrevs, auto-fill and electric characters
-!> in `self-insert-command`, `translation-table-for-input`, the kill-ring
-!> path of `delete-char`, undo amalgamation, and intangible/invisible
+!> in `self-insert-command', `translation-table-for-input', the kill-ring
+!> path of `delete-char', undo amalgamation, and intangible/invisible
 !> text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -56,7 +56,7 @@ module cmds_fm
 
 contains
 
-    !> Move point `n` characters (backward if not `forward`), stopping at
+    !> Move point `n' characters (backward if not `forward'), stopping at
     !> the accessible region's edge with beginning-/end-of-buffer.
     !> Port of cmds.c:move_point.
     subroutine move_point(n, forward, status)
@@ -102,7 +102,7 @@ contains
         end if
     end subroutine backward_char
 
-    !> Move to the start of the line `n` lines away (default 1) and return
+    !> Move to the start of the line `n' lines away (default 1) and return
     !> the count of lines left to move (see the forward-line docstring:
     !> a non-empty last line counts as moved).  Port of cmds.c:Fforward_line.
     integer(int64) function forward_line(n) result(shortage)
@@ -135,14 +135,14 @@ contains
         if (excessive) shortage = shortage - count + n
     end function forward_line
 
-    !> Move to the start of the line (after moving `n` - 1 lines).
+    !> Move to the start of the line (after moving `n' - 1 lines).
     !> Port of cmds.c:Fbeginning_of_line (fields pending).
     subroutine beginning_of_line(n)
         integer(int64), intent(in), optional :: n
         call goto_char(line_beginning_position(n))
     end subroutine beginning_of_line
 
-    !> Move to the end of the line (after moving `n` - 1 lines).
+    !> Move to the end of the line (after moving `n' - 1 lines).
     !> Port of cmds.c:Fend_of_line; the intangible-text retry loop is moot
     !> until text properties exist.
     subroutine end_of_line(n)
@@ -150,7 +150,7 @@ contains
         call goto_char(line_end_position(n))
     end subroutine end_of_line
 
-    !> Delete `n` characters after point (before, if negative); signals
+    !> Delete `n' characters after point (before, if negative); signals
     !> beginning-/end-of-buffer instead of deleting fewer.
     !> Port of cmds.c:Fdelete_char (without KILLFLAG).
     subroutine delete_char(n, status)
@@ -174,9 +174,9 @@ contains
         end if
     end subroutine delete_char
 
-    !> Insert character `c` `n` times.  Port of cmds.c:Fself_insert_command
+    !> Insert character `c' `n' times.  Port of cmds.c:Fself_insert_command
     !> with internal_self_insert reduced to the insertion and auto-fill
-    !> (no overwrite, abbrevs or hooks).  A non-character `c` does nothing
+    !> (no overwrite, abbrevs or hooks).  A non-character `c' does nothing
     !> (upstream rings the bell).
     subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c

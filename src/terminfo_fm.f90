@@ -24,7 +24,7 @@
 !> Upstream links ncurses' libtinfo; Fortmacs stays pure Fortran and reads
 !> the compiled terminfo files itself (format: term(5)), including
 !> extended (user-defined) capabilities, and evaluates parameterized
-!> strings (terminfo(5) "Parameterized Strings") in `tparm`.
+!> strings (terminfo(5) "Parameterized Strings") in `tparm'.
 !>
 !>     call tgetent("xterm-256color", ti, status)
 !>     out = tgoto(tgetstr(ti, "cm"), col, row)   ! termcap names, as term.c
@@ -40,8 +40,8 @@
 !> Curses), as compiled into every terminfo file; they were taken from
 !> ncurses 6.4.
 !>
-!> Not supported: string parameters in `tparm` (%s and %l see empty
-!> strings), padding delays (`delete_padding` drops them; modern terminals
+!> Not supported: string parameters in `tparm' (%s and %l see empty
+!> strings), padding delays (`delete_padding' drops them; modern terminals
 !> need none), and the termcap database.
 module terminfo_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -237,7 +237,7 @@ contains
         inquire (file=path, exist=file_exists)
     end function file_exists
 
-    !> The file holding entry `term` in directory `dir`, or "".
+    !> The file holding entry `term' in directory `dir', or "".
     function entry_path(dir, term) result(path)
         character(len=*), intent(in) :: dir, term
         character(len=:), allocatable :: path
@@ -260,7 +260,7 @@ contains
         end do
     end function to_lower
 
-    !> Where entry `term` lives, searching as ncurses does; "" if nowhere.
+    !> Where entry `term' lives, searching as ncurses does; "" if nowhere.
     function find_entry(term) result(path)
         character(len=*), intent(in) :: term
         character(len=:), allocatable :: path, dirs, home, dir
@@ -302,7 +302,7 @@ contains
         end do
     end function find_entry
 
-    !> Load the description of terminal type `term`.  Port of the tgetent
+    !> Load the description of terminal type `term'.  Port of the tgetent
     !> call in term.c:init_tty (the library side is reimplemented); the
     !> error text is term.c's.
     subroutine tgetent(term, ti, status)
@@ -327,7 +327,7 @@ contains
         call set_error(status, FM_GENERIC_ERROR, "Terminal type "//term//" is not defined")
     end subroutine tgetent
 
-    !> Load the compiled entry in file `path`.
+    !> Load the compiled entry in file `path'.
     subroutine read_terminfo(path, ti, status)
         character(len=*), intent(in) :: path
         type(terminfo_type), intent(out) :: ti
@@ -356,7 +356,7 @@ contains
         call parse_terminfo(data, ti, status)
     end subroutine read_terminfo
 
-    !> Little-endian signed 16-bit integer at 0-based offset `off`.
+    !> Little-endian signed 16-bit integer at 0-based offset `off'.
     integer(int32) function get16(data, off) result(v)
         character(len=*), intent(in) :: data
         integer(int64), intent(in) :: off
@@ -364,7 +364,7 @@ contains
         if (v >= 32768) v = v - 65536
     end function get16
 
-    !> Little-endian signed 32-bit integer at 0-based offset `off`.
+    !> Little-endian signed 32-bit integer at 0-based offset `off'.
     integer(int32) function get32(data, off) result(v)
         character(len=*), intent(in) :: data
         integer(int64), intent(in) :: off
@@ -378,7 +378,7 @@ contains
         v = int(u, int32)
     end function get32
 
-    !> The NUL-terminated string at 0-based `off` within `table`.
+    !> The NUL-terminated string at 0-based `off' within `table'.
     function cstring(table, off) result(s)
         character(len=*), intent(in) :: table
         integer(int64), intent(in) :: off
@@ -553,7 +553,7 @@ contains
         k = 0
     end function find_ext
 
-    !> Boolean capability `name` (terminfo name).  Port of the terminfo
+    !> Boolean capability `name' (terminfo name).  Port of the terminfo
     !> library's tigetflag, as term.c uses it.
     logical function tigetflag(ti, name) result(v)
         type(terminfo_type), intent(in) :: ti
@@ -569,7 +569,7 @@ contains
         end if
     end function tigetflag
 
-    !> Numeric capability `name`, or -1.
+    !> Numeric capability `name', or -1.
     integer(int32) function tigetnum(ti, name) result(v)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
@@ -584,7 +584,7 @@ contains
         end if
     end function tigetnum
 
-    !> String capability `name`; "" (and `found` false) if absent.
+    !> String capability `name'; "" (and `found' false) if absent.
     function tigetstr(ti, name, found) result(s)
         type(terminfo_type), intent(in) :: ti
         character(len=*), intent(in) :: name
@@ -796,7 +796,7 @@ contains
     ! Parameterized strings
     ! ------------------------------------------------------------------
 
-    !> `n` in base `base` (2..16), at least `mindigits` digits.
+    !> `n' in base `base' (2..16), at least `mindigits' digits.
     function int_digits(n, base, upper, mindigits) result(s)
         integer(int64), intent(in) :: n
         integer, intent(in) :: base, mindigits
@@ -820,8 +820,8 @@ contains
         if (len(s) < mindigits) s = repeat("0", mindigits - len(s))//s
     end function int_digits
 
-    !> printf-style formatting of `v` for conversion `conv` (d o x X) with
-    !> `flags` (- + # space), `width` and `precision` (-1: none), and
+    !> printf-style formatting of `v' for conversion `conv' (d o x X) with
+    !> `flags' (- + # space), `width' and `precision' (-1: none), and
     !> zero padding.
     function format_int(v, conv, flags, width, precision, zero) result(s)
         integer(int64), intent(in) :: v
@@ -875,8 +875,8 @@ contains
         end if
     end function format_int
 
-    !> Instantiate parameterized string `str` with integer parameters
-    !> `p1`..`p9` (absent ones are 0).  The terminfo(5) language: %p %d %c
+    !> Instantiate parameterized string `str' with integer parameters
+    !> `p1'..`p9' (absent ones are 0).  The terminfo(5) language: %p %d %c
     !> %{n} %'c' %P %g %+ %- %* %/ %m %& %| %^ %= %< %> %A %O %! %~ %i
     !> %? %t %e %; and printf conversions %[[:]flags][width][.prec][doxX].
     !> Reimplements the terminfo library's tparm, which terminfo.c calls.
@@ -1052,7 +1052,7 @@ contains
             end do
         end function read_int
 
-        !> Skip to after the matching %e (if `to_else`) or %;.
+        !> Skip to after the matching %e (if `to_else') or %;.
         subroutine skip(to_else)
             logical, intent(in) :: to_else
             integer :: level
@@ -1128,7 +1128,7 @@ contains
         out = tparm(str, arg1, arg2, arg3, arg4)
     end function tparam
 
-    !> Cursor motion to `col`, `row` (0-based): the terminfo library's
+    !> Cursor motion to `col', `row' (0-based): the terminfo library's
     !> tgoto, which takes its arguments column first.
     function tgoto(cm, col, row) result(out)
         character(len=*), intent(in) :: cm
@@ -1137,7 +1137,7 @@ contains
         out = tparm(cm, row, col)
     end function tgoto
 
-    !> `s` without $<...> padding specifications.  Modern terminals need no
+    !> `s' without $<...> padding specifications.  Modern terminals need no
     !> padding (the terminfo library's tputs would delay instead).
     function delete_padding(s) result(t)
         character(len=*), intent(in) :: s

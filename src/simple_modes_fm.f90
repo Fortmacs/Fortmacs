@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `fundamental-mode` and `special-mode`: a submodule because they use
+!> `fundamental-mode' and `special-mode': a submodule because they use
 !> derived_fm.
 submodule(simple_fm) simple_modes_fm
     use commands_fm, only: commands

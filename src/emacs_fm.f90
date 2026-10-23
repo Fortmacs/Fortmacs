@@ -22,14 +22,14 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `emacs_main` sets up the *scratch* buffer, the key bindings and the
-!> terminal, runs the init file's `configure` (unless -q), visits the
+!> `emacs_main' sets up the *scratch* buffer, the key bindings and the
+!> terminal, runs the init file's `configure' (unless -q), visits the
 !> files named on the command line, then runs the command loop until
-!> C-x C-c, redisplaying whenever it waits for input.  `run` is the
+!> C-x C-c, redisplaying whenever it waits for input.  `run' is the
 !> program around it.
 module emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
-    use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
+    use error_fm, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_fm, only: version_string
     use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
@@ -63,7 +63,7 @@ module emacs_fm
     end type arg_type
 
     abstract interface
-        !> The user's configuration: `configure` in init.f90, run once at
+        !> The user's configuration: `configure' in init.f90, run once at
         !> startup the way upstream loads the init file.
         subroutine init_proc(status)
             import :: status_type
@@ -73,7 +73,7 @@ module emacs_fm
     end interface
 
     !> startup.el:init-file-had-error: whether the init file's
-    !> `configure` failed at startup.
+    !> `configure' failed at startup.
     public :: init_file_had_error
     logical, protected :: init_file_had_error = .false.
 
@@ -88,7 +88,7 @@ contains
         call redisplay(selected_frame, status)
     end subroutine do_redisplay
 
-    !> Whether terminal type `term` gets term/xterm.el's setup, as
+    !> Whether terminal type `term' gets term/xterm.el's setup, as
     !> faces.el:tty-run-terminal-initialization finds term/xterm.el for
     !> "xterm*" (and term/screen.el and term/tmux.el, which use it).
     logical function xterm_like(term)
@@ -97,8 +97,8 @@ contains
                      index(term, "tmux") == 1
     end function xterm_like
 
-    !> Whether `s` is "+" followed by digits, then optionally ":" and
-    !> digits; `line` gets the first number.
+    !> Whether `s' is "+" followed by digits, then optionally ":" and
+    !> digits; `line' gets the first number.
     logical function line_arg_p(s, line)
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: line
@@ -123,7 +123,7 @@ contains
         end function all_digits
     end function line_arg_p
 
-    !> Visit the files named in `args`, leaving the last one current:
+    !> Visit the files named in `args', leaving the last one current:
     !> "+LINE" puts point on that line of the next file, "--" makes the
     !> rest file names, and "-file", "-find-file" or "-visit" (or with
     !> "--") name a file.  Port of the file part of
@@ -159,13 +159,14 @@ contains
                     select case (argi)
                     case ("-file", "-find-file", "-visit")
                         if (k == size(args)) then
-                            call set_error(status, FM_GENERIC_ERROR, "File name omitted from `"//argi//"' option")
+                            call set_error(status, FM_GENERIC_ERROR, format_message("File name omitted from `")//argi// &
+                                           format_message("' option"))
                             return
                         end if
                         k = k + 1
                         argi = args(k)%s
                     case default
-                        call set_error(status, FM_GENERIC_ERROR, "Unknown option `"//args(k)%s//"'")
+                        call set_error(status, FM_GENERIC_ERROR, format_message("Unknown option `")//args(k)%s//format_message("'"))
                         return
                     end select
                 end if
@@ -182,8 +183,8 @@ contains
         end do
     end subroutine command_line_1
 
-    !> Visit `name` (relative to `dir`), make its buffer current and go to
-    !> line `line` if positive.
+    !> Visit `name' (relative to `dir'), make its buffer current and go to
+    !> line `line' if positive.
     subroutine visit(name, dir, line, status)
         character(len=*), intent(in) :: name, dir
         integer(int64), intent(in) :: line
@@ -204,8 +205,8 @@ contains
         end if
     end subroutine visit
 
-    !> Run the editor on terminal type `terminal_type` at file descriptor
-    !> `fd` until the user leaves, visiting the files in `args` first.
+    !> Run the editor on terminal type `terminal_type' at file descriptor
+    !> `fd' until the user leaves, visiting the files in `args' first.
     !> Port of the terminal path of emacs.c:main (init_display, then the
     !> file part of startup.el:command-line, then Frecursive_edit).
     subroutine emacs_main(terminal_type, fd, status, args, configure)
@@ -269,8 +270,8 @@ contains
         call set_input_fd(-1_int32)
     end subroutine emacs_main
 
-    !> Run the init file's `configure`.  An error is shown in the echo area
-    !> and sets `init_file_had_error`; startup goes on.  Port of
+    !> Run the init file's `configure'.  An error is shown in the echo area
+    !> and sets `init_file_had_error'; startup goes on.  Port of
     !> startup.el:startup--load-user-init-file (the init file is compiled
     !> in, so loading it is calling it).
     subroutine load_init_file(configure)
@@ -286,8 +287,8 @@ contains
     end subroutine load_init_file
 
     !> Handle the options that come before the files: -q (--no-init-file)
-    !> and -Q (--quick) turn off the init file (`init` false); `rest` gets
-    !> the arguments from the first other one on, for `command_line_1`.
+    !> and -Q (--quick) turn off the init file (`init' false); `rest' gets
+    !> the arguments from the first other one on, for `command_line_1'.
     !> Port of the option loop of startup.el:command-line.
     subroutine command_line(args, rest, init)
         type(arg_type), intent(in) :: args(:)
@@ -315,10 +316,10 @@ contains
     end subroutine command_line
 
     !> The program: handle --version, --help and --recompile, check for a
-    !> terminal, then run the editor with the user's `configure`.
-    !> `exit_code` is the process's exit status (the main program stops
+    !> terminal, then run the editor with the user's `configure'.
+    !> `exit_code' is the process's exit status (the main program stops
     !> with it).  An installed fortmacs runs the user's build instead, if
-    !> there is an up-to-date one; a user build passes `prefix`, the
+    !> there is an up-to-date one; a user build passes `prefix', the
     !> installation it was built against.  Port of the startup part of
     !> emacs.c:main.
     subroutine run(configure, exit_code, prefix)
@@ -410,7 +411,7 @@ contains
         end if
     end subroutine run
 
-    !> `fortmacs --recompile`: build the init file into the user's own
+    !> `fortmacs --recompile': build the init file into the user's own
     !> fortmacs, reporting on standard output and error.
     subroutine do_recompile(installed, install, exit_code)
         logical, intent(in) :: installed
@@ -487,7 +488,7 @@ contains
     end subroutine do_generations
 
     !> Replace this process with the user's build, if there is one and it
-    !> is newer than this fortmacs; otherwise `reminder` says what to do.
+    !> is newer than this fortmacs; otherwise `reminder' says what to do.
     !> Returns only if the build is not run.
     subroutine run_user_build(args, reminder)
         type(arg_type), intent(in) :: args(:)

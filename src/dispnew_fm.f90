@@ -20,9 +20,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Redisplay fills a frame's desired matrix; `update_frame` sends the
+!> Redisplay fills a frame's desired matrix; `update_frame' sends the
 !> terminal the least output that turns the screen (the current matrix)
-!> into it, row by row (`write_row`: keep matching prefixes and suffixes,
+!> into it, row by row (`write_row': keep matching prefixes and suffixes,
 !> insert or delete characters where that is cheaper than rewriting).
 !>
 !> Not ported yet: window matrices (there are no windows; redisplay
@@ -64,7 +64,7 @@ contains
         m%ncols = ncols
     end subroutine allocate_matrix
 
-    !> Give `f` matrices of its terminal's size (contents unknown, so the
+    !> Give `f' matrices of its terminal's size (contents unknown, so the
     !> next update redraws everything), and a default face if it has none.
     !> Port of the frame part of dispnew.c:adjust_frame_glyphs.
     subroutine adjust_frame_glyphs(f)
@@ -106,7 +106,7 @@ contains
         end do
     end subroutine clear_desired_matrices
 
-    !> Make row `vpos` of the desired matrix show `glyphs` (at most a
+    !> Make row `vpos' of the desired matrix show `glyphs' (at most a
     !> line; the rest of the line is blank).  What redisplay does through
     !> its iterator; not a port.
     subroutine set_desired_row(f, vpos, glyphs)
@@ -151,7 +151,7 @@ contains
         f%garbaged = .false.
     end subroutine redraw_frame
 
-    !> Leading blanks of `r(1:len)`.  Port of dispnew.c:count_blanks.
+    !> Leading blanks of `r(1:len)'.  Port of dispnew.c:count_blanks.
     integer function count_blanks(r, len) result(i)
         type(glyph_type), intent(in) :: r(:)
         integer, intent(in) :: len
@@ -161,7 +161,7 @@ contains
         i = len
     end function count_blanks
 
-    !> Length of the common prefix of `a` and `b`.  Port of
+    !> Length of the common prefix of `a' and `b'.  Port of
     !> dispnew.c:count_match.
     integer function count_match(a, b) result(n)
         type(glyph_type), intent(in) :: a(:), b(:)
@@ -172,7 +172,7 @@ contains
         end do
     end function count_match
 
-    !> Write `body(first+1:first+n)` at column `first` of row `vpos`.
+    !> Write `body(first+1:first+n)' at column `first' of row `vpos'.
     subroutine write_at(f, vpos, first, body, n)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: vpos, first, n
@@ -185,7 +185,7 @@ contains
         end if
     end subroutine write_at
 
-    !> Make row `vpos` of the screen show the desired row, sending as
+    !> Make row `vpos' of the screen show the desired row, sending as
     !> little as possible.  Port of dispnew.c:write_row.
     subroutine write_row(f, vpos)
         type(frame_type), intent(inout) :: f

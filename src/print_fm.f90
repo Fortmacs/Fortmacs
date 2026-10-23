@@ -19,10 +19,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The printed representation of a value, as `prin1` writes it: what
+!> The printed representation of a value, as `prin1' writes it: what
 !> help shows for a variable holding a value.
 !>
-!> Deferred: `princ`, print streams, `print-length` and `print-level`,
+!> Deferred: `princ', print streams, `print-length' and `print-level',
 !> escaping in symbol names, circular structure, floats.
 module print_fm
     use, intrinsic :: iso_fortran_env, only: int64

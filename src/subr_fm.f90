@@ -19,12 +19,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions in the echo area (`read-key`, `y-or-n-p`),
-!> `add-to-history`, and the match data helpers (`match-string`,
-!> `string-match-p`, `looking-at-p`, `looking-back`).
+!> Questions in the echo area (`read-key', `y-or-n-p'),
+!> `add-to-history', and the match data helpers (`match-string',
+!> `string-match-p', `looking-at-p', `looking-back').
 !>
-!> Without a minibuffer yet, `y-or-n-p` behaves as upstream does with
-!> `y-or-n-p-use-read-key` set: it reads a single key in the echo area.
+!> Without a minibuffer yet, `y-or-n-p' behaves as upstream does with
+!> `y-or-n-p-use-read-key' set: it reads a single key in the echo area.
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT
     use, intrinsic :: iso_fortran_env, only: int64
@@ -153,7 +153,7 @@ module subr_fm
 
 contains
 
-    !> Read one key with `prompt` in the echo area and the cursor after it.
+    !> Read one key with `prompt' in the echo area and the cursor after it.
     !> End of input reads as a quit.  Port of subr.el:read-key (single
     !> events; no keymap lookup of multi-event keys yet).
     subroutine read_key(prompt, key, status)
@@ -169,9 +169,9 @@ contains
         if (.not. have) call set_error(status, FM_QUIT)
     end subroutine read_key
 
-    !> What `key` means in replace.el:query-replace-map (the bindings
+    !> What `key' means in replace.el:query-replace-map (the bindings
     !> y-or-n-p, map-y-or-n-p and perform-replace use), or ANSWER_NONE.
-    !> ESC is `exit-prefix` (upstream binds [escape]; a terminal reads
+    !> ESC is `exit-prefix' (upstream binds [escape]; a terminal reads
     !> it as ESC).
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
@@ -221,10 +221,10 @@ contains
         end select
     end function query_replace_answer
 
-    !> Ask a "y or n" question in the echo area: `answer` is true for y
+    !> Ask a "y or n" question in the echo area: `answer' is true for y
     !> (or SPC), false for n (or DEL); C-g quits.  Other keys ask again,
     !> with "Please answer y or n.".  Port of subr.el:y-or-n-p, the
-    !> `y-or-n-p-use-read-key` branch (no help-form, scrolling or ding).
+    !> `y-or-n-p-use-read-key' branch (no help-form, scrolling or ding).
     subroutine y_or_n_p(prompt, answer, status)
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: answer
@@ -273,7 +273,7 @@ contains
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
     !> Otherwise, the maximum history length is the value of the
-    !> `history_length` variable.
+    !> `history_length' variable.
     !> If KEEP-ALL is true, add NEWELT to history even if it is empty or
     !> duplicates the most recent entry in the history.  Port of
     !> subr.el:add-to-history (history-delete-duplicates nil).
@@ -311,12 +311,12 @@ contains
     end subroutine add_to_history
 
     !> Give KEY a global binding as COMMAND.
-    !> This is a legacy function; see `keymap_global_set` for the
+    !> This is a legacy function; see `keymap_global_set' for the
     !> recommended function to use instead.
     !>
     !> COMMAND is the command definition to use; usually it is
     !> a symbol naming an interactively-callable function.
-    !> KEY is a key sequence: a vector of events, as `key_parse` makes.
+    !> KEY is a key sequence: a vector of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
     !> that local binding will continue to shadow any global binding
@@ -327,7 +327,7 @@ contains
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
-    !> `global_set_key` with the command named COMMAND.
+    !> `global_set_key' with the command named COMMAND.
     subroutine global_set_key_command(key, command, status)
         type(value_type), intent(in) :: key(:)
         character(len=*), intent(in) :: command
@@ -340,7 +340,7 @@ contains
     !> sub-expression in the last regexp whose match to return.  Zero
     !> means the entire text matched by the whole regexp or whole string.
     !>
-    !> The return value is nil (`matched` false, an empty string) if NUMth
+    !> The return value is nil (`matched' false, an empty string) if NUMth
     !> pair didn't match, or there were less than NUM pairs.
     !>
     !> STRING should be given if the last search was by `string-match' on

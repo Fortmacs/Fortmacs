@@ -20,12 +20,12 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Help mode, the major mode of *Help*, derived from Special mode
-!> (simple.el): a read-only buffer where `q` quits the window, SPC and
-!> DEL scroll, digits and `-` make prefix arguments.
+!> (simple.el): a read-only buffer where `q' quits the window, SPC and
+!> DEL scroll, digits and `-' make prefix arguments.
 !>
-!> Deferred: cross-reference buttons and the help-xref stack (`l`, `r`,
-!> `n`, `p`), `s` (help-view-source), `i`/`I` (Info), `c` (customize),
-!> `g` (revert), `h`/`?` (describe-mode).
+!> Deferred: cross-reference buttons and the help-xref stack (`l', `r',
+!> `n', `p'), `s' (help-view-source), `i'/`I' (Info), `c' (customize),
+!> `g' (revert), `h'/`?' (describe-mode).
 module help_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type

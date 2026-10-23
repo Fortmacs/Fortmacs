@@ -21,12 +21,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `init_bindings` registers the ported commands and builds global-map,
+!> `init_bindings' registers the ported commands and builds global-map,
 !> esc-map, ctl-x-map and function-key-map with the bindings upstream
 !> gives them, as far as their commands exist.  Bindings to commands not
 !> ported yet are left out rather than failing with void-function.
-!> Until `move-beginning-of-line` and `move-end-of-line` are ported,
-!> <home> and <end> use `beginning-of-line` and `end-of-line`.
+!> Until `move-beginning-of-line' and `move-end-of-line' are ported,
+!> <home> and <end> use `beginning-of-line' and `end-of-line'.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -131,7 +131,7 @@ contains
         call backward_word(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_left_word
 
-    !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
+    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -141,7 +141,7 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
 
-    !> Bind the single event `c` to command `cmd` in `map`.
+    !> Bind the single event `c' to command `cmd' in `map'.
     subroutine bind_char(map, c, cmd)
         type(handle_type), intent(in) :: map
         integer(int64), intent(in) :: c
@@ -152,7 +152,7 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind_char
 
-    !> In `map`, translate `from` (kbd syntax) to the event `to`.
+    !> In `map', translate `from' (kbd syntax) to the event `to'.
     subroutine translate(map, from, to)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: from

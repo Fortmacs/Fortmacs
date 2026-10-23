@@ -21,15 +21,15 @@
 
 !> Editing primitives on the current buffer.
 !>
-!> Lisp functions that return nil for "no such position" take a `found`
+!> Lisp functions that return nil for "no such position" take a `found'
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
-!> Point is set with `temp_set_point_both`: upstream's SET_PT also runs
-!> text-property hooks (`point-entered` etc.), which arrive with
-!> intervals.  Labeled restrictions (`with-restriction`) are deferred, as
-!> are `format`, fields, `transpose-regions`, `compare-buffer-substrings`
-!> and `subst-char-in-region` (they need case tables, intervals or undo).
+!> Point is set with `temp_set_point_both': upstream's SET_PT also runs
+!> text-property hooks (`point-entered' etc.), which arrive with
+!> intervals.  Labeled restrictions (`with-restriction') are deferred, as
+!> are `format', fields, `transpose-regions', `compare-buffer-substrings'
+!> and `subst-char-in-region' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
@@ -51,6 +51,7 @@ module editfns_fm
     use data_fm, only: value_eq
     use textprop_fm, only: get_text_property, text_property_stickiness, &
                            next_single_char_property_change, previous_single_char_property_change
+    use error_fm, only: format_message
     implicit none(type, external)
     private
 
@@ -75,29 +76,6 @@ module editfns_fm
     logical, public :: inhibit_field_text_motion = .false.
 
 contains
-
-    !> Format a string out of a format-string and arguments, converting
-    !> grave accents and apostrophes in FMT to curved quotes (the
-    !> `curve' style of `text-quoting-style', the style used on a UTF-8
-    !> terminal).  Only the format string is converted, so concatenate
-    !> the arguments after converting the literal parts.  Port of
-    !> editfns.c:Fformat_message (the quoting).
-    function format_message(fmt) result(s)
-        character(len=*), intent(in) :: fmt
-        character(len=:), allocatable :: s
-        integer :: i
-        s = ""
-        do i = 1, len(fmt)
-            select case (fmt(i:i))
-            case ("`")
-                s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'98'))
-            case ("'")
-                s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'99'))
-            case default
-                s = s//fmt(i:i)
-            end select
-        end do
-    end function format_message
 
     ! ------------------------------------------------------------------
     ! Positions
@@ -124,7 +102,7 @@ contains
         buffer_size = buffers(cur)%text%z - BEG
     end function buffer_size
 
-    !> Like `buffer_size`, for buffer `h`.  Port of editfns.c:Fbuffer_size.
+    !> Like `buffer_size', for buffer `h'.  Port of editfns.c:Fbuffer_size.
     subroutine buffer_size_of(h, size, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: size
@@ -146,7 +124,7 @@ contains
         gap_size = buffers(cur)%text%gap_size
     end function gap_size
 
-    !> Set point to `position`, clipped to the accessible region.
+    !> Set point to `position', clipped to the accessible region.
     !> Port of editfns.c:Fgoto_char (integer POSITION).
     subroutine goto_char(position)
         integer(int64), intent(in) :: position
@@ -155,7 +133,7 @@ contains
         call temp_set_point_both(buffers(cur), pos, char_to_byte(pos))
     end subroutine goto_char
 
-    !> Set point to marker `m`.  Port of editfns.c:Fgoto_char (marker
+    !> Set point to marker `m'.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
     subroutine goto_char_marker(m, status)
         type(handle_type), intent(in) :: m
@@ -207,7 +185,7 @@ contains
     end subroutine mark_marker
 
     !> The position of the current buffer's mark, or 0 if it has none (nil
-    !> upstream): `(marker-position (mark-marker))`.
+    !> upstream): `(marker-position (mark-marker))'.
     integer(int64) function mark_position() result(pos)
         integer(int64) :: i
         type(status_type) :: st
@@ -217,7 +195,7 @@ contains
         if (markers(i)%buffer /= 0) pos = markers(i)%charpos
     end function mark_position
 
-    !> Point or the mark, the smaller (`beginningp`) or the larger,
+    !> Point or the mark, the smaller (`beginningp') or the larger,
     !> clipped to the accessible part.  Port of editfns.c:region_limit.
     subroutine region_limit(beginningp, pos, status)
         logical, intent(in) :: beginningp
@@ -278,7 +256,7 @@ contains
         call set_marker_both(m, current_buffer(), charpos, bytepos, st)
     end subroutine new_marker_at
 
-    !> Byte position of character `position`; `found` is false when it is
+    !> Byte position of character `position'; `found' is false when it is
     !> outside the buffer.  Port of editfns.c:Fposition_bytes.
     subroutine position_bytes(position, bytepos, found)
         integer(int64), intent(in) :: position
@@ -289,7 +267,7 @@ contains
         if (found) bytepos = char_to_byte(position)
     end subroutine position_bytes
 
-    !> Character position containing byte `bytepos`; `found` is false when
+    !> Character position containing byte `bytepos'; `found' is false when
     !> it is outside the buffer.  Port of editfns.c:Fbyte_to_position.
     subroutine byte_to_position(bytepos, position, found)
         integer(int64), intent(in) :: bytepos
@@ -365,7 +343,7 @@ contains
         end associate
     end function eolp
 
-    !> Character at `pos` (default: point); `found` is false outside the
+    !> Character at `pos' (default: point); `found' is false outside the
     !> accessible region.  Port of editfns.c:Fchar_after (integer POS).
     subroutine char_after(c, found, pos)
         integer(int32), intent(out) :: c
@@ -385,7 +363,7 @@ contains
         end associate
     end subroutine char_after
 
-    !> Character before `pos` (default: point); `found` is false outside
+    !> Character before `pos' (default: point); `found' is false outside
     !> the accessible region.  Port of editfns.c:Fchar_before (integer POS).
     subroutine char_before(c, found, pos)
         integer(int32), intent(out) :: c
@@ -412,7 +390,7 @@ contains
     ! Inserting, narrowing, extracting, deleting
     ! ------------------------------------------------------------------
 
-    !> Insert `count` copies of character `c` (nothing if count <= 0).
+    !> Insert `count' copies of character `c' (nothing if count <= 0).
     !> Port of editfns.c:Finsert_char (without INHERIT).
     subroutine insert_char_n(c, count, status)
         integer(int32), intent(in) :: c
@@ -450,7 +428,7 @@ contains
         end do
     end subroutine insert_char_n
 
-    !> Restrict editing to `start`..`end` (in either order); point moves
+    !> Restrict editing to `start'..`end' (in either order); point moves
     !> into the region.  Port of editfns.c:Fnarrow_to_region.
     subroutine narrow_to_region(start, end, status)
         integer(int64), intent(in) :: start, end
@@ -482,7 +460,7 @@ contains
         end associate
     end subroutine widen
 
-    !> Order `start`, `end` and check they lie in the accessible region.
+    !> Order `start', `end' and check they lie in the accessible region.
     !> Port of buffer.c:validate_region.
     subroutine validate_region(start, end, status)
         integer(int64), intent(inout) :: start, end
@@ -507,7 +485,7 @@ contains
         call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
     end subroutine range_error
 
-    !> Text between `start` and `end` (either order).
+    !> Text between `start' and `end' (either order).
     !> Port of editfns.c:Fbuffer_substring (text properties pending).
     subroutine buffer_substring(start, end, text, status)
         integer(int64), intent(in) :: start, end
@@ -527,7 +505,7 @@ contains
         text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
     end function buffer_string
 
-    !> Delete the text between `start` and `end` (either order).
+    !> Delete the text between `start' and `end' (either order).
     !> Port of editfns.c:Fdelete_region.
     subroutine delete_region(start, end, status)
         integer(int64), intent(in) :: start, end
@@ -540,7 +518,7 @@ contains
         call del_range(s, e, status)
     end subroutine delete_region
 
-    !> Delete the text between `start` and `end` and return it.
+    !> Delete the text between `start' and `end' and return it.
     !> Port of editfns.c:Fdelete_and_extract_region.
     subroutine delete_and_extract_region(start, end, text, status)
         integer(int64), intent(in) :: start, end
@@ -560,8 +538,8 @@ contains
     ! Line positions
     ! ------------------------------------------------------------------
 
-    !> Start of the current line, after moving `n` - 1 lines (default 1);
-    !> `count` receives the number of lines scanned (n - 1).
+    !> Start of the current line, after moving `n' - 1 lines (default 1);
+    !> `count' receives the number of lines scanned (n - 1).
     !> Port of editfns.c:bol.
     integer(int64) function bol(n, count)
         integer(int64), intent(in), optional :: n
@@ -575,13 +553,13 @@ contains
     end function bol
 
     !> Position of the first character on the current line (after moving
-    !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_bol.
+    !> `n' - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_bol.
     integer(int64) function pos_bol(n)
         integer(int64), intent(in), optional :: n
         pos_bol = bol(n)
     end function pos_bol
 
-    !> Like `pos_bol`, but constrained to the field point is in (so it
+    !> Like `pos_bol', but constrained to the field point is in (so it
     !> stops after a minibuffer prompt).
     !> Port of editfns.c:Fline_beginning_position.
     integer(int64) function line_beginning_position(n)
@@ -602,13 +580,13 @@ contains
     end function eol
 
     !> Position of the last character on the current line (after moving
-    !> `n` - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_eol.
+    !> `n' - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_eol.
     integer(int64) function pos_eol(n)
         integer(int64), intent(in), optional :: n
         pos_eol = eol(n)
     end function pos_eol
 
-    !> Like `pos_eol`, but constrained to the field point is in.
+    !> Like `pos_eol', but constrained to the field point is in.
     !> Port of editfns.c:Fline_end_position.
     integer(int64) function line_end_position(n)
         integer(int64), intent(in), optional :: n
@@ -620,13 +598,13 @@ contains
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
 
-    !> The `field` symbol.
+    !> The `field' symbol.
     function qfield() result(v)
         type(value_type) :: v
         v = sym("field")
     end function qfield
 
-    !> `prop` of the current buffer's character at `pos` (nil outside the
+    !> `prop' of the current buffer's character at `pos' (nil outside the
     !> accessible text); get_char_property without overlays.
     function char_property(pos, prop) result(v)
         integer(int64), intent(in) :: pos
@@ -636,7 +614,7 @@ contains
         call get_text_property(pos, prop, v, status)
     end function char_property
 
-    !> The value of `prop` that a character inserted at `position` would
+    !> The value of `prop' that a character inserted at `position' would
     !> get from its neighbours.  Port of editfns.c:Fget_pos_property (text
     !> properties only).
     function get_pos_property(position, prop) result(v)
@@ -654,10 +632,10 @@ contains
         end if
     end function get_pos_property
 
-    !> The field around `pos` (default point): `beg` and `end`, limited
-    !> by `beg_limit` and `end_limit`.  With `merge_at_boundary`, a
+    !> The field around `pos' (default point): `beg' and `end', limited
+    !> by `beg_limit' and `end_limit'.  With `merge_at_boundary', a
     !> position at the start of a field belongs to the previous one, and
-    !> `boundary` fields are skipped.  Port of editfns.c:find_field.
+    !> `boundary' fields are skipped.  Port of editfns.c:find_field.
     subroutine find_field(pos, merge_at_boundary, beg, end, beg_limit, end_limit)
         integer(int64), intent(in) :: pos
         logical, intent(in) :: merge_at_boundary
@@ -707,7 +685,7 @@ contains
         end if
     end subroutine find_field
 
-    !> Start of the field around `pos`.  Port of editfns.c:Ffield_beginning.
+    !> Start of the field around `pos'.  Port of editfns.c:Ffield_beginning.
     integer(int64) function field_beginning(pos, escape_from_edge, limit)
         integer(int64), intent(in) :: pos
         logical, intent(in) :: escape_from_edge
@@ -716,7 +694,7 @@ contains
         call find_field(pos, escape_from_edge, field_beginning, end, beg_limit=limit)
     end function field_beginning
 
-    !> End of the field around `pos`.  Port of editfns.c:Ffield_end.
+    !> End of the field around `pos'.  Port of editfns.c:Ffield_end.
     integer(int64) function field_end(pos, escape_from_edge, limit)
         integer(int64), intent(in) :: pos
         logical, intent(in) :: escape_from_edge
@@ -725,7 +703,7 @@ contains
         call find_field(pos, escape_from_edge, beg, field_end, end_limit=limit)
     end function field_end
 
-    !> Text of the field around `pos`.  Port of
+    !> Text of the field around `pos'.  Port of
     !> editfns.c:Ffield_string_no_properties.
     function field_string(pos) result(text)
         integer(int64), intent(in) :: pos
@@ -736,7 +714,7 @@ contains
         call buffer_substring(beg, end, text, status)
     end function field_string
 
-    !> Delete the field around `pos`.  Port of editfns.c:Fdelete_field.
+    !> Delete the field around `pos'.  Port of editfns.c:Fdelete_field.
     subroutine delete_field(pos, status)
         integer(int64), intent(in) :: pos
         type(status_type), intent(out) :: status
@@ -745,9 +723,9 @@ contains
         if (beg /= end) call del_range(beg, end, status)
     end subroutine delete_field
 
-    !> `new_pos` moved, if needed, to stay in the field of `old_pos`.  With
-    !> `escape_from_edge`, `old_pos` at a field edge may count as in the
-    !> neighbouring field; with `only_in_line`, constrain only if the
+    !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
+    !> `escape_from_edge', `old_pos' at a field edge may count as in the
+    !> neighbouring field; with `only_in_line', constrain only if the
     !> field edge is on the same line.  Port of
     !> editfns.c:Fconstrain_to_field (NEW-POS given; no
     !> INHIBIT-CAPTURE-PROPERTY).
@@ -791,7 +769,7 @@ contains
     !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
     !> Both characters must have the same length of multi-byte form.  Port
     !> of editfns.c:Fsubst_char_in_region (no NOUNDO; each occurrence is
-    !> replaced like `replace-range`, so markers and undo follow).
+    !> replaced like `replace-range', so markers and undo follow).
     subroutine subst_char_in_region(start, end, fromchar, tochar, status)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar

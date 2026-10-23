@@ -20,12 +20,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `directory_files`: the names in a directory, as a list of strings.
+!> `directory_files': the names in a directory, as a list of strings.
 !>
-!> File name completion: `file-name-completion`, `file-name-all-completions`.
+!> File name completion: `file-name-completion', `file-name-all-completions'.
 !>
-!> Not ported yet: MATCH (it needs regexps), `directory-files-and-attributes`,
-!> `file-attributes` as a list, `completion-regexp-list`.
+!> Not ported yet: MATCH (it needs regexps), `directory-files-and-attributes',
+!> `file-attributes' as a list, `completion-regexp-list'.
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
@@ -126,7 +126,7 @@ contains
         files = make_list(elems)
     end subroutine directory_files
 
-    !> Whether `a` sorts before `b`, comparing bytes (UTF-8 sorts as its
+    !> Whether `a' sorts before `b', comparing bytes (UTF-8 sorts as its
     !> code points do) with a prefix first.  As fns.c:Fstring_lessp.
     pure logical function lessp(a, b)
         character(len=*), intent(in) :: a, b
@@ -170,7 +170,7 @@ contains
         call file_name_completion_1(file, directory, .true., result, status)
     end subroutine file_name_all_completions
 
-    !> Whether `name` ends in one of `completion-ignored-extensions` (for
+    !> Whether `name' ends in one of `completion-ignored-extensions' (for
     !> a directory, one that ends in a slash).
     logical function ignored_extension(name, directoryp) result(ignored)
         character(len=*), intent(in) :: name

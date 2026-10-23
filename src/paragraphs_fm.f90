@@ -20,12 +20,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Paragraph and sentence motion, by the regexps `paragraph-start`,
-!> `paragraph-separate` and `sentence-end`, honouring `fill-prefix` and
+!> Paragraph and sentence motion, by the regexps `paragraph-start',
+!> `paragraph-separate' and `sentence-end', honouring `fill-prefix' and
 !> the left margin.
 !>
-!> Deferred: `use-hard-newlines`, `repunctuate-sentences` (query-replace),
-!> `count-sentences`, `forward-sentence-function`.
+!> Deferred: `use-hard-newlines', `repunctuate-sentences' (query-replace),
+!> `count-sentences', `forward-sentence-function'.
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -141,7 +141,7 @@ contains
         if (.not. allocated(sentence_end_base)) sentence_end_base = "[.?!…‽][]""'”’)}»›]*"
     end subroutine init_paragraph_variables
 
-    !> The character at `pos`, or -1 outside the accessible region.
+    !> The character at `pos', or -1 outside the accessible region.
     integer function char_at(pos)
         integer(int64), intent(in) :: pos
         char_at = -1
@@ -149,7 +149,7 @@ contains
         char_at = buf_fetch_char(buffers(cur), char_to_byte(pos))
     end function char_at
 
-    !> The first position from `pos` on that is not one of `chars`
+    !> The first position from `pos' on that is not one of `chars'
     !> (skip-chars-forward).
     integer(int64) function skip(pos, chars) result(p)
         integer(int64), intent(in) :: pos
@@ -169,7 +169,7 @@ contains
     end function looking_at_p
 
     !> (re-search-backward REGEXP BOUND NOERROR) for NOERROR t or other
-    !> than nil and t (`mode`).
+    !> than nil and t (`mode').
     logical function re_search_back(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -181,7 +181,7 @@ contains
     end function re_search_back
 
     !> (re-search-forward REGEXP BOUND NOERROR) for NOERROR t or other than
-    !> nil and t (`mode`).
+    !> nil and t (`mode').
     logical function re_search_fwd(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode

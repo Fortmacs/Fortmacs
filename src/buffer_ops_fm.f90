@@ -87,7 +87,7 @@ contains
         call del_range(BEG, buffers(cur)%text%z, status)
     end subroutine erase_buffer
 
-    !> Drop `h` from the live-buffer list.  Lives here, its only user:
+    !> Drop `h' from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.
     subroutine alist_remove(h)
         type(handle_type), intent(in) :: h

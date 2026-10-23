@@ -66,8 +66,8 @@ module dispextern_fm
         integer(int64) :: underline_color = 0
     end type face_type
 
-    !> The text area of one screen line (struct glyph_row).  `glyphs`
-    !> holds a full line; the first `used` are meaningful.
+    !> The text area of one screen line (struct glyph_row).  `glyphs'
+    !> holds a full line; the first `used' are meaningful.
     type, public :: glyph_row_type
         type(glyph_type), allocatable :: glyphs(:)
         integer :: used = 0
@@ -85,7 +85,7 @@ module dispextern_fm
 
 contains
 
-    !> Whether `color` is a real color rather than a default.
+    !> Whether `color' is a real color rather than a default.
     !> Port of dispextern.h:face_tty_specified_color.
     elemental logical function face_tty_specified_color(color)
         integer(int64), intent(in) :: color

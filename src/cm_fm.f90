@@ -41,14 +41,14 @@ module cm_fm
 
 contains
 
-    !> The output cost of capability `cap`; BIG if absent.  cm.c's COST.
+    !> The output cost of capability `cap'; BIG if absent.  cm.c's COST.
     integer function cost_of(cap) result(c)
         character(len=:), allocatable, intent(in) :: cap
         c = BIG
         if (allocated(cap)) c = len(delete_padding(cap))
     end function cost_of
 
-    !> The minimum cost of parameterized motion `cap`.  cm.c's CMCOST.
+    !> The minimum cost of parameterized motion `cap'.  cm.c's CMCOST.
     integer function cmcost(cap) result(c)
         character(len=:), allocatable, intent(in) :: cap
         c = BIG
@@ -74,7 +74,7 @@ contains
         end associate
     end subroutine cmcostinit
 
-    !> Assume the cursor is at `row`, `col`.  cm.h:cmat.
+    !> Assume the cursor is at `row', `col'.  cm.h:cmat.
     subroutine cmat(tty, row, col)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: row, col
@@ -89,7 +89,7 @@ contains
         tty%wcm%cm_cury = -1
     end subroutine losecursor
 
-    !> Account for `n` columns written.  cm.h:cmplus.
+    !> Account for `n' columns written.  cm.h:cmplus.
     subroutine cmplus(tty, n)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: n
@@ -124,7 +124,7 @@ contains
         tty%wcm%cm_cury = tty%wcm%cm_cury + 1
     end subroutine cmcheckmagic
 
-    !> Output `cap` `n` times.
+    !> Output `cap' `n' times.
     subroutine repeat_output(tty, cap, n)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
@@ -138,7 +138,7 @@ contains
     end subroutine repeat_output
 
     !> The cost of moving from (srcy, srcx) to (dsty, dstx) with relative
-    !> motions and tabs; with `doit`, also make the motion.  Port of
+    !> motions and tabs; with `doit', also make the motion.  Port of
     !> cm.c:calccost.
     integer function calccost(tty, srcy, srcx_in, dsty, dstx, doit) result(totalcost)
         type(tty_display_info), intent(inout) :: tty
@@ -215,7 +215,7 @@ contains
         end associate
     end function calccost
 
-    !> Move the cursor to (`row`, `col`) the cheapest way.  Port of
+    !> Move the cursor to (`row', `col') the cheapest way.  Port of
     !> cm.c:cmgoto.
     subroutine cmgoto(tty, row, col)
         type(tty_display_info), intent(inout) :: tty

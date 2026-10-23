@@ -17,8 +17,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Entry point: runs the editor (`run` in emacs_fm) with the built-in
-!> configuration, which changes nothing.  `fortmacs --recompile` builds
+!> Entry point: runs the editor (`run' in emacs_fm) with the built-in
+!> configuration, which changes nothing.  `fortmacs --recompile' builds
 !> the user's init.f90 into a binary of its own (see config_fm), which an
 !> installed fortmacs runs instead.
 program fortmacs_main

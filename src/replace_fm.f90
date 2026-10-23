@@ -19,27 +19,27 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Query replace: `query-replace` (M-%), `query-replace-regexp` (C-M-%),
-!> `map-query-replace-regexp`, `replace-string`, `replace-regexp` and
-!> their engine `perform-replace`, with the `query-replace-map` answers
+!> Query replace: `query-replace' (M-%), `query-replace-regexp' (C-M-%),
+!> `map-query-replace-regexp', `replace-string', `replace-regexp' and
+!> their engine `perform-replace', with the `query-replace-map' answers
 !> (act, skip, backup, undo, edit, ...).
 !>
 !> Differences from upstream, for want of Lisp and of display features:
 !>
 !> - REPLACEMENTS as a (FUNCTION . DATA) cons is a Fortran function of
-!>   the replacement count (`replacement_function`); `\,` (a Lisp
-!>   expression) in an interactive replacement is an error, while `\#`
+!>   the replacement count (`replacement_function'); `\,' (a Lisp
+!>   expression) in an interactive replacement is an error, while `\#'
 !>   (the replacement count) works;
 !> - the FROM and TO of a history entry are split at the separator text
 !>   itself (upstream marks the separator with a text property);
 !> - no highlighting (query-replace-highlight, lazy highlight), no
 !>   invisible-text or isearch-filter-predicate skipping, no character
 !>   folding, no noncontiguous regions, no multi-buffer answers and no
-!>   `diff` answer yet; `occur` is a later step.
+!>   `diff' answer yet; `occur' is a later step.
 module replace_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR
+    use error_fm, only: format_message, status_type, set_error, FM_QUIT, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_string, make_list, stringp, xstring, nilp, list_elements, &
                        list_length, list_elt
@@ -81,7 +81,7 @@ module replace_fm
               query_replace_compile_replacement, replace_expand_count, syms_of_replace
     public :: replacement_function
 
-    !> A (FROM-STRING . TO-STRING) element of `query_replace_defaults`.
+    !> A (FROM-STRING . TO-STRING) element of `query_replace_defaults'.
     type, public :: replace_pair_type
         character(len=:), allocatable :: from, to
     end type replace_pair_type
@@ -89,7 +89,7 @@ module replace_fm
     abstract interface
         !> A function computing each replacement string from the number of
         !> replacements done so far: the (FUNCTION . DATA) form of
-        !> `perform-replace`'s REPLACEMENTS.
+        !> `perform-replace''s REPLACEMENTS.
         function replacement_function(count) result(text)
             import :: int64
             implicit none(type, external)
@@ -193,7 +193,7 @@ module replace_fm
 
 contains
 
-    !> The decimal representation of `n`.
+    !> The decimal representation of `n'.
     function number_to_string(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -240,8 +240,8 @@ contains
         end do
     end function replace_quote
 
-    !> The position of the first backslash of `string` at or after
-    !> `from`, not itself escaped, that is followed by one of `chars`; or
+    !> The position of the first backslash of `string' at or after
+    !> `from', not itself escaped, that is followed by one of `chars'; or
     !> 0.  (What the regexp \(\`\|[^\]\)\(\\\\\)*\\[CHARS] finds.)
     integer function find_directive(string, from, chars) result(at)
         character(len=*), intent(in) :: string, chars
@@ -264,9 +264,9 @@ contains
     end function find_directive
 
     !> Maybe convert a regexp replacement TO for `perform-replace'.
-    !> REGEXP-FLAG non-nil means TO is a regexp.  `counted` is true when TO
-    !> contains `\#`, which stands for the number of replacements done so
-    !> far (`replace_expand_count` substitutes it).  `\,` (a Lisp
+    !> REGEXP-FLAG non-nil means TO is a regexp.  `counted' is true when TO
+    !> contains `\#', which stands for the number of replacements done so
+    !> far (`replace_expand_count' substitutes it).  `\,' (a Lisp
     !> expression) is an error: there is no Lisp.  Port of
     !> replace.el:query-replace-compile-replacement.
     subroutine query_replace_compile_replacement(to, regexp_flag, counted, status)
@@ -289,7 +289,7 @@ contains
         end do
     end subroutine query_replace_compile_replacement
 
-    !> TO with each `\#` replaced by COUNT, as the compiled replacement
+    !> TO with each `\#' replaced by COUNT, as the compiled replacement
     !> (concat ... (number-to-string replace-count) ...) computes it.
     function replace_expand_count(to, count) result(text)
         character(len=*), intent(in) :: to
@@ -318,7 +318,7 @@ contains
         full = full//": "
     end function format_prompt
 
-    !> The first string of the list in variable `name`, if any.
+    !> The first string of the list in variable `name', if any.
     subroutine history_head(name, head, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: head
@@ -336,7 +336,7 @@ contains
         found = .true.
     end subroutine history_head
 
-    !> Add (FROM . TO) to `query_replace_defaults`.  Port of the
+    !> Add (FROM . TO) to `query_replace_defaults'.  Port of the
     !> (add-to-history 'query-replace-defaults (cons from to) nil t)
     !> calls.
     subroutine push_defaults(from, to)
@@ -358,7 +358,7 @@ contains
         call move_alloc(longer, query_replace_defaults)
     end subroutine push_defaults
 
-    !> The suggestions `query-replace-read-from` offers through M-n (only
+    !> The suggestions `query-replace-read-from' offers through M-n (only
     !> the first one: the minibuffer takes one default): the active
     !> region, else the last search string, else the last string
     !> replaced.  Port of replace.el:query-replace-read-from-suggestions
@@ -398,7 +398,7 @@ contains
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response should
     !> be a regexp.  The return value can also be a pair (FROM . TO)
     !> indicating that the user wants to replace FROM with TO: then
-    !> `have_to` is true, and `counted` says whether TO uses `\#`.  Port
+    !> `have_to' is true, and `counted' says whether TO uses `\#'.  Port
     !> of replace.el:query-replace-read-from.
     recursive subroutine query_replace_read_from(prompt, regexp_flag, from, to, have_to, counted, status)
         character(len=*), intent(in) :: prompt
@@ -479,9 +479,9 @@ contains
             at = find_directive(from, 1, "nt")
             if (at > 0) then
                 if (from(at + 1:at + 1) == "n") then
-                    call message("Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead")
+                    call message(format_message("Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead"))
                 else
-                    call message("Note: `\t' here doesn't match a tab; to do that, just type TAB")
+                    call message(format_message("Note: `\t' here doesn't match a tab; to do that, just type TAB"))
                 end if
                 call sit_for(2000)
             end if
@@ -494,7 +494,7 @@ contains
 
     !> Query and return the TO argument of a `query-replace' operation.
     !> Prompt with PROMPT.  REGEXP-FLAG non-nil means the response
-    !> should a regexp.  `counted` says whether TO uses `\#`.  Port of
+    !> should a regexp.  `counted' says whether TO uses `\#'.  Port of
     !> replace.el:query-replace-read-to.
     recursive subroutine query_replace_read_to(from, prompt, regexp_flag, to, counted, status)
         character(len=*), intent(in) :: from, prompt
@@ -517,7 +517,7 @@ contains
 
     !> Read the arguments of a query-replace command: FROM, TO, whether to
     !> replace whole words only (DELIMITED: a prefix argument other than
-    !> `-`) and whether to go BACKWARD (the prefix argument `-`).  Unless
+    !> `-') and whether to go BACKWARD (the prefix argument `-').  Unless
     !> NOERROR, a read-only buffer is an error.  Port of
     !> replace.el:query-replace-read-args.
     recursive subroutine query_replace_read_args(prompt, regexp_flag, from, to, delimited, backward, counted, &
@@ -683,7 +683,7 @@ contains
         stack(nstack)%again_match = again_match
     end subroutine push_stack
 
-    !> The match data after `looking_at(regexp)` at `pos`, point left
+    !> The match data after `looking_at(regexp)' at `pos', point left
     !> where it was (save-excursion).
     function match_data_at(pos, regexp) result(data)
         integer(int64), intent(in) :: pos
@@ -720,12 +720,12 @@ contains
     !>   (funcall (car replacements) (cdr replacements) replace-count)
     !> It must return a string.
     !>
-    !> In Fortmacs, REPLACEMENTS is the string `replacements`, unless
-    !> `replacement_list` (a list of strings, each used REPEAT-COUNT times
-    !> in turn) or `replacement_fn` (called with the replacement count) is
-    !> given; `counted` means the string uses `\#` (see
-    !> `query_replace_compile_replacement`).  START and END give the
-    !> region to operate on.  `result` is the return value.  Port of
+    !> In Fortmacs, REPLACEMENTS is the string `replacements', unless
+    !> `replacement_list' (a list of strings, each used REPEAT-COUNT times
+    !> in turn) or `replacement_fn' (called with the replacement count) is
+    !> given; `counted' means the string uses `\#' (see
+    !> `query_replace_compile_replacement').  START and END give the
+    !> region to operate on.  `result' is the return value.  Port of
     !> replace.el:perform-replace (no MAP, no noncontiguous regions).
     recursive subroutine perform_replace(from_string, replacements, query_flag, regexp_flag, delimited_flag, &
                                          status, repeat_count, start, end, backward, replacement_list, &
@@ -1330,7 +1330,7 @@ contains
     !> at the given position for each replacement.
     !>
     !> In interactive calls, `\#' in the replacement text stands for the
-    !> number of replacements done so far (starting with zero); `counted`
+    !> number of replacements done so far (starting with zero); `counted'
     !> says that TO-STRING uses it.  (Upstream also accepts `\,' followed
     !> by a Lisp expression; Fortmacs has no Lisp.)
     !>
@@ -1463,8 +1463,8 @@ contains
     !>
     !> In interactive calls, `\#' in the replacement text stands for
     !> `replace-count', the number of replacements occurred so far,
-    !> starting from zero; `counted` says that TO-STRING uses it.
-    !> `replacement_fn`, if given, computes each replacement instead.
+    !> starting from zero; `counted' says that TO-STRING uses it.
+    !> `replacement_fn', if given, computes each replacement instead.
     !>
     !> This function is usually the wrong thing to use in a program.
     !> What you probably want is a loop like this:

@@ -29,16 +29,16 @@
 !> known, so the "-1 = unknown" convention is replaced by optional
 !> arguments.
 !>
-!> String and regexp search (`search-forward`, `re-search-forward`,
-!> `looking-at`, `string-match` and their relatives) with the case table,
+!> String and regexp search (`search-forward', `re-search-forward',
+!> `looking-at', `string-match' and their relatives) with the case table,
 !> a cache of compiled patterns and the match data.  regex_emacs_fm does
 !> the matching.
 !>
 !> Positions in strings are 1-based character indices, as Fortran's
-!> `index` (Emacs counts from 0), so that 0 can stand for nil.
+!> `index' (Emacs counts from 0), so that 0 can stand for nil.
 !>
-!> Deferred: `replace-match` (with query-replace), `match-data` markers,
-!> `inhibit-changing-match-data`, Boyer-Moore search, the newline cache.
+!> Deferred: `replace-match' (with query-replace), `match-data' markers,
+!> `inhibit-changing-match-data', Boyer-Moore search, the newline cache.
 module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
@@ -68,8 +68,8 @@ module search_fm
     !> buffer.c case-fold-search (one global value; not buffer-local yet).
     type(logical_setting), public :: case_fold_search = logical_setting(name="case-fold-search", value=.true.)
 
-    !> Values of NOERROR for `search_forward` and `search_backward`: nil
-    !> (signal `search-failed`), t (return nil), and anything else (move to
+    !> Values of NOERROR for `search_forward' and `search_backward': nil
+    !> (signal `search-failed'), t (return nil), and anything else (move to
     !> the limit of the search, return nil).
     integer, parameter, public :: SEARCH_SIGNAL = 0, SEARCH_NOERROR = 1, SEARCH_MOVE = 2
 
@@ -108,7 +108,7 @@ module search_fm
             integer(int64) :: idx
         end function string_match_1
 
-        !> Regexp search for `search_buffer`.  Port of
+        !> Regexp search for `search_buffer'.  Port of
         !> search.c:search_buffer_re.  (In search_regexp_fm.)
         module function search_buffer_re(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
             result(np)
@@ -224,11 +224,11 @@ contains
         end associate
     end function prev_newline_byte
 
-    !> Search for `count` newlines from `start` toward `end` (forward if
-    !> count > 0, backward if count < 0; `end` defaults to ZV or BEGV).
+    !> Search for `count' newlines from `start' toward `end' (forward if
+    !> count > 0, backward if count < 0; `end' defaults to ZV or BEGV).
     !> Returns the position just after the count'th newline found -- also
-    !> when searching backward -- or `end` if there are fewer.  `counted`
-    !> receives the number found (negated when backward); `bytepos` the
+    !> when searching backward -- or `end' if there are fewer.  `counted'
+    !> receives the number found (negated when backward); `bytepos' the
     !> byte position of the result.  Port of search.c:find_newline.
     integer(int64) function find_newline(start, end, count, counted, bytepos, start_byte, end_byte) &
         result(pos)
@@ -297,7 +297,7 @@ contains
         end subroutine finish
     end function find_newline
 
-    !> Move point past `count` line boundaries from `start`, or to `limit`
+    !> Move point past `count' line boundaries from `start', or to `limit'
     !> if there are fewer.  Port of search.c:scan_newline.
     subroutine scan_newline(start, start_byte, limit, limit_byte, count)
         integer(int64), intent(in) :: start, start_byte, limit, limit_byte, count
@@ -310,7 +310,7 @@ contains
         end if
     end subroutine scan_newline
 
-    !> Scan `count` lines from point (count <= 0: to the start of the line
+    !> Scan `count' lines from point (count <= 0: to the start of the line
     !> |count| lines back) without moving point.  Returns how many newlines
     !> were found.  Port of search.c:scan_newline_from_point.
     integer(int64) function scan_newline_from_point(count, charpos, bytepos) result(counted)
@@ -332,8 +332,8 @@ contains
         find_newline_no_quit = find_newline(from, count=cnt, bytepos=bytepos, start_byte=frombyte)
     end function find_newline_no_quit
 
-    !> Like `find_newline`, but returns the position before the newline,
-    !> searching no further than `to` (default: ZV/BEGV).
+    !> Like `find_newline', but returns the position before the newline,
+    !> searching no further than `to' (default: ZV/BEGV).
     !> Port of search.c:find_before_next_newline.
     integer(int64) function find_before_next_newline(from, cnt, bytepos, to) result(pos)
         integer(int64), intent(in) :: from, cnt
@@ -352,7 +352,7 @@ contains
     ! Compiled patterns
     ! ------------------------------------------------------------------
 
-    !> The 1-based character index in STR of the byte offset `off`.
+    !> The 1-based character index in STR of the byte offset `off'.
     pure integer(int64) function string_offset_to_index(str, off) result(idx)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: off
@@ -364,7 +364,7 @@ contains
         end do
     end function string_offset_to_index
 
-    !> The byte offset in STR of the 1-based character index `idx`.
+    !> The byte offset in STR of the 1-based character index `idx'.
     pure integer(int64) function string_index_to_offset(str, idx) result(off)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: idx
@@ -393,7 +393,7 @@ contains
         end do
     end function string_chars
 
-    !> Make the match data `n` empty registers.
+    !> Make the match data `n' empty registers.
     subroutine clear_search_regs(n)
         integer, intent(in) :: n
         if (allocated(search_regs_start)) deallocate (search_regs_start)
@@ -454,7 +454,7 @@ contains
     !> constructions in REGEXP.  For index of first char beyond the match,
     !> do (match-end 0).
     !>
-    !> Indices are 1-based character indices, as Fortran's `index` (Emacs
+    !> Indices are 1-based character indices, as Fortran's `index' (Emacs
     !> counts from 0); a negative START counts from the end.  Port of
     !> search.c:Fstring_match.
     integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(idx)
@@ -498,7 +498,7 @@ contains
 
     !> Search forward from point for STRING.
     !> Set point to the end of the occurrence found, and return point
-    !> in `found` (0 for nil).
+    !> in `found' (0 for nil).
     !> The optional argument BOUND is a buffer position that bounds the
     !> search.  The match found must not end after that position.  Absent
     !> means search to the end of the accessible portion of the buffer.
@@ -545,7 +545,7 @@ contains
 
     !> Search forward from point for regular expression REGEXP.
     !> Set point to the end of the occurrence found, and return point
-    !> in `found` (0 for nil).
+    !> in `found' (0 for nil).
     !> The optional argument BOUND is a buffer position that bounds the
     !> search.  The match found must not end after that position.  Absent
     !> means search to the end of the accessible portion of the buffer.
@@ -705,10 +705,10 @@ contains
         trivial_regexp_p = .true.
     end function trivial_regexp_p
 
-    !> Search for the `n`th occurrence of STRING in the current buffer,
-    !> starting at position `pos` and stopping at position `lim`; with
-    !> `re`, STRING is a regexp (a Posix one with `posix`); with `fold`,
-    !> case is folded through the case canon table.  `n` negative searches
+    !> Search for the `n'th occurrence of STRING in the current buffer,
+    !> starting at position `pos' and stopping at position `lim'; with
+    !> `re', STRING is a regexp (a Posix one with `posix'); with `fold',
+    !> case is folded through the case canon table.  `n' negative searches
     !> backward.  The value is the position after the match (forward) or
     !> of its start (backward), or -M when M matches remained to be found.
     !> Port of search.c:search_buffer and search_buffer_non_re (no
@@ -756,8 +756,8 @@ contains
     end function search_buffer
 
     !> Do a simple string search N times for the characters PAT, whose
-    !> length in bytes is `len_byte`, from buffer position POS/POS_BYTE
-    !> until LIM/LIM_BYTE.  With `fold`, buffer characters are
+    !> length in bytes is `len_byte', from buffer position POS/POS_BYTE
+    !> until LIM/LIM_BYTE.  With `fold', buffer characters are
     !> translated through the case canon table.
     !>
     !> Return the character position where the match is found.
@@ -843,7 +843,7 @@ contains
         end if
     end function simple_search
 
-    !> Record a match of `nbytes` bytes at `beg_byte` in the current
+    !> Record a match of `nbytes' bytes at `beg_byte' in the current
     !> buffer as the match data.  Port of search.c:set_search_regs.
     subroutine set_search_regs(beg_byte, nbytes)
         integer(int64), intent(in) :: beg_byte, nbytes

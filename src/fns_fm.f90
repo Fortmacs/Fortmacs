@@ -20,8 +20,8 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Where upstream takes a PREDICATE function object, these take an
-!> optional Fortran procedure with the `value_predicate` interface; the
-!> default is `eq` (data_fm:value_eq), as upstream.
+!> optional Fortran procedure with the `value_predicate' interface; the
+!> default is `eq' (data_fm:value_eq), as upstream.
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
@@ -37,7 +37,7 @@ module fns_fm
     private
 
     abstract interface
-        !> A two-argument test such as `eq`, `equal` or `string<`.
+        !> A two-argument test such as `eq', `equal' or `string<'.
         logical function value_predicate(a, b)
             import :: value_type
             implicit none(type, external)
@@ -49,20 +49,20 @@ module fns_fm
     public :: value_equal, length, nth, nthcdr, memq, member
     public :: string_lessp, string_greaterp, compare_strings, COMPARE_EQUAL, schars, substring
 
-    !> The value of `compare_strings` for strings that match (t).
+    !> The value of `compare_strings' for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
 
-    !> `put` also takes the symbol and property by name and a logical
+    !> `put' also takes the symbol and property by name and a logical
     !> value (.false. is nil, .true. is t), so configuration code can
-    !> write `call put("upcase-region", "disabled", .false., status)`.
+    !> write `call put("upcase-region", "disabled", .false., status)'.
     interface put
         module procedure put, put_named_logical
     end interface put
     public :: yes_or_no_p
 
     interface
-        !> Ask a yes-or-no question in the minibuffer: `answer` is true for
+        !> Ask a yes-or-no question in the minibuffer: `answer' is true for
         !> "yes", false for "no"; anything else asks again.  Port of
         !> fns.c:Fyes_or_no_p.  (In submodule fns_ask_fm, as the minibuffer
         !> depends on this module.)
@@ -147,7 +147,7 @@ contains
         end select
     end subroutine length
 
-    !> The `n`th element (0-based) of `list`, or nil.  Port of fns.c:Fnth.
+    !> The `n'th element (0-based) of `list', or nil.  Port of fns.c:Fnth.
     subroutine nth(n, list, v, status)
         integer(int64), intent(in) :: n
         type(value_type), intent(in) :: list
@@ -162,7 +162,7 @@ contains
         end select
     end subroutine nth
 
-    !> `list` without its first `n` elements.  Port of fns.c:Fnthcdr.
+    !> `list' without its first `n' elements.  Port of fns.c:Fnthcdr.
     subroutine nthcdr(n, list, v, status)
         integer(int64), intent(in) :: n
         type(value_type), intent(in) :: list
@@ -181,7 +181,7 @@ contains
         end select
     end subroutine nthcdr
 
-    !> The tail of `list` starting with an element `eq` to `elt`, or nil.
+    !> The tail of `list' starting with an element `eq' to `elt', or nil.
     !> Port of fns.c:Fmemq.
     function memq(elt, list) result(tail)
         type(value_type), intent(in) :: elt, list
@@ -197,7 +197,7 @@ contains
         end do
     end function memq
 
-    !> Like `memq`, comparing with `equal`.  Port of fns.c:Fmember.
+    !> Like `memq', comparing with `equal'.  Port of fns.c:Fmember.
     function member(elt, list) result(tail)
         type(value_type), intent(in) :: elt, list
         type(value_type) :: tail
@@ -212,7 +212,7 @@ contains
         end do
     end function member
 
-    !> Text of a string, or the name of a symbol; `ok` false otherwise.
+    !> Text of a string, or the name of a symbol; `ok' false otherwise.
     subroutine string_or_name(v, text, ok)
         type(value_type), intent(in) :: v
         character(len=:), allocatable, intent(out) :: text
@@ -230,7 +230,7 @@ contains
         end select
     end subroutine string_or_name
 
-    !> True if `a` sorts before `b`, comparing characters by code.
+    !> True if `a' sorts before `b', comparing characters by code.
     !> Symbols stand for their names; anything else compares false (the
     !> predicate interface has no status).  Port of fns.c:Fstring_lessp
     !> (string_cmp).
@@ -328,7 +328,7 @@ contains
         end if
     end function compare_strings
 
-    !> Number of characters in UTF-8 string `s`.  Port of lisp.h:SCHARS.
+    !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
     pure integer(int64) function schars(s)
         character(len=*), intent(in) :: s
         integer :: i
@@ -379,7 +379,7 @@ contains
         r = string(first:last - 1)
     end function substring
 
-    !> The characters of UTF-8 string `s`.
+    !> The characters of UTF-8 string `s'.
     pure subroutine string_chars(s, chars)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -405,7 +405,7 @@ contains
         string_greaterp = string_lessp(b, a)
     end function string_greaterp
 
-    !> Compare with `predicate`, or `eq` by default.
+    !> Compare with `predicate', or `eq' by default.
     logical function matches(a, b, predicate)
         type(value_type), intent(in) :: a, b
         procedure(value_predicate), optional :: predicate
@@ -416,7 +416,7 @@ contains
         end if
     end function matches
 
-    !> Value of `prop` in property list `plist`, or nil.  Degenerate
+    !> Value of `prop' in property list `plist', or nil.  Degenerate
     !> plists (odd length) are tolerated.  Port of fns.c:Fplist_get.
     function plist_get(plist, prop, predicate) result(v)
         type(value_type), intent(in) :: plist, prop
@@ -433,7 +433,7 @@ contains
         end do
     end function plist_get
 
-    !> Set `prop` to `val` in `plist`, adding the pair at the end if absent.
+    !> Set `prop' to `val' in `plist', adding the pair at the end if absent.
     !> An odd-length plist is a wrong-type-argument (plistp), as upstream.
     !> Port of fns.c:Fplist_put.
     subroutine plist_put(plist, prop, val, status, predicate)
@@ -464,7 +464,7 @@ contains
         plist = make_list(elems)
     end subroutine plist_put
 
-    !> The tail of `plist` starting at `prop`, or nil.
+    !> The tail of `plist' starting at `prop', or nil.
     !> Port of fns.c:Fplist_member.
     function plist_member(plist, prop, predicate) result(tail)
         type(value_type), intent(in) :: plist, prop
@@ -481,8 +481,8 @@ contains
         end do
     end function plist_member
 
-    !> Property `prop` of `symbol`.  Port of fns.c:Fget (without
-    !> `overriding-plist-environment`).
+    !> Property `prop' of `symbol'.  Port of fns.c:Fget (without
+    !> `overriding-plist-environment').
     subroutine get(symbol, prop, v, status)
         type(value_type), intent(in) :: symbol, prop
         type(value_type), intent(out) :: v
@@ -493,7 +493,7 @@ contains
         v = plist_get(symbols(xsymbol(symbol))%plist, prop)
     end subroutine get
 
-    !> Set property `prop` of `symbol` to `val`.  Port of fns.c:Fput.
+    !> Set property `prop' of `symbol' to `val'.  Port of fns.c:Fput.
     subroutine put(symbol, prop, val, status)
         type(value_type), intent(in) :: symbol, prop, val
         type(status_type), intent(out) :: status

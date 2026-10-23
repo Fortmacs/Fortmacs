@@ -38,12 +38,12 @@
 !>     400000-...                  invalid
 !>
 !> Valid Unicode text is therefore plain UTF-8.  Byte strings are Fortran
-!> default-kind `character` (each element one byte) and byte positions are
-!> 1-based `int64`.  Character codes are `int32` (they include modifier
+!> default-kind `character' (each element one byte) and byte positions are
+!> 1-based `int64'.  Character codes are `int32' (they include modifier
 !> bits up to CHAR_META).
 !>
-!> Where upstream takes a `check` flag and an end pointer, these procedures
-!> always bound-check against `len(str)`; the unchecked fast paths are an
+!> Where upstream takes a `check' flag and an end pointer, these procedures
+!> always bound-check against `len(str)'; the unchecked fast paths are an
 !> optimisation C needs and Fortran (with -fcheck=all) does not.
 module character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -106,7 +106,7 @@ module character_fm
 
 contains
 
-    !> Byte value (0..255) at position `i` of `str`.
+    !> Byte value (0..255) at position `i' of `str'.
     pure integer(int32) function byte_at(str, i)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: i
@@ -131,14 +131,14 @@ contains
         char_valid_p = 0 <= c .and. c <= MAX_CHAR
     end function char_valid_p
 
-    !> True if `c` stands for a raw 8-bit byte.
+    !> True if `c' stands for a raw 8-bit byte.
     !> Port of character.h:CHAR_BYTE8_P.
     elemental logical function char_byte8_p(c)
         integer(int32), intent(in) :: c
         char_byte8_p = MAX_5_BYTE_CHAR < c
     end function char_byte8_p
 
-    !> Character code for raw byte `byte`.
+    !> Character code for raw byte `byte'.
     !> Port of character.h:BYTE8_TO_CHAR.
     elemental integer(int32) function byte8_to_char(byte)
         integer(int32), intent(in) :: byte
@@ -155,7 +155,7 @@ contains
         end if
     end function unibyte_to_char
 
-    !> Raw byte for character `c`.  Port of character.h:CHAR_TO_BYTE8.
+    !> Raw byte for character `c'.  Port of character.h:CHAR_TO_BYTE8.
     elemental integer(int32) function char_to_byte8(c)
         integer(int32), intent(in) :: c
         if (char_byte8_p(c)) then
@@ -165,7 +165,7 @@ contains
         end if
     end function char_to_byte8
 
-    !> Raw byte for `c`, or -1 if it is not one.
+    !> Raw byte for `c', or -1 if it is not one.
     !> Port of character.h:CHAR_TO_BYTE_SAFE.
     elemental integer(int32) function char_to_byte_safe(c)
         integer(int32), intent(in) :: c
@@ -178,14 +178,14 @@ contains
         end if
     end function char_to_byte_safe
 
-    !> True if `byte` leads the two-byte form of a raw byte.
+    !> True if `byte' leads the two-byte form of a raw byte.
     !> Port of character.h:CHAR_BYTE8_HEAD_P.
     elemental logical function char_byte8_head_p(byte)
         integer(int32), intent(in) :: byte
         char_byte8_head_p = byte == int(z'C0', int32) .or. byte == int(z'C1', int32)
     end function char_byte8_head_p
 
-    !> Length of the multibyte form of `c`.  Port of character.h:CHAR_BYTES.
+    !> Length of the multibyte form of `c'.  Port of character.h:CHAR_BYTES.
     elemental integer(int32) function char_bytes(c)
         integer(int32), intent(in) :: c
         if (c <= MAX_1_BYTE_CHAR) then
@@ -203,7 +203,7 @@ contains
         end if
     end function char_bytes
 
-    !> First byte of the multibyte form of `c`.
+    !> First byte of the multibyte form of `c'.
     !> Port of character.h:CHAR_LEADING_CODE.
     elemental integer(int32) function char_leading_code(c)
         integer(int32), intent(in) :: c
@@ -222,7 +222,7 @@ contains
         end if
     end function char_leading_code
 
-    !> Store the multibyte form of `c` in `buf(1:nbytes)`.  Modifier bits
+    !> Store the multibyte form of `c' in `buf(1:nbytes)'.  Modifier bits
     !> are folded in where possible and otherwise dropped.  Fails for codes
     !> outside 0..MAX_CHAR.
     !> Port of character.c:char_string and character.h:CHAR_STRING,
@@ -280,7 +280,7 @@ contains
         end if
     contains
 
-        !> 10xxxxxx from the low six bits of `x`.
+        !> 10xxxxxx from the low six bits of `x'.
         pure integer(int32) function trail(x)
             integer(int32), intent(in) :: x
             trail = ior(int(z'80', int32), iand(x, int(z'3F', int32)))
@@ -299,7 +299,7 @@ contains
         trailing_code_p = iand(byte, int(z'C0', int32)) == int(z'80', int32)
     end function trailing_code_p
 
-    !> True if `byte` starts a character.  Port of character.h:CHAR_HEAD_P.
+    !> True if `byte' starts a character.  Port of character.h:CHAR_HEAD_P.
     elemental logical function char_head_p(byte)
         integer(int32), intent(in) :: byte
         char_head_p = iand(byte, int(z'C0', int32)) /= int(z'80', int32)
@@ -322,8 +322,8 @@ contains
         end if
     end function bytes_by_char_head
 
-    !> Byte length of the valid multibyte form starting at `str(pos:)`, or 0
-    !> if there is none.  With `allow_8bit`, raw-byte forms (C0/C1) count.
+    !> Byte length of the valid multibyte form starting at `str(pos:)', or 0
+    !> if there is none.  With `allow_8bit', raw-byte forms (C0/C1) count.
     !> Port of character.h:multibyte_length (always with check = true).
     pure integer(int32) function multibyte_length(str, pos, allow_8bit)
         character(len=*), intent(in) :: str
@@ -373,8 +373,8 @@ contains
         end if
     end function multibyte_length
 
-    !> Byte length of the character ending just before byte `pos`.  Assumes
-    !> `pos` is a character boundary after the start of a valid text.
+    !> Byte length of the character ending just before byte `pos'.  Assumes
+    !> `pos' is a character boundary after the start of a valid text.
     !> Port of character.h:raw_prev_char_len.
     pure integer(int32) function raw_prev_char_len(str, pos)
         character(len=*), intent(in) :: str
@@ -390,8 +390,8 @@ contains
         end do
     end function raw_prev_char_len
 
-    !> Decode the character whose valid multibyte form starts at `str(pos:)`
-    !> and return its byte length in `length`.
+    !> Decode the character whose valid multibyte form starts at `str(pos:)'
+    !> and return its byte length in `length'.
     !> Port of character.h:string_char_and_length.
     pure subroutine string_char_and_length(str, pos, ch, length)
         character(len=*), intent(in) :: str
@@ -428,7 +428,7 @@ contains
         ch = d
     end subroutine string_char_and_length
 
-    !> Decode the character at `str(pos:)`.  Port of character.h:STRING_CHAR.
+    !> Decode the character at `str(pos:)'.  Port of character.h:STRING_CHAR.
     pure integer(int32) function string_char(str, pos)
         character(len=*), intent(in) :: str
         integer(int64), intent(in) :: pos
@@ -436,7 +436,7 @@ contains
         call string_char_and_length(str, pos, string_char, length)
     end function string_char
 
-    !> Number of characters in multibyte text `str`, which must contain only
+    !> Number of characters in multibyte text `str', which must contain only
     !> valid multibyte forms (raw-byte forms included).  Upstream aborts on
     !> an invalid sequence; here that is an error.
     !> Port of character.c:multibyte_chars_in_text.
@@ -459,7 +459,7 @@ contains
         end do
     end subroutine multibyte_chars_in_text
 
-    !> Count the characters and bytes unibyte text `str` would have as
+    !> Count the characters and bytes unibyte text `str' would have as
     !> multibyte text: bytes that start no valid sequence become 2-byte
     !> raw-byte forms.  Port of character.c:parse_str_as_multibyte.
     pure subroutine parse_str_as_multibyte(str, nchars, nbytes)
@@ -483,8 +483,8 @@ contains
         end do
     end subroutine parse_str_as_multibyte
 
-    !> Unibyte text `str` rearranged as multibyte text: valid sequences are
-    !> kept, other 8-bit bytes become raw-byte forms.  `nchars` receives the
+    !> Unibyte text `str' rearranged as multibyte text: valid sequences are
+    !> kept, other 8-bit bytes become raw-byte forms.  `nchars' receives the
     !> character count.  Port of character.c:str_as_multibyte (which works
     !> in place; this produces a new string).
     pure subroutine str_as_multibyte(str, out, nchars)
@@ -514,7 +514,7 @@ contains
         end do
     end subroutine str_as_multibyte
 
-    !> Bytes `str` occupies once every non-ASCII byte becomes a raw-byte
+    !> Bytes `str' occupies once every non-ASCII byte becomes a raw-byte
     !> form.  Port of character.c:count_size_as_multibyte.
     pure integer(int64) function count_size_as_multibyte(str)
         character(len=*), intent(in) :: str
@@ -525,7 +525,7 @@ contains
         end do
     end function count_size_as_multibyte
 
-    !> Unibyte `src` as multibyte text holding the same single-byte
+    !> Unibyte `src' as multibyte text holding the same single-byte
     !> characters (every non-ASCII byte becomes a raw-byte form).
     !> Port of character.c:str_to_multibyte.
     pure function str_to_multibyte(src) result(dst)
@@ -548,7 +548,7 @@ contains
         end do
     end function str_to_multibyte
 
-    !> Multibyte `str` with raw-byte forms turned back into single bytes.
+    !> Multibyte `str' with raw-byte forms turned back into single bytes.
     !> Port of character.c:str_as_unibyte (which works in place).
     pure function str_as_unibyte(str) result(out)
         character(len=*), intent(in) :: str
@@ -574,7 +574,7 @@ contains
         out = work(1:q)
     end function str_as_unibyte
 
-    !> Fold modifier bits of `c` into the code where ASCII allows it (e.g.
+    !> Fold modifier bits of `c' into the code where ASCII allows it (e.g.
     !> C-a -> 1, S-a -> A).  Port of character.c:char_resolve_modifier_mask.
     elemental integer(int32) function char_resolve_modifier_mask(c) result(k)
         integer(int32), intent(in) :: c
@@ -611,7 +611,7 @@ contains
         end if
     end function char_resolve_modifier_mask
 
-    !> Index (1..256) of variation selector `c`, or 0.
+    !> Index (1..256) of variation selector `c', or 0.
     !> Port of character.h:CHAR_VARIATION_SELECTOR_P.
     elemental integer(int32) function char_variation_selector_p(c)
         integer(int32), intent(in) :: c
@@ -634,7 +634,7 @@ contains
         char_surrogate_p = int(z'D800', int32) <= c .and. c <= int(z'DFFF', int32)
     end function char_surrogate_p
 
-    !> Value 0..15 of hex digit `c`, or -1.
+    !> Value 0..15 of hex digit `c', or -1.
     !> Port of character.h:char_hexdigit.
     elemental integer(int32) function char_hexdigit(c)
         integer(int32), intent(in) :: c
@@ -649,7 +649,7 @@ contains
         end if
     end function char_hexdigit
 
-    !> The Unicode general category of `c` (`UNICODE_CATEGORY_...`): Cn
+    !> The Unicode general category of `c' (`UNICODE_CATEGORY_...'): Cn
     !> for an unassigned code point, UNKNOWN beyond Unicode.  What
     !> CHAR_TABLE_REF (Vunicode_category_table, c) gives upstream.
     pure integer function unicode_category(c) result(cat)

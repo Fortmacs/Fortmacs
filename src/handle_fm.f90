@@ -21,7 +21,7 @@
 !>
 !> Not a port: upstream refers to these objects by pointer and relies on the
 !> garbage collector.  Fortmacs keeps each kind of object in a registry
-!> module that owns a `slot_table_type` plus a parallel array of payloads.
+!> module that owns a `slot_table_type' plus a parallel array of payloads.
 !> A handle is (index, generation).  Releasing a slot bumps its generation,
 !> so handles taken before the release are detected as stale even after the
 !> slot is reused.
@@ -101,7 +101,7 @@ contains
         h = handle_type(i, self%generations(i))
     end subroutine table_acquire
 
-    !> Free the slot `h` refers to.  Fails on a null or stale handle,
+    !> Free the slot `h' refers to.  Fails on a null or stale handle,
     !> including a second release of the same handle.
     subroutine table_release(self, h, status)
         class(slot_table_type), intent(inout) :: self
@@ -117,7 +117,7 @@ contains
         self%free_list(self%free_count) = i
     end subroutine table_release
 
-    !> Translate `h` into its payload index, or fail with invalid-handle.
+    !> Translate `h' into its payload index, or fail with invalid-handle.
     pure subroutine table_resolve(self, h, i, status)
         class(slot_table_type), intent(in) :: self
         type(handle_type), intent(in) :: h
@@ -131,7 +131,7 @@ contains
         i = h%index
     end subroutine table_resolve
 
-    !> True when `h` refers to a live slot of this table.
+    !> True when `h' refers to a live slot of this table.
     elemental logical function table_is_live(self, h)
         class(slot_table_type), intent(in) :: self
         type(handle_type), intent(in) :: h
@@ -142,7 +142,7 @@ contains
         table_is_live = self%generations(h%index) == h%generation
     end function table_is_live
 
-    !> The current handle of live slot `i`, or the null handle.
+    !> The current handle of live slot `i', or the null handle.
     pure function table_handle_of(self, i) result(h)
         class(slot_table_type), intent(in) :: self
         integer(int64), intent(in) :: i

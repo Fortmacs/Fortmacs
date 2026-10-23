@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `redisplay` lays out the root window's buffer from its window start,
+!> `redisplay' lays out the root window's buffer from its window start,
 !> recentering when point is not visible, adds the mode line and the echo
 !> area, and updates the terminal (dispnew_fm).
 !>
@@ -138,7 +138,7 @@ contains
     ! Producing glyphs
     ! ------------------------------------------------------------------
 
-    !> Columns character `c` takes: 2 for East Asian wide and fullwidth
+    !> Columns character `c' takes: 2 for East Asian wide and fullwidth
     !> characters and emoji, else 1.  An approximation of
     !> character.c:char_width with characters.el's char-width-table.
     elemental integer function glyph_width(c)
@@ -160,7 +160,7 @@ contains
             (c >= int(z'20000', int32) .and. c <= int(z'3FFFD', int32))) glyph_width = 2
     end function glyph_width
 
-    !> The cells that show character `c` at logical column `x` (the column
+    !> The cells that show character `c' at logical column `x' (the column
     !> counted from the start of the line, continuation lines included).
     !> The display-element part of xdisp.c:get_next_display_element with
     !> term.c:produce_glyphs: TAB, ^X, \ooo, wide characters.
@@ -200,7 +200,7 @@ contains
         end if
     end subroutine produce_char
 
-    !> Columns character `c` takes when displayed at column `x` (for
+    !> Columns character `c' takes when displayed at column `x' (for
     !> TAB, the distance to the next tab stop).
     integer function glyph_columns(c, x) result(n)
         integer(int32), intent(in) :: c
@@ -209,8 +209,8 @@ contains
         call produce_char(c, x, cells, n)
     end function glyph_columns
 
-    !> Lay out buffer slot `bi` from `start` in `rows` (one per window
-    !> body line) `width` columns wide.  Gives the cursor position of `pt`
+    !> Lay out buffer slot `bi' from `start' in `rows' (one per window
+    !> body line) `width' columns wide.  Gives the cursor position of `pt'
     !> (cursor_row -1 if it is not shown), where the display ends, and
     !> whether it reached the end of the accessible text.  The core of
     !> xdisp.c:try_window with display_line.
@@ -299,8 +299,8 @@ contains
         if (pos >= zv) reached_end = .true.
     end subroutine layout_window
 
-    !> The start of the line `nlines` lines above the one holding `pos`
-    !> in buffer slot `bi` (not before the accessible start).  The
+    !> The start of the line `nlines' lines above the one holding `pos'
+    !> in buffer slot `bi' (not before the accessible start).  The
     !> logical-line part of xdisp.c's recentering (move_it_vertically_backward).
     integer(int64) function line_start_above(bi, pos, nlines) result(start)
         integer(int64), intent(in) :: bi, pos
@@ -325,7 +325,7 @@ contains
     ! Windows, mode line, echo area
     ! ------------------------------------------------------------------
 
-    !> Make row `vpos` of the desired matrix a full-width blank row, to be
+    !> Make row `vpos' of the desired matrix a full-width blank row, to be
     !> filled by the windows on it.
     subroutine blank_row(f, vpos)
         type(frame_type), intent(inout) :: f
@@ -344,7 +344,7 @@ contains
     end subroutine blank_row
 
     !> Copy window rows into the frame's desired matrix, from column
-    !> `left` (0-based), with the vertical border after them if `divider`.
+    !> `left' (0-based), with the vertical border after them if `divider'.
     subroutine put_rows(f, top, left, rows, divider)
         type(frame_type), intent(inout) :: f
         integer, intent(in) :: top, left
@@ -365,9 +365,9 @@ contains
         end do
     end subroutine put_rows
 
-    !> Display window `w`: from its start if that shows point (or the
+    !> Display window `w': from its start if that shows point (or the
     !> start is forced), else recentered around point; then its mode line.
-    !> `pt` is the window's point; `selected` says whether it is the
+    !> `pt' is the window's point; `selected' says whether it is the
     !> selected window.  Port of the core of xdisp.c:redisplay_window.
     subroutine redisplay_window(f, w, pt, selected)
         type(frame_type), intent(inout) :: f
@@ -420,7 +420,7 @@ contains
         if (.not. w%mini) call display_mode_line(f, w, bi, start, pt)
     end subroutine redisplay_window
 
-    !> 1 + the number of newlines before `pos` in buffer slot `bi`.
+    !> 1 + the number of newlines before `pos' in buffer slot `bi'.
     integer(int64) function line_number(bi, pos) result(n)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, end_byte
@@ -433,7 +433,7 @@ contains
         end do
     end function line_number
 
-    !> The mode line of window `w`, padded with dashes to `width`.  A
+    !> The mode line of window `w', padded with dashes to `width'.  A
     !> fixed rendering of the default mode-line-format: coding and
     !> modified flags, frame name, buffer name, position, line number and
     !> major mode.  (xdisp.c:display_mode_line with bindings.el's
@@ -497,8 +497,8 @@ contains
         lighters(n_lighters)%lighter = lighter
     end subroutine add_minor_mode_lighter
 
-    !> The modes part of buffer BI's mode line: `mode-name` and the
-    !> lighters of `minor-mode-alist` whose variables are non-nil there.
+    !> The modes part of buffer BI's mode line: `mode-name' and the
+    !> lighters of `minor-mode-alist' whose variables are non-nil there.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -588,7 +588,7 @@ contains
 
     !> Show the active minibuffer's text on the minibuffer line, scrolled
     !> horizontally to keep point visible ("$" marks text cut off at
-    !> either edge).  `cursor_col` is point's column on the screen line.
+    !> either edge).  `cursor_col' is point's column on the screen line.
     !> The one-line case of xdisp.c:display_line for a minibuffer window
     !> with auto-hscroll.
     subroutine display_minibuffer(f, cursor_col)
@@ -661,7 +661,7 @@ contains
         end associate
     contains
 
-        !> Lay out character `c` at column x.
+        !> Lay out character `c' at column x.
         subroutine put(c)
             integer(int32), intent(in) :: c
             call produce_char(c, x, cells, n)
@@ -675,7 +675,7 @@ contains
         end subroutine put
     end subroutine display_minibuffer
 
-    !> Show `text` in the echo area.  Port of editfns.c:Fmessage (with a
+    !> Show `text' in the echo area.  Port of editfns.c:Fmessage (with a
     !> plain string; no *Messages* log yet).
     subroutine message(text)
         character(len=*), intent(in) :: text

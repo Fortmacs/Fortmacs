@@ -18,7 +18,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The configuration API.  A user's init.f90 is a module named
-!> `user_config` with a public subroutine `configure`, which runs once at
+!> `user_config' with a public subroutine `configure', which runs once at
 !> startup (where upstream loads the init file):
 !>
 !>     module user_config
@@ -48,21 +48,21 @@
 !>     end module user_config
 !>
 !> Settings are the variables below; assign them (that sets the default
-!> value; `call fill_column%set_local(60)` sets the current buffer's own
-!> value).  Commands are subroutines taking a `status_type`, defined as
-!> `command_type` objects: built-in ones are the components of
-!> `commands`, so that `commands%upcase_region%disabled = .false.`
-!> enables C-x C-u, and `call commands%yank%run(status)` runs one.  Keys
-!> are bound with `keymap_global_set`.  Modes are the components of
-!> `major_modes` and `minor_modes`, customized from their hooks:
-!> `call major_modes%text_mode%hook%add(turn_on_auto_fill)`.  New modes
-!> are `major_mode_type` and `minor_mode_type` objects made known with
-!> their `define`.  A `configure` that fails (returns a
+!> value; `call fill_column%set_local(60)' sets the current buffer's own
+!> value).  Commands are subroutines taking a `status_type', defined as
+!> `command_type' objects: built-in ones are the components of
+!> `commands', so that `commands%upcase_region%disabled = .false.'
+!> enables C-x C-u, and `call commands%yank%run(status)' runs one.  Keys
+!> are bound with `keymap_global_set'.  Modes are the components of
+!> `major_modes' and `minor_modes', customized from their hooks:
+!> `call major_modes%text_mode%hook%add(turn_on_auto_fill)'.  New modes
+!> are `major_mode_type' and `minor_mode_type' objects made known with
+!> their `define'.  A `configure' that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
-!> `fortmacs -q` starts without running `configure`.
+!> `fortmacs -q' starts without running `configure'.
 !>
 !> This module only gathers names from the modules that define them, so
-!> the API stays one `use` away.
+!> the API stays one `use' away.
 module fortmacs
     use, intrinsic :: iso_fortran_env, only: int64
     ! Errors and values.
