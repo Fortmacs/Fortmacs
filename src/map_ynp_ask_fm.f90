@@ -86,12 +86,12 @@ contains
         objects_loop: do while (k < n)
             k = k + 1
             call prompter(k, how, prompt)
-            if (how == YNP_SKIP) cycle
+            if (how == YNP_SKIP) cycle objects_loop
             if (how == YNP_ACT) then
                 call actor(k, status)
                 if (.not. status%ok()) exit objects_loop
                 actions = actions + 1
-                cycle
+                cycle objects_loop
             end if
             full = prompt//"(y, n, !, ., q, or C-h) "
             again = .true.

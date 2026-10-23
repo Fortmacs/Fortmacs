@@ -632,7 +632,7 @@ contains
         call kill_buffer(buf, st)
         call check(error, st%ok() .and. name == "Zebra-Buffer", name)
         if (allocated(error)) return
-        call check(error, .not. completion_ignore_case%value, "completion-ignore-case restored")
+        call check(error,.not. completion_ignore_case%value, "completion-ignore-case restored")
     end subroutine test_read_buffer_ignore_case
 
     !> all-completions of "" leaves out internal buffers (names starting
@@ -659,7 +659,7 @@ contains
         call check(error, list_length(result) == 1, "asked for")
         if (allocated(error)) return
         call internal_complete_buffer(" internal-test", COMPLETE_TEST, result, st)
-        call check(error, .not. nilp(result), "test-completion")
+        call check(error,.not. nilp(result), "test-completion")
         call kill_buffer(buf, st)
     end subroutine test_internal_complete_buffer
 
@@ -685,7 +685,7 @@ contains
         call define_key(minibuffer_local_map, key, sym("test-leave-and-read"), st)
         call type_keys("C-t x RET")
         call read_from_minibuffer("Outer: ", answer, st)
-        call check(error, .not. st%ok() .and. &
+        call check(error,.not. st%ok() .and. &
                    format_error(st) == "Command attempted to use minibuffer while in minibuffer", format_error(st))
         if (allocated(error)) return
         call check(error, minibuf_level == 0, "left the minibuffer")

@@ -76,7 +76,7 @@ submodule(data_fm) data_buffer_fm
                                                     "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
-                                                "parse_sexp_ignore_comments", "require_final_newline", &
+                                                      "parse_sexp_ignore_comments", "require_final_newline", &
                                                       "mode_require_final_newline", "completion_ignore_case"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &

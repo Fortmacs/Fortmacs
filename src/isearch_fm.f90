@@ -780,8 +780,9 @@ contains
         logical, intent(in) :: c_q_hack
         logical, intent(in), optional :: ellipsis
         character(len=:), allocatable :: m
-        m = isearch_message_prefix(isearch_nonincremental, flag(ellipsis))//isearch_text_description(isearch_message) &
-            //isearch_message_suffix(c_q_hack)
+        m = isearch_message_prefix(isearch_nonincremental, flag(ellipsis))
+        if (allocated(isearch_message)) m = m//isearch_text_description(isearch_message)
+        m = m//isearch_message_suffix(c_q_hack)
     end function isearch_message_string
 
     !> Return position of first mismatch in search string, or -1 (nil) if
@@ -797,7 +798,7 @@ contains
         end do
         pos = 0
         if (k < 1) return
-        if (.not. allocated(cmds(k)%string)) return
+        if (.not. allocated(cmds(k)%string) .or. .not. allocated(isearch_string)) return
         if (len(cmds(k)%string) < len(isearch_string)) then
             if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = schars_of(cmds(k)%string)
         end if
@@ -1504,8 +1505,10 @@ contains
     !> Port of isearch.el:isearch--momentary-message.
     subroutine isearch_momentary_message(string)
         character(len=*), intent(in) :: string
-        call message(isearch_message_prefix(isearch_nonincremental)//isearch_text_description(isearch_message)// &
-                     " ["//string//"]")
+        character(len=:), allocatable :: m
+        m = isearch_message_prefix(isearch_nonincremental)
+        if (allocated(isearch_message)) m = m//isearch_text_description(isearch_message)
+        call message(m//" ["//string//"]")
         call sit_for(1000)
     end subroutine isearch_momentary_message
 

@@ -106,15 +106,15 @@ contains
         call message("Please enter a number.")
         call sit_for(1000)
     end do
-    contains
+contains
 
-        function itoa(v) result(s)
-            integer(int64), intent(in) :: v
-            character(len=:), allocatable :: s
-            character(len=24) :: buf
-            write (buf, "(i0)") v
-            s = trim(buf)
-        end function itoa
+    function itoa(v) result(s)
+        integer(int64), intent(in) :: v
+        character(len=:), allocatable :: s
+        character(len=24) :: buf
+        write (buf, "(i0)") v
+        s = trim(buf)
+    end function itoa
     end procedure read_number
 
     !> The integer the Lisp reader reads first from STR, `ok' false if it

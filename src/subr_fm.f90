@@ -98,19 +98,19 @@ module subr_fm
     !> would prohibit the M-v binding.  Instead, callers should check for
     !> ESC specially.)
     character(len=*), parameter, public :: QRM_KEYS(38) = [character(len=11) :: &
-                                            "SPC", "DEL", "<delete>", "<backspace>", "y", "n", "Y", "N", "e", "E", ",", &
-                                            "q", "RET", "<return>", ".", "C-r", "C-w", "C-l", "!", "^", "u", "U", &
-                                            "d", "C-h", "<f1>", "<help>", "?", "C-g", "C-]", "C-v", "M-v", "<next>", &
-                                            "<prior>", "C-M-v", "M-<next>", "C-M-S-v", "M-<prior>", "<escape>"]
+                                                       "SPC", "DEL", "<delete>", "<backspace>", "y", "n", "Y", "N", "e", "E", ",", &
+                                                           "q", "RET", "<return>", ".", "C-r", "C-w", "C-l", "!", "^", "u", "U", &
+                                                          "d", "C-h", "<f1>", "<help>", "?", "C-g", "C-]", "C-v", "M-v", "<next>", &
+                                                           "<prior>", "C-M-v", "M-<next>", "C-M-S-v", "M-<prior>", "<escape>"]
     character(len=*), parameter, public :: QRM_ANSWERS(38) = [character(len=27) :: &
-                                               "act", "skip", "skip", "skip", "act", "skip", "act", "skip", &
-                                               "edit_replacement", "edit_replacement_exact_case", "act_and_show", &
-                                               "exit", "exit", "exit", "act_and_exit", "edit", "delete_and_edit", &
-                                               "recenter", "automatic", "backup", "undo", "undo_all", "diff", &
-                                               "help", "help", "help", "help", "quit", "quit", "scroll_up", &
-                                               "scroll_down", "scroll_up", "scroll_down", "scroll_other_window", &
-                                               "scroll_other_window", "scroll_other_window_down", &
-                                               "scroll_other_window_down", "exit_prefix"]
+                                                              "act", "skip", "skip", "skip", "act", "skip", "act", "skip", &
+                                                              "edit_replacement", "edit_replacement_exact_case", "act_and_show", &
+                                                              "exit", "exit", "exit", "act_and_exit", "edit", "delete_and_edit", &
+                                                              "recenter", "automatic", "backup", "undo", "undo_all", "diff", &
+                                                              "help", "help", "help", "help", "quit", "quit", "scroll_up", &
+                                                              "scroll_down", "scroll_up", "scroll_down", "scroll_other_window", &
+                                                              "scroll_other_window", "scroll_other_window_down", &
+                                                              "scroll_other_window_down", "exit_prefix"]
 
     ! The answers of `query_replace_map'.
     integer, parameter :: ANSWER_NONE = 0, ANSWER_ACT = 1, ANSWER_SKIP = 2, ANSWER_EXIT = 3, &
