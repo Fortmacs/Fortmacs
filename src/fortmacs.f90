@@ -138,7 +138,7 @@ module fortmacs
     use prog_mode_fm, only: prog_mode
     use files_fm, only: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions
     ! Settings.
-    use xdisp_fm, only: tab_width
+    use xdisp_fm, only: tab_width, truncate_partial_width_windows
     use files_fm, only: make_backup_files, change_major_mode_with_file_name
     use simple_fm, only: line_move_visual, goal_column
     use subr_fm, only: history_length
@@ -240,7 +240,7 @@ module fortmacs
     public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
     public :: tab_width, make_backup_files, change_major_mode_with_file_name, line_move_visual, goal_column, history_length, &
-              enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
+              truncate_partial_width_windows, enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
               inhibit_field_text_motion, visible_bell, transient_mark_mode, mark_even_if_inactive, kill_ring_max, &
               mark_ring_max, kill_whole_line_option, delete_active_region, kill_read_only_ok, case_fold_search, &
               search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, UPPER_CASE_NIL, &

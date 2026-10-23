@@ -35,7 +35,8 @@ submodule(window_fm) window_scroll_fm
     use data_fm, only: value_eq
     use buffer_fm, only: cur, current_buffer, set_buffer, buffer_live_p, buffer_list
     use editfns_fm, only: point, goto_char, eobp, bobp, point_min, point_max
-    use cmds_fm, only: forward_line
+    use cmds_fm, only: forward_line, beginning_of_line
+    use xdisp_fm, only: truncate_partial_width_windows
     use indent_fm, only: vertical_motion, move_to_column
     use frame_fm, only: selected_frame, selected_window_ref
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -264,13 +265,20 @@ contains
         call vertical_motion(iarg, line)
     end subroutine move_to_window_line
 
-    !> Move to the goal column after a scroll command.  Port of
+    !> Move to the goal column after a scroll command: under
+    !> `line_move_visual' with lines not truncated, `goal_column' in screen
+    !> columns as vertical-motion counts them, else as
+    !> simple.el:line-move-to-column (`truncate_partial_width_windows' is
+    !> non-nil by default, so that is the usual case).  Port of
     !> window.el:scroll-command--goto-goal-column (truncate-lines nil).
     subroutine goto_goal_column()
         integer(int64) :: moved, reached
         if (goal_column < 0) return
-        if (line_move_visual) then
+        if (line_move_visual .and. truncate_partial_width_windows == 0) then
             call vertical_motion(0_int64, moved, int(goal_column))
+        else if (goal_column == 0) then
+            ! line-move-to-column (no invisible text)
+            call beginning_of_line()
         else
             call move_to_column(goal_column, reached)
         end if

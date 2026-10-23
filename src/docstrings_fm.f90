@@ -71,7 +71,7 @@ module docstrings_fm
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
     use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
-    use xdisp_fm, only: tab_width
+    use xdisp_fm, only: tab_width, truncate_partial_width_windows
     implicit none(type, external)
     private
 
@@ -379,7 +379,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(98) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(99) = [character(len=44) :: &
                                                                   "adaptive_fill_mode", &
                                                                   "after_change_major_mode_hook", &
                                                                   "amalgamating_undo_limit", &
@@ -474,6 +474,7 @@ module docstrings_fm
                                                                   "text_mode_variant", &
                                                                   "transient_mark_mode", &
                                                                   "transient_mark_mode_hook", &
+                                                                  "truncate_partial_width_windows", &
                                                                   "undo_in_progress", &
                                                                   "undo_no_redo", &
                                                                   "visible_bell", &
@@ -1778,7 +1779,10 @@ contains
         case ("message")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "call message(text)"
-            entry%doc = "Show `text' in the echo area."
+            entry%doc = "Show `text' in the echo area; an empty `text' clears it.  While the"//LF// &
+                        "minibuffer is active the text goes after the minibuffer's contents"//LF// &
+                        "instead, enclosed in [...] unless it already is, until the next"//LF// &
+                        "input event."
         case ("minibuffer_complete")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
@@ -3916,6 +3920,25 @@ contains
             entry%fortran = "transient_mark_mode_hook"
             entry%original = "hook_type(name=""transient_mark_mode_hook"")"
             entry%doc = "Hook run after entering or leaving `transient_mark_mode'."
+        case ("truncate_partial_width_windows")
+            entry%file = "xdisp_fm.f90"
+            entry%fortran = "truncate_partial_width_windows"
+            entry%original = "50"
+            entry%value = repr(truncate_partial_width_windows)
+            entry%doc = "Non-nil means truncate lines in windows narrower than the frame."//LF// &
+                        "For an integer value, truncate lines in each window narrower than the"//LF// &
+                        "full frame width, provided the total window width in column units is less"//LF// &
+                        "than that integer; otherwise, respect the value of `truncate_lines'."//LF// &
+                        "The total width of the window is as returned by `window_total_width', it"//LF// &
+                        "includes the fringes, the continuation and truncation glyphs, the"//LF// &
+                        "display margins (if any), and the scroll bar"//LF// &
+                        ""//LF// &
+                        "For any other non-nil value, truncate lines in all windows that do"//LF// &
+                        "not span the full frame width."//LF// &
+                        ""//LF// &
+                        "A value of nil means to respect the value of `truncate_lines'."//LF// &
+                        ""//LF// &
+                        "In Fortran: 0 is nil, `huge(0)' any other non-nil value."
         case ("undo_in_progress")
             entry%file = "simple_fm.f90"
             entry%fortran = "undo_in_progress"
