@@ -2373,9 +2373,7 @@ contains
         case ("put")
             entry%file = "fns_fm.f90"
             entry%fortran = "call put(symbol, prop, val, status)"
-            entry%doc = "`put` also takes the symbol and property by name and a logical"//LF// &
-                        "value (.false. is nil, .true. is t), so configuration code can"//LF// &
-                        "write `call put(""upcase-region"", ""disabled"", .false., status)`."
+            entry%doc = "Set property `prop` of `symbol` to `val`."
         case ("query-replace")
             entry%file = "replace_fm.f90"
             entry%fortran = "call query_replace(from_string, to_string, status, delimited, start, end, backward)"
