@@ -37,6 +37,9 @@ module test_novice_fm
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
     use novice_fm, only: enable_command, disable_command, disabled_command_function_p
+    use lread_fm, only: user_init_file
+    use fileio_fm, only: expand_file_name, make_directory_internal, delete_file_internal, emacs_wd, init_fileio
+    use files_fm, only: find_file_noselect
     implicit none(type, external)
     private
 
@@ -123,19 +126,67 @@ contains
 
     subroutine test_enable_disable(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h
+        type(handle_type) :: h, init_buf
         type(status_type) :: st
+        character(len=:), allocatable :: text, path
+        character(len=*), parameter :: LF = achar(10)
+        call init_fileio()
+        call expand_file_name("build/test-novice", path, st, emacs_wd)
+        call make_directory_internal(path, st)
+        path = path//"/init.f90"
+        user_init_file = path
+        call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
+                        "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
+                        "        call put(sym(""upcase-region""), sym(""disabled""), t_value(), st)"//LF// &
+                        "    end subroutine configure"//LF//"end module user_config"//LF)
         call enter(h)
         call enable_command("upcase-region", st)
+        call check(error, st%ok(), "enable-command")
+        if (allocated(error)) return
         call run("C-x C-u")
         call check(error, buffer_string() == "ABC", buffer_string())
         if (allocated(error)) return
+        ! novice.el: the old line is replaced by one at the end.
+        text = read_text(user_init_file)
+        call check(error, text == "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
+                   "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
+                   "        call put(sym(""upcase-region""), sym(""disabled""), nil(), st)"//LF// &
+                   "    end subroutine configure"//LF//"end module user_config"//LF, text)
+        if (allocated(error)) return
         call disable_command("upcase-region", st)
         call check(error, disabled("upcase-region"))
+        if (allocated(error)) return
+        text = read_text(user_init_file)
+        call check(error, index(text, "sym(""disabled""), t_value(), st)") > 0 .and. &
+                   index(text, "nil(), st)") == 0, text)
         if (allocated(error)) return
         call enable_command("no-such-command", st)
         call check(error,.not. st%ok())
         call discard_input()
         call kill_buffer(h, st)
+        call find_file_noselect(user_init_file, init_buf, st)
+        call kill_buffer(init_buf, st)
+        call delete_file_internal(user_init_file, st)
+        call delete_file_internal(user_init_file//"~", st)
+        deallocate (user_init_file)
     end subroutine test_enable_disable
+
+    subroutine write_text(file, text)
+        character(len=*), intent(in) :: file, text
+        integer :: u
+        open (newunit=u, file=file, access="stream", form="unformatted", status="replace", action="write")
+        write (u) text
+        close (u)
+    end subroutine write_text
+
+    function read_text(file) result(text)
+        character(len=*), intent(in) :: file
+        character(len=:), allocatable :: text
+        integer :: u, n
+        open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read")
+        inquire (unit=u, size=n)
+        allocate (character(len=n) :: text)
+        read (u) text
+        close (u)
+    end function read_text
 end module test_novice_fm

@@ -77,7 +77,7 @@ module fortmacs
                           delete_region, bobp, eobp, bolp, eolp, region_beginning, region_end
     use cmds_fm, only: forward_char, backward_char, forward_line, beginning_of_line, end_of_line
     use files_fm, only: find_file, save_buffer
-    use fns_fm, only: yes_or_no_p
+    use fns_fm, only: yes_or_no_p, get, put
     use minibuf_fm, only: read_string
     use xdisp_fm, only: message
     use search_fm, only: search_forward, search_backward, match_beginning, match_end, &
@@ -202,7 +202,7 @@ module fortmacs
     public :: int64
     public :: status_type, set_error, format_error, FM_GENERIC_ERROR
     public :: value_type, nil, t_value, make_fixnum, make_string, list, sym
-    public :: symbol_value, set
+    public :: symbol_value, set, get, put
     public :: command_proc, defcommand, call_interactively, current_prefix_arg, &
               prefix_numeric_value
     public :: keymap_global_set, keymap_set, key_valid_p, key_parse, key_description, &

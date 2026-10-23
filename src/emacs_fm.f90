@@ -48,6 +48,7 @@ module emacs_fm
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
+    use lread_fm, only: user_init_file
     use config_fm, only: install_prefix, running_executable, recompile, init_file_name, current_build_name, &
                          generation_of, current_generation, switch_generation, rollback, list_generations
     implicit none(type, external)
@@ -276,6 +277,7 @@ contains
         procedure(init_proc) :: configure
         type(status_type) :: status
         init_file_had_error = .false.
+        user_init_file = init_file_name()
         call configure(status)
         if (.not. status%ok()) then
             init_file_had_error = .true.
