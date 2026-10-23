@@ -874,7 +874,7 @@ contains
                         ! Try to resize WINDOW to its old height but don't
                         ! signal an error.
                         delta = quad_owner%quad_size - combined_size(h)
-                        call window_resize(h, delta, .not. window_combined_p(h, .false.), status)
+                        call window_resize(h, delta,.not. window_combined_p(h, .false.), status)
                         status = status_type()
                     end if
                 end if
@@ -909,8 +909,9 @@ contains
                 if (.not. reset_prev) call free_quit_restore(windows(h%index)%quit_restore)
                 ! If WINDOW is the selected window and the previously
                 ! selected window is still alive, try to select that window.
-                if (selected_p(h) .or. .not. any(bury_or_kill == [BK_KILLING, BK_BURYING])) &
+                if (selected_p(h) .or. .not. any(bury_or_kill == [BK_KILLING, BK_BURYING])) then
                     call quit_restore_select_window(select_after)
+                end if
             else
                 ! Show some other buffer in WINDOW and leave the
                 ! quit-restore(-prev) parameters alone.  Make sure that
@@ -1005,8 +1006,9 @@ contains
             if (window_live_p(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
         end do
         ! The minibuffer window too.
-        if (window_live_p(selected_frame%minibuffer_window)) &
+        if (window_live_p(selected_frame%minibuffer_window)) then
             call unrecord_window_buffer(selected_frame%minibuffer_window, buffer, .true.)
+        end if
     end subroutine replace_buffer_in_windows
 
     !> Put BUFFER-OR-NAME at the end of the list of all buffers.
@@ -1141,8 +1143,9 @@ contains
                         w%quit_restore%kind = QR_SAME
                         ! The selected-window might have changed in
                         ! between.
-                        if (.not. same_handle(h, sw) .and. .not. same_handle(h, w%quit_restore%selected)) &
+                        if (.not. same_handle(h, sw) .and. .not. same_handle(h, w%quit_restore%selected)) then
                             w%quit_restore%selected = sw
+                        end if
                     end if
                 else
                     ! WINDOW shows another buffer: a quadruple of its
@@ -1198,8 +1201,9 @@ contains
         end if
         ! Maybe dedicate WINDOW to BUFFER if asked for: not if it is
         ! dedicated because it shows BUFFER already or it is reused.
-        if (windows(h%index)%dedicated == DEDICATED_NONE .and. type /= QR_OTHER) &
+        if (windows(h%index)%dedicated == DEDICATED_NONE .and. type /= QR_OTHER) then
             windows(h%index)%dedicated = display_buffer_mark_dedicated
+        end if
         if (type == QR_WINDOW) then
             if (allocated(windows(h%index)%prev_buffers)) call clear_prev_buffers(h)
         end if
@@ -1235,8 +1239,9 @@ contains
         status = status_type()
         window = null_handle()
         sw = selected_window()
-        if (alist%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) &
+        if (alist%inhibit_same_window .or. windows(sw%index)%mini .or. windows(sw%index)%dedicated /= DEDICATED_NONE) then
             return
+        end if
         window = window_display_buffer(buffer, sw, QR_OTHER, status, alist)
     end function display_buffer_same_window
 
@@ -1454,8 +1459,9 @@ contains
             window = null_handle()
         end if
         if (window_live_p(bottom_window)) then
-            if (windows(bottom_window%index)%dedicated == DEDICATED_NONE) &
+            if (windows(bottom_window%index)%dedicated == DEDICATED_NONE) then
                 window = window_display_buffer(buffer, bottom_window, QR_OTHER, status, alist)
+            end if
         end if
     end function display_buffer_at_bottom
 
@@ -1487,6 +1493,8 @@ contains
             window = display_buffer_use_some_window(buffer, alist, status)
         case (DISPLAY_ACTION_AT_BOTTOM)
             window = display_buffer_at_bottom(buffer, alist, status)
+        case default
+            continue
         end select
     end function display_buffer_action
 
@@ -1582,8 +1590,9 @@ contains
         max_delta = 0
         sub = windows(windows(window%index)%parent%index)%child
         do while (window_valid_p(sub))
-            if (.not. same_handle(sub, window)) &
+            if (.not. same_handle(sub, window)) then
                 max_delta = max_delta + max(windows(sub%index)%total_lines - window_min_size(sub, .false.), 0)
+            end if
             sub = windows(sub%index)%next
         end do
         max_h = total_height + max_delta

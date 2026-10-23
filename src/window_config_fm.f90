@@ -105,8 +105,9 @@ contains
             end associate
             prev = next
             next = next + 1
-            if (window_valid_p(windows(w%index)%child)) &
+            if (window_valid_p(windows(w%index)%child)) then
                 next = save_window_save(windows(w%index)%child, saved, next, prev)
+            end if
             w = windows(w%index)%next
         end do
     end function save_window_save
@@ -262,8 +263,9 @@ contains
         do k = 1, size(old)
             old(k) = null_handle()
         end do
-        if (window_valid_p(selected_frame%root_window)) &
+        if (window_valid_p(selected_frame%root_window)) then
             call delete_all_child_windows(selected_frame%root_window, old, n)
+        end if
         do k = 1, n
             windows(old(k)%index)%dead = .true.
             windows(old(k)%index)%parent = null_handle()
@@ -329,10 +331,12 @@ contains
                     ! real.
                     b = windows(window%index)%buffer
                     call resolve_buffer(b, bi, status)
-                    if (windows(window%index)%start%index == 0) &
+                    if (windows(window%index)%start%index == 0) then
                         call restrict(windows(window%index)%start, 0_int64, b)
-                    if (windows(window%index)%pointm%index == 0) &
+                    end if
+                    if (windows(window%index)%pointm%index == 0) then
                         call restrict(windows(window%index)%pointm, buffers(bi)%pt, b)
+                    end if
                 else if (p%start%index /= 0) then
                     ! Leaf window has no live buffer, get one.
                     b = other_buffer_safely(current_buffer())
@@ -353,8 +357,9 @@ contains
         selected_frame%root_window = config%root_window
         ! Arrange *not* to restore point in the buffer that was current
         ! when the window configuration was saved.
-        if (window_cur_shows(config%current_window, new_current_buffer)) &
+        if (window_cur_shows(config%current_window, new_current_buffer)) then
             call restrict(windows(config%current_window%index)%pointm, old_point, new_current_buffer)
+        end if
         ! Select the window without swapping out point in the old
         ! selected window, and without recording the buffer.
         selected_frame%selected_window = config%current_window
@@ -372,8 +377,9 @@ contains
         end do
         ! Scan dead buffer windows.
         do k = 1, ndead
-            if (window_live_p(dead_windows(k)) .and. .not. same_window(dead_windows(k), selected_frame%root_window)) &
+            if (window_live_p(dead_windows(k)) .and. .not. same_window(dead_windows(k), selected_frame%root_window)) then
                 call delete_window(dead_windows(k), status)
+            end if
         end do
         ! Record the selected window's buffer.
         if (window_live_p(config%current_window)) call select_window(config%current_window, status)
@@ -381,8 +387,9 @@ contains
             call set_buffer(new_current_buffer, status)
             ! If the new current buffer doesn't appear in the selected
             ! window, go to its old point (Bug#12208).
-            if (.not. same_handle(windows(selected_frame%selected_window%index)%buffer, new_current_buffer)) &
+            if (.not. same_handle(windows(selected_frame%selected_window%index)%buffer, new_current_buffer)) then
                 call goto_char(old_point)
+            end if
         end if
         minibuffer_scroll_window = config%minibuf_scroll_window
     end subroutine set_window_configuration

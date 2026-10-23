@@ -53,7 +53,6 @@ submodule(window_fm) window_cmds_fm
     use files_fm, only: save_buffer
     implicit none(type, external)
 
-
 contains
 
     !> An error for a window that is not live.

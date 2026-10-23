@@ -1087,10 +1087,10 @@ contains
         alist%window_height => completions_fit_window_to_buffer
         if (selected_frame%minibuffer_selected) then
             call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                         DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], alist)
+                                                               DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], alist)
         else
             call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
-                                         DISPLAY_ACTION_REUSE_WINDOW], alist)
+                                                               DISPLAY_ACTION_REUSE_WINDOW], alist)
         end if
         display_buffer_mark_dedicated = saved_mark
     end subroutine minibuffer_completion_help
