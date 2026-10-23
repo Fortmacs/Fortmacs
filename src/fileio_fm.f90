@@ -248,7 +248,7 @@ contains
                     return
                 end if
                 have_defdir = .true.
-                if (len(buffers(cur)%directory) > 0 .and. buffers(cur)%directory(1:1) == "/") then
+                if (index(buffers(cur)%directory, "/") == 1) then
                     defdir = buffers(cur)%directory
                 else
                     ! Relative to the invocation directory (unknown here),
