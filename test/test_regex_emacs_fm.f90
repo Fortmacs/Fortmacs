@@ -76,6 +76,7 @@ contains
                     new_unittest("regexp-groups-and-backrefs", test_groups), &
                     new_unittest("regexp-intervals", test_intervals), &
                     new_unittest("regexp-invalid", test_invalid), &
+                    new_unittest("regexp-categories-latin-linebreak", test_categories), &
                     new_unittest("re-search-forward-backward", test_re_search), &
                     new_unittest("looking-at", test_looking_at), &
                     new_unittest("match-data", test_match_data), &
@@ -1054,17 +1055,38 @@ contains
         call check(error, sm("\{1\}", "{1}") == 1, "interval without operand is literal")
     end subroutine test_intervals
 
+    !> Categories `l' and `|' as characters.el gives them.
+    subroutine test_categories(error)
+        type(error_type), allocatable, intent(out) :: error
+        ! U+0250 (Latin Extended-B tail), U+24B6 (circled A), U+FF21
+        ! (fullwidth A), U+2C60, U+A722, U+1DF00 are Latin.
+        call check(error, sm("\cl", "ɐ") == 1 .and. sm("\cl", "Ⓐ") == 1 .and. sm("\cl", "Ａ") == 1 .and. &
+                   sm("\cl", "Ⱡ") == 1 .and. sm("\cl", "Ꜣ") == 1 .and. sm("\cl", "𝼀") == 1, "latin")
+        if (allocated(error)) return
+        ! U+02B9 and U+FF10 (fullwidth 0) are not.
+        call check(error, sm("\cl", "ʹ") == 0 .and. sm("\cl", "０") == 0, "not latin")
+        if (allocated(error)) return
+        ! Halfwidth katakana U+FF71 and Tibetan U+0F0B, U+0F7F are line
+        ! breakable; U+FFE6 and Tibetan U+0F13 are not.
+        call check(error, sm("\c|", "ｱ") == 1 .and. sm("\c|", "་") == 1 .and. sm("\c|", "ཿ") == 1, "breakable")
+        if (allocated(error)) return
+        call check(error, sm("\c|", "￦") == 0 .and. sm("\c|", "༓") == 0, "not breakable")
+    end subroutine test_categories
+
     !> Errors.
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
-        call bad("\(", "Unmatched ( or \(")
-        call bad("\)", "Unmatched ) or \)")
+        call bad("\(", "Unmatched ( or \\(")
+        call bad("\)", "Unmatched ) or \\)")
         call bad("[a", "Unmatched [ or [^")
         call bad("a\", "Trailing backslash")
         call bad("[[:foo:]]", "Invalid character class name")
         call bad("\(a\)\2", "Invalid back reference")
-        call bad("a\{2,1\}", "Invalid content of \{\}")
-        call bad("a\{1", "Unmatched \{")
+        call bad("a\{2,1\}", "Invalid content of \\{\\}")
+        call bad("a\{1", "Unmatched \\{")
+        ! Class names must match exactly (re_wctype_parse compares lengths).
+        call bad("[[:word :]]", "Invalid character class name")
+        call bad("[[:alpha  :]]", "Invalid character class name")
     contains
 
         subroutine bad(re, msg)
@@ -1073,7 +1095,7 @@ contains
             integer(int64) :: i
             if (allocated(error)) return
             i = string_match(re, "", st)
-            call check(error, st%code == FM_INVALID_REGEXP .and. format_error(st) == "Invalid regexp: "//msg, &
+            call check(error, st%code == FM_INVALID_REGEXP .and. format_error(st) == "Invalid regexp: """//msg//"""", &
                        re//": "//format_error(st))
         end subroutine bad
     end subroutine test_invalid

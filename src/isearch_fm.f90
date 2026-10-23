@@ -300,7 +300,7 @@ contains
             if (at > 0) then
                 i = string_match(string(1:at - 1), "", status, inhibit_modify=.true.)
                 if (status%code == FM_INVALID_REGEXP) then
-                    if (status%detail == "Unmatched [ or [^") none = .false.
+                    if (status%detail == """Unmatched [ or [^""") none = .false.
                 end if
             end if
         end if
@@ -901,7 +901,9 @@ contains
         if (status%ok()) isearch_success = found
         case_fold_search = saved_fold
         if (status%code == FM_INVALID_REGEXP) then
-            isearch_error = status%detail
+            ! (car (cdr lossage)): the message string, without the quotes
+            ! the error data print with.
+            isearch_error = status%detail(2:len(status%detail) - 1)
             if (index(isearch_error, "Premature ") == 1 .or. index(isearch_error, "Unmatched ") == 1) then
                 isearch_error = "incomplete input"
             else if (.not. isearch_regexp .and. index(isearch_error, "Regular expression too big") == 1 .and. &

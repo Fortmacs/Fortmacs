@@ -34,7 +34,7 @@ module print_fm
     implicit none(type, external)
     private
 
-    public :: prin1_to_string
+    public :: prin1_to_string, prin1_string
 
 contains
 
@@ -61,12 +61,7 @@ contains
             if (.not. status%ok()) s = "#<symbol>"
         case (V_STRING)
             text = xstring(object)
-            s = """"
-            do k = 1, len(text)
-                if (text(k:k) == """" .or. text(k:k) == "\") s = s//"\"
-                s = s//text(k:k)
-            end do
-            s = s//""""
+            s = prin1_string(text)
         case (V_LIST)
             call list_elements(object, elems)
             s = "("
@@ -90,4 +85,19 @@ contains
             s = "#<unknown>"
         end select
     end function prin1_to_string
+
+    !> The printed representation of the string TEXT, as `prin1' writes
+    !> it: in double quotes, a backslash escaping each double quote and
+    !> backslash.  Port of the string case of print.c:print_object.
+    pure function prin1_string(text) result(s)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: s
+        integer :: k
+        s = """"
+        do k = 1, len(text)
+            if (text(k:k) == """" .or. text(k:k) == "\") s = s//"\"
+            s = s//text(k:k)
+        end do
+        s = s//""""
+    end function prin1_string
 end module print_fm

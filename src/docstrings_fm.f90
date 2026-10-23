@@ -3163,8 +3163,7 @@ contains
         case ("case_symbols_as_words")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "case_symbols_as_words"
-            entry%original = ".false."
-            entry%value = repr(case_symbols_as_words)
+            entry%value = repr(case_symbols_as_words%value)
             entry%doc = "If non-nil, case functions treat symbol syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &

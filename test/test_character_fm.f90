@@ -170,6 +170,13 @@ contains
         if (allocated(error)) return
         call char_string(-1_int32, buf, n, st)
         call check(error,.not. st%ok(), "negative code accepted")
+        if (allocated(error)) return
+        ! %x of the code after the modifier bits are dropped, in lower
+        ! case; a negative code is a huge unsigned one.
+        call check(error, st%detail, "Invalid character: f03fffff")
+        if (allocated(error)) return
+        call char_string(ior(int(z'1000ABCD', int32), int(z'4000000', int32)), buf, n, st)
+        call check(error, st%detail, "Invalid character: 1000abcd")
     end subroutine test_invalid_code
 
     subroutine test_chars_in_text(error)

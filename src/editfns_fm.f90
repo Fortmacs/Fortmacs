@@ -28,8 +28,8 @@
 !> Point is set with `temp_set_point_both': upstream's SET_PT also runs
 !> text-property hooks (`point_entered' etc.), which arrive with
 !> intervals.  Labeled restrictions (`with_restriction') are deferred, as
-!> are `format', fields, `transpose_regions', `compare_buffer_substrings'
-!> and `subst_char_in_region' (they need case tables, intervals or undo).
+!> are `format', fields, `transpose_regions' and
+!> `compare_buffer_substrings' (they need case tables, intervals or undo).
 module editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
@@ -38,13 +38,14 @@ module editfns_fm
     use character_fm, only: char_head_p, char_valid_p, char_string, &
                             MAX_MULTIBYTE_LENGTH
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, BUF_BYTES_MAX, &
-                         buf_fetch_byte, buf_fetch_char, buf_prev_char_len, &
+                         buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buf_byte_index, &
                          buf_bytes, temp_set_point_both, current_buffer, &
                          resolve_buffer, transient_mark_mode
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
                          markers, resolve_marker, make_marker, set_marker_both
     use callint_fm, only: mark_even_if_inactive
-    use insdel_fm, only: insert, del_range, del_range_1, replace_range
+    use insdel_fm, only: insert, del_range, del_range_1, modify_text
+    use undo_fm, only: record_delete, record_insert
     use search_fm, only: scan_newline_from_point, find_before_next_newline, find_newline
     use lisp_fm, only: value_type, nilp, nil
     use lread_fm, only: sym
@@ -767,29 +768,105 @@ contains
     end function constrain_to_field
 
     !> From START to END, replace FROMCHAR with TOCHAR each time it occurs.
+    !> If optional arg NOUNDO is non-nil, don't record this change for undo
+    !> and don't mark the buffer as really changed.
     !> Both characters must have the same length of multi-byte form.  Port
-    !> of editfns.c:Fsubst_char_in_region (no NOUNDO; each occurrence is
-    !> replaced like `replace_range', so markers and undo follow).
-    subroutine subst_char_in_region(start, end, fromchar, tochar, status)
+    !> of editfns.c:Fsubst_char_in_region (after-change hooks and
+    !> compositions are not ported).
+    subroutine subst_char_in_region(start, end, fromchar, tochar, status, noundo)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar
         type(status_type), intent(out) :: status
-        integer(int64) :: pos, last
-        integer(int32) :: c, clen
-        character(len=MAX_MULTIBYTE_LENGTH) :: str
-        logical :: found
+        logical, intent(in), optional :: noundo
+        integer(int64) :: pos, pos_byte, end_byte, pos_byte_next, s, e, k, m
+        integer(int32) :: nlen, tolen
+        character(len=MAX_MULTIBYTE_LENGTH) :: fromstr, tostr
+        logical :: changed, no_undo, saved_undo
         status = status_type()
-        call char_string(tochar, str, clen, status)
+        no_undo = .false.
+        if (present(noundo)) no_undo = noundo
+        s = start
+        e = end
+        call validate_region(s, e, status)
         if (.not. status%ok()) return
-        pos = max(min(start, end), buffers(cur)%begv)
-        last = min(max(start, end), buffers(cur)%zv)
-        do while (pos < last)
-            call char_after(c, found, pos)
-            if (found .and. c == fromchar) then
-                call replace_range(pos, pos + 1, str(1:clen), .true., status)
-                if (.not. status%ok()) return
+        if (.not. char_valid_p(fromchar)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(fromchar, int64)))
+            return
+        end if
+        if (.not. char_valid_p(tochar)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//int_text(int(tochar, int64)))
+            return
+        end if
+        if (buffers(cur)%multibyte) then
+            call char_string(fromchar, fromstr, nlen, status)
+            if (.not. status%ok()) return
+            call char_string(tochar, tostr, tolen, status)
+            if (.not. status%ok()) return
+            if (tolen /= nlen) then
+                call set_error(status, FM_GENERIC_ERROR, &
+                               format_message("Characters in `subst-char-in-region' have different byte-lengths"))
+                return
             end if
+        else
+            nlen = 1
+            fromstr(1:1) = achar(iand(fromchar, 255_int32))
+            tostr(1:1) = achar(iand(tochar, 255_int32))
+        end if
+        pos = s
+        pos_byte = char_to_byte(pos)
+        end_byte = char_to_byte(e)
+        ! If we don't want undo, turn off putting stuff on the list.
+        saved_undo = buffers(cur)%undo_enabled
+        if (no_undo) buffers(cur)%undo_enabled = .false.
+        changed = .false.
+        do while (pos_byte < end_byte)
+            pos_byte_next = pos_byte
+            if (buffers(cur)%multibyte) then
+                pos_byte_next = pos_byte_next + buf_next_char_len(buffers(cur), pos_byte_next)
+            else
+                pos_byte_next = pos_byte_next + 1
+            end if
+            if (pos_byte_next - pos_byte == nlen) then
+                if (buf_bytes(buffers(cur), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
+                    if (.not. changed) then
+                        changed = .true.
+                        call modify_text(pos, e, status)
+                        if (.not. status%ok()) exit
+                        if (no_undo) then
+                            m = buffers(cur)%text%modiff
+                            if (buffers(cur)%text%save_modiff == m - 1) buffers(cur)%text%save_modiff = m
+                        end if
+                    end if
+                    if (.not. no_undo) call record_change(pos, pos_byte, pos_byte_next)
+                    do k = 0, nlen - 1
+                        associate (t => buffers(cur)%text)
+                            t%beg(buf_byte_index(buffers(cur), pos_byte + k):buf_byte_index(buffers(cur), pos_byte + k)) = &
+                                tostr(k + 1:k + 1)
+                        end associate
+                    end do
+                end if
+            end if
+            pos_byte = pos_byte_next
             pos = pos + 1
         end do
+        buffers(cur)%undo_enabled = saved_undo
+    contains
+
+        !> Record that the character at POS (bytes FROM_BYTE..TO_BYTE) is
+        !> about to change.  Port of undo.c:record_change.
+        subroutine record_change(p, from_byte, to_byte)
+            integer(int64), intent(in) :: p, from_byte, to_byte
+            call record_delete(p, buf_bytes(buffers(cur), from_byte, to_byte), 1_int64)
+            call record_insert(p, 1_int64)
+        end subroutine record_change
+
+        !> The decimal text of N.
+        pure function int_text(n) result(text)
+            integer(int64), intent(in) :: n
+            character(len=:), allocatable :: text
+            character(len=21) :: buf
+            write (buf, "(i0)") n
+            text = trim(buf)
+        end function int_text
     end subroutine subst_char_in_region
 end module editfns_fm

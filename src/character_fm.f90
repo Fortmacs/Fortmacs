@@ -234,16 +234,22 @@ contains
         type(status_type), intent(out) :: status
         integer(int32) :: k
         character(len=8) :: hex
+        integer(int64) :: uk
         buf = ""
         nbytes = 0
         k = c
-        if (iand(k, CHAR_MODIFIER_MASK) /= 0 .and. k > 0) then
+        if (iand(k, CHAR_MODIFIER_MASK) /= 0) then
             k = char_resolve_modifier_mask(k)
+            ! If C still has any modifier bits, just ignore it.
             k = iand(k, not(CHAR_MODIFIER_MASK))
         end if
+        ! C is unsigned upstream: a negative code is a huge one.
         if (k < 0 .or. k > MAX_CHAR) then
-            write (hex, "(z0)") c
-            call set_error(status, FM_GENERIC_ERROR, "Invalid character: "//trim(hex))
+            ! error ("Invalid character: %x", c), with the resolved C.
+            uk = int(k, int64)
+            if (uk < 0) uk = uk + 2_int64**32
+            write (hex, "(z0)") uk
+            call set_error(status, FM_GENERIC_ERROR, "Invalid character: "//lower_hex(trim(hex)))
             return
         end if
         if (k <= MAX_1_BYTE_CHAR) then
@@ -285,6 +291,17 @@ contains
             integer(int32), intent(in) :: x
             trail = ior(int(z'80', int32), iand(x, int(z'3F', int32)))
         end function trail
+
+        !> HEX with its letters in lower case, as printf's %x writes them.
+        pure function lower_hex(hex) result(s)
+            character(len=*), intent(in) :: hex
+            character(len=len(hex)) :: s
+            integer :: i
+            s = hex
+            do i = 1, len(s)
+                if (s(i:i) >= "A" .and. s(i:i) <= "F") s(i:i) = achar(iachar(s(i:i)) + 32)
+            end do
+        end function lower_hex
     end subroutine char_string
 
     !> Port of character.h:LEADING_CODE_P.

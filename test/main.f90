@@ -42,6 +42,7 @@ program tester
     use test_marker_fm, only: collect_marker_fm
     use test_sysdep_fm, only: collect_sysdep_fm
     use test_editfns_fm, only: collect_editfns_fm
+    use test_fns_fm, only: collect_fns_fm
     use test_cmds_fm, only: collect_cmds_fm
     use test_values_fm, only: collect_values_fm
     use test_data_buffer_fm, only: collect_data_buffer_fm
@@ -87,6 +88,7 @@ program tester
                  new_testsuite("marker_fm", collect_marker_fm), &
                  new_testsuite("sysdep_fm", collect_sysdep_fm), &
                  new_testsuite("editfns_fm", collect_editfns_fm), &
+                 new_testsuite("fns_fm", collect_fns_fm), &
                  new_testsuite("cmds_fm", collect_cmds_fm), &
                  new_testsuite("values_fm", collect_values_fm), &
                  new_testsuite("data_buffer_fm", collect_data_buffer_fm), &

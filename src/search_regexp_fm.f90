@@ -132,7 +132,7 @@ contains
     subroutine set_regs_from_buffer(regs)
         type(re_registers_type), intent(in) :: regs
         integer :: i
-        call clear_search_regs(size(regs%starts))
+        call ensure_search_regs(size(regs%starts))
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
                 search_regs_start(i) = byte_to_char(regs%starts(i) + buffers(cur)%begv_byte)
@@ -148,7 +148,7 @@ contains
         type(re_registers_type), intent(in) :: regs
         character(len=*), intent(in) :: str
         integer :: i
-        call clear_search_regs(size(regs%starts))
+        call ensure_search_regs(size(regs%starts))
         do i = 0, size(regs%starts) - 1
             if (regs%starts(i) >= 0) then
                 search_regs_start(i) = string_offset_to_index(str, regs%starts(i))
@@ -185,6 +185,7 @@ contains
     type(re_registers_type) :: regs
     integer(int64) :: pos, pos_byte, nchars, val
     integer :: k
+    character(len=21) :: buf
     idx = 0
     status = status_type()
     pos = 1
@@ -194,7 +195,9 @@ contains
         if (pos < 0 .and. -pos <= nchars) then
             pos = nchars + pos + 1
         else if (pos < 1 .or. pos > nchars + 1) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE)
+            ! args_out_of_range (string, start).
+            write (buf, "(i0)") start
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_string(string)//", "//trim(buf))
             return
         end if
     end if
@@ -293,7 +296,9 @@ contains
     sub = 0
     if (present(subexp)) sub = subexp
     if (sub < 0 .or. sub >= num_regs) then
-        call set_error(status, FM_ARGS_OUT_OF_RANGE)
+        ! check_integer_range (subexp, 0, num_regs - 1).
+        call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(int(sub, int64))//", 0, "// &
+                       int_text(int(num_regs - 1, int64)))
         return
     end if
     sub_start = search_regs_start(sub)
@@ -371,9 +376,14 @@ contains
                 call string_char_and_length(newtext, i, c, clen)
                 piece = newtext(i:i + clen - 1)
                 i = i + clen
-                if (c == iachar("\") .and. i <= len(newtext, kind=int64)) then
-                    call string_char_and_length(newtext, i, c, clen)
-                    i = i + clen
+                if (c == iachar("\")) then
+                    ! A trailing backslash reads the string's terminating
+                    ! null upstream, which is invalid.
+                    c = 0
+                    if (i <= len(newtext, kind=int64)) then
+                        call string_char_and_length(newtext, i, c, clen)
+                        i = i + clen
+                    end if
                     if (c == iachar("&")) then
                         piece = substring(string, sub_start, sub_end)
                     else if (c >= iachar("1") .and. c <= iachar("9")) then
@@ -467,13 +477,29 @@ contains
     call goto_char(newpoint)
 contains
 
+    !> (error "replace-match subexpression does not exist" SUBEXP), or
+    !> args-out-of-range on the match bounds.
     subroutine missing()
         if (sub_start < 0) then
-            call set_error(status, FM_GENERIC_ERROR, "replace-match subexpression does not exist")
+            if (present(subexp)) then
+                call set_error(status, FM_GENERIC_ERROR, "replace-match subexpression does not exist: "// &
+                               int_text(int(subexp, int64)))
+            else
+                call set_error(status, FM_GENERIC_ERROR, "replace-match subexpression does not exist: nil")
+            end if
         else
-            call set_error(status, FM_ARGS_OUT_OF_RANGE)
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(sub_start)//", "//int_text(sub_end))
         end if
     end subroutine missing
+
+    !> The decimal text of N.
+    pure function int_text(n) result(s)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=21) :: buf
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function int_text
 
     logical function present_true(flag)
         logical, intent(in), optional :: flag
@@ -486,7 +512,7 @@ contains
         integer(int32), intent(in) :: ch
         integer :: syn
         syn = char_syntax_class(ch)
-        word_or_symbol = syn == SWORD .or. (case_symbols_as_words .and. syn == SSYMBOL)
+        word_or_symbol = syn == SWORD .or. (case_symbols_as_words%value .and. syn == SSYMBOL)
     end function word_or_symbol
 
     !> Characters B to E (exclusive, 1-based) of STR.
