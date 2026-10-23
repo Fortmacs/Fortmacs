@@ -189,10 +189,9 @@ module font_lock_fm
     type(locals_type), allocatable :: locals(:)
 
     abstract interface
-        !> `font_lock_syntactic_face_function': the face to give the string
-        !> or comment whose parse state (at its start) is STATE.  (A
-        !> subroutine: gfortran 14 cannot re-export a procedure pointer
-        !> whose interface is a function with a deferred-length result.)
+        !> `font_lock_syntactic_face_function': FACE gets the name of the
+        !> face to give the string or comment whose parse state (at its
+        !> start) is STATE ("" for none).
         subroutine syntactic_face_iface(state, face)
             import :: parse_state_type
             implicit none(type, external)
@@ -204,7 +203,7 @@ module font_lock_fm
     !> Function to determine which face to use when fontifying
     !> syntactically.  The function is called with a single parameter (the
     !> state as returned by `parse_partial_sexp' at the beginning of the
-    !> region to highlight) and should return the name of a face.  This is
+    !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
     procedure(syntactic_face_iface), pointer, public :: font_lock_syntactic_face_function => null()
