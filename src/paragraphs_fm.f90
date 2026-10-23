@@ -89,7 +89,7 @@ module paragraphs_fm
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
     type(logical_setting), public :: sentence_end_double_space = &
-        logical_setting(name="sentence-end-double-space", value=.true.)
+                                     logical_setting(name="sentence-end-double-space", value=.true.)
 
     !> Non-nil means the paragraph commands are not affected by `fill-prefix'.
     !> This is desirable in modes where blank lines are the paragraph delimiters.

@@ -360,7 +360,7 @@ contains
         if (allocated(error)) return
         call makunbound(sym("fill-prefix"), st)
         call boundp(sym("fill-prefix"), bound, st)
-        call check(error, .not. bound, "fill-prefix void here")
+        call check(error,.not. bound, "fill-prefix void here")
         if (allocated(error)) return
         call symbol_value(sym("fill-prefix"), v, st)
         call check(error, st%code == FM_VOID_VARIABLE, "void-variable")

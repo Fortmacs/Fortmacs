@@ -305,7 +305,7 @@ contains
                 keep = 1
                 if (.not. found) c = 0
                 if (sentence_end_double_space%value .and. (c == iachar(".") .or. c == iachar("?") .or. &
-                                                     c == iachar("!"))) then
+                                                           c == iachar("!"))) then
                     keep = 2
                 else if (sentence_end_double_space%value .and. sentence_end_without_period .and. found) then
                     if (char_syntax(int(c)) == "w") keep = 2
