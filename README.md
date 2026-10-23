@@ -1,5 +1,8 @@
 # Fortmacs
 
+> **Not usable yet.** This is an early, experimental port; it builds and
+> runs, but most of Emacs is missing.
+
 GNU Emacs 31.1 rewritten in modern Fortran (2018+), for Linux on x86-64 and
 aarch64. There is no Elisp: your configuration is a Fortran module compiled
 into the binary, and every rebuild is a numbered generation you can roll
@@ -37,9 +40,9 @@ tools/check.sh          # format, lint, debug build and tests, as CI runs them
 tools/check.sh --fix    # reformat and apply safe lint fixes
 ```
 
-CI runs the same check on Ubuntu (x86-64) for every pull request, on Ubuntu
-and Fedora (x86-64 and aarch64) and Arch Linux (x86-64) after each merge,
-and on Guix weekly.
+CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
+Linux (x86-64) for every pull request and after each merge, and on Guix
+weekly.
 
 ## Configuring
 
