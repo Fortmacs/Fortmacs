@@ -337,6 +337,8 @@ contains
         if (allocated(error)) return
         call check(error, derived_mode_p(major_modes%text_mode), "derived from text-mode")
         if (allocated(error)) return
+        call check(error, derived_mode_p("text_mode") .and. .not. derived_mode_p("prog_mode"), "by name")
+        if (allocated(error)) return
         ! A key bound in text-mode-map is active in the child.
         call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
         call key_parse("C-c t", key, st)
@@ -372,6 +374,11 @@ contains
         call check(error,.not. provided_mode_derived_p("prog_mode", [character(len=9) :: "text_mode"]))
         if (allocated(error)) return
         call check(error, derived_mode_2_obj%derived_from(major_modes%prog_mode), "derived_from")
+        if (allocated(error)) return
+        ! MODES can be a single mode.
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", "prog_mode"), "single mode")
+        if (allocated(error)) return
+        call check(error,.not. provided_mode_derived_p("prog_mode", "text_mode"), "single mode, not derived")
     end subroutine test_provided_mode_derived_p
 
     !> special-mode makes the buffer read-only with special-mode-map.

@@ -856,7 +856,8 @@ contains
             entry%file = "derived_fm.f90"
             entry%fortran = "derived_mode_p(mode)"
             entry%doc = "Return non-nil if the current major mode is derived from one of"//LF// &
-                        "MODES (mode objects, or names)."
+                        "MODES (mode objects, or names).  MODES can also be a single mode"//LF// &
+                        "instead of a list."
         case ("describe_function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
@@ -2086,8 +2087,8 @@ contains
         case ("provided_mode_derived_p")
             entry%file = "derived_fm.f90"
             entry%fortran = "provided_mode_derived_p(mode, modes)"
-            entry%doc = "Non-nil if MODE (a mode name) is derived from a mode that is a"//LF// &
-                        "member of the list MODES (names)."
+            entry%doc = "Non-nil if MODE is derived from a mode that is a member of the list"//LF// &
+                        "MODES.  MODES can also be a single mode instead of a list."
         case ("push_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
