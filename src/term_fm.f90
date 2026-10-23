@@ -45,7 +45,9 @@ module term_fm
     use dispextern_fm, only: glyph_type, face_type, FACE_TTY_DEFAULT_COLOR, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR, &
                              FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
-                             face_tty_specified_color
+                             face_tty_specified_color, TTY_CAP_INVERSE, TTY_CAP_UNDERLINE, &
+                             TTY_CAP_UNDERLINE_STYLED, TTY_CAP_BOLD, TTY_CAP_DIM, TTY_CAP_ITALIC, &
+                             TTY_CAP_STRIKE_THROUGH
     use keymap_fm, only: make_sparse_keymap, define_key, keymap_live_p
     use keyboard_fm, only: input_decode_map
     use sysdep_fm, only: get_tty_size, tabs_safe_p, init_sys_modes, &
@@ -61,7 +63,7 @@ module term_fm
               tty_cursor_to, tty_raw_cursor_to, tty_clear_to_end, &
               tty_clear_frame, tty_clear_end_of_line, tty_write_glyphs, &
               tty_insert_glyphs, tty_delete_glyphs, tty_ins_del_lines, &
-              turn_on_face, turn_off_face, encode_terminal_code
+              turn_on_face, turn_off_face, encode_terminal_code, tty_capable_p
 
     !> term.c's Lisp variables visible-bell, inverse-video and
     !> visible-cursor.
@@ -806,6 +808,33 @@ contains
         may_use_with_colors = .true.
         if (tty%tn_max_colors > 0) may_use_with_colors = iand(tty%tn_no_color_video, attr) == 0
     end function may_use_with_colors
+
+    !> Return true if the terminal TTY is capable of displaying all the
+    !> attributes in CAPS (TTY_CAP_* bits), else false.  Port of
+    !> term.c:tty_capable_p.
+    logical function tty_capable_p(tty, caps) result(capable)
+        type(tty_display_info), intent(in) :: tty
+        integer, intent(in) :: caps
+        capable = .false.
+        if (.not. try(TTY_CAP_INVERSE, allocated(tty%ts_standout_mode), NC_REVERSE)) return
+        if (.not. try(TTY_CAP_UNDERLINE, allocated(tty%ts_enter_underline_mode), NC_UNDERLINE)) return
+        if (.not. try(TTY_CAP_UNDERLINE_STYLED, allocated(tty%tf_set_underline_style), NC_UNDERLINE)) return
+        if (.not. try(TTY_CAP_BOLD, allocated(tty%ts_enter_bold_mode), NC_BOLD)) return
+        if (.not. try(TTY_CAP_DIM, allocated(tty%ts_enter_dim_mode), NC_DIM)) return
+        if (.not. try(TTY_CAP_ITALIC, allocated(tty%ts_enter_italic_mode), NC_ITALIC)) return
+        if (.not. try(TTY_CAP_STRIKE_THROUGH, allocated(tty%ts_enter_strike_through_mode), NC_STRIKE_THROUGH)) return
+        ! We can do it!
+        capable = .true.
+    contains
+        !> TTY_CAPABLE_P_TRY: false if CAP is asked for and the terminal
+        !> lacks it (HAVE) or can't use it with colors.
+        logical function try(cap, have, nc_bit)
+            integer, intent(in) :: cap, nc_bit
+            logical, intent(in) :: have
+            try = .true.
+            if (iand(caps, cap) /= 0) try = have .and. may_use_with_colors(tty, nc_bit)
+        end function try
+    end function tty_capable_p
 
     !> Output a color capability for `color'.
     subroutine set_color(tty, cap, color)

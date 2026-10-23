@@ -436,10 +436,12 @@ contains
             call insert(prompt, st)
             ! front-sticky, rear-nonsticky and field, then
             ! minibuffer-prompt-properties (by default read-only t and the
-            ! minibuffer-prompt face, which is not ported).
+            ! face minibuffer_prompt, added after any faces of the prompt).
             call add_text_properties(1_int64, buffers(cur)%pt, &
                                      list(sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value(), &
                                           sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
+            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("face"), sym("minibuffer_prompt")), &
+                                     changed, st)
         end if
         call set(sym("inhibit_read_only"), nil(), st)
         if (present(initial)) then

@@ -44,10 +44,13 @@ module emacs_fm
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
     use dispnew_fm, only: adjust_frame_glyphs, frame_ring_bell
-    use xdisp_fm, only: redisplay, init_frame_windows, realize_basic_faces, message
+    use xdisp_fm, only: redisplay, init_frame_windows, message
+    use xfaces_fm, only: init_frame_faces
+    use faces_fm, only: init_faces
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
+    use tty_colors_fm, only: tty_register_colors
     use lread_fm, only: user_init_file
     use config_fm, only: install_prefix, running_executable, recompile, init_file_name, current_build_name, &
                          generation_of, current_generation, switch_generation, rollback, list_generations
@@ -319,7 +322,7 @@ contains
         type(arg_type), intent(in), optional :: args(:)
         procedure(init_proc), optional :: configure
         type(handle_type) :: scratch
-        type(status_type) :: st, opt_status
+        type(status_type) :: st, opt_status, color_status
         type(arg_type), allocatable :: rest(:)
         logical :: init
         call init_fileio()
@@ -340,12 +343,20 @@ contains
         selected_frame%garbaged = .true.
         call init_tty(selected_frame%tty, terminal_type, fd, status)
         if (.not. status%ok()) return
-        if (xterm_like(terminal_type)) call terminal_init_xterm()
+        ! startup.el:command-line registers the 8 default colors, then
+        ! faces.el:tty-run-terminal-initialization runs term/xterm.el,
+        ! which replaces them by xterm's for the terminal's color count.
+        ! Its error is shown once the editor is up.
+        call tty_register_colors(selected_frame%tty%tn_max_colors, .false., color_status)
+        if (xterm_like(terminal_type)) call terminal_init_xterm(color_status)
         call set_input_fd(fd)
         call install_interrupt_handler()
         call adjust_frame_glyphs(selected_frame)
         call init_frame_windows(selected_frame)
-        call realize_basic_faces(selected_frame)
+        ! The faces of faces.el (defined when it is loaded), set up for
+        ! the terminal (frame-set-background-mode).
+        call init_faces()
+        call init_frame_faces(selected_frame, terminal_type)
         call tty_set_terminal_modes(selected_frame%tty)
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor
@@ -361,9 +372,15 @@ contains
             if (len(startup_message) > 0) call message(startup_message)
             startup_message = ""
         end if
+        if (.not. color_status%ok()) call message(format_error(color_status))
         init_file_had_error = .false.
         if (opt_status%ok()) then
-            if (init .and. present(configure)) call load_init_file(configure)
+            if (init .and. present(configure)) then
+                call load_init_file(configure)
+                ! The faces as the configuration set them
+                ! (tty-run-terminal-initialization after the init file).
+                call init_frame_faces(selected_frame, terminal_type)
+            end if
             call command_line_1(rest, st)
             if (.not. st%ok()) call message(format_error(st))
         else

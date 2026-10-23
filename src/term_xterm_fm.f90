@@ -22,26 +22,32 @@
 !> `xterm_function_map' maps the escape sequences xterm (and most
 !> terminals emulating it) send for cursor, editing, function and keypad
 !> keys, with modifiers, to function-key events; `terminal_init_xterm'
-!> installs it in input-decode-map.  Upstream spells the ~350 sequences
-!> out; here the regular families are generated from xterm's modifier
-!> encoding (parameter 1 + Shift 1 + Meta 2 + Control 4).
+!> installs it in input-decode-map and registers xterm's colors
+!> (`xterm_register_default_colors': 8, 16, 88, 256 or 24-bit).
+!> Upstream spells the ~350 sequences out; here the regular families are
+!> generated from xterm's modifier encoding (parameter 1 + Shift 1 +
+!> Meta 2 + Control 4).
 !>
 !> Not ported: bracketed paste and focus events (translation functions),
-!> terminal queries (colors, OSC 52), the rxvt variant, and
+!> terminal queries (background color, OSC 52), clear-this-command-keys and
+!> terminal-init-xterm-hook, the rxvt variant, and
 !> xterm-alternatives-map (needs terminfo function keys).
 module term_xterm_fm
-    use, intrinsic :: iso_fortran_env, only: int64
-    use error_fm, only: status_type
+    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, list
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_CTL
     use keymap_fm, only: make_sparse_keymap, define_key, set_keymap_parent, &
                          keymap_live_p, apply_modifiers
     use keyboard_fm, only: input_decode_map
+    use tty_colors_fm, only: tty_color_clear, tty_color_define, tty_display_color_cells, clear_face_cache_hook
+    use tty_colors_rgb_fm, only: color_name_count, color_names, color_rgbs
     implicit none(type, external)
     private
 
     public :: xterm_function_map, xterm_rxvt_function_map, terminal_init_xterm
+    public :: xterm_color_type, xterm_standard_colors, xterm_rgb_convert_to_16bit, xterm_register_default_colors
 
     integer(int64), parameter :: M_SHIFT = int(CHAR_SHIFT, int64), &
                                  M_META = int(CHAR_META, int64), &
@@ -49,6 +55,37 @@ module term_xterm_fm
     character, parameter :: ESC = achar(27)
 
     type(handle_type) :: rxvt_map, xterm_map
+
+    !> A color of `xterm_standard_colors': its name, its number and its
+    !> 8-bit RGB values.
+    type :: xterm_color_type
+        character(len=13) :: name = ""
+        integer :: index = 0
+        integer :: rgb(3) = 0
+    end type xterm_color_type
+
+    !> Names of 16 standard xterm/aixterm colors, their numbers, and RGB values.
+    !> (The names in the comments are from XTerm-col.ad in the xterm
+    !> distribution, the RGB values from rgb.txt.)  Port of
+    !> term/xterm.el:xterm-standard-colors.
+    type(xterm_color_type), parameter :: xterm_standard_colors(16) = [ &
+                                         xterm_color_type("black", 0, [0, 0, 0]), & ! black
+                                         xterm_color_type("red", 1, [205, 0, 0]), & ! red3
+                                         xterm_color_type("green", 2, [0, 205, 0]), & ! green3
+                                         xterm_color_type("yellow", 3, [205, 205, 0]), & ! yellow3
+                                         xterm_color_type("blue", 4, [0, 0, 238]), & ! blue2
+                                         xterm_color_type("magenta", 5, [205, 0, 205]), & ! magenta3
+                                         xterm_color_type("cyan", 6, [0, 205, 205]), & ! cyan3
+                                         xterm_color_type("white", 7, [229, 229, 229]), & ! gray90
+                                         xterm_color_type("brightblack", 8, [127, 127, 127]), & ! gray50
+                                         xterm_color_type("brightred", 9, [255, 0, 0]), & ! red
+                                         xterm_color_type("brightgreen", 10, [0, 255, 0]), & ! green
+                                         xterm_color_type("brightyellow", 11, [255, 255, 0]), & ! yellow
+                                         xterm_color_type("brightblue", 12, [92, 92, 255]), & ! rgb:5c/5c/ff
+                                         xterm_color_type("brightmagenta", 13, [255, 0, 255]), & ! magenta
+                                         xterm_color_type("brightcyan", 14, [0, 255, 255]), & ! cyan
+                                         xterm_color_type("brightwhite", 15, [255, 255, 255]) & ! white
+                                         ]
 
 contains
 
@@ -255,16 +292,145 @@ contains
     end subroutine define_modify_other_keys
 
     !> Make input-decode-map translate xterm's escape sequences, leaving
-    !> its own bindings in front.  Port of term/xterm.el:terminal-init-xterm
-    !> (the xterm--push-map onto input-decode-map part); an existing parent
-    !> of input-decode-map is replaced, not composed.
-    subroutine terminal_init_xterm()
-        type(status_type) :: status
+    !> its own bindings in front, then register xterm's colors for
+    !> `tty_display_color_cells' colors; `status' gets the error for an
+    !> unsupported count.  Port of term/xterm.el:terminal-init-xterm
+    !> (xterm--init: the xterm--push-map onto input-decode-map and
+    !> xterm-register-default-colors parts); an existing parent of
+    !> input-decode-map is replaced, not composed.
+    subroutine terminal_init_xterm(status)
+        type(status_type), intent(out) :: status
         type(handle_type) :: map
         map = xterm_function_map()
         if (.not. keymap_live_p(input_decode_map)) then
             call make_sparse_keymap(input_decode_map)
         end if
         call set_keymap_parent(input_decode_map, map, status)
+        if (.not. status%ok()) return
+        call xterm_register_default_colors(xterm_standard_colors, status)
     end subroutine terminal_init_xterm
+
+    !> Convert an 8-bit primary color value PRIM to a corresponding 16-bit value.
+    !> Port of term/xterm.el:xterm-rgb-convert-to-16bit.
+    elemental integer function xterm_rgb_convert_to_16bit(prim) result(value)
+        integer, intent(in) :: prim
+        value = ior(prim, ishft(prim, 8))
+    end function xterm_rgb_convert_to_16bit
+
+    !> Register the default set of colors for xterm or compatible emulator.
+    !>
+    !> This function registers the number of colors returned by
+    !> display-color-cells (`tty_display_color_cells').  The first (16)
+    !> colors are taken from COLORS, which see, while the rest are computed
+    !> assuming either the 88- or 256-color standard color scheme supported
+    !> by latest versions of xterm.  `status' gets an error for any other
+    !> count.  Port of term/xterm.el:xterm-register-default-colors.
+    subroutine xterm_register_default_colors(colors, status)
+        type(xterm_color_type), intent(in) :: colors(:)
+        type(status_type), intent(out) :: status
+        integer, parameter :: levels(0:3) = [0, 139, 205, 255]
+        integer :: ncolors, i, idx, r, g, b, color
+        ncolors = tty_display_color_cells
+        ! Clear the 8 default tty colors registered by startup.el
+        if (ncolors > 0) call tty_color_clear()
+        ! Only register as many colors as are supported by the display.
+        i = 1
+        do while (ncolors > 0 .and. i <= size(colors))
+            call tty_color_define(trim(colors(i)%name), colors(i)%index, status, &
+                                  xterm_rgb_convert_to_16bit(colors(i)%rgb))
+            if (.not. status%ok()) return
+            i = i + 1
+            ncolors = ncolors - 1
+        end do
+        ! We've exhausted the colors from `colors'.  If there are more
+        ! colors to support, compute them now.
+        if (ncolors > 0) then
+            select case (ncolors)
+            case (16777200) ! 24-bit xterm
+                ! all named tty colors
+                idx = size(xterm_standard_colors)
+                do i = 1, color_name_count
+                    if (.not. any(xterm_standard_colors%name == color_names(i))) then
+                        call tty_color_define(trim(color_names(i)), idx, status, color_rgbs(:, i))
+                        if (.not. status%ok()) return
+                        idx = idx + 1
+                    end if
+                end do
+            case (240) ! 256-color xterm
+                ! 216 non-gray colors first
+                r = 0
+                g = 0
+                b = 0
+                do while (ncolors > 24)
+                    ! This and other formulas taken from 256colres.pl and
+                    ! 88colres.pl in the xterm distribution.
+                    call tty_color_define("color-"//itoa(256 - ncolors), 256 - ncolors, status, &
+                                          xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
+                    if (.not. status%ok()) return
+                    b = b + 1
+                    if (b > 5) then
+                        g = g + 1
+                        b = 0
+                    end if
+                    if (g > 5) then
+                        r = r + 1
+                        g = 0
+                    end if
+                    ncolors = ncolors - 1
+                end do
+                ! Now the 24 gray colors
+                do while (ncolors > 0)
+                    color = xterm_rgb_convert_to_16bit(8 + (24 - ncolors)*10)
+                    call tty_color_define("color-"//itoa(256 - ncolors), 256 - ncolors, status, [color, color, color])
+                    if (.not. status%ok()) return
+                    ncolors = ncolors - 1
+                end do
+            case (72) ! 88-color xterm
+                ! 64 non-gray colors
+                r = 0
+                g = 0
+                b = 0
+                do while (ncolors > 8)
+                    call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, &
+                                          xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
+                    if (.not. status%ok()) return
+                    b = b + 1
+                    if (b > 3) then
+                        g = g + 1
+                        b = 0
+                    end if
+                    if (g > 3) then
+                        r = r + 1
+                        g = 0
+                    end if
+                    ncolors = ncolors - 1
+                end do
+                ! Now the 8 gray colors
+                do while (ncolors > 0)
+                    if (ncolors == 8) then
+                        color = xterm_rgb_convert_to_16bit(floor(46.36363636_real64))
+                    else
+                        color = xterm_rgb_convert_to_16bit(floor(real(8 - ncolors, real64)*23.18181818_real64 &
+                                                                 + 69.54545454_real64))
+                    end if
+                    call tty_color_define("color-"//itoa(88 - ncolors), 88 - ncolors, status, [color, color, color])
+                    if (.not. status%ok()) return
+                    ncolors = ncolors - 1
+                end do
+            case default
+                call set_error(status, FM_GENERIC_ERROR, "Unsupported number of xterm colors ("//itoa(16 + ncolors)//")")
+                return
+            end select
+        end if
+        ! Modifying color mappings means realized faces don't use the
+        ! right colors, so clear them.
+        if (associated(clear_face_cache_hook)) call clear_face_cache_hook()
+    contains
+        !> The 8-bit intensity of level `k' (0..5) of the 6x6x6 color cube.
+        integer function cube_level(k)
+            integer, intent(in) :: k
+            cube_level = 0
+            if (k /= 0) cube_level = k*40 + 55
+        end function cube_level
+    end subroutine xterm_register_default_colors
 end module term_xterm_fm

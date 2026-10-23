@@ -25,6 +25,7 @@
 !> (indexed from DEFAULT_FACE_ID = 0) to the terminal functions.
 module dispextern_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use faces_fm, only: face_attributes_type
     implicit none(type, external)
     private
 
@@ -42,10 +43,37 @@ module dispextern_fm
                                   FACE_UNDERLINE_DOTS = 4, &
                                   FACE_UNDERLINE_DASHES = 5
 
-    !> enum face_id: the default face.
+    !> enum face_id: the basic faces, at fixed ids in every frame's face
+    !> cache; faces realized later get ids from BASIC_FACE_ID_SENTINEL.
     integer(int32), parameter, public :: DEFAULT_FACE_ID = 0, &
                                          MODE_LINE_ACTIVE_FACE_ID = 1, &
-                                         REGION_FACE_ID = 2
+                                         MODE_LINE_INACTIVE_FACE_ID = 2, &
+                                         TOOL_BAR_FACE_ID = 3, &
+                                         FRINGE_FACE_ID = 4, &
+                                         HEADER_LINE_ACTIVE_FACE_ID = 5, &
+                                         HEADER_LINE_INACTIVE_FACE_ID = 6, &
+                                         SCROLL_BAR_FACE_ID = 7, &
+                                         BORDER_FACE_ID = 8, &
+                                         CURSOR_FACE_ID = 9, &
+                                         MOUSE_FACE_ID = 10, &
+                                         MENU_FACE_ID = 11, &
+                                         VERTICAL_BORDER_FACE_ID = 12, &
+                                         WINDOW_DIVIDER_FACE_ID = 13, &
+                                         WINDOW_DIVIDER_FIRST_PIXEL_FACE_ID = 14, &
+                                         WINDOW_DIVIDER_LAST_PIXEL_FACE_ID = 15, &
+                                         INTERNAL_BORDER_FACE_ID = 16, &
+                                         CHILD_FRAME_BORDER_FACE_ID = 17, &
+                                         TAB_BAR_FACE_ID = 18, &
+                                         TAB_LINE_ACTIVE_FACE_ID = 19, &
+                                         TAB_LINE_INACTIVE_FACE_ID = 20, &
+                                         MARGIN_FACE_ID = 21, &
+                                         BASIC_FACE_ID_SENTINEL = 22
+
+    !> Terminal capabilities a face may need (dispextern.h TTY_CAP_*),
+    !> for term.c:tty_capable_p.
+    integer, parameter, public :: TTY_CAP_INVERSE = 2, TTY_CAP_UNDERLINE = 4, TTY_CAP_BOLD = 8, &
+                                  TTY_CAP_DIM = 16, TTY_CAP_ITALIC = 32, TTY_CAP_STRIKE_THROUGH = 64, &
+                                  TTY_CAP_UNDERLINE_STYLED = 128
 
     !> The parts of struct glyph a character cell needs.
     type, public :: glyph_type
@@ -64,6 +92,9 @@ module dispextern_fm
         integer :: underline = FACE_NO_UNDERLINE
         !> 0 for the default underline color.
         integer(int64) :: underline_color = 0
+        !> The fully specified attributes the face was realized from
+        !> (struct face's lface).
+        type(face_attributes_type) :: lface
     end type face_type
 
     !> The text area of one screen line (struct glyph_row).  `glyphs'
