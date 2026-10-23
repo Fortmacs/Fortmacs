@@ -77,6 +77,10 @@ module derived_fm
         !> (A pointer to the hook object, e.g. `text_mode_hook'; null for
         !> none.)
         type(hook_type), pointer :: hook => null()
+        !> A special mode, not suitable for ordinary files (the
+        !> `mode-class' property `special'); inherited from the parent when
+        !> the mode runs.
+        logical :: special = .false.
     contains
         !> Make the mode known by NAME.
         procedure :: define => major_mode_define
@@ -164,7 +168,7 @@ contains
     !> `finish'.  Port of the first part of define-derived-mode's
     !> expansion.
     recursive subroutine major_mode_begin(self, saved, status)
-        class(major_mode_type), intent(in) :: self
+        class(major_mode_type), intent(inout) :: self
         logical, intent(out) :: saved
         type(status_type), intent(out) :: status
         status = status_type()
@@ -182,6 +186,10 @@ contains
         end if
         buffers(cur)%major_mode = trim(self%name)
         buffers(cur)%mode_name = self%mode_name
+        ! Identify special modes.
+        if (associated(self%parent)) then
+            if (self%parent%special) self%special = .true.
+        end if
         call use_local_map(self%map, status)
         if (self%syntax_table%index /= 0) buffers(cur)%syntax_table = self%syntax_table
     end subroutine major_mode_begin

@@ -55,6 +55,7 @@ module files_fm
     use insdel_fm, only: insert
     use subr_fm, only: y_or_n_p
     use fns_fm, only: yes_or_no_p
+    use derived_fm, only: major_mode_type, major_mode_named
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     implicit none(type, external)
     private
@@ -203,6 +204,15 @@ module files_fm
     !> `require_final_newline').
     type(integer_setting), public :: mode_require_final_newline = &
                                      integer_setting(name="mode-require-final-newline", value=FINAL_NEWLINE_SAVE)
+
+    !> Non-nil means \[write-file] should set the major mode from the file name.
+    !> However, the mode will not be changed if
+    !> (1) a local variables list or the `-*-' line specifies a major mode, or
+    !> (2) the current major mode is a "special" mode,
+    !>     not suitable for ordinary files, or
+    !> (3) the new file name does not particularly specify any mode.
+    !> Port of files.el change-major-mode-with-file-name.
+    logical, public :: change_major_mode_with_file_name = .true.
 
     !> Buffers save_some_buffers is asking about (its map-y-or-n-p list).
     type(handle_type), allocatable :: pending(:)
@@ -801,6 +811,8 @@ contains
         character(len=:), allocatable :: file, new_name, actual
         type(handle_type) :: other, cb
         logical :: ok, query, along
+        type(major_mode_type), pointer :: mode
+        type(status_type) :: st
         query = .true.
         if (present(no_query)) query = .not. no_query
         along = .false.
@@ -836,6 +848,15 @@ contains
         ! clear-visited-file-modtime
         if (.not. along) buffers(cur)%modtime_known = .false.
         if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
+        ! Update the major mode, if the file name determines it; don't
+        ! change the mode if it is special.  Errors are ignored.
+        if (.not. change_major_mode_with_file_name) return
+        mode => null()
+        if (allocated(buffers(cur)%major_mode)) mode => major_mode_named(buffers(cur)%major_mode)
+        if (associated(mode)) then
+            if (mode%special) return
+        end if
+        call set_auto_mode(st, .true.)
     end subroutine set_visited_file_name
 
     !> Write the current buffer to `filename' and visit it there; a
@@ -848,14 +869,20 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         logical :: ok
+        integer(int32) :: old_modes
+        type(status_type) :: st
+        ! The old file's modes; it may have gone away (-1 then).
+        old_modes = -1
+        if (allocated(buffers(cur)%filename)) old_modes = file_modes(buffers(cur)%filename)
         file = filename
         if (len(file) > 0) then
-            if (directory_name_p(file) .or. file_directory_p(file)) then
-                file = file_name_as_directory(file)
+            ! If arg is a directory name, use the default file name, but in
+            ! that directory.
+            if (directory_name_p(file)) then
                 if (allocated(buffers(cur)%filename)) then
                     file = file//file_name_nondirectory(buffers(cur)%filename)
                 else
-                    file = file//buffers(cur)%name
+                    file = file//file_name_nondirectory(buffers(cur)%name)
                 end if
             end if
             if (confirm .and. file_exists_p(file)) then
@@ -875,6 +902,15 @@ contains
             if (file_writable_p(buffers(cur)%filename)) buffers(cur)%read_only = .false.
         end if
         call save_buffer(1_int64, .false., status)
+        if (.not. status%ok()) return
+        ! If the old file was executable, then make the new file executable,
+        ! too.
+        if (old_modes > 0 .and. allocated(buffers(cur)%filename)) then
+            if (iand(old_modes, int(o'111', int32)) /= 0) then
+                call set_file_modes(buffers(cur)%filename, &
+                                    ior(iand(old_modes, int(o'111', int32)), file_modes(buffers(cur)%filename)), st)
+            end if
+        end if
     end subroutine write_file
 
     !> Edit file FILENAME.
@@ -913,14 +949,18 @@ contains
     !> you supply a prefix argument.  Port of files.el:write-file (interactive).
     subroutine cmd_write_file(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename
+        character(len=:), allocatable :: filename, dir, def
         if (allocated(buffers(cur)%filename)) then
             call read_file_name_in_minibuffer("Write file: ", filename, status)
         else
-            call read_file_name_in_minibuffer("Write file: ", filename, status, initial=buffers(cur)%name)
+            dir = "~/"
+            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            call expand_file_name(file_name_nondirectory(buffers(cur)%name), def, status, dir)
+            if (.not. status%ok()) return
+            call read_file_name_in_minibuffer("Write file: ", filename, status, dir=dir, default_filename=def)
         end if
         if (.not. status%ok()) return
-        call write_file(filename, .true., status)
+        call write_file(filename, nilp(current_prefix_arg), status)
     end subroutine cmd_write_file
 
     ! ------------------------------------------------------------------

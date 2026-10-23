@@ -82,6 +82,7 @@ contains
     call major_modes%fundamental_mode%define("fundamental-mode", "Fundamental", fundamental_mode)
     call major_modes%special_mode%define("special-mode", "Special", special_mode, special_mode_hook)
     special_mode_map = major_modes%special_mode%map
+    major_modes%special_mode%special = .true.
     call minor_modes%transient_mark_mode%define("transient-mark-mode", global=.true., &
                                                 variable="transient-mark-mode", hook=transient_mark_mode_hook)
     commands%transient_mark_mode%run => cmd_transient_mark_mode

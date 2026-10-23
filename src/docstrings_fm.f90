@@ -34,7 +34,8 @@ module docstrings_fm
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use eval_fm, only: change_major_mode_hook
-    use files_fm, only: make_backup_files, mode_require_final_newline, require_final_newline
+    use files_fm, only: change_major_mode_with_file_name, make_backup_files, &
+                        mode_require_final_newline, require_final_newline
     use fill_fm, only: adaptive_fill_mode, colon_double_space, default_justification, JUSTIFY_NONE, &
                        JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
@@ -378,7 +379,7 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(97) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(98) = [character(len=44) :: &
                                                                   "adaptive-fill-mode", &
                                                                   "after-change-major-mode-hook", &
                                                                   "amalgamating-undo-limit", &
@@ -390,6 +391,7 @@ module docstrings_fm
                                                                   "case-symbols-as-words", &
                                                                   "change-major-mode-after-body-hook", &
                                                                   "change-major-mode-hook", &
+                                                                  "change-major-mode-with-file-name", &
                                                                   "colon-double-space", &
                                                                   "commands", &
                                                                   "completion-auto-help", &
@@ -3185,6 +3187,17 @@ contains
             entry%doc = "Normal hook run before changing the major mode of a buffer."//LF// &
                         "The function `kill-all-local-variables' runs this before doing"//LF// &
                         "anything else."
+        case ("change-major-mode-with-file-name")
+            entry%file = "files_fm.f90"
+            entry%fortran = "change_major_mode_with_file_name"
+            entry%original = ".true."
+            entry%value = repr(change_major_mode_with_file_name)
+            entry%doc = "Non-nil means \[write-file] should set the major mode from the file name."//LF// &
+                        "However, the mode will not be changed if"//LF// &
+                        "(1) a local variables list or the `-*-' line specifies a major mode, or"//LF// &
+                        "(2) the current major mode is a ""special"" mode,"//LF// &
+                        "    not suitable for ordinary files, or"//LF// &
+                        "(3) the new file name does not particularly specify any mode."
         case ("colon-double-space")
             entry%file = "fill_fm.f90"
             entry%fortran = "colon_double_space"
