@@ -245,7 +245,7 @@ contains
         if (allocated(error)) return
         sentence_end = "override works"
         call check(error, sentence_end_regexp() == "override works")
-        deallocate (sentence_end)
+        deallocate (sentence_end%value)
     end subroutine test_sentence_end
 
     subroutine test_forward_sentence(error)
@@ -308,8 +308,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: saved_start, saved_separate
         integer(int64) :: left
-        saved_start = paragraph_start
-        saved_separate = paragraph_separate
+        saved_start = paragraph_start%value
+        saved_separate = paragraph_separate%value
         ! Lines starting with "* " start paragraphs; "---" lines separate.
         paragraph_start = "\* \|---$\|[ "//achar(9)//"]*$"
         paragraph_separate = "---$\|[ "//achar(9)//"]*$"

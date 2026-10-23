@@ -577,7 +577,7 @@ contains
         if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
         if (merge(replace_regexp_lax_whitespace, replace_lax_whitespace, regexp_flag) .and. &
             allocated(search_whitespace_regexp)) search_spaces_regexp = search_whitespace_regexp
-        saved_fold = case_fold_search
+        saved_fold = case_fold_search%value
         case_fold_search = case_fold
         if (present_true(backward)) then
             if (limit > 0) then
@@ -758,8 +758,8 @@ contains
         is_counted = present_true(counted)
         querying = query_flag
         if (present(result)) result = .false.
-        fold = case_fold_search
-        if (case_fold_search .and. search_upper_case /= UPPER_CASE_NIL) then
+        fold = case_fold_search%value
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
             fold = isearch_no_upper_case_p(from_string, regexp_flag)
         end if
         nocasify = .not. (case_replace .and. fold)
@@ -810,7 +810,7 @@ contains
         end if
         call push_mark()
         call undo_boundary()
-        saved_fold = case_fold_search
+        saved_fold = case_fold_search%value
         case_fold_search = fold
         ! Loop finding occurrences that perhaps should be replaced.
         main: do while (keep_going)

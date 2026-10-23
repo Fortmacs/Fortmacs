@@ -33,6 +33,7 @@ module indent_fm
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
     use lisp_fm, only: value_type
+    use data_fm, only: logical_setting, integer_setting, setting_type
     use editfns_fm, only: goto_char, pos_bol, point, insert_char_n
     use insdel_fm, only: del_range
     use xdisp_fm, only: glyph_columns, tab_width
@@ -46,7 +47,7 @@ module indent_fm
 
     !> Indentation can insert tabs if this is non-nil.  Port of indent.c
     !> indent-tabs-mode (one global value).
-    logical, public :: indent_tabs_mode = .true.
+    type(logical_setting), public :: indent_tabs_mode = logical_setting(name="indent-tabs-mode", value=.true.)
 
     ! ------------------------------------------------------------------
     ! indent.el, in the submodule indent_cmds_fm
@@ -58,6 +59,7 @@ module indent_fm
               indent_line_to, current_left_margin, move_to_left_margin, indent_to_left_margin, &
               delete_to_left_margin, beginning_of_line_text, indent_region, indent_region_line_by_line, &
               indent_relative, indent_relative_first_indent_point, indent_next_tab_stop, &
+              indent_line_function_name, indent_line_function_named, &
               indent_accumulate_tab_stops, tab_to_tab_stop, move_to_tab_stop, syms_of_indent
 
     abstract interface
@@ -81,7 +83,7 @@ module indent_fm
 
     !> Default number of columns for margin-changing functions to indent.
     !> Port of indent.el standard-indent.
-    integer(int64), public :: standard_indent = 4
+    type(integer_setting), public :: standard_indent = integer_setting(name="standard-indent", value=4)
 
     !> Controls the operation of the TAB key.
     !> If t, hitting TAB always just indents the current line.
@@ -99,6 +101,15 @@ module indent_fm
     !> indent.el tab-stop-list (unallocated or empty is nil).
     integer(int64), allocatable, public :: tab_stop_list(:)
 
+    !> A setting whose value is an indent-line function; null is the
+    !> default, `indent-relative'.  Assign with `=>` to `value`.
+    type, extends(setting_type), public :: indent_line_setting
+        procedure(indent_line_proc), pointer, nopass :: value => null()
+    contains
+        generic :: set_local => set_local_indent_line
+        procedure, private :: set_local_indent_line => indent_line_set_local
+    end type indent_line_setting
+
     !> Function to indent the current line.
     !> This function will be called with no arguments.
     !> If it is called somewhere where it cannot auto-indent, the function
@@ -106,7 +117,7 @@ module indent_fm
     !> Setting this function is all you need to make TAB indent appropriately.
     !> Don't rebind TAB unless you really need to.  Port of indent.el
     !> indent-line-function (null is the default, `indent-relative`).
-    procedure(indent_line_proc), pointer, public :: indent_line_function => null()
+    type(indent_line_setting), public :: indent_line_function = indent_line_setting(name="indent-line-function")
 
     !> Short cut function to indent region using `indent-according-to-mode'.
     !> Default is to really run `indent-according-to-mode' on each line.
@@ -217,6 +228,22 @@ module indent_fm
             logical, intent(out), optional :: noindent
         end subroutine indent_relative
 
+        !> The name of indent-line function P: `indent-relative' for null,
+        !> "" for a procedure without a name.  (In indent_cmds_fm.)
+        module function indent_line_function_name(p) result(name)
+            implicit none(type, external)
+            procedure(indent_line_proc), pointer, intent(in) :: p
+            character(len=:), allocatable :: name
+        end function indent_line_function_name
+
+        !> Point P at the indent-line function named NAME; any other
+        !> function is called by name with `funcall`.  (In indent_cmds_fm.)
+        module subroutine indent_line_function_named(name, p)
+            implicit none(type, external)
+            character(len=*), intent(in) :: name
+            procedure(indent_line_proc), pointer, intent(inout) :: p
+        end subroutine indent_line_function_named
+
         module subroutine indent_relative_first_indent_point(status, noindent)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -255,6 +282,16 @@ module indent_fm
     integer, parameter :: DEFAULT_WIDTH = 80
 
 contains
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine indent_line_set_local(self, v)
+        class(indent_line_setting), intent(inout) :: self
+        procedure(indent_line_proc) :: v
+        call self%make_local()
+        self%value => v
+        self%has_exact = .false.
+        self%void = .false.
+    end subroutine indent_line_set_local
 
     !> Columns from the start of the line to point.
     !> Port of indent.c:Fcurrent_column (current_column).
@@ -356,7 +393,7 @@ contains
         if (present(minimum)) mincol = fromcol + minimum
         if (mincol < column) mincol = column
         if (fromcol == mincol) return
-        if (indent_tabs_mode) then
+        if (indent_tabs_mode%value) then
             n = mincol/tw - fromcol/tw
             if (n /= 0) then
                 call insert_char_n(9, n, status)
@@ -394,7 +431,7 @@ contains
 
     !> tab-width, or 8 if it is not in 1..1000 (SANE_TAB_WIDTH).
     integer(int64) function sane_tab_width() result(tw)
-        tw = tab_width
+        tw = tab_width%value
         if (tw <= 0 .or. tw > 1000) tw = 8
     end function sane_tab_width
 

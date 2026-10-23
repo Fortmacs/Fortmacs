@@ -40,9 +40,83 @@ module data_fm
     use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, nil, stringp, symbolp, symbols, &
                        v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, value_type, &
                        vtag, xsymbol
-    use lread_fm, only: ensure_obarray
+    use lread_fm, only: ensure_obarray, sym
+    use lisp_fm, only: command_proc
     implicit none(type, external)
     private
+
+    !> A setting: a variable that a buffer can have its own value of
+    !> (upstream any variable can be buffer-local).  Assigning to it sets
+    !> the value seen in the current buffer (the default, unless the
+    !> buffer has its own); `set_local` gives the current buffer its own
+    !> value, as upstream's `setq-local`:
+    !>
+    !>     fill_column = 72               ! the default
+    !>     call fill_column%set_local(60) ! this buffer only
+    !>
+    !> Fortran code reads `fill_column%value`.
+    type, abstract, public :: setting_type
+        !> The variable's name, as the help commands show it.
+        character(len=48) :: name = ""
+        !> The exact value last given through the variable's name (as
+        !> `set-variable' does) when the Fortran value can't hold it, such
+        !> as a symbol in a logical setting; cleared by any assignment.
+        type(value_type) :: exact
+        logical :: has_exact = .false.
+        !> Void (`makunbound'); cleared by any assignment.
+        logical :: void = .false.
+    contains
+        !> Make the current buffer use the default value again.  Port of
+        !> data.c:Fkill_local_variable.
+        procedure :: kill_local => setting_kill_local
+        !> Whether the current buffer has its own value.  Port of
+        !> data.c:Flocal_variable_p.
+        procedure :: local_p => setting_local_p
+        !> Start giving the current buffer its own value.
+        procedure :: make_local => setting_make_local
+    end type setting_type
+
+    !> An integer setting.
+    type, extends(setting_type), public :: integer_setting
+        integer(int64) :: value = 0
+    contains
+        generic :: assignment(=) => assign_int, assign_int64
+        generic :: set_local => set_local_int, set_local_int64
+        procedure, private :: assign_int => integer_assign_int, assign_int64 => integer_assign_int64
+        procedure, private :: set_local_int => integer_set_local_int, set_local_int64 => integer_set_local_int64
+    end type integer_setting
+
+    !> A true/false setting (nil or non-nil upstream).
+    type, extends(setting_type), public :: logical_setting
+        logical :: value = .false.
+    contains
+        generic :: assignment(=) => assign
+        generic :: set_local => set_local_logical
+        procedure, private :: assign => logical_assign
+        procedure, private :: set_local_logical => logical_set_local
+    end type logical_setting
+
+    !> A string setting; unallocated is nil.
+    type, extends(setting_type), public :: string_setting
+        character(len=:), allocatable :: value
+    contains
+        generic :: assignment(=) => assign
+        generic :: set_local => set_local_string
+        procedure, private :: assign => string_assign
+        procedure, private :: set_local_string => string_set_local
+        !> Make it nil.
+        procedure :: clear => string_clear
+    end type string_setting
+
+    !> A setting whose value is a function of no arguments (a
+    !> `command_type` procedure); null is nil.  Assign with `=>` to
+    !> `value`.
+    type, extends(setting_type), public :: function_setting
+        procedure(command_proc), pointer, nopass :: value => null()
+    contains
+        generic :: set_local => set_local_function
+        procedure, private :: set_local_function => function_set_local
+    end type function_setting
 
     public :: check_fixnum, check_symbol, check_string, check_list
     public :: value_eq, car, cdr, car_safe, cdr_safe
@@ -55,12 +129,23 @@ module data_fm
         !> The value of the Fortran variable forwarded to by the symbol
         !> with id ID: `found` is false if it is a plain variable.  (In
         !> data_buffer_fm.)
-        module subroutine forwarded_get(id, v, found)
+        module subroutine forwarded_get(id, v, found, bound)
             implicit none(type, external)
             integer(int64), intent(in) :: id
             type(value_type), intent(out) :: v
             logical, intent(out) :: found
+            !> False when the variable is void.
+            logical, intent(out), optional :: bound
         end subroutine forwarded_get
+
+        !> makunbound on the forwarded variable of symbol ID; `found` is
+        !> false if it is a plain variable.  (In data_buffer_fm.)
+        module subroutine forwarded_makunbound(id, status, found)
+            implicit none(type, external)
+            integer(int64), intent(in) :: id
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: found
+        end subroutine forwarded_makunbound
 
         !> Set the Fortran variable forwarded to by symbol ID; `found` is
         !> false if it is a plain variable.  (In data_buffer_fm.)
@@ -241,6 +326,115 @@ module data_fm
 contains
 
     ! ------------------------------------------------------------------
+    ! Settings
+    ! ------------------------------------------------------------------
+
+    subroutine setting_make_local(self)
+        class(setting_type), intent(inout) :: self
+        type(status_type) :: st
+        call make_local_variable(sym(trim(self%name)), st)
+    end subroutine setting_make_local
+
+    subroutine setting_kill_local(self)
+        class(setting_type), intent(inout) :: self
+        type(status_type) :: st
+        call kill_local_variable(sym(trim(self%name)), st)
+    end subroutine setting_kill_local
+
+    logical function setting_local_p(self)
+        class(setting_type), intent(in) :: self
+        setting_local_p = local_variable_p(sym(trim(self%name)))
+    end function setting_local_p
+
+    !> Forget an exact Lisp value and voidness: the Fortran value is the
+    !> value now.
+    subroutine settled(self)
+        class(setting_type), intent(inout) :: self
+        self%has_exact = .false.
+        self%void = .false.
+        self%exact = nil()
+    end subroutine settled
+
+    subroutine integer_assign_int(self, v)
+        class(integer_setting), intent(inout) :: self
+        integer, intent(in) :: v
+        self%value = v
+        call settled(self)
+    end subroutine integer_assign_int
+
+    subroutine integer_assign_int64(self, v)
+        class(integer_setting), intent(inout) :: self
+        integer(int64), intent(in) :: v
+        self%value = v
+        call settled(self)
+    end subroutine integer_assign_int64
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine integer_set_local_int(self, v)
+        class(integer_setting), intent(inout) :: self
+        integer, intent(in) :: v
+        call self%make_local()
+        self%value = v
+        call settled(self)
+    end subroutine integer_set_local_int
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine integer_set_local_int64(self, v)
+        class(integer_setting), intent(inout) :: self
+        integer(int64), intent(in) :: v
+        call self%make_local()
+        self%value = v
+        call settled(self)
+    end subroutine integer_set_local_int64
+
+    subroutine logical_assign(self, v)
+        class(logical_setting), intent(inout) :: self
+        logical, intent(in) :: v
+        self%value = v
+        call settled(self)
+    end subroutine logical_assign
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine logical_set_local(self, v)
+        class(logical_setting), intent(inout) :: self
+        logical, intent(in) :: v
+        call self%make_local()
+        self%value = v
+        call settled(self)
+    end subroutine logical_set_local
+
+    subroutine string_assign(self, v)
+        class(string_setting), intent(inout) :: self
+        character(len=*), intent(in) :: v
+        self%value = v
+        call settled(self)
+    end subroutine string_assign
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine string_set_local(self, v)
+        class(string_setting), intent(inout) :: self
+        character(len=*), intent(in) :: v
+        call self%make_local()
+        self%value = v
+        call settled(self)
+    end subroutine string_set_local
+
+    subroutine string_clear(self)
+        class(string_setting), intent(inout) :: self
+        if (allocated(self%value)) deallocate (self%value)
+        call settled(self)
+    end subroutine string_clear
+
+    !> Give the current buffer its own value V.  Port of subr.el:setq-local.
+    subroutine function_set_local(self, v)
+        class(function_setting), intent(inout) :: self
+        procedure(command_proc) :: v
+        call self%make_local()
+        self%value => v
+        call settled(self)
+    end subroutine function_set_local
+
+    ! ------------------------------------------------------------------
     ! Type checks (lisp.h CHECK_*)
     ! ------------------------------------------------------------------
 
@@ -379,14 +573,13 @@ contains
         logical, intent(out) :: bound
         type(status_type), intent(out) :: status
         type(value_type) :: v
+        logical :: found
         bound = .false.
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
-        bound = symbols(xsymbol(symbol))%bound
-        if (.not. bound) then
-            call forwarded_get(xsymbol(symbol), v, bound)
-        end if
+        call forwarded_get(xsymbol(symbol), v, found, bound)
+        if (.not. found) bound = symbols(xsymbol(symbol))%bound
     end subroutine boundp
 
     !> The value of `symbol`; void-variable if unbound.
@@ -396,13 +589,16 @@ contains
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
         integer(int64) :: id
-        logical :: found
+        logical :: found, bound
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
         id = xsymbol(symbol)
-        call forwarded_get(id, v, found)
-        if (found) return
+        call forwarded_get(id, v, found, bound)
+        if (found) then
+            if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
+            return
+        end if
         if (.not. symbols(id)%bound) then
             call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
             return
@@ -446,6 +642,7 @@ contains
         type(value_type), intent(in) :: symbol
         type(status_type), intent(out) :: status
         integer(int64) :: id
+        logical :: found
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
@@ -454,6 +651,16 @@ contains
             call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
             return
         end if
+        ! Fset (symbol, Qunbound): an automatically buffer-local variable
+        ! gets a void local binding.
+        if (auto_local(id)) then
+            if (.not. local_in_current(id)) then
+                call make_local_variable(symbol, status)
+                if (.not. status%ok()) return
+            end if
+        end if
+        call forwarded_makunbound(id, status, found)
+        if (found) return
         symbols(id)%val = nil()
         symbols(id)%bound = .false.
     end subroutine makunbound

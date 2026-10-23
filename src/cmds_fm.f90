@@ -193,7 +193,7 @@ contains
         call insert_char_n(int(c, int32), n, status)
         if (.not. status%ok()) return
         ! auto-fill-chars: space and newline.
-        if ((c == 32 .or. c == 10) .and. associated(auto_fill_function) .and. associated(internal_auto_fill_hook)) then
+        if ((c == 32 .or. c == 10) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
             ! After inserting a newline, move to previous line and fill
             ! that.  Must have the newline in place already so filling and
             ! justification, if any, know where the end is going to be.

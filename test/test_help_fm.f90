@@ -250,7 +250,7 @@ contains
         logical :: found
         integer :: saved
         call fresh_scratch()
-        saved = tab_width
+        saved = tab_width%value
         tab_width = 4
         call describe_variable_text("tab-width", text, found)
         tab_width = saved

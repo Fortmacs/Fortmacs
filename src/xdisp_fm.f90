@@ -57,7 +57,7 @@ module xdisp_fm
     use keyboard_fm, only: last_message, minibuffer_message_text
     use lisp_fm, only: value_type, nilp
     use lread_fm, only: sym
-    use data_fm, only: buffer_local_value
+    use data_fm, only: buffer_local_value, integer_setting
     implicit none(type, external)
     private
 
@@ -73,7 +73,7 @@ module xdisp_fm
     !> This controls the width of a TAB character on display.
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
-    integer, public :: tab_width = 8
+    type(integer_setting), public :: tab_width = integer_setting(name="tab-width", value=8)
 
     !> An entry of minor-mode-alist.
     type :: lighter_type
@@ -168,7 +168,7 @@ contains
         integer(int32) :: byte
         n = 1
         if (c == 9) then
-            n = tab_width - mod(x, tab_width)
+            n = tab_width%value - mod(x, tab_width%value)
             cells(1:n)%ch = 32
         else if (c < 32 .or. c == 127) then
             ! ctl-arrow: ^@ .. ^_, ^?
@@ -384,7 +384,7 @@ contains
         ! window only (highlight-nonselected-windows nil).
         rb = 0
         re = 0
-        if (transient_mark_mode .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
+        if (transient_mark_mode%value .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
             .not. w%mini .and. selected) then
             m = buffers(bi)%mark%index
             if (m > 0) then

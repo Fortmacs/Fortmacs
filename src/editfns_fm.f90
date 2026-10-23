@@ -201,7 +201,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: m
         pos = 0
-        if (transient_mark_mode .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
+        if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(cur)%mark_active) then
             call set_error(status, FM_MARK_INACTIVE)
             return
         end if

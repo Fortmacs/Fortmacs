@@ -43,6 +43,7 @@ module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
+    use data_fm, only: logical_setting
     use character_fm, only: string_char_and_length, char_bytes, char_head_p
     use casetab_fm, only: case_canon
     use buffer_fm, only: buffers, cur, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
@@ -65,7 +66,7 @@ module search_fm
 
     !> Non-nil if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (one global value; not buffer-local yet).
-    logical, public :: case_fold_search = .true.
+    type(logical_setting), public :: case_fold_search = logical_setting(name="case-fold-search", value=.true.)
 
     !> Values of NOERROR for `search_forward` and `search_backward`: nil
     !> (signal `search-failed`), t (return nil), and anything else (move to
@@ -666,7 +667,7 @@ contains
                 end if
             end if
         end associate
-        np = search_buffer(string, buffers(cur)%pt, buffers(cur)%pt_byte, lim, lim_byte, n, case_fold_search, &
+        np = search_buffer(string, buffers(cur)%pt, buffers(cur)%pt_byte, lim, lim_byte, n, case_fold_search%value, &
                            status, re, posix)
         if (.not. status%ok()) return
         if (np <= 0) then

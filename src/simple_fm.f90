@@ -41,7 +41,7 @@ module simple_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
     use lread_fm, only: sym
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, string_setting
     use character_fm, only: MAX_CHAR
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
                          inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
@@ -125,7 +125,7 @@ module simple_fm
 
     !> String for filling to insert at front of new line, or nil for none.
     !> Unallocated is nil.  Port of simple.el fill-prefix.
-    character(len=:), allocatable, public :: fill_prefix
+    type(string_setting), public :: fill_prefix = string_setting(name="fill-prefix")
 
     !> The actions of `cycle-spacing` (the symbols of
     !> `cycle-spacing-actions`).
@@ -193,7 +193,7 @@ module simple_fm
 
     !> Regexp to match lines that should not be auto-filled.  Port of
     !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
-    character(len=:), allocatable, public :: auto_fill_inhibit_regexp
+    type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto-fill-inhibit-regexp")
 
     !> Non-nil means to do as if `auto-fill-mode' was disabled.  Port of
     !> simple.el inhibit-auto-fill.
@@ -1458,7 +1458,7 @@ contains
         pos = 0
         forced = .false.
         if (present(force)) forced = force
-        if (forced .or. .not. transient_mark_mode .or. buffers(cur)%mark_active .or. mark_even_if_inactive) then
+        if (forced .or. .not. transient_mark_mode%value .or. buffers(cur)%mark_active .or. mark_even_if_inactive) then
             pos = mark_position()
         else
             call set_error(status, FM_MARK_INACTIVE)
@@ -1468,7 +1468,7 @@ contains
     !> Return t if Transient Mark mode is enabled and the mark is active.
     !> Port of simple.el:region-active-p.
     logical function region_active_p()
-        region_active_p = transient_mark_mode .and. buffers(cur)%mark_active .and. mark_position() /= 0
+        region_active_p = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
     end function region_active_p
 
     !> Return t if the region is active and it is appropriate to act on it:
@@ -1555,7 +1555,7 @@ contains
             call set_marker(m, point(), st)
         end if
         if (.not. flag(nomsg) .and. minibuf_level == 0) call message("Mark set")
-        if (flag(activate) .or. .not. transient_mark_mode) call set_mark(mark_position())
+        if (flag(activate) .or. .not. transient_mark_mode%value) call set_mark(mark_position())
     end subroutine push_mark
 
     !> Pop off mark ring into the buffer's actual mark.
@@ -2320,7 +2320,7 @@ contains
             end if
         end if
         prefix = ""
-        if (allocated(fill_prefix)) prefix = regexp_quote(fill_prefix)
+        if (allocated(fill_prefix%value)) prefix = regexp_quote(fill_prefix%value)
         do while (line_beginning_position() > sentinel)
             shortage = forward_line(0_int64)
             call char_before(c, found)

@@ -257,7 +257,7 @@ contains
         if (.not. status%ok()) return
         call set_buffer(buf, status)
         if (.not. status%ok()) return
-        saved_fold = case_fold_search
+        saved_fold = case_fold_search%value
         case_fold_search = .true.
         if (point_max() == point_min()) then
             ! A new init file.

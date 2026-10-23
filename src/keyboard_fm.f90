@@ -782,7 +782,7 @@ contains
         ! A command that changed the buffer (or asked to) ends an active
         ! region in Transient Mark mode (simple.el:deactivate-mark).
         if (cur /= 0) then
-            if (buffers(cur)%mark_active .and. vdeactivate_mark .and. transient_mark_mode) then
+            if (buffers(cur)%mark_active .and. vdeactivate_mark .and. transient_mark_mode%value) then
                 buffers(cur)%mark_active = .false.
             end if
         end if

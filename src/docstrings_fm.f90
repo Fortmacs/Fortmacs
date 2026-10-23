@@ -27,7 +27,7 @@
 module docstrings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use print_fm, only: prin1_to_string
-    use buffer_fm, only: fill_column, left_margin, transient_mark_mode
+    use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use casefiddle_fm, only: case_symbols_as_words
     use commands_fm, only: commands
@@ -38,7 +38,8 @@ module docstrings_fm
                        JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
-    use indent_fm, only: indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
+    use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
+                         tab_stop_list
     use isearch_fm, only: isearch_lax_whitespace, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
@@ -47,13 +48,14 @@ module docstrings_fm
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
                              completion_show_inline_help, insert_default_directory
     use novice_fm, only: disabled_command_function_p
-    use paragraphs_fm, only: sentence_end_double_space, sentence_end_without_period
+    use paragraphs_fm, only: paragraph_separate, paragraph_start, sentence_end, &
+                             sentence_end_double_space, sentence_end_without_period
     use replace_fm, only: case_replace, query_replace_show_replacement, query_replace_skip_read_only, &
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
-    use simple_fm, only: cycle_spacing_actions, delete_active_region, goal_column, inhibit_auto_fill, &
-                         kill_read_only_ok, kill_ring_max, kill_whole_line_option, line_move_visual, mark_ring_max, &
-                         suggest_key_bindings
+    use simple_fm, only: auto_fill_inhibit_regexp, cycle_spacing_actions, delete_active_region, &
+                         fill_prefix, goal_column, inhibit_auto_fill, kill_read_only_ok, kill_ring_max, &
+                         kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
     use subr_fm, only: history_length
     use syntax_fm, only: words_include_escapes
     use term_fm, only: visible_bell
@@ -414,8 +416,10 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(59) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(66) = [character(len=44) :: &
                                                                   "adaptive-fill-mode", &
+                                                                  "auto-fill-function", &
+                                                                  "auto-fill-inhibit-regexp", &
                                                                   "case-fold-search", &
                                                                   "case-replace", &
                                                                   "case-symbols-as-words", &
@@ -435,10 +439,12 @@ module docstrings_fm
                                                                   "fill-column", &
                                                                   "fill-indent-according-to-mode", &
                                                                   "fill-nobreak-predicate", &
+                                                                  "fill-prefix", &
                                                                   "fill-separate-heterogeneous-words-with-space", &
                                                                   "goal-column", &
                                                                   "history-add-new-input", &
                                                                   "history-length", &
+                                                                  "indent-line-function", &
                                                                   "indent-tabs-mode", &
                                                                   "inhibit-auto-fill", &
                                                                   "inhibit-field-text-motion", &
@@ -454,6 +460,8 @@ module docstrings_fm
                                                                   "mark-even-if-inactive", &
                                                                   "mark-ring-max", &
                                                                   "next-screen-context-lines", &
+                                                                  "paragraph-separate", &
+                                                                  "paragraph-start", &
                                                                   "query-replace-show-replacement", &
                                                                   "query-replace-skip-read-only", &
                                                                   "regexp-search-ring-max", &
@@ -464,6 +472,7 @@ module docstrings_fm
                                                                   "search-nonincremental-instead", &
                                                                   "search-ring-max", &
                                                                   "search-upper-case", &
+                                                                  "sentence-end", &
                                                                   "sentence-end-double-space", &
                                                                   "sentence-end-without-period", &
                                                                   "standard-indent", &
@@ -3555,13 +3564,26 @@ contains
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_mode"
             entry%original = ".true."
-            entry%value = repr(adaptive_fill_mode)
+            entry%value = repr(adaptive_fill_mode%value)
             entry%doc = "Non-nil means determine a paragraph's fill prefix from its text."
+        case ("auto-fill-function")
+            entry%file = "buffer_fm.f90"
+            entry%fortran = "auto_fill_function"
+            entry%doc = "Function called (if non-nil) to perform auto-fill."//LF// &
+                        "It is called after self-inserting any character specified in"//LF// &
+                        "the `auto-fill-chars' table."//LF// &
+                        "NOTE: This variable is not a hook;"//LF// &
+                        "its value may not be a list of functions."
+        case ("auto-fill-inhibit-regexp")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "auto_fill_inhibit_regexp"
+            if (allocated(auto_fill_inhibit_regexp%value)) entry%value = repr(auto_fill_inhibit_regexp%value)
+            entry%doc = "Regexp to match lines that should not be auto-filled."
         case ("case-fold-search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
             entry%original = ".true."
-            entry%value = repr(case_fold_search)
+            entry%value = repr(case_fold_search%value)
             entry%doc = "Non-nil if searches and matches should ignore case."
         case ("case-replace")
             entry%file = "replace_fm.f90"
@@ -3731,7 +3753,7 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "fill_column"
             entry%original = "70"
-            entry%value = repr(fill_column)
+            entry%value = repr(fill_column%value)
             entry%doc = "Column beyond which automatic line-wrapping should happen."//LF// &
                         "It is used by filling commands, such as `fill-region' and `fill-paragraph',"//LF// &
                         "and by `auto-fill-mode', which see."//LF// &
@@ -3750,6 +3772,12 @@ contains
                         "The predicates are called with no arguments, with point at the place to"//LF// &
                         "be tested.  If it returns a non-nil value, fill commands do not break"//LF// &
                         "the line there."
+        case ("fill-prefix")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "fill_prefix"
+            if (allocated(fill_prefix%value)) entry%value = repr(fill_prefix%value)
+            entry%doc = "String for filling to insert at front of new line, or nil for none."//LF// &
+                        "Unallocated is nil."
         case ("fill-separate-heterogeneous-words-with-space")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_separate_heterogeneous_words_with_space"
@@ -3787,11 +3815,20 @@ contains
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
                         "elements, and is done just after inserting a new element."
+        case ("indent-line-function")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "indent_line_function"
+            entry%doc = "Function to indent the current line."//LF// &
+                        "This function will be called with no arguments."//LF// &
+                        "If it is called somewhere where it cannot auto-indent, the function"//LF// &
+                        "should return `noindent' to signal that it didn't."//LF// &
+                        "Setting this function is all you need to make TAB indent appropriately."//LF// &
+                        "Don't rebind TAB unless you really need to."
         case ("indent-tabs-mode")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_tabs_mode"
             entry%original = ".true."
-            entry%value = repr(indent_tabs_mode)
+            entry%value = repr(indent_tabs_mode%value)
             entry%doc = "Indentation can insert tabs if this is non-nil."
         case ("inhibit-auto-fill")
             entry%file = "simple_fm.f90"
@@ -3870,7 +3907,7 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "left_margin"
             entry%original = "0"
-            entry%value = repr(left_margin)
+            entry%value = repr(left_margin%value)
             entry%doc = "Column for the default `indent-line-function' to indent to."//LF// &
                         "Linefeed indents to this column in Fundamental mode."
         case ("line-move-visual")
@@ -3927,6 +3964,37 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("paragraph-separate")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "paragraph_separate"
+            if (allocated(paragraph_separate%value)) entry%value = repr(paragraph_separate%value)
+            entry%doc = "Regexp for beginning of a line that separates paragraphs."//LF// &
+                        "If you change this, you may have to change `paragraph-start' also."//LF// &
+                        ""//LF// &
+                        "This is matched against the text at the left margin, which is not"//LF// &
+                        "necessarily the beginning of the line, so it should not use ""^"" as"//LF// &
+                        "an anchor.  This ensures that the paragraph functions will work"//LF// &
+                        "equally within a region of text indented by a margin setting.  Port"//LF// &
+                        "of paragraphs.el paragraph-separate."
+        case ("paragraph-start")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "paragraph_start"
+            if (allocated(paragraph_start%value)) entry%value = repr(paragraph_start%value)
+            entry%doc = "Regexp for beginning of a line that starts OR separates paragraphs."//LF// &
+                        "This regexp should match lines that separate paragraphs and should"//LF// &
+                        "also match lines that start a paragraph (and are part of that"//LF// &
+                        "paragraph)."//LF// &
+                        ""//LF// &
+                        "This is matched against the text at the left margin, which is not"//LF// &
+                        "necessarily the beginning of the line, so it should never use ""^"""//LF// &
+                        "as an anchor.  This ensures that the paragraph functions will work"//LF// &
+                        "equally well within a region of text indented by a margin setting."//LF// &
+                        ""//LF// &
+                        "The variable `paragraph-separate' specifies how to distinguish lines"//LF// &
+                        "that start paragraphs from lines that separate them."//LF// &
+                        ""//LF// &
+                        "If the variable `use-hard-newlines' is non-nil, then only lines"//LF// &
+                        "following a hard newline are considered to match."
         case ("query-replace-show-replacement")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_show_replacement"
@@ -4017,11 +4085,21 @@ contains
                         "apply to chars in regexps that are prefixed with `\'."//LF// &
                         "If this value is `not-yanks', text yanked into the search string"//LF// &
                         "in Isearch mode is always downcased."
+        case ("sentence-end")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end"
+            if (allocated(sentence_end%value)) entry%value = repr(sentence_end%value)
+            entry%doc = "Regexp describing the end of a sentence."//LF// &
+                        "The value includes the whitespace following the sentence."//LF// &
+                        "All paragraph boundaries also end sentences, regardless."//LF// &
+                        ""//LF// &
+                        "The value nil (unallocated) means to use the default value defined"//LF// &
+                        "by the function `sentence-end'.  You should always use this function"//LF// &
+                        "to obtain the value of this variable."
         case ("sentence-end-double-space")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_double_space"
-            entry%original = ".true."
-            entry%value = repr(sentence_end_double_space)
+            entry%value = repr(sentence_end_double_space%value)
             entry%doc = "Non-nil means a single space does not end a sentence."//LF// &
                         "This user option affects fill commands and sentence commands."//LF// &
                         ""//LF// &
@@ -4043,7 +4121,7 @@ contains
             entry%file = "indent_fm.f90"
             entry%fortran = "standard_indent"
             entry%original = "4"
-            entry%value = repr(standard_indent)
+            entry%value = repr(standard_indent%value)
             entry%doc = "Default number of columns for margin-changing functions to indent."
         case ("suggest-key-bindings")
             entry%file = "simple_fm.f90"
@@ -4076,7 +4154,7 @@ contains
             entry%file = "xdisp_fm.f90"
             entry%fortran = "tab_width"
             entry%original = "8"
-            entry%value = repr(tab_width)
+            entry%value = repr(tab_width%value)
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
@@ -4084,7 +4162,7 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "transient_mark_mode"
             entry%original = ".true."
-            entry%value = repr(transient_mark_mode)
+            entry%value = repr(transient_mark_mode%value)
             entry%doc = "Non-nil if Transient Mark mode is enabled."//LF// &
                         "Non-nil also enables highlighting of the region whenever the mark is"//LF// &
                         "active.  The region is highlighted with the `region` face."

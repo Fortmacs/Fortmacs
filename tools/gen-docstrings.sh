@@ -194,6 +194,15 @@ ingeneric != "" && /^[ \t]*module procedure/ {
                 sub(/[ \t]*$/, "", init)
             }
         }
+        # A setting object (data_fm): its initial value is the value=
+        # argument of its constructor.
+        if (type ~ /_setting\)/) {
+            init = ""
+            if (match(rest, /value[ \t]*=[ \t]*[^,)]+/)) {
+                init = substr(rest, RSTART, RLENGTH)
+                sub(/value[ \t]*=[ \t]*/, "", init)
+            }
+        }
         key = vname SUBSEP base
         vdoc[key] = docstring(block)
         vcite[key] = citation(block, 1)
@@ -506,7 +515,10 @@ END {
             print "            end select"
         } else {
             # Other derived types have no printed representation yet.
-            if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
+            if (vtype[i] ~ /(integer|logical)_setting\)/) print "            entry%value = repr(" vfort[i] "%value)"
+            else if (vtype[i] ~ /string_setting\)/)
+                print "            if (allocated(" vfort[i] "%value)) entry%value = repr(" vfort[i] "%value)"
+            else if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
             else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/)
                 print "            if (allocated(" vfort[i] ")) entry%value = repr(" vfort[i] ")"
             else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
