@@ -63,8 +63,9 @@ contains
 
     subroutine test_function_keys(error)
         type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
         call init_bindings()
-        call terminal_init_xterm()
+        call terminal_init_xterm(st)
         call check(error, decoded(ESC//"[A"), "<up>")
         if (allocated(error)) return
         call check(error, decoded(ESC//"OH"), "<home>")
@@ -104,7 +105,7 @@ contains
         type(status_type) :: st
         logical :: eof
         call init_bindings()
-        call terminal_init_xterm()
+        call terminal_init_xterm(st)
         call discard_input()
         call kbd_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
         call read_key_sequence(keys, binding, eof, st)
