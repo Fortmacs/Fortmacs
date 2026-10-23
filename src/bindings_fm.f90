@@ -56,6 +56,8 @@ module bindings_fm
     use help_fns_fm, only: syms_of_help_fns
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
+    use text_mode_fm, only: syms_of_text_mode
+    use prog_mode_fm, only: syms_of_prog_mode
     implicit none(type, external)
     private
 
@@ -186,6 +188,8 @@ contains
         call syms_of_indent()
         call syms_of_fill()
         call syms_of_novice()
+        call syms_of_text_mode()
+        call syms_of_prog_mode()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
