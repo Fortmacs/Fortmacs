@@ -34,6 +34,7 @@ module commands_fm
     type :: command_table_type
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
+        type(command_type) :: append_to_register
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
@@ -50,10 +51,15 @@ module commands_fm
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
+        type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
+        type(command_type) :: clear_rectangle
+        type(command_type) :: copy_rectangle_as_kill
+        type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
+        type(command_type) :: copy_to_register
         type(command_type) :: cycle_spacing
         type(command_type) :: default_indent_new_line
         type(command_type) :: delete_all_space
@@ -64,6 +70,8 @@ module commands_fm
         type(command_type) :: delete_horizontal_space
         type(command_type) :: delete_indentation
         type(command_type) :: delete_other_windows
+        type(command_type) :: delete_rectangle
+        type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_function
         type(command_type) :: describe_key
@@ -81,6 +89,7 @@ module commands_fm
         type(command_type) :: exchange_point_and_mark
         type(command_type) :: execute_extended_command
         type(command_type) :: exit_minibuffer
+        type(command_type) :: file_to_register
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
@@ -107,6 +116,7 @@ module commands_fm
         type(command_type) :: global_font_lock_mode_enable_in_buffer
         type(command_type) :: help_mode
         type(command_type) :: help_quit
+        type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
         type(command_type) :: indent_for_tab_command
         type(command_type) :: indent_region
@@ -119,6 +129,7 @@ module commands_fm
         type(command_type) :: indent_rigidly_right_to_tab_stop
         type(command_type) :: indent_tabs_mode
         type(command_type) :: indent_to
+        type(command_type) :: insert_register
         type(command_type) :: isearch_abort
         type(command_type) :: isearch_backward
         type(command_type) :: isearch_backward_regexp
@@ -146,12 +157,14 @@ module commands_fm
         type(command_type) :: isearch_yank_pop_only
         type(command_type) :: isearch_yank_word_or_char
         type(command_type) :: join_line
+        type(command_type) :: jump_to_register
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
         type(command_type) :: keyboard_quit
         type(command_type) :: kill_buffer
         type(command_type) :: kill_line
         type(command_type) :: kill_paragraph
+        type(command_type) :: kill_rectangle
         type(command_type) :: kill_region
         type(command_type) :: kill_ring_save
         type(command_type) :: kill_sentence
@@ -160,6 +173,7 @@ module commands_fm
         type(command_type) :: kill_word
         type(command_type) :: left_char
         type(command_type) :: left_word
+        type(command_type) :: list_registers
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
         type(command_type) :: mark_paragraph
@@ -187,11 +201,15 @@ module commands_fm
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
         type(command_type) :: normal_mode
+        type(command_type) :: number_to_register
         type(command_type) :: open_line
+        type(command_type) :: open_rectangle
         type(command_type) :: other_window
+        type(command_type) :: point_to_register
         type(command_type) :: pop_to_mark_command
         type(command_type) :: posix_search_backward
         type(command_type) :: posix_search_forward
+        type(command_type) :: prepend_to_register
         type(command_type) :: previous_buffer
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
@@ -205,6 +223,7 @@ module commands_fm
         type(command_type) :: re_search_forward
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
+        type(command_type) :: rectangle_number_lines
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: right_char
@@ -228,6 +247,8 @@ module commands_fm
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
+        type(command_type) :: string_insert_rectangle
+        type(command_type) :: string_rectangle
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
         type(command_type) :: text_mode
@@ -253,22 +274,26 @@ module commands_fm
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: view_register
         type(command_type) :: where_is
+        type(command_type) :: window_configuration_to_register
         type(command_type) :: write_file
         type(command_type) :: y_or_n_p_insert_n
         type(command_type) :: y_or_n_p_insert_other
         type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
+        type(command_type) :: yank_rectangle
     end type command_table_type
 
     !> The built-in commands.
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(228) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(252) = [character(len=38) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
+                                                                 "append_to_register", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
@@ -285,10 +310,15 @@ module commands_fm
                                                                  "beginning_of_buffer", &
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
+                                                                 "buffer_to_register", &
                                                                  "bury_buffer", &
                                                                  "capitalize_region", &
                                                                  "capitalize_word", &
+                                                                 "clear_rectangle", &
+                                                                 "copy_rectangle_as_kill", &
+                                                                 "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
+                                                                 "copy_to_register", &
                                                                  "cycle_spacing", &
                                                                  "default_indent_new_line", &
                                                                  "delete_all_space", &
@@ -299,6 +329,8 @@ module commands_fm
                                                                  "delete_horizontal_space", &
                                                                  "delete_indentation", &
                                                                  "delete_other_windows", &
+                                                                 "delete_rectangle", &
+                                                                 "delete_whitespace_rectangle", &
                                                                  "delete_window", &
                                                                  "describe_function", &
                                                                  "describe_key", &
@@ -316,6 +348,7 @@ module commands_fm
                                                                  "exchange_point_and_mark", &
                                                                  "execute_extended_command", &
                                                                  "exit_minibuffer", &
+                                                                 "file_to_register", &
                                                                  "fill_paragraph", &
                                                                  "fill_region", &
                                                                  "fill_region_as_paragraph", &
@@ -342,6 +375,7 @@ module commands_fm
                                                                  "global_font_lock_mode_enable_in_buffer", &
                                                                  "help_mode", &
                                                                  "help_quit", &
+                                                                 "increment_register", &
                                                                  "indent_according_to_mode", &
                                                                  "indent_for_tab_command", &
                                                                  "indent_region", &
@@ -354,6 +388,7 @@ module commands_fm
                                                                  "indent_rigidly_right_to_tab_stop", &
                                                                  "indent_tabs_mode", &
                                                                  "indent_to", &
+                                                                 "insert_register", &
                                                                  "isearch_abort", &
                                                                  "isearch_backward", &
                                                                  "isearch_backward_regexp", &
@@ -381,12 +416,14 @@ module commands_fm
                                                                  "isearch_yank_pop_only", &
                                                                  "isearch_yank_word_or_char", &
                                                                  "join_line", &
+                                                                 "jump_to_register", &
                                                                  "just_one_space", &
                                                                  "justify_current_line", &
                                                                  "keyboard_quit", &
                                                                  "kill_buffer", &
                                                                  "kill_line", &
                                                                  "kill_paragraph", &
+                                                                 "kill_rectangle", &
                                                                  "kill_region", &
                                                                  "kill_ring_save", &
                                                                  "kill_sentence", &
@@ -395,6 +432,7 @@ module commands_fm
                                                                  "kill_word", &
                                                                  "left_char", &
                                                                  "left_word", &
+                                                                 "list_registers", &
                                                                  "map_query_replace_regexp", &
                                                                  "mark_end_of_sentence", &
                                                                  "mark_paragraph", &
@@ -422,11 +460,15 @@ module commands_fm
                                                                  "next_line", &
                                                                  "next_line_or_history_element", &
                                                                  "normal_mode", &
+                                                                 "number_to_register", &
                                                                  "open_line", &
+                                                                 "open_rectangle", &
                                                                  "other_window", &
+                                                                 "point_to_register", &
                                                                  "pop_to_mark_command", &
                                                                  "posix_search_backward", &
                                                                  "posix_search_forward", &
+                                                                 "prepend_to_register", &
                                                                  "previous_buffer", &
                                                                  "previous_history_element", &
                                                                  "previous_line", &
@@ -440,6 +482,7 @@ module commands_fm
                                                                  "re_search_forward", &
                                                                  "recenter", &
                                                                  "recenter_top_bottom", &
+                                                                 "rectangle_number_lines", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "right_char", &
@@ -463,6 +506,8 @@ module commands_fm
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
+                                                                 "string_insert_rectangle", &
+                                                                 "string_rectangle", &
                                                                  "switch_to_buffer", &
                                                                  "tab_to_tab_stop", &
                                                                  "text_mode", &
@@ -488,13 +533,16 @@ module commands_fm
                                                                  "upcase_initials_region", &
                                                                  "upcase_region", &
                                                                  "upcase_word", &
+                                                                 "view_register", &
                                                                  "where_is", &
+                                                                 "window_configuration_to_register", &
                                                                  "write_file", &
                                                                  "y_or_n_p_insert_n", &
                                                                  "y_or_n_p_insert_other", &
                                                                  "y_or_n_p_insert_y", &
                                                                  "yank", &
-                                                                 "yank_pop"]
+                                                                 "yank_pop", &
+                                                                 "yank_rectangle"]
 
 contains
 
@@ -509,6 +557,8 @@ contains
             p => commands%abort_minibuffers
         case ("abort_recursive_edit")
             p => commands%abort_recursive_edit
+        case ("append_to_register")
+            p => commands%append_to_register
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("back_to_indentation")
@@ -541,14 +591,24 @@ contains
             p => commands%beginning_of_line
         case ("beginning_of_line_text")
             p => commands%beginning_of_line_text
+        case ("buffer_to_register")
+            p => commands%buffer_to_register
         case ("bury_buffer")
             p => commands%bury_buffer
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
             p => commands%capitalize_word
+        case ("clear_rectangle")
+            p => commands%clear_rectangle
+        case ("copy_rectangle_as_kill")
+            p => commands%copy_rectangle_as_kill
+        case ("copy_rectangle_to_register")
+            p => commands%copy_rectangle_to_register
         case ("copy_region_as_kill")
             p => commands%copy_region_as_kill
+        case ("copy_to_register")
+            p => commands%copy_to_register
         case ("cycle_spacing")
             p => commands%cycle_spacing
         case ("default_indent_new_line")
@@ -569,6 +629,10 @@ contains
             p => commands%delete_indentation
         case ("delete_other_windows")
             p => commands%delete_other_windows
+        case ("delete_rectangle")
+            p => commands%delete_rectangle
+        case ("delete_whitespace_rectangle")
+            p => commands%delete_whitespace_rectangle
         case ("delete_window")
             p => commands%delete_window
         case ("describe_function")
@@ -603,6 +667,8 @@ contains
             p => commands%execute_extended_command
         case ("exit_minibuffer")
             p => commands%exit_minibuffer
+        case ("file_to_register")
+            p => commands%file_to_register
         case ("fill_paragraph")
             p => commands%fill_paragraph
         case ("fill_region")
@@ -655,6 +721,8 @@ contains
             p => commands%help_mode
         case ("help_quit")
             p => commands%help_quit
+        case ("increment_register")
+            p => commands%increment_register
         case ("indent_according_to_mode")
             p => commands%indent_according_to_mode
         case ("indent_for_tab_command")
@@ -679,6 +747,8 @@ contains
             p => commands%indent_tabs_mode
         case ("indent_to")
             p => commands%indent_to
+        case ("insert_register")
+            p => commands%insert_register
         case ("isearch_abort")
             p => commands%isearch_abort
         case ("isearch_backward")
@@ -733,6 +803,8 @@ contains
             p => commands%isearch_yank_word_or_char
         case ("join_line")
             p => commands%join_line
+        case ("jump_to_register")
+            p => commands%jump_to_register
         case ("just_one_space")
             p => commands%just_one_space
         case ("justify_current_line")
@@ -745,6 +817,8 @@ contains
             p => commands%kill_line
         case ("kill_paragraph")
             p => commands%kill_paragraph
+        case ("kill_rectangle")
+            p => commands%kill_rectangle
         case ("kill_region")
             p => commands%kill_region
         case ("kill_ring_save")
@@ -761,6 +835,8 @@ contains
             p => commands%left_char
         case ("left_word")
             p => commands%left_word
+        case ("list_registers")
+            p => commands%list_registers
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
         case ("mark_end_of_sentence")
@@ -815,16 +891,24 @@ contains
             p => commands%next_line_or_history_element
         case ("normal_mode")
             p => commands%normal_mode
+        case ("number_to_register")
+            p => commands%number_to_register
         case ("open_line")
             p => commands%open_line
+        case ("open_rectangle")
+            p => commands%open_rectangle
         case ("other_window")
             p => commands%other_window
+        case ("point_to_register")
+            p => commands%point_to_register
         case ("pop_to_mark_command")
             p => commands%pop_to_mark_command
         case ("posix_search_backward")
             p => commands%posix_search_backward
         case ("posix_search_forward")
             p => commands%posix_search_forward
+        case ("prepend_to_register")
+            p => commands%prepend_to_register
         case ("previous_buffer")
             p => commands%previous_buffer
         case ("previous_history_element")
@@ -851,6 +935,8 @@ contains
             p => commands%recenter
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
+        case ("rectangle_number_lines")
+            p => commands%rectangle_number_lines
         case ("replace_regexp")
             p => commands%replace_regexp
         case ("replace_string")
@@ -897,6 +983,10 @@ contains
             p => commands%split_window_below
         case ("split_window_right")
             p => commands%split_window_right
+        case ("string_insert_rectangle")
+            p => commands%string_insert_rectangle
+        case ("string_rectangle")
+            p => commands%string_rectangle
         case ("switch_to_buffer")
             p => commands%switch_to_buffer
         case ("tab_to_tab_stop")
@@ -947,8 +1037,12 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("view_register")
+            p => commands%view_register
         case ("where_is")
             p => commands%where_is
+        case ("window_configuration_to_register")
+            p => commands%window_configuration_to_register
         case ("write_file")
             p => commands%write_file
         case ("y_or_n_p_insert_n")
@@ -961,6 +1055,8 @@ contains
             p => commands%yank
         case ("yank_pop")
             p => commands%yank_pop
+        case ("yank_rectangle")
+            p => commands%yank_rectangle
         case default
             return
         end select
