@@ -28,7 +28,10 @@ module test_xdisp_fm
                          erase_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, buffer_string
-    use dispextern_fm, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID, REGION_FACE_ID
+    use dispextern_fm, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID
+    use faces_fm, only: init_faces
+    use xfaces_fm, only: init_frame_faces
+    use tty_colors_fm, only: tty_color_clear, tty_register_colors
     use terminfo_fm, only: terminfo_type, builtin_xterm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
@@ -124,18 +127,47 @@ contains
         type(glyph_row_type) :: rows(2)
         integer(int64) :: bi, end_pos
         integer :: crow, ccol, r
+        integer(int32) :: region_id
         logical :: at_end
         type(status_type) :: st
+        type(frame_type) :: f
         call buffer_with("*xdisp-region*", "abc"//achar(10)//"def", h, bi)
         do r = 1, 2
             allocate (rows(r)%glyphs(8))
         end do
-        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64)
-        call check(error, all(rows(1)%glyphs(1:7)%face_id == [DEFAULT_FACE_ID, (REGION_FACE_ID, r=2, 7)]), &
-                   "abc and the newline")
+        ! A monochrome terminal: the region is in inverse video.
+        call init_faces()
+        call init_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64, f)
+        region_id = rows(1)%glyphs(2)%face_id
+        call check(error, region_id /= DEFAULT_FACE_ID, "the region face")
         if (allocated(error)) return
-        call check(error, rows(2)%glyphs(1)%face_id == REGION_FACE_ID .and. &
+        call check(error, f%faces(region_id)%tty_reverse_p, "in inverse video")
+        if (allocated(error)) return
+        ! (On a monochrome terminal, the region doesn't extend.)
+        call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. &
+                   all(rows(1)%glyphs(2:4)%face_id == region_id) .and. &
+                   all(rows(1)%glyphs(5:8)%face_id == DEFAULT_FACE_ID) .and. rows(1)%used == 4, &
+                   "bc and the newline's space")
+        if (allocated(error)) return
+        call check(error, rows(2)%glyphs(1)%face_id == region_id .and. &
                    all(rows(2)%glyphs(2:3)%face_id == DEFAULT_FACE_ID), "d only")
+        if (allocated(error)) return
+        ! An 8-color terminal: white on blue, extended to the end of the row.
+        f%tty%tn_max_colors = 8
+        call tty_color_clear()
+        call tty_register_colors(8, .false., st)
+        call init_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_pos, at_end, 2_int64, 6_int64, f)
+        region_id = rows(1)%glyphs(2)%face_id
+        call check(error, f%faces(region_id)%background == 4 .and. f%faces(region_id)%foreground == 7, &
+                   "white on blue")
+        if (allocated(error)) return
+        call check(error, all(rows(1)%glyphs(2:8)%face_id == region_id) .and. rows(1)%used == 8, &
+                   "region has :extend t")
+        call tty_color_clear()
+        f%tty%tn_max_colors = 0
+        call init_frame_faces(f, "dumb")
         call kill_buffer(h, st)
     end subroutine test_region
 

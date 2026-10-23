@@ -44,7 +44,9 @@ module emacs_fm
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
     use dispnew_fm, only: adjust_frame_glyphs, frame_ring_bell
-    use xdisp_fm, only: redisplay, init_frame_windows, realize_basic_faces, message
+    use xdisp_fm, only: redisplay, init_frame_windows, message
+    use xfaces_fm, only: init_frame_faces
+    use faces_fm, only: init_faces
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
@@ -351,7 +353,10 @@ contains
         call install_interrupt_handler()
         call adjust_frame_glyphs(selected_frame)
         call init_frame_windows(selected_frame)
-        call realize_basic_faces(selected_frame)
+        ! The faces of faces.el (defined when it is loaded), set up for
+        ! the terminal (frame-set-background-mode).
+        call init_faces()
+        call init_frame_faces(selected_frame, terminal_type)
         call tty_set_terminal_modes(selected_frame%tty)
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor
@@ -370,7 +375,12 @@ contains
         if (.not. color_status%ok()) call message(format_error(color_status))
         init_file_had_error = .false.
         if (opt_status%ok()) then
-            if (init .and. present(configure)) call load_init_file(configure)
+            if (init .and. present(configure)) then
+                call load_init_file(configure)
+                ! The faces as the configuration set them
+                ! (tty-run-terminal-initialization after the init file).
+                call init_frame_faces(selected_frame, terminal_type)
+            end if
             call command_line_1(rest, st)
             if (.not. st%ok()) call message(format_error(st))
         else

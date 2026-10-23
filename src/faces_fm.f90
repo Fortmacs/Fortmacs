@@ -39,8 +39,8 @@
 !> realizes faces for the terminal.
 !>
 !> Deferred: themes and Customize, frame-local `set_face_attribute',
-!> X resources, face aliases, `face_override_spec', the `supports'
-!> display condition (always false), stipples, fonts and fontsets, and
+!> X resources, face aliases, `face_override_spec', stipples, fonts and
+!> fontsets, and
 !> the `cursor' face's face-no-inherit property (no face may inherit
 !> from it; xfaces.c).
 module faces_fm

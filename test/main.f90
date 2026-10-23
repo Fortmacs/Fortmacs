@@ -73,6 +73,7 @@ program tester
     use test_simple_fm, only: collect_simple_fm
     use test_tty_colors_fm, only: collect_tty_colors_fm
     use test_faces_fm, only: collect_faces_fm
+    use test_xfaces_fm, only: collect_xfaces_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -129,7 +130,8 @@ program tester
                  new_testsuite("novice_fm", collect_novice_fm), &
                  new_testsuite("fill_fm", collect_fill_fm), &
                  new_testsuite("tty_colors_fm", collect_tty_colors_fm), &
-                 new_testsuite("faces_fm", collect_faces_fm) &
+                 new_testsuite("faces_fm", collect_faces_fm), &
+                 new_testsuite("xfaces_fm", collect_xfaces_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
