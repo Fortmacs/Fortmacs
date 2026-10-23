@@ -61,6 +61,7 @@ module docstrings_fm
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_show_replacement, &
                           query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
                           replace_regexp_lax_whitespace
+    use rmc_fm, only: read_char_choice_use_read_key
     use search_fm, only: case_fold_search
     use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, cycle_spacing_actions, &
                          delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
@@ -391,7 +392,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(104) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(105) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
@@ -463,6 +464,7 @@ module docstrings_fm
                                                                    "query_replace_show_replacement", &
                                                                    "query_replace_skip_read_only", &
                                                                    "read_buffer_completion_ignore_case", &
+                                                                   "read_char_choice_use_read_key", &
                                                                    "read_file_name_completion_ignore_case", &
                                                                    "regexp_search_ring_max", &
                                                                    "replace_count", &
@@ -2326,11 +2328,12 @@ contains
                         "See also `read_file_name_completion_ignore_case'."
         case ("read_multiple_choice")
             entry%file = "rmc_fm.f90"
-            entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help)"
+            entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help, long_fo"// &
+                            "rm)"
             entry%doc = "Ask user to select an entry from CHOICES, prompting with PROMPT."//LF// &
                         "This function lets a user select an option from a list of options"//LF// &
                         "by typing a single character, and returns the index of the choice"//LF// &
-                        "(`answer')."//LF// &
+                        "(`answer'; 0 for none)."//LF// &
                         ""//LF// &
                         "CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character"//LF// &
                         "to be entered.  NAME is a short name for the entry to be displayed"//LF// &
@@ -2345,9 +2348,13 @@ contains
                         "SHOW-HELP, if present, means show the help buffer from the start"//LF// &
                         "(named SHOW-HELP when it is a non-empty string)."//LF// &
                         ""//LF// &
-                        "If the user types the `?' key, the help is displayed; other keys"//LF// &
-                        "not in CHOICES ask again after ""Invalid choice.""; C-g quits.  Port"//LF// &
-                        "of rmc.el:read-multiple-choice (short answers)."
+                        "If optional argument LONG-FORM is non-nil, the user will have to"//LF// &
+                        "type in long-form answers (using `completing_read') instead of"//LF// &
+                        "hitting a single key."//LF// &
+                        ""//LF// &
+                        "If the user types the `?' key, the help is displayed.  The answer"//LF// &
+                        "is read in the minibuffer, or with `read_key' if"//LF// &
+                        "`read_char_choice_use_read_key' is non-nil."
         case ("read_number")
             entry%file = "subr_fm.f90"
             entry%fortran = "call read_number(prompt, n, status, default, hist, defaults)"
@@ -3864,6 +3871,14 @@ contains
             entry%original = ".false."
             entry%value = repr(read_buffer_completion_ignore_case)
             entry%doc = "Non-nil means completion ignores case when reading a buffer name."
+        case ("read_char_choice_use_read_key")
+            entry%file = "rmc_fm.f90"
+            entry%fortran = "read_char_choice_use_read_key"
+            entry%original = ".false."
+            entry%value = repr(read_char_choice_use_read_key)
+            entry%doc = "If non-nil, use `read_key' when reading a character by"//LF// &
+                        "`read_multiple_choice' (read-char-choice).  Otherwise, use the"//LF// &
+                        "minibuffer (this is the default)."
         case ("read_file_name_completion_ignore_case")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "read_file_name_completion_ignore_case"

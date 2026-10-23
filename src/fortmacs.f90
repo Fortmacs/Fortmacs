@@ -143,6 +143,7 @@ module fortmacs
     use simple_fm, only: line_move_visual, goal_column
     use subr_fm, only: history_length, history_delete_duplicates, y_or_n_p_use_read_key
     use fns_fm, only: use_short_answers
+    use rmc_fm, only: read_char_choice_use_read_key
     use keyboard_fm, only: minibuffer_message_timeout
     use minibuffer_fm, only: read_file_name_completion_ignore_case, read_buffer_completion_ignore_case
     use minibuf_fm, only: enable_recursive_minibuffers, history_add_new_input
@@ -243,7 +244,7 @@ module fortmacs
     public :: run_mode_hooks, fundamental_mode, special_mode, text_mode, prog_mode, normal_mode, set_auto_mode, &
               add_auto_mode, file_name_sans_versions
     public :: history_delete_duplicates, y_or_n_p_use_read_key, use_short_answers, minibuffer_message_timeout, &
-              read_file_name_completion_ignore_case, read_buffer_completion_ignore_case
+              read_file_name_completion_ignore_case, read_buffer_completion_ignore_case, read_char_choice_use_read_key
     public :: tab_width, make_backup_files, change_major_mode_with_file_name, line_move_visual, goal_column, history_length, &
               enable_recursive_minibuffers, history_add_new_input, insert_default_directory, &
               inhibit_field_text_motion, visible_bell, transient_mark_mode, mark_even_if_inactive, kill_ring_max, &
