@@ -52,7 +52,7 @@ trap 'rm -f "$tmp".*' EXIT
 #   V  lisp-name  file  fortran-name  type  array(0/1)  init  enum  doc
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort | xargs awk '
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
-function hyphenate(s) { gsub(/_/, "-", s); return s }
+function help_name(s) { return s }
 
 # The docstring of comment block b (lines joined by \036): the text
 # before "Port of".
@@ -91,6 +91,7 @@ function citation(b, var,    flat, k, rest, file, name) {
         if (!match(rest, /^ [a-z][a-z0-9*+-]*/)) return ""
         name = substr(rest, 2, RLENGTH - 1)
         sub(/-$/, "", name)
+        gsub(/-/, "_", name)
         return name
     }
     if (!match(rest, /^:[A-Za-z0-9_*+<>=\/-]+/)) return ""
@@ -99,8 +100,9 @@ function citation(b, var,    flat, k, rest, file, name) {
     if (file ~ /\.(c|h)$/) {
         if (name !~ /^F[a-z]/) return ""
         name = substr(name, 2)
-        gsub(/_/, "-", name)
     }
+    # Fortmacs names use underscores where Emacs uses hyphens.
+    gsub(/-/, "_", name)
     return name
 }
 
@@ -169,7 +171,7 @@ ingeneric != "" && /^[ \t]*module procedure/ {
 /^[ \t]*commands%[a-z0-9_]+%run[ \t]*=>/ {
     line = $0
     sub(/^[ \t]*commands%/, "", line)
-    name = line; sub(/%.*/, "", name); name = hyphenate(name)
+    name = line; sub(/%.*/, "", name); name = help_name(name)
     proc = line; sub(/^[^>]*>[ \t]*/, "", proc); sub(/[^a-z0-9_].*/, "", proc)
     if (!(name in cmd)) { cmd[name] = proc; cmdfile[name] = base }
 }
@@ -177,7 +179,7 @@ ingeneric != "" && /^[ \t]*module procedure/ {
     line = $0
     sub(/^[ \t]*commands%/, "", line)
     name = line; sub(/%.*/, "", name)
-    noninteractive[hyphenate(name)] = 1
+    noninteractive[help_name(name)] = 1
 }
 
 {
@@ -279,12 +281,12 @@ END {
         key = nm SUBSEP api[nm]
         if (key in pdoc) {
             lisp = pcite[key]
-            if (lisp == "") lisp = hyphenate(nm)
+            if (lisp == "") lisp = help_name(nm)
             fdoc[lisp] = pdoc[key]; ffile[lisp] = api[nm]; fcall[lisp] = pcall[key]
             finter[lisp] = 0
         } else if (key in vdoc) {
             lisp = vcite[key]
-            if (lisp == "") lisp = hyphenate(nm)
+            if (lisp == "") lisp = help_name(nm)
             printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", lisp, api[nm], nm, vtype[key], \
                 varr[key], vinit[key], vdoc[key]
         }

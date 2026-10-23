@@ -279,24 +279,24 @@ contains
         call get_buffer_create("test-derived-text", a, st)
         call set_buffer(a, st)
         call text_mode(st)
-        call check(error, st%ok(), "text-mode")
+        call check(error, st%ok(), "text_mode")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "text-mode")
+        call check(error, buffers(cur)%major_mode, "text_mode")
         if (allocated(error)) return
         call check(error, buffers(cur)%mode_name, "Text")
         if (allocated(error)) return
-        call check(error, same(current_local_map(), major_modes%text_mode%map), "text-mode-map")
+        call check(error, same(current_local_map(), major_modes%text_mode%map), "text_mode_map")
         if (allocated(error)) return
         call check(error, same(syntax_table(), text_mode_syntax_table), "syntax table")
         if (allocated(error)) return
         call check(error, char_syntax(iachar("'")) == "w", "' is a word constituent")
         if (allocated(error)) return
-        call check(error, derived_mode_p(major_modes%text_mode), "derived-mode-p")
+        call check(error, derived_mode_p(major_modes%text_mode), "derived_mode_p")
         if (allocated(error)) return
-        call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text-mode-variant")
+        call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text_mode_variant")
         if (allocated(error)) return
         call check(error, require_final_newline%value == FINAL_NEWLINE_SAVE .and. require_final_newline%local_p(), &
-                   "require-final-newline")
+                   "require_final_newline")
         if (allocated(error)) return
         call fundamental_mode(st)
         call check(error, same(syntax_table(), standard_syntax_table()), "standard syntax table")
@@ -305,7 +305,7 @@ contains
         if (allocated(error)) return
         call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%local_p(), "locals killed")
         if (allocated(error)) return
-        call check(error, mode_require_final_newline%value == FINAL_NEWLINE_SAVE, "mode-require-final-newline")
+        call check(error, mode_require_final_newline%value == FINAL_NEWLINE_SAVE, "mode_require_final_newline")
         call kill_buffer(a, st)
     end subroutine test_text_mode
 
@@ -338,10 +338,10 @@ contains
         call check(error, derived_mode_p(major_modes%text_mode), "derived from text-mode")
         if (allocated(error)) return
         ! A key bound in text-mode-map is active in the child.
-        call keymap_set(major_modes%text_mode%map, "C-c t", "forward-char", st)
+        call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("forward-char")), "inherited binding")
+        call check(error, value_eq(binding, sym("forward_char")), "inherited binding")
         call keymap_set(major_modes%text_mode%map, "C-c t", nil(), st)
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
@@ -356,7 +356,7 @@ contains
         call parent_mode_obj%define("subr-tests--parent-mode", "P", empty_mode, parent=major_modes%prog_mode)
         call derived_mode_1_obj%define("subr-tests--derived-mode-1", "D1", empty_mode, parent=major_modes%prog_mode)
         call derived_mode_2_obj%define("subr-tests--derived-mode-2", "D2", empty_mode, parent=parent_mode_obj)
-        call check(error, provided_mode_derived_p("subr-tests--derived-mode-1", [character(len=9) :: "prog-mode"]))
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-1", [character(len=9) :: "prog_mode"]))
         if (allocated(error)) return
         call check(error, provided_mode_derived_p("subr-tests--parent-mode", &
                                                   [character(len=23) :: "subr-tests--parent-mode"]))
@@ -364,12 +364,12 @@ contains
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", &
                                                   [character(len=23) :: "subr-tests--parent-mode"]))
         if (allocated(error)) return
-        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", [character(len=9) :: "prog-mode"]))
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", [character(len=9) :: "prog_mode"]))
         if (allocated(error)) return
         ! define-derived-mode takes fundamental-mode as no parent.
-        call check(error,.not. provided_mode_derived_p("prog-mode", [character(len=16) :: "fundamental-mode"]))
+        call check(error,.not. provided_mode_derived_p("prog_mode", [character(len=16) :: "fundamental_mode"]))
         if (allocated(error)) return
-        call check(error,.not. provided_mode_derived_p("prog-mode", [character(len=9) :: "text-mode"]))
+        call check(error,.not. provided_mode_derived_p("prog_mode", [character(len=9) :: "text_mode"]))
         if (allocated(error)) return
         call check(error, derived_mode_2_obj%derived_from(major_modes%prog_mode), "derived_from")
     end subroutine test_provided_mode_derived_p
@@ -385,13 +385,13 @@ contains
         call get_buffer_create("test-derived-special", a, st)
         call set_buffer(a, st)
         call special_mode(st)
-        call check(error, st%ok(), "special-mode")
+        call check(error, st%ok(), "special_mode")
         if (allocated(error)) return
-        call check(error, buffers(cur)%read_only, "read-only")
+        call check(error, buffers(cur)%read_only, "read_only")
         if (allocated(error)) return
         call key_parse("q", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("quit-window")), "q quits")
+        call check(error, value_eq(binding, sym("quit_window")), "q quits")
         call kill_buffer(a, st)
     end subroutine test_special_mode
 
@@ -409,7 +409,7 @@ contains
         call fundamental_mode(st)
         call check(error,.not. fill_column%local_p() .and. fill_column%value == 70, "local killed")
         if (allocated(error)) return
-        call check(error, buffers(cur)%major_mode, "fundamental-mode")
+        call check(error, buffers(cur)%major_mode, "fundamental_mode")
         call kill_buffer(a, st)
     end subroutine test_fundamental
 
@@ -417,13 +417,13 @@ contains
     subroutine test_auto_mode_spec(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: LF = char(10)
-        call check(error, auto_mode_spec("-*- Text -*-"//LF//"body"), "text-mode")
+        call check(error, auto_mode_spec("-*- Text -*-"//LF//"body"), "text_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "prog-mode")
+        call check(error, auto_mode_spec(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "prog_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("x -*- coding: utf-8; Mode: text -*-"), "text-mode")
+        call check(error, auto_mode_spec("x -*- coding: utf-8; Mode: text -*-"), "text_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("#!/bin/sh"//LF//"# -*- text -*-"), "text-mode")
+        call check(error, auto_mode_spec("#!/bin/sh"//LF//"# -*- text -*-"), "text_mode")
         if (allocated(error)) return
         call check(error, auto_mode_spec("plain"//LF//"# -*- text -*-"), "")
         if (allocated(error)) return
@@ -462,15 +462,15 @@ contains
         call text_mode_hook%remove(hook_text)
         call check(error, trace, "T", "hook ran (case-insensitive match)")
         if (allocated(error)) return
-        call add_auto_mode("\.prog\'", "prog-mode")
+        call add_auto_mode("\.prog\'", "prog_mode")
         call syms_of_prog_mode()
         buffers(cur)%filename = "/tmp/foo.prog"
         call normal_mode(st)
-        call check(error, buffers(cur)%major_mode, "prog-mode")
+        call check(error, buffers(cur)%major_mode, "prog_mode")
         if (allocated(error)) return
         buffers(cur)%filename = "/tmp/foo.other"
         call normal_mode(st)
-        call check(error, buffers(cur)%major_mode, "fundamental-mode")
+        call check(error, buffers(cur)%major_mode, "fundamental_mode")
         deallocate (buffers(cur)%filename)
         call kill_buffer(a, st)
     end subroutine test_normal_mode

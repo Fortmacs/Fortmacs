@@ -105,7 +105,7 @@ module window_fm
     interface
         !> Scroll text of selected window upward ARG lines.
         !> If ARG is omitted or nil, scroll upward by a near full screen.
-        !> A near full screen is `next-screen-context-lines' less than a
+        !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.  If ARG is the
         !> atom `-', scroll downward by nearly full screen.  When calling
         !> from a program, supply as argument a number, nil, or `-'.
@@ -118,7 +118,7 @@ module window_fm
 
         !> Scroll text of selected window down ARG lines.
         !> If ARG is omitted or nil, scroll down by a near full screen.
-        !> A near full screen is `next-screen-context-lines' less than a
+        !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.  If ARG is the
         !> atom `-', scroll upward by nearly full screen.  When calling
         !> from a program, supply as argument a number, nil, or `-'.
@@ -142,7 +142,7 @@ module window_fm
         !>
         !> Just C-u as prefix means put point in the center of the window
         !> and redisplay normally--don't erase and redraw the frame.
-        !> Port of window.c:Frecenter (`recenter-redisplay' is `tty').
+        !> Port of window.c:Frecenter (`recenter_redisplay' is `tty').
         module subroutine recenter(arg, redisplay, status)
             implicit none(type, external)
             type(value_type), intent(in) :: arg
@@ -173,15 +173,15 @@ module window_fm
         !> a full screen.  If given a `C-u -' prefix, scroll a full page
         !> down instead.
         !>
-        !> If `scroll-error-top-bottom' is non-nil and `scroll-up' cannot
+        !> If `scroll_error_top_bottom' is non-nil and `scroll_up' cannot
         !> scroll window further, move cursor to the bottom line.
         !> When point is already on that position, then signal an error.
-        !> A near full screen is `next-screen-context-lines' less than a
+        !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.
         !>
         !> If ARG is the atom `-', scroll downward by nearly full screen.
         !>
-        !> The command \[set-goal-column] can be used to create a
+        !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-up-command.
         recursive module subroutine scroll_up_command(arg, status)
@@ -197,15 +197,15 @@ module window_fm
         !> by a full screen.  If given a `C-u -' prefix, scroll a full page
         !> up instead.
         !>
-        !> If `scroll-error-top-bottom' is non-nil and `scroll-down' cannot
+        !> If `scroll_error_top_bottom' is non-nil and `scroll_down' cannot
         !> scroll window further, move cursor to the top line.
         !> When point is already on that position, then signal an error.
-        !> A near full screen is `next-screen-context-lines' less than a
+        !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.
         !>
         !> If ARG is the atom `-', scroll upward by nearly full screen.
         !>
-        !> The command \[set-goal-column] can be used to create a
+        !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
         !> window.el:scroll-down-command.
         recursive module subroutine scroll_down_command(arg, status)
@@ -217,13 +217,13 @@ module window_fm
         !> Scroll the window so that current line is in the middle of the
         !> window.  Successive invocations scroll the window in a cyclical
         !> order to put the current line at certain places within the
-        !> window, as determined by `recenter-positions'.  By default, the
+        !> window, as determined by `recenter_positions'.  By default, the
         !> second invocation puts the current line at the top-most window
         !> line, the third invocation puts it on the bottom-most window
         !> line, and then the order is reused in a cyclical manner.
         !>
         !> With numeric prefix ARG, move current line ARG lines below the
-        !> window top.  With plain \[universal-argument], move current line
+        !> window top.  With plain \[universal_argument], move current line
         !> to window center.  Port of window.el:recenter-top-bottom.
         module subroutine recenter_top_bottom(arg, status)
             implicit none(type, external)
@@ -233,11 +233,11 @@ module window_fm
 
         !> Position point relative to window.
         !>
-        !> With a prefix argument ARG, acts like `move-to-window-line'.
+        !> With a prefix argument ARG, acts like `move_to_window_line'.
         !>
         !> With no argument, positions point at center of window.
         !> Successive calls position point at positions defined
-        !> by `recenter-positions'.  Port of
+        !> by `recenter_positions'.  Port of
         !> window.el:move-to-window-line-top-bottom.
         module subroutine move_to_window_line_top_bottom(arg, status)
             implicit none(type, external)
@@ -255,7 +255,7 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine quit_window
 
-        !> Register the scrolling commands and `quit-window'.
+        !> Register the scrolling commands and `quit_window'.
         module subroutine syms_of_window()
             implicit none(type, external)
         end subroutine syms_of_window

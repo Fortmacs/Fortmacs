@@ -128,7 +128,7 @@ contains
         ! A screenful less two lines of context; point follows the top.
         call scroll_up(nil(), st)
         call check(error, st%ok() .and. window_start(win()) == line(9) &
-                   .and. point() == line(9), "scroll-up")
+                   .and. point() == line(9), "scroll_up")
         if (allocated(error)) return
         call scroll_up(nil(), st)
         call check(error, window_start(win()) == line(17) .and. point() == line(17))
@@ -136,14 +136,14 @@ contains
         ! Point is still in the window: it stays.
         call scroll_down(nil(), st)
         call check(error, st%ok() .and. window_start(win()) == line(9) &
-                   .and. point() == line(17), "scroll-down")
+                   .and. point() == line(17), "scroll_down")
         if (allocated(error)) return
         ! Point would fall off the bottom: the last line of the window.
         call scroll_down(nil(), st)
         call check(error, window_start(win()) == line(1) .and. point() == line(10))
         if (allocated(error)) return
         call scroll_down(nil(), st)
-        call check(error, st%code == FM_BEGINNING_OF_BUFFER, "beginning-of-buffer")
+        call check(error, st%code == FM_BEGINNING_OF_BUFFER, "beginning_of_buffer")
         if (allocated(error)) return
         ! By lines; `-` reverses a screenful.
         call scroll_up(make_fixnum(3_int64), st)
@@ -159,7 +159,7 @@ contains
         call set_window_start(win(), line(25), st)
         call goto_char(line(25))
         call scroll_up(nil(), st)
-        call check(error, st%code == FM_END_OF_BUFFER .and. point() == line(25), "end-of-buffer")
+        call check(error, st%code == FM_END_OF_BUFFER .and. point() == line(25), "end_of_buffer")
         call leave(h)
     end subroutine test_scroll
 
@@ -268,7 +268,7 @@ contains
         integer :: k
         call enter(h)
         call goto_char(line(20))
-        this_command = sym("recenter-top-bottom")
+        this_command = sym("recenter_top_bottom")
         ! Middle, top, bottom, then middle again.
         do k = 1, 4
             call recenter_top_bottom(nil(), st)
@@ -306,7 +306,7 @@ contains
         call move_to_window_line(make_fixnum(2_int64), vpos, st)
         call check(error, point() == line(3) .and. vpos == 2, "line 2")
         if (allocated(error)) return
-        this_command = sym("move-to-window-line-top-bottom")
+        this_command = sym("move_to_window_line_top_bottom")
         do k = 1, 4
             call move_to_window_line_top_bottom(nil(), st)
             call check(error, st%ok() .and. point() == line(int(expected(k))))

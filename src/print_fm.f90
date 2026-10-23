@@ -22,7 +22,7 @@
 !> The printed representation of a value, as `prin1' writes it: what
 !> help shows for a variable holding a value.
 !>
-!> Deferred: `princ', print streams, `print-length' and `print-level',
+!> Deferred: `princ', print streams, `print_length' and `print_level',
 !> escaping in symbol names, circular structure, floats.
 module print_fm
     use, intrinsic :: iso_fortran_env, only: int64

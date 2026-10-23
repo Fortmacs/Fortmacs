@@ -93,7 +93,7 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call deactivate_mark(.true.)
-        call set(sym("kill-ring"), nil(), st)
+        call set(sym("kill_ring"), nil(), st)
     end subroutine fresh
 
     !> Set the current buffer's text, point and mark according to
@@ -190,7 +190,7 @@ contains
         last_command = sym("ignore")
         call kill_region(point(), mark_position(), st)
         call deactivate_mark(.true.)
-        last_command = sym("kill-region")
+        last_command = sym("kill_region")
         call kill_whole_line(1_int64, st)
         call check(error, latest_kill(), "AXB")
         if (.not. allocated(error)) call check(error, get_text_point_mark(), point_tag)
@@ -277,10 +277,10 @@ contains
         call kill_region(3_int64, 5_int64, st)
         call check(error, buffer_string() == "abef" .and. latest_kill() == "cd", "kill")
         if (allocated(error)) return
-        call check(error, value_eq(this_command, sym("kill-region")), "this-command")
+        call check(error, value_eq(this_command, sym("kill_region")), "this-command")
         if (allocated(error)) return
         ! A kill after a kill appends (forward) or prepends (backward).
-        last_command = sym("kill-region")
+        last_command = sym("kill_region")
         call kill_region(3_int64, 4_int64, st)
         call check(error, buffer_string() == "abf" .and. latest_kill() == "cde", "append")
         if (allocated(error)) return
@@ -325,7 +325,7 @@ contains
                    "rest of the line")
         if (allocated(error)) return
         ! At the end of a line: the newline; then blanks and the newline.
-        last_command = sym("kill-region")
+        last_command = sym("kill_region")
         call kill_line(0_int64, .false., st)
         call kill_line(0_int64, .false., st)
         call check(error, get_text_point_mark() == point_tag//"three" .and. latest_kill() == "one"//nl//"  "//nl, &
@@ -754,7 +754,7 @@ contains
         if (allocated(error)) return
         ! cycle-spacing: one space, no space, the original spacing.
         call set_text_point_mark("a  "//point_tag//" b")
-        this_command = sym("cycle-spacing")
+        this_command = sym("cycle_spacing")
         last_command = nil()
         call cycle_spacing(nil(), st)
         call check(error, get_text_point_mark(), "a "//point_tag//"b")

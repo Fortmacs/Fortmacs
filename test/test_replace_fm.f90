@@ -79,9 +79,9 @@ contains
         call goto_char(1_int64)
         last_message = ""
         if (allocated(query_replace_defaults)) deallocate (query_replace_defaults)
-        call set(sym("query-replace-history"), nil(), st)
-        call set(sym("search-ring"), nil(), st)
-        call set(sym("regexp-search-ring"), nil(), st)
+        call set(sym("query_replace_history"), nil(), st)
+        call set(sym("search_ring"), nil(), st)
+        call set(sym("regexp_search_ring"), nil(), st)
     end subroutine enter
 
     subroutine leave(h)
@@ -282,7 +282,7 @@ contains
         character(len=*), parameter :: input = "theorem 1"//achar(10)//"theorem 2"//achar(10)//"theorem 3"
         call with_undo(error, input, "theorem \([0-9]+\)", "", "SPC SPC U q", input, fn=theorem_replacement)
         if (allocated(error)) return
-        ! Now run a test with regexp-flag arg in `perform-replace' set to nil
+        ! Now run a test with regexp-flag arg in `perform_replace' set to nil
         call with_undo(error, " ^theorem$ 1"//achar(10)//" ^theorem$ 2"//achar(10)//" ^theorem$ 3", &
                        "^theorem$", "theo", "SPC SPC U SPC q", &
                        " theo 1"//achar(10)//" ^theorem$ 2"//achar(10)//" ^theorem$ 3", regexp_flag=.false.)

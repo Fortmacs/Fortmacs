@@ -31,7 +31,7 @@
 !> Not ported yet: DESTINATION 0 (not waiting, which needs SIGCHLD
 !> reaping), `(:file FILE)' and `(REAL-BUFFER STDERR-FILE)', DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
-!> decoded as UTF-8), `exec-path' (PATH is searched), `process-environment'
+!> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
 !> (the editor's environment is passed), remote directories, executable
 !> suffixes.
 module callproc_fm
@@ -66,7 +66,7 @@ contains
     !> The remaining arguments are optional.
     !>
     !> The program's input comes from file INFILE (absent means
-    !> `null-device').  If INFILE is a relative path, it will be looked for
+    !> `null_device').  If INFILE is a relative path, it will be looked for
     !> relative to the directory where the process is run (see below).  If
     !> you want to make the input come from a buffer, use
     !> `call_process_region' instead.
@@ -91,7 +91,7 @@ contains
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.
     !>
-    !> The process runs in `default-directory'.  Port of
+    !> The process runs in `default_directory'.  Port of
     !> callproc.c:Fcall_process and call_process.
     subroutine call_process(program, result, status, infile, destination, args)
         character(len=*), intent(in) :: program
@@ -224,7 +224,7 @@ contains
     !> The executable file PROGRAM names: itself if it has a slash (relative
     !> to `dir'), else the first one in a directory of PATH (an empty entry
     !> means `dir').  `path' is "" if there is none.  Port of the part of
-    !> lread.c:openp that call_process uses (`exec-path' is PATH here).
+    !> lread.c:openp that call_process uses (`exec_path' is PATH here).
     subroutine locate_program(program, dir, path)
         character(len=*), intent(in) :: program, dir
         character(len=:), allocatable, intent(out) :: path

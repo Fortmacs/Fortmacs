@@ -21,7 +21,7 @@
 
 !> Reading environment variables and substituting them into strings.
 !> The process environment is read directly (there is no
-!> `process-environment' list yet).
+!> `process_environment' list yet).
 module env_fm
     implicit none(type, external)
     private

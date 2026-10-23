@@ -22,7 +22,7 @@
 !> Major modes.  A major mode is a `major_mode_type' object: built-in
 !> ones are the components of `major_modes' (modes_fm), others are
 !> `target' variables made known with `define'.  Upstream's
-!> `define-derived-mode' macro expands into a function; here the mode's
+!> `define_derived_mode' macro expands into a function; here the mode's
 !> command brackets its body with `begin' and `finish':
 !>
 !>     subroutine my_mode(status)
@@ -63,11 +63,11 @@ module derived_fm
     type, public :: major_mode_type
         !> The mode's name, as M-x and the help commands show it.
         character(len=64) :: name = ""
-        !> Shown in the mode line (`mode-name').
+        !> Shown in the mode line (`mode_name').
         character(len=:), allocatable :: mode_name
         !> The mode's command.
         procedure(command_proc), pointer, nopass :: run => null()
-        !> The mode it is derived from (`derived-mode-parent'), or null.
+        !> The mode it is derived from (`derived_mode_parent'), or null.
         type(major_mode_type), pointer :: parent => null()
         !> Its keymap (`MODE-map'), inheriting the parent's.
         type(handle_type) :: map
@@ -78,7 +78,7 @@ module derived_fm
         !> none.)
         type(hook_type), pointer :: hook => null()
         !> A special mode, not suitable for ordinary files (the
-        !> `mode-class' property `special'); inherited from the parent when
+        !> `mode_class' property `special'); inherited from the parent when
         !> the mode runs.
         logical :: special = .false.
     contains
@@ -139,7 +139,7 @@ contains
         self%hook => null()
         if (present(hook)) then
             self%hook => hook
-            if (len_trim(hook%name) == 0) hook%name = name//"-hook"
+            if (len_trim(hook%name) == 0) hook%name = name//"_hook"
         end if
         if (present(syntax_table)) self%syntax_table = syntax_table
         if (.not. keymap_live_p(self%map)) call make_sparse_keymap(self%map)
@@ -163,8 +163,8 @@ contains
     end subroutine major_mode_define
 
     !> Start the body of the mode: run the parent mode with its mode hooks
-    !> delayed (or kill all local variables), then set `major-mode',
-    !> `mode-name', the local keymap and syntax table.  SAVED is for
+    !> delayed (or kill all local variables), then set `major_mode',
+    !> `mode_name', the local keymap and syntax table.  SAVED is for
     !> `finish'.  Port of the first part of define-derived-mode's
     !> expansion.
     recursive subroutine major_mode_begin(self, saved, status)

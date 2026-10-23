@@ -23,8 +23,8 @@
 !>
 !> Not yet: file name completion, wildcards and dired, auto-save, file
 !> locks, major modes and local variables, uniquify (buffer names get
-!> "<2>"), version-control backups and `backup-directory-alist', and
-!> `file-precious-flag'.
+!> "<2>"), version-control backups and `backup_directory_alist', and
+!> `file_precious_flag'.
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -73,7 +73,7 @@ module files_fm
         !> minibuffer.el:read-file-name.  With `confirm_nonexistent', a
         !> name that is not an existing file needs confirming right after
         !> completion (confirm-nonexistent-file-or-buffer's value
-        !> `after-completion').  (In submodule files_read_fm, as the
+        !> `after_completion').  (In submodule files_read_fm, as the
         !> minibuffer code depends on this module.)
         recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
                                                                  default_filename, initial, &
@@ -89,7 +89,7 @@ module files_fm
         !> Choose the major mode for this buffer automatically.
         !> Uses the visited file name and the -*- line.
         !>
-        !> This function is called automatically from `find-file'.  Port of
+        !> This function is called automatically from `find_file'.  Port of
         !> files.el:normal-mode (no file or directory local variables yet).
         !> (In files_mode_fm.)
         recursive module subroutine normal_mode(status, find_file)
@@ -101,8 +101,8 @@ module files_fm
         !> Select major mode appropriate for current buffer.
         !>
         !> To find the right major mode, this function checks for a -*- mode tag,
-        !> then compares the file name against the entries in `auto-mode-alist'
-        !> (case-sensitively first, then ignoring case, as `auto-mode-case-fold').
+        !> then compares the file name against the entries in `auto_mode_alist'
+        !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
         !> If the optional argument KEEP-MODE-IF-SAME is non-nil, then we
         !> set the major mode only if that would change it.  Port of
@@ -115,7 +115,7 @@ module files_fm
             logical, intent(in), optional :: keep_mode_if_same
         end subroutine set_auto_mode
 
-        !> Add (REGEXP . MODE) to the front of `auto-mode-alist', so files
+        !> Add (REGEXP . MODE) to the front of `auto_mode_alist', so files
         !> whose names match REGEXP get major mode MODE.  The counterpart
         !> of (add-to-list 'auto-mode-alist '(REGEXP . MODE)).  (In
         !> files_mode_fm.)
@@ -169,31 +169,31 @@ module files_fm
     !>
     !> A value of t means do this only when the file is about to be saved.
     !> A value of `visit' means do this right after the file is visited.
-    !> A value of `visit-save' means do it at both of those times.
+    !> A value of `visit_save' means do it at both of those times.
     !> Any other non-nil value means ask user whether to add a newline, when saving.
     !> A value of nil means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
-    !> from `mode-require-final-newline'.
+    !> from `mode_require_final_newline'.
     !>
     !> This variable is heeded only when visiting files (or saving
     !> buffers into files they visit).  Writing data to the file system
-    !> with `write-region' and the like is not influenced by this variable.
+    !> with `write_region' and the like is not influenced by this variable.
     !> Port of files.el require-final-newline (FINAL_NEWLINE_NEVER is
     !> nil, FINAL_NEWLINE_SAVE t, FINAL_NEWLINE_VISIT `visit',
-    !> FINAL_NEWLINE_VISIT_SAVE `visit-save', FINAL_NEWLINE_ASK any other
+    !> FINAL_NEWLINE_VISIT_SAVE `visit_save', FINAL_NEWLINE_ASK any other
     !> value).
     type(integer_setting), public :: require_final_newline = &
-                                     integer_setting(name="require-final-newline", value=FINAL_NEWLINE_NEVER)
+                                     integer_setting(name="require_final_newline", value=FINAL_NEWLINE_NEVER)
 
     !> Whether to add a newline at end of file, in certain major modes.
-    !> Those modes set `require-final-newline' to this value when you enable them.
+    !> Those modes set `require_final_newline' to this value when you enable them.
     !> They do so because they are often used for files that are supposed
     !> to end in newlines, and the question is how to arrange that.
     !>
     !> A value of t means do this only when the file is about to be saved.
     !> A value of `visit' means do this right after the file is visited.
-    !> A value of `visit-save' means do it at both of those times.
+    !> A value of `visit_save' means do it at both of those times.
     !> Any other non-nil value means ask user whether to add a newline, when saving.
     !>
     !> A value of nil means do not add newlines.  That is a risky choice in this
@@ -203,9 +203,9 @@ module files_fm
     !> Port of files.el mode-require-final-newline (values as for
     !> `require_final_newline').
     type(integer_setting), public :: mode_require_final_newline = &
-                                     integer_setting(name="mode-require-final-newline", value=FINAL_NEWLINE_SAVE)
+                                     integer_setting(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
 
-    !> Non-nil means \[write-file] should set the major mode from the file name.
+    !> Non-nil means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
     !> (1) a local variables list or the `-*-' line specifies a major mode, or
     !> (2) the current major mode is a "special" mode,
@@ -630,7 +630,7 @@ contains
     end subroutine basic_save_buffer
 
     !> Add a newline at the end of the current buffer if
-    !> `require-final-newline' says so (asking if it is neither t nor
+    !> `require_final_newline' says so (asking if it is neither t nor
     !> visit-save).  Part of files.el:basic-save-buffer.
     subroutine final_newline_on_save(status)
         type(status_type), intent(out) :: status
@@ -914,13 +914,13 @@ contains
     end subroutine write_file
 
     !> Edit file FILENAME.
-    !> \<minibuffer-local-map>Switch to a buffer visiting file FILENAME, creating one if none
+    !> \<minibuffer_local_map>Switch to a buffer visiting file FILENAME, creating one if none
     !> already exists.
     !> Interactively, the default if you just type RET is the current directory,
     !> but the visited file name is available through the minibuffer history:
-    !> type \[next-history-element] to pull it into the minibuffer.
+    !> type \[next_history_element] to pull it into the minibuffer.
     !> Port of files.el:find-file (interactive), with find-file-read-args (no
-    !> wildcards, remote files or `file-name-at-point-functions').
+    !> wildcards, remote files or `file_name_at_point_functions').
     subroutine cmd_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
@@ -943,7 +943,7 @@ contains
     !> visiting a file.
     !>
     !> You can also yank the file name into the minibuffer to edit it,
-    !> using \<minibuffer-local-map>\[next-history-element].
+    !> using \<minibuffer_local_map>\[next_history_element].
     !>
     !> Confirmation is required before overwriting an existing file, unless
     !> you supply a prefix argument.  Port of files.el:write-file (interactive).
@@ -972,20 +972,20 @@ contains
     !>
     !> By default, makes the previous version into a backup file
     !>  if previously requested or if this is the first save.
-    !> Prefixed with one \[universal-argument], marks this version
+    !> Prefixed with one \[universal_argument], marks this version
     !>  to become a backup when the next save is done.
-    !> Prefixed with two \[universal-argument]'s,
+    !> Prefixed with two \[universal_argument]'s,
     !>  makes the previous version into a backup file.
-    !> Prefixed with three \[universal-argument]'s, marks this version
+    !> Prefixed with three \[universal_argument]'s, marks this version
     !>  to become a backup when the next save is done,
     !>  and makes the previous version into a backup file.
     !>
     !> With a numeric prefix argument of 0, never make the previous version
     !> into a backup file.
     !>
-    !> Note that `make-backup-files' and `backup-enable-predicate' still
+    !> Note that `make_backup_files' and `backup_enable_predicate' still
     !> control whether a backup will actually be produced, even when you
-    !> invoke this command prefixed with two or three \[universal-argument]'s.
+    !> invoke this command prefixed with two or three \[universal_argument]'s.
     !>
     !> If a file's name is FOO, its backup file is called FOO~.
     !> Port of files.el:save-buffer (the command; no numbered backups).
@@ -1037,19 +1037,19 @@ contains
         commands%save_buffers_kill_terminal%run => cmd_save_buffers_kill_terminal
         ! files.el: (define-key ctl-x-map "\C-f" 'find-file)
         key(1) = make_fixnum(6_int64)
-        call define_key(ctl_x_map, key, sym("find-file"), status)
+        call define_key(ctl_x_map, key, sym("find_file"), status)
         ! files.el: (define-key ctl-x-map "\C-w" 'write-file)
         key(1) = make_fixnum(23_int64)
-        call define_key(ctl_x_map, key, sym("write-file"), status)
+        call define_key(ctl_x_map, key, sym("write_file"), status)
         ! files.el: (define-key ctl-x-map "\C-s" 'save-buffer)
         key(1) = make_fixnum(19_int64)
-        call define_key(ctl_x_map, key, sym("save-buffer"), status)
+        call define_key(ctl_x_map, key, sym("save_buffer"), status)
         ! files.el: (define-key ctl-x-map "s" 'save-some-buffers)
         key(1) = make_fixnum(int(iachar("s"), int64))
-        call define_key(ctl_x_map, key, sym("save-some-buffers"), status)
+        call define_key(ctl_x_map, key, sym("save_some_buffers"), status)
         ! files.el: (define-key ctl-x-map "\C-c" 'save-buffers-kill-terminal)
         key(1) = make_fixnum(3_int64)
-        call define_key(ctl_x_map, key, sym("save-buffers-kill-terminal"), status)
+        call define_key(ctl_x_map, key, sym("save_buffers_kill_terminal"), status)
     end subroutine syms_of_files
 
     !> Make directory DIR if it is not already a directory.

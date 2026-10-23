@@ -1159,7 +1159,7 @@ contains
                    "values")
         if (allocated(error)) return
         call set_match_data([5_int64, 9_int64])
-        call check(error, mb(0) == 5 .and. me(0) == 9 .and. mb(1) == 0, "set-match-data")
+        call check(error, mb(0) == 5 .and. me(0) == 9 .and. mb(1) == 0, "set_match_data")
     end subroutine test_match_data
 
     subroutine test_regexp_quote(error)

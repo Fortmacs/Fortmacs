@@ -30,7 +30,7 @@
 !> intervals.c so the tree can be swapped in later if profiling asks for it.
 !>
 !> Interval structure is not observable except through
-!> `next-property-change' with LIMIT t, as upstream.
+!> `next_property_change' with LIMIT t, as upstream.
 module intervals_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use lisp_fm, only: consp, list_elements, list_length, make_symbol_ref, nilp, symbolp, symbols, &
@@ -246,7 +246,7 @@ contains
 
     !> Adjust `iv' for `length' characters inserted (length > 0) or deleted
     !> (length < 0) at `start'.  Inserted text gets its own interval with no
-    !> properties; inheriting through stickiness (`insert-and-inherit') is
+    !> properties; inheriting through stickiness (`insert_and_inherit') is
     !> pending.  Port of intervals.c:offset_intervals,
     !> adjust_intervals_for_insertion and adjust_intervals_for_deletion.
     pure subroutine offset_intervals(iv, start, length)

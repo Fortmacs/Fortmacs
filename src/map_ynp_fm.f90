@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `map-y-or-n-p': ask about each of a list of objects in turn.
+!> `map_y_or_n_p': ask about each of a list of objects in turn.
 !>
 !> Objects are numbered 1..n; the caller's prompter and actor procedures
 !> stand in for upstream's PROMPTER and ACTOR functions.  As in subr_fm,
-!> keys are read in the echo area (the `y-or-n-p-use-read-key' path).
+!> keys are read in the echo area (the `y_or_n_p_use_read_key' path).
 !> There is no help (C-h) or ACTION-ALIST yet, so the prompt lists only
 !> the keys that work.
 module map_ynp_fm

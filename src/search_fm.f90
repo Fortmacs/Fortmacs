@@ -29,16 +29,16 @@
 !> known, so the "-1 = unknown" convention is replaced by optional
 !> arguments.
 !>
-!> String and regexp search (`search-forward', `re-search-forward',
-!> `looking-at', `string-match' and their relatives) with the case table,
+!> String and regexp search (`search_forward', `re_search_forward',
+!> `looking_at', `string_match' and their relatives) with the case table,
 !> a cache of compiled patterns and the match data.  regex_emacs_fm does
 !> the matching.
 !>
 !> Positions in strings are 1-based character indices, as Fortran's
 !> `index' (Emacs counts from 0), so that 0 can stand for nil.
 !>
-!> Deferred: `replace-match' (with query-replace), `match-data' markers,
-!> `inhibit-changing-match-data', Boyer-Moore search, the newline cache.
+!> Deferred: `replace_match' (with query-replace), `match_data' markers,
+!> `inhibit_changing_match_data', Boyer-Moore search, the newline cache.
 module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
@@ -66,10 +66,10 @@ module search_fm
 
     !> Non-nil if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (one global value; not buffer-local yet).
-    type(logical_setting), public :: case_fold_search = logical_setting(name="case-fold-search", value=.true.)
+    type(logical_setting), public :: case_fold_search = logical_setting(name="case_fold_search", value=.true.)
 
     !> Values of NOERROR for `search_forward' and `search_backward': nil
-    !> (signal `search-failed'), t (return nil), and anything else (move to
+    !> (signal `search_failed'), t (return nil), and anything else (move to
     !> the limit of the search, return nil).
     integer, parameter, public :: SEARCH_SIGNAL = 0, SEARCH_NOERROR = 1, SEARCH_MOVE = 2
 
@@ -131,7 +131,7 @@ module search_fm
         !> Otherwise if all words are capitalized in the replaced text,
         !> capitalize each word in NEWTEXT.  Note that what exactly is a
         !> word is determined by the syntax tables in effect in the current
-        !> buffer, and the variable `case-symbols-as-words'.
+        !> buffer, and the variable `case_symbols_as_words'.
         !>
         !> If optional third arg LITERAL is non-nil, insert NEWTEXT
         !> literally.  Otherwise treat `\' as special:
@@ -140,14 +140,14 @@ module search_fm
         !>        If Nth parens didn't match, substitute nothing.
         !>   `\\' means insert one `\'.
         !>   `\?' is treated literally
-        !>        (for compatibility with `query-replace-regexp').
+        !>        (for compatibility with `query_replace_regexp').
         !>   Any other character following `\' signals an error.
         !> Case conversion does not apply to these substitutions.
         !>
         !> If optional fourth argument STRING is non-nil, it should be a
         !> string to act on; this should be the string on which the
-        !> previous match was done via `string-match'.  In this case,
-        !> `replace-match' creates and returns a new string (in RESULT),
+        !> previous match was done via `string_match'.  In this case,
+        !> `replace_match' creates and returns a new string (in RESULT),
         !> made by copying STRING and replacing the part of STRING that was
         !> matched (the original STRING itself is not altered).
         !>
@@ -409,7 +409,7 @@ contains
 
     !> Return t if text after point matches regular expression REGEXP.
     !> By default, this function modifies the match data that
-    !> `match-beginning', `match-end' and `match-data' access.  If
+    !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
     !> search.c:Flooking_at.
     logical function looking_at(regexp, status, inhibit_modify) result(matched)
@@ -424,7 +424,7 @@ contains
     !> rules.
     !>
     !> By default, this function modifies the match data that
-    !> `match-beginning', `match-end' and `match-data' access.  If
+    !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
     !> search.c:Fposix_looking_at.
     logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
@@ -442,15 +442,15 @@ contains
     end function opt
 
     !> Return index of start of first match for REGEXP in STRING, or nil
-    !> (0).  Matching ignores case if `case-fold-search' is non-nil.  If
+    !> (0).  Matching ignores case if `case_fold_search' is non-nil.  If
     !> START is present, start search at that index in STRING.
     !>
     !> If INHIBIT-MODIFY is non-nil, match data is not changed.
     !>
     !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
-    !> `match-end' and `match-beginning' give indices of substrings matched
+    !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
-    !> `match-string' to extract the substrings matched by the parenthesis
+    !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
     !> do (match-end 0).
     !>
@@ -467,15 +467,15 @@ contains
 
     !> Return index of start of first match for Posix REGEXP in STRING, or
     !> nil (0).  Find the longest match, in accord with Posix regular
-    !> expression rules.  Case is ignored if `case-fold-search' is non-nil
+    !> expression rules.  Case is ignored if `case_fold_search' is non-nil
     !> in the current buffer.
     !>
     !> If INHIBIT-MODIFY is non-nil, match data is not changed.
     !>
     !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
-    !> `match-end' and `match-beginning' give indices of substrings matched
+    !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
-    !> `match-string' to extract the substrings matched by the parenthesis
+    !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
     !> do (match-end 0).  Port of search.c:Fposix_string_match.
     integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
@@ -516,10 +516,10 @@ contains
     !> the origin of the search.
     !>
     !> Search case-sensitivity is determined by the value of the variable
-    !> `case-fold-search', which see.
+    !> `case_fold_search', which see.
     !>
-    !> See also the functions `match-beginning', `match-end', `match-string',
-    !> and `replace-match'.  Port of search.c:Fsearch_forward.
+    !> See also the functions `match_beginning', `match_end', `match_string',
+    !> and `replace_match'.  Port of search.c:Fsearch_forward.
     subroutine search_forward(string, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: found
@@ -530,10 +530,10 @@ contains
     end subroutine search_forward
 
     !> Search backward from point for STRING.
-    !> This function is almost identical to `search-forward', except that
+    !> This function is almost identical to `search_forward', except that
     !> by default it searches backward instead of forward, and the sign of
     !> COUNT also indicates exactly the opposite searching direction.
-    !> See `search-forward' for details.  Port of search.c:Fsearch_backward.
+    !> See `search_forward' for details.  Port of search.c:Fsearch_backward.
     subroutine search_backward(string, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: found
@@ -563,10 +563,10 @@ contains
     !> the origin of the search.
     !>
     !> Search case-sensitivity is determined by the value of the variable
-    !> `case-fold-search', which see.
+    !> `case_fold_search', which see.
     !>
-    !> See also the functions `match-beginning', `match-end', `match-string',
-    !> and `replace-match'.  Port of search.c:Fre_search_forward.
+    !> See also the functions `match_beginning', `match_end', `match_string',
+    !> and `replace_match'.  Port of search.c:Fre_search_forward.
     subroutine re_search_forward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: found
@@ -577,10 +577,10 @@ contains
     end subroutine re_search_forward
 
     !> Search backward from point for regular expression REGEXP.
-    !> This function is almost identical to `re-search-forward', except that
+    !> This function is almost identical to `re_search_forward', except that
     !> by default it searches backward instead of forward, and the sign of
     !> COUNT also indicates exactly the opposite searching direction.
-    !> See `re-search-forward' for details.
+    !> See `re_search_forward' for details.
     !>
     !> Note that searching backwards may give a shorter match than expected,
     !> because REGEXP is still matched in the forward direction.  Port of
@@ -597,7 +597,7 @@ contains
     !> Search forward from point for REGEXP according to Posix rules.
     !> Find the longest match in accord with Posix regular expression rules.
     !> Set point to the end of the occurrence found, and return point.
-    !> BOUND, NOERROR and COUNT are as for `re-search-forward'.  Port of
+    !> BOUND, NOERROR and COUNT are as for `re_search_forward'.  Port of
     !> search.c:Fposix_search_forward.
     subroutine posix_search_forward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
@@ -611,7 +611,7 @@ contains
     !> Search backward from point for match for REGEXP according to Posix
     !> rules.  Find the longest match in accord with Posix regular
     !> expression rules.  This function is almost identical to
-    !> `posix-search-forward', except that by default it searches backward
+    !> `posix_search_forward', except that by default it searches backward
     !> instead of forward, and the sign of COUNT also indicates exactly the
     !> opposite searching direction.  Port of
     !> search.c:Fposix_search_backward.
@@ -921,11 +921,11 @@ contains
     !> beginning of the match of the Nth subexpression; it corresponds to
     !> `(match-beginning N)'; element 2N + 1 is the position of the end of
     !> the match of the Nth subexpression; it corresponds to `(match-end
-    !> N)'.  See `match-beginning' and `match-end'.  Positions are
+    !> N)'.  See `match_beginning' and `match_end'.  Positions are
     !> integers, 0 (nil) when the Nth pair didn't match; trailing nils are
     !> left out.
     !>
-    !> Use `set-match-data' to reinstate the match data from the elements
+    !> Use `set_match_data' to reinstate the match data from the elements
     !> of this list.  Port of search.c:Fmatch_data (INTEGERS t, without the
     !> buffer).
     function match_data() result(data)
@@ -950,7 +950,7 @@ contains
     end function match_data
 
     !> Set internal data on last search match from elements of LIST.
-    !> LIST should have been created by calling `match-data' previously;
+    !> LIST should have been created by calling `match_data' previously;
     !> nil (0) elements mark groups that didn't match.  The positions are
     !> taken to be in the current buffer.  Port of search.c:Fset_match_data.
     subroutine set_match_data(data)

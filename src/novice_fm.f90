@@ -20,9 +20,9 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Disabled commands: a command whose symbol has a non-nil `disabled'
-!> property asks before it runs (`disabled-command-function'), as
-!> simple.el:command-execute arranges.  `enable-command' and
-!> `disable-command' change the property and record the choice in the
+!> property asks before it runs (`disabled_command_function'), as
+!> simple.el:command-execute arranges.  `enable_command' and
+!> `disable_command' change the property and record the choice in the
 !> init file, as `commands%CMD%disabled = .false.' in `configure' (the
 !> Fortran form of upstream's `(put 'CMD 'disabled nil)`; 'CMD` is the
 !> command's name with `_' for `-'), which takes effect from the next
@@ -346,15 +346,15 @@ contains
     end subroutine cmd_disable_command
 
     !> Install the check for disabled commands, disable the commands
-    !> upstream disables (subr.el `upcase-region' and `downcase-region')
+    !> upstream disables (subr.el `upcase_region' and `downcase_region')
     !> and register
-    !> `enable-command' and `disable-command'.
+    !> `enable_command' and `disable_command'.
     subroutine syms_of_novice()
         disabled_command_hook => check_disabled
         commands%enable_command%run => cmd_enable_command
         commands%disable_command%run => cmd_disable_command
         commands%upcase_region%disabled = .true.
         commands%downcase_region%disabled = .true.
-        ! bindings.el also disables `narrow-to-region', not ported yet.
+        ! bindings.el also disables `narrow_to_region', not ported yet.
     end subroutine syms_of_novice
 end module novice_fm

@@ -99,7 +99,7 @@ EOF
 n=$(wc -l < "$tmp.names")
 width=$(awk '{ if (length($0) > w) w = length($0) } END { print w + 0 }' "$tmp.names")
 echo "    character(len=*), parameter :: BUILTIN_COMMAND_NAMES($n) = [character(len=$width) :: &"
-awk -v n="$n" '{ name = $0; gsub(/_/, "-", name); printf "        \"%s\"%s\n", name, (NR < n ? ", &" : "]") }' "$tmp.names"
+awk -v n="$n" '{ name = $0; printf "        \"%s\"%s\n", name, (NR < n ? ", &" : "]") }' "$tmp.names"
 cat <<'EOF'
 
 contains
@@ -112,7 +112,7 @@ contains
         p => null()
         select case (name)
 EOF
-awk '{ name = $0; gsub(/_/, "-", name); printf "        case (\"%s\")\n            p => commands%%%s\n", name, $0 }' "$tmp.names"
+awk '{ name = $0; printf "        case (\"%s\")\n            p => commands%%%s\n", name, $0 }' "$tmp.names"
 cat <<'EOF'
         case default
             return

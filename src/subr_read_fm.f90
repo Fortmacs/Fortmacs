@@ -36,7 +36,7 @@ contains
     status = status_type()
     n = 0
     full = prompt
-    histvar = "read-number-history"
+    histvar = "read_number_history"
     if (present(hist)) histvar = hist
     def = ""
     if (present(default)) then

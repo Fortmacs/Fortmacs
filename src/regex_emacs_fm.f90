@@ -34,8 +34,8 @@
 !>   the unibyte paths are left out.
 !> - Case folding (`translate') is the case canon table of casetab_fm.
 !> - Syntax comes from the current buffer's syntax table (there are no
-!>   `syntax-table' text properties yet), categories from characters_fm.
-!> - Errors are returned as a status of `invalid-regexp'; a matcher that
+!>   `syntax_table' text properties yet), categories from characters_fm.
+!> - Errors are returned as a status of `invalid_regexp'; a matcher that
 !>   runs out of failure stack returns -2.
 module regex_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64

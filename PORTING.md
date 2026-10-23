@@ -295,6 +295,12 @@ Copy the FSF year range exactly from the upstream file.
 
 ## Design decisions
 
+- **Fortran names (2026-10-23).** Fortmacs follows Emacs except where being
+  Fortran requires otherwise: names use underscores (`find_file`), there is
+  no run-time Lisp (`M-:`, `eval-buffer` and `ielm` are not applicable,
+  `*scratch*` is in Fundamental mode), Help shows Fortran values and Fortran
+  source files, and saved settings and packages are Fortran compiled in.
+
 - **Buffer-local variables (2026-10-23).** As upstream's swapped-in
   bindings: a variable's value (its symbol slot, or the Fortran variable it
   is forwarded to) is always the current buffer's. A buffer keeps its own
@@ -396,6 +402,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-23 — Names use underscores (sixth piece): commands, variables, functions, modes, hooks, keymaps and error symbols are named with underscores where Emacs uses hyphens (`M-x find_file`, `C-h v fill_column`, `text_mode_hook`); the generators keep the Fortran names, a `-*- mode: ... -*-` spec maps hyphens to underscores, `easy-mmode-pretty-mode-name` still gives prose ("Auto-Fill mode"). README: help that speaks Fortran, and the differences from Emacs. On `split-underscores`, on top of `split-fixes-2` (PR #60). Next: window display.
 - 2026-10-23 — Behaviour fixes, part 2 (fifth piece of splitting PR #54): curved quotes (format-message in messages and errors, error messages through substitute-command-keys, every grave accent a left quote; docstrings quote `like this'); write-file as upstream (prompt default, prefix argument, directory names, executable bits, the major mode from the new name unless the mode is special); command-line options sorted by emacs.c's sort_args with argmatch abbreviations and startup.el's option loop (`fortmacs FILE -q` skips the init file); file errors as fileio.c (file-already-exists, permission-denied); `+LINE:COLUMN`. On `split-fixes-2`, on top of `split-hooks-modes` (PR #59). Next: underscore names.
 - 2026-10-23 — Hooks and modes are objects (fourth piece of splitting PR #54): `hook_type` (eval_fm) holds procedure pointers with depths (remembered as subr.el's hook--depth-alist) and buffer-local functions; `major_mode_type` (derived_fm) and `minor_mode_type` (easy_mmode_fm) with the generated `modes_fm` (`tools/gen-modes.sh`); each mode's hook and keymap are objects named after their Emacs variables (`text_mode_hook`, `text_mode_map`, `prog_mode_hook`, `auto_fill_mode_hook`, ...). `text-mode-variant`, `parse-sexp-ignore-comments` and `require-final-newline`/`mode-require-final-newline` are settings: saving adds the final newline and offers to create a missing directory, visiting adds it for `visit`; prog-mode has no parent, as in derived.el. The `fortmacs` module no longer exports `value_type` or any Lisp-style procedure; C-h v documents every ported variable. On `split-hooks-modes`, based on main after PR #58. Next: underscore names.
 - 2026-10-23 — Settings are typed objects (third piece of splitting PR #54): `integer_setting`, `logical_setting`, `string_setting` and `function_setting` in data_fm; assigning sets the value seen in the current buffer, `set_local` gives the buffer its own value (setq-local), `local_p`/`kill_local`/`make_local` as upstream; Fortran code reads `%value`. The forwarding table in data_buffer_fm keeps an exact Lisp value a Fortran type can't hold, void variables and makunbound per variable kind, as data.c does. Display uses SANE_TAB_WIDTH. On `split-settings`, based on main after PR #57. Next: hooks and modes.

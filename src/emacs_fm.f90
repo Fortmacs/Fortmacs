@@ -615,7 +615,7 @@ contains
         if (found) skip = skip + 1
     end function argmatch
 
-    !> What `try-completion' gives for STRING against the names
+    !> What `try_completion' gives for STRING against the names
     !> COLLECTION (blank-padded): EXACT when STRING is the only completion
     !> and matches exactly (t), else the longest common prefix of the
     !> completions in COMPLETION ("" for none, nil).

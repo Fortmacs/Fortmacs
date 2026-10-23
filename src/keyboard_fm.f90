@@ -34,7 +34,7 @@
 !> Not ported yet: echoing, the echo area and `message' (the last message
 !> is kept in `last_message'), timers, idle hooks and redisplay, mouse and
 !> switch-frame events, recursive edits, keyboard macro recording,
-!> pre/post-command hooks, `help-char', case tables (upper-case fallback
+!> pre/post-command hooks, `help_char', case tables (upper-case fallback
 !> is ASCII only), quit while computing (C-g is an ordinary key).
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -96,7 +96,7 @@ module keyboard_fm
     character(len=:), allocatable, public :: last_message
     !> Stand-in for minibuffer.el's minibuffer--message-overlay: text shown
     !> after the active minibuffer's contents until the next command
-    !> (`minibuffer-message'); unallocated for none.
+    !> (`minibuffer_message'); unallocated for none.
     character(len=:), allocatable, public :: minibuffer_message_text
 
     !> tty->meta_key: 0 strips the 8th bit, 1 makes it Meta, 2 passes
@@ -133,7 +133,7 @@ module keyboard_fm
     end interface
 
     !> Checks for disabled commands (simple.el:command-execute's `disabled'
-    !> property test and `disabled-command-function'), set by novice_fm;
+    !> property test and `disabled_command_function'), set by novice_fm;
     !> null for none.
     procedure(disabled_command_proc), pointer, public :: disabled_command_hook => null()
 

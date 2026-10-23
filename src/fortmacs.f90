@@ -33,9 +33,9 @@
 !>
 !>             tab_width = 4
 !>             make_backup_files = .false.
-!>             insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+!>             insert_date_stamp_command = command_type("insert_date_stamp", insert_date_stamp)
 !>             call insert_date_stamp_command%define()
-!>             call keymap_global_set("C-c d", "insert-date-stamp", status)
+!>             call keymap_global_set("C-c d", "insert_date_stamp", status)
 !>         end subroutine configure
 !>
 !>         subroutine insert_date_stamp(status)

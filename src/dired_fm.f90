@@ -22,10 +22,10 @@
 
 !> `directory_files': the names in a directory, as a list of strings.
 !>
-!> File name completion: `file-name-completion', `file-name-all-completions'.
+!> File name completion: `file_name_completion', `file_name_all_completions'.
 !>
-!> Not ported yet: MATCH (it needs regexps), `directory-files-and-attributes',
-!> `file-attributes' as a list, `completion-regexp-list'.
+!> Not ported yet: MATCH (it needs regexps), `directory_files_and_attributes',
+!> `file_attributes' as a list, `completion_regexp_list'.
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
@@ -66,7 +66,7 @@ contains
     !> If FULL is true, return absolute file names.  Otherwise return names
     !>  that are relative to the specified directory.
     !> If NOSORT is true, the list is not sorted--its order is unpredictable.
-    !>  Otherwise, the list returned is sorted with `string-lessp'.
+    !>  Otherwise, the list returned is sorted with `string_lessp'.
     !>  NOSORT is useful if you plan to sort the result yourself.
     !> If COUNT is present and a natural number, the function will return
     !>  COUNT number of file names (if so many are present).  Port of
@@ -150,7 +150,7 @@ contains
     !> absolute form) and ignore it if PREDICATE returns false.
     !>
     !> This function ignores some of the possible completions as
-    !> determined by the variable `completion-ignored-extensions'.  Port of
+    !> determined by the variable `completion_ignored_extensions'.  Port of
     !> dired.c:Ffile_name_completion.
     subroutine file_name_completion(file, directory, result, status, predicate)
         character(len=*), intent(in) :: file, directory
@@ -170,7 +170,7 @@ contains
         call file_name_completion_1(file, directory, .true., result, status)
     end subroutine file_name_all_completions
 
-    !> Whether `name' ends in one of `completion-ignored-extensions' (for
+    !> Whether `name' ends in one of `completion_ignored_extensions' (for
     !> a directory, one that ends in a slash).
     logical function ignored_extension(name, directoryp) result(ignored)
         character(len=*), intent(in) :: name

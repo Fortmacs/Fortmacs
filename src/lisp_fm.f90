@@ -76,7 +76,7 @@ module lisp_fm
     !> its `define':
     !>
     !>     type(command_type), target :: insert_date_stamp_command
-    !>     insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+    !>     insert_date_stamp_command = command_type("insert_date_stamp", insert_date_stamp)
     !>     call insert_date_stamp_command%define()
     type, public :: command_type
         !> The name, as M-x and the help commands show it.

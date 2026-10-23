@@ -30,8 +30,8 @@
 !> setting it.  `intent(out)' resets the status to OK on entry.
 !>
 !> Each error code corresponds to an Emacs error symbol.  Codes form the
-!> same hierarchy as the symbols' `error-conditions' property, so
-!> `condition_matches' behaves like a `condition-case' handler test.
+!> same hierarchy as the symbols' `error_conditions' property, so
+!> `condition_matches' behaves like a `condition_case' handler test.
 module error_fm
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)
@@ -72,20 +72,20 @@ module error_fm
     integer(int32), parameter :: last_code = FM_PERMISSION_DENIED
     integer, parameter :: name_len = 24, msg_len = 40
 
-    !> `error-conditions' symbol names, indexed by code.
+    !> `error_conditions' symbol names, indexed by code.
     character(len=name_len), parameter :: names(0:last_code) = [character(len=name_len) :: &
-                                                                "", "error", "quit", "user-error", &
-                                                                "wrong-type-argument", "args-out-of-range", &
-                                                                "void-variable", "setting-constant", &
-                                                                "arith-error", "range-error", "overflow-error", &
-                                                                "beginning-of-buffer", "end-of-buffer", &
-                                                                "buffer-read-only", "text-read-only", &
-                                                                "file-error", "memory-full", "invalid-handle", &
-                                                                "void-function", "file-missing", &
-                                                                "file-already-exists", "mark-inactive", "search-failed", &
-                                                                "invalid-regexp", "permission-denied"]
+                                                                "", "error", "quit", "user_error", &
+                                                                "wrong_type_argument", "args_out_of_range", &
+                                                                "void_variable", "setting_constant", &
+                                                                "arith_error", "range_error", "overflow_error", &
+                                                                "beginning_of_buffer", "end_of_buffer", &
+                                                                "buffer_read_only", "text_read_only", &
+                                                                "file_error", "memory_full", "invalid_handle", &
+                                                                "void_function", "file_missing", &
+                                                                "file_already_exists", "mark_inactive", "search_failed", &
+                                                                "invalid_regexp", "permission_denied"]
 
-    !> `error-message' strings, indexed by code.
+    !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
                                                                   "", "error", "Quit", "", &
                                                                   "Wrong type argument", "Args out of range", &
@@ -103,7 +103,7 @@ module error_fm
                                                                   "Invalid regexp", "Cannot access file or directory"]
 
     !> Parent condition of each code (the next element of its
-    !> `error-conditions' list); -1 ends the chain.  `quit' is deliberately
+    !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
     !> not an `error', as upstream.
     integer(int32), parameter :: parents(0:last_code) = [ &
                                  -1_int32, -1_int32, -1_int32, FM_GENERIC_ERROR, &
@@ -162,7 +162,7 @@ contains
         end if
     end function error_name
 
-    !> The `error-message' of `code' (e.g. "Args out of range").
+    !> The `error_message' of `code' (e.g. "Args out of range").
     pure function error_message(code) result(msg)
         integer(int32), intent(in) :: code
         character(len=:), allocatable :: msg
@@ -174,7 +174,7 @@ contains
     end function error_message
 
     !> True when an error with `code' would be caught by a handler for
-    !> `condition', i.e. `condition' is in its `error-conditions' chain.
+    !> `condition', i.e. `condition' is in its `error_conditions' chain.
     pure logical function condition_matches(code, condition)
         integer(int32), intent(in) :: code, condition
         integer(int32) :: c
@@ -190,7 +190,7 @@ contains
         end do
     end function condition_matches
 
-    !> Human-readable text for `status', like `error-message-string':
+    !> Human-readable text for `status', like `error_message_string':
     !> "MESSAGE: DETAIL", or just DETAIL for user-error.
     !> Port of the message layout in print.c:print_error_message.
     pure function format_error(status) result(text)
@@ -221,7 +221,7 @@ contains
 
     !> Format a string out of a format-string and arguments, converting
     !> grave accents and apostrophes in FMT to curved quotes (the
-    !> `curve' style of `text-quoting-style', the style used on a UTF-8
+    !> `curve' style of `text_quoting_style', the style used on a UTF-8
     !> terminal).  Only the format string is converted, so concatenate
     !> the arguments after converting the literal parts.  Port of
     !> editfns.c:Fformat_message (the quoting).

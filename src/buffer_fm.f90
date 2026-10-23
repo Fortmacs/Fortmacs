@@ -32,7 +32,7 @@
 !> `buffers(i)' with `i' from `resolve_buffer', and `cur' is the slot of
 !> the current buffer.  Everything else should go through the procedures.
 !>
-!> `kill-buffer' and `erase-buffer' need marker_fm and insdel_fm, which
+!> `kill_buffer' and `erase_buffer' need marker_fm and insdel_fm, which
 !> themselves use this module, so they are implemented in the submodule
 !> buffer_ops_fm (buffer_ops_fm.f90).
 !>
@@ -81,11 +81,11 @@ module buffer_fm
     end type buffer_text_type
 
     !> Port of the parts of buffer.h:struct buffer used so far.
-    !> Kinds of `buffer-undo-list' entries (undo.c).
+    !> Kinds of `buffer_undo_list' entries (undo.c).
     integer, parameter, public :: UE_BOUNDARY = 0, UE_INSERTION = 1, UE_DELETION = 2, &
                                   UE_POINT = 3, UE_FIRST_CHANGE = 4
 
-    !> One entry of `buffer-undo-list': a boundary (nil); an insertion
+    !> One entry of `buffer_undo_list': a boundary (nil); an insertion
     !> (BEG . END); a deletion (TEXT . POSITION), POSITION negative when
     !> point was at the end of the text; point (POSITION, in `beg'); or the
     !> first change since the buffer was unmodified, (t . TIME), with the
@@ -109,7 +109,7 @@ module buffer_fm
         logical :: read_only = .false.
         !> Upstream sets undo_list to t (disabled) for names starting with SPC.
         logical :: undo_enabled = .true.
-        !> BVAR undo_list (`buffer-undo-list'): entries 1 to `undo_count',
+        !> BVAR undo_list (`buffer_undo_list'): entries 1 to `undo_count',
         !> the newest last.  A list position k (entries 1 to k, the head
         !> being entry k) stands for a tail of the Lisp list.
         type(undo_entry_type), allocatable :: undo_list(:)
@@ -123,13 +123,13 @@ module buffer_fm
         !> BVAR syntax_table: the syntax table, or the null handle for the
         !> standard one (syntax_fm).
         type(handle_type) :: syntax_table
-        !> BVAR filename (`buffer-file-name'): the visited file's expanded
+        !> BVAR filename (`buffer_file_name'): the visited file's expanded
         !> name; unallocated when the buffer visits no file.
         character(len=:), allocatable :: filename
-        !> BVAR directory (`default-directory'), ending in a slash;
+        !> BVAR directory (`default_directory'), ending in a slash;
         !> unallocated for nil.
         character(len=:), allocatable :: directory
-        !> `buffer-backed-up': a backup was made since the file was visited.
+        !> `buffer_backed_up': a backup was made since the file was visited.
         logical :: backed_up = .false.
         !> modtime and modtime_size: the visited file's modification time
         !> and size when last read or written.  `modtime_known' is false for
@@ -141,10 +141,10 @@ module buffer_fm
         !> BVAR mark: the mark marker (marker_fm), made on first use; the null
         !> handle until then.
         type(handle_type) :: mark
-        !> BVAR mark_active (`mark-active'): Non-nil means the mark and region
+        !> BVAR mark_active (`mark_active'): Non-nil means the mark and region
         !> are currently active in this buffer.
         logical :: mark_active = .false.
-        !> simple.el `mark-ring' (buffer-local): former marks, newest first.
+        !> simple.el `mark_ring' (buffer-local): former marks, newest first.
         type(handle_type), allocatable :: mark_ring(:)
         !> Unique per buffer ever created, so caches keyed by slot (which is
         !> reused after kill-buffer) can tell buffers apart.
@@ -156,9 +156,9 @@ module buffer_fm
         type(value_type), allocatable :: local_values(:)
         logical, allocatable :: local_bound(:)
         integer :: nlocal = 0
-        !> BVAR major_mode (`major-mode'): the major mode's command name.
+        !> BVAR major_mode (`major_mode'): the major mode's command name.
         character(len=:), allocatable :: major_mode
-        !> BVAR mode_name (`mode-name'): the major mode's name for the mode
+        !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
     end type buffer_type
@@ -167,7 +167,7 @@ module buffer_fm
     !> Non-nil also enables highlighting of the region whenever the mark is
     !> active.  The region is highlighted with the `region' face.  Port of
     !> buffer.c transient-mark-mode (on by default, as simple.el makes it).
-    type(logical_setting), public :: transient_mark_mode = logical_setting(name="transient-mark-mode", value=.true.)
+    type(logical_setting), public :: transient_mark_mode = logical_setting(name="transient_mark_mode", value=.true.)
     !> Whether to deactivate the mark after an editing command.
     !> The command loop sets this to nil before each command,
     !> and tests the value when the command returns.
@@ -175,18 +175,18 @@ module buffer_fm
     !> the command returns.
     !>
     !> Buffer modifications store t in this variable.  Port of keyboard.c
-    !> Vdeactivate_mark, the variable `deactivate-mark' (here because
+    !> Vdeactivate_mark, the variable `deactivate_mark' (here because
     !> insdel_fm sets it; the function is simple_fm's `deactivate_mark').
     logical, public :: vdeactivate_mark = .false.
 
     !> Column beyond which automatic line-wrapping should happen.
-    !> It is used by filling commands, such as `fill-region' and `fill-paragraph',
-    !> and by `auto-fill-mode', which see.
-    !> See also `current-fill-column'.
-    !> Interactively, you can set the buffer local value using \[set-fill-column].
+    !> It is used by filling commands, such as `fill_region' and `fill_paragraph',
+    !> and by `auto_fill_mode', which see.
+    !> See also `current_fill_column'.
+    !> Interactively, you can set the buffer local value using \[set_fill_column].
     !> Port of buffer.c fill-column (one global value; buffer-local values
     !> come with major and minor modes).
-    type(integer_setting), public :: fill_column = integer_setting(name="fill-column", value=70)
+    type(integer_setting), public :: fill_column = integer_setting(name="fill_column", value=70)
 
     abstract interface
         !> Swap the buffer-local variables when buffer slot `new' becomes
@@ -197,7 +197,7 @@ module buffer_fm
             integer(int64), intent(in) :: old, new
         end subroutine swap_locals_proc
 
-        !> An `auto-fill-function'.
+        !> An `auto_fill_function'.
         subroutine auto_fill_proc(status)
             import :: status_type
             implicit none(type, external)
@@ -207,20 +207,20 @@ module buffer_fm
 
     !> Function called (if non-nil) to perform auto-fill.
     !> It is called after self-inserting any character specified in
-    !> the `auto-fill-chars' table.
+    !> the `auto_fill_chars' table.
     !> NOTE: This variable is not a hook;
     !> its value may not be a list of functions.  Port of buffer.c
     !> auto-fill-function (null is nil; one global value).
-    type(function_setting), public :: auto_fill_function = function_setting(name="auto-fill-function")
+    type(function_setting), public :: auto_fill_function = function_setting(name="auto_fill_function")
 
     !> Swaps the buffer-local variables on a change of current buffer; set
     !> by data_fm (null for none).
     procedure(swap_locals_proc), pointer, public :: swap_buffer_locals_hook => null()
 
-    !> Column for the default `indent-line-function' to indent to.
+    !> Column for the default `indent_line_function' to indent to.
     !> Linefeed indents to this column in Fundamental mode.  Port of
     !> buffer.c left-margin (one global value).
-    type(integer_setting), public :: left_margin = integer_setting(name="left-margin", value=0)
+    type(integer_setting), public :: left_margin = integer_setting(name="left_margin", value=0)
 
     !> Registry storage; slot `i' is valid while its handle is live.
     type(buffer_type), allocatable, public :: buffers(:)
@@ -673,17 +673,17 @@ contains
         tick = buffers(i)%text%chars_modiff
     end subroutine buffer_chars_modified_tick
 
-    !> Value of the variable `inhibit-read-only' (nil when unbound).
+    !> Value of the variable `inhibit_read_only' (nil when unbound).
     !> Port of buffer.c:Vinhibit_read_only (global value only).
     function inhibit_read_only() result(v)
         type(value_type) :: v
         type(status_type) :: st
-        call symbol_value(make_symbol_ref(intern("inhibit-read-only")), v, st)
+        call symbol_value(make_symbol_ref(intern("inhibit_read_only")), v, st)
     end function inhibit_read_only
 
     !> Fail with buffer-read-only if the current buffer is read-only,
-    !> unless `inhibit-read-only' is non-nil or the text at `position'
-    !> (default: point) has a non-nil `inhibit-read-only' property.
+    !> unless `inhibit_read_only' is non-nil or the text at `position'
+    !> (default: point) has a non-nil `inhibit_read_only' property.
     !> Port of buffer.c:Fbarf_if_buffer_read_only.
     subroutine barf_if_buffer_read_only(status, position)
         type(status_type), intent(out) :: status
@@ -700,13 +700,13 @@ contains
             if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
                 k = find_interval(iv, pos)
                 props = iv%runs(k)%plist
-                if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit-read-only"))))) return
+                if (.not. nilp(textget(props, make_symbol_ref(intern("inhibit_read_only"))))) return
             end if
         end associate
         call set_error(status, FM_BUFFER_READ_ONLY, buffers(cur)%name)
     end subroutine barf_if_buffer_read_only
 
-    !> Set BVAR read_only of buffer `h' (the `buffer-read-only' variable).
+    !> Set BVAR read_only of buffer `h' (the `buffer_read_only' variable).
     subroutine set_buffer_read_only(h, flag, status)
         type(handle_type), intent(in) :: h
         logical, intent(in) :: flag

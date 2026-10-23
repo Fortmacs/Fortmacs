@@ -81,7 +81,7 @@ contains
         call insert(text, st)
         call goto_char(1_int64)
         last_message = ""
-        call set(sym("search-ring"), nil(), st)
+        call set(sym("search_ring"), nil(), st)
     end subroutine enter
 
     subroutine leave(h)
@@ -114,7 +114,7 @@ contains
             call leave(h)
             return
         end if
-        ! Bug #21091: let `isearch-done' work without `isearch-update'.
+        ! Bug #21091: let `isearch_done' work without `isearch-update'.
         call isearch_done()
         call check(error,.not. isearch_active .and. overriding_terminal_local_map%index == 0)
         call leave(h)
@@ -329,7 +329,7 @@ contains
     function ring() result(v)
         type(value_type) :: v
         type(status_type) :: st
-        call symbol_value(sym("search-ring"), v, st)
+        call symbol_value(sym("search_ring"), v, st)
         if (.not. st%ok()) v = nil()
     end function ring
 
@@ -355,7 +355,7 @@ contains
         call check(error, point() == 12, "repeat")
         if (allocated(error)) return
         call type_keys("RET")
-        call symbol_value(sym("regexp-search-ring"), ring, st)
+        call symbol_value(sym("regexp_search_ring"), ring, st)
         call check(error, st%ok() .and. list_length(ring) == 1, "regexp ring")
         if (allocated(error)) return
         call check(error, xstring(list_elt(ring, 1_int64)) == "[0-9]+", "ring element")

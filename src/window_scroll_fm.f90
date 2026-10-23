@@ -26,7 +26,7 @@
 !> Part of window_fm.  Scrolling moves by screen lines (indent_fm), and
 !> the screen-line code depends on window_fm, so these live in a
 !> submodule.  Scrolling is line based, as upstream on text terminals,
-!> with `scroll-margin' 0 and `scroll-preserve-screen-position' nil.
+!> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
     use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
@@ -45,12 +45,12 @@ submodule(window_fm) window_scroll_fm
 
     integer, parameter :: RECENTER_MIDDLE = 1, RECENTER_TOP = 2, RECENTER_BOTTOM = 3
 
-    !> Cycling order for `recenter-top-bottom' (window.el
+    !> Cycling order for `recenter_top_bottom' (window.el
     !> recenter-positions, not yet customizable): middle, top, bottom.
     integer, parameter :: recenter_positions(3) = [RECENTER_MIDDLE, RECENTER_TOP, RECENTER_BOTTOM]
 
-    !> Index in recenter_positions of the last op of `recenter-top-bottom'
-    !> or `move-to-window-line-top-bottom'; 0 for none (window.el
+    !> Index in recenter_positions of the last op of `recenter_top_bottom'
+    !> or `move_to_window_line_top_bottom'; 0 for none (window.el
     !> recenter-last-op).
     integer :: recenter_last_op = 0
 

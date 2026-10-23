@@ -44,7 +44,7 @@ Write your configuration in `~/.config/fortmacs/init.f90`
 `configure` subroutine runs at startup. Settings are variables
 (`tab_width = 4`), built-in commands are objects
 (`commands%upcase_region%disabled = .false.`), and keys are bound with
-`keymap_global_set("C-c d", "my-command", status)`.
+`keymap_global_set("C-c d", "my_command", status)`.
 
 ```sh
 fpm install --profile release   # fortmacs, its library and modules, in ~/.local
@@ -82,8 +82,30 @@ suit an editor well:
    [Compare the two side by side](https://vermi-culous.github.io/Fortmacs/syntax.html).
    That's a preference, not a verdict on Elisp.
 
+6. **Help that speaks Fortran.** Emacs is at its best as an environment for
+   the language it's written in: it documents every function and variable,
+   shows their current values and jumps to their source. Fortmacs aims to
+   bring that to Fortran: help shows Fortran names, values and source files,
+   so exploring and configuring the editor feels like working in Fortran.
+   A language server such as fortls supports editing Fortran code; this is
+   about the editor itself being inspectable in Fortran.
+
 The trade-off: you can't evaluate code in a running session. Changing the
 configuration means rebuilding.
+
+## Differences from Emacs
+
+Fortmacs follows Emacs 31.1 exactly, except where being Fortran requires
+otherwise:
+
+- Names use underscores: `M-x find_file`, `C-h v fill_column`,
+  `text_mode_hook`. Keys and mode-line text are unchanged.
+- There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
+  `ielm`, and `*scratch*` starts in Fundamental mode.
+- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
+  names the Fortran file a definition lives in.
+- Configuration and packages are Fortran modules compiled into the binary;
+  commands that save settings write Fortran into `init.f90`.
 
 ## Why AI assistance?
 

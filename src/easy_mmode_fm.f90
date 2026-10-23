@@ -22,7 +22,7 @@
 !> Minor modes.  A minor mode is a `minor_mode_type' object: built-in
 !> ones are the components of `minor_modes' (modes_fm), others are
 !> `target' variables made known with `define'.  Upstream's
-!> `define-minor-mode' macro expands into a variable, a keymap, hooks
+!> `define_minor_mode' macro expands into a variable, a keymap, hooks
 !> and a function; here they are the object's state, `map', `hook'
 !> (with `on_hook' and `off_hook') and type-bound procedures:
 !>
@@ -68,7 +68,7 @@ module easy_mmode_fm
         !> A global mode (else each buffer has its own state).
         logical :: global = .false.
         !> The variable holding the state when it is not the mode's own
-        !> (upstream's :variable), by name, e.g. `transient-mark-mode'.
+        !> (upstream's :variable), by name, e.g. `transient_mark_mode'.
         character(len=64) :: variable = ""
         !> Run every time the mode is turned on or off, after the state
         !> is set.
@@ -122,8 +122,12 @@ contains
         character(len=:), allocatable :: name, base, light
         integer :: i
         logical :: word_start
-        ! "foo-bar-minor-mode" -> "foo-bar-minor"
+        ! The name with Emacs's hyphens (the result is prose, as upstream's).
         base = mode
+        do i = 1, len(base)
+            if (base(i:i) == "_") base(i:i) = "-"
+        end do
+        ! "foo-bar-minor-mode" -> "foo-bar-minor"
         do
             i = index(base, "toggle-")
             if (i == 0) exit
@@ -262,10 +266,10 @@ contains
         self%hook => null()
         if (present(hook)) then
             self%hook => hook
-            if (len_trim(hook%name) == 0) hook%name = name//"-hook"
+            if (len_trim(hook%name) == 0) hook%name = name//"_hook"
         end if
-        self%on_hook%name = name//"-on-hook"
-        self%off_hook%name = name//"-off-hook"
+        self%on_hook%name = name//"_on_hook"
+        self%off_hook%name = name//"_off_hook"
         if (.not. associated(minor_mode_named(name))) then
             if (.not. allocated(defined)) allocate (defined(0))
             n = size(defined)

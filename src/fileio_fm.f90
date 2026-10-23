@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> File name manipulation (`expand-file-name' and friends), file
+!> File name manipulation (`expand_file_name' and friends), file
 !> predicates, and reading and writing buffer text.
 !>
 !> File names are strings of bytes, as they are on Linux; Fortmacs does no
-!> file-name encoding (`file-name-coding-system' is effectively utf-8).
+!> file-name encoding (`file_name_coding_system' is effectively utf-8).
 !> Where upstream returns nil for "no directory", the functions here
 !> return "" (a directory name is never empty).  There are no file name
 !> handlers (TRAMP and friends).
@@ -221,7 +221,7 @@ contains
 
     !> `name' made absolute and canonical: relative names are taken
     !> relative to `default_directory' (or the current buffer's
-    !> `default-directory', or "/"), "~" and "~USER" become home
+    !> `default_directory', or "/"), "~" and "~USER" become home
     !> directories, and "." and "FOO/.." components and repeated slashes
     !> are removed (without looking at the file system).
     !> Port of fileio.c:Fexpand_file_name (Unix; no file name handlers).
@@ -936,7 +936,7 @@ contains
     !> If LINKNAME is a directory name, make a like-named symbolic link
     !> under LINKNAME.
     !>
-    !> Signal a `file-already-exists' error if a file LINKNAME already exists
+    !> Signal a `file_already_exists' error if a file LINKNAME already exists
     !> unless OK_IF_ALREADY_EXISTS is true.  Port of
     !> fileio.c:Fmake_symbolic_link (without the interactive query).
     subroutine make_symbolic_link(target, linkname, status, ok_if_already_exists)

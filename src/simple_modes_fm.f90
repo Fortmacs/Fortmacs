@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `fundamental-mode' and `special-mode': a submodule because they use
+!> `fundamental_mode' and `special_mode': a submodule because they use
 !> derived_fm.
 submodule(simple_fm) simple_modes_fm
     use commands_fm, only: commands
@@ -79,28 +79,28 @@ contains
     commands%special_mode%run => special_mode
     ! Fundamental mode is not derived; it is defined so that other modes
     ! can name it as their parent.
-    call major_modes%fundamental_mode%define("fundamental-mode", "Fundamental", fundamental_mode)
-    call major_modes%special_mode%define("special-mode", "Special", special_mode, special_mode_hook)
+    call major_modes%fundamental_mode%define("fundamental_mode", "Fundamental", fundamental_mode)
+    call major_modes%special_mode%define("special_mode", "Special", special_mode, special_mode_hook)
     special_mode_map = major_modes%special_mode%map
     major_modes%special_mode%special = .true.
-    call minor_modes%transient_mark_mode%define("transient-mark-mode", global=.true., &
-                                                variable="transient-mark-mode", hook=transient_mark_mode_hook)
+    call minor_modes%transient_mark_mode%define("transient_mark_mode", global=.true., &
+                                                variable="transient_mark_mode", hook=transient_mark_mode_hook)
     commands%transient_mark_mode%run => cmd_transient_mark_mode
-    call minor_modes%indent_tabs_mode%define("indent-tabs-mode", variable="indent-tabs-mode", &
+    call minor_modes%indent_tabs_mode%define("indent_tabs_mode", variable="indent_tabs_mode", &
                                              hook=indent_tabs_mode_hook)
     commands%indent_tabs_mode%run => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map
-    call keymap_set(map, "q", "quit-window", st)
-    call keymap_set(map, "SPC", "scroll-up-command", st)
-    call keymap_set(map, "S-SPC", "scroll-down-command", st)
-    call keymap_set(map, "DEL", "scroll-down-command", st)
-    call keymap_set(map, "<", "beginning-of-buffer", st)
-    call keymap_set(map, ">", "end-of-buffer", st)
-    call keymap_set(map, "-", "negative-argument", st)
+    call keymap_set(map, "q", "quit_window", st)
+    call keymap_set(map, "SPC", "scroll_up_command", st)
+    call keymap_set(map, "S-SPC", "scroll_down_command", st)
+    call keymap_set(map, "DEL", "scroll_down_command", st)
+    call keymap_set(map, "<", "beginning_of_buffer", st)
+    call keymap_set(map, ">", "end_of_buffer", st)
+    call keymap_set(map, "-", "negative_argument", st)
     do d = 0, 9
         write (digit, "(i1)") d
-        call keymap_set(map, digit, "digit-argument", st)
+        call keymap_set(map, digit, "digit_argument", st)
     end do
     end procedure syms_of_simple_modes
 end submodule simple_modes_fm

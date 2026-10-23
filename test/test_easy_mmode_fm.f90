@@ -117,7 +117,7 @@ contains
 
     subroutine test_pretty_name(error)
         type(error_type), allocatable, intent(out) :: error
-        call check(error, easy_mmode_pretty_mode_name("auto-fill-mode"), "Auto-Fill mode")
+        call check(error, easy_mmode_pretty_mode_name("auto_fill_mode"), "Auto-Fill mode")
         if (allocated(error)) return
         call check(error, easy_mmode_pretty_mode_name("foo-bar-minor-mode"), "Foo-Bar minor mode")
         if (allocated(error)) return
@@ -135,7 +135,7 @@ contains
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
         call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit")
-        call keymap_set(test_lit_mode%map, "C-c l", "forward-char", st)
+        call keymap_set(test_lit_mode%map, "C-c l", "forward_char", st)
         call get_buffer_create("easy-mmode-test-A", a, st)
         call get_buffer_create("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
@@ -149,7 +149,7 @@ contains
         if (allocated(error)) return
         call key_parse("C-c l", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, sym("forward-char")), "minor mode map active")
+        call check(error, value_eq(binding, sym("forward_char")), "minor mode map active")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error,.not. test_lit_mode%enabled(), "off in B")

@@ -19,9 +19,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Auto Fill mode (`do-auto-fill', `internal-auto-fill',
-!> `auto-fill-mode'), `default-indent-new-line' (M-j) and
-!> `set-fill-column' (C-x f): a submodule because they use fill_fm,
+!> Auto Fill mode (`do_auto_fill', `internal_auto_fill',
+!> `auto_fill_mode'), `default_indent_new_line' (M-j) and
+!> `set_fill_column' (C-x f): a submodule because they use fill_fm,
 !> which uses simple_fm.
 submodule(simple_fm) simple_fill_fm
     use commands_fm, only: commands
@@ -114,7 +114,7 @@ contains
         else
             ! Ok, we have a useful place to break the line.  Do it.
             prev_column = current_column()
-            ! If point is at the fill-point, do not `save-excursion'.
+            ! If point is at the fill-point, do not `save_excursion'.
             ! Otherwise, if a comment prefix or fill-prefix is inserted,
             ! point will end up before it rather than after it.
             moved = skip_chars_backward(" "//TAB, st)
@@ -255,8 +255,8 @@ contains
         if (status%ok()) call default_indent_new_line(status)
     end subroutine cmd_default_indent_new_line
 
-    !> auto-fill-mode's :variable setter: set `auto-fill-function'
-    !> (buffer-locally) to `normal-auto-fill-function' or nil.
+    !> auto-fill-mode's :variable setter: set `auto_fill_function'
+    !> (buffer-locally) to `normal_auto_fill_function' or nil.
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
@@ -272,7 +272,7 @@ contains
     end subroutine auto_fill_body
 
     module procedure syms_of_simple_fill
-    call minor_modes%auto_fill_mode%define("auto-fill-mode", " Fill", variable="auto-fill-function", hook=auto_fill_mode_hook, &
+    call minor_modes%auto_fill_mode%define("auto_fill_mode", " Fill", variable="auto_fill_function", hook=auto_fill_mode_hook, &
                                            body=auto_fill_body)
     internal_auto_fill_hook => internal_auto_fill
     commands%auto_fill_mode%run => auto_fill_mode

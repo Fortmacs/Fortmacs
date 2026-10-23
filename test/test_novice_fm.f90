@@ -95,11 +95,11 @@ contains
         call enter(h)
         ! n: cancel.
         call run("C-x C-u n")
-        call check(error, buffer_string() == "abc" .and. disabled("upcase-region"), buffer_string())
+        call check(error, buffer_string() == "abc" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! SPC: run it once.
         call run("C-x C-u SPC")
-        call check(error, buffer_string() == "ABC" .and. disabled("upcase-region"), buffer_string())
+        call check(error, buffer_string() == "ABC" .and. disabled("upcase_region"), buffer_string())
         if (allocated(error)) return
         ! Other keys ask again.
         call run("C-x C-l x n")
@@ -107,7 +107,7 @@ contains
         if (allocated(error)) return
         ! y: enable it.
         call run("C-x C-l y")
-        call check(error, buffer_string() == "abc" .and. .not. disabled("downcase-region"), buffer_string())
+        call check(error, buffer_string() == "abc" .and. .not. disabled("downcase_region"), buffer_string())
         if (allocated(error)) return
         call run("C-x C-l")
         call check(error, buffer_string() == "abc")
@@ -119,7 +119,7 @@ contains
         call run("C-x C-l")
         call check(error, buffer_string() == "abc", buffer_string())
         disabled_command_function_p = .true.
-        call disable_command("downcase-region", st)
+        call disable_command("downcase_region", st)
         call discard_input()
         call kill_buffer(h, st)
     end subroutine test_answers
@@ -140,8 +140,8 @@ contains
                         "        commands%upcase_region%disabled = .true."//LF// &
                         "    end subroutine configure"//LF//"end module user_config"//LF)
         call enter(h)
-        call enable_command("upcase-region", st)
-        call check(error, st%ok(), "enable-command")
+        call enable_command("upcase_region", st)
+        call check(error, st%ok(), "enable_command")
         if (allocated(error)) return
         call run("C-x C-u")
         call check(error, buffer_string() == "ABC", buffer_string())
@@ -153,8 +153,8 @@ contains
                    "        commands%upcase_region%disabled = .false."//LF// &
                    "    end subroutine configure"//LF//"end module user_config"//LF, text)
         if (allocated(error)) return
-        call disable_command("upcase-region", st)
-        call check(error, disabled("upcase-region"))
+        call disable_command("upcase_region", st)
+        call check(error, disabled("upcase_region"))
         if (allocated(error)) return
         text = read_text(user_init_file)
         call check(error, index(text, "commands%upcase_region%disabled = .true.") > 0 .and. &

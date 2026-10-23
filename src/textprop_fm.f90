@@ -705,14 +705,14 @@ contains
         if (ignore_previous_character .or. default_nonsticky(prop)) then
             is_rear_sticky = .false.
         else
-            call get_text_property(pos - 1, qsym("rear-nonsticky"), rear_non_sticky, status)
+            call get_text_property(pos - 1, qsym("rear_nonsticky"), rear_non_sticky, status)
             if (consp(rear_non_sticky)) then
                 if (memq_p(prop, rear_non_sticky)) is_rear_sticky = .false.
             else if (.not. nilp(rear_non_sticky)) then
                 is_rear_sticky = .false.
             end if
         end if
-        call get_text_property(pos, qsym("front-sticky"), front_sticky, status)
+        call get_text_property(pos, qsym("front_sticky"), front_sticky, status)
         if (value_eq(front_sticky, qsym("t"))) then
             is_front_sticky = .true.
         else if (consp(front_sticky)) then
@@ -738,7 +738,7 @@ contains
 
         logical function default_nonsticky(p)
             type(value_type), intent(in) :: p
-            default_nonsticky = value_eq(p, qsym("syntax-table")) .or. value_eq(p, qsym("display")) .or. &
+            default_nonsticky = value_eq(p, qsym("syntax_table")) .or. value_eq(p, qsym("display")) .or. &
                                 value_eq(p, qsym("composition")) .or. value_eq(p, qsym("cursor"))
         end function default_nonsticky
     end function text_property_stickiness
@@ -792,8 +792,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> Signal text-read-only (or buffer-read-only) if `start'..`end' may not
-    !> be changed because of `read-only' / `inhibit-read-only' properties.
-    !> An empty range is an insertion: then the stickiness of `read-only'
+    !> be changed because of `read_only' / `inhibit_read_only' properties.
+    !> An empty range is an insertion: then the stickiness of `read_only'
     !> on the neighbours decides.  Port of textprop.c:
     !> verify_interval_modification (modification hooks pending).
     subroutine verify_interval_modification(start_in, end_in, status)
@@ -824,11 +824,11 @@ contains
                 if (.not. (nilp(inhibit) .or. consp(inhibit))) return
                 if (.not. (has_after .and. has_prev .and. k == prev)) then
                     if (has_after) then
-                        after = textget(iv%runs(k)%plist, qsym("read-only"))
+                        after = textget(iv%runs(k)%plist, qsym("read_only"))
                         if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
-                            tem = textget(iv%runs(k)%plist, qsym("front-sticky"))
-                            call plist_get_eq(iv%runs(k)%plist, qsym("read-only"), val, found)
-                            if (tmem(qsym("read-only"), tem) .or. &
+                            tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
+                            call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                            if (tmem(qsym("read_only"), tem) .or. &
                                 (nilp(val) .and. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, after)
                                 return
@@ -836,11 +836,11 @@ contains
                         end if
                     end if
                     if (has_prev) then
-                        before = textget(iv%runs(prev)%plist, qsym("read-only"))
+                        before = textget(iv%runs(prev)%plist, qsym("read_only"))
                         if (.not. nilp(before) .and. .not. memq_p(before, inhibit)) then
-                            tem = textget(iv%runs(prev)%plist, qsym("rear-nonsticky"))
-                            call plist_get_eq(iv%runs(prev)%plist, qsym("read-only"), val, found)
-                            if (.not. tmem(qsym("read-only"), tem) .and. &
+                            tem = textget(iv%runs(prev)%plist, qsym("rear_nonsticky"))
+                            call plist_get_eq(iv%runs(prev)%plist, qsym("read_only"), val, found)
+                            if (.not. tmem(qsym("read_only"), tem) .and. &
                                 (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                                 call text_read_only(status, before)
                                 return
@@ -850,17 +850,17 @@ contains
                 else
                     ! Inside one interval: it is read-only unless both ends say
                     ! the property does not stick.
-                    after = textget(iv%runs(k)%plist, qsym("read-only"))
+                    after = textget(iv%runs(k)%plist, qsym("read_only"))
                     if (.not. nilp(after) .and. .not. memq_p(after, inhibit)) then
-                        call plist_get_eq(iv%runs(k)%plist, qsym("read-only"), val, found)
-                        tem = textget(iv%runs(k)%plist, qsym("front-sticky"))
-                        if (tmem(qsym("read-only"), tem) .or. &
+                        call plist_get_eq(iv%runs(k)%plist, qsym("read_only"), val, found)
+                        tem = textget(iv%runs(k)%plist, qsym("front_sticky"))
+                        if (tmem(qsym("read_only"), tem) .or. &
                             (nilp(val) .and. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
                             return
                         end if
-                        tem = textget(iv%runs(k)%plist, qsym("rear-nonsticky"))
-                        if (.not. tmem(qsym("read-only"), tem) .and. &
+                        tem = textget(iv%runs(k)%plist, qsym("rear_nonsticky"))
+                        if (.not. tmem(qsym("read_only"), tem) .and. &
                             (.not. nilp(val) .or. .not. tmem(qsym("category"), tem))) then
                             call text_read_only(status, after)
                             return
@@ -872,10 +872,10 @@ contains
                 k = find_interval(iv, start)
                 p = 0
                 do
-                    read_only = textget(iv%runs(k)%plist, qsym("read-only"))
+                    read_only = textget(iv%runs(k)%plist, qsym("read_only"))
                     ! INTERVAL_GENERALLY_WRITABLE_P / INTERVAL_EXPRESSLY_WRITABLE_P
                     implied = nilp(read_only) .or. (.not. nilp(inhibit) .and. .not. consp(inhibit))
-                    express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit-read-only")))
+                    express = .not. nilp(textget(iv%runs(k)%plist, qsym("inhibit_read_only")))
                     if (.not. express .and. .not. nilp(read_only) .and. consp(inhibit)) then
                         express = memq_p(read_only, inhibit)
                     end if

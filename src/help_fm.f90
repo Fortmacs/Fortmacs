@@ -20,21 +20,21 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The help commands of help.el: the help map on C-h and <f1>,
-!> `describe-key' (C-h k), `describe-key-briefly' (C-h c), `where-is'
-!> (C-h w) and `help-quit'; `substitute-command-keys', which turns a
+!> `describe_key' (C-h k), `describe_key_briefly' (C-h c), `where_is'
+!> (C-h w) and `help_quit'; `substitute_command_keys', which turns a
 !> docstring's \[COMMAND], \<MAP>, \`KEY', \= and quotes into what the
-!> reader sees; and `with-help-window', which shows text in *Help*.
+!> reader sees; and `with_help_window', which shows text in *Help*.
 !>
 !> The help buffer is shown in the selected window (there is one window
 !> until windows can be split), and `q' there goes back to the buffer
-!> shown before.  `describe-function' and `describe-variable' are in
-!> help_fns_fm, which installs the text `describe-key' shows through
+!> shown before.  `describe_function' and `describe_variable' are in
+!> help_fns_fm, which installs the text `describe_key' shows through
 !> `describe_function_1_hook' (help-fns.el is loaded after help.el).
 !>
-!> Deferred: `help-for-help' and the rest of the help map, the
-!> `help-key-binding' face, \{MAP} keymap summaries, key translations in
-!> `describe-key''s report, mouse and menu events, the help-xref stack,
-!> and `function-called-at-point' defaults.
+!> Deferred: `help_for_help' and the rest of the help map, the
+!> `help_key_binding' face, \{MAP} keymap summaries, key translations in
+!> `describe_key''s report, mouse and menu events, the help-xref stack,
+!> and `function_called_at_point' defaults.
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -198,7 +198,7 @@ contains
     !>
     !> Each grave accent ` is replaced by left quote, and each apostrophe '
     !> is replaced by right quote.  Left and right quote characters are
-    !> specified by `text-quoting-style'.
+    !> specified by `text_quoting_style'.
     !>
     !> \= quotes the following character and is discarded; thus, \=\= puts \=
     !> into the output, \=\[ puts \[ into the output, and \=` puts ' into the
@@ -340,7 +340,7 @@ contains
                 sw%prev_buffer = previous
             end if
         end if
-        call message(substitute_command_keys("Type \<help-mode-map>\[quit-window] to restore previous buffer"))
+        call message(substitute_command_keys("Type \<help_mode_map>\[quit_window] to restore previous buffer"))
     end subroutine with_help_window
 
     !> " (found in MAP)" for the active map in which `keys' is bound to
@@ -478,21 +478,21 @@ contains
         type(value_type), allocatable :: key(:)
         if (keymap_live_p(help_map)) call free_keymap(help_map, status)
         call make_sparse_keymap(help_map)
-        call keymap_set(help_map, "c", "describe-key-briefly", status)
-        call keymap_set(help_map, "f", "describe-function", status)
-        call keymap_set(help_map, "k", "describe-key", status)
-        call keymap_set(help_map, "q", "help-quit", status)
-        call keymap_set(help_map, "v", "describe-variable", status)
-        call keymap_set(help_map, "w", "where-is", status)
+        call keymap_set(help_map, "c", "describe_key_briefly", status)
+        call keymap_set(help_map, "f", "describe_function", status)
+        call keymap_set(help_map, "k", "describe_key", status)
+        call keymap_set(help_map, "q", "help_quit", status)
+        call keymap_set(help_map, "v", "describe_variable", status)
+        call keymap_set(help_map, "w", "where_is", status)
         call key_parse("C-h", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<f1>", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call init_help_mode()
-        call register_keymap_name("global-map", global_map)
-        call register_keymap_name("help-map", help_map)
-        call register_keymap_name("help-mode-map", help_mode_map)
-        call register_keymap_name("minibuffer-local-map", minibuffer_local_map)
+        call register_keymap_name("global_map", global_map)
+        call register_keymap_name("help_map", help_map)
+        call register_keymap_name("help_mode_map", help_mode_map)
+        call register_keymap_name("minibuffer_local_map", minibuffer_local_map)
         commands%describe_key%run => cmd_describe_key
         commands%describe_key_briefly%run => cmd_describe_key_briefly
         commands%where_is%run => cmd_where_is

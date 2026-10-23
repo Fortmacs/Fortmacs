@@ -57,7 +57,7 @@ module eval_fm
     end type hook_entry_type
 
     !> The depth a function was last added with (subr.el's
-    !> `hook--depth-alist'): it stays when the function is removed, and
+    !> `hook__depth_alist'): it stays when the function is removed, and
     !> applies when it is added again without a depth.
     type :: depth_type
         procedure(command_proc), pointer, nopass :: fn => null()
@@ -89,7 +89,7 @@ module eval_fm
         type(depth_type), allocatable :: depths(:)
         type(local_depths_type), allocatable :: local_depths(:)
         !> Keep buffers' own functions when the major mode changes (the
-        !> `permanent-local' property).
+        !> `permanent_local' property).
         logical :: permanent_local = .false.
     contains
         !> Add a function to the hook (subr.el's add-hook).
@@ -107,9 +107,9 @@ module eval_fm
     end type hook_type
 
     !> Normal hook run before changing the major mode of a buffer.
-    !> The function `kill-all-local-variables' runs this before doing
+    !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
-    type(hook_type), public, target :: change_major_mode_hook = hook_type(name="change-major-mode-hook")
+    type(hook_type), public, target :: change_major_mode_hook = hook_type(name="change_major_mode_hook")
 
 contains
 

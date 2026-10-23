@@ -108,11 +108,11 @@ contains
         call discard_input()
         call kbd_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("right-char")), "<right>")
+        call check(error, value_eq(binding, sym("right_char")), "<right>")
         if (allocated(error)) return
         ! <delete> becomes DEL through function-key-map.
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("delete-backward-char")) .and. &
+        call check(error, value_eq(binding, sym("delete_backward_char")) .and. &
                    size(keys) == 1, "<delete>")
         if (allocated(error)) return
         call check(error, fixnump(keys(1)), "DEL event")
@@ -120,7 +120,7 @@ contains
         call check(error, xfixnum(keys(1)), 127_int64)
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("digit-argument")), "M-5")
+        call check(error, value_eq(binding, sym("digit_argument")), "M-5")
         if (allocated(error)) return
         call check(error,.not. eof .and. .not. nilp(binding), "bound")
     end subroutine test_bound_keys
