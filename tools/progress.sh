@@ -161,7 +161,8 @@ bar_svg() {
 }
 
 # "DONE<br>of TOTAL" with thousands separators, and the share rounded to
-# a quarter percent ("≆" unless exact; never 0 or 100 unless it is).
+# a hundredth of a percent ("≆" unless exact; never 0 or 100 unless it
+# is).
 # Arguments: DONE TOTAL WHAT (count or share).
 figure() {
     awk -v d="$1" -v t="$2" -v what="$3" '
@@ -173,9 +174,9 @@ figure() {
         BEGIN {
             if (what == "count") { printf "%s<br>of %s", commas(d), commas(t); exit }
             p = (t > 0) ? 100 * d / t : 0
-            r = int(p * 4 + 0.5) / 4
-            if (d > 0 && r == 0) r = 0.25
-            if (d < t && r == 100) r = 99.75
+            r = int(p * 100 + 0.5) / 100
+            if (d > 0 && r == 0) r = 0.01
+            if (d < t && r == 100) r = 99.99
             printf "%s%.2f%%", (r == p) ? "" : "≆", r
         }'
 }
