@@ -54,7 +54,7 @@ module emacs_fm
     implicit none(type, external)
     private
 
-    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, run
+    public :: emacs_main, command_line, command_line_1, arg_type, init_proc, run, sort_args
     public :: load_init_file
 
     !> One command-line argument.
@@ -79,6 +79,99 @@ module emacs_fm
 
     !> A message for the echo area once the editor is up ("" for none).
     character(len=:), allocatable :: startup_message
+
+    !> One of emacs.c's standard_args: an option, its long name, its
+    !> priority for sort_args and its number of arguments.
+    type :: standard_arg_type
+        character(len=24) :: name = "", longname = ""
+        integer :: priority = 0, nargs = 0
+    end type standard_arg_type
+
+    !> The options Emacs knows, for sort_args (emacs.c standard_args, as
+    !> built on GNU/Linux with the portable dumper, modules and seccomp).
+    type(standard_arg_type), parameter :: standard_args(82) = [ &
+                                          standard_arg_type("-version", "--version", 150, 0), &
+                                          standard_arg_type("-fingerprint", "--fingerprint", 140, 0), &
+                                          standard_arg_type("-chdir", "--chdir", 130, 1), &
+                                          standard_arg_type("-t", "--terminal", 120, 1), &
+                                          standard_arg_type("-nw", "--no-window-system", 110, 0), &
+                                          standard_arg_type("-nw", "--no-windows", 110, 0), &
+                                          standard_arg_type("-batch", "--batch", 100, 0), &
+                                          standard_arg_type("-script", "--script", 100, 1), &
+                                          standard_arg_type("-daemon", "--daemon", 99, 0), &
+                                          standard_arg_type("-bg-daemon", "--bg-daemon", 99, 0), &
+                                          standard_arg_type("-fg-daemon", "--fg-daemon", 99, 0), &
+                                          standard_arg_type("-help", "--help", 90, 0), &
+                                          standard_arg_type("-nl", "--no-loadup", 70, 0), &
+                                          standard_arg_type("-nsl", "--no-site-lisp", 65, 0), &
+                                          standard_arg_type("-no-build-details", "--no-build-details", 63, 0), &
+                                          standard_arg_type("-module-assertions", "--module-assertions", 62, 0), &
+                                          standard_arg_type("-d", "--display", 60, 1), &
+                                          standard_arg_type("-display", "", 60, 1), &
+                                          standard_arg_type("-Q", "--quick", 55, 0), &
+                                          standard_arg_type("-quick", "", 55, 0), &
+                                          standard_arg_type("-x", "", 55, 0), &
+                                          standard_arg_type("-q", "--no-init-file", 50, 0), &
+                                          standard_arg_type("-no-init-file", "", 50, 0), &
+                                          standard_arg_type("-init-directory", "--init-directory", 30, 1), &
+                                          standard_arg_type("-no-x-resources", "--no-x-resources", 40, 0), &
+                                          standard_arg_type("-no-site-file", "--no-site-file", 40, 0), &
+                                          standard_arg_type("-no-comp-spawn", "--no-comp-spawn", 60, 0), &
+                                          standard_arg_type("-u", "--user", 30, 1), &
+                                          standard_arg_type("-user", "", 30, 1), &
+                                          standard_arg_type("-debug-init", "--debug-init", 20, 0), &
+                                          standard_arg_type("-iconic", "--iconic", 15, 0), &
+                                          standard_arg_type("-D", "--basic-display", 12, 0), &
+                                          standard_arg_type("-basic-display", "", 12, 0), &
+                                          standard_arg_type("-nbc", "--no-blinking-cursor", 12, 0), &
+                                          standard_arg_type("-nbi", "--no-bitmap-icon", 10, 0), &
+                                          standard_arg_type("-bg", "--background-color", 10, 1), &
+                                          standard_arg_type("-background", "", 10, 1), &
+                                          standard_arg_type("-fg", "--foreground-color", 10, 1), &
+                                          standard_arg_type("-foreground", "", 10, 1), &
+                                          standard_arg_type("-bd", "--border-color", 10, 1), &
+                                          standard_arg_type("-bw", "--border-width", 10, 1), &
+                                          standard_arg_type("-ib", "--internal-border", 10, 1), &
+                                          standard_arg_type("-ms", "--mouse-color", 10, 1), &
+                                          standard_arg_type("-cr", "--cursor-color", 10, 1), &
+                                          standard_arg_type("-fn", "--font", 10, 1), &
+                                          standard_arg_type("-font", "", 10, 1), &
+                                          standard_arg_type("-fs", "--fullscreen", 10, 0), &
+                                          standard_arg_type("-fw", "--fullwidth", 10, 0), &
+                                          standard_arg_type("-fh", "--fullheight", 10, 0), &
+                                          standard_arg_type("-mm", "--maximized", 10, 0), &
+                                          standard_arg_type("-g", "--geometry", 10, 1), &
+                                          standard_arg_type("-geometry", "", 10, 1), &
+                                          standard_arg_type("-T", "--title", 10, 1), &
+                                          standard_arg_type("-title", "", 10, 1), &
+                                          standard_arg_type("-name", "--name", 10, 1), &
+                                          standard_arg_type("-xrm", "--xrm", 10, 1), &
+                                          standard_arg_type("-parent-id", "--parent-id", 10, 1), &
+                                          standard_arg_type("-r", "--reverse-video", 5, 0), &
+                                          standard_arg_type("-rv", "", 5, 0), &
+                                          standard_arg_type("-reverse", "", 5, 0), &
+                                          standard_arg_type("-hb", "--horizontal-scroll-bars", 5, 0), &
+                                          standard_arg_type("-vb", "--vertical-scroll-bars", 5, 0), &
+                                          standard_arg_type("-color", "--color", 5, 0), &
+                                          standard_arg_type("-no-splash", "--no-splash", 3, 0), &
+                                          standard_arg_type("-no-desktop", "--no-desktop", 3, 0), &
+                                          standard_arg_type("-temacs", "--temacs", 1, 1), &
+                                          standard_arg_type("-dump-file", "--dump-file", 1, 1), &
+                                          standard_arg_type("-seccomp", "--seccomp", 1, 1), &
+                                          standard_arg_type("-L", "--directory", 0, 1), &
+                                          standard_arg_type("-directory", "", 0, 1), &
+                                          standard_arg_type("-l", "--load", 0, 1), &
+                                          standard_arg_type("-load", "", 0, 1), &
+                                          standard_arg_type("-scriptload", "", 0, 1), &
+                                          standard_arg_type("-f", "--funcall", 0, 1), &
+                                          standard_arg_type("-funcall", "", 0, 1), &
+                                          standard_arg_type("-eval", "--eval", 0, 1), &
+                                          standard_arg_type("-execute", "--execute", 0, 1), &
+                                          standard_arg_type("-find-file", "--find-file", 0, 1), &
+                                          standard_arg_type("-visit", "--visit", 0, 1), &
+                                          standard_arg_type("-file", "--file", 0, 1), &
+                                          standard_arg_type("-insert", "--insert", 0, 1), &
+                                          standard_arg_type("-kill", "--kill", -10, 0)]
 
 contains
 
@@ -216,7 +309,7 @@ contains
         type(arg_type), intent(in), optional :: args(:)
         procedure(init_proc), optional :: configure
         type(handle_type) :: scratch
-        type(status_type) :: st
+        type(status_type) :: st, opt_status
         type(arg_type), allocatable :: rest(:)
         logical :: init
         call init_fileio()
@@ -248,7 +341,7 @@ contains
         ! command-line-1 for the rest.  Errors are shown once the editor
         ! is up.
         if (present(args)) then
-            call command_line(args, rest, init)
+            call command_line(args, rest, init, opt_status)
         else
             allocate (rest(0))
             init = .true.
@@ -259,9 +352,14 @@ contains
             startup_message = ""
         end if
         init_file_had_error = .false.
-        if (init .and. present(configure)) call load_init_file(configure)
-        call command_line_1(rest, st)
-        if (.not. st%ok()) call message(format_error(st))
+        if (opt_status%ok()) then
+            if (init .and. present(configure)) call load_init_file(configure)
+            call command_line_1(rest, st)
+            if (.not. st%ok()) call message(format_error(st))
+        else
+            ! An error in command-line's options ends it there.
+            call message(format_error(opt_status))
+        end if
         redisplay_hook => do_redisplay
         call command_loop(st)
         redisplay_hook => null()
@@ -286,34 +384,261 @@ contains
         end if
     end subroutine load_init_file
 
-    !> Handle the options that come before the files: -q (--no-init-file)
-    !> and -Q (--quick) turn off the init file (`init' false); `rest' gets
-    !> the arguments from the first other one on, for `command_line_1'.
-    !> Port of the option loop of startup.el:command-line.
-    subroutine command_line(args, rest, init)
+    !> Handle the options that startup.el handles before the init file:
+    !> -q (--no-init-file) and -Q (--quick) turn off the init file
+    !> (`init' false), -no-site-file is accepted (there is no site file);
+    !> long options may be abbreviated and take --OPTION=VALUE.  `rest'
+    !> gets the arguments from the first other one on, for
+    !> `command_line_1'.  Port of the option loop of startup.el:command-line
+    !> (the options for X, the debugger, other users' and directories'
+    !> init files, the dump and native compilation are not ported).
+    subroutine command_line(args, rest, init, status)
         type(arg_type), intent(in) :: args(:)
         type(arg_type), allocatable, intent(out) :: rest(:)
         logical, intent(out) :: init
-        character(len=:), allocatable :: argi
-        integer :: k
+        type(status_type), intent(out) :: status
+        character(len=16), parameter :: longopts(14) = [character(len=16) :: &
+                                                        "--no-init-file", "--no-site-file", "--no-x-resources", &
+                                                        "--debug-init", "--user", "--iconic", "--icon-type", "--quick", &
+                                                        "--no-blinking-cursor", "--basic-display", "--dump-file", &
+                                                        "--temacs", "--seccomp", "--init-directory"]
+        character(len=:), allocatable :: argi, orig_argi, completion
+        logical :: has_argval, done, exact
+        integer :: k, eq
+        status = status_type()
         init = .true.
         k = 0
-        options: do while (k < size(args))
-            argi = args(k + 1)%s
-            ! --foo is the same as -foo.
-            if (len(argi) > 2) then
-                if (argi(1:2) == "--") argi = argi(2:)
+        done = .false.
+        do while (.not. done .and. k < size(args))
+            k = k + 1
+            argi = args(k)%s
+            orig_argi = argi
+            has_argval = .false.
+            ! Handle --OPTION=VALUE format.
+            eq = index(argi, "=")
+            if (index(argi, "--") == 1 .and. eq > 0) then
+                has_argval = .true.
+                argi = argi(1:eq - 1)
+            end if
+            if (len(orig_argi) >= 3) then
+                if (orig_argi(1:2) == "--") then
+                    call try_completion_list(argi, longopts, completion, exact)
+                    if (exact) then
+                        argi = argi(2:)
+                    else if (len(completion) > 0) then
+                        if (.not. any(longopts == completion)) then
+                            call set_error(status, FM_GENERIC_ERROR, format_message("Option `")//argi// &
+                                           format_message("' is ambiguous"))
+                            return
+                        end if
+                        argi = completion(2:)
+                    else
+                        has_argval = .false.
+                        argi = orig_argi
+                    end if
+                end if
             end if
             select case (argi)
-            case ("-q", "-no-init-file", "-Q", "-quick")
+            case ("-Q", "-quick", "-q", "-no-init-file")
                 init = .false.
+            case ("-no-site-file")
+                ! site-run-file: Fortmacs has no site file.
+                continue
             case default
-                exit options
+                ! Put the argument back for command-line-1.
+                k = k - 1
+                done = .true.
             end select
-            k = k + 1
-        end do options
+            ! Was argval set but not used?
+            if (has_argval) then
+                call set_error(status, FM_GENERIC_ERROR, format_message("Option `")//argi// &
+                               format_message("' doesn't allow an argument"))
+                return
+            end if
+        end do
         rest = args(k + 1:)
     end subroutine command_line
+
+    !> Put the options in ARGS in order of decreasing priority (ties in
+    !> their order), each with its arguments, removing duplicates of
+    !> options without arguments; everything after "--" stays at the end.
+    !> OK is false (and ERROR says why) when an option lacks its argument.
+    !> Port of emacs.c:sort_args.
+    subroutine sort_args(args, ok, error)
+        type(arg_type), allocatable, intent(inout) :: args(:)
+        logical, intent(out) :: ok
+        character(len=:), allocatable, intent(out) :: error
+        type(arg_type), allocatable :: new(:)
+        integer, allocatable :: options(:), priority(:)
+        logical, allocatable :: used(:)
+        integer :: argc, from, i, match, thislen, equals, to, incoming_used, best, best_priority
+        ok = .true.
+        error = ""
+        argc = size(args)
+        allocate (options(argc), priority(argc), used(argc), new(argc))
+        options = -1
+        priority = 0
+        used = .false.
+        ! Categorize all the options, and figure out which args are option
+        ! arguments.
+        from = 1
+        categorize: do while (from <= argc)
+            options(from) = -1
+            priority(from) = 0
+            if (index(args(from)%s, "-") == 1) then
+                ! If we have found "--", don't consider any more arguments
+                ! as options.
+                if (args(from)%s == "--") then
+                    priority(from:) = -100
+                    options(from:) = -1
+                    exit categorize
+                end if
+                ! Look for a match with a known old-fashioned option.
+                do i = 1, size(standard_args)
+                    if (args(from)%s == trim(standard_args(i)%name)) then
+                        options(from) = standard_args(i)%nargs
+                        priority(from) = standard_args(i)%priority
+                        if (from + standard_args(i)%nargs > argc) then
+                            ok = .false.
+                            error = "Option '"//args(from)%s//"' requires an argument"
+                            return
+                        end if
+                        from = from + standard_args(i)%nargs + 1
+                        cycle categorize
+                    end if
+                end do
+                ! Look for a match with a known long option.
+                if (index(args(from)%s, "--") == 1) then
+                    equals = index(args(from)%s, "=")
+                    thislen = len(args(from)%s)
+                    if (equals > 0) thislen = equals - 1
+                    match = -1
+                    do i = 1, size(standard_args)
+                        if (len_trim(standard_args(i)%longname) == 0) cycle
+                        if (standard_args(i)%longname(1:min(thislen, 24)) == args(from)%s(1:thislen) .and. &
+                            thislen <= 24) then
+                            if (match == -1) then
+                                match = i
+                            else
+                                match = -2
+                            end if
+                        end if
+                    end do
+                    if (match > 0) then
+                        options(from) = standard_args(match)%nargs
+                        priority(from) = standard_args(match)%priority
+                        ! If --OPTION=VALUE syntax is used, this option
+                        ! uses just one argument.
+                        if (equals > 0) options(from) = 0
+                        if (from + options(from) > argc) then
+                            ok = .false.
+                            error = "Option '"//args(from)%s//"' requires an argument"
+                            return
+                        end if
+                        from = from + options(from)
+                    else if (match == -2) then
+                        write (error_unit, "(a)") "Option '"//args(from)%s//"' matched multiple standard arguments"
+                    end if
+                end if
+            end if
+            from = from + 1
+        end do categorize
+        ! Copy the arguments, in order of decreasing priority, to NEW.
+        to = 0
+        incoming_used = 0
+        do while (incoming_used < argc)
+            best = -1
+            best_priority = -9999
+            ! Find the highest priority remaining option.  If several have
+            ! equal priority, take the first of them.
+            from = 1
+            do while (from <= argc)
+                if (.not. used(from) .and. priority(from) > best_priority) then
+                    best_priority = priority(from)
+                    best = from
+                end if
+                ! Skip option arguments: they are tied to the options.
+                if (options(from) > 0) from = from + options(from)
+                from = from + 1
+            end do
+            ! Copy it, with its args, unless it is a duplicate of the
+            ! previous one.
+            if (.not. dup_of_previous(best)) then
+                to = to + 1
+                new(to) = args(best)
+                do i = 1, options(best)
+                    to = to + 1
+                    new(to) = args(best + i)
+                end do
+            end if
+            incoming_used = incoming_used + 1 + max(options(best), 0)
+            used(best:best + max(options(best), 0)) = .true.
+        end do
+        args = new(1:to)
+    contains
+        logical function dup_of_previous(b)
+            integer, intent(in) :: b
+            dup_of_previous = .false.
+            if (options(b) /= 0 .or. to == 0) return
+            dup_of_previous = new(to)%s == args(b)%s
+        end function dup_of_previous
+    end subroutine sort_args
+
+    !> Whether the argument after the first SKIP of ARGS is the option
+    !> SSTR or an abbreviation of LSTR at least MINLEN long (taking no
+    !> argument); if so SKIP counts it.  Port of emacs.c:argmatch
+    !> (without VALPTR).
+    logical function argmatch(args, sstr, lstr, minlen, skip) result(found)
+        type(arg_type), intent(in) :: args(:)
+        character(len=*), intent(in) :: sstr, lstr
+        integer, intent(in) :: minlen
+        integer, intent(inout) :: skip
+        character(len=:), allocatable :: arg
+        found = .false.
+        if (size(args) <= skip) return
+        arg = args(skip + 1)%s
+        if (arg == sstr .and. len(arg) == len(sstr)) then
+            found = .true.
+        else if (len(arg) >= minlen .and. len(arg) <= len(lstr)) then
+            found = arg == lstr(1:len(arg))
+        end if
+        if (found) skip = skip + 1
+    end function argmatch
+
+    !> What `try-completion' gives for STRING against the names
+    !> COLLECTION (blank-padded): EXACT when STRING is the only completion
+    !> and matches exactly (t), else the longest common prefix of the
+    !> completions in COMPLETION ("" for none, nil).
+    subroutine try_completion_list(string, collection, completion, exact)
+        character(len=*), intent(in) :: string, collection(:)
+        character(len=:), allocatable, intent(out) :: completion
+        logical, intent(out) :: exact
+        integer :: i, n, j
+        character(len=:), allocatable :: c
+        logical :: first
+        exact = .false.
+        completion = ""
+        n = 0
+        first = .true.
+        do i = 1, size(collection)
+            c = trim(collection(i))
+            if (len(c) < len(string)) cycle
+            if (c(1:len(string)) /= string) cycle
+            n = n + 1
+            if (first) then
+                completion = c
+                first = .false.
+            else
+                j = 0
+                do while (j < min(len(completion), len(c)))
+                    if (completion(j + 1:j + 1) /= c(j + 1:j + 1)) exit
+                    j = j + 1
+                end do
+                completion = completion(1:j)
+            end if
+        end do
+        if (n == 1 .and. completion == string .and. len(completion) == len(string)) exact = .true.
+    end subroutine try_completion_list
 
     !> The program: handle --version, --help and --recompile, check for a
     !> terminal, then run the editor with the user's `configure'.
@@ -331,7 +656,9 @@ contains
         type(arg_type), allocatable :: args(:)
         type(status_type) :: status
         integer :: nargs, arglen, stat, k
-        logical :: installed
+        logical :: installed, ok
+        character(len=:), allocatable :: error
+        integer :: skip
         exit_code = 0
         nargs = command_argument_count()
         allocate (args(nargs))
@@ -369,26 +696,35 @@ contains
                 reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
             end if
         end if
-        if (nargs > 0) then
-            select case (args(1)%s)
-            case ("--version", "-version")
-                write (output_unit, "(a)") version_string()
-                if (present(prefix)) call write_configuration()
-                return
-            case ("--help", "-help")
-                write (output_unit, "(a)") usage
-                write (output_unit, "(a)") "       fortmacs --recompile | --list-generations | --rollback | --switch-generation N"
-                write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
-                write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
-                write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
-                write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into a new generation of your own"
-                write (output_unit, "(a)") "fortmacs, which an installed fortmacs runs; --rollback goes back to the generation"
-                write (output_unit, "(a)") "before, --switch-generation N to generation N."
-                return
-            case default
-                ! Everything else is for startup.el:command-line.
-            end select
+        call sort_args(args, ok, error)
+        if (.not. ok) then
+            write (error_unit, "(a)") "fortmacs: "//error
+            exit_code = 1
+            return
         end if
+        skip = 0
+        if (argmatch(args, "-version", "--version", 3, skip)) then
+            write (output_unit, "(a)") version_string()
+            if (present(prefix)) call write_configuration()
+            return
+        end if
+        ! -nw: Fortmacs only uses the terminal.
+        if (.not. argmatch(args, "-nw", "--no-window-system", 6, skip)) then
+            if (argmatch(args, "-nw", "--no-windows", 6, skip)) continue
+        end if
+        if (argmatch(args, "-help", "--help", 3, skip)) then
+            write (output_unit, "(a)") usage
+            write (output_unit, "(a)") "       fortmacs --recompile | --list-generations | --rollback | --switch-generation N"
+            write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
+            write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
+            write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
+            write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into a new generation of your own"
+            write (output_unit, "(a)") "fortmacs, which an installed fortmacs runs; --rollback goes back to the generation"
+            write (output_unit, "(a)") "before, --switch-generation N to generation N."
+            return
+        end if
+        ! Everything else is for startup.el:command-line.
+        args = args(skip + 1:)
         ! emacs.c:main: a terminal is needed on standard input.
         if (.not. emacs_isatty(0_int32)) then
             write (error_unit, "(a)") "fortmacs: standard input is not a tty"
