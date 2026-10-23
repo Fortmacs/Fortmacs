@@ -22,17 +22,15 @@
 !> `map_y_or_n_p': ask about each of a list of objects in turn.
 !>
 !> Objects are numbered 1..n; the caller's prompter and actor procedures
-!> stand in for upstream's PROMPTER and ACTOR functions.  As in subr_fm,
-!> keys are read in the echo area (the `y_or_n_p_use_read_key' path).
-!> There is no help (C-h) or ACTION-ALIST yet, so the prompt lists only
-!> the keys that work.
+!> stand in for upstream's PROMPTER and ACTOR functions.  The answer is
+!> read in the minibuffer, or with `read_key' when
+!> `y_or_n_p_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
+!> boxes, NO-CURSOR-IN-ECHO-AREA, switch-frame events.
 module map_ynp_fm
+    use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
-    use lisp_fm, only: value_type
-    use keymap_fm, only: single_key_description
-    use xdisp_fm, only: message
-    use subr_fm, only: read_key, query_replace_answer, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
-                       ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, ANSWER_QUIT
+    use lisp_fm, only: value_type, command_type
+    use handle_fm, only: handle_type
     implicit none(type, external)
     private
 
@@ -62,72 +60,37 @@ module map_ynp_fm
         end subroutine ynp_actor
     end interface
 
-contains
+    interface
+        !> Ask a boolean question per PROMPTER for each object in LIST.
+        !> The PROMPTER is called for objects 1..N; it returns how to treat
+        !> each: YNP_SKIP to ignore it, YNP_ACT to act on it without asking,
+        !> or YNP_ASK with a prompt to ask the user about it.
+        !>
+        !> The user's answers are: `y' or SPC to act on the object, `n' or DEL
+        !> to skip it, `!' to act on it and all remaining objects, `.' to act
+        !> on it and exit, `q' or RET to exit, and C-g to quit; C-h shows
+        !> help.  HELP-OBJECT, HELP-OBJECTS and HELP-ACTION (default
+        !> "object", "objects", "act on") name the objects and the action for
+        !> the help.  `actions' is the number of actions taken.  Port of
+        !> map-ynp.el:map-y-or-n-p.  (In map_ynp_ask_fm.)
+        module subroutine map_y_or_n_p(n, prompter, actor, actions, status, help_object, help_objects, help_action)
+            implicit none(type, external)
+            integer, intent(in) :: n
+            procedure(ynp_prompter) :: prompter
+            procedure(ynp_actor) :: actor
+            integer, intent(out) :: actions
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: help_object, help_objects, help_action
+        end subroutine map_y_or_n_p
+    end interface
 
-    !> Ask about objects 1..`n' in turn and act on those the user accepts:
-    !> SPC or y acts, DEL or n skips, ! acts on all the rest, . acts and
-    !> stops, RET or q stops, C-g quits.  `actions' is the number of
-    !> objects acted on.  Port of map-ynp.el:map-y-or-n-p.
-    subroutine map_y_or_n_p(n, prompter, actor, actions, status)
-        integer, intent(in) :: n
-        procedure(ynp_prompter) :: prompter
-        procedure(ynp_actor) :: actor
-        integer, intent(out) :: actions
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: prompt, full
-        type(value_type) :: key
-        integer :: k, how, def
-        logical :: automatic, done
-        actions = 0
-        automatic = .false.
-        k = 0
-        do while (k < n)
-            k = k + 1
-            call prompter(k, how, prompt)
-            if (how == YNP_SKIP) cycle
-            if (how == YNP_ACT .or. automatic) then
-                call actor(k, status)
-                if (.not. status%ok()) return
-                actions = actions + 1
-                cycle
-            end if
-            full = prompt//"(y, n, !, ., or q) "
-            done = .false.
-            do while (.not. done)
-                call read_key(full, key, status)
-                if (.not. status%ok()) return
-                ! Show the answer to the question.
-                call message(full//single_key_description(key))
-                def = query_replace_answer(key)
-                done = .true.
-                select case (def)
-                case (ANSWER_QUIT)
-                    call set_error(status, FM_QUIT)
-                    return
-                case (ANSWER_EXIT)
-                    ! Skip this and all remaining objects.
-                    return
-                case (ANSWER_ACT)
-                    call actor(k, status)
-                    if (.not. status%ok()) return
-                    actions = actions + 1
-                case (ANSWER_SKIP)
-                    ! Nothing to do: on to the next object.
-                case (ANSWER_ACT_AND_EXIT)
-                    call actor(k, status)
-                    if (.not. status%ok()) return
-                    actions = actions + 1
-                    return
-                case (ANSWER_AUTOMATIC)
-                    call actor(k, status)
-                    if (.not. status%ok()) return
-                    actions = actions + 1
-                    automatic = .true.
-                case default
-                    ! A random key: ask again.
-                    done = .false.
-                end select
-            end do
-        end do
-    end subroutine map_y_or_n_p
+    !> The minibuffer keymap of `map_y_or_n_p': each key of
+    !> query-replace-map runs the command that records it and exits
+    !> (cmd-char upstream), keys that would self-insert say "Type C-h for
+    !> help" (cmd-help).  Made on first use.
+    type(handle_type), public :: ynp_remap
+    type(command_type), target, public :: cmd_char, cmd_help
+    !> The keys cmd-char recorded (unallocated for none).
+    type(value_type), allocatable, public :: chars(:)
+
 end module map_ynp_fm

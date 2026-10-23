@@ -11,8 +11,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore: ["**.md", "docs/**"]
 
+# Draft runs (skipped) are in their own group, so they never cancel the
+# run started when a PR is marked ready.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.draft || false }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:

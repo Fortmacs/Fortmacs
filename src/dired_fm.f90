@@ -28,7 +28,7 @@
 !> `file_attributes' as a list, `completion_regexp_list'.
 module dired_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_fm, only: status_type
+    use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: value_type, make_string, make_list, nil, t_value
     use fileio_fm, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
                          file_directory_p
@@ -85,6 +85,12 @@ contains
         integer :: n, k, j, key
         logical :: absolute, sorted
         files = nil()
+        if (present(count)) then
+            if (count < 0) then
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "wholenump")
+                return
+            end if
+        end if
         absolute = .false.
         if (present(full)) absolute = full
         sorted = .true.
@@ -98,12 +104,13 @@ contains
             return
         end if
         n = size(names)
-        if (present(count)) then
-            if (count >= 0) n = int(min(count, int(n, int64)))
-        end if
-        order = [(k, k=1, n)]
-        ! Sorted with string-lessp (by character codes): an insertion sort.
+        if (present(count)) n = int(min(count, int(n, int64)))
+        ! The list is consed up as entries are read: the last read first.
+        order = [(k, k=n, 1, -1)]
+        ! Sorted with string-lessp (by character codes): an insertion sort
+        ! of (nreverse list).
         if (sorted) then
+            order = [(k, k=1, n)]
             do k = 2, n
                 key = order(k)
                 j = k - 1
@@ -191,7 +198,7 @@ contains
             elen = schars(ext)
             skip = schars(name) - elen
             if (skip < 0) cycle
-            if (compare_strings(name, ext, completion_ignore_case, start1=skip) == COMPARE_EQUAL) then
+            if (compare_strings(name, ext, completion_ignore_case%value, start1=skip) == COMPARE_EQUAL) then
                 ignored = .true.
                 return
             end if
@@ -236,7 +243,7 @@ contains
         do k = 1, size(names)
             name = names(k)%s
             if (schars(name) < nfile) cycle
-            if (compare_strings(name, file, completion_ignore_case, end1=nfile) /= COMPARE_EQUAL) cycle
+            if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = file_directory_p(dir//name)
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when
@@ -281,10 +288,10 @@ contains
                 have_best = .true.
             else
                 compare = min(bestmatchsize, nname)
-                cmp = compare_strings(bestmatch, name, completion_ignore_case, end1=compare, end2=compare)
+                cmp = compare_strings(bestmatch, name, completion_ignore_case%value, end1=compare, end2=compare)
                 matchsize = compare
                 if (cmp /= COMPARE_EQUAL) matchsize = abs(cmp) - 1
-                if (completion_ignore_case) then
+                if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
                     ! the best match rather than one that is not an exact
                     ! match.  This way, we get the case pattern of the
@@ -301,7 +308,7 @@ contains
                 ! we're trying to complete, then we already know there's no
                 ! other completion, so there's no point looking any further.
                 if (matchsize <= nfile .and. .not. includeall .and. &
-                    (.not. completion_ignore_case .or. matchsize == 0) .and. matchcount > 1) exit
+                    (.not. completion_ignore_case%value .or. matchsize == 0) .and. matchcount > 1) exit
             end if
         end do
         if (all_flag) then

@@ -41,6 +41,7 @@ module docstrings_fm
                        JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
+    use fns_fm, only: use_short_answers
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
@@ -48,11 +49,13 @@ module docstrings_fm
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use keyboard_fm, only: minibuffer_message_timeout
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
                              completion_show_inline_help, completions_max_height, insert_default_directory, &
-                             minibuffer_completing_file_name
+                             minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
+                             read_file_name_completion_ignore_case
     use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
                              sentence_end, sentence_end_double_space, sentence_end_without_period
@@ -60,6 +63,7 @@ module docstrings_fm
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_show_replacement, &
                           query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
                           replace_regexp_lax_whitespace
+    use rmc_fm, only: read_char_choice_use_read_key
     use search_fm, only: case_fold_search
     use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
                          cycle_spacing_actions, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
@@ -68,7 +72,7 @@ module docstrings_fm
                          read_quoted_char_radix, special_mode_hook, special_mode_map, suggest_key_bindings, &
                          transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
-                       history_length
+                       history_delete_duplicates, history_length, y_or_n_p_use_read_key
     use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
@@ -102,8 +106,9 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(290) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(299) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
+                                                                   "abort_recursive_edit", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
                                                                    "back_to_indentation", &
@@ -270,6 +275,9 @@ module docstrings_fm
                                                                    "minibuffer_complete_word", &
                                                                    "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", &
+                                                                   "minibuffer_recenter_top_bottom", &
+                                                                   "minibuffer_scroll_down_command", &
+                                                                   "minibuffer_scroll_up_command", &
                                                                    "modify_syntax_entry", &
                                                                    "move_beginning_of_line", &
                                                                    "move_end_of_line", &
@@ -282,6 +290,7 @@ module docstrings_fm
                                                                    "next_buffer", &
                                                                    "next_history_element", &
                                                                    "next_line", &
+                                                                   "next_line_or_history_element", &
                                                                    "normal_mode", &
                                                                    "open_line", &
                                                                    "other_buffer", &
@@ -297,6 +306,7 @@ module docstrings_fm
                                                                    "previous_buffer", &
                                                                    "previous_history_element", &
                                                                    "previous_line", &
+                                                                   "previous_line_or_history_element", &
                                                                    "prog_mode", &
                                                                    "provided_mode_derived_p", &
                                                                    "push_mark", &
@@ -390,12 +400,15 @@ module docstrings_fm
                                                                    "where_is", &
                                                                    "write_file", &
                                                                    "y_or_n_p", &
+                                                                   "y_or_n_p_insert_n", &
+                                                                   "y_or_n_p_insert_other", &
+                                                                   "y_or_n_p_insert_y", &
                                                                    "yank", &
                                                                    "yank_pop", &
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(114) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(121) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
@@ -436,6 +449,7 @@ module docstrings_fm
                                                                    "help_mode_hook", &
                                                                    "help_mode_map", &
                                                                    "history_add_new_input", &
+                                                                   "history_delete_duplicates", &
                                                                    "history_length", &
                                                                    "indent_line_function", &
                                                                    "indent_tabs_mode", &
@@ -456,6 +470,7 @@ module docstrings_fm
                                                                    "mark_even_if_inactive", &
                                                                    "mark_ring_max", &
                                                                    "minibuffer_completing_file_name", &
+                                                                   "minibuffer_message_timeout", &
                                                                    "minibuffer_scroll_window", &
                                                                    "mode_require_final_newline", &
                                                                    "next_screen_context_lines", &
@@ -471,6 +486,9 @@ module docstrings_fm
                                                                    "query_replace_defaults", &
                                                                    "query_replace_show_replacement", &
                                                                    "query_replace_skip_read_only", &
+                                                                   "read_buffer_completion_ignore_case", &
+                                                                   "read_char_choice_use_read_key", &
+                                                                   "read_file_name_completion_ignore_case", &
                                                                    "read_minibuffer_restore_windows", &
                                                                    "read_quoted_char_radix", &
                                                                    "regexp_search_ring_max", &
@@ -506,10 +524,12 @@ module docstrings_fm
                                                                    "undo_auto__this_command_amalgamating", &
                                                                    "undo_in_progress", &
                                                                    "undo_no_redo", &
+                                                                   "use_short_answers", &
                                                                    "visible_bell", &
                                                                    "window_min_height", &
                                                                    "window_min_width", &
-                                                                   "words_include_escapes"]
+                                                                   "words_include_escapes", &
+                                                                   "y_or_n_p_use_read_key"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -531,7 +551,13 @@ contains
         case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Abort the current minibuffer."
+            entry%doc = "Abort the current minibuffer."//LF// &
+                        "If we are not currently in the innermost minibuffer, prompt the user to"//LF// &
+                        "confirm the aborting of the current minibuffer and all contained ones."
+        case ("abort_recursive_edit")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Abort the command that requested this recursive edit or minibuffer input."
         case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
@@ -1877,6 +1903,18 @@ contains
                         "contents.  The list goes in buffer *Completions*, shown in the"//LF// &
                         "frame's root window until the minibuffer is done (there is no"//LF// &
                         "window splitting yet)."
+        case ("minibuffer_recenter_top_bottom")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `recenter_top_bottom' from the minibuffer in its original window."
+        case ("minibuffer_scroll_down_command")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `scroll_down_command' from the minibuffer in its original window."
+        case ("minibuffer_scroll_up_command")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `scroll_up_command' from the minibuffer in its original window."
         case ("modify_syntax_entry")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call modify_syntax_entry(from, to, newentry, status, syntax_table_h)"
@@ -2007,6 +2045,12 @@ contains
                         "column (or as close as possible).  Note that setting `goal_column'"//LF// &
                         "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
+        case ("next_line_or_history_element")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
+                        "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
+                        "next element of the minibuffer history in the minibuffer."
         case ("normal_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call normal_mode(status, find_file)"
@@ -2148,6 +2192,12 @@ contains
                         "column (or as close as possible).  Note that setting `goal_column'"//LF// &
                         "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
+        case ("previous_line_or_history_element")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
+                        "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
+                        "previous element of the minibuffer history in the minibuffer."
         case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
@@ -2354,23 +2404,64 @@ contains
                         " instead of that empty string; the prompt shows it."//LF// &
                         "Optional third arg REQUIRE-MATCH has the same meaning as the"//LF// &
                         " REQUIRE-MATCH argument of `completing_read'."//LF// &
+                        "If `read_buffer_completion_ignore_case' is non-nil, completion ignores"//LF// &
+                        "case while reading the buffer name."//LF// &
                         "The buffer `except' (if given) is left out of the completions, as"//LF// &
-                        "internal-complete-buffer-except does."
+                        "internal-complete-buffer-except does (read-buffer-to-switch puts that"//LF// &
+                        "table in the minibuffer)."
         case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
-            entry%doc = "Read a file name in the minibuffer, starting with directory `dir'"//LF// &
-                        "(default: default-directory) abbreviated as the input to edit."//LF// &
-                        "Unchanged input gives `default_filename' (default: the buffer's"//LF// &
-                        "file); the result goes through substitute-in-file-name, so typing"//LF// &
-                        """~/x"" or ""/x"" after the directory means just that."
+            entry%doc = "Read a file name, prompting with PROMPT and completing in directory DIR."//LF// &
+                        "Return the file name as a string."//LF// &
+                        "The return value is not expanded---you must call `expand_file_name'"//LF// &
+                        "yourself."//LF// &
+                        ""//LF// &
+                        "DIR is the directory to use for completing relative file names."//LF// &
+                        "It should be an absolute directory name, or absent (which means the"//LF// &
+                        "current buffer's value of `default_directory')."//LF// &
+                        ""//LF// &
+                        "DEFAULT-FILENAME specifies the default file name to return if the"//LF// &
+                        "user exits the minibuffer with the same non-empty string inserted"//LF// &
+                        "by this function.  If DEFAULT-FILENAME is absent, then if INITIAL"//LF// &
+                        "is present, the default is DIR combined with INITIAL; otherwise, if"//LF// &
+                        "the current buffer is visiting a file, that file serves as the"//LF// &
+                        "default; otherwise, the default is simply the string inserted into"//LF// &
+                        "the minibuffer."//LF// &
+                        ""//LF// &
+                        "If the user exits with an empty minibuffer, return an empty"//LF// &
+                        "string.  (This happens only if the user erases the pre-inserted"//LF// &
+                        "contents, or if `insert_default_directory' is nil.)"//LF// &
+                        ""//LF// &
+                        "Fourth arg MUSTMATCH can take the following values:"//LF// &
+                        "- REQUIRE_MATCH_NIL means that the user can exit with any input."//LF// &
+                        "- REQUIRE_MATCH_T means that the user is not allowed to exit unless"//LF// &
+                        "  the input is (or completes to) an existing file."//LF// &
+                        "- REQUIRE_MATCH_CONFIRM means that the user can exit with any input,"//LF// &
+                        "  but she needs to confirm her choice if the input is not an"//LF// &
+                        "  existing file."//LF// &
+                        "- REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION means that the user can"//LF// &
+                        "  exit with any input, but she needs to confirm her choice if she"//LF// &
+                        "  called `minibuffer_complete' right before"//LF// &
+                        "  `minibuffer_complete_and_exit' and the input is not an existing"//LF// &
+                        "  file."//LF// &
+                        "- REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_T except that"//LF// &
+                        "  typing RET does not exit if it does non-null completion."//LF// &
+                        ""//LF// &
+                        "Fifth arg INITIAL specifies text to start with.  It will be"//LF// &
+                        "interpreted as the trailing part of DEFAULT-FILENAME, so using a"//LF// &
+                        "full file name for INITIAL will usually lead to surprising"//LF// &
+                        "results."//LF// &
+                        ""//LF// &
+                        "See also `read_file_name_completion_ignore_case'."
         case ("read_multiple_choice")
             entry%file = "rmc_fm.f90"
-            entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help)"
+            entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help, long_fo"// &
+                            "rm)"
             entry%doc = "Ask user to select an entry from CHOICES, prompting with PROMPT."//LF// &
                         "This function lets a user select an option from a list of options"//LF// &
                         "by typing a single character, and returns the index of the choice"//LF// &
-                        "(`answer')."//LF// &
+                        "(`answer'; 0 for none)."//LF// &
                         ""//LF// &
                         "CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character"//LF// &
                         "to be entered.  NAME is a short name for the entry to be displayed"//LF// &
@@ -2385,12 +2476,16 @@ contains
                         "SHOW-HELP, if present, means show the help buffer from the start"//LF// &
                         "(named SHOW-HELP when it is a non-empty string)."//LF// &
                         ""//LF// &
-                        "If the user types the `?' key, the help is displayed; other keys"//LF// &
-                        "not in CHOICES ask again after ""Invalid choice.""; C-g quits.  Port"//LF// &
-                        "of rmc.el:read-multiple-choice (short answers)."
+                        "If optional argument LONG-FORM is non-nil, the user will have to"//LF// &
+                        "type in long-form answers (using `completing_read') instead of"//LF// &
+                        "hitting a single key."//LF// &
+                        ""//LF// &
+                        "If the user types the `?' key, the help is displayed.  The answer"//LF// &
+                        "is read in the minibuffer, or with `read_key' if"//LF// &
+                        "`read_char_choice_use_read_key' is non-nil."
         case ("read_number")
             entry%file = "subr_fm.f90"
-            entry%fortran = "call read_number(prompt, n, status, default, hist)"
+            entry%fortran = "call read_number(prompt, n, status, default, hist, defaults)"
             entry%doc = "Read from the minibuffer and return a numeric value, prompting with PROMPT."//LF// &
                         "DEFAULT specifies a default value to return if the user just types RET."//LF// &
                         "For historical reasons, the value of DEFAULT is always inserted into"//LF// &
@@ -2398,11 +2493,15 @@ contains
                         "to generate PROMPT.  HIST specifies a history list variable.  See"//LF// &
                         "`read_from_minibuffer' for details of the HIST argument."//LF// &
                         ""//LF// &
+                        "DEFAULTS, in place of DEFAULT, is a list of defaults: the first"//LF// &
+                        "is the default, all are offered by M-n."//LF// &
+                        ""//LF// &
                         "This function is used by the `interactive' code letter ""n"".  Port"//LF// &
-                        "of subr.el:read-number (integers only).  (In subr_read_fm.)"
+                        "of subr.el:read-number (the answer is read as the Lisp reader"//LF// &
+                        "reads an integer; floats are not ported).  (In subr_read_fm.)"
         case ("read_string")
             entry%file = "minibuf_fm.f90"
-            entry%fortran = "call read_string(prompt, result, status, initial, history, default)"
+            entry%fortran = "call read_string(prompt, result, status, initial, history, default, position)"
             entry%doc = "Read a string; empty input gives `default' if present."
         case ("recenter")
             entry%file = "window_scroll_fm.f90"
@@ -3072,7 +3171,7 @@ contains
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
         case ("undefined")
-            entry%file = "subr_fm.f90"
+            entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
             entry%doc = "Beep to tell the user this binding is undefined."
         case ("undo")
@@ -3208,9 +3307,48 @@ contains
         case ("y_or_n_p")
             entry%file = "subr_fm.f90"
             entry%fortran = "call y_or_n_p(prompt, answer, status)"
-            entry%doc = "Ask a ""y or n"" question in the echo area: `answer' is true for y"//LF// &
-                        "(or SPC), false for n (or DEL); C-g quits.  Other keys ask again,"//LF// &
-                        "with ""Please answer y or n.""."
+            entry%doc = "Ask user a ""y or n"" question."//LF// &
+                        "Return t if answer is ""y"" and nil if it is ""n""."//LF// &
+                        ""//LF// &
+                        "PROMPT is the string to display to ask the question; `y_or_n_p'"//LF// &
+                        "adds ""(y or n) "" to it.  If PROMPT is a non-empty string, and"//LF// &
+                        "it ends with a non-space character, a space character will be"//LF// &
+                        "appended to it."//LF// &
+                        ""//LF// &
+                        "No confirmation of the answer is requested; a single character is"//LF// &
+                        "enough.  SPC also means yes, and DEL means no."//LF// &
+                        ""//LF// &
+                        "To be precise, this function translates user input into responses"//LF// &
+                        "by consulting the bindings in `query_replace_map'; see the"//LF// &
+                        "documentation of that variable for more information.  In this"//LF// &
+                        "case, the useful bindings are `act', `skip', `recenter',"//LF// &
+                        "`scroll_up', `scroll_down', and `quit'."//LF// &
+                        "An `act' response means yes, and a `skip' response means no."//LF// &
+                        "A `quit' response means to invoke `abort_recursive_edit'."//LF// &
+                        "If the user enters `recenter', `scroll_up', or `scroll_down'"//LF// &
+                        "responses, perform the requested window recentering or scrolling"//LF// &
+                        "and ask again."//LF// &
+                        ""//LF// &
+                        "By default, this function uses the minibuffer to read the key."//LF// &
+                        "If `y_or_n_p_use_read_key' is non-nil, `read_key' is used"//LF// &
+                        "instead (which means that the user can't change buffers (and the"//LF// &
+                        "like) while `y_or_n_p' is running)."
+        case ("y_or_n_p_insert_n")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the answer ""n"" and exit the minibuffer of `y_or_n_p'."//LF// &
+                        "Discard all previous input before inserting and exiting the minibuffer."
+        case ("y_or_n_p_insert_other")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Handle inserting of other answers in the minibuffer of `y_or_n_p'."//LF// &
+                        "Display an error on trying to insert a disallowed character."//LF// &
+                        "Also discard all previous input in the minibuffer."
+        case ("y_or_n_p_insert_y")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the answer ""y"" and exit the minibuffer of `y_or_n_p'."//LF// &
+                        "Discard all previous input before inserting and exiting the minibuffer."
         case ("yank")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -3239,8 +3377,20 @@ contains
         case ("yes_or_no_p")
             entry%file = "fns_fm.f90"
             entry%fortran = "call yes_or_no_p(prompt, answer, status)"
-            entry%doc = "Ask a yes-or-no question in the minibuffer: `answer' is true for"//LF// &
-                        """yes"", false for ""no""; anything else asks again."
+            entry%doc = "Ask user a yes-or-no question."//LF// &
+                        "Return t if answer is yes, and nil if the answer is no."//LF// &
+                        ""//LF// &
+                        "PROMPT is the string to display to ask the question; `yes_or_no_p'"//LF// &
+                        "appends `yes_or_no_prompt' (default ""(yes or no) "") to it.  If"//LF// &
+                        "PROMPT is a non-empty string, and it ends with a non-space character,"//LF// &
+                        "a space character will be appended to it."//LF// &
+                        ""//LF// &
+                        "The user must confirm the answer with RET, and can edit it until it"//LF// &
+                        "has been confirmed."//LF// &
+                        ""//LF// &
+                        "If the `use_short_answers' variable is non-nil, instead of asking for"//LF// &
+                        """yes"" or ""no"", this function will ask for ""y"" or ""n"" (and"//LF// &
+                        "ignore the value of `yes_or_no_prompt')."
         case default
             found = .false.
         end select
@@ -3373,8 +3523,7 @@ contains
         case ("completion_ignore_case")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "completion_ignore_case"
-            entry%original = ".false."
-            entry%value = repr(completion_ignore_case)
+            entry%value = repr(completion_ignore_case%value)
             entry%doc = "Non-nil means don't consider case significant in completion."//LF// &
                         "For file-name completion, `read_file_name_completion_ignore_case'"//LF// &
                         "controls the behavior, rather than this variable."//LF// &
@@ -3603,6 +3752,14 @@ contains
                         "If set to false, minibuffer reading functions don't add new elements to the"//LF// &
                         "history list, so it is possible to do this afterwards by calling"//LF// &
                         "`add_to_history' explicitly."
+        case ("history_delete_duplicates")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "history_delete_duplicates"
+            entry%original = ".false."
+            entry%value = repr(history_delete_duplicates)
+            entry%doc = "Non-nil means to delete duplicates in history."//LF// &
+                        "If set to t when adding a new history element, all previous identical"//LF// &
+                        "elements are deleted from the history list."
         case ("history_length")
             entry%file = "subr_fm.f90"
             entry%fortran = "history_length"
@@ -3610,7 +3767,11 @@ contains
             entry%value = repr(history_length)
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
-                        "elements, and is done just after inserting a new element."
+                        "elements, and is done just after inserting a new element."//LF// &
+                        ""//LF// &
+                        "This variable only affects history lists that don't specify their own"//LF// &
+                        "maximum lengths.  Setting the `history_length' property of a history"//LF// &
+                        "variable overrides this default."
         case ("indent_line_function")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_line_function"
@@ -3776,6 +3937,13 @@ contains
             entry%original = ".false."
             entry%value = repr(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
+        case ("minibuffer_message_timeout")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "minibuffer_message_timeout"
+            entry%original = "2"
+            entry%value = repr(minibuffer_message_timeout)
+            entry%doc = "How long to display an echo-area message when the minibuffer is active."//LF// &
+                        "If the value is a number, it should be specified in seconds."
         case ("minibuffer_scroll_window")
             entry%file = "window_fm.f90"
             entry%fortran = "minibuffer_scroll_window"
@@ -3898,6 +4066,26 @@ contains
             entry%original = ".false."
             entry%value = repr(query_replace_skip_read_only)
             entry%doc = "Non-nil means `query_replace' and friends ignore read-only matches."
+        case ("read_buffer_completion_ignore_case")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "read_buffer_completion_ignore_case"
+            entry%original = ".false."
+            entry%value = repr(read_buffer_completion_ignore_case)
+            entry%doc = "Non-nil means completion ignores case when reading a buffer name."
+        case ("read_char_choice_use_read_key")
+            entry%file = "rmc_fm.f90"
+            entry%fortran = "read_char_choice_use_read_key"
+            entry%original = ".false."
+            entry%value = repr(read_char_choice_use_read_key)
+            entry%doc = "If non-nil, use `read_key' when reading a character by"//LF// &
+                        "`read_multiple_choice' (read-char-choice).  Otherwise, use the"//LF// &
+                        "minibuffer (this is the default)."
+        case ("read_file_name_completion_ignore_case")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "read_file_name_completion_ignore_case"
+            entry%original = ".false."
+            entry%value = repr(read_file_name_completion_ignore_case)
+            entry%doc = "Non-nil means when reading a file name completion ignores case."
         case ("read_minibuffer_restore_windows")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "read_minibuffer_restore_windows"
@@ -4218,6 +4406,16 @@ contains
             entry%original = ".false."
             entry%value = repr(undo_no_redo)
             entry%doc = "If t, `undo' doesn't go through redo entries."
+        case ("use_short_answers")
+            entry%file = "fns_fm.f90"
+            entry%fortran = "use_short_answers"
+            entry%original = ".false."
+            entry%value = repr(use_short_answers)
+            entry%doc = "Non-nil means `yes_or_no_p' accepts single-key answers ""y"" or ""n""."//LF// &
+                        "When non-nil, `yes_or_no_p' will use `y_or_n_p' to read the answer."//LF// &
+                        "This means the user will be able to press just one key to answer, whereas"//LF// &
+                        "by default the user needs to type the full ""yes"" or ""no"" response"//LF// &
+                        "and then press RET."
         case ("visible_bell")
             entry%file = "term_fm.f90"
             entry%fortran = "visible_bell"
@@ -4249,6 +4447,20 @@ contains
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
             entry%doc = "Non-nil means `forward_word', etc., should treat escape chars part of words."
+        case ("y_or_n_p_use_read_key")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "y_or_n_p_use_read_key"
+            entry%original = ".false."
+            entry%value = repr(y_or_n_p_use_read_key)
+            entry%doc = "Use `read_key' when reading answers to ""y or n"" questions by `y_or_n_p'."//LF// &
+                        "Otherwise, use the `read_from_minibuffer' to read the answers."//LF// &
+                        ""//LF// &
+                        "When reading via the minibuffer, you can use the normal commands"//LF// &
+                        "available in the minibuffer, and can, for instance, temporarily"//LF// &
+                        "switch to another buffer, do things there, and then switch back"//LF// &
+                        "to the minibuffer before entering the character.  This is not"//LF// &
+                        "possible when using `read_key', but using `read_key' may be less"//LF// &
+                        "confusing to some users."
         case default
             found = .false.
         end select
