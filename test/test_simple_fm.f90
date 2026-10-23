@@ -27,7 +27,7 @@ module test_simple_fm
     use error_fm, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
                         FM_BUFFER_READ_ONLY
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, list_elt, list_length, xstring, make_fixnum, list
+    use lisp_fm, only: value_type, nil, list_elt, list_length, xstring, make_fixnum, list, list_elements
     use lread_fm, only: sym
     use data_fm, only: set, value_eq
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, kill_buffer, erase_buffer, &
@@ -1043,6 +1043,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+        type(value_type), allocatable :: events(:)
         call fresh(h)
         call init_bindings()
         call discard_input()
@@ -1059,7 +1060,8 @@ contains
         if (allocated(error)) return
         ! C-q M-a inserts a with the 0200 bit: 225.
         call erase_buffer(st)
-        call unread_command_events([make_fixnum(17_int64), make_fixnum(ior(97_int64, int(CHAR_META, int64)))])
+        call list_elements(list(make_fixnum(17_int64), make_fixnum(ior(97_int64, int(CHAR_META, int64)))), events)
+        call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), achar(195)//achar(161))
         if (allocated(error)) return
@@ -1090,11 +1092,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
+        type(value_type), allocatable :: events(:)
         call fresh(h)
         call init_bindings()
         call discard_input()
         prefix_arg = nil()
-        call unread_command_events([make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)])
+        call list_elements(list(make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)), events)
+        call unread_command_events(events)
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
         current_prefix_arg = nil()

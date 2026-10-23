@@ -75,6 +75,8 @@ contains
     integer :: d
     character(len=1) :: digit
     type(handle_type) :: map
+    type(value_type) :: remap_key
+    type(value_type), allocatable :: remap_events(:)
     commands%fundamental_mode%run => fundamental_mode
     commands%special_mode%run => special_mode
     ! Fundamental mode is not derived; it is defined so that other modes
@@ -92,7 +94,9 @@ contains
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map
     ! subr.el:suppress-keymap: (define-key map [remap self-insert-command] #'undefined).
-    call define_key(map, [sym("remap"), sym("self_insert_command")], sym("undefined"), st)
+    remap_key = list(sym("remap"), sym("self_insert_command"))
+    call list_elements(remap_key, remap_events)
+    call define_key(map, remap_events, sym("undefined"), st)
     call keymap_set(map, "q", "quit_window", st)
     call keymap_set(map, "SPC", "scroll_up_command", st)
     call keymap_set(map, "S-SPC", "scroll_down_command", st)
