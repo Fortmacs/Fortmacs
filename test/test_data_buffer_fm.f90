@@ -143,7 +143,7 @@ contains
         if (allocated(error)) return
         call makunbound(sym("binding-test-some-local"), st)
         call boundp(sym("binding-test-some-local"), bound, st)
-        call check(error, .not. bound, "void locally")
+        call check(error,.not. bound, "void locally")
         if (allocated(error)) return
         call check(error, default_boundp(sym("binding-test-some-local")), "default still bound")
         if (allocated(error)) return
@@ -151,7 +151,7 @@ contains
         call check_value(error, "binding-test-some-local", "some")
         call set_buffer(a, st)
         call boundp(sym("binding-test-some-local"), bound, st)
-        if (.not. allocated(error)) call check(error, .not. bound, "void again in A")
+        if (.not. allocated(error)) call check(error,.not. bound, "void again in A")
         call teardown(a, b)
     end subroutine test_makunbound
 
@@ -165,7 +165,7 @@ contains
         if (allocated(error)) return
         call check(error, local_variable_if_set_p(sym("binding-test-always-local")), "local if set")
         if (allocated(error)) return
-        call check(error, .not. local_variable_p(sym("binding-test-always-local")), "not yet local")
+        call check(error,.not. local_variable_p(sym("binding-test-always-local")), "not yet local")
         if (allocated(error)) return
         call set(sym("binding-test-always-local"), sym("in-a"), st)
         call check(error, local_variable_p(sym("binding-test-always-local")), "local after set")
@@ -229,7 +229,7 @@ contains
         call check(error, associated(auto_fill_function), "auto-fill on in A")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error, .not. associated(auto_fill_function), "off in B")
+        call check(error,.not. associated(auto_fill_function), "off in B")
         if (allocated(error)) return
         call buffer_local_value(sym("auto-fill-function"), a%index, v, st)
         call check(error, value_eq(v, sym("do-auto-fill")), "named in A")
@@ -241,7 +241,7 @@ contains
         call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "unknown function")
         call teardown(a, b)
         if (allocated(error)) return
-        call check(error, .not. associated(auto_fill_function), "off after killing A")
+        call check(error,.not. associated(auto_fill_function), "off after killing A")
     end subroutine test_forwarded_procedure
 
     !> kill-all-local-variables keeps permanent-local variables and
@@ -266,7 +266,7 @@ contains
         if (.not. allocated(error)) call check(error, xstring(v) == "Fundamental", "mode-name")
         if (allocated(error)) return
         call kill_all_local_variables(.true.)
-        call check(error, .not. local_variable_p(sym("binding-test-permanent")), "permanent killed too")
+        call check(error,.not. local_variable_p(sym("binding-test-permanent")), "permanent killed too")
         call put(sym("binding-test-permanent"), sym("permanent-local"), nil(), st)
         call teardown(a, b)
     end subroutine test_kill_all

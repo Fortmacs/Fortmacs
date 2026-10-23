@@ -45,7 +45,7 @@ contains
         type(status_type) :: st
         call make_syntax_table(text_mode_syntax_table, st)
         call modify_syntax_entry(iachar('"'), iachar('"'), ".   ", st, text_mode_syntax_table)
-        call modify_syntax_entry(iachar('\'), iachar('\'), ".   ", st, text_mode_syntax_table)
+        call modify_syntax_entry(iachar("\"), iachar("\"), ".   ", st, text_mode_syntax_table)
         ! We add `p' so that M-c on 'hello' leads to 'Hello' rather than
         ! 'hello'.
         call modify_syntax_entry(iachar("'"), iachar("'"), "w p", st, text_mode_syntax_table)

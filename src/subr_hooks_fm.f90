@@ -167,7 +167,7 @@ contains
 
     module procedure remove_hook
     type(value_type) :: hs, fs, v
-    type(value_type), allocatable :: fns(:)
+    type(value_type), allocatable :: fns(:), kept(:)
     type(status_type) :: st
     logical :: loc, bound
     integer :: k
@@ -193,7 +193,10 @@ contains
     call hook_functions(v, fns)
     k = find_fn(fns, fs)
     if (k == 0) return
-    fns = [fns(1:k - 1), fns(k + 1:)]
+    allocate (kept(size(fns) - 1))
+    kept(1:k - 1) = fns(1:k - 1)
+    kept(k:) = fns(k + 1:)
+    call move_alloc(kept, fns)
     if (.not. loc) then
         call set_default(hs, make_list(fns), status)
     else if (size(fns) == 1 .and. has_t(fns)) then

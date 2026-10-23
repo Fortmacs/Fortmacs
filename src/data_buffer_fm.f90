@@ -61,11 +61,11 @@ submodule(data_fm) data_buffer_fm
     !> slots with a local flag of -1).
     integer, parameter :: NFWD = 19
     character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=24) :: &
-        "fill-column", "left-margin", "tab-width", "indent-tabs-mode", "case-fold-search", &
-        "fill-prefix", "paragraph-start", "paragraph-separate", "sentence-end", &
-        "sentence-end-double-space", "adaptive-fill-mode", "auto-fill-inhibit-regexp", &
-        "standard-indent", "auto-fill-function", "indent-line-function", "transient-mark-mode", &
-        "major-mode", "mode-name", "buffer-read-only"]
+                                                "fill-column", "left-margin", "tab-width", "indent-tabs-mode", "case-fold-search", &
+                                                      "fill-prefix", "paragraph-start", "paragraph-separate", "sentence-end", &
+                                                    "sentence-end-double-space", "adaptive-fill-mode", "auto-fill-inhibit-regexp", &
+                                           "standard-indent", "auto-fill-function", "indent-line-function", "transient-mark-mode", &
+                                                      "major-mode", "mode-name", "buffer-read-only"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
@@ -281,13 +281,12 @@ contains
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
         status = status_type()
-        select case (FWD_KIND(k))
-        case (K_INT64, K_INT)
+        if (FWD_KIND(k) == K_INT64 .or. FWD_KIND(k) == K_INT) then
             if (.not. fixnump(v)) then
                 call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
                 return
             end if
-        end select
+        end if
         select case (trim(FWD_NAMES(k)))
         case ("fill-column")
             fill_column = xfixnum(v)
@@ -339,6 +338,8 @@ contains
             end if
         case ("buffer-read-only")
             if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
+        case default
+            ! Not a forwarded variable (resolve gives no such K).
         end select
     end subroutine fwd_set
 

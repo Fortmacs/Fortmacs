@@ -139,8 +139,9 @@ contains
             call put(sym(child), sym("derived-mode-parent"), sym(parent), st)
             p = find_mode(parent)
             if (p > 0) then
-                if (.not. keymap_live_p(keymap_parent(modes(k)%map))) &
+                if (.not. keymap_live_p(keymap_parent(modes(k)%map))) then
                     call set_keymap_parent(modes(k)%map, modes(p)%map, st)
+                end if
             end if
         end if
         call boundp(sym(derived_mode_hook_name(child)), bound, st)

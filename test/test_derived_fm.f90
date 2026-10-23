@@ -225,7 +225,7 @@ contains
         call add_hook("test-derived--hook2", "f1", st)
         call add_hook("test-derived--hook2", "f2", st, local=.true.)
         call remove_hook("test-derived--hook2", "f2", st, local=.true.)
-        call check(error, .not. local_variable_p(sym("test-derived--hook2")), "local value killed")
+        call check(error,.not. local_variable_p(sym("test-derived--hook2")), "local value killed")
         if (allocated(error)) return
         call check(error, hook_names("test-derived--hook2"), "f1")
         if (allocated(error)) return
@@ -331,7 +331,7 @@ contains
         if (allocated(error)) return
         call check(error, provided_mode_derived_p("prog-mode", [character(len=16) :: "fundamental-mode"]))
         if (allocated(error)) return
-        call check(error, .not. provided_mode_derived_p("prog-mode", [character(len=9) :: "text-mode"]))
+        call check(error,.not. provided_mode_derived_p("prog-mode", [character(len=9) :: "text-mode"]))
     end subroutine test_provided_mode_derived_p
 
     !> special-mode makes the buffer read-only with special-mode-map.
@@ -365,7 +365,7 @@ contains
         call set_buffer(a, st)
         call setq_local("test-derived--var", t_value(), st)
         call fundamental_mode(st)
-        call check(error, .not. local_variable_p(sym("test-derived--var")), "local killed")
+        call check(error,.not. local_variable_p(sym("test-derived--var")), "local killed")
         if (allocated(error)) return
         call check(error, buffers(cur)%major_mode, "fundamental-mode")
         call kill_buffer(a, st)

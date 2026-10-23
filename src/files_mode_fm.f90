@@ -266,7 +266,7 @@ contains
     type(status_type) :: st
     logical :: delaying
     character(len=40), parameter :: HOOKS(2) = [character(len=40) :: &
-                                                 "change-major-mode-after-body-hook", "after-change-major-mode-hook"]
+                                                "change-major-mode-after-body-hook", "after-change-major-mode-hook"]
     status = status_type()
     if (cur == 0) return
     ! FIND_FILE only matters for file-local variables, not yet supported.

@@ -84,19 +84,19 @@ contains
         call define_minor_mode("easy-mmode-test-mode", "", test_body)
         call get_buffer_create("easy-mmode-test", a, st)
         call set_buffer(a, st)
-        call check(error, .not. test_mode_on(), "off at first")
+        call check(error,.not. test_mode_on(), "off at first")
         if (allocated(error)) return
         call set_minor_mode("easy-mmode-test-mode", st, nil())
         call check(error, test_mode_on() .and. body_state, "nil turns it on")
         if (allocated(error)) return
         call set_minor_mode("easy-mmode-test-mode", st, make_fixnum(-33_int64))
-        call check(error, .not. test_mode_on() .and. .not. body_state, "-33 turns it off")
+        call check(error,.not. test_mode_on() .and. .not. body_state, "-33 turns it off")
         if (allocated(error)) return
         call set_minor_mode("easy-mmode-test-mode", st, make_fixnum(33_int64))
         call check(error, test_mode_on(), "33 turns it on")
         if (allocated(error)) return
         call set_minor_mode("easy-mmode-test-mode", st, toggle=.true.)
-        call check(error, .not. test_mode_on(), "toggle")
+        call check(error,.not. test_mode_on(), "toggle")
         if (allocated(error)) return
         call set_minor_mode("easy-mmode-test-mode", st, toggle=.true.)
         call check(error, test_mode_on(), "toggle again")
@@ -140,7 +140,7 @@ contains
         call check(error, value_eq(binding, sym("forward-char")), "minor mode map active")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error, .not. minor_mode_enabled_p("easy-mmode-test-lit-mode"), "off in B")
+        call check(error,.not. minor_mode_enabled_p("easy-mmode-test-lit-mode"), "off in B")
         if (allocated(error)) return
         call check(error, mode_line_modes(b%index), "Fundamental")
         if (allocated(error)) return
@@ -166,11 +166,11 @@ contains
         call check(error, mode_line_modes(a%index), "Fundamental Fill")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error, .not. associated(auto_fill_function), "off in B")
+        call check(error,.not. associated(auto_fill_function), "off in B")
         if (allocated(error)) return
         call set_buffer(a, st)
         call auto_fill_mode(nil(), .true.)
-        call check(error, .not. associated(auto_fill_function), "toggled off in A")
+        call check(error,.not. associated(auto_fill_function), "toggled off in A")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
     end subroutine test_auto_fill
@@ -185,7 +185,7 @@ contains
         current_prefix_arg = make_fixnum(-1_int64)
         call minor_mode_command("transient-mark-mode", st)
         current_prefix_arg = nil()
-        call check(error, .not. transient_mark_mode, "turned off")
+        call check(error,.not. transient_mark_mode, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")
         if (allocated(error)) return
