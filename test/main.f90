@@ -27,6 +27,7 @@ program tester
     use test_version_fm, only: collect_version_fm
     use test_help_fm, only: collect_help_fm
     use test_syntax_fm, only: collect_syntax_fm
+    use test_syntax_scan_fm, only: collect_syntax_scan_fm
     use test_paragraphs_fm, only: collect_paragraphs_fm
     use test_regex_emacs_fm, only: collect_regex_emacs_fm
     use test_casefiddle_fm, only: collect_casefiddle_fm
@@ -122,6 +123,7 @@ program tester
                  new_testsuite("simple_fm", collect_simple_fm), &
                  new_testsuite("help_fm", collect_help_fm), &
                  new_testsuite("syntax_fm", collect_syntax_fm), &
+                 new_testsuite("syntax_scan_fm", collect_syntax_scan_fm), &
                  new_testsuite("paragraphs_fm", collect_paragraphs_fm), &
                  new_testsuite("regex_emacs_fm", collect_regex_emacs_fm), &
                  new_testsuite("casefiddle_fm", collect_casefiddle_fm), &
