@@ -35,7 +35,7 @@
 module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
-                        FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+                        FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only
     use character_fm, only: str_as_multibyte, str_as_unibyte
     use marker_fm, only: char_to_byte
@@ -45,7 +45,7 @@ module fileio_fm
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
-                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, F_OK, R_OK, &
+                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                          W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST
     implicit none(type, external)
     private
@@ -703,8 +703,14 @@ contains
         integer(int32), intent(in) :: err
         type(status_type), intent(inout) :: status
         integer(int32) :: code
+        ! (file-already-exists ERRSTRING NAME): no STRING.
+        if (err == EEXIST) then
+            call set_error(status, FM_FILE_ALREADY_EXISTS, emacs_strerror(err)//": "//name)
+            return
+        end if
         code = FM_FILE_ERROR
         if (err == ENOENT) code = FM_FILE_MISSING
+        if (err == EACCES) code = FM_PERMISSION_DENIED
         call set_error(status, code, string//": "//emacs_strerror(err)//", "//name)
     end subroutine report_file_errno
 

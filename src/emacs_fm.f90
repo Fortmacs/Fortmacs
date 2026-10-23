@@ -51,6 +51,7 @@ module emacs_fm
     use lread_fm, only: user_init_file
     use config_fm, only: install_prefix, running_executable, recompile, init_file_name, current_build_name, &
                          generation_of, current_generation, switch_generation, rollback, list_generations
+    use indent_fm, only: move_to_column
     implicit none(type, external)
     private
 
@@ -191,13 +192,15 @@ contains
     end function xterm_like
 
     !> Whether `s' is "+" followed by digits, then optionally ":" and
-    !> digits; `line' gets the first number.
-    logical function line_arg_p(s, line)
+    !> digits; `line' gets the first number and `column' the second (0
+    !> if absent).
+    logical function line_arg_p(s, line, column)
         character(len=*), intent(in) :: s
-        integer(int64), intent(out) :: line
+        integer(int64), intent(out) :: line, column
         integer :: colon, stat
         line_arg_p = .false.
         line = 0
+        column = 0
         if (len(s) < 2) return
         if (s(1:1) /= "+") return
         colon = index(s, ":")
@@ -208,6 +211,10 @@ contains
         end if
         read (s(2:colon - 1), *, iostat=stat) line
         line_arg_p = stat == 0
+        if (line_arg_p .and. colon <= len(s)) then
+            read (s(colon + 1:), *, iostat=stat) column
+            line_arg_p = stat == 0
+        end if
     contains
 
         pure logical function all_digits(t)
@@ -220,23 +227,24 @@ contains
     !> "+LINE" puts point on that line of the next file, "--" makes the
     !> rest file names, and "-file", "-find-file" or "-visit" (or with
     !> "--") name a file.  Port of the file part of
-    !> startup.el:command-line-1 ("+LINE:COLUMN" ignores the column for
-    !> now; other options are unknown).
+    !> startup.el:command-line-1 (other options are unknown).
     subroutine command_line_1(args, status)
         type(arg_type), intent(in) :: args(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: argi, dir
-        integer(int64) :: line, n
+        integer(int64) :: line, n, column, c
         integer :: k
         logical :: just_files
         line = 0
+        column = 0
         just_files = .false.
         k = 0
         do while (k < size(args))
             k = k + 1
             argi = args(k)%s
-            if (.not. just_files .and. line_arg_p(argi, n)) then
+            if (.not. just_files .and. line_arg_p(argi, n, c)) then
                 line = n
+                column = c
                 cycle
             end if
             if (.not. just_files .and. len(argi) > 0) then
@@ -270,20 +278,21 @@ contains
                 call message("Ignoring relative file name ("//argi//") due to nil default-directory")
                 cycle
             end if
-            call visit(argi, dir, line, status)
+            call visit(argi, dir, line, column, status)
             if (.not. status%ok()) return
             line = 0
+            column = 0
         end do
     end subroutine command_line_1
 
     !> Visit `name' (relative to `dir'), make its buffer current and go to
     !> line `line' if positive.
-    subroutine visit(name, dir, line, status)
+    subroutine visit(name, dir, line, column, status)
         character(len=*), intent(in) :: name, dir
-        integer(int64), intent(in) :: line
+        integer(int64), intent(in) :: line, column
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
-        integer(int64) :: shortage
+        integer(int64) :: shortage, moved
         if (file_name_absolute_p(name)) then
             call find_file_noselect(name, buf, status)
         else
@@ -296,6 +305,7 @@ contains
             call goto_char(point_min())
             shortage = forward_line(line - 1)
         end if
+        if (column >= 1) call move_to_column(column - 1, moved)
     end subroutine visit
 
     !> Run the editor on terminal type `terminal_type' at file descriptor
