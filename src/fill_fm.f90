@@ -305,7 +305,7 @@ contains
                 keep = 1
                 if (.not. found) c = 0
                 if (sentence_end_double_space%value .and. (c == iachar(".") .or. c == iachar("?") .or. &
-                                                     c == iachar("!"))) then
+                                                           c == iachar("!"))) then
                     keep = 2
                 else if (sentence_end_double_space%value .and. sentence_end_without_period .and. found) then
                     if (char_syntax(int(c)) == "w") keep = 2
@@ -1102,8 +1102,9 @@ contains
             call buffer_modified_p(current_buffer(), modified, st)
             if (modified) then
                 after_text = whole_buffer_text()
-                if (after_text == before_text .and. len(after_text) == len(before_text)) &
+                if (after_text == before_text .and. len(after_text) == len(before_text)) then
                     call restore_buffer_modified_p(.false.)
+                end if
             end if
         end if
     end subroutine fill_paragraph

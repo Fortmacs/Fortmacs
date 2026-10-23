@@ -36,12 +36,8 @@ submodule(simple_fm) simple_fill_fm
     use paragraphs_fm, only: forward_paragraph
     use search_fm, only: string_match
     use insdel_fm, only: insert_before_markers
-    use easy_mmode_fm, only: define_minor_mode, set_minor_mode, minor_mode_command
-    use data_fm, only: make_local_variable
+    use modes_fm, only: minor_modes
     implicit none(type, external)
-
-    !> Whether auto-fill-mode is registered with easy_mmode_fm.
-    logical :: auto_fill_defined = .false.
 
 contains
 
@@ -211,10 +207,16 @@ contains
     end procedure internal_auto_fill
 
     module procedure auto_fill_mode
-    type(status_type) :: st
-    call define_auto_fill_mode()
-    call set_minor_mode("auto-fill-mode", st, arg, toggle)
+    call minor_modes%auto_fill_mode%command(status)
     end procedure auto_fill_mode
+
+    module procedure turn_on_auto_fill
+    call minor_modes%auto_fill_mode%enable(status)
+    end procedure turn_on_auto_fill
+
+    module procedure turn_off_auto_fill
+    call minor_modes%auto_fill_mode%disable(status)
+    end procedure turn_off_auto_fill
 
     module procedure set_fill_column
     integer(int64) :: n
@@ -242,24 +244,6 @@ contains
     fill_column = n
     end procedure set_fill_column
 
-    subroutine cmd_auto_fill_mode(status)
-        type(status_type), intent(out) :: status
-        call define_auto_fill_mode()
-        call minor_mode_command("auto-fill-mode", status)
-    end subroutine cmd_auto_fill_mode
-
-    subroutine cmd_turn_on_auto_fill(status)
-        type(status_type), intent(out) :: status
-        status = status_type()
-        call auto_fill_mode(make_fixnum(1_int64))
-    end subroutine cmd_turn_on_auto_fill
-
-    subroutine cmd_turn_off_auto_fill(status)
-        type(status_type), intent(out) :: status
-        status = status_type()
-        call auto_fill_mode(make_fixnum(-1_int64))
-    end subroutine cmd_turn_off_auto_fill
-
     subroutine cmd_set_fill_column(status)
         type(status_type), intent(out) :: status
         call set_fill_column(current_prefix_arg, status)
@@ -276,8 +260,8 @@ contains
     subroutine auto_fill_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
-        call make_local_variable(sym("auto-fill-function"), status)
-        if (.not. status%ok()) return
+        status = status_type()
+        call auto_fill_function%make_local()
         if (.not. enable) then
             auto_fill_function%value => null()
         else if (associated(normal_auto_fill_function)) then
@@ -287,22 +271,16 @@ contains
         end if
     end subroutine auto_fill_body
 
-    !> Register Auto Fill mode with easy_mmode_fm (once).
-    subroutine define_auto_fill_mode()
-        if (auto_fill_defined) return
-        auto_fill_defined = .true.
-        call define_minor_mode("auto-fill-mode", " Fill", auto_fill_body, variable="auto-fill-function")
-    end subroutine define_auto_fill_mode
-
     module procedure syms_of_simple_fill
-    call define_auto_fill_mode()
+    call minor_modes%auto_fill_mode%define("auto-fill-mode", " Fill", variable="auto-fill-function", &
+                                           body=auto_fill_body)
     internal_auto_fill_hook => internal_auto_fill
-    commands%auto_fill_mode%run => cmd_auto_fill_mode
+    commands%auto_fill_mode%run => auto_fill_mode
     ! turn-on-auto-fill, turn-off-auto-fill and do-auto-fill are
     ! functions, not commands.
-    commands%turn_on_auto_fill%run => cmd_turn_on_auto_fill
+    commands%turn_on_auto_fill%run => turn_on_auto_fill
     commands%turn_on_auto_fill%interactive = .false.
-    commands%turn_off_auto_fill%run => cmd_turn_off_auto_fill
+    commands%turn_off_auto_fill%run => turn_off_auto_fill
     commands%turn_off_auto_fill%interactive = .false.
     commands%do_auto_fill%run => do_auto_fill
     commands%do_auto_fill%interactive = .false.

@@ -25,15 +25,19 @@ module text_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: t_value, value_type
-    use lread_fm, only: sym
-    use data_fm, only: setq_local, symbol_value, boundp, set
+    use data_fm, only: logical_setting
+    use files_fm, only: require_final_newline, mode_require_final_newline
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p
-    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end
+    use modes_fm, only: major_modes
     implicit none(type, external)
     private
 
     public :: text_mode, syms_of_text_mode
+
+    !> Non-nil if this buffer's major mode is a variant of Text mode.
+    !> Obsolete since 27.1: don't set it, and instead of testing its value
+    !> use `derived-mode-p'.  Port of text-mode.el text-mode-variant.
+    type(logical_setting), public :: text_mode_variant = logical_setting(name="text-mode-variant", value=.false.)
 
     !> Syntax table used while in `text-mode'.
     type(handle_type), public :: text_mode_syntax_table
@@ -68,27 +72,19 @@ contains
     !> text-mode.el:text-mode.
     recursive subroutine text_mode(status)
         type(status_type), intent(out) :: status
-        type(value_type) :: v
-        type(status_type) :: st
         logical :: saved
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call syms_of_text_mode()
-        call derived_mode_begin("text-mode", saved, status)
+        call major_modes%text_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call setq_local("text-mode-variant", t_value(), status)
-        call symbol_value(sym("mode-require-final-newline"), v, st)
-        if (st%ok()) call setq_local("require-final-newline", v, status)
-        call derived_mode_end("text-mode", saved, status)
+        call text_mode_variant%set_local(.true.)
+        call require_final_newline%set_local(mode_require_final_newline)
+        call major_modes%text_mode%finish(saved, status)
     end subroutine text_mode
 
     !> Define Text mode.
     subroutine syms_of_text_mode()
-        type(status_type) :: st
-        logical :: bound
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
-        call define_derived_mode("text-mode", "", "Text", text_mode_syntax_table)
+        call major_modes%text_mode%define("text-mode", "Text", text_mode, syntax_table=text_mode_syntax_table)
         commands%text_mode%run => text_mode
-        ! files.el mode-require-final-newline.
-        call boundp(sym("mode-require-final-newline"), bound, st)
-        if (.not. bound) call set(sym("mode-require-final-newline"), t_value(), st)
     end subroutine syms_of_text_mode
 end module text_mode_fm

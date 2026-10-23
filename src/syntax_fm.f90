@@ -56,6 +56,7 @@ module syntax_fm
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use characters_fm, only: characters_syntax, char_has_category
     use charscript_fm, only: char_script
+    use data_fm, only: logical_setting
     implicit none(type, external)
     private
 
@@ -78,6 +79,11 @@ module syntax_fm
     !> Non-nil means `forward-word', etc., should treat escape chars part of words.
     !> Port of syntax.c words-include-escapes.
     logical, public :: words_include_escapes = .false.
+
+    !> Non-nil means `forward-sexp', etc., should treat comments as whitespace.
+    !> Port of syntax.c parse-sexp-ignore-comments.
+    type(logical_setting), public :: parse_sexp_ignore_comments = &
+                                     logical_setting(name="parse-sexp-ignore-comments", value=.false.)
 
     !> Counts `modify-syntax-entry' calls, so compiled regexps that depend
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).

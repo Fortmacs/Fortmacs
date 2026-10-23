@@ -27,18 +27,18 @@ module test_easy_mmode_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil, nilp, make_fixnum, t_value, list
+    use lisp_fm, only: value_type, nil, nilp, make_fixnum, t_value
     use lread_fm, only: sym
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, cur, auto_fill_function, &
                          transient_mark_mode
-    use data_fm, only: symbol_value, value_eq, local_variable_p
+    use data_fm, only: symbol_value, value_eq
     use callint_fm, only: current_prefix_arg
     use keyboard_fm, only: last_message
     use keymap_fm, only: keymap_set, key_binding, key_parse
     use xdisp_fm, only: mode_line_modes, mode_line_text
-    use easy_mmode_fm, only: define_minor_mode, set_minor_mode, minor_mode_command, minor_mode_enabled_p, &
-                             minor_mode_map, easy_mmode_pretty_mode_name
-    use simple_fm, only: auto_fill_mode, syms_of_simple_modes
+    use easy_mmode_fm, only: minor_mode_type, easy_mmode_pretty_mode_name
+    use modes_fm, only: minor_modes
+    use simple_fm, only: turn_on_auto_fill, syms_of_simple_modes, syms_of_simple
     implicit none(type, external)
     private
 
@@ -46,6 +46,9 @@ module test_easy_mmode_fm
 
     !> The last state the test mode's body saw.
     logical :: body_state
+
+    !> The modes of the tests.
+    type(minor_mode_type), target :: test_mode, test_lit_mode
 
 contains
 
@@ -76,30 +79,39 @@ contains
         test_mode_on = value_eq(v, t_value())
     end function test_mode_on
 
-    !> easy-mmode-tests.el: easy-mmode--minor-mode ('toggle is TOGGLE).
+    !> easy-mmode-tests.el: easy-mmode--minor-mode (enable is (MODE) or a
+    !> positive argument, disable a negative one, toggle 'toggle), and
+    !> the command's prefix argument.
     subroutine test_minor_mode(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a
         type(status_type) :: st
-        call define_minor_mode("easy-mmode-test-mode", "", test_body)
+        call test_mode%define("easy-mmode-test-mode", "", body=test_body)
         call get_buffer_create("easy-mmode-test", a, st)
         call set_buffer(a, st)
         call check(error,.not. test_mode_on(), "off at first")
         if (allocated(error)) return
-        call set_minor_mode("easy-mmode-test-mode", st, nil())
-        call check(error, test_mode_on() .and. body_state, "nil turns it on")
+        call test_mode%enable(st)
+        call check(error, test_mode_on() .and. body_state .and. test_mode%enabled(), "enable")
         if (allocated(error)) return
-        call set_minor_mode("easy-mmode-test-mode", st, make_fixnum(-33_int64))
-        call check(error,.not. test_mode_on() .and. .not. body_state, "-33 turns it off")
+        call test_mode%disable(st)
+        call check(error,.not. test_mode_on() .and. .not. body_state, "disable")
         if (allocated(error)) return
-        call set_minor_mode("easy-mmode-test-mode", st, make_fixnum(33_int64))
+        current_prefix_arg = make_fixnum(33_int64)
+        call test_mode%command(st)
+        current_prefix_arg = nil()
         call check(error, test_mode_on(), "33 turns it on")
         if (allocated(error)) return
-        call set_minor_mode("easy-mmode-test-mode", st, toggle=.true.)
-        call check(error,.not. test_mode_on(), "toggle")
+        current_prefix_arg = make_fixnum(-33_int64)
+        call test_mode%command(st)
+        current_prefix_arg = nil()
+        call check(error,.not. test_mode_on(), "-33 turns it off")
         if (allocated(error)) return
-        call set_minor_mode("easy-mmode-test-mode", st, toggle=.true.)
-        call check(error, test_mode_on(), "toggle again")
+        call test_mode%toggle(st)
+        call check(error, test_mode_on(), "toggle")
+        if (allocated(error)) return
+        call test_mode%toggle(st)
+        call check(error,.not. test_mode_on(), "toggle again")
         call kill_buffer(a, st)
     end subroutine test_minor_mode
 
@@ -122,14 +134,14 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
-        call define_minor_mode("easy-mmode-test-lit-mode", " Lit")
-        call keymap_set(minor_mode_map("easy-mmode-test-lit-mode"), "C-c l", "forward-char", st)
+        call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit")
+        call keymap_set(test_lit_mode%map, "C-c l", "forward-char", st)
         call get_buffer_create("easy-mmode-test-A", a, st)
         call get_buffer_create("easy-mmode-test-B", b, st)
         call set_buffer(a, st)
         current_prefix_arg = nil()
-        call minor_mode_command("easy-mmode-test-lit-mode", st)
-        call check(error, minor_mode_enabled_p("easy-mmode-test-lit-mode"), "on in A")
+        call test_lit_mode%command(st)
+        call check(error, test_lit_mode%enabled(), "on in A")
         if (allocated(error)) return
         call check(error, last_message, "Easy-Mmode-Test-Lit mode enabled in current buffer")
         if (allocated(error)) return
@@ -140,7 +152,9 @@ contains
         call check(error, value_eq(binding, sym("forward-char")), "minor mode map active")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error,.not. minor_mode_enabled_p("easy-mmode-test-lit-mode"), "off in B")
+        call check(error,.not. test_lit_mode%enabled(), "off in B")
+        if (allocated(error)) return
+        call check(error, test_lit_mode%enabled_in(a%index), "still on in A")
         if (allocated(error)) return
         call check(error, mode_line_modes(b%index), "Fundamental")
         if (allocated(error)) return
@@ -157,11 +171,12 @@ contains
         type(status_type) :: st
         call get_buffer_create("easy-mmode-fill-A", a, st)
         call get_buffer_create("easy-mmode-fill-B", b, st)
+        call syms_of_simple()
         call set_buffer(a, st)
-        call auto_fill_mode(make_fixnum(1_int64))
+        call turn_on_auto_fill(st)
         call check(error, associated(auto_fill_function%value), "on in A")
         if (allocated(error)) return
-        call check(error, local_variable_p(sym("auto-fill-function")), "auto-fill-function local")
+        call check(error, auto_fill_function%local_p(), "auto-fill-function local")
         if (allocated(error)) return
         call check(error, mode_line_modes(a%index), "Fundamental Fill")
         if (allocated(error)) return
@@ -169,7 +184,7 @@ contains
         call check(error,.not. associated(auto_fill_function%value), "off in B")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call auto_fill_mode(nil(), .true.)
+        call minor_modes%auto_fill_mode%toggle(st)
         call check(error,.not. associated(auto_fill_function%value), "toggled off in A")
         call kill_buffer(a, st)
         call kill_buffer(b, st)
@@ -183,13 +198,13 @@ contains
         call syms_of_simple_modes()
         saved = transient_mark_mode%value
         current_prefix_arg = make_fixnum(-1_int64)
-        call minor_mode_command("transient-mark-mode", st)
+        call minor_modes%transient_mark_mode%command(st)
         current_prefix_arg = nil()
         call check(error,.not. transient_mark_mode%value, "turned off")
         if (allocated(error)) return
         call check(error, last_message, "Transient-Mark mode disabled")
         if (allocated(error)) return
-        call set_minor_mode("transient-mark-mode", st, make_fixnum(1_int64))
+        call minor_modes%transient_mark_mode%enable(st)
         call check(error, transient_mark_mode%value, "turned on")
         transient_mark_mode = saved
     end subroutine test_global

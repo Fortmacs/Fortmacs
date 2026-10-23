@@ -242,6 +242,9 @@ Copy the FSF year range exactly from the upstream file.
 
 ## Conventions learned while porting
 
+- A function reference can't be the left side of a component assignment
+  (`f(x)%c = v` is invalid, and an `associate` name for a pointer function
+  result is not definable), so compile-time objects are named variables.
 - `.and.` and `.or.` do not short-circuit: guard a substring or element
   with a nested `if` (or `index(s, "x") == 1`), never `len(s) > 0 .and.
   s(1:1) == ...`; newer gfortran on Fedora and Arch evaluates both sides.
@@ -303,11 +306,34 @@ Copy the FSF year range exactly from the upstream file.
   swap, so an unnamed procedure survives it. BVAR slots (`major-mode`,
   `mode-name`, `buffer-read-only`) read buffer fields.
 
-- **Modes (2026-10-23).** A major mode is a command procedure bracketed by
-  `derived_mode_begin`/`derived_mode_end` (derived_fm), a minor mode a
-  registry entry plus a one-line command calling `minor_mode_command`
-  (easy_mmode_fm): the macros' expansions done by hand. Hook functions are
-  `defcommand` procedures named by symbols in the hook's value.
+- **Idiomatic Fortran objects (2026-10-23).** Nothing in the config API
+  looks like Lisp. Things that exist at compile time are named objects of
+  derived types, changed by assignment to components and driven by
+  type-bound procedures: commands are `commands%NAME` (`command_type`,
+  generated src/commands_fm.f90), settings are typed objects
+  (`integer_setting`, `logical_setting`, `string_setting`,
+  `function_setting`; `fill_column = 72`, `call fill_column%set_local(60)`,
+  code reads `fill_column%value`), hooks are `hook_type` objects holding
+  procedure pointers (`call hook%add(proc, depth=90, local=.true.)`), and
+  modes are `major_modes%NAME` / `minor_modes%NAME` (`major_mode_type`,
+  `minor_mode_type`, generated src/modes_fm.f90). Only names that exist
+  solely at run time go through a specific subroutine with intrinsic
+  arguments (`set_command_disabled(name, .false., status)`). `value_type`
+  stays internal: the forwarding table in data_buffer_fm maps variable
+  names to the objects (keeping an exact Lisp value a Fortran type can't
+  hold), so name-based access (`set-variable`, C-h v, minor-mode maps and
+  lighters) sees the same values. API procedures that would need a Lisp
+  value (raw prefix arguments, key vectors, completion tables) are not
+  exported; their commands are reached as `commands%NAME`.
+
+- **Modes (2026-10-23).** A major mode is a `major_mode_type` whose
+  command brackets its body with `%begin`/`%finish` (the expansion of
+  define-derived-mode done by hand; a parent of fundamental-mode is no
+  parent, as in derived.el). A minor mode is a `minor_mode_type` with
+  `%enable`, `%disable`, `%toggle` and `%command`; its own state is a
+  `logical_setting` forwarded by the mode's name (buffer-local unless
+  global), or another variable named by `variable` (upstream's
+  :variable).
 
 - **Docstrings (2026-10-22).** Help reads the docstrings from a generated
   module, src/docstrings_fm.f90, as upstream reads etc/DOC: the

@@ -52,7 +52,13 @@ submodule(data_fm) data_buffer_fm
     use fill_fm, only: adaptive_fill_mode
     use simple_fm, only: fill_prefix, auto_fill_inhibit_regexp, do_auto_fill
     use fns_fm, only: get
-    use eval_fm, only: run_hook
+    use eval_fm, only: change_major_mode_hook, kill_local_hooks
+    use subr_fm, only: kill_delayed_mode_hooks
+    use easy_mmode_fm, only: minor_mode_type, minor_mode_index, minor_mode_at
+    use text_mode_fm, only: text_mode_variant
+    use syntax_fm, only: parse_sexp_ignore_comments
+    use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
+                        FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     implicit none(type, external)
 
     !> Kinds of forwarded variable.
@@ -62,25 +68,26 @@ submodule(data_fm) data_buffer_fm
     !> The variables forwarded to Fortran settings; slot variables are
     !> per-buffer fields of buffer_type (always local, like buffer.c's
     !> slots with a local flag of -1).
-    integer, parameter :: NFWD = 19
+    integer, parameter :: NFWD = 23
     character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=24) :: &
                                                 "fill-column", "left-margin", "tab-width", "indent-tabs-mode", "case-fold-search", &
                                                       "fill-prefix", "paragraph-start", "paragraph-separate", "sentence-end", &
                                                     "sentence-end-double-space", "adaptive-fill-mode", "auto-fill-inhibit-regexp", &
                                            "standard-indent", "auto-fill-function", "indent-line-function", "transient-mark-mode", &
-                                                      "major-mode", "mode-name", "buffer-read-only"]
+                                                      "major-mode", "mode-name", "buffer-read-only", "text-mode-variant", &
+                                                "parse-sexp-ignore-comments", "require-final-newline", "mode-require-final-newline"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
-                                            K_SLOT, K_SLOT, K_SLOT]
+                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT]
     !> DEFVAR_PER_BUFFER, `make-variable-buffer-local` or `:local t`:
     !> local when set.
     logical, parameter :: FWD_PER_BUFFER(NFWD) = [.true., .true., .true., .false., .true., &
                                                   .true., .false., .false., .false., &
                                                   .false., .false., .false., &
                                                   .false., .true., .false., .false., &
-                                                  .true., .true., .true.]
+                                                  .true., .true., .true., .false., .false., .false., .false.]
 
     !> Saved procedure pointers: the default while the current buffer
     !> has a local value, or a buffer's local value while it is not
@@ -113,9 +120,26 @@ contains
                     exit
                 end if
             end do
+            if (symbols(id)%fwd < 0) call resolve_minor_mode(id)
         end if
         k = symbols(id)%fwd
     end function resolve
+
+    !> Forward symbol ID to the state of the minor mode of that name, if
+    !> the mode keeps its own state: its variable is buffer-local when
+    !> set unless the mode is global.  Forwarded minor modes come after
+    !> the table (NFWD + the mode's index).
+    subroutine resolve_minor_mode(id)
+        integer(int64), intent(in) :: id
+        type(minor_mode_type), pointer :: m
+        integer :: i
+        i = minor_mode_index(symbols(id)%name)
+        if (i == 0) return
+        m => minor_mode_at(i)
+        if (len_trim(m%variable) > 0) return
+        symbols(id)%fwd = NFWD + i
+        if (.not. m%global) symbols(id)%local_if_set = .true.
+    end subroutine resolve_minor_mode
 
     !> The kind of symbol ID: 0 for a plain variable.
     integer function kind_of(id) result(kind)
@@ -123,7 +147,11 @@ contains
         integer :: k
         kind = 0
         k = resolve(id)
-        if (k > 0) kind = FWD_KIND(k)
+        if (k > NFWD) then
+            kind = K_BOOL
+        else if (k > 0) then
+            kind = FWD_KIND(k)
+        end if
     end function kind_of
 
     !> The value of an auto-fill-function as a value: its name (nil for
@@ -247,7 +275,13 @@ contains
         integer(int64), intent(in) :: b
         type(value_type), intent(out) :: v
         logical, intent(out) :: bound
+        type(minor_mode_type), pointer :: m
         bound = .true.
+        if (k > NFWD) then
+            m => minor_mode_at(k - NFWD)
+            call setting_value(m%state, bool_value(m%state%value), v, bound)
+            return
+        end if
         select case (trim(FWD_NAMES(k)))
         case ("fill-column")
             call setting_value(fill_column, make_fixnum(fill_column%value), v, bound)
@@ -299,6 +333,16 @@ contains
         case ("buffer-read-only")
             v = nil()
             if (b > 0) v = bool_value(buffers(b)%read_only)
+        case ("text-mode-variant")
+            call setting_value(text_mode_variant, bool_value(text_mode_variant%value), v, bound)
+        case ("parse-sexp-ignore-comments")
+            ! A DEFVAR_BOOL: always t or nil.
+            v = bool_value(parse_sexp_ignore_comments%value)
+        case ("require-final-newline")
+            call setting_value(require_final_newline, final_newline_value(require_final_newline%value), v, bound)
+        case ("mode-require-final-newline")
+            call setting_value(mode_require_final_newline, final_newline_value(mode_require_final_newline%value), &
+                               v, bound)
         case default
             v = nil()
         end select
@@ -321,7 +365,13 @@ contains
         integer, intent(in) :: k
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
+        type(minor_mode_type), pointer :: m
         status = status_type()
+        if (k > NFWD) then
+            m => minor_mode_at(k - NFWD)
+            call set_logical(m%state, v)
+            return
+        end if
         select case (trim(FWD_NAMES(k)))
         case ("fill-column")
             call set_integer(fill_column, v, .true., status)
@@ -373,6 +423,14 @@ contains
             end if
         case ("buffer-read-only")
             if (cur > 0) buffers(cur)%read_only = .not. nilp(v)
+        case ("text-mode-variant")
+            call set_logical(text_mode_variant, v)
+        case ("parse-sexp-ignore-comments")
+            parse_sexp_ignore_comments = .not. nilp(v)
+        case ("require-final-newline")
+            call set_final_newline(require_final_newline, v)
+        case ("mode-require-final-newline")
+            call set_final_newline(mode_require_final_newline, v)
         case default
             ! Not a forwarded variable (resolve gives no such K).
         end select
@@ -416,6 +474,43 @@ contains
         call keep_exact(s, v)
     end subroutine set_indent_line
 
+    !> The value of a require-final-newline setting N: nil, t, `visit',
+    !> `visit-save' or (for any other non-nil value) `ask'.
+    function final_newline_value(n) result(v)
+        integer(int64), intent(in) :: n
+        type(value_type) :: v
+        select case (n)
+        case (FINAL_NEWLINE_NEVER)
+            v = nil()
+        case (FINAL_NEWLINE_SAVE)
+            v = t_value()
+        case (FINAL_NEWLINE_VISIT)
+            v = sym("visit")
+        case (FINAL_NEWLINE_VISIT_SAVE)
+            v = sym("visit-save")
+        case default
+            v = sym("ask")
+        end select
+    end function final_newline_value
+
+    !> Set require-final-newline setting S to V.
+    subroutine set_final_newline(s, v)
+        type(integer_setting), intent(inout) :: s
+        type(value_type), intent(in) :: v
+        if (nilp(v)) then
+            s = FINAL_NEWLINE_NEVER
+        else if (value_eq(v, t_value())) then
+            s = FINAL_NEWLINE_SAVE
+        else if (value_eq(v, sym("visit"))) then
+            s = FINAL_NEWLINE_VISIT
+        else if (value_eq(v, sym("visit-save"))) then
+            s = FINAL_NEWLINE_VISIT_SAVE
+        else
+            s = FINAL_NEWLINE_ASK
+            call keep_exact(s, v)
+        end if
+    end subroutine set_final_newline
+
     !> Forget S's exact value and voidness.
     subroutine settle(s)
         class(setting_type), intent(inout) :: s
@@ -429,7 +524,13 @@ contains
     subroutine fwd_makunbound(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
+        type(minor_mode_type), pointer :: m
         status = status_type()
+        if (k > NFWD) then
+            m => minor_mode_at(k - NFWD)
+            m%state%void = .true.
+            return
+        end if
         select case (trim(FWD_NAMES(k)))
         case ("fill-column", "left-margin", "tab-width")
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "integerp")
@@ -464,6 +565,15 @@ contains
             indent_line_function%void = .true.
         case ("transient-mark-mode")
             transient_mark_mode%void = .true.
+        case ("text-mode-variant")
+            text_mode_variant%void = .true.
+        case ("parse-sexp-ignore-comments")
+            ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
+            parse_sexp_ignore_comments = .true.
+        case ("require-final-newline")
+            require_final_newline%void = .true.
+        case ("mode-require-final-newline")
+            mode_require_final_newline%void = .true.
         case default
             continue
         end select
@@ -733,9 +843,11 @@ contains
     if (cur == 0) return
     ! The first thing this function does is run the normal hook
     ! `change-major-mode-hook'.
-    call run_hook("change-major-mode-hook", st)
+    call change_major_mode_hook%run(st)
     all = .false.
     if (present(kill_permanent)) all = kill_permanent
+    call kill_local_hooks(all)
+    call kill_delayed_mode_hooks()
     buffers(cur)%syntax_table = null_handle()
     buffers(cur)%major_mode = "fundamental-mode"
     buffers(cur)%mode_name = "Fundamental"

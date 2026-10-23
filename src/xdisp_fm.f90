@@ -83,6 +83,10 @@ module xdisp_fm
     type(lighter_type), allocatable :: lighters(:)
     integer :: n_lighters = 0
 
+    !> The most cells one character can take: a TAB at the largest sane
+    !> tab-width (SANE_TAB_WIDTH).
+    integer, parameter :: MAX_CHAR_CELLS = 1000
+
 contains
 
     ! ------------------------------------------------------------------
@@ -166,9 +170,13 @@ contains
         type(glyph_type), intent(out) :: cells(:)
         integer, intent(out) :: n
         integer(int32) :: byte
+        integer :: tw
         n = 1
         if (c == 9) then
-            n = tab_width%value - mod(x, tab_width%value)
+            ! SANE_TAB_WIDTH
+            tw = 8
+            if (tab_width%value > 0 .and. tab_width%value <= 1000) tw = int(tab_width%value)
+            n = tw - mod(x, tw)
             cells(1:n)%ch = 32
         else if (c < 32 .or. c == 127) then
             ! ctl-arrow: ^@ .. ^_, ^?
@@ -197,7 +205,7 @@ contains
     integer function glyph_columns(c, x) result(n)
         integer(int32), intent(in) :: c
         integer, intent(in) :: x
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         call produce_char(c, x, cells, n)
     end function glyph_columns
 
@@ -216,7 +224,7 @@ contains
         logical, intent(out) :: reached_end
         !> The region to highlight with the region face, [region_beg, region_end).
         integer(int64), intent(in), optional :: region_beg, region_end
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         integer(int64) :: rb, re
         integer(int64) :: pos, pos_byte, zv
         integer(int32) :: c
@@ -587,7 +595,7 @@ contains
         type(frame_type), intent(inout) :: f
         integer, intent(out) :: cursor_col
         type(glyph_type), allocatable :: line(:), grown(:)
-        type(glyph_type) :: cells(8)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
         type(status_type) :: status
         integer(int64) :: bi, pos, byte
         integer(int32) :: c
