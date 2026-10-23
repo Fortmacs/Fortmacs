@@ -30,6 +30,7 @@
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len
+    use characters_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
     use lisp_fm, only: value_type
@@ -406,26 +407,30 @@ contains
 
     !> Return the indentation of the current line.
     !> This is the horizontal position of the character following any initial
-    !> whitespace.  Port of indent.c:Fcurrent_indentation (no invisible
-    !> text).
+    !> whitespace.  Port of indent.c:Fcurrent_indentation with
+    !> position_indentation (no invisible text): in a unibyte buffer the
+    !> byte 0240 counts as a space, in a multibyte one characters of the
+    !> category ` ' (space for indent) do.
     integer(int64) function current_indentation() result(col)
-        integer(int64) :: pos, byte, tw
+        integer(int64) :: byte, tw
         integer(int32) :: c
         tw = sane_tab_width()
-        pos = pos_bol()
-        byte = char_to_byte(pos)
+        byte = char_to_byte(pos_bol())
         col = 0
-        do while (pos < buffers(cur)%zv)
+        do while (byte < buffers(cur)%zv_byte)
             c = buf_fetch_char(buffers(cur), byte)
-            if (c == 32) then
+            if (c == 32 .or. (c == int(o'240') .and. .not. buffers(cur)%multibyte)) then
                 col = col + 1
             else if (c == 9) then
                 col = col + tw - mod(col, tw)
+            else if (c < 128 .or. .not. buffers(cur)%multibyte) then
+                exit
+            else if (char_has_category(c, " ")) then
+                col = col + 1
             else
                 exit
             end if
-            byte = byte + 1
-            pos = pos + 1
+            byte = byte + buf_next_char_len(buffers(cur), byte)
         end do
     end function current_indentation
 

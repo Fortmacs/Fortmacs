@@ -260,6 +260,9 @@ contains
                                 in(c, int(z'3400'), int(z'9FFF')) .or. in(c, int(z'F900'), int(z'FAFF')) .or. &
                                 in(c, int(z'20000'), int(z'2FFFF')) .or. in(c, int(z'30000'), int(z'323AF')) .or. &
                                 in(c, int(z'FF01'), int(z'FFE6'))
+        case (" ")
+            ! Space for indent: characters.el gives it to no character.
+            char_has_category = .false.
         case default
             char_has_category = .false.
         end select

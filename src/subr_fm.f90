@@ -27,7 +27,7 @@
 !> `y_or_n_p_use_read_key' set: it reads a single key in the echo area.
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use lisp_fm, only: value_type, fixnump, xfixnum, nil, make_string, cons, list_length, list_elt, &
                        list_elements, make_list, stringp, xstring
     use lread_fm, only: sym
@@ -45,6 +45,20 @@ module subr_fm
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
     public :: global_set_key, read_number
+    public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
+
+    !> A numerical progress reporter (`make_progress_reporter' with
+    !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
+    !> car of upstream's cons) and the parameters vector.
+    type, public :: progress_reporter_type
+        real(real64) :: next_value = 0
+        !> The time of the next echo area update, in seconds.
+        real(real64) :: update_time = 0
+        integer(int64) :: min_value = 0, max_value = 0
+        character(len=:), allocatable :: text
+        integer :: min_change = 1
+        real(real64) :: min_time = 0.2_real64
+    end type progress_reporter_type
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
@@ -469,4 +483,90 @@ contains
         call narrow_to_region(saved_begv, saved_zv, status)
         call goto_char(start)
     end function looking_back
+
+    !> Seconds since some fixed time (float-time, for time differences).
+    real(real64) function float_time()
+        integer(int64) :: count, rate
+        call system_clock(count, rate)
+        float_time = real(count, real64)/real(rate, real64)
+    end function float_time
+
+    !> Return progress reporter object for use with `progress_reporter_update'.
+    !>
+    !> MESSAGE is shown in the echo area, with a status indicator
+    !> appended to the end.  When you call `progress_reporter_done', the
+    !> word "done" is printed after the MESSAGE.
+    !>
+    !> MIN_VALUE and MAX_VALUE are starting (0% complete) and final (100%
+    !> complete) states of operation; the latter should be larger.  The
+    !> status message shows the percentage progress.  The minimal change
+    !> to report is 1%, the minimum interval between echo area updates
+    !> 0.2 seconds.  Port of subr.el:make-progress-reporter (numerical
+    !> reporters, default CURRENT-VALUE, MIN-CHANGE and MIN-TIME).
+    subroutine make_progress_reporter(reporter, message_text, min_value, max_value)
+        type(progress_reporter_type), intent(out) :: reporter
+        character(len=*), intent(in) :: message_text
+        integer(int64), intent(in) :: min_value, max_value
+        type(status_type) :: st
+        reporter%text = message_text
+        if (string_match("[[:alnum:]]\'", message_text, st) > 0) reporter%text = message_text//"..."
+        reporter%next_value = real(min_value, real64)
+        reporter%update_time = float_time()
+        reporter%min_value = min_value
+        reporter%max_value = max_value
+        ! Force a call to `message' now.
+        call progress_reporter_update(reporter, min_value)
+    end subroutine make_progress_reporter
+
+    !> Report progress of an operation in the echo area.
+    !> VALUE should be a number between MIN_VALUE and MAX_VALUE.
+    !>
+    !> This function is relatively inexpensive.  If the change since
+    !> last update is too small or insufficient time has passed, it does
+    !> nothing.  Port of subr.el:progress-reporter-update (with
+    !> progress-reporter-do-update and progress-reporter-echo-area).
+    subroutine progress_reporter_update(reporter, value)
+        type(progress_reporter_type), intent(inout) :: reporter
+        integer(int64), intent(in) :: value
+        real(real64) :: one_percent, now
+        integer(int64) :: percentage
+        logical :: enough_time_passed
+        character(len=24) :: buf
+        if (real(value, real64) < reporter%next_value) return
+        ! See if enough time has passed since the last update.
+        now = float_time()
+        enough_time_passed = reporter%update_time < now
+        ! Calculate time for the next update.
+        if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%min_time
+        one_percent = real(reporter%max_value - reporter%min_value, real64)/100.0_real64
+        if (reporter%max_value == reporter%min_value) then
+            percentage = 0
+        else
+            percentage = int((value - reporter%min_value)/one_percent, int64)
+        end if
+        ! If we are not printing message because not enough time has
+        ! passed, use 1 instead of MIN-CHANGE.
+        if (enough_time_passed) then
+            reporter%next_value = reporter%min_value + (percentage + reporter%min_change)*one_percent
+        else
+            reporter%next_value = reporter%min_value + (percentage + 1)*one_percent
+        end if
+        reporter%next_value = min(reporter%next_value, real(reporter%max_value, real64))
+        reporter%next_value = real(ceiling(reporter%next_value, int64), real64)
+        ! Print message only if enough time has passed.
+        if (.not. enough_time_passed) return
+        if (percentage > 0) then
+            write (buf, "(i0)") percentage
+            call message(reporter%text//trim(buf)//"%")
+        else
+            call message(reporter%text)
+        end if
+    end subroutine progress_reporter_update
+
+    !> Print reporter's message followed by word "done" in echo area.
+    !> Port of subr.el:progress-reporter-done.
+    subroutine progress_reporter_done(reporter)
+        type(progress_reporter_type), intent(in) :: reporter
+        call message(reporter%text//"done")
+    end subroutine progress_reporter_done
 end module subr_fm

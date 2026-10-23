@@ -79,7 +79,7 @@ module keymap_fm
     public :: key_parse, key_description, single_key_description, &
               push_key_description
     public :: key_valid_p, keymap_set, keymap_global_set
-    public :: where_is_internal
+    public :: where_is_internal, keymap_events
 
     !> Bind a key given as a `key_valid_p' string.  A character `command'
     !> names a command (a symbol); a value is any key definition.
@@ -308,6 +308,37 @@ contains
             parent = keymaps(km%index)%parent
         end if
     end function keymap_parent
+
+    !> The events `km' binds to non-nil definitions, as subr.el's
+    !> set-transient-map collects them by pushing what map-keymap visits:
+    !> the parent's first, then each map's in the order they were first
+    !> defined.  Character ranges are not included.
+    recursive subroutine keymap_events(km, events)
+        type(handle_type), intent(in) :: km
+        type(value_type), allocatable, intent(out) :: events(:)
+        type(value_type), allocatable :: inherited(:), all(:)
+        integer(int64) :: j, n, k
+        if (.not. table%is_live(km)) then
+            allocate (events(0))
+            return
+        end if
+        if (table%is_live(keymaps(km%index)%parent)) then
+            call keymap_events(keymaps(km%index)%parent, inherited)
+        else
+            allocate (inherited(0))
+        end if
+        n = keymaps(km%index)%n
+        allocate (all(size(inherited, kind=int64) + n))
+        k = size(inherited, kind=int64)
+        if (k > 0) all(1:k) = inherited
+        do j = 1, n
+            if (nilp(keymaps(km%index)%bindings(j))) cycle
+            k = k + 1
+            all(k) = keymaps(km%index)%events(j)
+        end do
+        allocate (events(k))
+        if (k > 0) events = all(1:k)
+    end subroutine keymap_events
 
     !> Make `parent' (or the null handle for none) the parent of `km'.
     !> Port of keymap.c:Fset_keymap_parent.

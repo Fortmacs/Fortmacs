@@ -73,7 +73,8 @@ module easy_mmode_fm
         !> Run every time the mode is turned on or off, after the state
         !> is set.
         procedure(minor_mode_body_proc), pointer, nopass :: body => null()
-        !> The keymap active while the mode is on (`MODE-map').
+        !> The keymap active while the mode is on (`MODE-map'), made by
+        !> `define' with KEYMAP; the null handle for none.
         type(handle_type) :: map
         !> Run after the mode is turned on or off (`MODE-hook'), and
         !> `MODE-on-hook' / `MODE-off-hook'.
@@ -110,6 +111,9 @@ module easy_mmode_fm
     !> The defined minor modes.
     type(minor_mode_ref_type), allocatable :: defined(:)
 
+
+    ! Characters of whitespace syntax in the standard syntax table.
+    character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)//achar(12)//achar(13)
 contains
 
     !> Turn the symbol MODE into a string intended for the user.
@@ -127,15 +131,24 @@ contains
         do i = 1, len(base)
             if (base(i:i) == "_") base(i:i) = "-"
         end do
-        ! "foo-bar-minor-mode" -> "foo-bar-minor"
-        do
-            i = index(base, "toggle-")
-            if (i == 0) exit
-            base = base(1:i - 1)//base(i + 7:)
+        ! "foo-bar-minor-mode" -> "foo-bar-minor": the matches of
+        ! "toggle-\\|-mode\\'" (ignoring case), left to right.
+        name = ""
+        i = 1
+        do while (i <= len(base))
+            if (i + 6 <= len(base)) then
+                if (lower(base(i:i + 6)) == "toggle-") then
+                    i = i + 7
+                    cycle
+                end if
+            end if
+            if (i == len(base) - 4) then
+                if (lower(base(i:)) == "-mode") exit
+            end if
+            name = name//base(i:i)
+            i = i + 1
         end do
-        if (len(base) >= 5) then
-            if (base(len(base) - 4:) == "-mode") base = base(1:len(base) - 5)
-        end if
+        base = name
         ! "foo-bar-minor" -> "Foo-Bar-Minor"
         name = base
         word_start = .true.
@@ -164,7 +177,15 @@ contains
         if (.not. present(lighter)) return
         ! Strip leading and trailing whitespace from LIGHTER, then replace
         ! any (case-insensitive) matches for it in NAME with it.
-        light = trim(adjustl(lighter))
+        light = lighter
+        do while (len(light) > 0)
+            if (verify(light(1:1), WHITESPACE) /= 0) exit
+            light = light(2:)
+        end do
+        do while (len(light) > 0)
+            if (verify(light(len(light):), WHITESPACE) /= 0) exit
+            light = light(1:len(light) - 1)
+        end do
         if (len(light) == 0) return
         i = 1
         do while (i + len(light) - 1 <= len(name))
@@ -243,14 +264,17 @@ contains
     !> GLOBAL; its state is its own unless VARIABLE names the variable
     !> holding it.  LIGHTER (if not empty) is shown in the mode line
     !> while the mode is on.  BODY, if present, runs every time the mode
-    !> is turned on or off.  Port of easy-mmode.el:define-minor-mode.
-    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook)
+    !> is turned on or off.  KEYMAP true makes the mode's keymap
+    !> (`MODE-map', upstream's :keymap), active while the mode is on.
+    !> Port of easy-mmode.el:define-minor-mode.
+    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook, keymap)
         class(minor_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: lighter, variable
         logical, intent(in), optional :: global
         procedure(minor_mode_body_proc), optional :: body
         type(hook_type), intent(inout), target, optional :: hook
+        logical, intent(in), optional :: keymap
         type(minor_mode_ref_type), allocatable :: grown(:)
         type(status_type) :: st
         integer :: n
@@ -291,9 +315,11 @@ contains
         id = intern(name)
         symbols(id)%fwd = 0
         if (len(self%lighter) > 0) call add_minor_mode_lighter(state_name(self), self%lighter)
-        if (.not. keymap_live_p(self%map)) then
-            call make_sparse_keymap(self%map)
-            call add_minor_mode_map(state_name(self), self%map)
+        if (present(keymap)) then
+            if (keymap .and. .not. keymap_live_p(self%map)) then
+                call make_sparse_keymap(self%map)
+                call add_minor_mode_map(state_name(self), self%map)
+            end if
         end if
     end subroutine minor_mode_define
 

@@ -1029,6 +1029,7 @@ contains
         call kbd_store_bytes(achar(21)//"2"//achar(4))
         call command_loop(st)
         call check(error, buffer_string() == "rld" .and. latest_kill() == "wo", "C-u 2 C-d")
+        current_prefix_arg = nil()
         call kill_buffer(h, st)
     end subroutine test_delete_char_killflag
 
@@ -1077,6 +1078,7 @@ contains
         call kbd_store_bytes("b")
         call command_loop(st)
         call check(error, buffer_string(), "b")
+        current_prefix_arg = nil()
         call kill_buffer(h, st)
     end subroutine test_quoted_insert
 
@@ -1092,6 +1094,7 @@ contains
         call unread_command_events([make_fixnum(21_int64), sym("kp-1"), sym("kp-2"), make_fixnum(97_int64)])
         call command_loop(st)
         call check(error, buffer_string(), repeat("a", 12))
+        current_prefix_arg = nil()
         call kill_buffer(h, st)
     end subroutine test_keypad_digit
 

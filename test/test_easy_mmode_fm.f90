@@ -34,7 +34,7 @@ module test_easy_mmode_fm
     use data_fm, only: symbol_value, value_eq
     use callint_fm, only: current_prefix_arg
     use keyboard_fm, only: last_message
-    use keymap_fm, only: keymap_set, key_binding, key_parse
+    use keymap_fm, only: keymap_set, key_binding, key_parse, keymap_live_p
     use xdisp_fm, only: mode_line_modes, mode_line_text
     use easy_mmode_fm, only: minor_mode_type, easy_mmode_pretty_mode_name
     use modes_fm, only: minor_modes
@@ -124,6 +124,18 @@ contains
         call check(error, easy_mmode_pretty_mode_name("global-foo-mode"), "Global Foo mode")
         if (allocated(error)) return
         call check(error, easy_mmode_pretty_mode_name("toggle-truncate-lines"), "Truncate-Lines mode")
+        if (allocated(error)) return
+        ! One left-to-right pass of "toggle-\\|-mode\\'", ignoring case.
+        call check(error, easy_mmode_pretty_mode_name("foo-toggle-mode"), "Foo-Mode mode")
+        if (allocated(error)) return
+        call check(error, easy_mmode_pretty_mode_name("Toggle-foo-MODE"), "Foo mode")
+        if (allocated(error)) return
+        ! LIGHTER without its surrounding whitespace sets the case.
+        call check(error, easy_mmode_pretty_mode_name("iimage-mode", achar(9)//" iImag "), "iImage mode")
+        if (allocated(error)) return
+        ! Without :keymap there is no MODE-map.
+        call test_mode%define("easy-mmode-test-mode", "", body=test_body)
+        call check(error,.not. keymap_live_p(test_mode%map), "no keymap")
     end subroutine test_pretty_name
 
     !> A buffer-local mode: on in one buffer only, with its lighter and
@@ -134,7 +146,7 @@ contains
         type(status_type) :: st
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
-        call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit")
+        call test_lit_mode%define("easy-mmode-test-lit-mode", " Lit", keymap=.true.)
         call keymap_set(test_lit_mode%map, "C-c l", "forward_char", st)
         call get_buffer_create("easy-mmode-test-A", a, st)
         call get_buffer_create("easy-mmode-test-B", b, st)

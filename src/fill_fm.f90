@@ -62,6 +62,7 @@ module fill_fm
                              sentence_end_without_space, sentence_end_regexp, forward_paragraph, &
                              init_paragraph_variables
     use simple_fm, only: fill_prefix, use_region_p, mark
+    use minibuf_fm, only: minibufferp, minibuffer_prompt_end
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     implicit none(type, external)
     private
@@ -156,6 +157,9 @@ module fill_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
+
+    ! fill-paragraph-function is t: fill_minibuffer_function is running.
+    logical :: filling_minibuffer = .false.
 contains
 
     subroutine init_fill_variables()
@@ -367,7 +371,7 @@ contains
         str = match_string(0)
         found = .true.
         ! Death to insanely long prefixes.
-        if (current_left_margin() + string_width(str) >= current_fill_column()) then
+        if (current_left_margin() + nchars(str) >= current_fill_column()) then
             found = .false.
             str = ""
         end if
@@ -1109,6 +1113,22 @@ contains
         end if
     end subroutine fill_paragraph
 
+    !> Fill a paragraph in the minibuffer, ignoring the prompt.  Port of
+    !> fill.el:fill-minibuffer-function.
+    recursive subroutine fill_minibuffer_function(status, justify, used)
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: justify
+        character(len=:), allocatable, intent(out) :: used
+        integer(int64) :: savedb, savedz
+        type(status_type) :: st
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call narrow_to_region(minibuffer_prompt_end(), point_max(), st)
+        call fill_paragraph(status, justify, used=used)
+        call widen()
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end subroutine fill_minibuffer_function
+
     !> The bytes of the whole current buffer, ignoring narrowing (what
     !> subr-x.el's with-buffer-unmodified-if-unchanged compares with
     !> `buffer_hash').
@@ -1149,6 +1169,18 @@ contains
                     if (present(used)) used = pfx
                     return
                 end if
+            end if
+        end if
+        ! 2. Try fill-paragraph-function (nil, and t while
+        ! fill-minibuffer-function runs): in the minibuffer, don't count
+        ! the width of the prompt.
+        if (.not. filling_minibuffer .and. minibufferp()) then
+            if (point_min() == 1) then
+                filling_minibuffer = .true.
+                call fill_minibuffer_function(status, justify, pfx)
+                filling_minibuffer = .false.
+                if (present(used)) used = pfx
+                return
             end if
         end if
         ! 4. If it all fails, default to the good ol' text paragraph
