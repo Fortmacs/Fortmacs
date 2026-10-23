@@ -1,4 +1,4 @@
-! subr_hooks_fm.f90 -- hooks and mode hooks, a submodule of subr_fm.
+! subr_hooks_fm.f90 -- mode hooks, a submodule of subr_fm.
 ! Ported from GNU Emacs 31.1 lisp/subr.el.
 !
 ! Copyright (C) 1985-2026 Free Software Foundation, Inc.
@@ -19,276 +19,112 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `add-hook`, `remove-hook`, `run-mode-hooks`, `delay-mode-hooks` and
-!> the derived-mode predicates: a submodule because they use eval_fm
-!> and buffer-local variables.
+!> `run-mode-hooks` and `delay-mode-hooks`: a submodule because they use
+!> the buffers.  `delay-mode-hooks` (permanent-local) and
+!> `delayed-mode-hooks` (buffer-local) are kept per buffer, by the
+!> buffer's serial number.
 submodule(subr_fm) subr_hooks_fm
-    use lisp_fm, only: t_value, nilp, consp, symbolp, make_list, list_elements, xsymbol, symbols, SYM_T, list, &
-                       make_fixnum
-    use data_fm, only: boundp, default_boundp, set_default, default_value, make_local_variable, &
-                       local_variable_p, local_variable_if_set_p, kill_local_variable, setq_local, value_eq
-    use fns_fm, only: get, put
-    use eval_fm, only: run_hooks
     use buffer_fm, only: buffers, cur
     implicit none(type, external)
 
-    !> Longest hook name passed to run_hooks.
-    integer, parameter :: HOOK_NAME_LEN = 128
+    !> A pointer to a hook.
+    type :: hook_ref_type
+        type(hook_type), pointer :: p => null()
+    end type hook_ref_type
+
+    !> One buffer's `delay-mode-hooks' and `delayed-mode-hooks'.
+    type :: delay_type
+        integer(int64) :: serial = 0
+        logical :: delay = .false.
+        type(hook_ref_type), allocatable :: delayed(:)
+    end type delay_type
+
+    type(delay_type), allocatable :: delays(:)
 
 contains
 
-    !> The functions in hook value V as an array (a single function
-    !> becomes a list of one).
-    subroutine hook_functions(v, fns)
-        type(value_type), intent(in) :: v
-        type(value_type), allocatable, intent(out) :: fns(:)
-        if (nilp(v)) then
-            allocate (fns(0))
-        else if (consp(v)) then
-            call list_elements(v, fns)
-        else
-            allocate (fns(1))
-            fns(1) = v
-        end if
-    end subroutine hook_functions
-
-    !> Whether T is among FNS.
-    logical function has_t(fns)
-        type(value_type), intent(in) :: fns(:)
-        integer :: i
-        has_t = .false.
-        do i = 1, size(fns)
-            if (symbolp(fns(i)) .and. xsymbol(fns(i)) == SYM_T) has_t = .true.
-        end do
-    end function has_t
-
-    !> The index of FN in FNS, or 0.
-    integer function find_fn(fns, fn) result(k)
-        type(value_type), intent(in) :: fns(:), fn
-        integer :: i
+    !> The index of the current buffer's entry in `delays`, made if MAKE.
+    integer function delay_index(make) result(k)
+        logical, intent(in) :: make
+        type(delay_type), allocatable :: grown(:)
+        integer :: i, n
         k = 0
-        do i = 1, size(fns)
-            if (value_eq(fns(i), fn)) then
+        if (cur == 0) return
+        if (.not. allocated(delays)) allocate (delays(0))
+        do i = 1, size(delays)
+            if (delays(i)%serial == buffers(cur)%serial) then
                 k = i
                 return
             end if
         end do
-    end function find_fn
+        if (.not. make) return
+        n = size(delays)
+        allocate (grown(n + 1))
+        grown(1:n) = delays
+        grown(n + 1)%serial = buffers(cur)%serial
+        allocate (grown(n + 1)%delayed(0))
+        call move_alloc(grown, delays)
+        k = n + 1
+    end function delay_index
 
-    !> The depth recorded for FN in DEPTHS, a list of (FUNCTION DEPTH).
-    integer(int64) function depth_of(depths, fn) result(d)
-        type(value_type), intent(in) :: depths(:), fn
-        integer :: i
-        d = 0
-        do i = 1, size(depths)
-            if (value_eq(list_elt(depths(i), 1_int64), fn)) then
-                d = xfixnum(list_elt(depths(i), 2_int64))
-                return
-            end if
-        end do
-    end function depth_of
-
-    module procedure add_hook
-    type(value_type) :: hs, fs, v, prop
-    type(value_type), allocatable :: fns(:), grown(:), depths(:), dgrown(:)
-    type(status_type) :: st
-    logical :: loc, bound
-    integer :: d, i, j, n
-    type(value_type) :: tmp
-    status = status_type()
-    hs = sym(hook)
-    fs = sym(function)
-    call boundp(hs, bound, st)
-    if (.not. bound) call set(hs, nil(), st)
-    if (.not. default_boundp(hs)) call set_default(hs, nil(), st)
-    d = 0
-    if (present(depth)) d = depth
-    loc = .false.
-    if (present(local)) loc = local
-    if (loc) then
-        if (.not. local_variable_if_set_p(hs)) then
-            call make_local_variable(hs, status)
-            if (.not. status%ok()) return
-            call set(hs, list(t_value()), status)
-            if (.not. status%ok()) return
-        end if
-    else if (local_variable_if_set_p(hs)) then
-        call symbol_value(hs, v, st)
-        call hook_functions(v, fns)
-        if (.not. (consp(v) .and. has_t(fns))) loc = .true.
-    end if
-    if (loc) then
-        call symbol_value(hs, v, st)
-    else
-        call default_value(hs, v, st)
-    end if
-    call hook_functions(v, fns)
-    if (find_fn(fns, fs) > 0) return
-    ! Depths, as a list of (FUNCTION DEPTH) on the hook's
-    ! `hook--depth-alist' property.
-    call get(hs, sym("hook--depth-alist"), prop, st)
-    call hook_functions(prop, depths)
-    if (d /= 0) then
-        n = size(depths)
-        allocate (dgrown(n + 1))
-        dgrown(1:n) = depths
-        dgrown(n + 1) = list(fs, make_fixnum(int(d, int64)))
-        call move_alloc(dgrown, depths)
-        call put(hs, sym("hook--depth-alist"), make_list(depths), st)
-    end if
-    n = size(fns)
-    allocate (grown(n + 1))
-    if (d > 0) then
-        grown(1:n) = fns
-        grown(n + 1) = fs
-    else
-        grown(1) = fs
-        grown(2:n + 1) = fns
-    end if
-    if (size(depths) > 0) then
-        ! A stable insertion sort by depth.
-        do i = 2, n + 1
-            tmp = grown(i)
-            j = i - 1
-            do while (j >= 1)
-                if (depth_of(depths, grown(j)) <= depth_of(depths, tmp)) exit
-                grown(j + 1) = grown(j)
-                j = j - 1
-            end do
-            grown(j + 1) = tmp
-        end do
-    end if
-    if (loc) then
-        call set(hs, make_list(grown), status)
-    else
-        call set_default(hs, make_list(grown), status)
-    end if
-    end procedure add_hook
-
-    module procedure remove_hook
-    type(value_type) :: hs, fs, v
-    type(value_type), allocatable :: fns(:), kept(:)
-    type(status_type) :: st
-    logical :: loc, bound
+    module procedure kill_delayed_mode_hooks
     integer :: k
-    status = status_type()
-    hs = sym(hook)
-    fs = sym(function)
-    call boundp(hs, bound, st)
-    if (.not. bound) call set(hs, nil(), st)
-    if (.not. default_boundp(hs)) call set_default(hs, nil(), st)
-    loc = .false.
-    if (present(local)) loc = local
-    if (loc .and. .not. local_variable_p(hs)) return
-    if (local_variable_p(hs)) then
-        call symbol_value(hs, v, st)
-        call hook_functions(v, fns)
-        if (.not. (consp(v) .and. has_t(fns))) loc = .true.
-    end if
-    if (loc) then
-        call symbol_value(hs, v, st)
-    else
-        call default_value(hs, v, st)
-    end if
-    call hook_functions(v, fns)
-    k = find_fn(fns, fs)
+    k = delay_index(.false.)
     if (k == 0) return
-    allocate (kept(size(fns) - 1))
-    kept(1:k - 1) = fns(1:k - 1)
-    kept(k:) = fns(k + 1:)
-    call move_alloc(kept, fns)
-    if (.not. loc) then
-        call set_default(hs, make_list(fns), status)
-    else if (size(fns) == 1 .and. has_t(fns)) then
-        call kill_local_variable(hs, status)
-    else
-        call set(hs, make_list(fns), status)
-    end if
-    end procedure remove_hook
+    deallocate (delays(k)%delayed)
+    allocate (delays(k)%delayed(0))
+    end procedure kill_delayed_mode_hooks
+
+    module procedure delaying_mode_hooks
+    integer :: k
+    k = delay_index(.false.)
+    delaying_mode_hooks = .false.
+    if (k > 0) delaying_mode_hooks = delays(k)%delay
+    end procedure delaying_mode_hooks
 
     module procedure delay_mode_hooks_begin
-    type(value_type) :: v
-    type(status_type) :: st
-    call put(sym("delay-mode-hooks"), sym("permanent-local"), t_value(), st)
-    call symbol_value(sym("delay-mode-hooks"), v, st)
-    saved = st%ok() .and. .not. nilp(v)
-    call setq_local("delay-mode-hooks", t_value(), st)
+    integer :: k
+    saved = delaying_mode_hooks()
+    k = delay_index(.true.)
+    if (k > 0) delays(k)%delay = .true.
     end procedure delay_mode_hooks_begin
 
     module procedure delay_mode_hooks_end
-    type(status_type) :: st
-    if (saved) then
-        call set(sym("delay-mode-hooks"), t_value(), st)
-    else
-        call set(sym("delay-mode-hooks"), nil(), st)
-    end if
+    integer :: k
+    k = delay_index(.true.)
+    if (k > 0) delays(k)%delay = saved
     end procedure delay_mode_hooks_end
 
     module procedure run_mode_hooks
-    type(value_type) :: v
-    type(value_type), allocatable :: delayed(:), grown(:)
-    character(len=HOOK_NAME_LEN), allocatable :: names(:)
-    type(status_type) :: st
-    integer :: i, n
+    type(hook_ref_type), allocatable :: delayed(:)
+    integer :: k, i, n
     status = status_type()
-    call symbol_value(sym("delayed-mode-hooks"), v, st)
-    if (.not. st%ok()) v = nil()
-    call hook_functions(v, delayed)
-    call symbol_value(sym("delay-mode-hooks"), v, st)
-    if (st%ok() .and. .not. nilp(v)) then
+    k = delay_index(.true.)
+    if (k == 0) return
+    if (delays(k)%delay) then
         ! Delaying case.
-        n = size(delayed)
-        allocate (grown(n + size(hooks)))
-        do i = 1, size(hooks)
-            grown(size(hooks) - i + 1) = sym(trim(hooks(i)))
-        end do
-        grown(size(hooks) + 1:) = delayed
-        call setq_local("delayed-mode-hooks", make_list(grown), status)
+        if (present(hook)) then
+            n = size(delays(k)%delayed)
+            allocate (delayed(n + 1))
+            delayed(1:n) = delays(k)%delayed
+            delayed(n + 1)%p => hook
+            call move_alloc(delayed, delays(k)%delayed)
+        end if
         return
     end if
     ! Normal case, just run the hook as before plus any delayed hooks.
-    n = size(delayed)
-    allocate (names(1 + n + size(hooks)))
-    names(1) = "change-major-mode-after-body-hook"
-    do i = 1, n
-        names(1 + i) = symbols(xsymbol(delayed(n - i + 1)))%name
-    end do
-    do i = 1, size(hooks)
-        names(1 + n + i) = hooks(i)
-    end do
-    call setq_local("delayed-mode-hooks", nil(), st)
-    call run_hooks(names, status)
+    call move_alloc(delays(k)%delayed, delayed)
+    allocate (delays(k)%delayed(0))
+    call change_major_mode_after_body_hook%run(status)
     if (.not. status%ok()) return
-    call run_hooks([character(len=HOOK_NAME_LEN) :: "after-change-major-mode-hook"], status)
-    end procedure run_mode_hooks
-
-    module procedure provided_mode_derived_p
-    character(len=:), allocatable :: m
-    type(value_type) :: parent
-    type(status_type) :: st
-    integer :: i, depth
-    provided_mode_derived_p = .false.
-    m = mode
-    do depth = 1, 100
-        do i = 1, size(modes)
-            if (m == trim(modes(i))) then
-                provided_mode_derived_p = .true.
-                return
-            end if
-        end do
-        call get(sym(m), sym("derived-mode-parent"), parent, st)
-        if (.not. symbolp(parent) .or. nilp(parent)) return
-        m = symbols(xsymbol(parent))%name
+    do i = 1, size(delayed)
+        call delayed(i)%p%run(status)
+        if (.not. status%ok()) return
     end do
-    end procedure provided_mode_derived_p
-
-    module procedure derived_mode_p
-    derived_mode_p = .false.
-    if (cur == 0) return
-    if (allocated(buffers(cur)%major_mode)) then
-        derived_mode_p = provided_mode_derived_p(buffers(cur)%major_mode, modes)
-    else
-        derived_mode_p = provided_mode_derived_p("fundamental-mode", modes)
+    if (present(hook)) then
+        call hook%run(status)
+        if (.not. status%ok()) return
     end if
-    end procedure derived_mode_p
+    call after_change_major_mode_hook%run(status)
+    end procedure run_mode_hooks
 end submodule subr_hooks_fm

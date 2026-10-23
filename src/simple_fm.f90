@@ -189,7 +189,8 @@ module simple_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
 
-    public :: do_auto_fill, default_indent_new_line, internal_auto_fill, auto_fill_mode, set_fill_column
+    public :: do_auto_fill, default_indent_new_line, internal_auto_fill, auto_fill_mode, set_fill_column, &
+              turn_on_auto_fill, turn_off_auto_fill
 
     !> Regexp to match lines that should not be auto-filled.  Port of
     !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
@@ -249,11 +250,24 @@ module simple_fm
         !> TOGGLE, else enables; a positive number enables, zero or a
         !> negative number disables.  Port of simple.el:auto-fill-mode.
         !> (In simple_fill_fm.)
-        module subroutine auto_fill_mode(arg, toggle)
+        module subroutine auto_fill_mode(status)
             implicit none(type, external)
-            type(value_type), intent(in), optional :: arg
-            logical, intent(in), optional :: toggle
+            type(status_type), intent(out) :: status
         end subroutine auto_fill_mode
+
+        !> Unconditionally turn on Auto Fill mode.  Port of
+        !> simple.el:turn-on-auto-fill.  (In simple_fill_fm.)
+        module subroutine turn_on_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine turn_on_auto_fill
+
+        !> Unconditionally turn off Auto Fill mode.  Port of
+        !> simple.el:turn-off-auto-fill.  (In simple_fill_fm.)
+        module subroutine turn_off_auto_fill(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine turn_off_auto_fill
 
         !> Set `fill-column' to specified argument.
         !> Use C-u followed by a number to specify a column.

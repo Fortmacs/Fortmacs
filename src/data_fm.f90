@@ -81,9 +81,10 @@ module data_fm
         integer(int64) :: value = 0
     contains
         generic :: assignment(=) => assign_int, assign_int64
-        generic :: set_local => set_local_int, set_local_int64
+        generic :: set_local => set_local_int, set_local_int64, set_local_setting
         procedure, private :: assign_int => integer_assign_int, assign_int64 => integer_assign_int64
         procedure, private :: set_local_int => integer_set_local_int, set_local_int64 => integer_set_local_int64
+        procedure, private :: set_local_setting => integer_set_local_setting
     end type integer_setting
 
     !> A true/false setting (nil or non-nil upstream).
@@ -386,6 +387,18 @@ contains
         self%value = v
         call settled(self)
     end subroutine integer_set_local_int64
+
+    !> Give the current buffer its own value, the value of V (as
+    !> `(setq-local SELF V)`).  Port of subr.el:setq-local.
+    subroutine integer_set_local_setting(self, v)
+        class(integer_setting), intent(inout) :: self
+        class(integer_setting), intent(in) :: v
+        call self%make_local()
+        self%value = v%value
+        self%exact = v%exact
+        self%has_exact = v%has_exact
+        self%void = .false.
+    end subroutine integer_set_local_setting
 
     subroutine logical_assign(self, v)
         class(logical_setting), intent(inout) :: self

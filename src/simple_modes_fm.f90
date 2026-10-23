@@ -24,29 +24,25 @@
 !> derived_fm.
 submodule(simple_fm) simple_modes_fm
     use commands_fm, only: commands
-    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
     use data_fm, only: kill_all_local_variables
     use subr_fm, only: run_mode_hooks
     use keymap_fm, only: keymap_set
-    use lisp_fm, only: t_value
-    use easy_mmode_fm, only: define_minor_mode, minor_mode_command
+    use modes_fm, only: major_modes, minor_modes
     implicit none(type, external)
 
 contains
 
     module procedure fundamental_mode
-    character(len=1) :: none(0)
     call kill_all_local_variables()
-    call run_mode_hooks(none, status)
+    call run_mode_hooks(status)
     end procedure fundamental_mode
 
     module procedure special_mode
     logical :: saved
-    call derived_mode_begin("special-mode", saved, status)
+    call major_modes%special_mode%begin(saved, status)
     if (.not. status%ok()) return
-    call set(sym("buffer-read-only"), t_value(), status)
-    if (.not. status%ok()) return
-    call derived_mode_end("special-mode", saved, status)
+    buffers(cur)%read_only = .true.
+    call major_modes%special_mode%finish(saved, status)
     end procedure special_mode
 
     !> Toggle Transient Mark mode.
@@ -64,14 +60,14 @@ contains
     !> simple.el:transient-mark-mode.
     subroutine cmd_transient_mark_mode(status)
         type(status_type), intent(out) :: status
-        call minor_mode_command("transient-mark-mode", status)
+        call minor_modes%transient_mark_mode%command(status)
     end subroutine cmd_transient_mark_mode
 
     !> Toggle whether indentation can insert TAB characters.  Port of
     !> simple.el:indent-tabs-mode.
     subroutine cmd_indent_tabs_mode(status)
         type(status_type), intent(out) :: status
-        call minor_mode_command("indent-tabs-mode", status)
+        call minor_modes%indent_tabs_mode%command(status)
     end subroutine cmd_indent_tabs_mode
 
     module procedure syms_of_simple_modes
@@ -81,13 +77,17 @@ contains
     type(handle_type) :: map
     commands%fundamental_mode%run => fundamental_mode
     commands%special_mode%run => special_mode
-    call define_derived_mode("special-mode", "", "Special")
-    call define_minor_mode("transient-mark-mode", "", global=.true.)
+    ! Fundamental mode is not derived; it is defined so that other modes
+    ! can name it as their parent.
+    call major_modes%fundamental_mode%define("fundamental-mode", "Fundamental", fundamental_mode)
+    call major_modes%special_mode%define("special-mode", "Special", special_mode)
+    call minor_modes%transient_mark_mode%define("transient-mark-mode", global=.true., &
+                                                variable="transient-mark-mode")
     commands%transient_mark_mode%run => cmd_transient_mark_mode
-    call define_minor_mode("indent-tabs-mode", "")
+    call minor_modes%indent_tabs_mode%define("indent-tabs-mode", variable="indent-tabs-mode")
     commands%indent_tabs_mode%run => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
-    map = derived_mode_map("special-mode")
+    map = major_modes%special_mode%map
     call keymap_set(map, "q", "quit-window", st)
     call keymap_set(map, "SPC", "scroll-up-command", st)
     call keymap_set(map, "S-SPC", "scroll-down-command", st)

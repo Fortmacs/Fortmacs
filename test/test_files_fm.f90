@@ -39,7 +39,8 @@ module test_files_fm
     use files_fm, only: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, &
                         save_buffer, basic_save_buffer, make_backup_file_name, &
                         normal_backup_enable_predicate, save_some_buffers, &
-                        save_buffers_kill_emacs, temporary_file_directory, make_directory
+                        save_buffers_kill_emacs, temporary_file_directory, make_directory, require_final_newline, &
+                        FINAL_NEWLINE_NEVER, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT
     use subr_fm, only: y_or_n_p
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_fm, only: command_line_1, arg_type
@@ -85,7 +86,8 @@ contains
                     new_unittest("save-some-buffers", test_save_some_buffers), &
                     new_unittest("save-buffers-kill-emacs", test_kill_emacs), &
                     new_unittest("command-line-files", test_command_line), &
-                    new_unittest("files-tests-make-directory", test_make_directory) &
+                    new_unittest("files-tests-make-directory", test_make_directory), &
+                    new_unittest("require-final-newline", test_final_newline) &
                     ]
     end subroutine collect_files_fm
 
@@ -475,11 +477,12 @@ contains
             call save_some_buffers(.false., .true., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, slurp(path("b.txt")) == "bee" .and. .not. file_exists_p(path("c.txt")))
+            ! Text mode (from the file name) sets require-final-newline.
+            call check(error, slurp(path("b.txt")) == "bee"//achar(10) .and. .not. file_exists_p(path("c.txt")))
             if (allocated(error)) exit body
             ! With ARG, save all without asking.
             call save_some_buffers(.true., .true., st)
-            call check(error, slurp(path("c.txt")) == "sea")
+            call check(error, slurp(path("c.txt")) == "sea"//achar(10))
             if (allocated(error)) exit body
             last_message = ""
             call save_some_buffers(.false., .true., st)
@@ -507,7 +510,7 @@ contains
             ! Save it: then exit without further questions.
             call type_keys("y")
             call save_buffers_kill_emacs(.false., st)
-            call check(error, st%ok() .and. exit_requested_p() .and. slurp(path("b.txt")) == "bee")
+            call check(error, st%ok() .and. exit_requested_p() .and. slurp(path("b.txt")) == "bee"//achar(10))
         end block body
         call kill_file_buffers()
         call reset_exit()
@@ -623,4 +626,64 @@ contains
         call delete_file_internal(file, st)
         call delete_directory_internal(dir, st)
     end subroutine test_make_directory
+
+    !> basic-save-buffer adds a final newline as `require-final-newline'
+    !> says (asking for other values than t and visit-save), visiting adds
+    !> one for `visit', and saving into a missing directory asks to create
+    !> it.
+    subroutine test_final_newline(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        character(len=*), parameter :: LF = achar(10)
+        body: block
+            call setup()
+            call delete_file_internal(path("nl/f"), st)
+            call delete_directory_internal(path("nl"), st)
+            ! No extension: Fundamental mode, which leaves it nil.
+            call find_file(path("x"), st)
+            call insert("x", st)
+            call save_buffer(1_int64, .true., st)
+            call check(error, slurp(path("x")) == "x", "nil: no newline")
+            if (allocated(error)) exit body
+            require_final_newline = FINAL_NEWLINE_ASK
+            call insert("y", st)
+            call type_keys("n")
+            call save_buffer(1_int64, .true., st)
+            call check(error, slurp(path("x")) == "xy", "declined")
+            if (allocated(error)) exit body
+            call insert("z", st)
+            call type_keys("y")
+            call save_buffer(1_int64, .true., st)
+            call check(error, slurp(path("x")) == "xyz"//LF, "asked")
+            if (allocated(error)) exit body
+            call check(error, buffer_string() == "xyz"//LF, "added to the buffer")
+            if (allocated(error)) exit body
+            require_final_newline = FINAL_NEWLINE_NEVER
+            call find_file(path("nl/f"), st)
+            call insert("f", st)
+            call type_keys("y")
+            call save_buffer(1_int64, .true., st)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call check(error, slurp(path("nl/f")) == "f", "directory created")
+            if (allocated(error)) exit body
+            call get_buffer_create(" visit", buf, st)
+            call set_buffer(buf, st)
+            call insert("v", st)
+            call write_region(path("new"), .false., st)
+            call kill_buffer(buf, st)
+            require_final_newline = FINAL_NEWLINE_VISIT
+            call find_file(path("new"), st)
+            call check(error, buffer_string() == "v"//LF, "visit")
+        end block body
+        require_final_newline = FINAL_NEWLINE_NEVER
+        call find_file_noselect(path("x"), buf, st)
+        if (st%ok()) call kill_buffer(buf, st)
+        call find_file_noselect(path("nl/f"), buf, st)
+        if (st%ok()) call kill_buffer(buf, st)
+        call delete_file_internal(path("nl/f"), st)
+        call delete_directory_internal(path("nl"), st)
+        call kill_file_buffers()
+    end subroutine test_final_newline
 end module test_files_fm

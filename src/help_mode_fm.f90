@@ -31,7 +31,7 @@ module help_mode_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use keymap_fm, only: keymap_live_p
-    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
+    use modes_fm, only: major_modes
     use simple_fm, only: syms_of_simple_modes
     implicit none(type, external)
     private
@@ -47,8 +47,8 @@ contains
     !> Define Help mode and its parent, Special mode.
     subroutine init_help_mode()
         call syms_of_simple_modes()
-        call define_derived_mode("help-mode", "special-mode", "Help")
-        help_mode_map = derived_mode_map("help-mode")
+        call major_modes%help_mode%define("help-mode", "Help", help_mode, parent=major_modes%special_mode)
+        help_mode_map = major_modes%help_mode%map
         commands%help_mode%run => help_mode
     end subroutine init_help_mode
 
@@ -58,8 +58,8 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
         if (.not. keymap_live_p(help_mode_map)) call init_help_mode()
-        call derived_mode_begin("help-mode", saved, status)
+        call major_modes%help_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call derived_mode_end("help-mode", saved, status)
+        call major_modes%help_mode%finish(saved, status)
     end subroutine help_mode
 end module help_mode_fm
