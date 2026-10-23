@@ -321,7 +321,7 @@ contains
     !> minibuffer-mode is not ported: as set_minibuffer_mode does when it
     !> is not defined, the minibuffer's local variables are killed.
     recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default, defaults, &
-                                              position)
+                                              position, history_position)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
@@ -331,6 +331,9 @@ contains
         !> With INITIAL, point goes to this one-indexed position in it (as
         !> for an INITIAL of the form (STRING . POSITION)).
         integer(int64), intent(in), optional :: position
+        !> The initial history position (as for a HIST of the form
+        !> (SYMBOL . POSITION)); default 0.
+        integer, intent(in), optional :: history_position
         type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
         integer(int64) :: old_root_start, bi
         type(window_type), pointer :: sw, mw
@@ -378,6 +381,7 @@ contains
         saved_histpos = minibuffer_history_position
         minibuffer_history_variable = histvar
         minibuffer_history_position = 0
+        if (present(history_position)) minibuffer_history_position = history_position
         had_default = allocated(minibuffer_default)
         if (had_default) call move_alloc(minibuffer_default, saved_default)
         if (present(defaults)) then

@@ -46,6 +46,7 @@ module subr_fm
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
+    public :: defvar_nil
     public :: global_set_key, read_number, syms_of_subr, forward_symbol, find_tag_default, &
               find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
@@ -421,6 +422,16 @@ contains
         call set(sym(history_var), make_list(kept(1:n)), st)
         if (present(added)) added = .true.
     end subroutine add_to_history
+
+    !> (defvar NAME nil): give the variable NAME the value nil unless it
+    !> has a value already.  Port of eval.c:Fdefvar (INITVALUE nil).
+    subroutine defvar_nil(name)
+        character(len=*), intent(in) :: name
+        type(value_type) :: v
+        type(status_type) :: st
+        call symbol_value(sym(name), v, st)
+        if (.not. st%ok()) call set(sym(name), nil(), st)
+    end subroutine defvar_nil
 
     !> Give KEY a global binding as COMMAND.
     !> This is a legacy function; see `keymap_global_set' for the

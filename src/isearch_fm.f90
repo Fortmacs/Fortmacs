@@ -58,9 +58,9 @@ module isearch_fm
                          lookup_key, keymap_live_p, free_keymap, overriding_terminal_local_map
     use keyboard_fm, only: this_command, last_command, last_command_event, this_command_keys, &
                            pre_command_hook, redisplay_proc, discard_input, input_pending_p, &
-                           read_event
+                           read_event, sit_for
     use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
-    use subr_fm, only: add_to_history, history_delete_duplicates
+    use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
@@ -780,9 +780,59 @@ contains
         logical, intent(in) :: c_q_hack
         logical, intent(in), optional :: ellipsis
         character(len=:), allocatable :: m
-        m = isearch_message_prefix(isearch_nonincremental, flag(ellipsis))//isearch_message// &
-            isearch_message_suffix(c_q_hack)
+        m = isearch_message_prefix(isearch_nonincremental, flag(ellipsis))//isearch_text_description(isearch_message) &
+            //isearch_message_suffix(c_q_hack)
     end function isearch_message_string
+
+    !> Return position of first mismatch in search string, or -1 (nil) if
+    !> none.  Port of isearch.el:isearch-fail-pos (MSG nil).
+    integer(int64) function isearch_fail_pos() result(pos)
+        integer :: k
+        pos = -1
+        if (isearch_success .and. .not. allocated(isearch_error)) return
+        k = ncmds
+        do while (k >= 1)
+            if (cmds(k)%success .and. .not. allocated(cmds(k)%error)) exit
+            k = k - 1
+        end do
+        pos = 0
+        if (k < 1) return
+        if (.not. allocated(cmds(k)%string)) return
+        if (len(cmds(k)%string) < len(isearch_string)) then
+            if (isearch_string(1:len(cmds(k)%string)) == cmds(k)%string) pos = schars_of(cmds(k)%string)
+        end if
+    end function isearch_fail_pos
+
+    !> The number of characters of `s'.
+    integer(int64) function schars_of(s)
+        character(len=*), intent(in) :: s
+        integer :: i
+        schars_of = 0
+        do i = 1, len(s)
+            if (iand(iachar(s(i:i)), 192) /= 128) schars_of = schars_of + 1
+        end do
+    end function schars_of
+
+    !> How `isearch_message' displays: each character as
+    !> isearch-text-char-description shows it, control characters as ^C
+    !> and DEL as ^? (upstream puts these on the characters as `display'
+    !> properties).  Port of isearch.el:isearch-text-char-description.
+    function isearch_text_description(text) result(shown)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: shown
+        integer :: i, c
+        shown = ""
+        do i = 1, len(text)
+            c = iachar(text(i:i))
+            if (c < 32) then
+                shown = shown//"^"//achar(c + 64)
+            else if (c == 127) then
+                shown = shown//"^?"
+            else
+                shown = shown//text(i:i)
+            end if
+        end do
+    end function isearch_text_description
 
     !> The prompt before the search string ("I-search: ", "Failing
     !> wrapped I-search backward: ", ...).  Port of
@@ -1450,6 +1500,15 @@ contains
         end if
     end subroutine isearch_yank_pop_only
 
+    !> Print STRING at the end of the isearch prompt for 1 second.
+    !> Port of isearch.el:isearch--momentary-message.
+    subroutine isearch_momentary_message(string)
+        character(len=*), intent(in) :: string
+        call message(isearch_message_prefix(isearch_nonincremental)//isearch_text_description(isearch_message)// &
+                     " ["//string//"]")
+        call sit_for(1000)
+    end subroutine isearch_momentary_message
+
     !> Toggle case folding in searching on or off.
     !> Toggles the value of the variable `isearch_case_fold_search'.
     !> Port of isearch.el:isearch-toggle-case-fold.
@@ -1457,10 +1516,10 @@ contains
         if (.not. isearch_active) call isearch_mode(.true.)
         if (isearch_case_fold_search /= CASE_FOLD_NIL) then
             isearch_case_fold_search = CASE_FOLD_NIL
-            call message("case sensitive")
+            call isearch_momentary_message("case sensitive")
         else
             isearch_case_fold_search = CASE_FOLD_YES
-            call message("case insensitive")
+            call isearch_momentary_message("case insensitive")
         end if
         isearch_success = .true.
         isearch_adjusted = ADJUSTED_TOGGLE
@@ -1493,9 +1552,9 @@ contains
             on = isearch_lax_whitespace
         end if
         if (on) then
-            call message("match spaces loosely")
+            call isearch_momentary_message("match spaces loosely")
         else
-            call message("match spaces literally")
+            call isearch_momentary_message("match spaces literally")
         end if
         isearch_success = .true.
         isearch_adjusted = ADJUSTED_TOGGLE
@@ -1514,7 +1573,8 @@ contains
         logical :: new_forward, new_nonincremental, saved_success, saved_wrapped, &
                    saved_yank_flag, had_error, saved_history_add
         integer :: new_case_fold, saved_ncmds, saved_adjusted
-        integer(int64) :: saved_barrier, saved_opoint, old_point, old_other_end
+        integer(int64) :: saved_barrier, saved_opoint, old_point, old_other_end, fail_pos
+        integer :: histpos
         type(isearch_state) :: now
         status = status_type()
         new_nonincremental = isearch_nonincremental
@@ -1534,6 +1594,12 @@ contains
         had_error = allocated(isearch_error)
         if (had_error) saved_error = isearch_error
         saved_opoint = isearch_opoint
+        fail_pos = isearch_fail_pos()
+        if (isearch_regexp) then
+            histpos = regexp_search_ring_yank_pointer + 1
+        else
+            histpos = search_ring_yank_pointer + 1
+        end if
         ! Actually terminate isearching until editing is done.
         call isearch_done(nopush=.true., edit=.true.)
         ! Save old point and isearch-other-end before reading from
@@ -1544,8 +1610,10 @@ contains
         ! be added only by `isearch_update_ring' called from `isearch_done'.
         saved_history_add = history_add_new_input
         history_add_new_input = .false.
+        if (fail_pos < 0) fail_pos = schars_of(isearch_string)
         call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
-                                  initial=isearch_string, history=ring_name(isearch_regexp))
+                                  initial=isearch_string, position=fail_pos + 1, history=ring_name(isearch_regexp), &
+                                  history_position=histpos)
         history_add_new_input = saved_history_add
         if (status%ok()) then
             new_string = input
@@ -1780,6 +1848,8 @@ contains
         type(handle_type) :: meta_map
         type(value_type) :: key(1)
         type(status_type) :: status
+        call defvar_nil("search_ring")
+        call defvar_nil("regexp_search_ring")
         commands%isearch_forward%run => isearch_forward_command
         commands%isearch_backward%run => isearch_backward_command
         commands%isearch_forward_regexp%run => isearch_forward_regexp_command

@@ -179,6 +179,7 @@ contains
         integer :: k
         integer(int64) :: c
         if (keymap_live_p(y_or_n_p_map)) return
+        call init_query_replace_map()
         call make_sparse_keymap(y_or_n_p_map)
         call set_keymap_parent(y_or_n_p_map, minibuffer_local_map, st)
         do k = 1, size(QRM_KEYS)

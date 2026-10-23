@@ -49,7 +49,7 @@ module simple_fm
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
     use xdisp_fm, only: message
-    use subr_fm, only: add_to_history
+    use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                           bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
@@ -1280,6 +1280,7 @@ contains
     end subroutine cmd_execute_extended_command
 
     subroutine syms_of_simple()
+        call defvar_nil("kill_ring")
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command

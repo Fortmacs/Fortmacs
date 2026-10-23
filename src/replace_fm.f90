@@ -56,7 +56,7 @@ module replace_fm
     use search_fm, only: case_fold_search, search_spaces_regexp, re_search_forward, re_search_backward, &
                          looking_at, match_beginning, match_end, match_data, set_match_data, replace_match, &
                          regexp_quote, string_match, SEARCH_NOERROR
-    use subr_fm, only: read_key, add_to_history, history_length, query_replace_answer, match_string, &
+    use subr_fm, only: read_key, add_to_history, defvar_nil, history_length, query_replace_answer, match_string, &
                        looking_back, match_substitute_replacement, find_tag_default, find_tag_default_as_regexp, &
                        find_tag_default_as_symbol_regexp, &
                        ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, ANSWER_AUTOMATIC, &
@@ -1730,6 +1730,8 @@ contains
         type(value_type) :: history
         query_replace_from_to_separator = " → "
         query_replace_from_history_variable = "query_replace_history"
+        call defvar_nil("query_replace_history")
+        call defvar_nil("regexp_history")
         query_replace_to_history_variable = "query_replace_history"
         ! Default history list for `query_replace' commands.
         call symbol_value(sym("query_replace_history"), history, st)

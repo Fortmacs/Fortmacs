@@ -276,10 +276,11 @@ contains
         call set(sym("test-history"), list(make_string("old")), st)
         ! Two lines: <up> goes to the first line, a second <up> to the
         ! history.
-        call type_keys("a C-q C-j b <up> X RET")
+        call type_keys("a b c d e f C-q C-j x y z w <up> X RET")
         call read_from_minibuffer("? ", answer, st, history="test-history")
-        call check(error, answer == "aX"//achar(10)//"b", answer)
+        call check(error, answer == "abXcdef"//achar(10)//"xyzw", answer)
         if (allocated(error)) return
+        call set(sym("test-history"), list(make_string("old")), st)
         call type_keys("a C-q C-j b <up> <up> RET")
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call check(error, answer == "old", answer)
@@ -416,11 +417,17 @@ contains
         logical :: answer
         call fresh_scratch()
         last_minibuffer_message = ""
+        ! Another key: the answer is asked for again (and the input typed
+        ! after it is discarded, so here input ends).
         call type_keys("x y")
         call y_or_n_p("Go?", answer, st)
-        call check(error, st%ok() .and. answer .and. last_message == "Go? (y or n) y", last_message)
+        call check(error, st%code == FM_QUIT, "input discarded")
         if (allocated(error)) return
         call check(error, last_minibuffer_message == " [Please answer y or n]", last_minibuffer_message)
+        if (allocated(error)) return
+        call type_keys("y")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%ok() .and. answer .and. last_message == "Go? (y or n) y", last_message)
         if (allocated(error)) return
         call type_keys("RET")
         call y_or_n_p("Go?", answer, st)
@@ -445,6 +452,14 @@ contains
         call fresh_scratch()
         y_or_n_p_use_read_key = .true.
         call type_keys("x n")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%code == FM_QUIT .and. last_message == "Please answer y or n.  Go? (y or n) ", &
+                   last_message)
+        if (allocated(error)) then
+            y_or_n_p_use_read_key = .false.
+            return
+        end if
+        call type_keys("n")
         call y_or_n_p("Go?", answer, st)
         call check(error, st%ok() .and. .not. answer .and. last_message == "Go? (y or n) n", last_message)
         if (allocated(error)) then
