@@ -228,6 +228,18 @@ contains
         call scroll_up_command(nil(), st)
         goal_column = -1
         call check(error, st%ok() .and. point() == line(9) + 3)
+        if (allocated(error)) return
+        ! truncate-partial-width-windows is non-nil: the goal is a column
+        ! as move-to-column counts it (column 3 is in the middle of the
+        ! wide character, so point goes after it), not a screen x.
+        call set_window_start(win(), line(1), st)
+        call goto_char(line(9) + 2)
+        call insert(char(230)//char(188)//char(162), st)
+        call goto_char(line(1))
+        goal_column = 3
+        call scroll_up_command(nil(), st)
+        goal_column = -1
+        call check(error, st%ok() .and. point() == line(9) + 3, "move-to-column")
         call leave(h)
     end subroutine test_goal_column
 

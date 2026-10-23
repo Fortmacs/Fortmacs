@@ -33,9 +33,13 @@ module test_xdisp_fm
     use term_fm, only: init_tty_entry
     use termchar_fm, only: tty_take_output
     use frame_fm, only: frame_type
-    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer
-    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, init_frame_windows
-    use keyboard_fm, only: last_message
+    use window_fm, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows
+    use xdisp_fm, only: layout_window, redisplay, mode_line_text, glyph_width, mode_line_row, init_frame_windows, &
+                        mode_line_percent, recenter_start, message, mode_line_modes
+    use keyboard_fm, only: last_message, set_minibuffer_message_text
+    use frame_fm, only: selected_frame, ensure_frame_windows
+    use handle_fm, only: null_handle
+    use editfns_fm, only: narrow_to_region, widen
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
@@ -53,6 +57,12 @@ contains
                     new_unittest("layout-lines-and-cursor", test_lines), &
                     new_unittest("layout-tab-control-wide", test_special_chars), &
                     new_unittest("layout-continuation", test_continuation), &
+                    new_unittest("layout-wide-at-right-edge", test_wide_edge), &
+                    new_unittest("layout-split-control-and-tab", test_split_chars), &
+                    new_unittest("recenter-by-screen-lines", test_recenter_start), &
+                    new_unittest("mode-line-percent-and-narrow", test_mode_line_position), &
+                    new_unittest("echo-area-glyphs", test_echo_area), &
+                    new_unittest("message-in-active-minibuffer", test_minibuffer_message), &
                     new_unittest("layout-end-of-buffer", test_end_of_buffer), &
                     new_unittest("layout-region-face", test_region), &
                     new_unittest("mode-line-text", test_mode_line), &
@@ -221,15 +231,146 @@ contains
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
-        s = mode_line_text("*scratch*", .false., .false., "All", 1_int64, 60)
-        call check(error, s, "-UUU:----F1  *scratch*      All   L1     (Fundamental) -----")
+        type(glyph_type) :: row(60)
+        ! bindings.el's standard-mode-line-format on a text terminal.
+        s = mode_line_text("*scratch*", .false., .false., "All", "1", 60)
+        call mode_line_row(s, 60, row)
+        call check(error, glyphs_text(row), "-UUU:--- F1  *scratch*      All L1     (Fundamental) -------")
         if (allocated(error)) return
-        s = mode_line_text("notes", .true., .false., "Top", 12_int64, 20)
-        call check(error, s, "-UUU:**--F1  notes  ")
+        call check(error, all(row%face_id == 1), "mode-line face")
         if (allocated(error)) return
-        s = mode_line_text("x", .true., .true., "Bot", 3_int64, 9)
-        call check(error, s, "-UUU:%*--")
+        ! Modified; a line number of 4 digits fills (6 " L%l") up.
+        s = mode_line_text("notes", .true., .false., "Top", "1234", 40)
+        call mode_line_row(s, 40, row(1:40))
+        call check(error, glyphs_text(row(1:40)), "-UUU:**- F1  notes          Top L1234  (")
+        if (allocated(error)) return
+        ! Read-only: %* shows % and %+ shows * once modified; (-3 "%p")
+        ! cuts Bottom to Bot.
+        s = mode_line_text("x", .true., .true., "Bottom", "3", 32)
+        call mode_line_row(s, 32, row(1:32))
+        call check(error, glyphs_text(row(1:32)), "-UUU:%*- F1  x              Bot ")
+        if (allocated(error)) return
+        s = mode_line_text("x", .false., .true., "All", "3", 0)
+        call check(error, s(6:7) == "%%", "read-only")
+        if (allocated(error)) return
+        ! %12b pads by characters: a 3-character name of 9 bytes.
+        s = mode_line_text(repeat(char(206)//char(187), 3), .false., .false., "All", "1", 40)
+        call mode_line_row(s, 40, row(1:40))
+        call check(error, row(14)%ch == 955 .and. row(16)%ch == 955 .and. row(17)%ch == 32 .and. &
+                   row(25)%ch == 32 .and. row(28)%ch == 32 .and. row(29)%ch == iachar("A"), "padded name")
+        if (allocated(error)) return
+        ! A wide character cut by the right edge shows as -.
+        call mode_line_row("abc"//char(230)//char(188)//char(162), 4, row(1:4))
+        call check(error, glyphs_text(row(1:4)), "abc-")
     end subroutine test_mode_line
+
+    !> Glyphs as text (ASCII; others as ?).
+    function glyphs_text(g) result(s)
+        type(glyph_type), intent(in) :: g(:)
+        character(len=:), allocatable :: s
+        integer :: k
+        s = ""
+        do k = 1, size(g)
+            if (g(k)%ch < 128) then
+                s = s//achar(g(k)%ch)
+            else
+                s = s//"?"
+            end if
+        end do
+    end function glyphs_text
+
+    !> %p rounds up (percent99) and shows Top, Bottom or All at the ends;
+    !> %n shows Narrow in the modes.
+    subroutine test_mode_line_position(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        call buffer_with("*xdisp-pct*", repeat("x", 199)//achar(10), h, bi)
+        call check(error, mode_line_percent(bi, 2_int64, .false.), " 1%")
+        if (allocated(error)) return
+        call check(error, mode_line_percent(bi, 200_int64, .false.), "99%")
+        if (allocated(error)) return
+        call check(error, mode_line_percent(bi, 101_int64, .false.), "50%")
+        if (allocated(error)) return
+        call check(error, mode_line_percent(bi, 1_int64, .false.), "Top")
+        if (allocated(error)) return
+        call check(error, mode_line_percent(bi, 5_int64, .true.), "Bottom")
+        if (allocated(error)) return
+        call check(error, mode_line_percent(bi, 1_int64, .true.), "All")
+        if (allocated(error)) return
+        call narrow_to_region(3_int64, 10_int64, st)
+        call check(error, mode_line_modes(bi), "Fundamental Narrow")
+        call widen()
+        call kill_buffer(h, st)
+    end subroutine test_mode_line_position
+
+    !> A wide character that does not fit before the continuation column
+    !> moves to the next row, the rest of the row filled with \; the next
+    !> row's TABs count from the columns actually used.
+    subroutine test_wide_edge(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(glyph_row_type), allocatable :: rows(:)
+        integer(int64) :: bi, end_pos
+        integer :: crow, ccol
+        logical :: at_end
+        type(status_type) :: st
+        call buffer_with("*xdisp-wide*", "abcd"//char(230)//char(188)//char(162)//achar(9)//"x", h, bi)
+        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call check(error, row_text(rows(1)), "abcd\\")
+        if (allocated(error)) return
+        ! The wide character at column 4 of the line, the TAB to 8.
+        call check(error, rows(2)%used == 5 .and. rows(2)%glyphs(1)%ch == 28450 .and. &
+                   rows(2)%glyphs(5)%ch == iachar("x"), "second row")
+        if (allocated(error)) return
+        call check(error, crow == 1 .and. ccol == 0, "cursor on the wide character")
+        call kill_buffer(h, st)
+    end subroutine test_wide_edge
+
+    !> ^A and a TAB that do not fit are split: the cells that fit stay,
+    !> the rest begins the next row; the cursor is on the first part.
+    subroutine test_split_chars(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(glyph_row_type), allocatable :: rows(:)
+        integer(int64) :: bi, end_pos
+        integer :: crow, ccol
+        logical :: at_end
+        type(status_type) :: st
+        call buffer_with("*xdisp-split-chars*", "abcd"//achar(1)//"z", h, bi)
+        call layout(bi, 1_int64, 5_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call check(error, row_text(rows(1)), "abcd^\")
+        if (allocated(error)) return
+        call check(error, row_text(rows(2)), "Az")
+        if (allocated(error)) return
+        call check(error, crow == 0 .and. ccol == 4, "cursor on ^")
+        if (allocated(error)) return
+        call buffer_with("*xdisp-split-chars*", "abc"//achar(9)//"z", h, bi)
+        call layout(bi, 1_int64, 4_int64, 6, 2, rows, crow, ccol, end_pos, at_end)
+        call check(error, row_text(rows(1)), "abc  \")
+        if (allocated(error)) return
+        call check(error, row_text(rows(2)), "   z")
+        if (allocated(error)) return
+        call check(error, crow == 0 .and. ccol == 3, "cursor on the TAB")
+        call kill_buffer(h, st)
+    end subroutine test_split_chars
+
+    !> Recentering moves back by screen lines, continuation rows counted.
+    subroutine test_recenter_start(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        ! "a" x 12 shows on three rows 6 columns wide (5 + 5 + 2).
+        call buffer_with("*xdisp-recenter*", repeat("a", 12)//achar(10)//"b"//achar(10)//"c", h, bi)
+        call check(error, recenter_start(bi, 16_int64, 5, 3) == 6_int64, "second row of the long line")
+        if (allocated(error)) return
+        call check(error, recenter_start(bi, 16_int64, 5, 0) == 16_int64, "point's line")
+        if (allocated(error)) return
+        call check(error, recenter_start(bi, 16_int64, 5, 9) == 1_int64, "not before the start")
+        call kill_buffer(h, st)
+    end subroutine test_recenter_start
 
     !> Point far below the window start: the window recenters on it.
     subroutine test_redisplay(error)
@@ -257,10 +398,10 @@ contains
         call goto_char(line_start(60))
         call redisplay(f, st)
         out = tty_take_output(f%tty)
-        ! 22 text lines: point's line goes to row (22 - 1) / 2 = 10.
-        call check(error, f%cursor_vpos == 10 .and. f%cursor_hpos == 0, "cursor row")
+        ! 22 text lines: point's line goes to row 22 / 2 = 11.
+        call check(error, f%cursor_vpos == 11 .and. f%cursor_hpos == 0, "cursor row")
         if (allocated(error)) return
-        call check(error, row_text(f%current_matrix%rows(10)), "line 60")
+        call check(error, row_text(f%current_matrix%rows(11)), "line 60")
         if (allocated(error)) return
         call check(error, index(row_text(f%current_matrix%rows(22)), "*xdisp-big*   ") > 0 .and. &
                    index(row_text(f%current_matrix%rows(22)), "L60") > 0, "mode line")
@@ -269,6 +410,11 @@ contains
         last_message = "Hello"
         call redisplay(f, st)
         call check(error, row_text(f%current_matrix%rows(23)), "Hello")
+        if (allocated(error)) return
+        ! The mode line is the standard one (L60 padded to 6 columns).
+        call check(error, index(row_text(f%current_matrix%rows(22)), "-UUU:**- F1  *xdisp-big*    ") == 1 .and. &
+                   index(row_text(f%current_matrix%rows(22)), " L60    (Fundamental) ---") > 0, &
+                   row_text(f%current_matrix%rows(22)))
         last_message = ""
         call delete_window_tree(f%root_window)
         call delete_window_object(f%minibuffer_window)
@@ -286,6 +432,71 @@ contains
             end if
         end function line_start
     end subroutine test_redisplay
+
+    !> The echo area shows a message as text is shown: TAB, ^A, wide
+    !> characters, its first line only, continued with \.
+    subroutine test_echo_area(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: out, row
+        integer(int64) :: bi
+        call buffer_with("*xdisp-echo*", "", h, bi)
+        call builtin_xterm(ti)
+        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        last_message = "a"//achar(9)//"b"//achar(1)//char(230)//char(188)//char(162)//"c"//achar(10)//"second"
+        call redisplay(f, st)
+        out = tty_take_output(f%tty)
+        call check(error, row_text(f%current_matrix%rows(23)), "a       b^A?c")
+        if (allocated(error)) return
+        last_message = repeat("m", 100)
+        call redisplay(f, st)
+        row = row_text(f%current_matrix%rows(23))
+        call check(error, row, repeat("m", 79)//"\")
+        if (allocated(error)) return
+        ! A wide character that does not fit: \ in both cells left.
+        last_message = repeat("m", 78)//char(230)//char(188)//char(162)
+        call redisplay(f, st)
+        row = row_text(f%current_matrix%rows(23))
+        call check(error, row, repeat("m", 78)//"\\")
+        last_message = ""
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call kill_buffer(h, st)
+    end subroutine test_echo_area
+
+    !> `message' while the minibuffer is active shows " [...]" after the
+    !> minibuffer's text (set-minibuffer-message), not in the echo area;
+    !> an empty message clears it.
+    subroutine test_minibuffer_message(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        call buffer_with(" *Minibuf-1*", "", h, bi)
+        call ensure_frame_windows()
+        last_message = ""
+        call set_window_buffer(windows(selected_frame%minibuffer_window%index), h, st)
+        call message("Mark set")
+        call check(error, allocated(set_minibuffer_message_text), "shown")
+        if (allocated(error)) return
+        call check(error, set_minibuffer_message_text, " [Mark set]")
+        if (allocated(error)) return
+        call check(error, last_message, "")
+        if (allocated(error)) return
+        call message("  [Done]")
+        call check(error, set_minibuffer_message_text, "  [Done]")
+        if (allocated(error)) return
+        call message("")
+        call check(error,.not. allocated(set_minibuffer_message_text), "cleared")
+        windows(selected_frame%minibuffer_window%index)%buffer = null_handle()
+        call message("Mark set")
+        if (.not. allocated(error)) call check(error, last_message, "Mark set")
+        last_message = ""
+        call kill_buffer(h, st)
+    end subroutine test_minibuffer_message
 
     !> The whole editor on a pty: type, then C-x C-c.
     subroutine test_emacs_main(error)

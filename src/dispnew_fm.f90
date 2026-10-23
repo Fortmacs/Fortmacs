@@ -38,12 +38,13 @@ module dispnew_fm
                        tty_delete_glyphs, tty_clear_end_of_line, tty_clear_frame, &
                        tty_update_end, tty_ring_bell
     use error_fm, only: status_type
+    use keyboard_fm, only: ring_bell, bitch_at_user
     implicit none(type, external)
     private
 
     public :: adjust_frame_glyphs, clear_current_matrices, clear_desired_matrices, &
               redraw_frame, update_frame, write_row, make_matrix_current, &
-              set_desired_row, ding
+              set_desired_row, ding, frame_ring_bell
 
 contains
 
@@ -410,11 +411,28 @@ contains
         call clear_desired_matrices(f)
     end subroutine update_frame
 
-    !> Beep, or flash the screen.  Port of dispnew.c:Fding (with
-    !> bitch_at_user; no keyboard macro termination), for the selected
-    !> frame's terminal; nothing without one.
-    subroutine ding()
+    !> Ring the bell of the selected frame's terminal; nothing without
+    !> one.  The terminal's ring_bell_hook (term.c:tty_ring_bell).
+    subroutine frame_ring_bell()
         if (selected_frame%tty%output < 0) return
         call tty_ring_bell(selected_frame%tty)
+    end subroutine frame_ring_bell
+
+    !> Beep, or flash the screen.
+    !> Also, unless an argument is given,
+    !> terminate any keyboard macro currently executing.  Port of
+    !> dispnew.c:Fding.  The macro is terminated by the error set in
+    !> `status'; without `status' the bell just rings.
+    subroutine ding(arg, status)
+        logical, intent(in), optional :: arg
+        type(status_type), intent(inout), optional :: status
+        logical :: have_arg
+        have_arg = .false.
+        if (present(arg)) have_arg = arg
+        if (have_arg .or. .not. present(status)) then
+            call ring_bell()
+        else
+            call bitch_at_user(status)
+        end if
     end subroutine ding
 end module dispnew_fm

@@ -25,15 +25,18 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type
+    use lisp_fm, only: value_type, nil
     use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
-    use keymap_fm, only: key_parse
+    use keymap_fm, only: key_parse, keymap_global_set, keymap_set
+    use text_mode_fm, only: text_mode, text_mode_map
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
+    use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use simple_fm, only: fill_prefix
     use help_fm, only: substitute_command_keys, with_help_window
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
@@ -61,11 +64,14 @@ contains
                     new_unittest("describe-function-command", test_describe_command), &
                     new_unittest("describe-function-api", test_describe_api), &
                     new_unittest("describe-variable", test_describe_variable), &
+                    new_unittest("help-empty-input", test_empty_input), &
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
                     new_unittest("describe-key-undefined", test_describe_key_undefined), &
+                    new_unittest("describe-key-binding-locus", test_binding_locus), &
                     new_unittest("describe-key-briefly", test_describe_key_briefly), &
                     new_unittest("where-is", test_where_is), &
+                    new_unittest("advertised-binding", test_advertised_binding), &
                     new_unittest("describe-function-keys", test_describe_function_keys), &
                     new_unittest("describe-variable-keys", test_describe_variable_keys) &
                     ]
@@ -251,6 +257,15 @@ contains
                    index(text, "Port of") == 0, text)
         if (allocated(error)) return
         ! An apostrophe becomes a right quote.
+        ! Ordinary text characters are not listed (help-fns--key-bindings).
+        call describe_function_1("self_insert_command", text)
+        call check(error, index(text, LF//LF//"It is bound to many ordinary text characters."//LF//LF) > 0, text)
+        if (allocated(error)) return
+        ! The last key follows " and ".
+        call describe_function_1("kill_ring_save", text)
+        call check(error, index(text, LF//LF//"It is bound to <copy>, C-<insertchar>, C-<insert> and M-w."//LF//LF) > 0, &
+                   text)
+        if (allocated(error)) return
         call describe_function_1("help_quit", text)
         call check(error, index(text, "Just exit from the Help command's") == 0 .and. &
                    index(text, "Just exit from the Help command"//RQ//"s command loop.") > 0, text)
@@ -278,6 +293,7 @@ contains
         logical :: found
         integer :: saved
         call fresh_scratch()
+        if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         saved = tab_width%value
         tab_width = 4
         call describe_variable_text("tab_width", text, found)
@@ -301,7 +317,45 @@ contains
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
         call check(error,.not. found)
+        if (allocated(error)) return
+        ! An original value of 20 characters or more starts on the next
+        ! line.
+        search_upper_case = UPPER_CASE_T
+        call describe_variable_text("search_upper_case", text, found)
+        search_upper_case = UPPER_CASE_NOT_YANKS
+        call check(error, index(text, "Its value is UPPER_CASE_T"//LF// &
+                                "Original value was "//LF//"UPPER_CASE_NOT_YANKS"//LF) > 0, text)
+        if (allocated(error)) return
+        ! A value fits on the "Its value is" line when it is shorter than
+        ! 56 characters.
+        ! (fill_prefix is nil: unallocated.)
+        fill_prefix = repeat("x", 53)
+        call describe_variable_text("fill_prefix", text, found)
+        call check(error, index(text, "Its value is """//repeat("x", 53)//""""//LF) > 0, text)
+        if (allocated(error)) return
+        fill_prefix = repeat("x", 54)
+        call describe_variable_text("fill_prefix", text, found)
+        deallocate (fill_prefix%value)
+        call check(error, index(text, "Its value is"//LF//""""//repeat("x", 54)//""""//LF) > 0, text)
     end subroutine test_describe_variable
+
+    !> Empty input to C-h f, C-h v and C-h w is an error.
+    subroutine test_empty_input(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call fresh_scratch()
+        call type_keys("C-h f RET")
+        call command_loop(st)
+        call check(error, last_message, "You didn"//RQ//"t specify a function symbol")
+        if (allocated(error)) return
+        call type_keys("C-h v RET")
+        call command_loop(st)
+        call check(error, last_message, "You didn"//RQ//"t specify a variable")
+        if (allocated(error)) return
+        call type_keys("C-h w RET")
+        call command_loop(st)
+        call check(error, last_message, "No command")
+    end subroutine test_empty_input
 
     !> *Help* is read-only, in Help mode; q goes back.
     subroutine test_help_window(error)
@@ -342,8 +396,9 @@ contains
         call command_loop(st)
         call check(error, buffers(cur)%name == "*scratch*" .and. window_count() == 2, buffers(cur)%name)
         if (allocated(error)) return
+        ! The line is filled (describe-function-1).
         call check(error, index(help_text(), "C-f runs the command forward_char (found in global_map), which is "// &
-                                "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF) == 1, &
+                                "an"//LF//"interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF//LF) == 1, &
                    help_text())
         if (allocated(error)) return
         call type_keys("<f1> k C-x C-f")
@@ -366,7 +421,48 @@ contains
         call type_keys("C-h k C-x z")
         call command_loop(st)
         call check(error, last_message == "C-x z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        if (allocated(error)) return
+        ! A key bound to `undefined' is undefined too
+        ! (help--binding-undefined-p).
+        call keymap_global_set("C-c z", "undefined", st)
+        call type_keys("C-h k C-c z")
+        call command_loop(st)
+        call check(error, last_message == "C-c z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        if (allocated(error)) return
+        call type_keys("C-h c C-c z")
+        call command_loop(st)
+        call check(error, last_message == "C-c z is undefined", last_message)
     end subroutine test_describe_key_undefined
+
+    !> help--binding-locus names the major mode's map.
+    subroutine test_binding_locus(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call fresh_scratch()
+        call get_buffer_create("*locus*", buf, st)
+        call set_buffer(buf, st)
+        call text_mode(st)
+        call keymap_set(text_mode_map, "C-c t", "forward_char", st)
+        call type_keys("C-h k C-c t")
+        call command_loop(st)
+        call check(error, index(buffer_string(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
+                   buffer_string())
+        call keymap_set(text_mode_map, "C-c t", nil(), st)
+        call type_keys("q")
+        call command_loop(st)
+    end subroutine test_binding_locus
+
+    !> bindings.el's :advertised-binding of undo and set-mark-command.
+    subroutine test_advertised_binding(error)
+        type(error_type), allocatable, intent(out) :: error
+        call fresh_scratch()
+        call test_sck(error, "\[undo]", "C-x u")
+        if (allocated(error)) return
+        call test_sck(error, "\[set_mark_command]", "C-SPC")
+        if (allocated(error)) return
+        call test_sck(error, "\[undo_redo]", "C-M-_")
+    end subroutine test_advertised_binding
 
     subroutine test_describe_key_briefly(error)
         type(error_type), allocatable, intent(out) :: error
@@ -387,7 +483,7 @@ contains
         if (allocated(error)) return
         call type_keys("C-h w h e l p _ q u i t RET")
         call command_loop(st)
-        call check(error, last_message == "help_quit is on C-h q, <f1> q", last_message)
+        call check(error, last_message == "help_quit is on C-h q, <f1> q, <help> q", last_message)
     end subroutine test_where_is
 
     subroutine test_describe_function_keys(error)

@@ -22,7 +22,7 @@
 module test_editfns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, FM_ARGS_OUT_OF_RANGE
+    use error_fm, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, format_error, format_message
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, kill_buffer, set_buffer, &
                          current_buffer, buffer_live_p, erase_buffer
@@ -35,10 +35,12 @@ module test_editfns_fm
                           point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
                           preceding_char, widen, field_beginning, field_end, field_string, &
                           constrain_to_field, line_beginning_position, line_end_position, &
-                          delete_field
+                          delete_field, subst_char_in_region
     use lisp_fm, only: list, t_value
     use lread_fm, only: sym
-    use textprop_fm, only: add_text_properties
+    use textprop_fm, only: add_text_properties, put_text_property, get_text_property
+    use lisp_fm, only: value_type
+    use data_fm, only: value_eq
     implicit none(type, external)
     private
 
@@ -65,7 +67,8 @@ contains
                     new_unittest("point-markers", test_point_markers), &
                     new_unittest("erase-buffer-widens", test_erase), &
                     new_unittest("find-fields", test_find_fields), &
-                    new_unittest("prompt-field", test_prompt_field) &
+                    new_unittest("prompt-field", test_prompt_field), &
+                    new_unittest("subst-char-in-region", test_subst_char) &
                     ]
     end subroutine collect_editfns_fm
 
@@ -281,6 +284,36 @@ contains
         call check(error, st%detail, "1, 9")
         call leave(h, old)
     end subroutine test_substring
+
+    !> The characters are replaced in place: point and text properties
+    !> stay; the region is validated, and the characters must have the
+    !> same byte length (editfns.c:Fsubst_char_in_region).
+    subroutine test_subst_char(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: v
+        call enter("te-subst", h, old)
+        call insert("a"//char(9)//"b"//char(9)//"c", st)
+        call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
+        call goto_char(3_int64)
+        call subst_char_in_region(6_int64, 1_int64, 9, 32, st)
+        call check(error, st%ok() .and. buffer_string() == "a b c" .and. point() == 3, "subst: "//buffer_string())
+        if (allocated(error)) return
+        call get_text_property(2_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("bold")), "property kept")
+        if (allocated(error)) return
+        call subst_char_in_region(1_int64, 9_int64, 32, 95, st)
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == "Args out of range: 1, 9", &
+                   format_error(st))
+        if (allocated(error)) return
+        call subst_char_in_region(1_int64, 6_int64, 97, 233, st)
+        call check(error, st%code == FM_GENERIC_ERROR .and. format_error(st) == &
+                   format_message("Characters in `subst-char-in-region' have different byte-lengths"), format_error(st))
+        if (allocated(error)) return
+        call check(error, buffer_string(), "a b c")
+        call leave(h, old)
+    end subroutine test_subst_char
 
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error

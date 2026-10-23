@@ -92,6 +92,11 @@ module lisp_fm
         !> A message to show instead of the standard one when `disabled'
         !> (a string `disabled' property).
         character(len=:), allocatable :: disabled_message
+        !> A key sequence (`key_parse' syntax) that `where_is_internal'
+        !> returns first for this command when it still runs it, as the
+        !> one key to show in menus and docstrings (the
+        !> `:advertised-binding' property; one key here).
+        character(len=:), allocatable :: advertised_binding
     contains
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).

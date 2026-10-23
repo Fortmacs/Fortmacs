@@ -30,6 +30,7 @@ module docstrings_fm
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use casefiddle_fm, only: case_symbols_as_words
+    use cmds_fm, only: auto_fill_chars
     use commands_fm, only: commands
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
@@ -60,23 +61,25 @@ module docstrings_fm
                           query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
                           replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
-    use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, cycle_spacing_actions, &
-                         delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
-                         kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, kill_whole_line_option, &
-                         line_move_visual, mark_ring_max, pending_undo_list, special_mode_hook, special_mode_map, &
-                         suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
+    use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
+                         cycle_spacing_actions, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
+                         inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
+                         kill_whole_line_option, line_move_visual, mark_ring_max, pending_undo_list, &
+                         read_quoted_char_radix, special_mode_hook, special_mode_map, suggest_key_bindings, &
+                         transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_length
     use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
-    use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo
+    use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo, &
+                       this_command_amalgamating
     use window_fm, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
                          DEDICATED_STRONG, even_window_sizes, minibuffer_scroll_window, next_screen_context_lines, &
                          pop_up_windows, scroll_error_top_bottom, split_height_threshold, split_width_threshold, &
                          split_window_preferred_direction, SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, &
                          window_min_height, window_min_width
-    use xdisp_fm, only: tab_width
+    use xdisp_fm, only: tab_width, truncate_partial_width_windows
     implicit none(type, external)
     private
 
@@ -99,7 +102,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(287) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(290) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
@@ -268,6 +271,8 @@ module docstrings_fm
                                                                    "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", &
                                                                    "modify_syntax_entry", &
+                                                                   "move_beginning_of_line", &
+                                                                   "move_end_of_line", &
                                                                    "move_to_left_margin", &
                                                                    "move_to_tab_stop", &
                                                                    "move_to_window_line", &
@@ -368,6 +373,7 @@ module docstrings_fm
                                                                    "transpose_words", &
                                                                    "turn_off_auto_fill", &
                                                                    "turn_on_auto_fill", &
+                                                                   "undefined", &
                                                                    "undo", &
                                                                    "undo_boundary", &
                                                                    "undo_only", &
@@ -389,10 +395,11 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(109) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(114) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
+                                                                   "auto_fill_chars", &
                                                                    "auto_fill_function", &
                                                                    "auto_fill_inhibit_regexp", &
                                                                    "auto_fill_mode_hook", &
@@ -410,6 +417,7 @@ module docstrings_fm
                                                                    "completion_ignored_extensions", &
                                                                    "completion_show_inline_help", &
                                                                    "completions_max_height", &
+                                                                   "copy_region_blink_delay", &
                                                                    "current_prefix_arg", &
                                                                    "cycle_spacing_actions", &
                                                                    "default_justification", &
@@ -464,6 +472,7 @@ module docstrings_fm
                                                                    "query_replace_show_replacement", &
                                                                    "query_replace_skip_read_only", &
                                                                    "read_minibuffer_restore_windows", &
+                                                                   "read_quoted_char_radix", &
                                                                    "regexp_search_ring_max", &
                                                                    "replace_count", &
                                                                    "replace_lax_whitespace", &
@@ -493,6 +502,8 @@ module docstrings_fm
                                                                    "text_mode_variant", &
                                                                    "transient_mark_mode", &
                                                                    "transient_mark_mode_hook", &
+                                                                   "truncate_partial_width_windows", &
+                                                                   "undo_auto__this_command_amalgamating", &
                                                                    "undo_in_progress", &
                                                                    "undo_no_redo", &
                                                                    "visible_bell", &
@@ -503,7 +514,7 @@ module docstrings_fm
     character(len=*), parameter :: LF = achar(10)
 
     interface repr
-        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_string, repr_strings
+        module procedure repr_logical, repr_integer, repr_int64, repr_int64s, repr_real, repr_string, repr_strings
     end interface repr
 
 contains
@@ -830,8 +841,12 @@ contains
             entry%doc = "Delete the following N characters (previous if N is negative)."//LF// &
                         "Interactively, N is the prefix arg."//LF// &
                         ""//LF// &
+                        "Optional second arg KILLFLAG non-nil means kill instead (save in kill ring)."//LF// &
+                        "Interactively, N is the prefix arg, and KILLFLAG is set if"//LF// &
+                        "N was explicitly specified."//LF// &
+                        ""//LF// &
                         "The command `delete_forward_char' is preferable for interactive use, e.g."//LF// &
-                        "because it respects values of `delete_active_region'."
+                        "because it respects values of `delete_active_region' and `overwrite_mode'."
         case ("delete_forward_char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -887,7 +902,8 @@ contains
             entry%file = "derived_fm.f90"
             entry%fortran = "derived_mode_p(mode)"
             entry%doc = "Return non-nil if the current major mode is derived from one of"//LF// &
-                        "MODES (mode objects, or names)."
+                        "MODES (mode objects, or names).  MODES can also be a single mode"//LF// &
+                        "instead of a list."
         case ("describe_function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
@@ -902,7 +918,7 @@ contains
         case ("describe_key_briefly")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Print the name of the function KEY-LIST invokes."
+            entry%doc = "Print the name of the functions KEY-LIST invokes."
         case ("describe_variable")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_variable(variable, status)"
@@ -1572,7 +1588,10 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
-                        "In Transient Mark mode, deactivate the mark."
+                        "In Transient Mark mode, deactivate the mark."//LF// &
+                        ""//LF// &
+                        "This command is similar to `copy_region_as_kill', except that it gives"//LF// &
+                        "visual feedback indicating the extent of the region being copied."
         case ("kill_sentence")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_sentence(arg, status)"
@@ -1812,7 +1831,10 @@ contains
         case ("message")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "call message(text)"
-            entry%doc = "Show `text' in the echo area."
+            entry%doc = "Show `text' in the echo area; an empty `text' clears it.  While the"//LF// &
+                        "minibuffer is active the text goes after the minibuffer's contents"//LF// &
+                        "instead, enclosed in [...] unless it already is, until the next"//LF// &
+                        "input event."
         case ("minibuffer_complete")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
@@ -1875,6 +1897,39 @@ contains
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
                         "(comment sequences and prefix characters; see the Emacs manual)."
+        case ("move_beginning_of_line")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to visible beginning of current logical line."//LF// &
+                        "This disregards any invisible newline characters."//LF// &
+                        ""//LF// &
+                        "When moving from position that has no `field' property, this"//LF// &
+                        "command doesn't enter text which has non-nil `field' property."//LF// &
+                        "In particular, when invoked in the minibuffer, the command will"//LF// &
+                        "stop short of entering the text of the minibuffer prompt."//LF// &
+                        "See `inhibit_field_text_motion' for how to inhibit this."//LF// &
+                        ""//LF// &
+                        "With argument ARG not nil or 1, move forward ARG - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        "(But if the buffer doesn't end in a newline, it stops at the"//LF// &
+                        "beginning of the last line.)"//LF// &
+                        ""//LF// &
+                        "To ignore intangibility, bind `inhibit_point_motion_hooks' to t."//LF// &
+                        "For motion by visual lines, see `beginning_of_visual_line'.  Port"//LF// &
+                        "of simple.el:move-beginning-of-line (invisible text is deferred"//LF// &
+                        "with the rest of invisibility)."
+        case ("move_end_of_line")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to end of current line as displayed."//LF// &
+                        "With argument ARG not nil or 1, move forward ARG - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        ""//LF// &
+                        "To ignore the effects of the `intangible' text or overlay"//LF// &
+                        "property, bind `inhibit_point_motion_hooks' to t."//LF// &
+                        "If there is an image in the current line, this function"//LF// &
+                        "disregards newlines that are part of the text on which the image"//LF// &
+                        "rests."
         case ("move_to_left_margin")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
@@ -1914,7 +1969,10 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert a newline, and move to left margin of the new line."//LF// &
-                        "With prefix argument ARG, insert that many newlines."
+                        "With prefix argument ARG, insert that many newlines."//LF// &
+                        ""//LF// &
+                        "If `auto_fill_mode' is enabled, this may cause automatic line"//LF// &
+                        "breaking of the preceding line.  A non-nil ARG inhibits this."
         case ("next_buffer")
             entry%file = "window_display_fm.f90"
             entry%interactive = .true.
@@ -1978,6 +2036,8 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Insert a newline and leave point before it."//LF// &
+                        "If there is a fill prefix and/or a `left_margin', insert them on"//LF// &
+                        "the new line if the line would have been blank."//LF// &
                         "With arg N, insert N newlines."
         case ("other_buffer")
             entry%file = "window_fm.f90"
@@ -2096,8 +2156,8 @@ contains
         case ("provided_mode_derived_p")
             entry%file = "derived_fm.f90"
             entry%fortran = "provided_mode_derived_p(mode, modes)"
-            entry%doc = "Non-nil if MODE (a mode name) is derived from a mode that is a"//LF// &
-                        "member of the list MODES (names)."
+            entry%doc = "Non-nil if MODE is derived from a mode that is a member of the list"//LF// &
+                        "MODES.  MODES can also be a single mode instead of a list."
         case ("push_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call push_mark(location, nomsg, activate)"
@@ -2232,7 +2292,18 @@ contains
             entry%interactive = .true.
             entry%doc = "Read next input character and insert it."//LF// &
                         "This is useful for inserting control characters."//LF// &
-                        "With argument, insert ARG copies of the character."
+                        "With argument, insert ARG copies of the character."//LF// &
+                        ""//LF// &
+                        "If the first character you type is an octal digit, the sequence of"//LF// &
+                        "one or more octal digits you type is interpreted to specify a"//LF// &
+                        "character code.  Any character that is not an octal digit terminates"//LF// &
+                        "the sequence.  If the terminator is a RET, it is discarded; any"//LF// &
+                        "other terminator is used itself as input and is inserted."//LF// &
+                        ""//LF// &
+                        "The variable `read_quoted_char_radix' specifies the radix for this feature;"//LF// &
+                        "set it to 10 or 16 to use decimal or hex instead of octal.  If you change"//LF// &
+                        "the radix, the characters interpreted as specifying a character code"//LF// &
+                        "change accordingly: 0 to 9 for decimal, 0 to F for hex."
         case ("re_search_backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
@@ -3000,6 +3071,10 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("undefined")
+            entry%file = "subr_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Beep to tell the user this binding is undefined."
         case ("undo")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -3199,6 +3274,11 @@ contains
             entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
                         "changes.  The `undo' command will normally consider ""similar"""//LF// &
                         "changes (like inserting characters) to be part of the same change."
+        case ("auto_fill_chars")
+            entry%file = "cmds_fm.f90"
+            entry%fortran = "auto_fill_chars"
+            entry%doc = "A char-table which contains characters which invoke auto-filling."//LF// &
+                        "Such characters have value t in this table."
         case ("auto_fill_function")
             entry%file = "buffer_fm.f90"
             entry%fortran = "auto_fill_function"
@@ -3232,8 +3312,7 @@ contains
         case ("case_symbols_as_words")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "case_symbols_as_words"
-            entry%original = ".false."
-            entry%value = repr(case_symbols_as_words)
+            entry%value = repr(case_symbols_as_words%value)
             entry%doc = "If non-nil, case functions treat symbol syntax as part of words."//LF// &
                         ""//LF// &
                         "Functions such as `upcase_initials' and `replace_match' check or"//LF// &
@@ -3324,6 +3403,15 @@ contains
             entry%value = repr(completions_max_height)
             entry%doc = "Maximum height for *Completions* buffer window (0 for no maximum:"//LF// &
                         "nil)."
+        case ("copy_region_blink_delay")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "copy_region_blink_delay"
+            entry%original = "1.0"
+            entry%value = repr(copy_region_blink_delay)
+            entry%doc = "Time in seconds to delay after showing the other end of the region."//LF// &
+                        "It's used by the command `kill_ring_save' and the function"//LF// &
+                        "`indicate_copied_region' to blink the cursor between point and mark."//LF// &
+                        "The value 0 disables blinking."
         case ("current_prefix_arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
@@ -3822,6 +3910,13 @@ contains
                         ""//LF// &
                         "If this is false, window configurations are not restored upon"//LF// &
                         "exiting the minibuffer."
+        case ("read_quoted_char_radix")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "read_quoted_char_radix"
+            entry%original = "8"
+            entry%value = repr(read_quoted_char_radix)
+            entry%doc = "Radix for \[quoted_insert] and other uses of `read_quoted_char'."//LF// &
+                        "Supported radix values are 8, 10 and 16."
         case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
@@ -4019,8 +4114,8 @@ contains
             entry%original = ".true."
             entry%value = repr(suggest_key_bindings)
             entry%doc = "Non-nil means show the equivalent keybinding when M-x has one."//LF// &
-                        "(A length of time is not supported: the suggestion shows until the"//LF// &
-                        "next command.)"
+                        "(A length of time is not supported, nor the timer: the suggestion"//LF// &
+                        "shows at once if the echo area is empty, until the next command.)"
         case ("tab_always_indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "tab_always_indent"
@@ -4084,6 +4179,33 @@ contains
             entry%fortran = "transient_mark_mode_hook"
             entry%original = "hook_type(name=""transient_mark_mode_hook"")"
             entry%doc = "Hook run after entering or leaving `transient_mark_mode'."
+        case ("truncate_partial_width_windows")
+            entry%file = "xdisp_fm.f90"
+            entry%fortran = "truncate_partial_width_windows"
+            entry%original = "50"
+            entry%value = repr(truncate_partial_width_windows)
+            entry%doc = "Non-nil means truncate lines in windows narrower than the frame."//LF// &
+                        "For an integer value, truncate lines in each window narrower than the"//LF// &
+                        "full frame width, provided the total window width in column units is less"//LF// &
+                        "than that integer; otherwise, respect the value of `truncate_lines'."//LF// &
+                        "The total width of the window is as returned by `window_total_width', it"//LF// &
+                        "includes the fringes, the continuation and truncation glyphs, the"//LF// &
+                        "display margins (if any), and the scroll bar"//LF// &
+                        ""//LF// &
+                        "For any other non-nil value, truncate lines in all windows that do"//LF// &
+                        "not span the full frame width."//LF// &
+                        ""//LF// &
+                        "A value of nil means to respect the value of `truncate_lines'."//LF// &
+                        ""//LF// &
+                        "In Fortran: 0 is nil, `huge(0)' any other non-nil value."
+        case ("undo_auto__this_command_amalgamating")
+            entry%file = "undo_fm.f90"
+            entry%fortran = "this_command_amalgamating"
+            entry%original = ".false."
+            entry%value = repr(this_command_amalgamating)
+            entry%doc = "Non-nil if `this_command' should be amalgamated.  This variable is"//LF// &
+                        "set to nil by `undo_auto_add_boundary' and is set by"//LF// &
+                        "`undo_auto_amalgamate'."
         case ("undo_in_progress")
             entry%file = "simple_fm.f90"
             entry%fortran = "undo_in_progress"
@@ -4146,6 +4268,24 @@ contains
         write (buf, "(i0)") v
         s = trim(buf)
     end function repr_integer
+
+    ! A real as the Lisp printer shows a float: at least one digit
+    ! after the point, no trailing zeros.
+    function repr_real(v) result(s)
+        real, intent(in) :: v
+        character(len=:), allocatable :: s
+        character(len=32) :: buf
+        write (buf, "(f0.6)") v
+        s = trim(buf)
+        do while (len(s) > 2)
+            if (s(len(s):len(s)) /= "0" .or. s(len(s) - 1:len(s) - 1) == ".") exit
+            s = s(1:len(s) - 1)
+        end do
+        if (s(1:1) == ".") s = "0"//s
+        if (len(s) > 1) then
+            if (s(1:2) == "-.") s = "-0"//s(2:)
+        end if
+    end function repr_real
 
     function repr_int64(v) result(s)
         integer(int64), intent(in) :: v

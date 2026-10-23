@@ -1,9 +1,19 @@
 name: CI
 
+# Pull requests run Ubuntu x86-64 only, and not while they are drafts;
+# main runs the whole matrix after each merge.  Pushes that only touch
+# documentation run nothing, and a new push cancels the PR's older run.
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore: ["**.md", "docs/**"]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -18,17 +28,22 @@ env:
 jobs:
   check:
     name: check (${{ matrix.distro }}, ${{ matrix.arch }})
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Ubuntu runs on the runner itself; the others in containers.
-          - { distro: ubuntu, arch: x86-64, runner: ubuntu-24.04 }
-          - { distro: ubuntu, arch: aarch64, runner: ubuntu-24.04-arm }
-          - { distro: fedora, arch: x86-64, runner: ubuntu-24.04, image: "fedora:latest" }
-          - { distro: fedora, arch: aarch64, runner: ubuntu-24.04-arm, image: "fedora:latest" }
-          # Arch Linux publishes no official aarch64 image.
-          - { distro: arch, arch: x86-64, runner: ubuntu-24.04, image: "archlinux:latest" }
+        # Ubuntu runs on the runner itself; the others in containers.  Arch
+        # Linux publishes no official aarch64 image.
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request' && '[
+          {"distro": "ubuntu", "arch": "x86-64", "runner": "ubuntu-24.04"}
+          ]' || '[
+          {"distro": "ubuntu", "arch": "x86-64", "runner": "ubuntu-24.04"},
+          {"distro": "ubuntu", "arch": "aarch64", "runner": "ubuntu-24.04-arm"},
+          {"distro": "fedora", "arch": "x86-64", "runner": "ubuntu-24.04", "image": "fedora:latest"},
+          {"distro": "fedora", "arch": "aarch64", "runner": "ubuntu-24.04-arm", "image": "fedora:latest"},
+          {"distro": "arch", "arch": "x86-64", "runner": "ubuntu-24.04", "image": "archlinux:latest"}
+          ]') }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.image }}
     steps:

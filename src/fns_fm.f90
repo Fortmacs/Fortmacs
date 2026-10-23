@@ -24,7 +24,8 @@
 !> default is `eq' (data_fm:value_eq), as upstream.
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
+    use print_fm, only: prin1_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
@@ -33,6 +34,7 @@ module fns_fm
     use lread_fm, only: ensure_obarray
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
+    use keymap_fm, only: keymap_equal
     implicit none(type, external)
     private
 
@@ -70,9 +72,10 @@ module fns_fm
 contains
 
     !> Structural equality.  Markers are equal when they point at the same
-    !> place in the same buffer (or both nowhere).  Port of fns.c:Fequal
+    !> place in the same buffer (or both nowhere); keymaps when their
+    !> bindings, prompts and parents are.  Port of fns.c:Fequal
     !> (internal_equal, without text properties or floats).
-    logical function value_equal(a, b) result(eq)
+    recursive logical function value_equal(a, b) result(eq)
         type(value_type), intent(in) :: a, b
         integer(int64) :: k
         eq = .false.
@@ -89,7 +92,7 @@ contains
         eq = .true.
     end function value_equal
 
-    logical function atom_equal(x, y) result(eq)
+    recursive logical function atom_equal(x, y) result(eq)
         type(atom_type), intent(in) :: x, y
         integer(int64) :: ix, iy
         type(status_type) :: sx, sy
@@ -103,8 +106,11 @@ contains
         case (V_STRING)
             eq = len(x%s) == len(y%s)
             if (eq) eq = x%s == y%s
-        case (V_BUFFER, V_KEYMAP)
+        case (V_BUFFER)
             eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
+        case (V_KEYMAP)
+            ! A keymap is a list upstream: compare its contents.
+            eq = keymap_equal(x%h, y%h, value_equal)
         case (V_MARKER)
             call resolve_marker(x%h, ix, sx)
             call resolve_marker(y%h, iy, sy)
@@ -254,10 +260,14 @@ contains
     end function string_lessp
 
     !> Compare the contents of two strings.
-    !> In string STR1, compare the part between START1 (inclusive) and END1
-    !> (exclusive); START1 defaults to 0, the beginning of the string, END1
-    !> to the length of the string.  Likewise, in string STR2, compare the
-    !> part between START2 and END2.  Positions count characters from 0.
+    !> The arguments START1, END1, START2, and END2, if present, are
+    !> positions specifying which parts of STR1 or STR2 to compare.  In
+    !> string STR1, compare the part between START1 (inclusive) and END1
+    !> (exclusive).  If START1 is absent, it defaults to 0, the beginning
+    !> of the string; if END1 is absent, it defaults to the length of the
+    !> string.  Likewise, in string STR2, compare the part between START2
+    !> and END2.  Like in `substring', negative values are counted from the
+    !> end.
     !>
     !> The strings are compared by the numeric values of their characters.
     !> For instance, STR1 is "less than" STR2 if its first differing
@@ -269,28 +279,36 @@ contains
     !> number N; - 1 - N is the number of characters that match at the
     !> beginning.  If string STR1 is greater, the value is a positive
     !> number N; N - 1 is the number of characters that match at the
-    !> beginning.  Port of fns.c:Fcompare_strings (positions too large
-    !> are brought into range; no negative positions).
-    integer(int64) function compare_strings(str1, str2, ignore_case, start1, end1, start2, end2) result(r)
+    !> beginning.
+    !>
+    !> Positions out of range signal args-out-of-range in STATUS (with
+    !> STATUS absent the caller guarantees them; the value is then
+    !> COMPARE_EQUAL).  Port of fns.c:Fcompare_strings.
+    integer(int64) function compare_strings(str1, str2, ignore_case, start1, end1, start2, end2, status) result(r)
         character(len=*), intent(in) :: str1, str2
         logical, intent(in), optional :: ignore_case
         integer(int64), intent(in), optional :: start1, end1, start2, end2
+        type(status_type), intent(out), optional :: status
         integer(int32), allocatable :: c1(:), c2(:)
-        integer(int64) :: from1, to1, from2, to2, i1, i2
+        integer(int64) :: from1, to1, from2, to2, i1, i2, e1, e2
         integer(int32) :: a, b
-        logical :: fold
+        logical :: fold, ok
+        type(status_type) :: st
+        r = COMPARE_EQUAL
         call string_chars(str1, c1)
         call string_chars(str2, c2)
         fold = .false.
         if (present(ignore_case)) fold = ignore_case
-        from1 = 0
-        if (present(start1)) from1 = start1
-        to1 = size(c1, kind=int64)
-        if (present(end1)) to1 = min(end1, to1)
-        from2 = 0
-        if (present(start2)) from2 = start2
-        to2 = size(c2, kind=int64)
-        if (present(end2)) to2 = min(end2, to2)
+        ! For backward compatibility, silently bring too-large positive end
+        ! values into range.
+        e1 = size(c1, kind=int64)
+        if (present(end1)) e1 = min(end1, e1)
+        e2 = size(c2, kind=int64)
+        if (present(end2)) e2 = min(end2, e2)
+        call validate_subarray(str1, size(c1, kind=int64), from1, to1, ok, st, start1, e1, present(end1))
+        if (ok) call validate_subarray(str2, size(c2, kind=int64), from2, to2, ok, st, start2, e2, present(end2))
+        if (present(status)) status = st
+        if (.not. ok) return
         i1 = from1
         i2 = from2
         do while (i1 < to1 .and. i2 < to2)
@@ -321,6 +339,52 @@ contains
         end if
     end function compare_strings
 
+    !> Check the range FROM..TO of the N characters of STRING
+    !> (negative values count from the end; absent FROM is 0, TO absent
+    !> or not `to_given' is N) and give it as IFROM..ITO, or signal
+    !> args-out-of-range (OK false).  Port of fns.c:validate_subarray.
+    pure subroutine validate_subarray(string, n, ifrom, ito, ok, status, from, to, to_given)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: n
+        integer(int64), intent(out) :: ifrom, ito
+        logical, intent(out) :: ok
+        type(status_type), intent(inout) :: status
+        integer(int64), intent(in), optional :: from, to
+        logical, intent(in), optional :: to_given
+        integer(int64) :: f, t
+        logical :: has_to
+        character(len=:), allocatable :: from_text, to_text
+        f = 0
+        from_text = "nil"
+        if (present(from)) then
+            f = from
+            from_text = int_text(from)
+            if (f < 0) f = f + n
+        end if
+        has_to = present(to)
+        if (present(to_given)) has_to = has_to .and. to_given
+        t = n
+        to_text = "nil"
+        if (has_to) then
+            t = to
+            to_text = int_text(to)
+            if (t < 0) t = t + n
+        end if
+        ok = 0 <= f .and. f <= t .and. t <= n
+        ifrom = f
+        ito = t
+        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_string(string)//", "//from_text//", "//to_text)
+    end subroutine validate_subarray
+
+    !> The decimal text of N.
+    pure function int_text(n) result(text)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: text
+        character(len=21) :: buf
+        write (buf, "(i0)") n
+        text = trim(buf)
+    end function int_text
+
     !> Number of characters in UTF-8 string `s'.  Port of lisp.h:SCHARS.
     pure integer(int64) function schars(s)
         character(len=*), intent(in) :: s
@@ -337,24 +401,25 @@ contains
     !> (inclusive) and index TO (exclusive) of STRING.  FROM and TO are
     !> zero-indexed: 0 means the first character of STRING.  Negative
     !> values are counted from the end of STRING.  If TO is absent, the
-    !> substring runs to the end of STRING.  Out-of-range values are
-    !> clipped (upstream signals args-out-of-range).  Port of
-    !> fns.c:Fsubstring.
-    pure function substring(string, from, to) result(r)
+    !> substring runs to the end of STRING.
+    !>
+    !> A range outside STRING signals args-out-of-range in STATUS (with
+    !> STATUS absent the caller guarantees the range; the value is then
+    !> empty).  Port of fns.c:Fsubstring.
+    function substring(string, from, to, status) result(r)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: from
         integer(int64), intent(in), optional :: to
+        type(status_type), intent(out), optional :: status
         character(len=:), allocatable :: r
-        integer(int64) :: n, a, b, count
+        integer(int64) :: a, b, count
         integer :: i, first, last
-        n = schars(string)
-        a = from
-        if (a < 0) a = a + n
-        b = n
-        if (present(to)) b = to
-        if (b < 0) b = b + n
-        a = max(0_int64, min(a, n))
-        b = max(a, min(b, n))
+        logical :: ok
+        type(status_type) :: st
+        r = ""
+        call validate_subarray(string, schars(string), a, b, ok, st, from, to)
+        if (present(status)) status = st
+        if (.not. ok) return
         ! Byte positions of characters a and b.
         first = len(string) + 1
         last = len(string) + 1

@@ -27,13 +27,21 @@
 !> Text appears as Emacs shows it by default: TAB to the next multiple of
 !> tab-width, control characters as ^X, raw bytes as \ooo, wide
 !> characters in two cells, and long lines continued with \ in the last
-!> column.
+!> column (a wide character that does not fit moves whole to the next
+!> row; a TAB, ^X or \ooo is split between the rows).  Recentering puts
+!> point's screen line half the window's height from the top.
 !>
-!> Simplified for now: the mode line has a fixed format (no
-!> mode-line-format), character widths follow a built-in table of wide
-!> ranges (no char-width-table), there are no text properties, overlays,
-!> faces from text, display tables, bidi or truncate-lines (only the
-!> minibuffer line scrolls horizontally), and
+!> Simplified for now: the mode line is the standard mode-line-format
+!> expanded by fixed code (no mode-line-format interpretation; coding
+!> systems shown as UUU:, no base-line cache for %l, no
+!> mode-line-inactive face), character widths follow a built-in table
+!> of wide ranges (no char-width-table), there are no text properties,
+!> overlays, faces from text, display tables, bidi or truncate-lines
+!> (truncate-partial-width-windows is Deferred: narrow side-by-side
+!> windows continue lines instead of truncating them, as that needs
+!> auto-hscroll of windows; only the minibuffer line scrolls
+!> horizontally), the echo area shows the first line of a message
+!> (resize-mini-windows is not ported), and
 !> the incremental redisplay shortcuts (try_window_reusing_current_matrix
 !> and friends) are not ported: each redisplay lays out the whole window
 !> and dispnew_fm sends only the differences.
@@ -44,17 +52,18 @@ module xdisp_fm
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                          buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
-    use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length
+    use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length, multibyte_length, &
+                            byte8_to_char
     use dispextern_fm, only: glyph_type, glyph_row_type, face_type, &
                              DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, REGION_FACE_ID, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
-    use frame_fm, only: frame_type
+    use frame_fm, only: frame_type, selected_frame
     use window_fm, only: window_type, set_window_buffer, window_start, &
                          set_window_start, window_body_lines, window_point, window_text_cols, windows, &
                          window_valid_p, make_window, resize_window_tree, window_leaves, same_window, &
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame
-    use keyboard_fm, only: last_message, minibuffer_message_text
+    use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
     use lisp_fm, only: value_type, nilp
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting
@@ -63,7 +72,8 @@ module xdisp_fm
 
     public :: add_minor_mode_lighter, mode_line_modes
     public :: redisplay, init_frame_windows, realize_basic_faces, glyph_width, &
-              mode_line_text, layout_window, message, glyph_columns
+              mode_line_text, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
+              mode_line_row, recenter_start, mode_line_percent
 
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
     !> text (while a prompt there waits for an answer).
@@ -74,6 +84,24 @@ module xdisp_fm
     !> The value should be a positive integer.  Port of buffer.c tab-width
     !> (one value for all buffers until buffer-local variables exist).
     type(integer_setting), public :: tab_width = integer_setting(name="tab_width", value=8)
+
+    !> Non-nil means truncate lines in windows narrower than the frame.
+    !> For an integer value, truncate lines in each window narrower than the
+    !> full frame width, provided the total window width in column units is less
+    !> than that integer; otherwise, respect the value of `truncate_lines'.
+    !> The total width of the window is as returned by `window_total_width', it
+    !> includes the fringes, the continuation and truncation glyphs, the
+    !> display margins (if any), and the scroll bar
+    !>
+    !> For any other non-nil value, truncate lines in all windows that do
+    !> not span the full frame width.
+    !>
+    !> A value of nil means to respect the value of `truncate_lines'.
+    !>
+    !> In Fortran: 0 is nil, `huge(0)' any other non-nil value.  Port of
+    !> xdisp.c truncate-partial-width-windows; the truncation itself is
+    !> not ported yet (Deferred), only commands that test the variable.
+    integer, public :: truncate_partial_width_windows = 50
 
     !> An entry of minor-mode-alist.
     type :: lighter_type
@@ -86,6 +114,25 @@ module xdisp_fm
     !> The most cells one character can take: a TAB at the largest sane
     !> tab-width (SANE_TAB_WIDTH).
     integer, parameter :: MAX_CHAR_CELLS = 1000
+
+    !> How display_row ended a screen row: at the end of the accessible
+    !> text, after a newline, or continued on the next row.
+    integer, parameter :: ROW_ENDS_AT_ZV = 0, ROW_ENDS_IN_NEWLINE = 1, ROW_CONTINUED = 2
+
+    !> Where a screen row starts: the state of xdisp.c's iterator at the
+    !> start of a display line.
+    type, public :: row_start_type
+        !> The first character shown (charpos, bytepos).
+        integer(int64) :: pos = 1, byte = 1
+        !> it->continuation_lines_width: the columns of the rows before
+        !> this one on the same line (TABs count from it).
+        integer :: cont = 0
+        !> it->starts_in_middle_of_char_p: the row starts with the rest of
+        !> a ^X, \ooo or TAB begun on the row before ...
+        logical :: mid = .false.
+        !> ... whose first `skip' cells were shown there.
+        integer :: skip = 0
+    end type row_start_type
 
 contains
 
@@ -209,6 +256,191 @@ contains
         call produce_char(c, x, cells, n)
     end function glyph_columns
 
+    !> Lay out one screen row of buffer slot `bi' from `s' (updated to the
+    !> start of the next row), with the continuation glyph \ at column
+    !> `last_x' + 1 (it->last_visible_x is `last_x').  A character that
+    !> does not fit continues on the next row: a wide character whole,
+    !> after \ in every cell left (cont width grows by the row's columns
+    !> before it); the cells of others (TAB, ^X, \ooo) are split, those
+    !> that fit staying on this row (cont width grows by `last_x').
+    !> `ends' says how the row ended.  With `glyphs', the cells are drawn
+    !> there (the region [rb, re) in the region face); `cursor_col' is the
+    !> column of `pt' if it is shown on this row, else -1; `used' the
+    !> columns used.  The terminal part of xdisp.c:display_line with
+    !> term.c:produce_glyphs.
+    subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, re)
+        integer(int64), intent(in) :: bi
+        type(row_start_type), intent(inout) :: s
+        integer, intent(in) :: last_x
+        integer(int64), intent(in) :: pt
+        integer, intent(out) :: ends, cursor_col, used
+        type(glyph_type), intent(inout), optional :: glyphs(:)
+        integer(int64), intent(in), optional :: rb, re
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
+        integer(int64) :: zv
+        integer(int32) :: c
+        integer :: col, n, first, ncells, k
+        logical :: in_region
+        zv = buffers(bi)%zv
+        col = 0
+        cursor_col = -1
+        do
+            if (s%pos >= zv) then
+                if (s%pos == pt) cursor_col = col
+                ends = ROW_ENDS_AT_ZV
+                exit
+            end if
+            in_region = .false.
+            if (present(rb) .and. present(re)) in_region = s%pos >= rb .and. s%pos < re
+            c = buf_fetch_char(buffers(bi), s%byte)
+            if (c == 10) then
+                if (s%pos == pt) cursor_col = col
+                ! The region face has :extend t: a newline in the region
+                ! highlights the rest of the row.
+                if (present(glyphs) .and. in_region .and. col < last_x) then
+                    glyphs(col + 1:last_x)%face_id = REGION_FACE_ID
+                    col = last_x
+                end if
+                s = row_start_type(pos=s%pos + 1, byte=s%byte + 1)
+                ends = ROW_ENDS_IN_NEWLINE
+                exit
+            end if
+            cells = glyph_type()
+            call produce_char(c, col + s%cont, cells, n)
+            ! The rest of a ^X or \ooo begun on the row before (a TAB's
+            ! rest follows from the column).
+            first = 1
+            if (s%mid .and. c /= 9) first = min(n, s%skip + 1)
+            ncells = n - first + 1
+            if (col + ncells > last_x .and. col > 0) then
+                ends = ROW_CONTINUED
+                if (n == 2 .and. cells(2)%padding) then
+                    ! A wide character is unbreakable: fill the rest of the
+                    ! row with continuation glyphs, like in 20.x.
+                    if (present(glyphs)) then
+                        glyphs(col + 1:last_x + 1) = glyph_type()
+                        glyphs(col + 1:last_x + 1)%ch = iachar("\")
+                    end if
+                    s%cont = s%cont + col
+                else
+                    k = last_x - col
+                    if (k > 0) then
+                        if (present(glyphs)) then
+                            glyphs(col + 1:col + k) = cells(first:first + k - 1)
+                            if (in_region) glyphs(col + 1:col + k)%face_id = REGION_FACE_ID
+                        end if
+                        if (s%pos == pt .and. .not. s%mid) cursor_col = col
+                        s%skip = first - 1 + k
+                        s%mid = .true.
+                    end if
+                    if (present(glyphs)) then
+                        glyphs(last_x + 1) = glyph_type()
+                        glyphs(last_x + 1)%ch = iachar("\")
+                    end if
+                    s%cont = s%cont + last_x
+                end if
+                col = last_x + 1
+                exit
+            end if
+            if (present(glyphs)) then
+                ! (Only a character alone on a too narrow row is clipped.)
+                k = min(ncells, size(glyphs) - col)
+                if (k > 0) then
+                    glyphs(col + 1:col + k) = cells(first:first + k - 1)
+                    if (in_region) glyphs(col + 1:col + k)%face_id = REGION_FACE_ID
+                end if
+            end if
+            if (s%pos == pt .and. .not. s%mid) cursor_col = col
+            col = col + ncells
+            s%pos = s%pos + 1
+            s%byte = s%byte + buf_next_char_len(buffers(bi), s%byte)
+            s%mid = .false.
+            s%skip = 0
+        end do
+        used = min(col, last_x + 1)
+    end subroutine display_row
+
+    !> The screen rows of the line starting at `bol' in buffer slot `bi',
+    !> rows(1:nrows) where each starts, and `eol' where the line ends (its
+    !> newline, or the end of the accessible text).  `last_x' as for
+    !> display_row.
+    subroutine display_line_rows(bi, bol, last_x, rows, nrows, eol)
+        integer(int64), intent(in) :: bi, bol
+        integer, intent(in) :: last_x
+        type(row_start_type), allocatable, intent(out) :: rows(:)
+        integer, intent(out) :: nrows
+        integer(int64), intent(out) :: eol
+        type(row_start_type), allocatable :: grown(:)
+        type(row_start_type) :: s
+        integer :: ends, cursor_col, used
+        allocate (rows(8))
+        nrows = 0
+        s%pos = bol
+        s%byte = buf_charpos_to_bytepos(bi, bol)
+        do
+            nrows = nrows + 1
+            if (nrows > size(rows)) then
+                allocate (grown(2*size(rows)))
+                grown(1:size(rows)) = rows
+                call move_alloc(grown, rows)
+            end if
+            rows(nrows) = s
+            call display_row(bi, s, last_x, -1_int64, ends, cursor_col, used)
+            if (ends /= ROW_CONTINUED) exit
+        end do
+        eol = s%pos
+        if (ends == ROW_ENDS_IN_NEWLINE) eol = s%pos - 1
+    end subroutine display_line_rows
+
+    !> The row among rows(1:nrows) on which the display of `pos' begins.
+    pure integer function display_row_of(pos, rows, nrows) result(k)
+        integer(int64), intent(in) :: pos
+        type(row_start_type), intent(in) :: rows(:)
+        integer, intent(in) :: nrows
+        k = nrows
+        do while (k > 1)
+            if (rows(k)%pos < pos) exit
+            if (rows(k)%pos == pos .and. .not. rows(k)%mid) exit
+            k = k - 1
+        end do
+    end function display_row_of
+
+    !> The start of the line holding `pos' in buffer slot `bi'.
+    integer(int64) function line_beginning(bi, pos) result(bol)
+        integer(int64), intent(in) :: bi, pos
+        integer(int64) :: byte, begv_byte
+        begv_byte = buffers(bi)%begv_byte
+        byte = buf_charpos_to_bytepos(bi, pos)
+        do while (byte > begv_byte)
+            if (buf_fetch_byte(buffers(bi), byte - 1) == 10) exit
+            byte = byte - 1
+        end do
+        bol = buf_bytepos_to_charpos(bi, byte)
+    end function line_beginning
+
+    !> Where display starts for window start `start': the continuation
+    !> width of the row it begins.  Port of the line-start part of
+    !> xdisp.c:start_display.
+    function window_start_row(bi, start, last_x) result(s)
+        integer(int64), intent(in) :: bi, start
+        integer, intent(in) :: last_x
+        type(row_start_type) :: s
+        type(row_start_type), allocatable :: rows(:)
+        integer(int64) :: bol, eol
+        integer :: nrows, k
+        s%pos = start
+        s%byte = buf_charpos_to_bytepos(bi, start)
+        bol = line_beginning(bi, start)
+        if (bol == start) return
+        call display_line_rows(bi, bol, last_x, rows, nrows, eol)
+        k = nrows
+        do while (k > 1)
+            if (rows(k)%pos <= start) exit
+            k = k - 1
+        end do
+        s%cont = rows(k)%cont
+    end function window_start_row
+
     !> Lay out buffer slot `bi' from `start' in `rows' (one per window
     !> body line) `width' columns wide.  Gives the cursor position of `pt'
     !> (cursor_row -1 if it is not shown), where the display ends, and
@@ -224,102 +456,61 @@ contains
         logical, intent(out) :: reached_end
         !> The region to highlight with the region face, [region_beg, region_end).
         integer(int64), intent(in), optional :: region_beg, region_end
-        type(glyph_type) :: cells(MAX_CHAR_CELLS)
+        type(row_start_type) :: s
         integer(int64) :: rb, re
-        integer(int64) :: pos, pos_byte, zv
-        integer(int32) :: c
-        integer :: r, col, cont_width, n
+        integer :: r, ends, col, used
         cursor_row = -1
         cursor_col = 0
         reached_end = .false.
-        zv = buffers(bi)%zv
-        pos = start
-        pos_byte = buf_charpos_to_bytepos(bi, start)
         rb = 0
         re = 0
         if (present(region_beg) .and. present(region_end)) then
             rb = region_beg
             re = region_end
         end if
-        cont_width = 0
+        s = window_start_row(bi, start, width - 1)
         do r = 1, size(rows)
             rows(r)%glyphs = glyph_type()
             rows(r)%used = 0
             rows(r)%enabled_p = .true.
             if (reached_end) cycle
-            col = 0
-            do
-                if (pos >= zv) then
-                    if (pos == pt .and. cursor_row < 0) then
-                        cursor_row = r - 1
-                        cursor_col = col
-                    end if
-                    reached_end = .true.
-                    exit
-                end if
-                c = buf_fetch_char(buffers(bi), pos_byte)
-                if (c == 10) then
-                    if (pos == pt) then
-                        cursor_row = r - 1
-                        cursor_col = col
-                    end if
-                    ! The region face has :extend t: a newline in the region
-                    ! highlights the rest of the row.
-                    if (pos >= rb .and. pos < re .and. col < width - 1) then
-                        rows(r)%glyphs(col + 1:width - 1)%face_id = REGION_FACE_ID
-                        col = width - 1
-                    end if
-                    pos = pos + 1
-                    pos_byte = pos_byte + 1
-                    cont_width = 0
-                    exit
-                end if
-                cells = glyph_type()
-                call produce_char(c, col + cont_width, cells, n)
-                if (col + n > width - 1) then
-                    ! Continue on the next row, \ in the last column.
-                    rows(r)%glyphs(width)%ch = iachar("\")
-                    col = width
-                    cont_width = cont_width + width - 1
-                    exit
-                end if
-                if (pos == pt) then
-                    cursor_row = r - 1
-                    cursor_col = col
-                end if
-                rows(r)%glyphs(col + 1:col + n) = cells(1:n)
-                if (pos >= rb .and. pos < re) rows(r)%glyphs(col + 1:col + n)%face_id = REGION_FACE_ID
-                col = col + n
-                pos = pos + 1
-                pos_byte = pos_byte + buf_next_char_len(buffers(bi), pos_byte)
-            end do
-            rows(r)%used = col
+            call display_row(bi, s, width - 1, pt, ends, col, used, rows(r)%glyphs, rb, re)
+            rows(r)%used = used
+            if (col >= 0 .and. cursor_row < 0) then
+                cursor_row = r - 1
+                cursor_col = col
+            end if
+            if (ends == ROW_ENDS_AT_ZV) reached_end = .true.
         end do
-        end_pos = pos
-        if (pos >= zv) reached_end = .true.
+        end_pos = s%pos
+        if (s%pos >= buffers(bi)%zv) reached_end = .true.
     end subroutine layout_window
 
-    !> The start of the line `nlines' lines above the one holding `pos'
-    !> in buffer slot `bi' (not before the accessible start).  The
-    !> logical-line part of xdisp.c's recentering (move_it_vertically_backward).
-    integer(int64) function line_start_above(bi, pos, nlines) result(start)
-        integer(int64), intent(in) :: bi, pos
-        integer, intent(in) :: nlines
-        integer(int64) :: byte, begv_byte
-        integer :: k
-        begv_byte = buffers(bi)%begv_byte
-        byte = buf_charpos_to_bytepos(bi, pos)
-        do k = 0, nlines
-            ! Back to the start of this line.
-            do while (byte > begv_byte)
-                if (buf_fetch_byte(buffers(bi), byte - 1) == 10) exit
-                byte = byte - 1
-            end do
-            if (k == nlines .or. byte <= begv_byte) exit
-            byte = byte - 1
+    !> The window start that puts point's screen line `dy' screen lines
+    !> from the top: the start of the screen line `dy' above the one
+    !> holding `pt' (not before the accessible start).  The terminal part
+    !> of xdisp.c:move_it_vertically_backward as redisplay_window's
+    !> recentering uses it.
+    integer(int64) function recenter_start(bi, pt, last_x, dy) result(start)
+        integer(int64), intent(in) :: bi, pt
+        integer, intent(in) :: last_x, dy
+        type(row_start_type), allocatable :: rows(:)
+        integer(int64) :: bol, eol
+        integer :: nrows, target
+        bol = line_beginning(bi, pt)
+        call display_line_rows(bi, bol, last_x, rows, nrows, eol)
+        target = display_row_of(pt, rows, nrows) - dy
+        do while (target < 1)
+            if (bol <= buffers(bi)%begv) then
+                target = 1
+                exit
+            end if
+            bol = line_beginning(bi, bol - 1)
+            call display_line_rows(bi, bol, last_x, rows, nrows, eol)
+            target = target + nrows
         end do
-        start = buf_bytepos_to_charpos(bi, byte)
-    end function line_start_above
+        start = rows(target)%pos
+    end function recenter_start
 
     ! ------------------------------------------------------------------
     ! Windows, mode line, echo area
@@ -406,8 +597,10 @@ contains
         call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                            reached_end, rb, re)
         if (cursor_row < 0 .and. .not. w%force_start) then
-            ! Point is not visible: recenter (scroll-conservatively 0).
-            start = line_start_above(bi, pt, (body - 1)/2)
+            ! Point is not visible: recenter (scroll-conservatively 0),
+            ! the window start half the height of the window backward
+            ! from point.
+            start = recenter_start(bi, pt, width - 1, body/2)
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
                                reached_end, rb, re)
         end if
@@ -433,45 +626,205 @@ contains
         end do
     end function line_number
 
-    !> The mode line of window `w', padded with dashes to `width'.  A
-    !> fixed rendering of the default mode-line-format: coding and
-    !> modified flags, frame name, buffer name, position, line number and
-    !> major mode.  (xdisp.c:display_mode_line with bindings.el's
-    !> mode-line-format, simplified.)
-    !> MODES is the text in parentheses, the major mode's name and the
-    !> minor modes' lighters (default "Fundamental").
+    !> The characters of `text' (internal multibyte form), a byte that is
+    !> not part of a valid form taken as a raw byte.
+    subroutine decode_string(text, chars, n)
+        character(len=*), intent(in) :: text
+        integer(int32), allocatable, intent(out) :: chars(:)
+        integer, intent(out) :: n
+        integer(int64) :: pos
+        integer(int32) :: length
+        allocate (chars(len(text)))
+        n = 0
+        pos = 1
+        do while (pos <= len(text, kind=int64))
+            n = n + 1
+            length = multibyte_length(text, pos, .true.)
+            if (length == 0) then
+                chars(n) = byte8_to_char(ichar(text(pos:pos), int32))
+                length = 1
+            else
+                call string_char_and_length(text, pos, chars(n), length)
+            end if
+            pos = pos + length
+        end do
+    end subroutine decode_string
+
+    !> `text' padded with spaces to `width' characters (display_string's
+    !> FIELD_WIDTH).
+    function pad_chars(text, width) result(s)
+        character(len=*), intent(in) :: text
+        integer, intent(in) :: width
+        character(len=:), allocatable :: s
+        integer(int32), allocatable :: chars(:)
+        integer :: n
+        call decode_string(text, chars, n)
+        s = text//repeat(" ", max(0, width - n))
+    end function pad_chars
+
+    !> The first `width' characters of `text' (display_string's PRECISION).
+    function truncate_chars(text, width) result(s)
+        character(len=*), intent(in) :: text
+        integer, intent(in) :: width
+        character(len=:), allocatable :: s
+        integer(int64) :: pos
+        integer(int32) :: length
+        integer :: n
+        pos = 1
+        n = 0
+        do while (pos <= len(text, kind=int64) .and. n < width)
+            length = max(1_int32, multibyte_length(text, pos, .true.))
+            pos = pos + length
+            n = n + 1
+        end do
+        s = text(1:pos - 1)
+    end function truncate_chars
+
+    !> The default mode line of a buffer named NAME on a text terminal,
+    !> before it is cut to the window: bindings.el's
+    !> standard-mode-line-format as xdisp.c:display_mode_element and
+    !> decode_mode_spec expand it ("%e", mode-line-front-space "-",
+    !> mode-line-mule-info "%z" with the end-of-line mnemonic,
+    !> mode-line-modified "%1*%1+", mode-line-remote "%1@",
+    !> mode-line-frame-identification " %F  ", "%12b", "   ",
+    !> mode-line-position: (-3 "%p") and (6 " L%l"), "  ",
+    !> mode-line-modes "%[(" MODES ")%] ", mode-line-end-spaces "-%-").
+    !> POSITION is what %p gives (`All', `Top', `Bottom' or ` 5%'), LINE
+    !> what %l gives, MODES the text in parentheses (mode_line_modes,
+    !> default "Fundamental").  The dashes of %- are WIDTH long.
+    !> Simplified: all coding systems are UTF-8 with Unix line ends
+    !> (UUU:), the buffers are local (-) and the frame is F1.
     function mode_line_text(name, modified, read_only, position, line, width, modes) result(s)
-        character(len=*), intent(in) :: name, position
+        character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
-        integer(int64), intent(in) :: line
         integer, intent(in) :: width
         character(len=*), intent(in), optional :: modes
         character(len=:), allocatable :: s
-        character(len=2) :: flags
-        character(len=20) :: num
+        character(len=1) :: star, plus
+        ! %*: % if read-only, else * if modified; %+: * if modified, else
+        ! % if read-only.
+        star = "-"
+        plus = "-"
+        if (modified) then
+            star = "*"
+            plus = "*"
+        end if
         if (read_only) then
-            flags = "%%"
-            if (modified) flags = "%*"
-        else if (modified) then
-            flags = "**"
-        else
-            flags = "--"
+            star = "%"
+            if (.not. modified) plus = "%"
         end if
-        write (num, "(i0)") line
-        s = "-UUU:"//flags//"--F1  "//name
-        if (len(name) < 12) s = s//repeat(" ", 12 - len(name))
-        s = s//"   "//position//"   L"//trim(num)//"     ("
+        s = "-UUU:"//star//plus//"-"//" F1  "//pad_chars(name, 12)//"   "// &
+            truncate_chars(position, 3)//pad_chars(" L"//line, 6)//"  ("
         if (present(modes)) then
-            s = s//modes//") "
+            s = s//modes
         else
-            s = s//"Fundamental) "
+            s = s//"Fundamental"
         end if
-        if (len(s) < width) then
-            s = s//repeat("-", width - len(s))
-        else
-            s = s(1:width)
-        end if
+        s = s//") "//repeat("-", max(0, width))
     end function mode_line_text
+
+    !> What %p shows: the percentage of the accessible text above window
+    !> start `start', or All, Top or Bottom.  `at_end' says the window
+    !> shows the end of the accessible text.  Port of the %p case of
+    !> xdisp.c:decode_mode_spec, with percent99.
+    function mode_line_percent(bi, start, at_end) result(s)
+        integer(int64), intent(in) :: bi, start
+        logical, intent(in) :: at_end
+        character(len=:), allocatable :: s
+        character(len=8) :: buf
+        integer(int64) :: begv, d
+        integer :: percent
+        begv = buffers(bi)%begv
+        if (at_end) then
+            if (start <= begv) then
+                s = "All"
+            else
+                s = "Bottom"
+            end if
+        else if (start <= begv) then
+            s = "Top"
+        else
+            ! percent99: rounded up, at most 99.
+            d = buffers(bi)%zv - begv
+            percent = int(min(99_int64, (d - 1 + 100*(start - begv))/d))
+            write (buf, '(i2,"%")') percent
+            s = trim(buf)
+        end if
+    end function mode_line_percent
+
+    !> What %l shows for a window `height' lines high starting at
+    !> `start': point's line number, or ?? when the lines before the
+    !> window start are too long to count (line-number-display-limit-width
+    !> 200).  The counting part of the %l case of xdisp.c:decode_mode_spec
+    !> (no base line cache, line-number-display-limit nil).
+    function mode_line_line(bi, start, pt, height) result(s)
+        integer(int64), intent(in) :: bi, start, pt
+        integer, intent(in) :: height
+        character(len=:), allocatable :: s
+        character(len=20) :: buf
+        integer(int64), parameter :: limit_width = 200
+        integer(int64) :: distance, limit, byte, nlines, wanted
+        if (start > buffers(bi)%begv .and. start <= buffers(bi)%zv) then
+            ! Look back for height * 2 + 30 lines from the window start,
+            ! within line-number-display-limit-width characters a line.
+            wanted = 2_int64*height + 30
+            distance = limit_width*wanted
+            limit = buffers(bi)%begv
+            if (start - distance > limit) then
+                limit = start - distance
+                byte = buf_charpos_to_bytepos(bi, start)
+                nlines = 0
+                do while (byte > buf_charpos_to_bytepos(bi, limit) .and. nlines < wanted)
+                    byte = byte - 1
+                    if (buf_fetch_byte(buffers(bi), byte) == 10) nlines = nlines + 1
+                end do
+                if (nlines < wanted) then
+                    s = "??"
+                    return
+                end if
+            end if
+        end if
+        write (buf, "(i0)") line_number(bi, pt)
+        s = trim(buf)
+    end function mode_line_line
+
+    !> Lay out `text' as a mode line `width' columns wide in `row':
+    !> truncated at the right edge (a TAB or wide character cut there
+    !> shows as -), filled with spaces.  The terminal part of
+    !> xdisp.c:display_string for mode lines, with pad_mode_line.
+    subroutine mode_line_row(text, width, row)
+        character(len=*), intent(in) :: text
+        integer, intent(in) :: width
+        type(glyph_type), intent(out) :: row(:)
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
+        integer(int32), allocatable :: chars(:)
+        integer :: nchars, i, x, n
+        row = glyph_type()
+        call decode_string(text, chars, nchars)
+        x = 0
+        do i = 1, nchars
+            if (x >= width) exit
+            cells = glyph_type()
+            call produce_char(chars(i), x, cells, n)
+            if (chars(i) == 9 .or. n == 1 .or. (n == 2 .and. cells(min(n, 2))%padding)) then
+                ! One display element.
+                if (x + n > width) then
+                    row(x + 1:width) = cells(1:width - x)
+                    row(width) = glyph_type()
+                    row(width)%ch = iachar("-")
+                    x = width
+                    exit
+                end if
+                row(x + 1:x + n) = cells(1:n)
+            else
+                ! ^X and \ooo are display vectors: one element a cell.
+                n = min(n, width - x)
+                row(x + 1:x + n) = cells(1:n)
+            end if
+            x = x + n
+        end do
+        row(1:width)%face_id = MODE_LINE_ACTIVE_FACE_ID
+    end subroutine mode_line_row
 
     !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
     !> VARIABLE's earlier lighter).  Port of the mode-line part of
@@ -497,8 +850,9 @@ contains
         lighters(n_lighters)%lighter = lighter
     end subroutine add_minor_mode_lighter
 
-    !> The modes part of buffer BI's mode line: `mode_name' and the
-    !> lighters of `minor_mode_alist' whose variables are non-nil there.
+    !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
+    !> if the buffer is narrowed (%n), and the lighters of
+    !> `minor_mode_alist' whose variables are non-nil there.
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
@@ -510,6 +864,7 @@ contains
         else
             s = "Fundamental"
         end if
+        if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) s = s//" Narrow"
         do i = 1, n_lighters
             call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
             if (.not. st%ok()) cycle
@@ -517,72 +872,78 @@ contains
         end do
     end function mode_line_modes
 
-    !> Port of the terminal part of xdisp.c:display_mode_line.
+    !> Draw the mode line of window `w' (showing buffer slot `bi' from
+    !> `start', point `pt'): mode_line_text cut to the window, less the
+    !> column of the border glyph of a window with one to its right.
+    !> Port of the terminal part of xdisp.c:display_mode_line, with the
+    !> border of dispnew.c:build_frame_matrix_from_leaf_window.
     subroutine display_mode_line(f, w, bi, start, pt)
         type(frame_type), intent(inout) :: f
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
-        character(len=:), allocatable :: text, position
+        character(len=:), allocatable :: text
         type(glyph_type), allocatable :: row(:)
         type(status_type) :: status
-        logical :: modified, at_top, at_bottom
-        integer(int64) :: total
-        character(len=4) :: pct
-        integer :: k
+        logical :: modified
+        integer :: width
         call buffer_modified_p(w%buffer, modified, status)
-        at_top = start <= buffers(bi)%begv
-        at_bottom = w%window_end_valid
-        if (at_top .and. at_bottom) then
-            position = "All"
-        else if (at_top) then
-            position = "Top"
-        else if (at_bottom) then
-            position = "Bot"
-        else
-            total = max(1_int64, buffers(bi)%zv - buffers(bi)%begv)
-            write (pct, '(i2,"%")') int(((start - buffers(bi)%begv)*100)/total)
-            position = trim(adjustl(pct))
-        end if
-        text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, position, &
-                              line_number(bi, pt), w%total_cols, mode_line_modes(bi))
+        width = window_text_cols(w)
+        text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
+                              mode_line_percent(bi, start, w%window_end_valid), &
+                              mode_line_line(bi, start, pt, w%total_lines), width, mode_line_modes(bi))
         allocate (row(w%total_cols))
-        do k = 1, w%total_cols
-            row(k)%ch = iachar(text(k:k))
-            row(k)%face_id = MODE_LINE_ACTIVE_FACE_ID
-        end do
+        call mode_line_row(text, width, row)
+        if (width < w%total_cols) then
+            row(width + 1:) = glyph_type()
+            row(w%total_cols)%ch = iachar("|")
+        end if
         associate (m => f%desired_matrix%rows(w%top_line + w%total_lines - 1))
             m%glyphs(w%left_col + 1:w%left_col + w%total_cols) = row
         end associate
     end subroutine display_mode_line
 
-    !> Show the last message in the minibuffer window, or blank it.  Port
-    !> of the display part of xdisp.c:echo_area_display.
+    !> Show the last message in the minibuffer window, or blank it: its
+    !> first screen line, a line that does not fit continued with \ in the
+    !> last column.  Port of the display part of xdisp.c:echo_area_display
+    !> (one line: resize-mini-windows is not ported).
     subroutine display_echo_area(f, endcol)
         type(frame_type), intent(inout) :: f
         !> Column after the text.
         integer, intent(out) :: endcol
-        integer :: n, cols
-        integer(int64) :: pos
-        integer(int32) :: ch, length
+        type(glyph_type) :: cells(MAX_CHAR_CELLS)
+        integer(int32), allocatable :: chars(:)
+        integer :: nchars, i, x, n, k, cols, last_x
         cols = windows(f%minibuffer_window%index)%total_cols
+        last_x = cols - 1
         endcol = 0
         associate (m => f%desired_matrix%rows(windows(f%minibuffer_window%index)%top_line))
             m%glyphs = glyph_type()
             m%used = 0
             m%enabled_p = .true.
             if (.not. allocated(last_message)) return
-            n = 0
-            pos = 1
-            do while (pos <= len(last_message, kind=int64) .and. n < cols)
-                ch = ichar(last_message(pos:pos), int32)
-                length = 1
-                if (ch >= 128) call string_char_and_length(last_message, pos, ch, length)
-                n = n + 1
-                m%glyphs(n)%ch = ch
-                pos = pos + length
+            call decode_string(last_message, chars, nchars)
+            x = 0
+            do i = 1, nchars
+                if (chars(i) == 10) exit
+                cells = glyph_type()
+                call produce_char(chars(i), x, cells, n)
+                if (x + n > last_x .and. x > 0) then
+                    if (n == 2 .and. cells(min(n, 2))%padding) then
+                        m%glyphs(x + 1:cols)%ch = iachar("\")
+                    else
+                        k = last_x - x
+                        if (k > 0) m%glyphs(x + 1:x + k) = cells(1:k)
+                        m%glyphs(cols)%ch = iachar("\")
+                    end if
+                    x = cols
+                    exit
+                end if
+                k = min(n, cols - x)
+                m%glyphs(x + 1:x + k) = cells(1:k)
+                x = x + n
             end do
-            m%used = n
-            endcol = n
+            m%used = min(x, cols)
+            endcol = m%used
         end associate
     end subroutine display_echo_area
 
@@ -620,11 +981,20 @@ contains
             pos = pos + 1
         end do
         if (col_of_point < 0) col_of_point = x
-        ! A minibuffer-message after the text (its overlay at the end).
+        ! The messages of minibuffer-message and set-minibuffer-message
+        ! after the text (their overlays at the end).
         if (allocated(minibuffer_message_text)) then
             mpos = 1
             do while (mpos <= len(minibuffer_message_text, kind=int64))
                 call string_char_and_length(minibuffer_message_text, mpos, c, clen)
+                call put(c)
+                mpos = mpos + clen
+            end do
+        end if
+        if (allocated(set_minibuffer_message_text)) then
+            mpos = 1
+            do while (mpos <= len(set_minibuffer_message_text, kind=int64))
+                call string_char_and_length(set_minibuffer_message_text, mpos, c, clen)
                 call put(c)
                 mpos = mpos + clen
             end do
@@ -675,12 +1045,51 @@ contains
         end subroutine put
     end subroutine display_minibuffer
 
-    !> Show `text' in the echo area.  Port of editfns.c:Fmessage (with a
-    !> plain string; no *Messages* log yet).
+    !> Show `text' in the echo area; an empty `text' clears it.  While the
+    !> minibuffer is active the text goes after the minibuffer's contents
+    !> instead, enclosed in [...] unless it already is, until the next
+    !> input event.  Port of editfns.c:Fmessage (with a plain string; no
+    !> *Messages* log yet) with xdisp.c:set_message and clear_message
+    !> calling minibuffer.el's set-minibuffer-message and
+    !> clear-minibuffer-message (set-message-functions,
+    !> clear-message-function).
     subroutine message(text)
         character(len=*), intent(in) :: text
-        last_message = text
+        if (len(text) == 0) then
+            if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
+            last_message = ""
+        else if (minibuffer_active_p()) then
+            if (bracketed_message_p(text)) then
+                set_minibuffer_message_text = text
+            else
+                set_minibuffer_message_text = " ["//text//"]"
+            end if
+        else
+            last_message = text
+        end if
     end subroutine message
+
+    !> Whether `text' matches "\` *\[.+\]\'".
+    pure logical function bracketed_message_p(text) result(p)
+        character(len=*), intent(in) :: text
+        integer :: k
+        p = .false.
+        k = verify(text, " ")
+        if (k == 0 .or. len(text) - k < 2) return
+        if (text(k:k) /= "[" .or. text(len(text):len(text)) /= "]") return
+        p = index(text(k + 1:len(text) - 1), achar(10)) == 0
+    end function bracketed_message_p
+
+    !> Whether the selected frame's minibuffer is active (the minibuffer
+    !> window shows a minibuffer): window.c:Factive_minibuffer_window.
+    logical function minibuffer_active_p() result(p)
+        integer(int64) :: bi
+        type(status_type) :: status
+        p = .false.
+        if (.not. window_valid_p(selected_frame%minibuffer_window)) return
+        call resolve_buffer(windows(selected_frame%minibuffer_window%index)%buffer, bi, status)
+        p = status%ok()
+    end function minibuffer_active_p
 
     !> Redisplay the frame: each window with its mode line (the selected
     !> one showing the current buffer unless the minibuffer is selected),

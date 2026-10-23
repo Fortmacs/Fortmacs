@@ -25,8 +25,10 @@
 !> properties counts as a modification (buffer modified, read-only text
 !> checked) as upstream.  Not yet: properties on strings, overlays
 !> (get-char-property = get-text-property), undo records, modification
-!> hooks, LIMIT t in next-property-change, add-face-text-property, and
-!> stickiness for insert-and-inherit.
+!> hooks, LIMIT t in next-property-change, add-face-text-property,
+!> stickiness for insert-and-inherit, and `text_property_default_nonsticky'
+!> as a (buffer-local) variable: its standard value is built in, as the
+!> value model has no dotted pairs for its alist.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
@@ -36,7 +38,8 @@ module textprop_fm
     use lread_fm, only: intern
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, BEG, modiff_incr, buf_compute_unchanged, &
-                         barf_if_buffer_read_only, inhibit_read_only
+                         barf_if_buffer_read_only, inhibit_read_only, vdeactivate_mark
+    use undo_fm, only: record_first_change
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
                             plist_get_eq, split_interval_left, split_interval_right, textget, tmem
     implicit none(type, external)
@@ -145,15 +148,19 @@ contains
 
     !> Check that the properties of `start'..`end' may change, and record
     !> the modification.  Port of textprop.c:modify_text_properties (with
-    !> the read-only part of insdel.c:prepare_to_modify_buffer_1).
+    !> the parts of insdel.c:prepare_to_modify_buffer_1 that are ported, as
+    !> insdel_fm:prepare_to_modify_buffer).
     subroutine modify_text_properties(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         call barf_if_buffer_read_only(status, start)
         if (.not. status%ok()) return
+        buffers(cur)%text%redisplay = .true.
         call verify_interval_modification(start, end, status)
         if (.not. status%ok()) return
+        vdeactivate_mark = .true.
         call buf_compute_unchanged(buffers(cur), start - 1, end)
+        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
         call modiff_incr(buffers(cur)%text%modiff, 1_int64)
     end subroutine modify_text_properties
 
@@ -700,8 +707,9 @@ contains
         is_rear_sticky = .true.
         is_front_sticky = .false.
         ignore_previous_character = pos <= buffers(cur)%begv
-        ! text-property-default-nonsticky: syntax-table, display,
-        ! composition and cursor are rear-nonsticky by default.
+        ! text-property-default-nonsticky: its standard value makes
+        ! syntax-table and display (textprop.c), composition (composite.c)
+        ! and fill-space (fill.el) rear-nonsticky.
         if (ignore_previous_character .or. default_nonsticky(prop)) then
             is_rear_sticky = .false.
         else
@@ -738,8 +746,8 @@ contains
 
         logical function default_nonsticky(p)
             type(value_type), intent(in) :: p
-            default_nonsticky = value_eq(p, qsym("syntax_table")) .or. value_eq(p, qsym("display")) .or. &
-                                value_eq(p, qsym("composition")) .or. value_eq(p, qsym("cursor"))
+            default_nonsticky = value_eq(p, qsym("fill_space")) .or. value_eq(p, qsym("composition")) .or. &
+                                value_eq(p, qsym("syntax_table")) .or. value_eq(p, qsym("display"))
         end function default_nonsticky
     end function text_property_stickiness
 

@@ -35,6 +35,7 @@ module test_data_buffer_fm
                          auto_fill_function
     use search_fm, only: case_fold_search
     use indent_fm, only: indent_tabs_mode
+    use casefiddle_fm, only: case_symbols_as_words
     use data_fm, only: symbol_value, set, boundp, makunbound, value_eq, make_local_variable, &
                        make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
                        local_variable_p, local_variable_if_set_p, default_value, set_default, &
@@ -56,6 +57,7 @@ contains
                     new_unittest("make-variable-buffer-local", test_always_local), &
                     new_unittest("forwarded-per-buffer", test_forwarded), &
                     new_unittest("forwarded-procedure", test_forwarded_procedure), &
+                    new_unittest("case-symbols-as-words-local", test_case_symbols_local), &
                     new_unittest("kill-all-local-variables", test_kill_all), &
                     new_unittest("buffer-local-variables", test_buffer_local_variables), &
                     new_unittest("kill-buffer-restores-defaults", test_kill_current), &
@@ -220,6 +222,32 @@ contains
         fill_column = saved
         call teardown(a, b)
     end subroutine test_forwarded
+
+    !> case-symbols-as-words is a DEFVAR_BOOL made automatically
+    !> buffer-local (casefiddle.c syms_of_casefiddle).
+    subroutine test_case_symbols_local(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b
+        type(status_type) :: st
+        type(value_type) :: v
+        call setup(error, a, b)
+        if (allocated(error)) return
+        call set(sym("case_symbols_as_words"), t_value(), st)
+        call check(error, st%ok() .and. case_symbols_as_words%value, "set in A")
+        if (allocated(error)) return
+        call check(error, local_variable_p(sym("case_symbols_as_words")), "local after set")
+        if (allocated(error)) return
+        call set_buffer(b, st)
+        call check(error,.not. case_symbols_as_words%value, "default in B")
+        if (allocated(error)) return
+        call buffer_local_value(sym("case_symbols_as_words"), a%index, v, st)
+        call check(error, value_eq(v, t_value()), "buffer-local-value of A")
+        if (allocated(error)) return
+        call set_buffer(a, st)
+        call kill_local_variable(sym("case_symbols_as_words"), st)
+        call check(error,.not. case_symbols_as_words%value, "default after kill-local-variable")
+        call teardown(a, b)
+    end subroutine test_case_symbols_local
 
     !> auto-fill-function, a procedure pointer, follows the buffer.
     subroutine test_forwarded_procedure(error)

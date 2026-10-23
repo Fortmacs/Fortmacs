@@ -34,12 +34,13 @@ module test_minibuf_fm
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
-                         erase_buffer
+                         erase_buffer, fill_column
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point
     use keymap_fm, only: key_parse, define_key
     use callint_fm, only: command_type
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text, &
+                           ring_bell_hook
     use keymap_fm, only: current_global_map
     use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
                              last_minibuffer_message
@@ -80,6 +81,10 @@ module test_minibuf_fm
     type(record_type) :: recorded(10)
     logical :: recorded_visible(10) = .false.
     integer :: nrecorded = 0
+
+    !> Keys the user types once the bell rings (after an error, which
+    !> discards the input typed ahead).
+    character(len=:), allocatable :: keys_after_bell
 
 contains
 
@@ -128,9 +133,22 @@ contains
                     new_unittest("minibuffer-complete-and-exit", test_complete_and_exit), &
                     new_unittest("minibuffer-complete-word", test_complete_word), &
                     new_unittest("execute-extended-command", test_execute_extended_command), &
-                    new_unittest("file-name-completion", test_file_name_completion) &
+                    new_unittest("file-name-completion", test_file_name_completion), &
+                    new_unittest("fill-paragraph-in-minibuffer", test_fill_minibuffer) &
                     ]
     end subroutine collect_minibuf_fm
+
+    !> Queue the keys `keys` (kbd syntax) when the bell next rings.
+    subroutine type_after_bell(keys)
+        character(len=*), intent(in) :: keys
+        keys_after_bell = keys
+        ring_bell_hook => bell_rung
+    end subroutine type_after_bell
+
+    subroutine bell_rung()
+        ring_bell_hook => null()
+        call type_keys(keys_after_bell)
+    end subroutine bell_rung
 
     !> Queue the keys described by `keys` (kbd syntax).
     subroutine type_keys(keys)
@@ -214,7 +232,10 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         call fresh_scratch()
+        ! The error (the prompt is read-only) discards the keys typed
+        ! ahead.
         call type_keys("b C-a DEL C-b C-b a RET")
+        call type_after_bell("C-b C-b a RET")
         call read_from_minibuffer("Say: ", answer, st)
         call check(error, st%ok() .and. answer == "ab", answer)
     end subroutine test_prompt
@@ -254,7 +275,8 @@ contains
         call read_from_minibuffer("? ", answer, st, default="future")
         call check(error, answer == "future", answer)
         if (allocated(error)) return
-        call type_keys("a M-n RET")
+        call type_keys("a M-n x RET")
+        call type_after_bell("RET")
         call read_from_minibuffer("? ", answer, st, history="empty-history")
         call check(error, answer == "a", answer)
     end subroutine test_default
@@ -948,4 +970,18 @@ contains
         if (allocated(error)) return
         call kill_buffer(current_buffer(), st)
     end subroutine test_file_name_completion
+
+    !> M-q in the minibuffer fills its contents without the prompt
+    !> (fill.el:fill-minibuffer-function).
+    subroutine test_fill_minibuffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        call fresh_scratch()
+        fill_column = 12_int64
+        call type_text("aaa bbb ccc ddd"//achar(27)//"q"//achar(13))
+        call read_from_minibuffer("A long prompt here: ", answer, st)
+        fill_column = 70_int64
+        call check(error, answer, "aaa bbb ccc"//achar(10)//"ddd")
+    end subroutine test_fill_minibuffer
 end module test_minibuf_fm

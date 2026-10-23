@@ -80,7 +80,8 @@ contains
         if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. nilp(cmd)) return
         p => find_command(symbols(xsymbol(cmd))%name)
         if (.not. associated(p)) return
-        if (.not. p%disabled) return
+        ! A string `disabled' property disables it too.
+        if (.not. (p%disabled .or. allocated(p%disabled_message))) return
         handled = .true.
         call disabled_command_function(cmd, this_command_keys, status)
     end subroutine check_disabled
@@ -168,7 +169,9 @@ contains
             if (enable_also) then
                 call enable_command(name, status)
             else if (associated(p)) then
+                ! (put cmd 'disabled nil)
                 p%disabled = .false.
+                if (allocated(p%disabled_message)) deallocate (p%disabled_message)
             end if
             if (.not. status%ok()) return
         case default
@@ -304,7 +307,7 @@ contains
         call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
         case_fold_search = saved_fold
         if (found == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No `end subroutine configure' in "//init_file)
+            call set_error(status, FM_GENERIC_ERROR, format_message("No `end subroutine configure' in ")//init_file)
             call set_buffer(old, st)
             return
         end if
@@ -323,12 +326,15 @@ contains
         call set_buffer(old, st)
     end subroutine en_disable_command
 
-    ! Read a command name, as interactive "C".
+    ! Read the name of a command, as interactive "C" does
+    ! (minibuf.c:Fread_command: completion over the commands; empty input
+    ! is the symbol with an empty name).
     recursive subroutine read_command(prompt, name, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
-        call completing_read(prompt, completion_obarray_table(), name, status, require_match=REQUIRE_MATCH_T)
+        call completing_read(prompt, completion_obarray_table(), name, status, commandp, &
+                             require_match=REQUIRE_MATCH_T)
     end subroutine read_command
 
     recursive subroutine cmd_enable_command(status)

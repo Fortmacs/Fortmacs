@@ -249,17 +249,28 @@ contains
             char_has_category = in(c, int(z'3040'), int(z'309F')) .or. c == int(z'30A0') .or. c == int(z'30FC') .or. &
                                 in(c, int(z'1B001'), int(z'1B11F')) .or. in(c, int(z'1B150'), int(z'1B152'))
         case ("l")
-            ! Latin: ASCII graphic characters, U+0080..U+024F and the
-            ! Latin Extended Additional block (characters.el).
-            char_has_category = in(c, 32, 127) .or. in(c, int(z'80'), int(z'24F')) .or. &
-                                in(c, int(z'1E00'), int(z'1EF9'))
+            ! Latin: ASCII graphic characters, U+0080..U+02B8, Latin
+            ! Extended Additional, circled Latin, Latin Extended-C, D, E
+            ! and G, and the fullwidth Latin letters (characters.el; the
+            ! VISCII charsets add nothing outside these).
+            char_has_category = in(c, 32, 127) .or. in(c, int(z'80'), int(z'2B8')) .or. &
+                                in(c, int(z'1E00'), int(z'1EF9')) .or. in(c, int(z'24B6'), int(z'24E9')) .or. &
+                                in(c, int(z'2C60'), int(z'2C7F')) .or. in(c, int(z'A720'), int(z'A7FF')) .or. &
+                                in(c, int(z'AB30'), int(z'AB64')) .or. in(c, int(z'FF21'), int(z'FF3A')) .or. &
+                                in(c, int(z'FF41'), int(z'FF5A')) .or. in(c, int(z'1DF00'), int(z'1DFFF'))
         case ("|")
-            ! Line breakable: the CJK ranges of characters.el (and the
-            ! full-width forms the Japanese charsets give it).
+            ! Line breakable: the CJK ranges, the Tibetan line-break
+            ! characters, fullwidth characters and the Unicode equivalents of
+            ! JISX0201-kana (characters.el; the kana blocks given `|'
+            ! there are inside U+2E80..U+312F).
             char_has_category = in(c, int(z'2E80'), int(z'312F')) .or. in(c, int(z'3190'), int(z'33FF')) .or. &
                                 in(c, int(z'3400'), int(z'9FFF')) .or. in(c, int(z'F900'), int(z'FAFF')) .or. &
                                 in(c, int(z'20000'), int(z'2FFFF')) .or. in(c, int(z'30000'), int(z'323AF')) .or. &
-                                in(c, int(z'FF01'), int(z'FFE6'))
+                                c == int(z'F0B') .or. in(c, int(z'F0D'), int(z'F12')) .or. c == int(z'F14') .or. &
+                                c == int(z'F7F') .or. in(c, int(z'FF01'), int(z'FF9F'))
+        case (" ")
+            ! Space for indent: characters.el gives it to no character.
+            char_has_category = .false.
         case default
             char_has_category = .false.
         end select

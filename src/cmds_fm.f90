@@ -22,10 +22,9 @@
 !> Motion, deletion and insertion commands on the current buffer, and
 !> their registration as commands (`syms_of_cmds').
 !>
-!> Deferred: overwrite mode, abbrevs, auto-fill and electric characters
-!> in `self_insert_command', `translation_table_for_input', the kill-ring
-!> path of `delete_char', undo amalgamation, and intangible/invisible
-!> text.
+!> Deferred: overwrite mode, abbrevs and `post_self_insert_hook' in
+!> `self_insert_command', `translation_table_for_input', and
+!> intangible/invisible text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -33,26 +32,64 @@ module cmds_fm
                         FM_BEGINNING_OF_BUFFER, &
                         FM_END_OF_BUFFER
     use buffer_fm, only: buffers, cur, BUF_BYTES_MAX, buf_fetch_byte, &
-                         temp_set_point_both, auto_fill_function, auto_fill_proc
+                         temp_set_point_both, auto_fill_function
     use search_fm, only: scan_newline_from_point
     use insdel_fm, only: del_range
     use editfns_fm, only: line_beginning_position, line_end_position, goto_char, &
                           insert_char_n
-    use lisp_fm, only: value_type, fixnump, xfixnum
+    use lisp_fm, only: value_type, fixnump, xfixnum, nilp
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
     use data_fm, only: value_eq
-    use undo_fm, only: undo_auto_amalgamate
+    use undo_fm, only: undo_auto_amalgamate, this_command_amalgamating
+    use dispnew_fm, only: ding
     implicit none(type, external)
     private
 
     public :: forward_char, backward_char, forward_line, beginning_of_line, &
               end_of_line, delete_char, self_insert_command, syms_of_cmds
 
+    !> A range of characters FROM..TO, both included.
+    type, public :: char_range_type
+        integer :: from = 0
+        integer :: to = -1
+    end type char_range_type
+
+    !> A char-table which contains characters which invoke auto-filling.
+    !> Such characters have value t in this table.  Port of character.c
+    !> auto-fill-chars: here the ranges whose value is t (unallocated is
+    !> not a char-table: space and newline).  `syms_of_cmds' gives it
+    !> space and newline (character.c) and characters.el's CJK ranges.
+    type(char_range_type), allocatable, public :: auto_fill_chars(:)
+
+    abstract interface
+        !> simple.el:internal-auto-fill: `filled' is its value (true
+        !> when the auto-fill function did any work).
+        subroutine internal_auto_fill_proc(status, filled)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: filled
+        end subroutine internal_auto_fill_proc
+
+        !> simple.el:kill-forward-chars: kill `n' characters after point
+        !> (before, if negative).
+        subroutine kill_chars_proc(n, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: n
+            type(status_type), intent(out) :: status
+        end subroutine kill_chars_proc
+    end interface
+
     !> simple.el:internal-auto-fill, which `self_insert_command' calls to
     !> perform auto-filling; set by simple_fm (null: no auto-filling).
-    procedure(auto_fill_proc), pointer, public :: internal_auto_fill_hook => null()
+    procedure(internal_auto_fill_proc), pointer, public :: internal_auto_fill_hook => null()
+
+    !> simple.el:kill-forward-chars, which `delete_char' calls with
+    !> KILLFLAG; set by simple_fm (null: KILLFLAG deletes).
+    procedure(kill_chars_proc), pointer, public :: kill_forward_chars_hook => null()
 
 contains
 
@@ -151,15 +188,22 @@ contains
     end subroutine end_of_line
 
     !> Delete `n' characters after point (before, if negative); signals
-    !> beginning-/end-of-buffer instead of deleting fewer.
-    !> Port of cmds.c:Fdelete_char (without KILLFLAG).
-    subroutine delete_char(n, status)
+    !> beginning-/end-of-buffer instead of deleting fewer.  Optional
+    !> KILLFLAG true means kill instead (save in kill ring).
+    !> Port of cmds.c:Fdelete_char.
+    subroutine delete_char(n, status, killflag)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: killflag
         integer(int64) :: pos
+        logical :: kill
         if (abs(n) < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
         pos = buffers(cur)%pt + n
-        if (n < 0) then
+        kill = .false.
+        if (present(killflag)) kill = killflag
+        if (kill .and. associated(kill_forward_chars_hook)) then
+            call kill_forward_chars_hook(n, status)
+        else if (n < 0) then
             if (pos < buffers(cur)%begv) then
                 call set_error(status, FM_BEGINNING_OF_BUFFER)
             else
@@ -176,12 +220,14 @@ contains
 
     !> Insert character `c' `n' times.  Port of cmds.c:Fself_insert_command
     !> with internal_self_insert reduced to the insertion and auto-fill
-    !> (no overwrite, abbrevs or hooks).  A non-character `c' does nothing
-    !> (upstream rings the bell).
+    !> (no overwrite, abbrevs or hooks).  A non-character `c' rings the
+    !> bell.
     subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
         type(status_type), intent(out) :: status
         character(len=24) :: buf
+        integer :: hairy
+        status = status_type()
         if (n < 0) then
             write (buf, "(i0)") n
             call set_error(status, FM_GENERIC_ERROR, &
@@ -189,20 +235,57 @@ contains
             return
         end if
         if (n < 2) call undo_auto_amalgamate(value_eq(this_command, last_command))
-        if (c < 0 .or. c > MAX_CHAR) return
-        call insert_char_n(int(c, int32), n, status)
+        ! Barf if the key that invoked this was not a character.
+        if (c < 0 .or. c > MAX_CHAR) then
+            call ding()
+            return
+        end if
+        call internal_self_insert(int(c, int32), n, hairy, status)
+        if (hairy == 2) this_command_amalgamating = .false.
+    end subroutine self_insert_command
+
+    !> Insert character `c' `n' times and auto-fill; `hairy' is 2 when
+    !> auto-filling did something (the undo amalgamation is then reset).
+    !> Port of cmds.c:internal_self_insert (no overwrite mode, abbrevs,
+    !> change functions or `post_self_insert_hook').
+    subroutine internal_self_insert(c, n, hairy, status)
+        integer(int32), intent(in) :: c
+        integer(int64), intent(in) :: n
+        integer, intent(out) :: hairy
+        type(status_type), intent(out) :: status
+        logical :: filled
+        hairy = 0
+        call insert_char_n(c, n, status)
         if (.not. status%ok()) return
-        ! auto-fill-chars: space and newline.
-        if ((c == 32 .or. c == 10) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
+        if (auto_fill_char_p(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
             ! After inserting a newline, move to previous line and fill
             ! that.  Must have the newline in place already so filling and
             ! justification, if any, know where the end is going to be.
             if (c == 10) call goto_char(buffers(cur)%pt - 1)
-            call internal_auto_fill_hook(status)
+            call internal_auto_fill_hook(status, filled)
             ! Test PT < ZV in case the auto-fill-function is strange.
             if (c == 10 .and. buffers(cur)%pt < buffers(cur)%zv) call goto_char(buffers(cur)%pt + 1)
+            if (filled) hairy = 2
         end if
-    end subroutine self_insert_command
+    end subroutine internal_self_insert
+
+    !> Whether `auto_fill_chars' has a non-nil value for `c' (space and
+    !> newline when it is not a char-table).
+    logical function auto_fill_char_p(c)
+        integer(int32), intent(in) :: c
+        integer :: k
+        if (.not. allocated(auto_fill_chars)) then
+            auto_fill_char_p = c == 32 .or. c == 10
+            return
+        end if
+        auto_fill_char_p = .false.
+        do k = 1, size(auto_fill_chars)
+            if (c >= auto_fill_chars(k)%from .and. c <= auto_fill_chars(k)%to) then
+                auto_fill_char_p = .true.
+                return
+            end if
+        end do
+    end function auto_fill_char_p
 
     ! ------------------------------------------------------------------
     ! Commands (the interactive side of the DEFUNs)
@@ -296,24 +379,32 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> Interactively, N is the prefix arg.
     !>
+    !> Optional second arg KILLFLAG non-nil means kill instead (save in kill ring).
+    !> Interactively, N is the prefix arg, and KILLFLAG is set if
+    !> N was explicitly specified.
+    !>
     !> The command `delete_forward_char' is preferable for interactive use, e.g.
-    !> because it respects values of `delete_active_region'.  Port of
-    !> cmds.c:Fdelete_char (the command; KILLFLAG is not ported).
+    !> because it respects values of `delete_active_region' and `overwrite_mode'.
+    !> Port of cmds.c:Fdelete_char (the command).
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status
-        call delete_char(arg_p(), status)
+        call delete_char(arg_p(), status,.not. nilp(current_prefix_arg))
     end subroutine cmd_delete_char
 
     !> Insert the character you type.
     !> Whichever character C you type to run this command is inserted.
     !> The numeric prefix argument N says how many times to repeat the insertion.
-    !> Port of cmds.c:Fself_insert_command (the command; abbrevs, auto-fill and
+    !> Port of cmds.c:Fself_insert_command (the command; abbrevs and
     !> post-self-insert-hook are not ported).
     subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
         status = status_type()
-        if (.not. fixnump(last_command_event)) return
-        call self_insert_command(arg_p(), xfixnum(last_command_event), status)
+        if (fixnump(last_command_event)) then
+            call self_insert_command(arg_p(), xfixnum(last_command_event), status)
+        else
+            ! Not a character: self_insert_command barfs.
+            call self_insert_command(arg_p(), -1_int64, status)
+        end if
     end subroutine cmd_self_insert_command
 
     !> Register this module's commands.  Port of the defsubr part of
@@ -326,5 +417,11 @@ contains
         commands%end_of_line%run => cmd_end_of_line
         commands%delete_char%run => cmd_delete_char
         commands%self_insert_command%run => cmd_self_insert_command
+        ! character.c: space and newline; characters.el: the charsets that
+        ! should invoke auto-filling.
+        auto_fill_chars = [char_range_type(32, 32), char_range_type(10, 10), &
+                           char_range_type(int(z'3041'), int(z'30FF')), char_range_type(int(z'3400'), int(z'4DB5')), &
+                           char_range_type(int(z'4E00'), int(z'9FBB')), char_range_type(int(z'F900'), int(z'FAFF')), &
+                           char_range_type(int(z'FF00'), int(z'FF9F')), char_range_type(int(z'20000'), int(z'2FFFF'))]
     end subroutine syms_of_cmds
 end module cmds_fm

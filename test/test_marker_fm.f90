@@ -33,6 +33,8 @@ module test_marker_fm
                          marker_insertion_type, marker_last_position, marker_position, set_marker, &
                          set_marker_insertion_type, set_marker_to
     use insdel_fm, only: insert, insert_before_markers, del_range
+    use lisp_fm, only: make_marker_ref
+    use print_fm, only: prin1_to_string
     implicit none(type, external)
     private
 
@@ -51,6 +53,7 @@ contains
                     new_unittest("insert-before-markers", test_insert_before_markers), &
                     new_unittest("deletion", test_delete), &
                     new_unittest("copy-marker", test_copy), &
+                    new_unittest("print-marker", test_print_marker), &
                     new_unittest("set-marker-from-other-buffer", test_other_buffer), &
                     new_unittest("kill-buffer-detaches", test_kill), &
                     new_unittest("free-marker", test_free), &
@@ -222,6 +225,26 @@ contains
         call free_marker(cn, st)
         call leave(h, old)
     end subroutine test_copy
+
+    !> print.c prints a marker with its position and buffer.
+    subroutine test_print_marker(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, m, nowhere
+        type(status_type) :: st
+        call enter("tm-print", h, old)
+        call insert("hello", st)
+        call copy_marker_at(4_int64, m, .false., st)
+        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker at 4 in tm-print>")
+        if (allocated(error)) return
+        call set_marker_insertion_type(m, .true., st)
+        call check(error, prin1_to_string(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
+        if (allocated(error)) return
+        call make_marker(nowhere)
+        call check(error, prin1_to_string(make_marker_ref(nowhere)), "#<marker in no buffer>")
+        call free_marker(m, st)
+        call free_marker(nowhere, st)
+        call leave(h, old)
+    end subroutine test_print_marker
 
     !> The Bug#24368 scenario of marker-tests.el: a marker taken from a
     !> buffer whose char and byte positions differ, set into an ASCII
