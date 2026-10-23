@@ -85,6 +85,7 @@ module simple_fm
     private
 
     public :: execute_extended_command, read_extended_command
+    public :: fundamental_mode, special_mode, syms_of_simple_modes
 
     !> Non-nil means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported: the suggestion shows until the
@@ -267,6 +268,30 @@ module simple_fm
         module subroutine syms_of_simple_fill()
             implicit none(type, external)
         end subroutine syms_of_simple_fill
+
+        !> Major mode not specialized for anything in particular.
+        !> Other major modes are defined by comparison with this one.
+        !> Port of simple.el:fundamental-mode.  (In simple_modes_fm.)
+        module subroutine fundamental_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine fundamental_mode
+
+        !> Parent major mode from which special major modes should inherit.
+        !>
+        !> A special major mode is intended to view specially formatted data
+        !> rather than files.  These modes usually use read-only buffers.
+        !> Port of simple.el:special-mode.  (In simple_modes_fm.)
+        module subroutine special_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine special_mode
+
+        !> Define `fundamental-mode` and `special-mode` (with
+        !> `special-mode-map`); safe to call again.  (In simple_modes_fm.)
+        module subroutine syms_of_simple_modes()
+            implicit none(type, external)
+        end subroutine syms_of_simple_modes
     end interface
 
     abstract interface
@@ -1101,6 +1126,7 @@ contains
         call defcommand("beginning-of-buffer", cmd_beginning_of_buffer)
         call defcommand("end-of-buffer", cmd_end_of_buffer)
         call syms_of_simple_fill()
+        call syms_of_simple_modes()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]

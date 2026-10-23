@@ -19,55 +19,47 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Help mode, the major mode of *Help*: a read-only buffer whose keymap
-!> has special-mode-map's keys (simple.el): `q` quits the window, SPC
-!> and DEL scroll, digits and `-` make prefix arguments.
+!> Help mode, the major mode of *Help*, derived from Special mode
+!> (simple.el): a read-only buffer where `q` quits the window, SPC and
+!> DEL scroll, digits and `-` make prefix arguments.
 !>
 !> Deferred: cross-reference buttons and the help-xref stack (`l`, `r`,
 !> `n`, `p`), `s` (help-view-source), `i`/`I` (Info), `c` (customize),
-!> `g` (revert), `h`/`?` (describe-mode), `<` and `>`.
+!> `g` (revert), `h`/`?` (describe-mode).
 module help_mode_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap, keymap_set, use_local_map
-    use buffer_fm, only: current_buffer, set_buffer_read_only
+    use keymap_fm, only: keymap_live_p
+    use callint_fm, only: defcommand
+    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
+    use simple_fm, only: syms_of_simple_modes
     implicit none(type, external)
     private
 
     public :: init_help_mode, help_mode
 
-    !> Keymap for Help mode.  Port of help-mode.el help-mode-map (with
-    !> simple.el special-mode-map's keys, as its parent upstream).
+    !> Keymap for Help mode.  Port of help-mode.el help-mode-map (its
+    !> parent is special-mode-map).
     type(handle_type), public :: help_mode_map
 
 contains
 
-    !> Build `help_mode_map` (again, if it exists).
+    !> Define Help mode and its parent, Special mode.
     subroutine init_help_mode()
-        type(status_type) :: status
-        integer :: d
-        character(len=1) :: digit
-        if (keymap_live_p(help_mode_map)) call free_keymap(help_mode_map, status)
-        call make_sparse_keymap(help_mode_map)
-        call keymap_set(help_mode_map, "q", "quit-window", status)
-        call keymap_set(help_mode_map, "SPC", "scroll-up-command", status)
-        call keymap_set(help_mode_map, "S-SPC", "scroll-down-command", status)
-        call keymap_set(help_mode_map, "DEL", "scroll-down-command", status)
-        call keymap_set(help_mode_map, "-", "negative-argument", status)
-        do d = 0, 9
-            write (digit, "(i1)") d
-            call keymap_set(help_mode_map, digit, "digit-argument", status)
-        end do
+        call syms_of_simple_modes()
+        call define_derived_mode("help-mode", "special-mode", "Help")
+        help_mode_map = derived_mode_map("help-mode")
+        call defcommand("help-mode", help_mode)
     end subroutine init_help_mode
 
     !> Major mode for viewing help text and navigating references in it.
-    !> Make the current buffer read-only, with `help_mode_map` as its
-    !> local map.  Port of help-mode.el:help-mode.
-    subroutine help_mode(status)
+    !> Port of help-mode.el:help-mode.
+    recursive subroutine help_mode(status)
         type(status_type), intent(out) :: status
+        logical :: saved
         if (.not. keymap_live_p(help_mode_map)) call init_help_mode()
-        call use_local_map(help_mode_map, status)
+        call derived_mode_begin("help-mode", saved, status)
         if (.not. status%ok()) return
-        call set_buffer_read_only(current_buffer(), .true., status)
+        call derived_mode_end("help-mode", saved, status)
     end subroutine help_mode
 end module help_mode_fm

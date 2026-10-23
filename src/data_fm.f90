@@ -142,8 +142,7 @@ module data_fm
         !>
         !> The first thing this function does is run
         !> the normal hook `change-major-mode-hook'.  Port of
-        !> buffer.c:Fkill_all_local_variables (the hook is run by the
-        !> caller, see subr_fm).  (In data_buffer_fm.)
+        !> buffer.c:Fkill_all_local_variables.  (In data_buffer_fm.)
         module subroutine kill_all_local_variables(kill_permanent)
             implicit none(type, external)
             logical, intent(in), optional :: kill_permanent

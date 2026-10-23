@@ -49,6 +49,7 @@ submodule(data_fm) data_buffer_fm
     use fill_fm, only: adaptive_fill_mode
     use simple_fm, only: fill_prefix, auto_fill_inhibit_regexp, do_auto_fill
     use fns_fm, only: get
+    use eval_fm, only: run_hook
     implicit none(type, external)
 
     !> Kinds of forwarded variable.
@@ -590,8 +591,12 @@ contains
     type(value_type) :: prop
     type(status_type) :: st
     if (cur == 0) return
+    ! The first thing this function does is run the normal hook
+    ! `change-major-mode-hook'.
+    call run_hook("change-major-mode-hook", st)
     all = .false.
     if (present(kill_permanent)) all = kill_permanent
+    buffers(cur)%syntax_table = null_handle()
     buffers(cur)%major_mode = "fundamental-mode"
     buffers(cur)%mode_name = "Fundamental"
     buffers(cur)%keymap = null_handle()
