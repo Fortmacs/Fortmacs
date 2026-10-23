@@ -79,6 +79,10 @@ module syntax_fm
     !> Port of syntax.c words-include-escapes.
     logical, public :: words_include_escapes = .false.
 
+    !> Counts `modify-syntax-entry' calls, so compiled regexps that depend
+    !> on syntax can tell they are stale (search.c:clear_regexp_cache).
+    integer(int64), public, protected :: syntax_modiff = 0
+
     !> A raw syntax descriptor, (CODE . MATCHING-CHAR) upstream.  `code`
     !> -1 is nil: inherit from the parent table.  `match` -1 is nil.
     type :: syntax_descriptor_type
@@ -510,11 +514,7 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: ")
             return
         end if
-        if (string(1:1) == "-") then
-            val = SWHITESPACE
-        else
-            val = index(syntax_code_spec, string(1:1)) - 1
-        end if
+        val = syntax_spec_code(string(1:1))
         if (val < 0) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid syntax description letter: "//string(1:1))
             return
@@ -577,7 +577,8 @@ contains
         type(syntax_descriptor_type) :: d
         type(handle_type) :: h
         integer(int64) :: i
-        if (from < 0 .or. to > MAX_CHAR .or. from > to) then
+        status = status_type()
+        if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
             call set_error(status, FM_ARGS_OUT_OF_RANGE)
             return
         end if
@@ -590,8 +591,26 @@ contains
         if (.not. status%ok()) return
         call string_to_syntax(newentry, d, status)
         if (.not. status%ok()) return
-        call set_range(i, from, to, d)
+        ! A reversed range sets nothing (char_table_set_range).
+        if (from <= to) call set_range(i, from, to, d)
+        ! (clear_regexp_cache): compiled regexps that used syntax are stale.
+        syntax_modiff = syntax_modiff + 1
     end subroutine modify_syntax_entry
+
+    !> The syntax class designated by C, or -1.  Port of
+    !> syntax.c:syntax_spec_code (`-' and ` ' are whitespace, `W' and
+    !> `w' are word).
+    integer function syntax_spec_code(c) result(class)
+        character, intent(in) :: c
+        select case (c)
+        case ("-", " ")
+            class = SWHITESPACE
+        case ("W")
+            class = SWORD
+        case default
+            class = index(syntax_code_spec, c) - 1
+        end select
+    end function syntax_spec_code
 
     ! ------------------------------------------------------------------
     ! Words
@@ -837,13 +856,8 @@ contains
             end if
         end if
         do while (i <= len(syntax))
-            ! syntax_spec_code: `-' also stands for whitespace.
-            if (syntax(i:i) == "-") then
-                classes(SWHITESPACE) = .true.
-            else
-                at = index(syntax_code_spec, syntax(i:i))
-                if (at > 0) classes(at - 1) = .true.
-            end if
+            at = syntax_spec_code(syntax(i:i))
+            if (at >= 0) classes(at) = .true.
             i = i + 1
         end do
         limit = skip_limit(forwardp, lim)
