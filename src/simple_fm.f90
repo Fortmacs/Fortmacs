@@ -59,7 +59,7 @@ module simple_fm
     use data_fm, only: symbol_value, set
     use lisp_fm, only: list_length, xstring, stringp
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
-                          minibuffer_default, minibuffer_text_before_history, &
+                          minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
@@ -912,27 +912,32 @@ contains
         if (.not. status%ok()) history = nil()
     end function history_value
 
-    !> Put history element `nabs' in the minibuffer: 0 is the input typed
-    !> before moving into the history, N > 0 the Nth previous input, -1
-    !> the default ("future history").  Point stays where it was unless it
-    !> was at the end or in the prompt.  Port of
-    !> simple.el:goto-history-element (one default; no
-    !> minibuffer-default-add-function or history-sexp flag).
+    !> Insert into the minibuffer the element of minibuffer history specified by NABS.
+    !> It specifies the absolute history position in descending order,
+    !> where 0 means the current element and a positive number N means
+    !> the Nth previous element.  NABS that is a negative number -N means
+    !> the Nth entry of "future history."  Port of
+    !> simple.el:goto-history-element (no minibuffer-default-add-function
+    !> or history-sexp flag).
     subroutine goto_history_element(nabs, status)
         integer, intent(in) :: nabs
         type(status_type), intent(out) :: status
         type(value_type) :: history, elt
         character(len=:), allocatable :: text
-        integer(int64) :: goal, pend
-        integer :: minimum
-        minimum = 0
-        if (allocated(minibuffer_default)) minimum = -1
+        integer(int64) :: pend
+        integer :: minimum, ndefaults
+        logical :: have_default
+        status = status_type()
+        ndefaults = 0
+        if (allocated(minibuffer_default)) ndefaults = size(minibuffer_default)
+        have_default = ndefaults > 0
+        minimum = -ndefaults
         history = history_value()
         if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
             minibuffer_text_before_history = minibuffer_contents()
         end if
         if (nabs < minimum) then
-            if (allocated(minibuffer_default)) then
+            if (have_default) then
                 call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
             else
                 call set_error(status, FM_USER_ERROR, "End of history; no default available")
@@ -943,19 +948,23 @@ contains
             call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
             return
         end if
-        ! minibuffer-temporary-goal-position
-        pend = minibuffer_prompt_end()
-        goal = -1
-        if (point() <= pend) then
-            goal = pend
-        else if (point() /= point_max()) then
-            goal = point()
+        if (.not. (value_eq(last_command, sym("next_history_element")) .or. &
+                   value_eq(last_command, sym("previous_history_element")))) then
+            pend = minibuffer_prompt_end()
+            if (point() <= pend) then
+                minibuffer_temporary_goal_position = pend
+            else if (eobp()) then
+                minibuffer_temporary_goal_position = 0
+            else
+                minibuffer_temporary_goal_position = point()
+            end if
         end if
-        call del_range(pend, buffers(cur)%zv, status)
+        call goto_char(point_max())
+        call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
         if (.not. status%ok()) return
         minibuffer_history_position = nabs
         if (nabs < 0) then
-            text = minibuffer_default
+            text = minibuffer_default(-nabs)%s
         else if (nabs == 0) then
             text = ""
             if (allocated(minibuffer_text_before_history)) then
@@ -967,8 +976,8 @@ contains
             if (stringp(elt)) text = xstring(elt)
         end if
         call insert(text, status)
-        if (goal >= 0) then
-            call goto_char(goal)
+        if (minibuffer_temporary_goal_position > 0) then
+            call goto_char(minibuffer_temporary_goal_position)
         else
             call goto_char(point_max())
         end if

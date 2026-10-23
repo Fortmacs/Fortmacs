@@ -137,9 +137,17 @@ module minibuf_fm
     character(len=:), allocatable, public :: minibuffer_history_variable
     !> Vminibuffer_history_position: the element shown (0: the input).
     integer, public :: minibuffer_history_position = 0
-    !> minibuffer-default: the default value, for M-n ("future history");
-    !> unallocated for none.
-    character(len=:), allocatable, public :: minibuffer_default
+    !> A string in a list of strings.
+    type, public :: minibuffer_string_type
+        character(len=:), allocatable :: s
+    end type minibuffer_string_type
+
+    !> minibuffer-default: the default values, for M-n ("future
+    !> history"); unallocated (or empty) for nil.
+    type(minibuffer_string_type), allocatable, public :: minibuffer_default(:)
+    !> simple.el minibuffer-temporary-goal-position: where M-n and M-p
+    !> leave point (0 for the end), kept while they repeat.
+    integer(int64), public :: minibuffer_temporary_goal_position = 0
     !> simple.el minibuffer-text-before-history: the input before moving
     !> into the history; unallocated for nil.
     character(len=:), allocatable, public :: minibuffer_text_before_history
@@ -306,23 +314,31 @@ contains
     !> `initial' (point after it), using `keymap' (default
     !> minibuffer-local-map) and history list `history' (default
     !> "minibuffer-history").  C-g (abort-minibuffers) gives a quit.
-    !> Port of minibuf.c:read_minibuf with Fread_from_minibuffer (no
-    !> READ, no INHERIT-INPUT-METHOD, DEFAULT only for the history).
+    !> `default' is the default value (for M-n and the history), or
+    !> `defaults' a list of them (the first is the default).  Port of
+    !> minibuf.c:read_minibuf with Fread_from_minibuffer (no READ, no
+    !> INHERIT-INPUT-METHOD; DEFAULT only for the history).
     !> minibuffer-mode is not ported: as set_minibuffer_mode does when it
     !> is not defined, the minibuffer's local variables are killed.
-    recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default)
+    recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default, defaults, &
+                                              position)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
         type(handle_type), intent(in), optional :: keymap
+        type(minibuffer_string_type), intent(in), optional :: defaults(:)
+        !> With INITIAL, point goes to this one-indexed position in it (as
+        !> for an INITIAL of the form (STRING . POSITION)).
+        integer(int64), intent(in), optional :: position
         type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
         integer(int64) :: old_root_start, bi
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
         type(value_type) :: histval
-        character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
-                                         saved_before, histstring
+        character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
+        type(minibuffer_string_type), allocatable :: saved_default(:)
+        integer(int64) :: saved_goal
         integer :: saved_histpos
         logical :: had_default, had_before, have_histstring
         logical :: changed, old_selected, have_dir
@@ -364,7 +380,14 @@ contains
         minibuffer_history_position = 0
         had_default = allocated(minibuffer_default)
         if (had_default) call move_alloc(minibuffer_default, saved_default)
-        if (present(default)) minibuffer_default = default
+        if (present(defaults)) then
+            if (size(defaults) > 0) minibuffer_default = defaults
+        else if (present(default)) then
+            allocate (minibuffer_default(1))
+            minibuffer_default(1)%s = default
+        end if
+        saved_goal = minibuffer_temporary_goal_position
+        minibuffer_temporary_goal_position = 0
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
         ! If variable is unbound, make it nil.
@@ -406,7 +429,18 @@ contains
                                           sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
         end if
         call set(sym("inhibit_read_only"), nil(), st)
-        if (present(initial)) call insert(initial, st)
+        if (present(initial)) then
+            call insert(initial, st)
+            if (present(position)) then
+                ! Convert to distance from end of input.
+                if (position < 1) then
+                    ! A number too small means the beginning of the string.
+                    call goto_char(buffers(cur)%pt - schars(initial))
+                else
+                    call goto_char(buffers(cur)%pt + max(position - 1 - schars(initial), -schars(initial)))
+                end if
+            end if
+        end if
         if (present(keymap)) then
             call use_local_map(keymap, st)
         else
@@ -429,6 +463,12 @@ contains
         have_histstring = .true.
         if (len(result) /= 0) then
             histstring = result
+        else if (present(defaults)) then
+            if (size(defaults) > 0) then
+                histstring = defaults(1)%s
+            else
+                have_histstring = .false.
+            end if
         else if (present(default)) then
             histstring = default
         else
@@ -458,6 +498,7 @@ contains
         minibuffer_history_position = saved_histpos
         if (allocated(minibuffer_default)) deallocate (minibuffer_default)
         if (had_default) call move_alloc(saved_default, minibuffer_default)
+        minibuffer_temporary_goal_position = saved_goal
         if (allocated(minibuffer_text_before_history)) deallocate (minibuffer_text_before_history)
         if (had_before) call move_alloc(saved_before, minibuffer_text_before_history)
         if (.not. edit_status%ok()) then
@@ -473,13 +514,14 @@ contains
 
     !> Read a string; empty input gives `default' if present.
     !> Port of minibuf.c:Fread_string.
-    recursive subroutine read_string(prompt, result, status, initial, history, default)
+    recursive subroutine read_string(prompt, result, status, initial, history, default, position)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
+        integer(int64), intent(in), optional :: position
         call read_from_minibuffer(prompt, result, status, initial=initial, history=history, &
-                                  default=default)
+                                  default=default, position=position)
         if (.not. status%ok()) return
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine read_string

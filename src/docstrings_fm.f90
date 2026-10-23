@@ -2362,7 +2362,7 @@ contains
                         "of subr.el:read-number (integers only).  (In subr_read_fm.)"
         case ("read_string")
             entry%file = "minibuf_fm.f90"
-            entry%fortran = "call read_string(prompt, result, status, initial, history, default)"
+            entry%fortran = "call read_string(prompt, result, status, initial, history, default, position)"
             entry%doc = "Read a string; empty input gives `default' if present."
         case ("recenter")
             entry%file = "window_scroll_fm.f90"

@@ -37,14 +37,17 @@ module subr_fm
     use keymap_fm, only: define_key, current_global_map, make_sparse_keymap, keymap_live_p, key_parse, lookup_key
     use handle_fm, only: handle_type
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
+                         re_search_forward, SEARCH_MOVE, regexp_quote, &
                          match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
                          set_match_data, match_data_translate, replace_match
+    use syntax_fm, only: skip_syntax_backward
     use editfns_fm, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
     implicit none(type, external)
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
-    public :: global_set_key, read_number, syms_of_subr
+    public :: global_set_key, read_number, syms_of_subr, forward_symbol, find_tag_default, &
+              find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
@@ -578,4 +581,134 @@ contains
         call narrow_to_region(saved_begv, saved_zv, status)
         call goto_char(start)
     end function looking_back
+
+    !> Move point to the next position that is the end of a symbol.
+    !> A symbol is any sequence of characters that are in either the
+    !> word constituent or symbol constituent syntax class.
+    !> With prefix argument ARG, do it ARG times if positive, or move
+    !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
+    subroutine forward_symbol(arg)
+        integer(int64), intent(in) :: arg
+        integer(int64) :: found, moved, n
+        type(status_type) :: st
+        if (arg >= 0) then
+            call re_search_forward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE, count=arg)
+        else
+            n = arg
+            do while (n < 0)
+                call re_search_backward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE)
+                if (found > 0) moved = skip_syntax_backward("w_")
+                n = n + 1
+            end do
+        end if
+    end subroutine forward_symbol
+
+    !> The bounds of the symbol at point (`found' false if none).  Port
+    !> of thingatpt.el:bounds-of-thing-at-point for `symbol' (end-op
+    !> forward-symbol, beginning-op thing-at-point--beginning-of-symbol,
+    !> whose search failing is an error ignored).
+    subroutine bounds_of_symbol_at_point(beg, end, found)
+        integer(int64), intent(out) :: beg, end
+        logical, intent(out) :: found
+        integer(int64) :: orig, at, real_end, real_beg
+        type(status_type) :: st
+        logical :: ok
+        found = .false.
+        beg = 0
+        end = 0
+        orig = point()
+        ! If the buffer is totally empty, give up.
+        call goto_char(point_min())
+        call re_search_forward("[^"//achar(9)//achar(10)//" ]", at, st, noerror=SEARCH_NOERROR)
+        if (at == 0) then
+            call goto_char(orig)
+            return
+        end if
+        call goto_char(orig)
+        ! Try moving forward, then back.
+        call forward_symbol(1_int64)
+        call beginning_of_symbol(ok)
+        if (.not. ok) then
+            call goto_char(orig)
+            return
+        end if
+        beg = point()
+        if (beg <= orig) then
+            ! If that brings us all the way back to ORIG, it worked.  But
+            ! END may not be the real end.  So find the real end that
+            ! corresponds to BEG.
+            call forward_symbol(1_int64)
+            real_end = point()
+            if (orig <= real_end .and. beg < real_end) then
+                end = real_end
+                found = .true.
+            end if
+        else
+            call goto_char(orig)
+            ! Try a second time, moving backward first and then forward,
+            ! so that we can find a thing that ends at ORIG.
+            call beginning_of_symbol(ok)
+            if (ok) then
+                call forward_symbol(1_int64)
+                end = point()
+                call beginning_of_symbol(ok)
+                if (ok) then
+                    real_beg = point()
+                    if (real_beg <= orig .and. orig <= end .and. real_beg < end) then
+                        beg = real_beg
+                        found = .true.
+                    end if
+                end if
+            end if
+        end if
+        call goto_char(orig)
+    contains
+
+        ! thing-at-point--beginning-of-symbol: `ok' false when the search
+        ! signals.
+        subroutine beginning_of_symbol(ok)
+            logical, intent(out) :: ok
+            integer(int64) :: found, moved
+            type(status_type) :: st
+            call re_search_backward("\(\sw\|\s_\)+", found, st)
+            ok = st%ok() .and. found > 0
+            if (ok) moved = skip_syntax_backward("w_")
+        end subroutine beginning_of_symbol
+    end subroutine bounds_of_symbol_at_point
+
+    !> Determine default tag to search for, based on text at point.
+    !> If there is no plausible default, `found' is false.  Port of
+    !> subr.el:find-tag-default (with find-tag-default-bounds).
+    subroutine find_tag_default(tag, found)
+        character(len=:), allocatable, intent(out) :: tag
+        logical, intent(out) :: found
+        integer(int64) :: beg, end
+        type(status_type) :: st
+        tag = ""
+        call bounds_of_symbol_at_point(beg, end, found)
+        if (found) call buffer_substring(beg, end, tag, st)
+    end subroutine find_tag_default
+
+    !> Return regexp that matches the default tag at point.
+    !> If there is no tag at point, `found' is false.  Port of
+    !> subr.el:find-tag-default-as-regexp (find-tag-default-function is
+    !> not ported: the default is `find_tag_default').
+    subroutine find_tag_default_as_regexp(regexp, found)
+        character(len=:), allocatable, intent(out) :: regexp
+        logical, intent(out) :: found
+        character(len=:), allocatable :: tag
+        call find_tag_default(tag, found)
+        regexp = ""
+        if (found) regexp = regexp_quote(tag)
+    end subroutine find_tag_default_as_regexp
+
+    !> Return regexp that matches the default tag at point as symbol.
+    !> If there is no tag at point, `found' is false.  Port of
+    !> subr.el:find-tag-default-as-symbol-regexp.
+    subroutine find_tag_default_as_symbol_regexp(regexp, found)
+        character(len=:), allocatable, intent(out) :: regexp
+        logical, intent(out) :: found
+        call find_tag_default_as_regexp(regexp, found)
+        if (found) regexp = "\_<"//regexp//"\_>"
+    end subroutine find_tag_default_as_symbol_regexp
 end module subr_fm

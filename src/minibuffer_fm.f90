@@ -62,7 +62,8 @@ module minibuffer_fm
                           completion_predicate, completion_function_table, try_completion, all_completions, &
                           test_completion, completion_ignore_case, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, &
                           COMPLETE_TEST, COMPLETE_BOUNDARIES, minibuffer_calling_buffer, completion_list_table, &
-                          minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default
+                          minibuffer_setup_function, minibuffer_setup_proc, history_added, minibuffer_default, &
+                          minibuffer_string_type
     use fileio_fm, only: file_name_absolute_p, expand_file_name, substitute_in_file_name, file_name_directory, &
                          file_name_nondirectory, file_exists_p, file_name_as_directory
     use subr_fm, only: add_to_history, history_delete_duplicates
@@ -412,12 +413,22 @@ contains
     !> `completion_ignore_case' is `read_file_name_completion_ignore_case'.
     !> Part of minibuffer.el:read-file-name-default.
     subroutine read_file_name_setup()
+        type(minibuffer_string_type), allocatable :: rest(:)
+        integer :: k
         buffers(cur)%directory = rfn_dir
         ! When the first default in `minibuffer-default' duplicates
         ! initial input `insdef', reset `minibuffer-default' to nil.
         if (allocated(minibuffer_default) .and. rfn_have_insdef) then
-            if (minibuffer_default == rfn_insdef .and. len(minibuffer_default) == len(rfn_insdef)) then
-                deallocate (minibuffer_default)
+            if (size(minibuffer_default) > 0) then
+                if (minibuffer_default(1)%s == rfn_insdef .and. len(minibuffer_default(1)%s) == len(rfn_insdef)) then
+                    ! (cdr-safe minibuffer-default)
+                    allocate (rest(size(minibuffer_default) - 1))
+                    do k = 2, size(minibuffer_default)
+                        rest(k - 1)%s = minibuffer_default(k)%s
+                    end do
+                    deallocate (minibuffer_default)
+                    if (size(rest) > 0) call move_alloc(rest, minibuffer_default)
+                end if
             end if
         end if
         call completion_ignore_case%set_local(read_file_name_completion_ignore_case)
