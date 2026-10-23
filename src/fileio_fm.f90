@@ -36,10 +36,10 @@ module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED
-    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only
+    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, vdeactivate_mark
     use character_fm, only: str_as_multibyte, str_as_unibyte
     use marker_fm, only: char_to_byte
-    use insdel_fm, only: insert
+    use insdel_fm, only: insert, inhibit_modification_hooks
     use editfns_fm, only: point, goto_char, validate_region
     use env_fm, only: substitute_env_vars
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
@@ -778,7 +778,8 @@ contains
     !> the file: its file name and modification time are recorded and it
     !> is marked unmodified, even if the file doesn't exist (which is then
     !> reported as file-missing).  `inserted' is the number of characters
-    !> inserted.  Port of fileio.c:Finsert_file_contents (no BEG, END or
+    !> inserted.  The change hooks run for the inserted text, except when
+    !> visiting.  Port of fileio.c:Finsert_file_contents (no BEG, END or
     !> REPLACE; decoding as described in the module documentation).
     subroutine insert_file_contents(filename, visit, inserted, status)
         character(len=*), intent(in) :: filename
@@ -788,7 +789,7 @@ contains
         character(len=:), allocatable :: absname, data, text
         type(file_stat_type) :: st
         integer(int64) :: opoint, nchars
-        logical :: opened
+        logical :: opened, saved_inhibit
         inserted = 0
         if (buffers(cur)%read_only) then
             call barf_if_buffer_read_only(status)
@@ -821,8 +822,14 @@ contains
         end if
         opoint = point()
         if (len(text) > 0) then
+            ! Normal visiting is done in a new buffer "before" the buffer
+            ! is changed: no change hooks.
+            saved_inhibit = inhibit_modification_hooks%value
+            if (visit) inhibit_modification_hooks%value = .true.
             call insert(text, status)
+            inhibit_modification_hooks%value = saved_inhibit
             if (.not. status%ok()) return
+            vdeactivate_mark = .true.
             call goto_char(opoint)
         end if
         inserted = nchars

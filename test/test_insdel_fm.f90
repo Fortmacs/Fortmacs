@@ -1,5 +1,8 @@
-! test_insdel_fm.f90 -- tests for insdel_fm and marker_fm position conversion.
+! test_insdel_fm.f90 -- tests for insdel_fm (with the change hooks) and
+! marker_fm position conversion.  Includes cases ported from GNU Emacs
+! 31.1 test/src/editfns-tests.el.
 !
+! Copyright (C) 2016-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
 !
 ! This file is part of Fortmacs.
@@ -17,19 +20,29 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Upstream has no insdel-tests.el; these check the gap buffer directly.
+!> Upstream has no insdel-tests.el; these check the gap buffer directly,
+!> and the change hooks (with cases ported from editfns-tests.el).
 !> Each test works in a fresh buffer and restores the previous one.
 module test_insdel_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, FM_BUFFER_READ_ONLY
+    use error_fm, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
+    use lisp_fm, only: value_type, nilp
+    use lread_fm, only: sym
+    use data_fm, only: value_eq
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, &
                          set_buffer, current_buffer, buffer_live_p, buf_bytes, &
                          temp_set_point_both, set_buffer_read_only, buf_fetch_char
     use marker_fm, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos
     use insdel_fm, only: del_range, del_range_1, del_range_byte, insert, insert_char, make_gap, &
-                         move_gap_both
+                         move_gap_both, replace_range, before_change_functions, after_change_functions, &
+                         first_change_hook, inhibit_modification_hooks
+    use editfns_fm, only: delete_region, delete_and_extract_region, subst_char_in_region, point_min, point_max, &
+                          buffer_size, insert_char_n
+    use casefiddle_fm, only: upcase_region, capitalize_region
+    use textprop_fm, only: put_text_property, get_text_property
+    use search_fm, only: search_forward, match_end, replace_match
     implicit none(type, external)
     private
 
@@ -38,6 +51,15 @@ module test_insdel_fm
     !> "aé€b" etc. as bytes: é = C3 A9, € = E2 82 AC.
     character(len=*), parameter :: e_acute = char(195)//char(169)
     character(len=*), parameter :: euro = char(226)//char(130)//char(172)
+
+    !> What the change functions of the hook tests recorded.
+    character(len=:), allocatable :: trace
+
+    !> The state of the sanity checks (editfns-tests.el's
+    !> sanity-check-change-functions-* variables).
+    integer(int64) :: sc_beg = 0, sc_end = 0, sc_size = 0
+    logical :: sc_size_known = .false.
+    integer :: sc_errors = 0, sc_calls = 0
 
 contains
 
@@ -56,7 +78,18 @@ contains
                     new_unittest("char-byte-conversion", test_conversion), &
                     new_unittest("read-only", test_read_only), &
                     new_unittest("gap-shrink", test_gap_shrink), &
-                    new_unittest("position-cache-slot-reuse", test_cache_reuse) &
+                    new_unittest("position-cache-slot-reuse", test_cache_reuse), &
+                    new_unittest("change-hooks-primitives", test_hooks_primitives), &
+                    new_unittest("change-hooks-local-and-global", test_hooks_local_and_global), &
+                    new_unittest("change-hooks-inhibited", test_hooks_inhibited), &
+                    new_unittest("first-change-hook", test_hooks_first_change), &
+                    new_unittest("before-change-error-resets", test_hooks_before_error), &
+                    new_unittest("after-change-error-resets", test_hooks_after_error), &
+                    new_unittest("delete-region-undo-markers-2", test_delete_region_undo_markers_2), &
+                    new_unittest("change-hooks-property-retry", test_hooks_property_retry), &
+                    new_unittest("change-hooks-replace-match", test_hooks_replace_match), &
+                    new_unittest("editfns-tests--before/after-change-functions", &
+                                 test_before_after_change_functions) &
                     ]
     end subroutine collect_insdel_fm
 
@@ -375,4 +408,419 @@ contains
         call leave(b, old)
         call leave(keep, prev)
     end subroutine test_cache_reuse
+
+    ! ------------------------------------------------------------------
+    ! Change hooks
+    ! ------------------------------------------------------------------
+
+    !> The decimal text of N.
+    function num(n) result(s)
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        character(len=21) :: buf
+        write (buf, "(i0)") n
+        s = trim(buf)
+    end function num
+
+    !> Records "B<beg>,<end>"; notes when the hooks are not inhibited.
+    subroutine rec_before(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" B"//num(beg)//","//num(end)
+        if (.not. inhibit_modification_hooks%value) trace = trace//"!"
+    end subroutine rec_before
+
+    !> Records "A<beg>,<end>,<old_len>".
+    subroutine rec_after(beg, end, old_len, status)
+        integer(int64), intent(in) :: beg, end, old_len
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" A"//num(beg)//","//num(end)//","//num(old_len)
+        if (.not. inhibit_modification_hooks%value) trace = trace//"!"
+    end subroutine rec_after
+
+    !> Records "F" (first_change_hook).
+    subroutine rec_first(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" F"
+    end subroutine rec_first
+
+    !> Records "G<beg>,<end>": a second before-change function.
+    subroutine rec_global(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        status = status_type()
+        trace = trace//" G"//num(beg)//","//num(end)
+    end subroutine rec_global
+
+    !> A before-change function that fails.
+    subroutine fail_before(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        trace = trace//" X"//num(beg)//","//num(end)
+        call set_error(status, FM_GENERIC_ERROR, "before failed")
+    end subroutine fail_before
+
+    !> An after-change function that fails.
+    subroutine fail_after(beg, end, old_len, status)
+        integer(int64), intent(in) :: beg, end, old_len
+        type(status_type), intent(out) :: status
+        trace = trace//" Y"//num(beg)//","//num(end)//","//num(old_len)
+        call set_error(status, FM_GENERIC_ERROR, "after failed")
+    end subroutine fail_after
+
+    !> editfns-tests.el delete-region-undo-markers-2: deletes one more
+    !> character on each side of the text about to change.
+    subroutine widen_deletion(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        call delete_region(beg - 1, end + 1, status)
+    end subroutine widen_deletion
+
+    !> Inserts "X" at the beginning of the buffer.
+    subroutine insert_at_start(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        integer(int64) :: opoint
+        trace = trace//" I"//num(beg)//","//num(end)
+        opoint = buffers(cur)%pt
+        call goto(1_int64)
+        call insert("X", status)
+        call goto(opoint + 1)
+    end subroutine insert_at_start
+
+    !> Records the end of the last match, as an after-change function.
+    subroutine rec_match_end(beg, end, old_len, status)
+        integer(int64), intent(in) :: beg, end, old_len
+        type(status_type), intent(out) :: status
+        trace = trace//" M"//num(match_end(0, status))//" "//num(beg)//","//num(end)//","//num(old_len)
+    end subroutine rec_match_end
+
+    !> Give the current buffer the recording functions (buffer-local).
+    subroutine record_changes()
+        call before_change_functions%add(rec_before, local=.true.)
+        call after_change_functions%add(rec_after, local=.true.)
+        trace = ""
+    end subroutine record_changes
+
+    !> Forget the current buffer's own change functions.
+    subroutine forget_changes()
+        call before_change_functions%kill_local()
+        call after_change_functions%kill_local()
+        call first_change_hook%kill_local()
+    end subroutine forget_changes
+
+    !> Each primitive runs the before- and after-change functions once,
+    !> with the bounds of the change, while inhibiting further hooks.
+    subroutine test_hooks_primitives(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        character(len=:), allocatable :: deleted
+        call enter("ti-hooks", h, old)
+        call record_changes()
+        call insert("abc", st)
+        call check(error, trace, " B1,1 A1,4,0", "insert")
+        if (allocated(error)) return
+        trace = ""
+        call del_range(2_int64, 3_int64, st)
+        call check(error, trace, " B2,3 A2,2,1", "delete")
+        if (allocated(error)) return
+        trace = ""
+        call replace_range(1_int64, 3_int64, "xyz", .true., st)
+        call check(error, contents()//trace, "xyz B1,3 A1,4,2", "replace")
+        if (allocated(error)) return
+        trace = ""
+        call replace_range(1_int64, 4_int64, "xyz", .false., st)
+        call check(error, trace, "", "replace without hooks")
+        if (allocated(error)) return
+        trace = ""
+        call upcase_region(1_int64, 4_int64, st)
+        call check(error, contents()//trace, "XYZ B1,4 A1,4,3", "upcase-region")
+        if (allocated(error)) return
+        trace = ""
+        call upcase_region(1_int64, 4_int64, st)
+        call check(error, trace, " B1,4", "upcase-region, nothing changed")
+        if (allocated(error)) return
+        call goto(4_int64)
+        call insert("abab", st)
+        trace = ""
+        call subst_char_in_region(1_int64, 8_int64, iachar("b", int32), iachar("c", int32), st)
+        call check(error, contents()//trace, "XYZacac B5,8 A5,8,3", "subst-char-in-region")
+        if (allocated(error)) return
+        trace = ""
+        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call check(error, trace, " B2,4 A2,4,2", "put-text-property")
+        if (allocated(error)) return
+        trace = ""
+        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call check(error, trace, "", "put-text-property, nothing changed")
+        if (allocated(error)) return
+        trace = ""
+        call delete_and_extract_region(1_int64, 2_int64, deleted, st)
+        call check(error, deleted//trace, "X B1,2 A1,1,1", "delete-and-extract-region")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_hooks_primitives
+
+    !> A buffer's own functions run with the default ones in the place of
+    !> `t'; other buffers run only the default ones.
+    subroutine test_hooks_local_and_global(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old, h2, old2
+        type(status_type) :: st
+        call before_change_functions%add(rec_global)
+        call enter("ti-hooks-local", h, old)
+        call record_changes()
+        call insert("a", st)
+        call check(error, trace, " B1,1 G1,1 A1,2,0", "local, then global")
+        if (allocated(error)) return
+        call enter("ti-hooks-other", h2, old2)
+        trace = ""
+        call insert("a", st)
+        call check(error, trace, " G1,1", "global only")
+        call leave(h2, old2)
+        call forget_changes()
+        call leave(h, old)
+        call before_change_functions%remove(rec_global)
+    end subroutine test_hooks_local_and_global
+
+    !> With `inhibit_modification_hooks' no change function runs.
+    subroutine test_hooks_inhibited(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call enter("ti-hooks-inhibit", h, old)
+        call record_changes()
+        call first_change_hook%add(rec_first, local=.true.)
+        inhibit_modification_hooks = .true.
+        call insert("abc", st)
+        call del_range(1_int64, 2_int64, st)
+        inhibit_modification_hooks = .false.
+        call check(error, contents()//trace, "bc")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_hooks_inhibited
+
+    !> `first_change_hook' runs before the first change of an unmodified
+    !> buffer, and again once it is unmodified.
+    subroutine test_hooks_first_change(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call enter("ti-hooks-first", h, old)
+        call record_changes()
+        call first_change_hook%add(rec_first, local=.true.)
+        call insert("a", st)
+        call insert("b", st)
+        call check(error, trace, " F B1,1 A1,2,0 B2,2 A2,3,0")
+        if (allocated(error)) return
+        buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
+        trace = ""
+        call del_range(1_int64, 2_int64, st)
+        call check(error, trace, " F B1,2 A1,1,1")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_hooks_first_change
+
+    !> An error in a before-change function: the change is not made, the
+    !> error is returned and the hook is emptied in the current buffer,
+    !> which then runs no default functions either.  Adding a function
+    !> to the default value then adds it to that emptied value (subr.el's
+    !> "make-local-variable was used on a hook").
+    subroutine test_hooks_before_error(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call before_change_functions%add(rec_global)
+        call enter("ti-hooks-error", h, old)
+        call insert("abc", st)
+        call before_change_functions%add(fail_before, local=.true.)
+        trace = ""
+        call insert("x", st)
+        call check(error, st%code, FM_GENERIC_ERROR, "error returned")
+        if (allocated(error)) return
+        call check(error, contents()//trace, "abc X4,4", "nothing inserted")
+        if (allocated(error)) return
+        call check(error, before_change_functions%local_p() .and. before_change_functions%empty(), &
+                   "emptied locally")
+        if (allocated(error)) return
+        trace = ""
+        call insert("x", st)
+        call check(error, contents()//trace, "abcx", "no functions run")
+        if (allocated(error)) return
+        call before_change_functions%add(rec_before)
+        trace = ""
+        call insert("y", st)
+        call check(error, trace, " B5,5", "added to the buffer's value")
+        if (allocated(error)) return
+        call before_change_functions%remove(rec_before)
+        call forget_changes()
+        call check(error, before_change_functions%member(rec_global), "default value kept")
+        call leave(h, old)
+        call before_change_functions%remove(rec_global)
+    end subroutine test_hooks_before_error
+
+    !> An error in an after-change function: the change stays, the error
+    !> is returned and the default value is emptied (no buffer-local
+    !> value).
+    subroutine test_hooks_after_error(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call enter("ti-hooks-after-error", h, old)
+        call after_change_functions%add(fail_after)
+        trace = ""
+        call insert("abc", st)
+        call check(error, st%code, FM_GENERIC_ERROR, "error returned")
+        if (allocated(error)) return
+        call check(error, contents()//trace, "abc Y1,4,0")
+        if (allocated(error)) return
+        call check(error, after_change_functions%empty() .and. .not. after_change_functions%local_p(), &
+                   "default value emptied")
+        if (allocated(error)) return
+        call check(error,.not. inhibit_modification_hooks%value, "binding undone")
+        call leave(h, old)
+    end subroutine test_hooks_after_error
+
+    !> editfns-tests.el: delete-region-undo-markers-2.  The before-change
+    !> function's deletion moves the start of the deletion (kept in a
+    !> marker) and the rest keeps its length.  (The marker adjustments
+    !> upstream records in the undo list are deferred.)
+    subroutine test_delete_region_undo_markers_2(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        call enter("ti-undo-markers-2", h, old)
+        call insert("1234567890", st)
+        call before_change_functions%add(widen_deletion, local=.true.)
+        call delete_region(2_int64, 5_int64, st)
+        call check(error, st%ok(), "delete-region")
+        if (allocated(error)) return
+        call check(error, contents(), "90")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_delete_region_undo_markers_2
+
+    !> A before-change function that changes the buffer while text
+    !> properties are being put: the intervals are looked at again.
+    subroutine test_hooks_property_retry(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        type(value_type) :: v
+        call enter("ti-hooks-props", h, old)
+        call insert("abcd", st)
+        call before_change_functions%add(insert_at_start, local=.true.)
+        call after_change_functions%add(rec_after, local=.true.)
+        trace = ""
+        call put_text_property(2_int64, 4_int64, sym("face"), sym("bold"), st)
+        call check(error, contents()//trace, "Xabcd I2,4 A2,4,2")
+        if (allocated(error)) return
+        call get_text_property(2_int64, sym("face"), v, st)
+        call check(error, value_eq(v, sym("bold")), "property at 2")
+        if (allocated(error)) return
+        call get_text_property(4_int64, sym("face"), v, st)
+        call check(error, nilp(v), "no property at 4")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_hooks_property_retry
+
+    !> replace-match adjusts the match data before the after-change
+    !> functions run (replace_range's ADJUST_MATCH_DATA).
+    subroutine test_hooks_replace_match(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        integer(int64) :: found
+        call enter("ti-hooks-replace-match", h, old)
+        call insert("abc", st)
+        call goto(1_int64)
+        call search_forward("b", found, st)
+        call after_change_functions%add(rec_match_end, local=.true.)
+        trace = ""
+        call replace_match("XYZ", st, fixedcase=.true., literal=.true.)
+        call check(error, contents()//trace, "aXYZc M5 2,5,1")
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_hooks_replace_match
+
+    ! editfns-tests.el: the sanity checks of the before/after change
+    ! functions.
+
+    !> sanity-check-change-functions-check-size.
+    subroutine sanity_check_size()
+        if (.not. sc_size_known) then
+            sc_size = buffer_size()
+            sc_size_known = .true.
+        else if (sc_size /= buffer_size()) then
+            sc_errors = sc_errors + 1
+            sc_size = buffer_size()
+        end if
+    end subroutine sanity_check_size
+
+    !> sanity-check-change-functions-before.
+    subroutine sanity_before(beg, end, status)
+        integer(int64), intent(in) :: beg, end
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (.not. (point_min() <= beg .and. beg <= end .and. end <= point_max())) sc_errors = sc_errors + 1
+        call sanity_check_size()
+        sc_calls = sc_calls + 1
+        sc_beg = beg
+        sc_end = end
+    end subroutine sanity_before
+
+    !> sanity-check-change-functions-after.
+    subroutine sanity_after(beg, end, len, status)
+        integer(int64), intent(in) :: beg, end, len
+        type(status_type), intent(out) :: status
+        integer(int64) :: bend, offset
+        status = status_type()
+        if (.not. (point_min() <= beg .and. beg <= end .and. end <= point_max())) sc_errors = sc_errors + 1
+        if (len < 0) sc_errors = sc_errors + 1
+        bend = beg + len
+        if (.not. (sc_beg <= beg .and. beg <= bend .and. bend <= sc_end)) sc_errors = sc_errors + 1
+        offset = end - beg - len
+        sc_end = sc_end + offset
+        sc_size = sc_size + offset
+        call sanity_check_size()
+    end subroutine sanity_after
+
+    !> editfns-tests.el: editfns-tests--before/after-change-functions, with
+    !> the operations that are ported (dabbrev and the coding functions
+    !> are not) in their place.
+    subroutine test_before_after_change_functions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        integer(int64) :: beg, found
+        call enter("ti-sanity", h, old)
+        call before_change_functions%add(sanity_before, local=.true.)
+        call after_change_functions%add(sanity_after, local=.true.)
+        sc_errors = 0
+        sc_calls = 0
+        sc_size_known = .false.
+        call insert("utf-8-unix"//char(10)//char(10)//"UTF", st)
+        beg = buffers(cur)%pt
+        call insert(e_acute//e_acute//e_acute, st)
+        call upcase_region(beg, buffers(cur)%pt, st)
+        call capitalize_region(1_int64, buffers(cur)%pt, st)
+        call subst_char_in_region(1_int64, buffers(cur)%pt, iachar("-", int32), iachar("_", int32), st)
+        call put_text_property(2_int64, 6_int64, sym("face"), sym("bold"), st)
+        call delete_region(3_int64, 8_int64, st)
+        call goto(1_int64)
+        call search_forward("x", found, st)
+        call replace_match("XYZW", st, fixedcase=.true., literal=.true.)
+        call goto(buffers(cur)%zv)
+        call insert_char_n(233_int32, 3_int64, st)
+        call sanity_check_size()
+        call check(error, sc_calls, 9, "before-change calls")
+        if (allocated(error)) return
+        call check(error, sc_errors, 0)
+        call forget_changes()
+        call leave(h, old)
+    end subroutine test_before_after_change_functions
 end module test_insdel_fm

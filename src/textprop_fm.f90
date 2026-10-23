@@ -23,12 +23,14 @@
 !>
 !> Functions that return nil upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
-!> checked) as upstream.  Not yet: properties on strings, overlays
-!> (get-char-property = get-text-property), undo records, modification
-!> hooks, LIMIT t in next-property-change, add-face-text-property,
-!> stickiness for insert-and-inherit, and `text_property_default_nonsticky'
-!> as a (buffer-local) variable: its standard value is built in, as the
-!> value model has no dotted pairs for its alist.
+!> checked, change hooks run) as upstream.  Not yet: properties on
+!> strings, overlays (get-char-property = get-text-property), undo
+!> records, modification hooks (the `modification_hooks'
+!> property and friends), LIMIT t in next-property-change,
+!> add-face-text-property, stickiness for insert-and-inherit, and
+!> `text_property_default_nonsticky' as a (buffer-local) variable: its
+!> standard value is built in, as the value model has no dotted pairs
+!> for its alist.
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
@@ -37,9 +39,7 @@ module textprop_fm
                        stringp, value_type, xstring
     use lread_fm, only: intern
     use data_fm, only: value_eq
-    use buffer_fm, only: buffers, cur, BEG, modiff_incr, buf_compute_unchanged, &
-                         barf_if_buffer_read_only, inhibit_read_only, vdeactivate_mark
-    use undo_fm, only: record_first_change
+    use buffer_fm, only: buffers, cur, BEG, inhibit_read_only
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
                             plist_get_eq, split_interval_left, split_interval_right, textget, tmem
     implicit none(type, external)
@@ -53,6 +53,27 @@ module textprop_fm
               text_property_not_all, verify_interval_modification
     public :: text_property_stickiness, next_single_char_property_change, &
               previous_single_char_property_change
+
+    interface
+        !> Check that the properties of START..END may change, run the
+        !> before-change hooks, and record the modification.  Port of
+        !> textprop.c:modify_text_properties.  (In textprop_modify_fm,
+        !> which can use insdel_fm.)
+        recursive module subroutine modify_text_properties(start, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine modify_text_properties
+
+        !> Run the after-change hooks for a change of the properties of
+        !> START..END (the signal_after_change calls of textprop.c).  (In
+        !> textprop_modify_fm.)
+        recursive module subroutine signal_text_properties_change(start, end, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine signal_text_properties_change
+    end interface
 
 contains
 
@@ -145,24 +166,6 @@ contains
             call set_error(status, FM_TEXT_READ_ONLY)
         end if
     end subroutine text_read_only
-
-    !> Check that the properties of `start'..`end' may change, and record
-    !> the modification.  Port of textprop.c:modify_text_properties (with
-    !> the parts of insdel.c:prepare_to_modify_buffer_1 that are ported, as
-    !> insdel_fm:prepare_to_modify_buffer).
-    subroutine modify_text_properties(start, end, status)
-        integer(int64), intent(in) :: start, end
-        type(status_type), intent(out) :: status
-        call barf_if_buffer_read_only(status, start)
-        if (.not. status%ok()) return
-        buffers(cur)%text%redisplay = .true.
-        call verify_interval_modification(start, end, status)
-        if (.not. status%ok()) return
-        vdeactivate_mark = .true.
-        call buf_compute_unchanged(buffers(cur), start - 1, end)
-        if (buffers(cur)%text%modiff <= buffers(cur)%text%save_modiff) call record_first_change()
-        call modiff_incr(buffers(cur)%text%modiff, 1_int64)
-    end subroutine modify_text_properties
 
     ! ------------------------------------------------------------------
     ! Per-interval plist edits (textprop.c)
@@ -317,64 +320,98 @@ contains
     ! Changing properties
     ! ------------------------------------------------------------------
 
+    !> Whether interval K, which was at PREV_POS with PREV_LEN characters
+    !> among PREV_N intervals in a buffer of PREV_Z, is still as it was:
+    !> a before-change function may have changed the intervals behind our
+    !> back (the check after modify_text_properties in textprop.c).
+    logical function interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z) result(same)
+        integer(int64), intent(in) :: k, prev_n, prev_pos, prev_len, prev_z
+        same = .false.
+        associate (iv => buffers(cur)%text%intervals)
+            if (iv%n /= prev_n .or. buffers(cur)%text%z /= prev_z) return
+            same = iv%runs(k)%position == prev_pos .and. iv%runs(k)%length == prev_len
+        end associate
+    end function interval_unchanged
+
     !> Add the properties in `properties' to the text from `start' to
-    !> `end'.  `changed' tells whether anything changed.
-    !> Port of textprop.c:Fadd_text_properties / add_text_properties_1.
-    subroutine add_text_properties(start, end, properties, changed, status)
+    !> `end'.  `changed' tells whether anything changed.  The change hooks
+    !> run.  Port of textprop.c:Fadd_text_properties / add_text_properties_1.
+    recursive subroutine add_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: properties
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
         type(value_type) :: plist
-        integer(int64) :: s, e, len, k, got, r
-        logical :: nonempty, any_change
+        integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
+        logical :: nonempty, any_change, first_time, done
         changed = .false.
         call validate_plist(properties, plist, status)
         if (.not. status%ok() .or. nilp(plist)) return
-        call validate_range(start, end, s, e, nonempty, status)
-        if (.not. status%ok() .or. .not. nonempty) return
-        call ensure_intervals()
-        associate (iv => buffers(cur)%text%intervals)
-            len = e - s
-            k = find_interval(iv, s)
-            ! If this interval already has the properties, skip it.
-            if (has_all_properties(plist, k)) then
-                got = iv%runs(k)%length - (s - iv%runs(k)%position)
-                do
-                    if (got >= len) return
-                    len = len - got
-                    k = k + 1
-                    got = iv%runs(k)%length
-                    if (.not. has_all_properties(plist, k)) exit
-                end do
-            else if (iv%runs(k)%position /= s) then
-                call split_interval_right(iv, k, s - iv%runs(k)%position, r)
-                k = r
-            end if
+        first_time = .true.
+        do
+            call validate_range(start, end, s, e, nonempty, status)
+            if (.not. status%ok() .or. .not. nonempty) return
+            call ensure_intervals()
+            done = .false.
+            associate (iv => buffers(cur)%text%intervals)
+                len = e - s
+                k = find_interval(iv, s)
+                ! If this interval already has the properties, skip it.
+                if (has_all_properties(plist, k)) then
+                    got = iv%runs(k)%length - (s - iv%runs(k)%position)
+                    do
+                        if (got >= len) then
+                            done = .true.
+                            exit
+                        end if
+                        len = len - got
+                        k = k + 1
+                        got = iv%runs(k)%length
+                        if (.not. has_all_properties(plist, k)) exit
+                    end do
+                else if (iv%runs(k)%position /= s) then
+                    call split_interval_right(iv, k, s - iv%runs(k)%position, r)
+                    k = r
+                end if
+                if (.not. done) then
+                    prev_n = iv%n
+                    prev_pos = iv%runs(k)%position
+                    prev_len = iv%runs(k)%length
+                end if
+            end associate
+            if (done) return
+            if (.not. first_time) exit
+            prev_z = buffers(cur)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
-            changed = .true.
-            ! At the start of interval K, with LEN chars to go.
+            ! If the intervals changed behind our back, start over.
+            first_time = .false.
+            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+        end do
+        changed = .true.
+        ! At the start of interval K, with LEN chars to go.
+        associate (iv => buffers(cur)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
-                    if (has_all_properties(plist, k)) return
+                    if (has_all_properties(plist, k)) exit
                     if (iv%runs(k)%length > len) then
                         call split_interval_left(iv, k, len, r)
                         k = r
                     end if
                     call add_properties(plist, k, any_change)
-                    return
+                    exit
                 end if
                 len = len - iv%runs(k)%length
                 call add_properties(plist, k, any_change)
                 k = k + 1
             end do
         end associate
+        call signal_text_properties_change(s, e, status)
     end subroutine add_text_properties
 
     !> Set property `prop' to `val' on the text from `start' to `end'.
     !> Port of textprop.c:Fput_text_property.
-    subroutine put_text_property(start, end, prop, val, status)
+    recursive subroutine put_text_property(start, end, prop, val, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: prop, val
         type(status_type), intent(out) :: status
@@ -383,26 +420,41 @@ contains
     end subroutine put_text_property
 
     !> Replace the properties of the text from `start' to `end' with
-    !> `properties'.  Port of textprop.c:Fset_text_properties
-    !> (set_text_properties with COHERENT_CHANGE_P t, set_text_properties_1).
-    subroutine set_text_properties(start, end, properties, changed, status)
+    !> `properties'.  The change hooks run.  Port of
+    !> textprop.c:Fset_text_properties (set_text_properties with
+    !> COHERENT_CHANGE_P t, set_text_properties_1).
+    recursive subroutine set_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: properties
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
         type(value_type) :: plist
-        integer(int64) :: s, e, k, r
-        logical :: nonempty
+        integer(int64) :: s, e, k, r, prev_n, prev_pos, prev_len, prev_z
+        logical :: nonempty, first_time
         changed = .false.
         call validate_plist(properties, plist, status)
         if (.not. status%ok()) return
-        call validate_range(start, end, s, e, nonempty, status)
-        if (.not. status%ok() .or. .not. nonempty) return
-        ! No properties wanted and none there: nothing to do.
-        if (buffers(cur)%text%intervals%n == 0 .and. nilp(plist)) return
-        call ensure_intervals()
-        call modify_text_properties(s, e, status)
-        if (.not. status%ok()) return
+        first_time = .true.
+        do
+            call validate_range(start, end, s, e, nonempty, status)
+            if (.not. status%ok() .or. .not. nonempty) return
+            ! No properties wanted and none there: nothing to do.
+            if (buffers(cur)%text%intervals%n == 0 .and. nilp(plist)) return
+            call ensure_intervals()
+            if (.not. first_time) exit
+            associate (iv => buffers(cur)%text%intervals)
+                k = find_interval(iv, s)
+                prev_n = iv%n
+                prev_pos = iv%runs(k)%position
+                prev_len = iv%runs(k)%length
+            end associate
+            prev_z = buffers(cur)%text%z
+            call modify_text_properties(s, e, status)
+            if (.not. status%ok()) return
+            ! If the intervals changed behind our back, start over.
+            first_time = .false.
+            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+        end do
         changed = .true.
         associate (iv => buffers(cur)%text%intervals)
             k = find_interval(iv, s)
@@ -420,12 +472,13 @@ contains
                 k = k + 1
             end do
         end associate
+        call signal_text_properties_change(s, e, status)
     end subroutine set_text_properties
 
     !> Remove the properties named in plist `properties' (values ignored)
     !> from the text from `start' to `end'.
     !> Port of textprop.c:Fremove_text_properties.
-    subroutine remove_text_properties(start, end, properties, changed, status)
+    recursive subroutine remove_text_properties(start, end, properties, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: properties
         logical, intent(out) :: changed
@@ -435,7 +488,7 @@ contains
 
     !> Remove the properties named in `list' from the text from `start' to
     !> `end'.  Port of textprop.c:Fremove_list_of_text_properties.
-    subroutine remove_list_of_text_properties(start, end, list, changed, status)
+    recursive subroutine remove_list_of_text_properties(start, end, list, changed, status)
         integer(int64), intent(in) :: start, end
         type(value_type), intent(in) :: list
         logical, intent(out) :: changed
@@ -443,52 +496,73 @@ contains
         call remove_common(start, end, list, 1_int64, changed, status)
     end subroutine remove_list_of_text_properties
 
-    subroutine remove_common(start, end, names, step, changed, status)
+    recursive subroutine remove_common(start, end, names, step, changed, status)
         integer(int64), intent(in) :: start, end, step
         type(value_type), intent(in) :: names
         logical, intent(out) :: changed
         type(status_type), intent(out) :: status
-        integer(int64) :: s, e, len, k, got, r
-        logical :: nonempty, any_change
+        integer(int64) :: s, e, len, k, got, r, prev_n, prev_pos, prev_len, prev_z
+        logical :: nonempty, any_change, first_time, done
         changed = .false.
-        call validate_range(start, end, s, e, nonempty, status)
-        if (.not. status%ok() .or. .not. nonempty) return
-        if (buffers(cur)%text%intervals%n == 0) return
-        associate (iv => buffers(cur)%text%intervals)
-            len = e - s
-            k = find_interval(iv, s)
-            ! Skip intervals that have none of the properties.
-            if (.not. has_some_properties(names, step, k)) then
-                got = iv%runs(k)%length - (s - iv%runs(k)%position)
-                do
-                    if (got >= len) return
-                    len = len - got
-                    k = k + 1
-                    got = iv%runs(k)%length
-                    if (has_some_properties(names, step, k)) exit
-                end do
-            else if (iv%runs(k)%position /= s) then
-                call split_interval_right(iv, k, s - iv%runs(k)%position, r)
-                k = r
-            end if
+        first_time = .true.
+        do
+            call validate_range(start, end, s, e, nonempty, status)
+            if (.not. status%ok() .or. .not. nonempty) return
+            if (buffers(cur)%text%intervals%n == 0) return
+            done = .false.
+            associate (iv => buffers(cur)%text%intervals)
+                len = e - s
+                k = find_interval(iv, s)
+                ! Skip intervals that have none of the properties.
+                if (.not. has_some_properties(names, step, k)) then
+                    got = iv%runs(k)%length - (s - iv%runs(k)%position)
+                    do
+                        if (got >= len) then
+                            done = .true.
+                            exit
+                        end if
+                        len = len - got
+                        k = k + 1
+                        got = iv%runs(k)%length
+                        if (has_some_properties(names, step, k)) exit
+                    end do
+                else if (iv%runs(k)%position /= s) then
+                    call split_interval_right(iv, k, s - iv%runs(k)%position, r)
+                    k = r
+                end if
+                if (.not. done) then
+                    prev_n = iv%n
+                    prev_pos = iv%runs(k)%position
+                    prev_len = iv%runs(k)%length
+                end if
+            end associate
+            if (done) return
+            if (.not. first_time) exit
+            prev_z = buffers(cur)%text%z
             call modify_text_properties(s, e, status)
             if (.not. status%ok()) return
-            changed = .true.
+            ! If the intervals changed behind our back, start over.
+            first_time = .false.
+            if (interval_unchanged(k, prev_n, prev_pos, prev_len, prev_z)) exit
+        end do
+        changed = .true.
+        associate (iv => buffers(cur)%text%intervals)
             do
                 if (iv%runs(k)%length >= len) then
-                    if (.not. has_some_properties(names, step, k)) return
+                    if (.not. has_some_properties(names, step, k)) exit
                     if (iv%runs(k)%length > len) then
                         call split_interval_left(iv, k, len, r)
                         k = r
                     end if
                     call remove_properties(names, step, k, any_change)
-                    return
+                    exit
                 end if
                 len = len - iv%runs(k)%length
                 call remove_properties(names, step, k, any_change)
                 k = k + 1
             end do
         end associate
+        call signal_text_properties_change(s, e, status)
     end subroutine remove_common
 
     ! ------------------------------------------------------------------

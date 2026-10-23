@@ -46,6 +46,8 @@ module docstrings_fm
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
                          tab_stop_list
+    use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
+                         inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
@@ -426,12 +428,14 @@ module docstrings_fm
     !> The documented variables, sorted.
     character(len=44), parameter, public :: variable_names(125) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
+                                                                   "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
                                                                    "auto_fill_chars", &
                                                                    "auto_fill_function", &
                                                                    "auto_fill_inhibit_regexp", &
                                                                    "auto_fill_mode_hook", &
+                                                                   "before_change_functions", &
                                                                    "case_fold_search", &
                                                                    "case_replace", &
                                                                    "case_symbols_as_words", &
@@ -462,6 +466,7 @@ module docstrings_fm
                                                                    "fill_nobreak_predicate", &
                                                                    "fill_prefix", &
                                                                    "fill_separate_heterogeneous_words_with_space", &
+                                                                   "first_change_hook", &
                                                                    "goal_column", &
                                                                    "help_map", &
                                                                    "help_mode_hook", &
@@ -474,6 +479,7 @@ module docstrings_fm
                                                                    "indent_tabs_mode_hook", &
                                                                    "inhibit_auto_fill", &
                                                                    "inhibit_field_text_motion", &
+                                                                   "inhibit_modification_hooks", &
                                                                    "insert_default_directory", &
                                                                    "isearch_lax_whitespace", &
                                                                    "isearch_mode_map", &
@@ -3636,6 +3642,25 @@ contains
             entry%original = ".true."
             entry%value = repr(adaptive_fill_mode%value)
             entry%doc = "Non-nil means determine a paragraph's fill prefix from its text."
+        case ("after_change_functions")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "after_change_functions"
+            entry%original = "after_change_hook_type(name=""after_change_functions"")"
+            entry%doc = "List of functions to call after each text change."//LF// &
+                        "Three arguments are passed to each function: the positions of"//LF// &
+                        "the beginning and end of the range of changed text,"//LF// &
+                        "and the length in chars of the pre-change text replaced by that range."//LF// &
+                        "(For an insertion, the pre-change length is zero;"//LF// &
+                        "for a deletion, that length is the number of chars deleted,"//LF// &
+                        "and the post-change beginning and end are at the same place.)"//LF// &
+                        ""//LF// &
+                        "Buffer changes made while executing the `after_change_functions'"//LF// &
+                        "don't call any before-change or after-change functions."//LF// &
+                        "That's because `inhibit_modification_hooks' is temporarily set true."//LF// &
+                        ""//LF// &
+                        "If an unhandled error happens in running these functions,"//LF// &
+                        "the variable's value remains empty.  That prevents the error"//LF// &
+                        "from happening repeatedly and making Emacs nonfunctional."
         case ("after_change_major_mode_hook")
             entry%file = "subr_fm.f90"
             entry%fortran = "after_change_major_mode_hook"
@@ -3672,6 +3697,23 @@ contains
             entry%fortran = "auto_fill_mode_hook"
             entry%original = "hook_type(name=""auto_fill_mode_hook"")"
             entry%doc = "Hook run after entering or leaving `auto_fill_mode'."
+        case ("before_change_functions")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "before_change_functions"
+            entry%original = "change_hook_type(name=""before_change_functions"")"
+            entry%doc = "List of functions to call before each text change."//LF// &
+                        "Two arguments are passed to each function: the positions of"//LF// &
+                        "the beginning and end of the range of old text to be changed."//LF// &
+                        "(For an insertion, the beginning and end are at the same place.)"//LF// &
+                        "No information is given about the length of the text after the change."//LF// &
+                        ""//LF// &
+                        "Buffer changes made while executing the `before_change_functions'"//LF// &
+                        "don't call any before-change or after-change functions."//LF// &
+                        "That's because `inhibit_modification_hooks' is temporarily set true."//LF// &
+                        ""//LF// &
+                        "If an unhandled error happens in running these functions,"//LF// &
+                        "the variable's value remains empty.  That prevents the error"//LF// &
+                        "from happening repeatedly and making Emacs nonfunctional."
         case ("case_fold_search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
@@ -3958,6 +4000,12 @@ contains
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
                         "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
+        case ("first_change_hook")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "first_change_hook"
+            entry%original = "hook_type(name=""first_change_hook"")"
+            entry%doc = "A list of functions to call before changing a buffer which is unmodified."//LF// &
+                        "The functions are run using the `run_hooks' function."
         case ("goal_column")
             entry%file = "simple_fm.f90"
             entry%fortran = "goal_column"
@@ -4040,6 +4088,23 @@ contains
             entry%original = ".false."
             entry%value = repr(inhibit_field_text_motion)
             entry%doc = "Non-nil means text motion commands don't notice fields."
+        case ("inhibit_modification_hooks")
+            entry%file = "insdel_fm.f90"
+            entry%fortran = "inhibit_modification_hooks"
+            entry%original = ".false."
+            entry%value = repr(inhibit_modification_hooks%value)
+            entry%doc = "True means don't run any of the hooks that respond to buffer changes."//LF// &
+                        "This affects `before_change_functions' and `after_change_functions',"//LF// &
+                        "as well as hooks attached to text properties and overlays."//LF// &
+                        "Setting this variable true also inhibits file locks and checks"//LF// &
+                        "whether files are locked by another Emacs session, as well as"//LF// &
+                        "handling of the active region per `select_active_regions'."//LF// &
+                        ""//LF// &
+                        "To delay change hooks during a series of changes, use"//LF// &
+                        "`combine_change_calls' or `combine_after_change_calls' instead of"//LF// &
+                        "binding this variable."//LF// &
+                        ""//LF// &
+                        "See also the info node `(elisp) Change Hooks'."
         case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
