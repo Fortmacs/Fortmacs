@@ -438,19 +438,16 @@ contains
     subroutine test_binding_locus(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(handle_type) :: buf
         call fresh_scratch()
-        call get_buffer_create("*locus*", buf, st)
-        call set_buffer(buf, st)
+        call switch_to_buffer("*locus*", st)
         call text_mode(st)
         call keymap_set(text_mode_map, "C-c t", "forward_char", st)
         call type_keys("C-h k C-c t")
         call command_loop(st)
-        call check(error, index(buffer_string(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
-                   buffer_string())
+        call check(error, index(help_text(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
+                   help_text())
         call keymap_set(text_mode_map, "C-c t", nil(), st)
-        call type_keys("q")
-        call command_loop(st)
+        call fresh_scratch()
     end subroutine test_binding_locus
 
     !> bindings.el's :advertised-binding of undo and set-mark-command.

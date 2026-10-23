@@ -478,7 +478,7 @@ contains
         call buffer_with(" *Minibuf-1*", "", h, bi)
         call ensure_frame_windows()
         last_message = ""
-        call set_window_buffer(windows(selected_frame%minibuffer_window%index), h, st)
+        call set_window_buffer(selected_frame%minibuffer_window, h, st)
         call message("Mark set")
         call check(error, allocated(set_minibuffer_message_text), "shown")
         if (allocated(error)) return

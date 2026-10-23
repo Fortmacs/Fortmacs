@@ -1161,7 +1161,7 @@ contains
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 11, 80, 80)
         w => frame_selected_window_ref()
-        call set_window_buffer(w, h, st)
+        call set_window_buffer(selected_frame%selected_window, h, st)
         this_command = nil()
         last_command = nil()
     end subroutine enter_window
