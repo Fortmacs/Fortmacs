@@ -1095,9 +1095,8 @@ contains
                         "report errors as appropriate for this kind of usage."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "downcase_string(str)"
-            entry%doc = "Convert argument to lower case and return that."//LF// &
-                        "The argument object is not altered--the value is a copy."
+            entry%fortran = "downcase_char(ch)"
+            entry%doc = "Convert a character to lower case."
         case ("downcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_region(beg, end, status)"
@@ -3681,11 +3680,9 @@ contains
                         "multiple code points when cased, e.g. ﬁ, are returned unchanged."
         case ("upcase_initials")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "upcase_initials_string(str)"
-            entry%doc = "Convert the initial of each word in the argument to upper case."//LF// &
-                        "This means that each word's first character is converted to either"//LF// &
-                        "title case or upper case, and the rest are left unchanged."//LF// &
-                        "The argument object is not altered--the value is a copy."
+            entry%fortran = "upcase_initials_char(ch)"
+            entry%doc = "Convert the initial of a character ""word"" to upper case: title case"//LF// &
+                        "or upper case."
         case ("upcase_initials_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call upcase_initials_region(beg, end, status)"

@@ -282,6 +282,11 @@ END {
         if (key in pdoc) {
             lisp = pcite[key]
             if (lisp == "") lisp = help_name(nm)
+            # Several API procedures can port one function (capitalize_char
+            # and capitalize_string): the first by name, whatever order
+            # this awk visits the array in.
+            if ((lisp in fowner) && fowner[lisp] < nm) continue
+            fowner[lisp] = nm
             fdoc[lisp] = pdoc[key]; ffile[lisp] = api[nm]; fcall[lisp] = pcall[key]
             finter[lisp] = 0
         } else if (key in vdoc) {
