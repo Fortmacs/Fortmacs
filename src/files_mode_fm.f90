@@ -220,7 +220,7 @@ contains
         integer :: pass, i
         type(status_type) :: st
         mode = ""
-        saved = case_fold_search
+        saved = case_fold_search%value
         do pass = 1, 2
             ! First match case-sensitively, then (auto-mode-case-fold)
             ! case-insensitively.

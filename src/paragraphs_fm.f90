@@ -37,7 +37,7 @@ module paragraphs_fm
     use indent_fm, only: current_column, move_to_left_margin, current_left_margin
     use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr, fill_prefix
     use editfns_fm, only: mark_position
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, string_setting, logical_setting
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
@@ -70,7 +70,7 @@ module paragraphs_fm
     !> following a hard newline are considered to match.  Port of
     !> paragraphs.el paragraph-start (one global value; set by
     !> syms_of_paragraphs).
-    character(len=:), allocatable, public :: paragraph_start
+    type(string_setting), public :: paragraph_start = string_setting(name="paragraph-start")
 
     !> Regexp for beginning of a line that separates paragraphs.
     !> If you change this, you may have to change `paragraph-start' also.
@@ -80,7 +80,7 @@ module paragraphs_fm
     !> an anchor.  This ensures that the paragraph functions will work
     !> equally within a region of text indented by a margin setting.  Port
     !> of paragraphs.el paragraph-separate.
-    character(len=:), allocatable, public :: paragraph_separate
+    type(string_setting), public :: paragraph_separate = string_setting(name="paragraph-separate")
 
     !> Non-nil means a single space does not end a sentence.
     !> This user option affects fill commands and sentence commands.
@@ -88,7 +88,8 @@ module paragraphs_fm
     !> If this variable is non-nil, Emacs considers a period followed by
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
-    logical, public :: sentence_end_double_space = .true.
+    type(logical_setting), public :: sentence_end_double_space = &
+        logical_setting(name="sentence-end-double-space", value=.true.)
 
     !> Non-nil means the paragraph commands are not affected by `fill-prefix'.
     !> This is desirable in modes where blank lines are the paragraph delimiters.
@@ -121,7 +122,7 @@ module paragraphs_fm
     !> by the function `sentence-end'.  You should always use this function
     !> to obtain the value of this variable.  Port of paragraphs.el
     !> sentence-end.
-    character(len=:), allocatable, public :: sentence_end
+    type(string_setting), public :: sentence_end = string_setting(name="sentence-end")
 
     !> Regexp matching the basic end of a sentence, not including
     !> following space.  Port of paragraphs.el sentence-end-base.
@@ -134,8 +135,8 @@ contains
 
     !> Give the variables their default values, unless already set.
     subroutine init_paragraph_variables()
-        if (.not. allocated(paragraph_start)) paragraph_start = achar(FORMFEED)//"\|[ "//achar(TAB)//"]*$"
-        if (.not. allocated(paragraph_separate)) paragraph_separate = "[ "//achar(TAB)//achar(FORMFEED)//"]*$"
+        if (.not. allocated(paragraph_start%value)) paragraph_start = achar(FORMFEED)//"\|[ "//achar(TAB)//"]*$"
+        if (.not. allocated(paragraph_separate%value)) paragraph_separate = "[ "//achar(TAB)//achar(FORMFEED)//"]*$"
         if (.not. allocated(sentence_end_without_space)) sentence_end_without_space = "。．？！"
         if (.not. allocated(sentence_end_base)) sentence_end_base = "[.?!…‽][]""'”’)}»›]*"
     end subroutine init_paragraph_variables
@@ -235,18 +236,18 @@ contains
         left = arg
         opoint = point()
         have_fpr = .false.
-        if (allocated(fill_prefix) .and. .not. paragraph_ignore_fill_prefix) then
-            if (len(fill_prefix) > 0) then
+        if (allocated(fill_prefix%value) .and. .not. paragraph_ignore_fill_prefix) then
+            if (len(fill_prefix%value) > 0) then
                 have_fpr = .true.
-                fill_prefix_regexp = regexp_quote(fill_prefix)
+                fill_prefix_regexp = regexp_quote(fill_prefix%value)
             end if
         end if
         ! Remove ^ from paragraph-start and paragraph-sep if they are there.
         ! These regexps shouldn't be anchored, because we look for them
         ! starting at the left-margin.  This allows paragraph commands to
         ! work normally with indented text.
-        parstart = unanchored(paragraph_start)
-        parsep = unanchored(paragraph_separate)
+        parstart = unanchored(paragraph_start%value)
+        parsep = unanchored(paragraph_separate%value)
         if (have_fpr) parsep = parsep//"\|"//fill_prefix_regexp//"[ "//achar(TAB)//"]*$"
         ! This is used for searching.
         sp_parstart = "^[ "//achar(TAB)//"]*\(?:"//parstart//"\|"//parsep//"\)"
@@ -402,7 +403,7 @@ contains
             return
         end if
         if (allow_extend .and. ((value_eq(last_command, this_command) .and. mark_position() /= 0) .or. &
-                                (transient_mark_mode .and. buffers(cur)%mark_active))) then
+                                (transient_mark_mode%value .and. buffers(cur)%mark_active))) then
             opoint = point()
             call goto_char(mark_position())
             left = forward_paragraph(arg)
@@ -486,15 +487,15 @@ contains
     function sentence_end_regexp() result(r)
         character(len=:), allocatable :: r
         call init_paragraph_variables()
-        if (allocated(sentence_end)) then
-            r = sentence_end
+        if (allocated(sentence_end%value)) then
+            r = sentence_end%value
             return
         end if
         ! We accept non-break space along with space.
         r = ""
         if (sentence_end_without_period) r = "\w[ "//NBSP//"][ "//NBSP//"]\|"
         r = r//"\("//sentence_end_base
-        if (sentence_end_double_space) then
+        if (sentence_end_double_space%value) then
             r = r//"\($\|[ "//NBSP//"]$\|"//achar(TAB)//"\|[ "//NBSP//"][ "//NBSP//"]\)"
         else
             r = r//"\($\|["//achar(TAB)//" "//NBSP//"]\)"

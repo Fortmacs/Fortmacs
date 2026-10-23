@@ -36,7 +36,7 @@ module fill_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
-    use data_fm, only: value_eq, symbol_name
+    use data_fm, only: value_eq, symbol_name, logical_setting
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
                          buffer_modified_p, restore_buffer_modified_p, current_buffer
     use character_fm, only: string_char_and_length
@@ -96,7 +96,7 @@ module fill_fm
 
     !> Non-nil means determine a paragraph's fill prefix from its text.
     !> Port of fill.el adaptive-fill-mode.
-    logical, public :: adaptive_fill_mode = .true.
+    type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive-fill-mode", value=.true.)
 
     !> Regexp to match text at start of line that constitutes indentation.
     !> If Adaptive Fill mode is enabled, a prefix matching this pattern
@@ -192,21 +192,21 @@ contains
         logical, intent(in) :: arg
         integer(int64) :: left_margin_pos, opoint
         type(status_type) :: st
-        if (allocated(fill_prefix)) deallocate (fill_prefix)
+        if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         if (.not. arg) then
             opoint = point()
             call move_to_left_margin(st)
             left_margin_pos = point()
             call goto_char(opoint)
             if (opoint > left_margin_pos) then
-                call buffer_substring(left_margin_pos, opoint, fill_prefix, st)
-                if (allocated(fill_prefix)) then
-                    if (len(fill_prefix) == 0) deallocate (fill_prefix)
+                call buffer_substring(left_margin_pos, opoint, fill_prefix%value, st)
+                if (allocated(fill_prefix%value)) then
+                    if (len(fill_prefix%value) == 0) deallocate (fill_prefix%value)
                 end if
             end if
         end if
-        if (allocated(fill_prefix)) then
-            call message("fill-prefix: """//fill_prefix//"""")
+        if (allocated(fill_prefix%value)) then
+            call message("fill-prefix: """//fill_prefix%value//"""")
         else
             call message("fill-prefix cancelled")
         end if
@@ -234,8 +234,8 @@ contains
         ! right-margin.
         do
             call get_text_property(here, sym("right-margin"), margin, st)
-            fill_col = fill_column
-            if (fixnump(margin)) fill_col = fill_column - xfixnum(margin)
+            fill_col = fill_column%value
+            if (fixnump(margin)) fill_col = fill_column%value - xfixnum(margin)
             call text_property_not_all(here, eol, sym("right-margin"), margin, change, found, st)
             if (.not. found) exit
             call goto_char(change - 1)
@@ -293,7 +293,7 @@ contains
                 ! 2 spaces.
                 call goto_char(me0)
                 moved = skip_chars_backward(" ", st)
-                from = min(me0, merge(2_int64, 1_int64, sentence_end_double_space) + point())
+                from = min(me0, merge(2_int64, 1_int64, sentence_end_double_space%value) + point())
                 call goto_char(me0)
             else
                 ! It's not an end of sentence.  Determine number of spaces
@@ -304,10 +304,10 @@ contains
                 call char_before(c, found)
                 keep = 1
                 if (.not. found) c = 0
-                if (sentence_end_double_space .and. (c == iachar(".") .or. c == iachar("?") .or. &
+                if (sentence_end_double_space%value .and. (c == iachar(".") .or. c == iachar("?") .or. &
                                                      c == iachar("!"))) then
                     keep = 2
-                else if (sentence_end_double_space .and. sentence_end_without_period .and. found) then
+                else if (sentence_end_double_space%value .and. sentence_end_without_period .and. found) then
                     if (char_syntax(int(c)) == "w") keep = 2
                 end if
                 if (keep /= 2) then
@@ -403,7 +403,7 @@ contains
         if (point() < to) then
             call move_to_left_margin(st)
             have_second = .false.
-            if (.not. looking_at(paragraph_start, st)) call fill_match_adaptive_prefix(second_line_prefix, have_second)
+            if (.not. looking_at(paragraph_start%value, st)) call fill_match_adaptive_prefix(second_line_prefix, have_second)
             ! If we get a fill prefix from the second line, make sure it or
             ! something compatible is on the first line too.
             if (have_second) then
@@ -438,7 +438,7 @@ contains
             end if
             ! But either way, reject it if it indicates the start of a
             ! paragraph when text follows it.
-            if (string_match(paragraph_start, result//"a", st) /= 1) then
+            if (string_match(paragraph_start%value, result//"a", st) /= 1) then
                 prefix = result
                 found = .true.
             end if
@@ -544,7 +544,7 @@ contains
         ! ends up at the end of a line, further fills will assume it ends a
         ! sentence.  If we now know it does not end a sentence, avoid
         ! putting it at the end of the line.
-        if (sentence_end_double_space) then
+        if (sentence_end_double_space%value) then
             moved = skip_chars_backward(" ", st)
             call char_before(c, found)
             ! There's something more after the space.
@@ -557,7 +557,7 @@ contains
         ! If this break point is at the end of the line, which can occur
         ! for auto-fill, don't consider the newline which follows as a
         ! reason to return t.
-        if (.not. eolp()) nobreak = looking_at(paragraph_start, st)
+        if (.not. eolp()) nobreak = looking_at(paragraph_start%value, st)
         call goto_char(opoint)
         if (nobreak) return
         if (allocated(fill_nobreak_predicate)) then
@@ -973,11 +973,11 @@ contains
         end if
         if (how == JUSTIFY_T) how = current_justification()
         ! Don't let Adaptive Fill mode alter the fill prefix permanently.
-        have_prefix = allocated(fill_prefix)
+        have_prefix = allocated(fill_prefix%value)
         prefix = ""
-        if (have_prefix) prefix = fill_prefix
+        if (have_prefix) prefix = fill_prefix%value
         ! Figure out how this paragraph is indented, if desired.
-        if (adaptive_fill_mode .and. (.not. have_prefix .or. len(prefix) == 0)) then
+        if (adaptive_fill_mode%value .and. (.not. have_prefix .or. len(prefix) == 0)) then
             call fill_context_prefix(from, to, prefix, have_prefix)
             ! Ignore a white-space only fill-prefix if we
             ! indent-according-to-mode.
@@ -1140,7 +1140,7 @@ contains
         pfx = ""
         ! 1. Fill the region if it is active when called interactively.
         if (present(region)) then
-            if (region .and. transient_mark_mode .and. buffers(cur)%mark_active) then
+            if (region .and. transient_mark_mode%value .and. buffers(cur)%mark_active) then
                 call region_beginning(b, st)
                 call region_end(e, st)
                 if (b /= e) then
@@ -1210,8 +1210,8 @@ contains
             e = point()
             call goto_char(opoint)
         end if
-        saved = fill_column
-        fill_column = huge(fill_column)/4
+        saved = fill_column%value
+        fill_column = huge(fill_column%value)/4
         call fill_region(b, e, status)
         fill_column = saved
     end subroutine unfill_paragraph
@@ -1370,8 +1370,8 @@ contains
         moved = skip_chars_forward(" "//TAB, st)
         ! Skip over fill-prefix.
         if (prefix_at_point()) then
-            call goto_char(point() + nchars(fill_prefix))
-        else if (adaptive_fill_mode .and. allocated(adaptive_fill_regexp)) then
+            call goto_char(point() + nchars(fill_prefix%value))
+        else if (adaptive_fill_mode%value .and. allocated(adaptive_fill_regexp)) then
             if (looking_at(adaptive_fill_regexp, st)) call goto_char(match_end(0, st))
         end if
         fp_end = point()
@@ -1472,10 +1472,10 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: st
         at = .false.
-        if (.not. allocated(fill_prefix)) return
-        if (len(fill_prefix) == 0) return
-        call buffer_substring(point(), min(point_max(), point() + nchars(fill_prefix)), text, st)
-        at = text == fill_prefix .and. len(text) == len(fill_prefix)
+        if (.not. allocated(fill_prefix%value)) return
+        if (len(fill_prefix%value) == 0) return
+        call buffer_substring(point(), min(point_max(), point() + nchars(fill_prefix%value)), text, st)
+        at = text == fill_prefix%value .and. len(text) == len(fill_prefix%value)
     end function prefix_at_point
 
     pure integer(int64) function nchars(s)
@@ -1507,7 +1507,7 @@ contains
             call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
-            if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix))
+            if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix%value))
             from = point()
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)

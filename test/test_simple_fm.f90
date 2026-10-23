@@ -646,7 +646,7 @@ contains
         fill_prefix = ">"
         call delete_indentation(.false., st)
         call check_substrings(error, "> first", " second > third > fourth ")
-        deallocate (fill_prefix)
+        deallocate (fill_prefix%value)
         call kill_buffer(h, st)
     end subroutine test_delete_indentation_prefix
 

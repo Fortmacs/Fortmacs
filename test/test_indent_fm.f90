@@ -350,7 +350,7 @@ contains
         fill_prefix = "> "
         call indent_region(1_int64, point_max(), st)
         call check(error, buffer_string() == "> "//"   a"//LF//"> "//"   b"//LF//LF//"> "//"   c"//LF, buffer_string())
-        deallocate (fill_prefix)
+        deallocate (fill_prefix%value)
         if (allocated(error)) return
         ! Line by line with indent-according-to-mode: like the previous
         ! nonblank line.

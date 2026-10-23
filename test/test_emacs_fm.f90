@@ -144,7 +144,7 @@ contains
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, configure=sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
-        if (.not. allocated(error)) call check(error, tab_width, 4)
+        if (.not. allocated(error)) call check(error, tab_width%value == 4)
         if (.not. allocated(error)) call check(error,.not. init_file_had_error, "no error")
         tab_width = 8
     end subroutine test_configure
@@ -158,7 +158,7 @@ contains
         call run_on_pty(achar(3)//"d"//achar(24)//achar(3), st, args, sample_configure)
         call check(error, st%ok(), "emacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
-        if (.not. allocated(error)) call check(error, tab_width, 8)
+        if (.not. allocated(error)) call check(error, tab_width%value == 8)
     end subroutine test_no_init_file
 
     subroutine test_init_error(error)

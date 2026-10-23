@@ -107,7 +107,7 @@ module lisp_fm
     type(command_ref_type), allocatable :: defined_commands(:)
     integer :: n_defined_commands = 0
 
-    public :: command_proc, defined_command
+    public :: command_proc, defined_command, defined_command_name_of
 
     !> Value tags.
     integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
@@ -557,4 +557,20 @@ contains
         same_name = len(a) == len(b)
         if (same_name) same_name = a == b
     end function same_name
+
+    !> The name of the command defined with `define` whose procedure is
+    !> PROC ("" if none).
+    function defined_command_name_of(proc) result(name)
+        procedure(command_proc) :: proc
+        character(len=:), allocatable :: name
+        integer :: i
+        name = ""
+        do i = n_defined_commands, 1, -1
+            if (.not. associated(defined_commands(i)%p%run)) cycle
+            if (associated(defined_commands(i)%p%run, proc)) then
+                name = defined_commands(i)%p%name
+                return
+            end if
+        end do
+    end function defined_command_name_of
 end module lisp_fm

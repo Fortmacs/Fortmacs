@@ -158,7 +158,7 @@ contains
     integer(int64) :: i
     integer :: k
     matched = .false.
-    call compile_pattern(regexp, case_fold_search, posix, k, status)
+    call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_buffer()
     associate (b => buffers(cur))
@@ -192,7 +192,7 @@ contains
         end if
     end if
     pos_byte = string_index_to_offset(string, pos)
-    call compile_pattern(regexp, case_fold_search, posix, k, status)
+    call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_string(string)
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
