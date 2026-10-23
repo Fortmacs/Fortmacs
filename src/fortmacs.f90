@@ -183,7 +183,9 @@ module fortmacs
                           query_replace_skip_read_only, query_replace_show_replacement, query_replace_from_to_separator
     ! Settings, hooks and modes as objects.
     use data_fm, only: setting_type, integer_setting, logical_setting, string_setting, function_setting
-    use eval_fm, only: hook_type, change_major_mode_hook
+    use eval_fm, only: hook_type, change_major_mode_hook, change_hook_type, after_change_hook_type, change_function, &
+                       after_change_function
+    use insdel_fm, only: before_change_functions, after_change_functions, first_change_hook, inhibit_modification_hooks
     use subr_fm, only: change_major_mode_after_body_hook, after_change_major_mode_hook
     use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p, major_mode_named
     use easy_mmode_fm, only: minor_mode_type, minor_mode_body_proc
@@ -273,5 +275,7 @@ module fortmacs
               prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
               auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
               parse_sexp_ignore_comments, require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
-              FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+              FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
+              after_change_hook_type, change_function, after_change_function, before_change_functions, &
+              after_change_functions, first_change_hook, inhibit_modification_hooks
 end module fortmacs

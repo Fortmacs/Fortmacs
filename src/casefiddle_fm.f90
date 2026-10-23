@@ -30,7 +30,7 @@
 !> Strings are always multibyte (the unibyte paths are left out).  The
 !> word commands (`upcase_word' and friends) are registered here; their
 !> keys come with the rest of the case commands.  Deferred: noncontiguous
-!> regions (`region_extract_function'), compositions, after-change hooks.
+!> regions (`region_extract_function'), compositions.
 module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -42,7 +42,7 @@ module casefiddle_fm
     use syntax_fm, only: syntax_entry, char_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
     use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buf_bytes, temp_set_point_both
     use marker_fm, only: char_to_byte
-    use insdel_fm, only: modify_text, replace_range_2
+    use insdel_fm, only: modify_text, replace_range_2, signal_after_change
     use undo_fm, only: record_insert, record_delete
     use editfns_fm, only: validate_region, point, goto_char, region_beginning, region_end
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
@@ -492,7 +492,7 @@ contains
 
     !> Case the region from B to E by FLAG.  Return the end of the region
     !> after the changes.  Port of casefiddle.c:casify_region.
-    integer(int64) function casify_region(flag, b, e, status) result(new_end)
+    recursive integer(int64) function casify_region(flag, b, e, status) result(new_end)
         integer, intent(in) :: flag
         integer(int64), intent(in) :: b, e
         type(status_type), intent(out) :: status
@@ -517,6 +517,7 @@ contains
         if (.not. status%ok()) return
         call record_insert(ostart, length + added)
         new_end = orig_end + added
+        if (start >= 0) call signal_after_change(start, end - start - added, end - start, status)
     end function casify_region
 
     !> Convert the region to upper case.  In programs, wants two arguments.
@@ -524,7 +525,7 @@ contains
     !> of the region to operate on.  When used as a command, the text
     !> between point and the mark is operated on.
     !> See also `capitalize_region'.  Port of casefiddle.c:Fupcase_region.
-    subroutine upcase_region(beg, end, status)
+    recursive subroutine upcase_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         integer(int64) :: ignored
@@ -536,7 +537,7 @@ contains
     !> of the region to operate on.  When used as a command, the text
     !> between point and the mark is operated on.  Port of
     !> casefiddle.c:Fdowncase_region.
-    subroutine downcase_region(beg, end, status)
+    recursive subroutine downcase_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         integer(int64) :: ignored
@@ -548,7 +549,7 @@ contains
     !> title case or upper case, and the rest to lower case.
     !> In programs, give two arguments, the starting and ending character
     !> positions to operate on.  Port of casefiddle.c:Fcapitalize_region.
-    subroutine capitalize_region(beg, end, status)
+    recursive subroutine capitalize_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         integer(int64) :: ignored
@@ -561,7 +562,7 @@ contains
     !> In programs, give two arguments, the starting and ending character
     !> positions to operate on.  Port of
     !> casefiddle.c:Fupcase_initials_region.
-    subroutine upcase_initials_region(beg, end, status)
+    recursive subroutine upcase_initials_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         integer(int64) :: ignored

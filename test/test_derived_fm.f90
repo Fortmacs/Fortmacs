@@ -62,7 +62,7 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
                     new_unittest("subr-tests-add-hook-depth", test_add_hook_depth), &
-                    new_unittest("add-hook-remembers-depth", test_depth_memory), &
+                    new_unittest("remove-hook-forgets-depth", test_depth_memory), &
                     new_unittest("run-hooks-local-and-global", test_run_hooks_local), &
                     new_unittest("remove-hook", test_remove_hook), &
                     new_unittest("text-mode", test_text_mode), &
@@ -216,8 +216,8 @@ contains
         call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
-    !> subr.el keeps a function's depth (hook--depth-alist) after it is
-    !> removed: added again without a depth, it goes back there.
+    !> remove-hook drops a function's depth (hook--depth-alist) with it
+    !> (bug#46414): added again without a depth, it goes in at depth 0.
     subroutine test_depth_memory(error)
         type(error_type), allocatable, intent(out) :: error
         call depth_hook%add(f1, depth=50)
@@ -227,7 +227,7 @@ contains
         call depth_hook%remove(f1)
         call depth_hook%add(f3)
         call depth_hook%add(f1)
-        call check(error, hook_names(depth_hook), "f3 f2 f1")
+        call check(error, hook_names(depth_hook), "f1 f3 f2")
     end subroutine test_depth_memory
 
     !> A buffer's own functions run first, then the global ones in the

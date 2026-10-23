@@ -55,7 +55,7 @@ module search_fm
 
     public :: find_newline, scan_newline, scan_newline_from_point, &
               find_newline_no_quit, find_before_next_newline
-    public :: search_forward, search_backward, search_buffer, match_beginning, match_end, &
+    public :: search_forward, search_backward, search_buffer, match_beginning, match_end, update_search_regs, &
               match_buffer
     public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
@@ -160,7 +160,7 @@ module search_fm
         !> it says to replace just that subexpression with NEWTEXT, rather
         !> than replacing the entire matched text.  Port of
         !> search.c:Freplace_match.  (In search_regexp_fm.)
-        module subroutine replace_match(newtext, status, fixedcase, literal, string, subexp, result)
+        recursive module subroutine replace_match(newtext, status, fixedcase, literal, string, subexp, result)
             implicit none(type, external)
             character(len=*), intent(in) :: newtext
             type(status_type), intent(out) :: status
@@ -941,6 +941,33 @@ contains
             pos = search_regs_end(n)
         end if
     end subroutine match_limit
+
+    !> Adjust the match data for replacing OLDSTART..OLDEND with text that
+    !> ends at NEWEND.  Port of search.c:update_search_regs.
+    subroutine update_search_regs(oldstart, oldend, newend)
+        integer(int64), intent(in) :: oldstart, oldend, newend
+        integer(int64) :: change
+        integer :: i
+        if (.not. allocated(search_regs_start)) return
+        change = newend - oldend
+        do i = 0, size(search_regs_start) - 1
+            ! If the subgroup that `replace_match' is modifying encloses
+            ! the subgroup I, then its start position should stay
+            ! unchanged.
+            if (search_regs_start(i) <= oldstart) then
+                continue
+            else if (search_regs_start(i) >= oldend) then
+                search_regs_start(i) = search_regs_start(i) + change
+            else
+                search_regs_start(i) = oldstart
+            end if
+            if (search_regs_end(i) >= oldend) then
+                search_regs_end(i) = search_regs_end(i) + change
+            else if (search_regs_end(i) > oldstart) then
+                search_regs_end(i) = oldstart
+            end if
+        end do
+    end subroutine update_search_regs
 
     !> Return a list of positions that record text matched by the last
     !> search.  Element 2N of the returned list is the position of the
