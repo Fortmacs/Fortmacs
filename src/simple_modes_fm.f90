@@ -23,6 +23,7 @@
 !> `fundamental-mode` and `special-mode`: a submodule because they use
 !> derived_fm.
 submodule(simple_fm) simple_modes_fm
+    use commands_fm, only: commands
     use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
     use data_fm, only: kill_all_local_variables
     use subr_fm, only: run_mode_hooks
@@ -78,13 +79,13 @@ contains
     integer :: d
     character(len=1) :: digit
     type(handle_type) :: map
-    call defcommand("fundamental-mode", fundamental_mode)
-    call defcommand("special-mode", special_mode)
+    commands%fundamental_mode%run => fundamental_mode
+    commands%special_mode%run => special_mode
     call define_derived_mode("special-mode", "", "Special")
     call define_minor_mode("transient-mark-mode", "", global=.true.)
-    call defcommand("transient-mark-mode", cmd_transient_mark_mode)
+    commands%transient_mark_mode%run => cmd_transient_mark_mode
     call define_minor_mode("indent-tabs-mode", "")
-    call defcommand("indent-tabs-mode", cmd_indent_tabs_mode)
+    commands%indent_tabs_mode%run => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = derived_mode_map("special-mode")
     call keymap_set(map, "q", "quit-window", st)

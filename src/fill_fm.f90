@@ -31,6 +31,7 @@
 !> `fill-individual-paragraphs` and `set-justification`.
 module fill_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
@@ -60,7 +61,7 @@ module fill_fm
                              sentence_end_without_space, sentence_end_regexp, forward_paragraph, &
                              init_paragraph_variables
     use simple_fm, only: fill_prefix, use_region_p, mark
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     implicit none(type, external)
     private
 
@@ -1572,11 +1573,11 @@ contains
     !> Give the variables their defaults and register the commands.
     subroutine syms_of_fill()
         call init_fill_variables()
-        call defcommand("fill-paragraph", cmd_fill_paragraph)
-        call defcommand("fill-region", cmd_fill_region)
-        call defcommand("fill-region-as-paragraph", cmd_fill_region_as_paragraph)
-        call defcommand("unfill-paragraph", cmd_unfill_paragraph)
-        call defcommand("set-fill-prefix", cmd_set_fill_prefix)
-        call defcommand("justify-current-line", cmd_justify_current_line)
+        commands%fill_paragraph%run => cmd_fill_paragraph
+        commands%fill_region%run => cmd_fill_region
+        commands%fill_region_as_paragraph%run => cmd_fill_region_as_paragraph
+        commands%unfill_paragraph%run => cmd_unfill_paragraph
+        commands%set_fill_prefix%run => cmd_set_fill_prefix
+        commands%justify_current_line%run => cmd_justify_current_line
     end subroutine syms_of_fill
 end module fill_fm

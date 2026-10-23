@@ -13,6 +13,9 @@ module user_config
 
     public :: configure
 
+    !> M-x insert-date-stamp, bound to C-c d below.
+    type(command_type), target :: insert_date_stamp_command
+
 contains
 
     !> Runs once at startup.
@@ -20,7 +23,8 @@ contains
         type(status_type), intent(out) :: status
         tab_width = 4
         make_backup_files = .false.
-        call defcommand("insert-date-stamp", insert_date_stamp)
+        insert_date_stamp_command = command_type("insert-date-stamp", insert_date_stamp)
+        call insert_date_stamp_command%define()
         call keymap_global_set("C-c d", "insert-date-stamp", status)
     end subroutine configure
 

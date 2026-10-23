@@ -37,6 +37,7 @@
 !> and `function-called-at-point` defaults.
 module help_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, symbolp, keymap_ref_p, xhandle, list_elements, make_keymap_ref
@@ -45,7 +46,7 @@ module help_fm
     use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap, keymap_set, define_key, key_parse, &
                          key_valid_p, key_description, where_is_internal, lookup_key, current_active_maps
     use keyboard_fm, only: read_key_sequence
-    use callint_fm, only: defcommand, commandp
+    use callint_fm, only: commandp
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
                          restore_buffer_modified_p, buffers, cur
     use insdel_fm, only: insert
@@ -499,10 +500,10 @@ contains
         call register_keymap_name("help-map", help_map)
         call register_keymap_name("help-mode-map", help_mode_map)
         call register_keymap_name("minibuffer-local-map", minibuffer_local_map)
-        call defcommand("describe-key", cmd_describe_key)
-        call defcommand("describe-key-briefly", cmd_describe_key_briefly)
-        call defcommand("where-is", cmd_where_is)
-        call defcommand("help-quit", help_quit)
+        commands%describe_key%run => cmd_describe_key
+        commands%describe_key_briefly%run => cmd_describe_key_briefly
+        commands%where_is%run => cmd_where_is
+        commands%help_quit%run => help_quit
     end subroutine syms_of_help
 
     subroutine cmd_describe_key(status)

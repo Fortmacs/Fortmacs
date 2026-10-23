@@ -23,13 +23,16 @@
 !> property asks before it runs (`disabled-command-function`), as
 !> simple.el:command-execute arranges.  `enable-command` and
 !> `disable-command` change the property and record the choice in the
-!> init file, as `call put(sym("CMD"), sym("disabled"), nil(), status)`
-!> in `configure` (the Fortran form of upstream's `(put 'CMD 'disabled
-!> nil)`), which takes effect from the next `--recompile`.
+!> init file, as `commands%CMD%disabled = .false.` in `configure` (the
+!> Fortran form of upstream's `(put 'CMD 'disabled nil)`; `CMD` is the
+!> command's name with `_` for `-`), which takes effect from the next
+!> `--recompile`.  A command that is not built in is recorded as
+!> `call set_command_disabled("CMD", .false., status)`.
 module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use commands_fm, only: commands, builtin_command
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
-    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, xfixnum, t_value
+    use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, xfixnum, symbols, xsymbol
     use lread_fm, only: sym, user_init_file
     use handle_fm, only: handle_type
     use buffer_fm, only: current_buffer, set_buffer
@@ -42,10 +45,9 @@ module novice_fm
     use config_fm, only: init_file_name
     use subr_fm, only: y_or_n_p
     use data_fm, only: symbol_name
-    use fns_fm, only: get, put
     use keymap_fm, only: key_description
     use keyboard_fm, only: this_command_keys, disabled_command_hook
-    use callint_fm, only: defcommand, call_interactively, commandp
+    use callint_fm, only: call_interactively, commandp, find_command, command_type
     use character_fm, only: CHAR_META
     use help_fm, only: substitute_command_keys, documentation_hook
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
@@ -72,12 +74,13 @@ contains
         type(value_type), intent(in) :: cmd
         logical, intent(out) :: handled
         type(status_type), intent(out) :: status
-        type(value_type) :: disabled
+        type(command_type), pointer :: p
         handled = .false.
         status = status_type()
         if (.not. disabled_command_function_p .or. .not. symbolp(cmd) .or. nilp(cmd)) return
-        call get(cmd, sym("disabled"), disabled, status)
-        if (.not. status%ok() .or. nilp(disabled)) return
+        p => find_command(symbols(xsymbol(cmd))%name)
+        if (.not. associated(p)) return
+        if (.not. p%disabled) return
         handled = .true.
         call disabled_command_function(cmd, this_command_keys, status)
     end subroutine check_disabled
@@ -91,7 +94,7 @@ contains
         type(value_type), intent(in) :: keys(:)
         type(status_type), intent(out) :: status
         type(rmc_choice_type) :: choices(4)
-        type(value_type) :: disabled
+        type(command_type), pointer :: p
         character(len=:), allocatable :: name, help_string, doc
         logical :: by_name, found, enable_also
         integer :: answer, at
@@ -112,20 +115,26 @@ contains
             help_string = "You have typed "//key_description(keys)//", invoking disabled command "//name//"."//LF
         end if
         ! Any special message saying why the command is disabled.
-        call get(cmd, sym("disabled"), disabled, status)
+        p => find_command(name)
         found = .false.
-        if (associated(documentation_hook)) call documentation_hook(name, doc, found)
-        if (found .and. len(doc) > 0) then
-            doc = substitute_command_keys(doc)
+        if (associated(p)) found = allocated(p%disabled_message)
+        if (found) then
+            help_string = help_string//p%disabled_message
         else
-            doc = "<< not documented >>"
+            found = .false.
+            if (associated(documentation_hook)) call documentation_hook(name, doc, found)
+            if (found .and. len(doc) > 0) then
+                doc = substitute_command_keys(doc)
+            else
+                doc = "<< not documented >>"
+            end if
+            ! Keep only the first paragraph of the documentation.
+            at = index(doc, LF//LF)
+            if (at > 0) doc = doc(1:at - 1)
+            help_string = help_string//"It is disabled because new users often find it confusing."//LF// &
+                          "Here's the first part of its description:"//LF//LF//indent(doc, 3)
         end if
-        ! Keep only the first paragraph of the documentation.
-        at = index(doc, LF//LF)
-        if (at > 0) doc = doc(1:at - 1)
-        help_string = help_string//"It is disabled because new users often find it confusing."//LF// &
-                      "Here's the first part of its description:"//LF//LF//indent(doc, 3)// &
-                      LF//LF//"Do you want to use this command anyway?"//LF//LF// &
+        help_string = help_string//LF//LF//"Do you want to use this command anyway?"//LF//LF// &
                       "You can now type:"//LF// &
                       " n    (also C-g) to cancel--don't try the command; it remains disabled."//LF// &
                       " y    to enable the command (no questions if you use it again)."//LF// &
@@ -154,8 +163,8 @@ contains
             end if
             if (enable_also) then
                 call enable_command(name, status)
-            else
-                call put(cmd, sym("disabled"), nil(), status)
+            else if (associated(p)) then
+                p%disabled = .false.
             end if
             if (.not. status%ok()) return
         case default
@@ -201,7 +210,7 @@ contains
     end subroutine disable_command
 
     !> Set the `disabled` property of COMMAND and record it in the init
-    !> file: its line `call put(sym("COMMAND"), sym("disabled"), ...)` is
+    !> file: its line `commands%COMMAND%disabled = ...` is
     !> replaced by one at the end of `configure`.  A missing init file is
     !> created with a `user_config` module.  Port of
     !> novice.el:en/disable-command.
@@ -209,22 +218,27 @@ contains
         character(len=*), intent(in) :: command
         logical, intent(in) :: disable
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: init_file, line, var, header
+        character(len=:), allocatable :: init_file, value, var, header, component, setting
         type(handle_type) :: buf, old
         type(status_type) :: st
+        type(command_type), pointer :: p
         integer(int64) :: found, beg
         integer :: i, j
-        logical :: saved_fold
+        logical :: saved_fold, builtin
         if (.not. commandp(sym(command))) then
             call set_error(status, FM_GENERIC_ERROR, "Invalid command name `"//command//"'")
             return
         end if
-        if (disable) then
-            call put(sym(command), sym("disabled"), t_value(), status)
-        else
-            call put(sym(command), sym("disabled"), nil(), status)
-        end if
-        if (.not. status%ok()) return
+        p => find_command(command)
+        p%disabled = disable
+        if (allocated(p%disabled_message)) deallocate (p%disabled_message)
+        ! How the init file says it: commands%NAME%disabled for a built-in
+        ! command, else set_command_disabled.
+        builtin = associated(builtin_command(command))
+        component = command
+        do i = 1, len(component)
+            if (component(i:i) == "-") component(i:i) = "_"
+        end do
         if (allocated(user_init_file)) then
             init_file = user_init_file
         else
@@ -267,8 +281,13 @@ contains
             j = index(header, ")")
             if (i > 0 .and. j > i + 1) var = trim(adjustl(header(i + 1:j - 1)))
         end if
+        if (builtin) then
+            setting = "commands%"//component//"%disabled ="
+        else
+            setting = 'call set_command_disabled("'//command//'",'
+        end if
         call goto_char(point_min())
-        call search_forward('call put(sym("'//command//'"), sym("disabled")', found, st, noerror=SEARCH_NOERROR)
+        call search_forward(setting, found, st, noerror=SEARCH_NOERROR)
         if (found > 0) then
             beg = line_beginning_position()
             call goto_char(beg)
@@ -287,11 +306,15 @@ contains
         end if
         call goto_char(line_beginning_position())
         if (disable) then
-            line = "t_value()"
+            value = ".true."
         else
-            line = "nil()"
+            value = ".false."
         end if
-        call insert('        call put(sym("'//command//'"), sym("disabled"), '//line//", "//var//")"//LF, status)
+        if (builtin) then
+            call insert("        "//setting//" "//value//LF, status)
+        else
+            call insert("        "//setting//" "//value//", "//var//")"//LF, status)
+        end if
         if (status%ok()) call save_buffer(1_int64, .false., status)
         call set_buffer(old, st)
     end subroutine en_disable_command
@@ -319,16 +342,15 @@ contains
     end subroutine cmd_disable_command
 
     !> Install the check for disabled commands, disable the commands
-    !> upstream disables (subr.el `upcase-region` and `downcase-region`;
-    !> bindings.el `narrow-to-region`, if defined) and register
+    !> upstream disables (subr.el `upcase-region` and `downcase-region`)
+    !> and register
     !> `enable-command` and `disable-command`.
     subroutine syms_of_novice()
-        type(status_type) :: st
         disabled_command_hook => check_disabled
-        call defcommand("enable-command", cmd_enable_command)
-        call defcommand("disable-command", cmd_disable_command)
-        call put(sym("upcase-region"), sym("disabled"), t_value(), st)
-        call put(sym("downcase-region"), sym("disabled"), t_value(), st)
-        if (commandp(sym("narrow-to-region"))) call put(sym("narrow-to-region"), sym("disabled"), t_value(), st)
+        commands%enable_command%run => cmd_enable_command
+        commands%disable_command%run => cmd_disable_command
+        commands%upcase_region%disabled = .true.
+        commands%downcase_region%disabled = .true.
+        ! bindings.el also disables `narrow-to-region', not ported yet.
     end subroutine syms_of_novice
 end module novice_fm

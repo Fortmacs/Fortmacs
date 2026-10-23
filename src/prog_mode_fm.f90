@@ -22,11 +22,11 @@
 !> Prog mode, the parent of programming language modes.  Deferred: its
 !> keys (C-M-q, M-q), the context menu and prettify-symbols.
 module prog_mode_fm
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use lisp_fm, only: t_value, value_type
     use lread_fm, only: sym
     use data_fm, only: setq_local, symbol_value
-    use callint_fm, only: defcommand
     use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end
     use simple_fm, only: syms_of_simple_modes
     implicit none(type, external)
@@ -55,6 +55,6 @@ contains
     subroutine syms_of_prog_mode()
         call syms_of_simple_modes()
         call define_derived_mode("prog-mode", "fundamental-mode", "Prog")
-        call defcommand("prog-mode", prog_mode)
+        commands%prog_mode%run => prog_mode
     end subroutine syms_of_prog_mode
 end module prog_mode_fm

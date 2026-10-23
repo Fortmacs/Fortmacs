@@ -25,6 +25,7 @@
 !> search in buffers.  A submodule of search_fm, because the regexp engine
 !> depends (through the syntax table) on modules that use search_fm.
 submodule(search_fm) search_regexp_fm
+    use commands_fm, only: commands
     use regex_emacs_fm, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                               re_search, re_match, subject_from_string, subject_from_buffer
     use syntax_fm, only: syntax_table
@@ -37,7 +38,6 @@ submodule(search_fm) search_regexp_fm
     use editfns_fm, only: buffer_substring, goto_char
     use buffer_fm, only: temp_set_point_both
     use error_fm, only: FM_ARGS_OUT_OF_RANGE
-    use callint_fm, only: defcommand
     implicit none(type, external)
 
     !> Number of compiled patterns kept (REGEXP_CACHE_SIZE).
@@ -566,11 +566,11 @@ contains
     end subroutine cmd_posix_search_backward
 
     module procedure syms_of_search
-    call defcommand("search-forward", cmd_search_forward)
-    call defcommand("search-backward", cmd_search_backward)
-    call defcommand("re-search-forward", cmd_re_search_forward)
-    call defcommand("re-search-backward", cmd_re_search_backward)
-    call defcommand("posix-search-forward", cmd_posix_search_forward)
-    call defcommand("posix-search-backward", cmd_posix_search_backward)
+    commands%search_forward%run => cmd_search_forward
+    commands%search_backward%run => cmd_search_backward
+    commands%re_search_forward%run => cmd_re_search_forward
+    commands%re_search_backward%run => cmd_re_search_backward
+    commands%posix_search_forward%run => cmd_posix_search_forward
+    commands%posix_search_backward%run => cmd_posix_search_backward
     end procedure syms_of_search
 end submodule search_regexp_fm

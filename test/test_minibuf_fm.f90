@@ -37,7 +37,7 @@ module test_minibuf_fm
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point
     use keymap_fm, only: key_parse, define_key
-    use callint_fm, only: defcommand
+    use callint_fm, only: command_type
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text
     use keymap_fm, only: current_global_map
     use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
@@ -60,6 +60,9 @@ module test_minibuf_fm
     private
 
     public :: collect_minibuf_fm
+
+    type(command_type), target :: cmd_test_nested_read
+    type(command_type), target :: cmd_test_record_completion
 
     !> What the nested-minibuffer command saw.
     type(status_type) :: nested_status
@@ -291,7 +294,8 @@ contains
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
         call fresh_scratch()
-        call defcommand("test-nested-read", nested_read)
+        cmd_test_nested_read = command_type("test-nested-read", nested_read)
+        call cmd_test_nested_read%define()
         call key_parse("C-t", key, st)
         call define_key(minibuffer_local_map, key, sym("test-nested-read"), st)
         call type_keys("C-t RET")
@@ -756,7 +760,8 @@ contains
         type(status_type) :: st
         call fresh_scratch()
         nrecorded = 0
-        call defcommand("test-record-completion", record_completion_state)
+        cmd_test_record_completion = command_type("test-record-completion", record_completion_state)
+        call cmd_test_record_completion%define()
         call key_parse("<f9>", key, st)
         call define_key(current_global_map(), key, sym("test-record-completion"), st)
     end subroutine completion_setup

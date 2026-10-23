@@ -22,12 +22,12 @@
 !> Text mode, the major mode for prose.  Deferred: Ispell completion,
 !> the context menu, text conversion and paragraph-indent modes.
 module text_mode_fm
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use lisp_fm, only: t_value, value_type
     use lread_fm, only: sym
     use data_fm, only: setq_local, symbol_value, boundp, set
-    use callint_fm, only: defcommand
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p
     use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end
     implicit none(type, external)
@@ -86,7 +86,7 @@ contains
         logical :: bound
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
         call define_derived_mode("text-mode", "", "Text", text_mode_syntax_table)
-        call defcommand("text-mode", text_mode)
+        commands%text_mode%run => text_mode
         ! files.el mode-require-final-newline.
         call boundp(sym("mode-require-final-newline"), bound, st)
         if (.not. bound) call set(sym("mode-require-final-newline"), t_value(), st)

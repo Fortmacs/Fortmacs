@@ -35,6 +35,7 @@
 !> minibuffer's own isearch keys while editing the string.
 module isearch_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_QUIT, FM_USER_ERROR, FM_INVALID_REGEXP, FM_SEARCH_FAILED, &
                         error_message
     use handle_fm, only: handle_type, null_handle
@@ -58,7 +59,7 @@ module isearch_fm
     use keyboard_fm, only: this_command, last_command, last_command_event, this_command_keys, &
                            pre_command_hook, redisplay_proc, discard_input, input_pending_p, &
                            read_event
-    use callint_fm, only: defcommand, commandp, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
     use subr_fm, only: add_to_history
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message
@@ -1783,32 +1784,32 @@ contains
         type(handle_type) :: meta_map
         type(value_type) :: key(1)
         type(status_type) :: status
-        call defcommand("isearch-forward", isearch_forward_command)
-        call defcommand("isearch-backward", isearch_backward_command)
-        call defcommand("isearch-forward-regexp", isearch_forward_regexp_command)
-        call defcommand("isearch-backward-regexp", isearch_backward_regexp_command)
-        call defcommand("isearch-toggle-regexp", cmd_isearch_toggle_regexp)
-        call defcommand("isearch-toggle-lax-whitespace", cmd_isearch_toggle_lax_whitespace)
-        call defcommand("isearch-exit", cmd_isearch_exit)
-        call defcommand("isearch-cancel", cmd_isearch_cancel)
-        call defcommand("isearch-abort", cmd_isearch_abort)
-        call defcommand("isearch-repeat-forward", cmd_isearch_repeat_forward)
-        call defcommand("isearch-repeat-backward", cmd_isearch_repeat_backward)
-        call defcommand("isearch-delete-char", cmd_isearch_delete_char)
-        call defcommand("isearch-del-char", cmd_isearch_del_char)
-        call defcommand("isearch-printing-char", cmd_isearch_printing_char)
-        call defcommand("isearch-quote-char", cmd_isearch_quote_char)
-        call defcommand("isearch-yank-char", cmd_isearch_yank_char)
-        call defcommand("isearch-yank-line", cmd_isearch_yank_line)
-        call defcommand("isearch-yank-word-or-char", cmd_isearch_yank_word_or_char)
-        call defcommand("isearch-beginning-of-buffer", cmd_isearch_beginning_of_buffer)
-        call defcommand("isearch-end-of-buffer", cmd_isearch_end_of_buffer)
-        call defcommand("isearch-toggle-case-fold", cmd_isearch_toggle_case_fold)
-        call defcommand("isearch-edit-string", cmd_isearch_edit_string)
-        call defcommand("isearch-ring-advance", cmd_isearch_ring_advance)
-        call defcommand("isearch-ring-retreat", cmd_isearch_ring_retreat)
-        call defcommand("isearch-yank-kill", cmd_isearch_yank_kill)
-        call defcommand("isearch-yank-pop-only", cmd_isearch_yank_pop_only)
+        commands%isearch_forward%run => isearch_forward_command
+        commands%isearch_backward%run => isearch_backward_command
+        commands%isearch_forward_regexp%run => isearch_forward_regexp_command
+        commands%isearch_backward_regexp%run => isearch_backward_regexp_command
+        commands%isearch_toggle_regexp%run => cmd_isearch_toggle_regexp
+        commands%isearch_toggle_lax_whitespace%run => cmd_isearch_toggle_lax_whitespace
+        commands%isearch_exit%run => cmd_isearch_exit
+        commands%isearch_cancel%run => cmd_isearch_cancel
+        commands%isearch_abort%run => cmd_isearch_abort
+        commands%isearch_repeat_forward%run => cmd_isearch_repeat_forward
+        commands%isearch_repeat_backward%run => cmd_isearch_repeat_backward
+        commands%isearch_delete_char%run => cmd_isearch_delete_char
+        commands%isearch_del_char%run => cmd_isearch_del_char
+        commands%isearch_printing_char%run => cmd_isearch_printing_char
+        commands%isearch_quote_char%run => cmd_isearch_quote_char
+        commands%isearch_yank_char%run => cmd_isearch_yank_char
+        commands%isearch_yank_line%run => cmd_isearch_yank_line
+        commands%isearch_yank_word_or_char%run => cmd_isearch_yank_word_or_char
+        commands%isearch_beginning_of_buffer%run => cmd_isearch_beginning_of_buffer
+        commands%isearch_end_of_buffer%run => cmd_isearch_end_of_buffer
+        commands%isearch_toggle_case_fold%run => cmd_isearch_toggle_case_fold
+        commands%isearch_edit_string%run => cmd_isearch_edit_string
+        commands%isearch_ring_advance%run => cmd_isearch_ring_advance
+        commands%isearch_ring_retreat%run => cmd_isearch_ring_retreat
+        commands%isearch_yank_kill%run => cmd_isearch_yank_kill
+        commands%isearch_yank_pop_only%run => cmd_isearch_yank_pop_only
         if (.not. allocated(search_whitespace_regexp)) search_whitespace_regexp = "[ "//achar(9)//"]+"
         if (keymap_live_p(isearch_mode_map)) call free_keymap(isearch_mode_map, status)
         call make_keymap(isearch_mode_map)

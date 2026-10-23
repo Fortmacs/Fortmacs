@@ -33,6 +33,7 @@
 !> regions (`region-extract-function`), compositions, after-change hooks.
 module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type
     use character_fm, only: char_string, string_char_and_length, MAX_MULTIBYTE_LENGTH, CHAR_ALT, CHAR_SUPER, &
                             CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META
@@ -43,7 +44,7 @@ module casefiddle_fm
     use insdel_fm, only: modify_text, replace_range_2
     use undo_fm, only: record_insert, record_delete
     use editfns_fm, only: validate_region, point, goto_char, region_beginning, region_end
-    use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
+    use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use uni_special_casing_fm, only: title_count, title_keys, title_values, special_count_1, special_keys_1, &
                                      special_lengths_1, special_values_1, special_count_2, special_keys_2, &
                                      special_lengths_2, special_values_2, special_count_3, special_keys_3, &
@@ -675,12 +676,12 @@ contains
 
     !> Register the commands.  Port of casefiddle.c:syms_of_casefiddle.
     subroutine syms_of_casefiddle()
-        call defcommand("upcase-word", cmd_upcase_word)
-        call defcommand("downcase-word", cmd_downcase_word)
-        call defcommand("capitalize-word", cmd_capitalize_word)
-        call defcommand("upcase-region", cmd_upcase_region)
-        call defcommand("downcase-region", cmd_downcase_region)
-        call defcommand("capitalize-region", cmd_capitalize_region)
-        call defcommand("upcase-initials-region", cmd_upcase_initials_region)
+        commands%upcase_word%run => cmd_upcase_word
+        commands%downcase_word%run => cmd_downcase_word
+        commands%capitalize_word%run => cmd_capitalize_word
+        commands%upcase_region%run => cmd_upcase_region
+        commands%downcase_region%run => cmd_downcase_region
+        commands%capitalize_region%run => cmd_capitalize_region
+        commands%upcase_initials_region%run => cmd_upcase_initials_region
     end subroutine syms_of_casefiddle
 end module casefiddle_fm

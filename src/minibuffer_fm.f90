@@ -32,6 +32,7 @@
 !> and completion of environment variables and ~USER in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
+    use commands_fm, only: commands
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
@@ -51,7 +52,6 @@ module minibuffer_fm
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp
     use dired_fm, only: file_name_completion, file_name_all_completions
     use lread_fm, only: sym
-    use callint_fm, only: defcommand
     use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text
     use minibuf_fm, only: minibufferp, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
@@ -283,13 +283,13 @@ contains
     !> the completion keymaps.
     subroutine syms_of_minibuffer()
         type(status_type) :: status
-        call defcommand("exit-minibuffer", cmd_exit_minibuffer)
-        call defcommand("abort-minibuffers", cmd_abort_minibuffers)
-        call defcommand("minibuffer-complete", cmd_minibuffer_complete)
-        call defcommand("minibuffer-complete-word", cmd_minibuffer_complete_word)
-        call defcommand("minibuffer-completion-help", cmd_minibuffer_completion_help)
-        call defcommand("minibuffer-complete-and-exit", cmd_minibuffer_complete_and_exit)
-        call defcommand("minibuffer-completion-exit", cmd_minibuffer_completion_exit)
+        commands%exit_minibuffer%run => cmd_exit_minibuffer
+        commands%abort_minibuffers%run => cmd_abort_minibuffers
+        commands%minibuffer_complete%run => cmd_minibuffer_complete
+        commands%minibuffer_complete_word%run => cmd_minibuffer_complete_word
+        commands%minibuffer_completion_help%run => cmd_minibuffer_completion_help
+        commands%minibuffer_complete_and_exit%run => cmd_minibuffer_complete_and_exit
+        commands%minibuffer_completion_exit%run => cmd_minibuffer_completion_exit
         call bind(minibuffer_local_map, "C-g", "abort-minibuffers")
         call bind(minibuffer_local_map, "C-j", "exit-minibuffer")
         call bind(minibuffer_local_map, "RET", "exit-minibuffer")

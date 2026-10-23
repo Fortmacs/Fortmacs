@@ -24,6 +24,7 @@
 !> `set-fill-column` (C-x f): a submodule because they use fill_fm,
 !> which uses simple_fm.
 submodule(simple_fm) simple_fill_fm
+    use commands_fm, only: commands
     use buffer_fm, only: fill_column, auto_fill_function
     use cmds_fm, only: internal_auto_fill_hook, end_of_line
     use indent_fm, only: current_column, move_to_column, indent_to_left_margin, indent_according_to_mode
@@ -296,10 +297,16 @@ contains
     module procedure syms_of_simple_fill
     call define_auto_fill_mode()
     internal_auto_fill_hook => internal_auto_fill
-    call defcommand("auto-fill-mode", cmd_auto_fill_mode)
-    call defcommand("turn-on-auto-fill", cmd_turn_on_auto_fill)
-    call defcommand("turn-off-auto-fill", cmd_turn_off_auto_fill)
-    call defcommand("set-fill-column", cmd_set_fill_column)
-    call defcommand("default-indent-new-line", cmd_default_indent_new_line)
+    commands%auto_fill_mode%run => cmd_auto_fill_mode
+    ! turn-on-auto-fill, turn-off-auto-fill and do-auto-fill are
+    ! functions, not commands.
+    commands%turn_on_auto_fill%run => cmd_turn_on_auto_fill
+    commands%turn_on_auto_fill%interactive = .false.
+    commands%turn_off_auto_fill%run => cmd_turn_off_auto_fill
+    commands%turn_off_auto_fill%interactive = .false.
+    commands%do_auto_fill%run => do_auto_fill
+    commands%do_auto_fill%interactive = .false.
+    commands%set_fill_column%run => cmd_set_fill_column
+    commands%default_indent_new_line%run => cmd_default_indent_new_line
     end procedure syms_of_simple_fill
 end submodule simple_fill_fm

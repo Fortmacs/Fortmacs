@@ -25,7 +25,7 @@
 # its "Port of" citation (the rest of the comment is notes on the port).
 # This script collects:
 #
-#   - commands: every `call defcommand("NAME", PROC)` in src/.  The
+#   - commands: every `commands%NAME%run => PROC` in src/.  The
 #     docstring is PROC's, or else that of the procedure whose comment
 #     cites NAME ("Port of simple.el:NAME" or "Port of cmds.c:FNAME");
 #   - functions: the procedures src/fortmacs.f90 exports (the config
@@ -151,13 +151,21 @@ ingeneric != "" && /^[ \t]*module procedure/ {
     next
 }
 
-# defcommand calls (not in comments).
-/^[ \t]*call defcommand\("/ {
+# Built-in commands (not in comments): `commands%NAME%run => PROC`, and
+# `commands%NAME%interactive = .false.` for a function that is not a
+# command.
+/^[ \t]*commands%[a-z0-9_]+%run[ \t]*=>/ {
     line = $0
-    sub(/^[ \t]*call defcommand\("/, "", line)
-    name = line; sub(/".*/, "", name)
-    proc = line; sub(/^[^"]*",[ \t]*/, "", proc); sub(/[^a-z0-9_].*/, "", proc)
+    sub(/^[ \t]*commands%/, "", line)
+    name = line; sub(/%.*/, "", name); name = hyphenate(name)
+    proc = line; sub(/^[^>]*>[ \t]*/, "", proc); sub(/[^a-z0-9_].*/, "", proc)
     if (!(name in cmd)) { cmd[name] = proc; cmdfile[name] = base }
+}
+/^[ \t]*commands%[a-z0-9_]+%interactive[ \t]*=[ \t]*\.false\./ {
+    line = $0
+    sub(/^[ \t]*commands%/, "", line)
+    name = line; sub(/%.*/, "", name)
+    noninteractive[hyphenate(name)] = 1
 }
 
 {
@@ -268,7 +276,7 @@ END {
         if (d == "" && (name in cited)) d = pdoc[cited[name]]
         fdoc[name] = d
         if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
-        finter[name] = 1
+        finter[name] = (name in noninteractive) ? 0 : 1
     }
     for (lisp in fdoc)
         printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]

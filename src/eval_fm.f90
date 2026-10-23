@@ -30,7 +30,7 @@ module eval_fm
     use lisp_fm, only: value_type, nil, nilp, symbolp, consp, list_length, list_elt, xsymbol, SYM_T
     use lread_fm, only: sym
     use data_fm, only: symbol_value, default_value
-    use callint_fm, only: call_interactively, current_prefix_arg
+    use callint_fm, only: funcall, current_prefix_arg
     implicit none(type, external)
     private
 
@@ -46,7 +46,7 @@ contains
         type(value_type) :: saved
         saved = current_prefix_arg
         current_prefix_arg = nil()
-        call call_interactively(fn, status)
+        call funcall(fn, status)
         current_prefix_arg = saved
     end subroutine funcall_noargs
 
