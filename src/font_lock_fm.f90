@@ -189,20 +189,21 @@ module font_lock_fm
     type(locals_type), allocatable :: locals(:)
 
     abstract interface
-        !> `font_lock_syntactic_face_function': the face to give the string
-        !> or comment whose parse state (at its start) is STATE.
-        function syntactic_face_iface(state) result(face)
+        !> `font_lock_syntactic_face_function': FACE gets the name of the
+        !> face to give the string or comment whose parse state (at its
+        !> start) is STATE ("" for none).
+        subroutine syntactic_face_iface(state, face)
             import :: parse_state_type
             implicit none(type, external)
             type(parse_state_type), intent(in) :: state
-            character(len=:), allocatable :: face
-        end function syntactic_face_iface
+            character(len=:), allocatable, intent(out) :: face
+        end subroutine syntactic_face_iface
     end interface
 
     !> Function to determine which face to use when fontifying
     !> syntactically.  The function is called with a single parameter (the
     !> state as returned by `parse_partial_sexp' at the beginning of the
-    !> region to highlight) and should return the name of a face.  This is
+    !> region to highlight) and should give the name of a face.  This is
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
     procedure(syntactic_face_iface), pointer, public :: font_lock_syntactic_face_function => null()
@@ -1476,15 +1477,15 @@ contains
 
     !> The default `font_lock_syntactic_face_function': strings in
     !> `font_lock_string_face', comments in `font_lock_comment_face'.
-    function default_syntactic_face(state) result(face)
+    subroutine default_syntactic_face(state, face)
         type(parse_state_type), intent(in) :: state
-        character(len=:), allocatable :: face
+        character(len=:), allocatable, intent(out) :: face
         if (state%instring /= -1) then
             face = "font_lock_string_face"
         else
             face = "font_lock_comment_face"
         end if
-    end function default_syntactic_face
+    end subroutine default_syntactic_face
 
     !> Syntactically fontify the text between BEG and END.
     !> If LOUDLY is true, print status messages while fontifying.
@@ -1525,7 +1526,7 @@ contains
         ! Find each interesting place between here and `end'.
         do
             if (state%instring /= -1 .or. state%incomment /= 0) then
-                face = font_lock_syntactic_face_function(state)
+                call font_lock_syntactic_face_function(state, face)
                 beg = max(state%comstr_start, start)
                 call parse_partial_sexp(point(), end, next, status, oldstate=state, &
                                         commentstop=COMMENTSTOP_SYNTAX_TABLE)
