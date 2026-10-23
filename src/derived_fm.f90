@@ -51,6 +51,12 @@ module derived_fm
 
     public :: major_mode_named, derived_mode_p, provided_mode_derived_p
 
+    !> Return non-nil if the current major mode is derived from one of
+    !> MODES (mode objects, or names).  Port of subr.el:derived-mode-p.
+    interface derived_mode_p
+        module procedure derived_mode_p_object, derived_mode_p_names
+    end interface derived_mode_p
+
     !> A major mode.  Port of what derived.el:define-derived-mode
     !> defines.
     type, public :: major_mode_type
@@ -67,7 +73,9 @@ module derived_fm
         !> Its syntax table, or the null handle to keep the parent's.
         type(handle_type) :: syntax_table
         !> Run after the mode is set up (`MODE-hook`).
-        type(hook_type) :: hook
+        !> (A pointer to the hook object, e.g. `text_mode_hook`; null for
+        !> none.)
+        type(hook_type), pointer :: hook => null()
     contains
         !> Make the mode known by NAME.
         procedure :: define => major_mode_define
@@ -110,10 +118,11 @@ contains
     !> killing all local variables).  SYNTAX_TABLE, if present, is its
     !> syntax table.  Its keymap inherits PARENT's.  Port of
     !> derived.el:define-derived-mode.
-    subroutine major_mode_define(self, name, mode_name, run, parent, syntax_table)
+    subroutine major_mode_define(self, name, mode_name, run, hook, parent, syntax_table)
         class(major_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name, mode_name
         procedure(command_proc) :: run
+        type(hook_type), intent(inout), target, optional :: hook
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
         type(major_mode_ref_type), allocatable :: grown(:)
@@ -122,7 +131,11 @@ contains
         self%name = name
         self%mode_name = mode_name
         self%run => run
-        self%hook%name = name//"-hook"
+        self%hook => null()
+        if (present(hook)) then
+            self%hook => hook
+            if (len_trim(hook%name) == 0) hook%name = name//"-hook"
+        end if
         if (present(syntax_table)) self%syntax_table = syntax_table
         if (.not. keymap_live_p(self%map)) call make_sparse_keymap(self%map)
         self%parent => null()
@@ -181,7 +194,11 @@ contains
         call delay_mode_hooks_end(saved)
         select type (self)
         type is (major_mode_type)
-            call run_mode_hooks(status, self%hook)
+            if (associated(self%hook)) then
+                call run_mode_hooks(status, self%hook)
+            else
+                call run_mode_hooks(status)
+            end if
         end select
     end subroutine major_mode_finish
 
@@ -234,7 +251,7 @@ contains
 
     !> Return non-nil if the current major mode is derived from MODE.
     !> Port of subr.el:derived-mode-p (one mode).
-    logical function derived_mode_p(mode) result(derived)
+    logical function derived_mode_p_object(mode) result(derived)
         type(major_mode_type), intent(in), target :: mode
         type(major_mode_type), pointer :: m
         derived = .false.
@@ -242,5 +259,15 @@ contains
         if (.not. allocated(buffers(cur)%major_mode)) return
         m => major_mode_named(buffers(cur)%major_mode)
         if (associated(m)) derived = m%derived_from(mode)
-    end function derived_mode_p
+    end function derived_mode_p_object
+
+    !> Return non-nil if the current major mode is derived from one of
+    !> MODES, given by name.  Port of subr.el:derived-mode-p.
+    logical function derived_mode_p_names(modes) result(derived)
+        character(len=*), intent(in) :: modes(:)
+        derived = .false.
+        if (cur == 0) return
+        if (.not. allocated(buffers(cur)%major_mode)) return
+        derived = provided_mode_derived_p(buffers(cur)%major_mode, modes)
+    end function derived_mode_p_names
 end module derived_fm

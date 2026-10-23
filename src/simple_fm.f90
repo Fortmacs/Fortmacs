@@ -75,6 +75,7 @@ module simple_fm
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
                          SEARCH_NOERROR
     use fns_fm, only: value_equal
+    use eval_fm, only: hook_type
     use insdel_fm, only: insert_before_markers
     use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region
     use cmds_fm, only: forward_char
@@ -204,6 +205,21 @@ module simple_fm
     !> Some major modes set this.  Port of simple.el
     !> normal-auto-fill-function (null is `do-auto-fill').
     procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
+
+    !> Hook run after entering Special mode (`special-mode-hook`).
+    type(hook_type), target, public :: special_mode_hook = hook_type(name="special-mode-hook")
+
+    !> Keymap for `special-mode`.  Port of simple.el special-mode-map.
+    type(handle_type), public :: special_mode_map
+
+    !> Hook run after entering or leaving `transient-mark-mode`.
+    type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient-mark-mode-hook")
+
+    !> Hook run after entering or leaving `indent-tabs-mode`.
+    type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent-tabs-mode-hook")
+
+    !> Hook run after entering or leaving `auto-fill-mode`.
+    type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto-fill-mode-hook")
 
     interface
         !> The default value for `normal-auto-fill-function'.

@@ -28,7 +28,7 @@ contains
         call keymap_global_set("C-c d", "insert-date-stamp", status)
         if (.not. status%ok()) return
         ! Auto Fill mode in Text mode and the modes derived from it.
-        call major_modes%text_mode%hook%add(turn_on_auto_fill)
+        call text_mode_hook%add(turn_on_auto_fill)
     end subroutine configure
 
     !> Insert today's date, as YYYYMMDD.

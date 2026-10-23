@@ -77,7 +77,8 @@ module easy_mmode_fm
         type(handle_type) :: map
         !> Run after the mode is turned on or off (`MODE-hook`), and
         !> `MODE-on-hook` / `MODE-off-hook`.
-        type(hook_type) :: hook, on_hook, off_hook
+        type(hook_type), pointer :: hook => null()
+        type(hook_type) :: on_hook, off_hook
         !> The mode's own state (the variable named after the mode, unless
         !> `variable` names another); buffer-local unless `global`.
         type(logical_setting) :: state
@@ -239,12 +240,13 @@ contains
     !> holding it.  LIGHTER (if not empty) is shown in the mode line
     !> while the mode is on.  BODY, if present, runs every time the mode
     !> is turned on or off.  Port of easy-mmode.el:define-minor-mode.
-    subroutine minor_mode_define(self, name, lighter, global, variable, body)
+    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook)
         class(minor_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: lighter, variable
         logical, intent(in), optional :: global
         procedure(minor_mode_body_proc), optional :: body
+        type(hook_type), intent(inout), target, optional :: hook
         type(minor_mode_ref_type), allocatable :: grown(:)
         type(status_type) :: st
         integer :: n
@@ -257,7 +259,11 @@ contains
         if (present(variable)) self%variable = variable
         self%body => null()
         if (present(body)) self%body => body
-        self%hook%name = name//"-hook"
+        self%hook => null()
+        if (present(hook)) then
+            self%hook => hook
+            if (len_trim(hook%name) == 0) hook%name = name//"-hook"
+        end if
         self%on_hook%name = name//"-on-hook"
         self%off_hook%name = name//"-off-hook"
         if (.not. associated(minor_mode_named(name))) then
@@ -370,7 +376,7 @@ contains
         end if
         on = self%enabled()
         ! The on/off hooks are here for backward compatibility only.
-        call self%hook%run(status)
+        if (associated(self%hook)) call self%hook%run(status)
         if (.not. status%ok()) return
         if (on) then
             call self%on_hook%run(status)

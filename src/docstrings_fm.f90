@@ -28,7 +28,7 @@ module docstrings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use print_fm, only: prin1_to_string
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
-    use callint_fm, only: mark_even_if_inactive
+    use callint_fm, only: current_prefix_arg, mark_even_if_inactive
     use casefiddle_fm, only: case_symbols_as_words
     use commands_fm, only: commands
     use dired_fm, only: completion_ignored_extensions
@@ -39,30 +39,36 @@ module docstrings_fm
                        JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
+    use help_fm, only: help_map
+    use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
                          tab_stop_list
-    use isearch_fm, only: isearch_lax_whitespace, isearch_regexp_lax_whitespace, &
+    use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
-                             completion_show_inline_help, insert_default_directory
-    use modes_fm, only: major_modes, minor_modes
+                             completion_show_inline_help, insert_default_directory, minibuffer_completing_file_name
     use novice_fm, only: disabled_command_function_p
-    use paragraphs_fm, only: paragraph_separate, paragraph_start, sentence_end, &
-                             sentence_end_double_space, sentence_end_without_period
-    use replace_fm, only: case_replace, query_replace_show_replacement, query_replace_skip_read_only, &
-                          replace_lax_whitespace, replace_regexp_lax_whitespace
+    use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
+                             sentence_end, sentence_end_double_space, sentence_end_without_period
+    use prog_mode_fm, only: prog_mode_hook, prog_mode_map
+    use replace_fm, only: case_replace, query_replace_defaults, query_replace_show_replacement, &
+                          query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
+                          replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
-    use simple_fm, only: auto_fill_inhibit_regexp, cycle_spacing_actions, delete_active_region, &
-                         fill_prefix, goal_column, inhibit_auto_fill, kill_read_only_ok, kill_ring_max, &
-                         kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
+    use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, cycle_spacing_actions, &
+                         delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
+                         kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, kill_whole_line_option, &
+                         line_move_visual, mark_ring_max, pending_undo_list, special_mode_hook, special_mode_map, &
+                         suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_length
     use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
-    use text_mode_fm, only: text_mode_variant
+    use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
+    use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
     use xdisp_fm, only: tab_width
     implicit none(type, external)
@@ -87,7 +93,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(281) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(282) = [character(len=34) :: &
                                                                    "abort-minibuffers", &
                                                                    "add-auto-mode", &
                                                                    "auto-fill-mode", &
@@ -234,6 +240,7 @@ module docstrings_fm
                                                                    "looking-at", &
                                                                    "looking-at-p", &
                                                                    "looking-back", &
+                                                                   "major-mode-named", &
                                                                    "make-syntax-table", &
                                                                    "map-query-replace-regexp", &
                                                                    "mark", &
@@ -371,11 +378,13 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(74) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(97) = [character(len=44) :: &
                                                                   "adaptive-fill-mode", &
                                                                   "after-change-major-mode-hook", &
+                                                                  "amalgamating-undo-limit", &
                                                                   "auto-fill-function", &
                                                                   "auto-fill-inhibit-regexp", &
+                                                                  "auto-fill-mode-hook", &
                                                                   "case-fold-search", &
                                                                   "case-replace", &
                                                                   "case-symbols-as-words", &
@@ -388,6 +397,7 @@ module docstrings_fm
                                                                   "completion-ignore-case", &
                                                                   "completion-ignored-extensions", &
                                                                   "completion-show-inline-help", &
+                                                                  "current-prefix-arg", &
                                                                   "cycle-spacing-actions", &
                                                                   "default-justification", &
                                                                   "delete-active-region", &
@@ -399,33 +409,45 @@ module docstrings_fm
                                                                   "fill-prefix", &
                                                                   "fill-separate-heterogeneous-words-with-space", &
                                                                   "goal-column", &
+                                                                  "help-map", &
+                                                                  "help-mode-hook", &
+                                                                  "help-mode-map", &
                                                                   "history-add-new-input", &
                                                                   "history-length", &
                                                                   "indent-line-function", &
                                                                   "indent-tabs-mode", &
+                                                                  "indent-tabs-mode-hook", &
                                                                   "inhibit-auto-fill", &
                                                                   "inhibit-field-text-motion", &
                                                                   "insert-default-directory", &
                                                                   "isearch-lax-whitespace", &
+                                                                  "isearch-mode-map", &
                                                                   "isearch-regexp-lax-whitespace", &
                                                                   "kill-read-only-ok", &
                                                                   "kill-ring-max", &
+                                                                  "kill-ring-yank-pointer", &
                                                                   "kill-whole-line", &
                                                                   "left-margin", &
                                                                   "line-move-visual", &
-                                                                  "major-modes", &
                                                                   "make-backup-files", &
                                                                   "mark-even-if-inactive", &
                                                                   "mark-ring-max", &
-                                                                  "minor-modes", &
+                                                                  "minibuffer-completing-file-name", &
                                                                   "mode-require-final-newline", &
                                                                   "next-screen-context-lines", &
+                                                                  "paragraph-ignore-fill-prefix", &
                                                                   "paragraph-separate", &
                                                                   "paragraph-start", &
                                                                   "parse-sexp-ignore-comments", &
+                                                                  "pending-undo-list", &
+                                                                  "point", &
+                                                                  "prog-mode-hook", &
+                                                                  "prog-mode-map", &
+                                                                  "query-replace-defaults", &
                                                                   "query-replace-show-replacement", &
                                                                   "query-replace-skip-read-only", &
                                                                   "regexp-search-ring-max", &
+                                                                  "replace-count", &
                                                                   "replace-lax-whitespace", &
                                                                   "replace-regexp-lax-whitespace", &
                                                                   "require-final-newline", &
@@ -437,13 +459,21 @@ module docstrings_fm
                                                                   "sentence-end", &
                                                                   "sentence-end-double-space", &
                                                                   "sentence-end-without-period", &
+                                                                  "special-mode-hook", &
+                                                                  "special-mode-map", &
                                                                   "standard-indent", &
                                                                   "suggest-key-bindings", &
                                                                   "tab-always-indent", &
                                                                   "tab-stop-list", &
                                                                   "tab-width", &
+                                                                  "text-mode-hook", &
+                                                                  "text-mode-map", &
+                                                                  "text-mode-syntax-table", &
                                                                   "text-mode-variant", &
                                                                   "transient-mark-mode", &
+                                                                  "transient-mark-mode-hook", &
+                                                                  "undo-in-progress", &
+                                                                  "undo-no-redo", &
                                                                   "visible-bell", &
                                                                   "words-include-escapes"]
 
@@ -820,7 +850,8 @@ contains
         case ("derived-mode-p")
             entry%file = "derived_fm.f90"
             entry%fortran = "derived_mode_p(mode)"
-            entry%doc = "Return non-nil if the current major mode is derived from MODE."
+            entry%doc = "Return non-nil if the current major mode is derived from one of"//LF// &
+                        "MODES (mode objects, or names)."
         case ("describe-function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
@@ -1576,6 +1607,10 @@ contains
                         ""//LF// &
                         "As a general recommendation, try to avoid using `looking-back'"//LF// &
                         "wherever possible, since it is slow."
+        case ("major-mode-named")
+            entry%file = "derived_fm.f90"
+            entry%fortran = "major_mode_named(name)"
+            entry%doc = "The defined major mode named NAME, or null."
         case ("make-syntax-table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call make_syntax_table(h, status, oldtable)"
@@ -3085,6 +3120,14 @@ contains
             entry%fortran = "after_change_major_mode_hook"
             entry%original = "hook_type(name=""after-change-major-mode-hook"")"
             entry%doc = "Normal hook run at the very end of major mode functions."
+        case ("amalgamating-undo-limit")
+            entry%file = "undo_fm.f90"
+            entry%fortran = "amalgamating_undo_limit"
+            entry%original = "20"
+            entry%value = repr(amalgamating_undo_limit)
+            entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
+                        "changes.  The `undo` command will normally consider ""similar"""//LF// &
+                        "changes (like inserting characters) to be part of the same change."
         case ("auto-fill-function")
             entry%file = "buffer_fm.f90"
             entry%fortran = "auto_fill_function"
@@ -3098,6 +3141,11 @@ contains
             entry%fortran = "auto_fill_inhibit_regexp"
             if (allocated(auto_fill_inhibit_regexp%value)) entry%value = repr(auto_fill_inhibit_regexp%value)
             entry%doc = "Regexp to match lines that should not be auto-filled."
+        case ("auto-fill-mode-hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "auto_fill_mode_hook"
+            entry%original = "hook_type(name=""auto-fill-mode-hook"")"
+            entry%doc = "Hook run after entering or leaving `auto-fill-mode`."
         case ("case-fold-search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
@@ -3187,6 +3235,15 @@ contains
             entry%value = repr(completion_show_inline_help)
             entry%doc = "If non-nil, print helpful inline messages during completion.  Port"//LF// &
                         "of minibuffer.el completion-show-inline-help."
+        case ("current-prefix-arg")
+            entry%file = "callint_fm.f90"
+            entry%fortran = "current_prefix_arg"
+            entry%value = prin1_to_string(current_prefix_arg)
+            entry%doc = "The value of the prefix argument for this editing command."//LF// &
+                        "It may be a number, or the symbol `-' for just a minus sign as arg,"//LF// &
+                        "or a list whose car is a number for just one or more C-u's"//LF// &
+                        "or nil if no argument has been specified."//LF// &
+                        "This is what `(interactive ""P"")' returns."
         case ("cycle-spacing-actions")
             entry%file = "simple_fm.f90"
             entry%fortran = "cycle_spacing_actions"
@@ -3322,6 +3379,19 @@ contains
             entry%doc = "Semipermanent goal column for vertical motion, or -1 for none (nil"//LF// &
                         "upstream).  A setting other than -1 overrides the variable"//LF// &
                         "`line_move_visual`, which see."
+        case ("help-map")
+            entry%file = "help_fm.f90"
+            entry%fortran = "help_map"
+            entry%doc = "Keymap for characters following the Help key."
+        case ("help-mode-hook")
+            entry%file = "help_mode_fm.f90"
+            entry%fortran = "help_mode_hook"
+            entry%original = "hook_type(name=""help-mode-hook"")"
+            entry%doc = "Hook run by `help-mode'."
+        case ("help-mode-map")
+            entry%file = "help_mode_fm.f90"
+            entry%fortran = "help_mode_map"
+            entry%doc = "Keymap for Help mode."
         case ("history-add-new-input")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "history_add_new_input"
@@ -3354,6 +3424,11 @@ contains
             entry%original = ".true."
             entry%value = repr(indent_tabs_mode%value)
             entry%doc = "Indentation can insert tabs if this is non-nil."
+        case ("indent-tabs-mode-hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "indent_tabs_mode_hook"
+            entry%original = "hook_type(name=""indent-tabs-mode-hook"")"
+            entry%doc = "Hook run after entering or leaving `indent-tabs-mode`."
         case ("inhibit-auto-fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "inhibit_auto_fill"
@@ -3395,6 +3470,10 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("isearch-mode-map")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_mode_map"
+            entry%doc = "Keymap for `isearch-mode'."
         case ("isearch-regexp-lax-whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_regexp_lax_whitespace"
@@ -3420,6 +3499,13 @@ contains
             entry%original = "120"
             entry%value = repr(kill_ring_max)
             entry%doc = "Maximum length of kill ring before oldest elements are thrown away."
+        case ("kill-ring-yank-pointer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "kill_ring_yank_pointer"
+            entry%original = "1"
+            entry%value = repr(kill_ring_yank_pointer)
+            entry%doc = "The tail of the kill ring whose car is the last thing yanked, as an"//LF// &
+                        "index into `kill-ring` (1 for its first element)."
         case ("kill-whole-line")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_whole_line_option"
@@ -3448,10 +3534,6 @@ contains
                         "and forces movement by logical lines."//LF// &
                         "A window that is horizontally scrolled also forces movement by logical"//LF// &
                         "lines."
-        case ("major-modes")
-            entry%file = "modes_fm.f90"
-            entry%fortran = "major_modes"
-            entry%doc = "The built-in major modes."
         case ("make-backup-files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -3486,10 +3568,12 @@ contains
             entry%value = repr(mark_ring_max)
             entry%doc = "Maximum size of mark ring.  Start discarding off end if gets this"//LF// &
                         "big."
-        case ("minor-modes")
-            entry%file = "modes_fm.f90"
-            entry%fortran = "minor_modes"
-            entry%doc = "The built-in minor modes."
+        case ("minibuffer-completing-file-name")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "minibuffer_completing_file_name"
+            entry%original = ".false."
+            entry%value = repr(minibuffer_completing_file_name)
+            entry%doc = "Whether the minibuffer is completing a file name."
         case ("mode-require-final-newline")
             entry%file = "files_fm.f90"
             entry%fortran = "mode_require_final_newline"
@@ -3514,6 +3598,13 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("paragraph-ignore-fill-prefix")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "paragraph_ignore_fill_prefix"
+            entry%original = ".false."
+            entry%value = repr(paragraph_ignore_fill_prefix)
+            entry%doc = "Non-nil means the paragraph commands are not affected by `fill-prefix'."//LF// &
+                        "This is desirable in modes where blank lines are the paragraph delimiters."
         case ("paragraph-separate")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_separate"
@@ -3550,6 +3641,36 @@ contains
             entry%fortran = "parse_sexp_ignore_comments"
             entry%value = repr(parse_sexp_ignore_comments%value)
             entry%doc = "Non-nil means `forward-sexp', etc., should treat comments as whitespace."
+        case ("pending-undo-list")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "pending_undo_list"
+            entry%original = "0"
+            entry%value = repr(pending_undo_list)
+            entry%doc = "Within a run of consecutive undo commands, list remaining to be"//LF// &
+                        "undone (a list position); -1 (t) if we undid all the way to the end"//LF// &
+                        "of it."
+        case ("point")
+            entry%file = "undo_fm.f90"
+            entry%fortran = "point_before_last_command_or_undo"
+            entry%original = "0"
+            entry%value = repr(point_before_last_command_or_undo)
+            entry%doc = "Where point was before the last command or `undo_boundary`, and in"//LF// &
+                        "which buffer (its serial number), for `record_point`."
+        case ("prog-mode-hook")
+            entry%file = "prog_mode_fm.f90"
+            entry%fortran = "prog_mode_hook"
+            entry%original = "hook_type(name=""prog-mode-hook"")"
+            entry%doc = "Normal hook run when entering programming modes."
+        case ("prog-mode-map")
+            entry%file = "prog_mode_fm.f90"
+            entry%fortran = "prog_mode_map"
+            entry%doc = "Keymap used for programming modes."
+        case ("query-replace-defaults")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_defaults"
+            entry%doc = "Default values of FROM-STRING and TO-STRING for `query-replace'."//LF// &
+                        "This is a list of cons cells (FROM-STRING . TO-STRING), or nil"//LF// &
+                        "if there are no default values."
         case ("query-replace-show-replacement")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_show_replacement"
@@ -3570,6 +3691,13 @@ contains
             entry%value = repr(regexp_search_ring_max)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
+        case ("replace-count")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "replace_count"
+            entry%original = "0"
+            entry%value = repr(replace_count)
+            entry%doc = "Number of replacements done so far."//LF// &
+                        "See `replace-regexp'."
         case ("replace-lax-whitespace")
             entry%file = "replace_fm.f90"
             entry%fortran = "replace_lax_whitespace"
@@ -3690,6 +3818,15 @@ contains
                         "This value is used by the function `sentence-end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence-end' is nil."
+        case ("special-mode-hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "special_mode_hook"
+            entry%original = "hook_type(name=""special-mode-hook"")"
+            entry%doc = "Hook run after entering Special mode (`special-mode-hook`)."
+        case ("special-mode-map")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "special_mode_map"
+            entry%doc = "Keymap for `special-mode`."
         case ("standard-indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "standard_indent"
@@ -3731,6 +3868,21 @@ contains
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
+        case ("text-mode-hook")
+            entry%file = "text_mode_fm.f90"
+            entry%fortran = "text_mode_hook"
+            entry%original = "hook_type(name=""text-mode-hook"")"
+            entry%doc = "Normal hook run when entering Text mode and many related modes."
+        case ("text-mode-map")
+            entry%file = "text_mode_fm.f90"
+            entry%fortran = "text_mode_map"
+            entry%doc = "Keymap for `text-mode`."//LF// &
+                        "Many other modes, such as `mail-mode` and `outline-mode`, inherit"//LF// &
+                        "all the commands defined in this map."
+        case ("text-mode-syntax-table")
+            entry%file = "text_mode_fm.f90"
+            entry%fortran = "text_mode_syntax_table"
+            entry%doc = "Syntax table used while in `text-mode'."
         case ("text-mode-variant")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_variant"
@@ -3747,6 +3899,23 @@ contains
             entry%doc = "Non-nil if Transient Mark mode is enabled."//LF// &
                         "Non-nil also enables highlighting of the region whenever the mark is"//LF// &
                         "active.  The region is highlighted with the `region` face."
+        case ("transient-mark-mode-hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "transient_mark_mode_hook"
+            entry%original = "hook_type(name=""transient-mark-mode-hook"")"
+            entry%doc = "Hook run after entering or leaving `transient-mark-mode`."
+        case ("undo-in-progress")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "undo_in_progress"
+            entry%original = ".false."
+            entry%value = repr(undo_in_progress)
+            entry%doc = "Non-nil while performing an undo."
+        case ("undo-no-redo")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "undo_no_redo"
+            entry%original = ".false."
+            entry%value = repr(undo_no_redo)
+            entry%doc = "If t, `undo` doesn't go through redo entries."
         case ("visible-bell")
             entry%file = "term_fm.f90"
             entry%fortran = "visible_bell"

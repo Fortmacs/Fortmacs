@@ -37,7 +37,7 @@ module test_derived_fm
     use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p
     use modes_fm, only: major_modes
     use syntax_fm, only: syntax_table, standard_syntax_table, char_syntax
-    use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table, text_mode_variant
+    use text_mode_fm, only: text_mode, syms_of_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
     use prog_mode_fm, only: syms_of_prog_mode
     use simple_fm, only: fundamental_mode, special_mode, syms_of_simple_modes
     use files_fm, only: normal_mode, auto_mode_spec, file_name_sans_versions, add_auto_mode, require_final_newline, &
@@ -51,7 +51,7 @@ module test_derived_fm
     character(len=:), allocatable :: trace
 
     !> Hooks of the hook tests.
-    type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, depth_hook
+    type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
 
     !> Modes of the derived-mode tests.
     type(major_mode_type), target :: child_mode_obj, parent_mode_obj, derived_mode_1_obj, derived_mode_2_obj
@@ -318,9 +318,10 @@ contains
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
         call syms_of_text_mode()
-        call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, parent=major_modes%text_mode)
-        call major_modes%text_mode%hook%add(hook_text)
-        call child_mode_obj%hook%add(hook_child)
+        call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
+                                   parent=major_modes%text_mode)
+        call text_mode_hook%add(hook_text)
+        call child_mode_hook%add(hook_child)
         call after_change_major_mode_hook%add(hook_after)
         call get_buffer_create("test-derived-order", a, st)
         call set_buffer(a, st)
@@ -342,8 +343,8 @@ contains
         call key_binding(key, binding, st)
         call check(error, value_eq(binding, sym("forward-char")), "inherited binding")
         call keymap_set(major_modes%text_mode%map, "C-c t", nil(), st)
-        call major_modes%text_mode%hook%remove(hook_text)
-        call child_mode_obj%hook%remove(hook_child)
+        call text_mode_hook%remove(hook_text)
+        call child_mode_hook%remove(hook_child)
         call after_change_major_mode_hook%remove(hook_after)
         call kill_buffer(a, st)
     end subroutine test_hooks_order
@@ -454,11 +455,11 @@ contains
         call normal_mode(st)
         call check(error, derived_mode_p(major_modes%text_mode), "text-mode from the file name")
         if (allocated(error)) return
-        call major_modes%text_mode%hook%add(hook_text)
+        call text_mode_hook%add(hook_text)
         trace = ""
         buffers(cur)%filename = "/tmp/foo.TXT"
         call normal_mode(st)
-        call major_modes%text_mode%hook%remove(hook_text)
+        call text_mode_hook%remove(hook_text)
         call check(error, trace, "T", "hook ran (case-insensitive match)")
         if (allocated(error)) return
         call add_auto_mode("\.prog\'", "prog-mode")

@@ -272,7 +272,7 @@ contains
     end subroutine auto_fill_body
 
     module procedure syms_of_simple_fill
-    call minor_modes%auto_fill_mode%define("auto-fill-mode", " Fill", variable="auto-fill-function", &
+    call minor_modes%auto_fill_mode%define("auto-fill-mode", " Fill", variable="auto-fill-function", hook=auto_fill_mode_hook, &
                                            body=auto_fill_body)
     internal_auto_fill_hook => internal_auto_fill
     commands%auto_fill_mode%run => auto_fill_mode

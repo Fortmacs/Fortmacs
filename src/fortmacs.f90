@@ -53,9 +53,8 @@
 !> `command_type` objects: built-in ones are the components of
 !> `commands`, so that `commands%upcase_region%disabled = .false.`
 !> enables C-x C-u, and `call commands%yank%run(status)` runs one.  Keys
-!> are bound with `keymap_global_set`.  Modes are the components of
-!> `major_modes` and `minor_modes`, customized from their hooks:
-!> `call major_modes%text_mode%hook%add(turn_on_auto_fill)`.  New modes
+!> are bound with `keymap_global_set`.  Modes are customized from
+!> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)`.  New modes
 !> are `major_mode_type` and `minor_mode_type` objects made known with
 !> their `define`.  A `configure` that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
@@ -182,9 +181,13 @@ module fortmacs
     use data_fm, only: setting_type, integer_setting, logical_setting, string_setting, function_setting
     use eval_fm, only: hook_type, change_major_mode_hook
     use subr_fm, only: change_major_mode_after_body_hook, after_change_major_mode_hook
-    use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p
+    use derived_fm, only: major_mode_type, derived_mode_p, provided_mode_derived_p, major_mode_named
     use easy_mmode_fm, only: minor_mode_type, minor_mode_body_proc
-    use modes_fm, only: major_modes, minor_modes
+    use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table
+    use prog_mode_fm, only: prog_mode_hook, prog_mode_map
+    use simple_fm, only: special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
+                         auto_fill_mode_hook
+    use help_mode_fm, only: help_mode_hook, help_mode_map
     use simple_fm, only: turn_on_auto_fill, turn_off_auto_fill
     use text_mode_fm, only: text_mode_variant
     use syntax_fm, only: parse_sexp_ignore_comments
@@ -260,7 +263,9 @@ module fortmacs
     public :: setting_type, integer_setting, logical_setting, string_setting, function_setting, hook_type, &
               change_major_mode_hook, change_major_mode_after_body_hook, after_change_major_mode_hook, &
               major_mode_type, derived_mode_p, provided_mode_derived_p, minor_mode_type, minor_mode_body_proc, &
-              major_modes, minor_modes, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
+              major_mode_named, text_mode_hook, text_mode_map, text_mode_syntax_table, prog_mode_hook, &
+              prog_mode_map, special_mode_hook, special_mode_map, transient_mark_mode_hook, indent_tabs_mode_hook, &
+              auto_fill_mode_hook, help_mode_hook, help_mode_map, turn_on_auto_fill, turn_off_auto_fill, text_mode_variant, &
               parse_sexp_ignore_comments, require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, &
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
 end module fortmacs

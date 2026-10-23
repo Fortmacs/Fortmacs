@@ -80,11 +80,13 @@ contains
     ! Fundamental mode is not derived; it is defined so that other modes
     ! can name it as their parent.
     call major_modes%fundamental_mode%define("fundamental-mode", "Fundamental", fundamental_mode)
-    call major_modes%special_mode%define("special-mode", "Special", special_mode)
+    call major_modes%special_mode%define("special-mode", "Special", special_mode, special_mode_hook)
+    special_mode_map = major_modes%special_mode%map
     call minor_modes%transient_mark_mode%define("transient-mark-mode", global=.true., &
-                                                variable="transient-mark-mode")
+                                                variable="transient-mark-mode", hook=transient_mark_mode_hook)
     commands%transient_mark_mode%run => cmd_transient_mark_mode
-    call minor_modes%indent_tabs_mode%define("indent-tabs-mode", variable="indent-tabs-mode")
+    call minor_modes%indent_tabs_mode%define("indent-tabs-mode", variable="indent-tabs-mode", &
+                                             hook=indent_tabs_mode_hook)
     commands%indent_tabs_mode%run => cmd_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map

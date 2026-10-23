@@ -29,6 +29,7 @@ module text_mode_fm
     use files_fm, only: require_final_newline, mode_require_final_newline
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p
     use modes_fm, only: major_modes
+    use eval_fm, only: hook_type
     implicit none(type, external)
     private
 
@@ -38,6 +39,16 @@ module text_mode_fm
     !> Obsolete since 27.1: don't set it, and instead of testing its value
     !> use `derived-mode-p'.  Port of text-mode.el text-mode-variant.
     type(logical_setting), public :: text_mode_variant = logical_setting(name="text-mode-variant", value=.false.)
+
+    !> Normal hook run when entering Text mode and many related modes.
+    !> Port of text-mode.el text-mode-hook.
+    type(hook_type), target, public :: text_mode_hook = hook_type(name="text-mode-hook")
+
+    !> Keymap for `text-mode`.
+    !> Many other modes, such as `mail-mode` and `outline-mode`, inherit
+    !> all the commands defined in this map.  Port of text-mode.el
+    !> text-mode-map.
+    type(handle_type), public :: text_mode_map
 
     !> Syntax table used while in `text-mode'.
     type(handle_type), public :: text_mode_syntax_table
@@ -84,7 +95,9 @@ contains
     !> Define Text mode.
     subroutine syms_of_text_mode()
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
-        call major_modes%text_mode%define("text-mode", "Text", text_mode, syntax_table=text_mode_syntax_table)
+        call major_modes%text_mode%define("text-mode", "Text", text_mode, text_mode_hook, &
+                                          syntax_table=text_mode_syntax_table)
+        text_mode_map = major_modes%text_mode%map
         commands%text_mode%run => text_mode
     end subroutine syms_of_text_mode
 end module text_mode_fm
