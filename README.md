@@ -21,6 +21,9 @@ Total is Emacs (its C functions and Elisp definitions) and the packages
 together. A rough estimate from `tools/progress.sh`.
 <!-- progress:end -->
 
+The project is funded entirely by one person. Every agent run costs tokens,
+so cost limits the pace as much as review does.
+
 ## Building
 
 Requires gfortran ≥ 13 and [fpm](https://fpm.fortran-lang.org); development
@@ -141,14 +144,12 @@ What an assistant changes:
    expectations.
 4. **It works in parallel.** Up to eight agents port separate modules at
    once; one lead session reviews and combines their work.
-5. **It is fast, with caveats.** About 65,000 hand-written lines of
-   Fortran and tests in the first three days (roughly 850 an hour), where
-   a person porting by hand might manage a few hundred a day. Much of it
-   was later rewritten after review, which remains the bottleneck.
-6. **It isn't free.** Every agent run costs tokens, and the project is
-   funded entirely by one person, so cost limits the pace as much as
-   review does.
-7. **The safeguards stay human.** Every change is built, tested and checked
+5. **It is faster.** About 65,000 lines of Fortran and tests, not
+   counting generated tables, in the first three days (roughly 850 an
+   hour), where a person porting by hand might manage a few hundred a day.
+   Much of it was later rewritten after review, which remains the
+   bottleneck.
+6. **The safeguards stay human.** Every change is built, tested and checked
    for memory leaks in CI on two architectures, and a human reviews and
    merges every pull request.
 
