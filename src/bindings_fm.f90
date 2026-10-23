@@ -25,8 +25,6 @@
 !> esc-map, ctl-x-map and function-key-map with the bindings upstream
 !> gives them, as far as their commands exist.  Bindings to commands not
 !> ported yet are left out rather than failing with void-function.
-!> Until `move_beginning_of_line' and `move_end_of_line' are ported,
-!> <home> and <end> use `beginning_of_line' and `end_of_line'.
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -55,6 +53,7 @@ module bindings_fm
     use files_fm, only: syms_of_files
     use help_fm, only: syms_of_help
     use help_fns_fm, only: syms_of_help_fns
+    use subr_fm, only: syms_of_subr
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
     use text_mode_fm, only: syms_of_text_mode
@@ -178,6 +177,7 @@ contains
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
+        call syms_of_subr()
         commands%right_char%run => cmd_right_char
         commands%left_char%run => cmd_left_char
         commands%right_word%run => cmd_right_word
@@ -208,9 +208,9 @@ contains
         ! subr.el's 0240..0377 loop too).
         call define_key_range(global_map, 128_int64, int(MAX_CHAR, int64), &
                               sym("self_insert_command"), status)
-        call bind(global_map, "C-a", "beginning_of_line")
+        call bind(global_map, "C-a", "move_beginning_of_line")
         call bind(global_map, "C-b", "backward_char")
-        call bind(global_map, "C-e", "end_of_line")
+        call bind(global_map, "C-e", "move_end_of_line")
         call bind(global_map, "C-f", "forward_char")
         call bind(global_map, "C-n", "next_line")
         call bind(global_map, "C-p", "previous_line")
@@ -230,13 +230,29 @@ contains
         call bind_char(global_map, M_CTL + M_META + iachar("-"), "negative_argument")
         call bind(global_map, "DEL", "delete_backward_char")
         call bind(global_map, "C-d", "delete_char")
-        call bind(global_map, "<home>", "beginning_of_line")
-        call bind(global_map, "<end>", "end_of_line")
+        call bind(global_map, "<home>", "move_beginning_of_line")
+        call bind(global_map, "<end>", "move_end_of_line")
         call bind(global_map, "<left>", "left_char")
         call bind(global_map, "<right>", "right_char")
         call bind(global_map, "<down>", "next_line")
         call bind(global_map, "<up>", "previous_line")
         call bind(global_map, "<deletechar>", "delete_forward_char")
+        call bind(global_map, "<menu>", "execute_extended_command")
+        call bind(global_map, "<find>", "search_forward")
+        call bind(global_map, "<begin>", "beginning_of_buffer")
+        call bind(global_map, "<execute>", "execute_extended_command")
+        call bind(global_map, "C-<insert>", "kill_ring_save")
+        call bind(global_map, "S-<insert>", "yank")
+        call bind(global_map, "C-<insertchar>", "kill_ring_save")
+        call bind(global_map, "S-<insertchar>", "yank")
+        call bind(global_map, "<copy>", "kill_ring_save")
+        call bind(global_map, "<paste>", "yank")
+        call bind(global_map, "<cut>", "kill_region")
+        call bind(global_map, "<undo>", "undo")
+        call bind(global_map, "<open>", "find_file")
+        call bind(global_map, "<insertline>", "open_line")
+        call bind(global_map, "<deleteline>", "kill_line")
+        call bind(global_map, "S-<delete>", "kill_region")
         call bind(esc_map, "x", "execute_extended_command")
         call bind(global_map, "<next>", "scroll_up_command")
         call bind(global_map, "<prior>", "scroll_down_command")

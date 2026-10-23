@@ -342,7 +342,7 @@ contains
         if (allocated(error)) return
         call type_keys("C-h w h e l p _ q u i t RET")
         call command_loop(st)
-        call check(error, last_message == "help_quit is on C-h q, <f1> q", last_message)
+        call check(error, last_message == "help_quit is on C-h q, <f1> q, <help> q", last_message)
     end subroutine test_where_is
 
     subroutine test_describe_function_keys(error)

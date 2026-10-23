@@ -43,9 +43,9 @@ module emacs_fm
     use sysdep_fm, only: install_interrupt_handler, emacs_isatty, sys_string_type, emacs_execv, emacs_strerror
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
-    use dispnew_fm, only: adjust_frame_glyphs
+    use dispnew_fm, only: adjust_frame_glyphs, frame_ring_bell
     use xdisp_fm, only: redisplay, init_frame_windows, realize_basic_faces, message
-    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook
+    use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
     use lread_fm, only: user_init_file
@@ -371,7 +371,9 @@ contains
             call message(format_error(opt_status))
         end if
         redisplay_hook => do_redisplay
+        ring_bell_hook => frame_ring_bell
         call command_loop(st)
+        ring_bell_hook => null()
         redisplay_hook => null()
         call delete_tty(selected_frame%tty, status)
         call tty_flush(selected_frame%tty, st)

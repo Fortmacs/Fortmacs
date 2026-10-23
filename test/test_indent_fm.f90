@@ -388,7 +388,11 @@ contains
         call command_loop(st)
         call check(error, buffer_string() == "     a"//LF//"     b   ", buffer_string())
         if (allocated(error)) return
-        call key_parse("C-g M-< C-SPC M-> C-u 2 C-M-\", evs, st)
+        ! C-g signals quit, which discards the input typed ahead.
+        call key_parse("C-g", evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        call key_parse("M-< C-SPC M-> C-u 2 C-M-\", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
         call check(error, buffer_string() == "  a"//LF//"  b   ", buffer_string())

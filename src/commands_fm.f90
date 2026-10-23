@@ -149,6 +149,8 @@ module commands_fm
         type(command_type) :: minibuffer_complete_word
         type(command_type) :: minibuffer_completion_exit
         type(command_type) :: minibuffer_completion_help
+        type(command_type) :: move_beginning_of_line
+        type(command_type) :: move_end_of_line
         type(command_type) :: move_to_left_margin
         type(command_type) :: move_to_tab_stop
         type(command_type) :: move_to_window_line
@@ -206,6 +208,7 @@ module commands_fm
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
         type(command_type) :: turn_on_auto_fill
+        type(command_type) :: undefined
         type(command_type) :: undo
         type(command_type) :: undo_only
         type(command_type) :: undo_redo
@@ -226,7 +229,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(188) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(191) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
@@ -344,6 +347,8 @@ module commands_fm
                                                                  "minibuffer_complete_word", &
                                                                  "minibuffer_completion_exit", &
                                                                  "minibuffer_completion_help", &
+                                                                 "move_beginning_of_line", &
+                                                                 "move_end_of_line", &
                                                                  "move_to_left_margin", &
                                                                  "move_to_tab_stop", &
                                                                  "move_to_window_line", &
@@ -401,6 +406,7 @@ module commands_fm
                                                                  "transpose_words", &
                                                                  "turn_off_auto_fill", &
                                                                  "turn_on_auto_fill", &
+                                                                 "undefined", &
                                                                  "undo", &
                                                                  "undo_only", &
                                                                  "undo_redo", &
@@ -659,6 +665,10 @@ contains
             p => commands%minibuffer_completion_exit
         case ("minibuffer_completion_help")
             p => commands%minibuffer_completion_help
+        case ("move_beginning_of_line")
+            p => commands%move_beginning_of_line
+        case ("move_end_of_line")
+            p => commands%move_end_of_line
         case ("move_to_left_margin")
             p => commands%move_to_left_margin
         case ("move_to_tab_stop")
@@ -773,6 +783,8 @@ contains
             p => commands%turn_off_auto_fill
         case ("turn_on_auto_fill")
             p => commands%turn_on_auto_fill
+        case ("undefined")
+            p => commands%undefined
         case ("undo")
             p => commands%undo
         case ("undo_only")

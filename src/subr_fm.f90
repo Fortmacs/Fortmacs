@@ -33,9 +33,12 @@ module subr_fm
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     use eval_fm, only: hook_type
-    use keyboard_fm, only: read_event, discard_input
+    use keyboard_fm, only: read_event, discard_input, this_command_keys
+    use dispnew_fm, only: ding
+    use commands_fm, only: commands
+    use callint_fm, only: prefix_arg
     use xdisp_fm, only: message, cursor_in_echo_area
-    use keymap_fm, only: define_key, current_global_map
+    use keymap_fm, only: define_key, current_global_map, key_description
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
                          match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
                          set_match_data, match_data_translate, replace_match
@@ -44,7 +47,7 @@ module subr_fm
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
-    public :: global_set_key, read_number
+    public :: global_set_key, read_number, undefined, syms_of_subr
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
@@ -309,6 +312,24 @@ contains
         end if
         call set(sym(history_var), longer, status)
     end subroutine add_to_history
+
+    !> Beep to tell the user this binding is undefined.  Port of
+    !> subr.el:undefined (no keyboard macro definition or mouse events).
+    subroutine undefined(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call ding(status=status)
+        if (.not. status%ok()) return
+        call message(key_description(this_command_keys)//" is undefined")
+        ! If this is a down-mouse event, don't reset prefix-arg; pass it to
+        ! the command run by the up event.
+        prefix_arg = nil()
+    end subroutine undefined
+
+    !> Register the commands of subr.el.
+    subroutine syms_of_subr()
+        commands%undefined%run => undefined
+    end subroutine syms_of_subr
 
     !> Give KEY a global binding as COMMAND.
     !> This is a legacy function; see `keymap_global_set' for the

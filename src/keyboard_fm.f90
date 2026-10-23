@@ -31,11 +31,17 @@
 !> event queue is the only source, which is how tests drive the loop;
 !> `read_event' then reports end of input instead of blocking.
 !>
+!> Keyboard macros run as upstream (macros.c:Fexecute_kbd_macro): a
+!> command loop reads the macro's events until they run out, and an
+!> error ends the macro and reaches the command loop's error handler.
+!>
 !> Not ported yet: echoing, the echo area and `message' (the last message
 !> is kept in `last_message'), timers, idle hooks and redisplay, mouse and
-!> switch-frame events, recursive edits, keyboard macro recording,
-!> pre/post-command hooks, `help_char', case tables (upper-case fallback
-!> is ASCII only), quit while computing (C-g is an ordinary key).
+!> switch-frame events, keyboard macro recording, `help_char', case
+!> tables (upper-case fallback is ASCII only), quit while computing (C-g
+!> is an ordinary key), `ring_bell_function', the `minibuffer_quit'
+!> condition (a quit in the minibuffer is handled as any quit) and
+!> `minibuffer_error_function'.
 module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR
@@ -43,7 +49,7 @@ module keyboard_fm
     use lisp_fm, only: value_type, V_LIST, nil, make_fixnum, &
                        make_keymap_ref, vtag, nilp, fixnump, symbolp, &
                        stringp, xfixnum, xsymbol, xstring, list_elements
-    use lread_fm, only: intern
+    use lread_fm, only: intern, sym
     use character_fm, only: CHAR_SHIFT, CHAR_META, CHAR_MODIFIER_MASK, &
                             bytes_by_char_head, byte8_to_char, &
                             multibyte_length, string_char_and_length
@@ -51,7 +57,7 @@ module keyboard_fm
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map
-    use callint_fm, only: call_interactively, current_prefix_arg, prefix_arg, &
+    use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
@@ -66,6 +72,7 @@ module keyboard_fm
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
               throw_exit, exit_recursive_edit, abort_recursive_edit, sit_for
+    public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
     public :: READ_KEY_ELTS, redisplay_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -150,6 +157,29 @@ module keyboard_fm
     !> is set (keyboard.c's pre-command-hook, with one function); null
     !> for none.
     procedure(redisplay_proc), pointer, public :: pre_command_hook => null()
+
+    !> Ring the bell of the selected frame's terminal (terminal.c:
+    !> ring_bell's FRAME_TERMINAL (f)->ring_bell_hook); set by the
+    !> program, null without a terminal.
+    procedure(redisplay_proc), pointer, public :: ring_bell_hook => null()
+
+    !> macros.c:Vexecuting_kbd_macro: `macro_events' are the events of
+    !> the keyboard macro being executed (when `macro_active'); a string
+    !> macro (`macro_string') gives characters 128..255 the meta bit.
+    !> `macro_forced_end' stands for the value t, which ends the macro.
+    type(value_type), allocatable :: macro_events(:)
+    logical :: macro_active = .false., macro_string = .false., macro_forced_end = .false.
+    !> macros.c:executing_kbd_macro_index, the index of the next event.
+    integer(int64), public, protected :: executing_kbd_macro_index = 0
+    !> macros.c:executing_kbd_macro (non-nil): the most recently started
+    !> macro, for the "After N kbd macro iterations" error context.
+    logical :: macro_started = .false.
+    !> macros.c:executing_kbd_macro_iterations.
+    integer(int64), public, protected :: executing_kbd_macro_iterations = 0
+    !> Whether errors of the innermost command loop are handled there
+    !> (command_loop_2 with handlers `error'): false in a keyboard macro's
+    !> loop, where they end the macro.
+    logical :: loop_handles_errors = .true.
 
     !> Set by `request_exit' to end `command_loop'.
     logical :: exit_requested = .false.
@@ -349,6 +379,21 @@ contains
                 have = .true.
                 return
             end if
+            ! If we're executing a macro, process it unless we are at its
+            ! end.
+            if (macro_active) then
+                if (.not. at_end_of_macro_p()) then
+                    executing_kbd_macro_index = executing_kbd_macro_index + 1
+                    ev = macro_events(executing_kbd_macro_index)
+                    if (macro_string .and. fixnump(ev)) then
+                        if (iand(xfixnum(ev), 128_int64) /= 0 .and. xfixnum(ev) <= 255) then
+                            ev = make_fixnum(ior(M_META, iand(xfixnum(ev), not(128_int64))))
+                        end if
+                    end if
+                    have = .true.
+                    return
+                end if
+            end if
             if (tail >= head) then
                 ev = events(head)
                 events(head) = nil()
@@ -547,6 +592,12 @@ contains
                 end if
                 if (t < mock_input) then
                     key = keybuf(t + 1)
+                else if (macro_active .and. nunread == 0 .and. at_end_of_macro_p()) then
+                    ! If we're at the end of a macro, exit it by returning
+                    ! 0, unless there are unread events pending.
+                    t = 0
+                    eof = .true.
+                    exit replay
                 else
                     call read_event(key, have, status)
                     if (.not. status%ok()) return
@@ -693,25 +744,146 @@ contains
         exit_requested_p = exit_requested
     end function exit_requested_p
 
-    !> Run keyboard macro `macro' (a string or list of events): its events
-    !> are read before other input.  A count from the prefix argument
-    !> repeats it.  Simplified macros.c:Fexecute_kbd_macro.
-    subroutine execute_kbd_macro(macro, count)
-        type(value_type), intent(in) :: macro
-        integer(int64), intent(in) :: count
-        type(value_type), allocatable :: seq(:)
-        integer(int64) :: k
-        call sequence_events(macro, seq)
-        do k = 1, max(count, 1_int64)
-            call unread_command_events(seq)
+    !> Whether the execution of a macro has reached its end.
+    !> This should be called only while executing a macro.  Port of
+    !> macros.c:at_end_of_macro_p.
+    logical function at_end_of_macro_p()
+        at_end_of_macro_p = macro_forced_end
+        if (.not. at_end_of_macro_p) then
+            at_end_of_macro_p = executing_kbd_macro_index >= size(macro_events, kind=int64)
+        end if
+    end function at_end_of_macro_p
+
+    !> Whether a keyboard macro is executing (`executing_kbd_macro'
+    !> non-nil).
+    logical function executing_kbd_macro_p()
+        executing_kbd_macro_p = macro_active
+    end function executing_kbd_macro_p
+
+    !> Execute MACRO as a sequence of events.
+    !> If MACRO is a symbol, its function definition is used.  If that is
+    !> another symbol, this process repeats.  Eventually the result should be
+    !> a string or vector.  If the result is not a symbol, string, or vector,
+    !> an error is signaled.
+    !>
+    !> COUNT is a repeat count, or nil for once, or 0 for infinite loop.
+    !>
+    !> The buffer shown in the currently selected window will be made the current
+    !> buffer before the macro is executed.  Port of
+    !> macros.c:Fexecute_kbd_macro (MACRO is a string or a list of events;
+    !> no LOOPFUNC or `kbd_macro_termination_hook').
+    recursive subroutine execute_kbd_macro(macro, count, status)
+        type(value_type), intent(in) :: macro, count
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: final(:), saved_events(:)
+        type(value_type) :: saved_real_this_command
+        integer(int64) :: repeat, success_count, saved_index
+        logical :: saved_active, saved_string, saved_forced, saved_handles, done
+        repeat = 1
+        success_count = 0
+        executing_kbd_macro_iterations = 0
+        if (.not. nilp(count)) repeat = prefix_numeric_value(count)
+        if (.not. (stringp(macro) .or. vtag(macro) == V_LIST)) then
+            call set_error(status, FM_GENERIC_ERROR, "Keyboard macros must be strings or vectors")
+            return
+        end if
+        call sequence_events(macro, final)
+        ! record_unwind_protect (pop_kbd_macro, ...)
+        saved_active = macro_active
+        saved_string = macro_string
+        saved_forced = macro_forced_end
+        saved_index = executing_kbd_macro_index
+        if (allocated(macro_events)) call move_alloc(macro_events, saved_events)
+        saved_real_this_command = real_this_command
+        saved_handles = loop_handles_errors
+        do
+            macro_events = final
+            macro_active = .true.
+            macro_string = stringp(macro)
+            macro_forced_end = .false.
+            macro_started = .true.
+            executing_kbd_macro_index = 0
+            prefix_arg = nil()
+            ! command_loop_2 (list1 (Qminibuffer_quit)): run the macro's
+            ! commands until read_key_sequence finds its end; an error
+            ! ends it.
+            loop_handles_errors = .false.
+            do
+                call command_loop_step(done, status)
+                if (.not. status%ok()) exit
+                if (done .or. exit_requested) exit
+            end do
+            if (.not. status%ok()) exit
+            success_count = success_count + 1
+            executing_kbd_macro_iterations = success_count
+            repeat = repeat - 1
+            if (repeat == 0 .or. .not. macro_active) exit
         end do
+        if (status%ok()) macro_started = .false.
+        ! pop_kbd_macro
+        loop_handles_errors = saved_handles
+        macro_active = saved_active
+        macro_string = saved_string
+        macro_forced_end = saved_forced
+        executing_kbd_macro_index = saved_index
+        if (allocated(macro_events)) deallocate (macro_events)
+        if (allocated(saved_events)) call move_alloc(saved_events, macro_events)
+        real_this_command = saved_real_this_command
     end subroutine execute_kbd_macro
 
-    !> Read one key sequence and run its command.  `done' at end of input.
-    !> Errors from the command are reported in `last_message' (as the
-    !> command loop's error handler displays them) and returned in
-    !> `status'.  One iteration of keyboard.c:command_loop_1, with
-    !> simple.el:command-execute.
+    !> Ring the bell (flash the screen with `visible_bell').  Port of
+    !> terminal.c:ring_bell (no `ring_bell_function').
+    subroutine ring_bell()
+        if (associated(ring_bell_hook)) call ring_bell_hook()
+    end subroutine ring_bell
+
+    !> Ring the bell, or, while a keyboard macro is executing, stop it with
+    !> an error.  Port of dispnew.c:bitch_at_user.
+    subroutine bitch_at_user(status)
+        type(status_type), intent(inout) :: status
+        if (macro_active) then
+            ! Stop executing a keyboard macro.
+            call set_error(status, FM_USER_ERROR, "Keyboard macro terminated by a command ringing the bell")
+        else
+            call ring_bell()
+        end if
+    end subroutine bitch_at_user
+
+    !> Report the error `status' of a command: end any keyboard macro,
+    !> discard input, ring the bell and show the message, after "After N
+    !> kbd macro iterations: " if a macro was running.  Port of
+    !> keyboard.c:cmd_error with Fcommand_error_default_function.
+    subroutine cmd_error(status)
+        type(status_type), intent(in) :: status
+        type(status_type) :: st
+        character(len=:), allocatable :: macroerror
+        character(len=24) :: buf
+        macroerror = ""
+        if (macro_started) then
+            if (executing_kbd_macro_iterations == 1) then
+                macroerror = "After 1 kbd macro iteration: "
+            else
+                write (buf, "(i0)") executing_kbd_macro_iterations
+                macroerror = "After "//trim(buf)//" kbd macro iterations: "
+            end if
+        end if
+        macro_active = .false.
+        macro_started = .false.
+        if (allocated(macro_events)) deallocate (macro_events)
+        prefix_arg = nil()
+        last_prefix_arg = nil()
+        ! command-error-default-function
+        call discard_input()
+        call bitch_at_user(st)
+        last_message = macroerror//format_error(status)
+    end subroutine cmd_error
+
+    !> Read one key sequence and run its command.  `done' at end of input
+    !> (or of the keyboard macro being executed).  Errors from the command
+    !> are returned in `status'; the command loop's error handler reports
+    !> them in `last_message', with the bell (`cmd_error'), except in a
+    !> keyboard macro, which they end.  One iteration of
+    !> keyboard.c:command_loop_1, with simple.el:command-execute.
     recursive subroutine command_loop_step(done, status)
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
@@ -723,7 +895,7 @@ contains
         real_this_command = nil()
         call read_key_sequence(keys, cmd, eof, status)
         if (.not. status%ok()) then
-            last_message = format_error(status)
+            if (loop_handles_errors) call cmd_error(status)
             return
         end if
         if (eof .and. size(keys) == 0) then
@@ -760,19 +932,32 @@ contains
             buffer_before_last_command_or_undo = buffers(cur)%serial
         end if
         vdeactivate_mark = .false.
-        ! simple.el:command-execute
-        current_prefix_arg = prefix_arg
-        prefix_arg = nil()
-        if (test_undefined(cmd)) then
-            ! subr.el:undefined
-            last_message = key_description(keys)//" is undefined"
-        else if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
-            call execute_kbd_macro(cmd, prefix_numeric_value(current_prefix_arg))
+        if (nilp(cmd)) then
+            ! nil means key is undefined.
+            call funcall(sym("undefined"), status)
         else
-            handled = .false.
-            if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
-            if (.not. handled) call call_interactively(cmd, status)
-            if (.not. status%ok()) last_message = format_error(status)
+            ! simple.el:command-execute
+            current_prefix_arg = prefix_arg
+            prefix_arg = nil()
+            if (stringp(cmd) .or. vtag(cmd) == V_LIST) then
+                call execute_kbd_macro(cmd, current_prefix_arg, status)
+            else
+                handled = .false.
+                if (associated(disabled_command_hook)) call disabled_command_hook(cmd, handled, status)
+                if (.not. handled) call call_interactively(cmd, status)
+            end if
+        end if
+        if (.not. status%ok()) then
+            ! The error leaves command_loop_1: in a keyboard macro's loop it
+            ! ends the macro; else the handler reports it and the next
+            ! command_loop_1 runs post-command-hook and sets last-command.
+            if (.not. loop_handles_errors) return
+            call cmd_error(status)
+            last_command = this_command
+            real_last_command = real_this_command
+            if (associated(post_command_hook)) call post_command_hook()
+            done = eof
+            return
         end if
         last_prefix_arg = current_prefix_arg
         last_command = this_command
@@ -791,32 +976,51 @@ contains
 
     !> Run commands until input ends or `request_exit' is called.  Command
     !> errors don't stop the loop.  Port of keyboard.c:command_loop_1.
-    subroutine command_loop(status)
+    recursive subroutine command_loop(status)
         type(status_type), intent(out) :: status
         type(status_type) :: step_status
-        logical :: done
+        logical :: done, saved_handles
         exit_requested = .false.
+        saved_handles = loop_handles_errors
+        loop_handles_errors = .true.
         do
             call command_loop_step(done, step_status)
             if (done .or. exit_requested) exit
         end do
+        macro_started = .false.
+        loop_handles_errors = saved_handles
         exit_requested = .false.
     end subroutine command_loop
 
     !> Run a command loop until a command throws to `exit': return when
     !> it throws nil, signal quit when it throws t.  End of input, or a
-    !> request to leave Emacs, also ends it with a quit.  Port of
-    !> keyboard.c:recursive_edit_1 with Frecursive_edit's catch.
+    !> request to leave Emacs, also ends it with a quit; the end of the
+    !> keyboard macro being executed ends it as an exit.  Its command loop
+    !> handles errors (internal_catch (Qexit, command_loop_2, Qerror)).
+    !> Port of keyboard.c:recursive_edit_1 with Frecursive_edit's catch.
     recursive subroutine recursive_edit_1(status)
         type(status_type), intent(out) :: status
         type(status_type) :: step_status
-        logical :: done
+        logical :: done, saved_handles, macro_end
         command_loop_level = command_loop_level + 1
         exit_pending = .false.
+        saved_handles = loop_handles_errors
+        loop_handles_errors = .true.
+        macro_end = .false.
         do
             call command_loop_step(done, step_status)
+            if (done .and. macro_active) macro_end = at_end_of_macro_p()
             if (exit_pending .or. done .or. exit_requested) exit
         end do
+        loop_handles_errors = saved_handles
+        ! command_loop: executing_kbd_macro = Qnil.
+        macro_started = .false.
+        if (macro_end .and. .not. exit_pending) then
+            ! command_loop_1 returned at the end of the macro: as (throw
+            ! 'exit nil).
+            exit_pending = .true.
+            exit_abort = .false.
+        end if
         if (.not. exit_pending .or. exit_abort) call set_error(status, FM_QUIT)
         exit_pending = .false.
         exit_abort = .false.

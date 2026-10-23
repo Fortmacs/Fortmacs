@@ -94,7 +94,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(282) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(285) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
@@ -262,6 +262,8 @@ module docstrings_fm
                                                                    "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", &
                                                                    "modify_syntax_entry", &
+                                                                   "move_beginning_of_line", &
+                                                                   "move_end_of_line", &
                                                                    "move_to_left_margin", &
                                                                    "move_to_tab_stop", &
                                                                    "move_to_window_line", &
@@ -358,6 +360,7 @@ module docstrings_fm
                                                                    "transpose_words", &
                                                                    "turn_off_auto_fill", &
                                                                    "turn_on_auto_fill", &
+                                                                   "undefined", &
                                                                    "undo", &
                                                                    "undo_boundary", &
                                                                    "undo_only", &
@@ -1841,6 +1844,39 @@ contains
                         " used only if the first character is `(' or `)'."//LF// &
                         "Any additional characters are flags: 1, 2, 3, 4, b, c, n and p"//LF// &
                         "(comment sequences and prefix characters; see the Emacs manual)."
+        case ("move_beginning_of_line")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to visible beginning of current logical line."//LF// &
+                        "This disregards any invisible newline characters."//LF// &
+                        ""//LF// &
+                        "When moving from position that has no `field' property, this"//LF// &
+                        "command doesn't enter text which has non-nil `field' property."//LF// &
+                        "In particular, when invoked in the minibuffer, the command will"//LF// &
+                        "stop short of entering the text of the minibuffer prompt."//LF// &
+                        "See `inhibit_field_text_motion' for how to inhibit this."//LF// &
+                        ""//LF// &
+                        "With argument ARG not nil or 1, move forward ARG - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        "(But if the buffer doesn't end in a newline, it stops at the"//LF// &
+                        "beginning of the last line.)"//LF// &
+                        ""//LF// &
+                        "To ignore intangibility, bind `inhibit_point_motion_hooks' to t."//LF// &
+                        "For motion by visual lines, see `beginning_of_visual_line'.  Port"//LF// &
+                        "of simple.el:move-beginning-of-line (invisible text is deferred"//LF// &
+                        "with the rest of invisibility)."
+        case ("move_end_of_line")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to end of current line as displayed."//LF// &
+                        "With argument ARG not nil or 1, move forward ARG - 1 lines first."//LF// &
+                        "If point reaches the beginning or end of buffer, it stops there."//LF// &
+                        ""//LF// &
+                        "To ignore the effects of the `intangible' text or overlay"//LF// &
+                        "property, bind `inhibit_point_motion_hooks' to t."//LF// &
+                        "If there is an image in the current line, this function"//LF// &
+                        "disregards newlines that are part of the text on which the image"//LF// &
+                        "rests."
         case ("move_to_left_margin")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
@@ -2931,6 +2967,10 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("undefined")
+            entry%file = "subr_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Beep to tell the user this binding is undefined."
         case ("undo")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.

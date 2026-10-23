@@ -288,7 +288,11 @@ contains
         call check(error, buffer_string(), "")
         if (allocated(error)) return
         ! A different command breaks the chain: C-f, then undo twice redoes.
-        call kbd_store_bytes(achar(6)//achar(31)//achar(31))
+        ! (C-f fails at the end of the buffer, which discards the input
+        ! typed ahead.)
+        call kbd_store_bytes(achar(6))
+        call command_loop(st)
+        call kbd_store_bytes(achar(31)//achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "xyzabc")
         if (allocated(error)) return

@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The help commands of help.el: the help map on C-h and <f1>,
+!> The help commands of help.el: the help map on C-h, <help> and <f1>,
 !> `describe_key' (C-h k), `describe_key_briefly' (C-h c), `where_is'
 !> (C-h w) and `help_quit'; `substitute_command_keys', which turns a
 !> docstring's \[COMMAND], \<MAP>, \`KEY', \= and quotes into what the
@@ -470,7 +470,7 @@ contains
         status = status_type()
     end subroutine help_quit
 
-    !> Make `help_map' and put it on C-h and <f1> in `global_map'; name
+    !> Make `help_map' and put it on C-h, <help> and <f1> in `global_map'; name
     !> the keymaps docstrings refer to; register the commands.
     subroutine syms_of_help(global_map)
         type(handle_type), intent(in) :: global_map
@@ -485,6 +485,8 @@ contains
         call keymap_set(help_map, "v", "describe_variable", status)
         call keymap_set(help_map, "w", "where_is", status)
         call key_parse("C-h", key, status)
+        call define_key(global_map, key, make_keymap_ref(help_map), status)
+        call key_parse("<help>", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<f1>", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
