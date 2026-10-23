@@ -32,12 +32,14 @@ module docstrings_fm
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use files_fm, only: make_backup_files
-    use isearch_fm, only: search_exit_option, search_nonincremental_instead, search_ring_max, &
+    use isearch_fm, only: isearch_lax_whitespace, isearch_regexp_lax_whitespace, &
+                          regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
                              completion_show_inline_help, insert_default_directory
+    use paragraphs_fm, only: sentence_end_double_space, sentence_end_without_period
     use search_fm, only: case_fold_search
     use simple_fm, only: delete_active_region, goal_column, kill_read_only_ok, kill_ring_max, &
                          kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
@@ -68,13 +70,15 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(185) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(211) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
                                                                    "backward-kill-paragraph", &
+                                                                   "backward-kill-sentence", &
                                                                    "backward-kill-word", &
                                                                    "backward-paragraph", &
+                                                                   "backward-sentence", &
                                                                    "backward-word", &
                                                                    "beginning-of-line", &
                                                                    "bobp", &
@@ -117,6 +121,7 @@ module docstrings_fm
                                                                    "forward-char", &
                                                                    "forward-line", &
                                                                    "forward-paragraph", &
+                                                                   "forward-sentence", &
                                                                    "forward-word", &
                                                                    "get-buffer-create", &
                                                                    "global-set-key", &
@@ -125,6 +130,7 @@ module docstrings_fm
                                                                    "insert", &
                                                                    "isearch-abort", &
                                                                    "isearch-backward", &
+                                                                   "isearch-backward-regexp", &
                                                                    "isearch-beginning-of-buffer", &
                                                                    "isearch-cancel", &
                                                                    "isearch-del-char", &
@@ -133,6 +139,7 @@ module docstrings_fm
                                                                    "isearch-end-of-buffer", &
                                                                    "isearch-exit", &
                                                                    "isearch-forward", &
+                                                                   "isearch-forward-regexp", &
                                                                    "isearch-printing-char", &
                                                                    "isearch-quote-char", &
                                                                    "isearch-repeat-backward", &
@@ -140,6 +147,8 @@ module docstrings_fm
                                                                    "isearch-ring-advance", &
                                                                    "isearch-ring-retreat", &
                                                                    "isearch-toggle-case-fold", &
+                                                                   "isearch-toggle-lax-whitespace", &
+                                                                   "isearch-toggle-regexp", &
                                                                    "isearch-yank-char", &
                                                                    "isearch-yank-kill", &
                                                                    "isearch-yank-line", &
@@ -157,21 +166,29 @@ module docstrings_fm
                                                                    "kill-paragraph", &
                                                                    "kill-region", &
                                                                    "kill-ring-save", &
+                                                                   "kill-sentence", &
                                                                    "kill-whole-line", &
                                                                    "kill-word", &
                                                                    "left-char", &
                                                                    "left-word", &
                                                                    "list", &
+                                                                   "looking-at", &
+                                                                   "looking-at-p", &
+                                                                   "looking-back", &
                                                                    "make-fixnum", &
                                                                    "make-sparse-keymap", &
                                                                    "make-string", &
                                                                    "make-syntax-table", &
                                                                    "mark", &
+                                                                   "mark-end-of-sentence", &
                                                                    "mark-paragraph", &
                                                                    "mark-whole-buffer", &
                                                                    "mark-word", &
                                                                    "match-beginning", &
+                                                                   "match-data", &
                                                                    "match-end", &
+                                                                   "match-string", &
+                                                                   "match-string-no-properties", &
                                                                    "message", &
                                                                    "minibuffer-complete", &
                                                                    "minibuffer-complete-and-exit", &
@@ -193,17 +210,24 @@ module docstrings_fm
                                                                    "point-max", &
                                                                    "point-min", &
                                                                    "pop-to-mark-command", &
+                                                                   "posix-looking-at", &
+                                                                   "posix-search-backward", &
+                                                                   "posix-search-forward", &
+                                                                   "posix-string-match", &
                                                                    "prefix-numeric-value", &
                                                                    "previous-history-element", &
                                                                    "previous-line", &
                                                                    "push-mark", &
                                                                    "quit-window", &
                                                                    "quoted-insert", &
+                                                                   "re-search-backward", &
+                                                                   "re-search-forward", &
                                                                    "read-buffer", &
                                                                    "read-file-name-default", &
                                                                    "read-string", &
                                                                    "recenter", &
                                                                    "recenter-top-bottom", &
+                                                                   "regexp-quote", &
                                                                    "region-active-p", &
                                                                    "region-beginning", &
                                                                    "region-end", &
@@ -222,16 +246,20 @@ module docstrings_fm
                                                                    "select-window", &
                                                                    "selected-window", &
                                                                    "self-insert-command", &
+                                                                   "sentence-end", &
                                                                    "set", &
                                                                    "set-buffer", &
                                                                    "set-error", &
                                                                    "set-mark", &
                                                                    "set-mark-command", &
+                                                                   "set-match-data", &
                                                                    "set-syntax-table", &
                                                                    "split-window", &
                                                                    "split-window-below", &
                                                                    "split-window-right", &
                                                                    "standard-syntax-table", &
+                                                                   "string-match", &
+                                                                   "string-match-p", &
                                                                    "substitute-command-keys", &
                                                                    "switch-to-buffer", &
                                                                    "sym", &
@@ -256,7 +284,7 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=29), parameter, public :: variable_names(32) = [character(len=29) :: &
+    character(len=29), parameter, public :: variable_names(37) = [character(len=29) :: &
                                                                   "case-fold-search", &
                                                                   "completion-auto-help", &
                                                                   "completion-fail-discreetly", &
@@ -271,6 +299,8 @@ module docstrings_fm
                                                                   "history-length", &
                                                                   "inhibit-field-text-motion", &
                                                                   "insert-default-directory", &
+                                                                  "isearch-lax-whitespace", &
+                                                                  "isearch-regexp-lax-whitespace", &
                                                                   "kill-read-only-ok", &
                                                                   "kill-ring-max", &
                                                                   "kill-whole-line", &
@@ -279,11 +309,14 @@ module docstrings_fm
                                                                   "mark-even-if-inactive", &
                                                                   "mark-ring-max", &
                                                                   "next-screen-context-lines", &
+                                                                  "regexp-search-ring-max", &
                                                                   "scroll-error-top-bottom", &
                                                                   "search-exit-option", &
                                                                   "search-nonincremental-instead", &
                                                                   "search-ring-max", &
                                                                   "search-upper-case", &
+                                                                  "sentence-end-double-space", &
+                                                                  "sentence-end-without-period", &
                                                                   "suggest-key-bindings", &
                                                                   "tab-width", &
                                                                   "transient-mark-mode", &
@@ -354,6 +387,13 @@ contains
             entry%doc = "Kill back to start of paragraph."//LF// &
                         "With ARG N, kill back to Nth start of paragraph;"//LF// &
                         "negative ARG -N means kill forward to Nth end of paragraph."
+        case ("backward-kill-sentence")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call backward_kill_sentence(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill back from point to start of sentence."//LF// &
+                        "With ARG, repeat, or kill forward to Nth end of sentence if"//LF// &
+                        "negative ARG -N."
         case ("backward-kill-word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_kill_word(arg, status)"
@@ -375,6 +415,13 @@ contains
                         "blank line."//LF// &
                         ""//LF// &
                         "See `forward-paragraph' for more information."
+        case ("backward-sentence")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call backward_sentence(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move backward to start of sentence."//LF// &
+                        "With ARG, do it ARG times.  See `forward-sentence' for more"//LF// &
+                        "information."
         case ("backward-word")
             entry%file = "simple_fm.f90"
             entry%fortran = "call backward_word(arg)"
@@ -690,6 +737,16 @@ contains
                         "(if `paragraph-separate' matches it also) or is the first line of a paragraph."//LF// &
                         "A paragraph end is the beginning of a line which is not part of the paragraph"//LF// &
                         "to which the end of the previous line belongs, or the end of the buffer."
+        case ("forward-sentence")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call forward_sentence(arg)"
+            entry%interactive = .true.
+            entry%doc = "Move forward to next end of sentence.  With argument ARG, repeat."//LF// &
+                        "If ARG is negative, move backward repeatedly to start of sentence."//LF// &
+                        ""//LF// &
+                        "The variable `sentence-end' is a regular expression that matches"//LF// &
+                        "ends of sentences.  Also, every paragraph boundary terminates"//LF// &
+                        "sentences as well."
         case ("forward-word")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call forward_word(arg, ok)"
@@ -734,7 +791,17 @@ contains
             entry%fortran = "call isearch_backward_command(status)"
             entry%interactive = .true.
             entry%doc = "Do incremental search backward."//LF// &
+                        "With a prefix argument, do a regular expression search instead."//LF// &
                         "See the command `isearch-forward' for more information."
+        case ("isearch-backward-regexp")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "call isearch_backward_regexp_command(status)"
+            entry%interactive = .true.
+            entry%doc = "Do incremental search backward for regular expression."//LF// &
+                        "With a prefix argument, do a regular string search instead."//LF// &
+                        "Like ordinary incremental search except that your input is treated"//LF// &
+                        "as a regexp.  See the command `isearch-forward-regexp' for more"//LF// &
+                        "information."
         case ("isearch-beginning-of-buffer")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -785,7 +852,7 @@ contains
             entry%interactive = .true.
             entry%doc = "Do incremental search forward."//LF// &
                         "With a prefix argument, do an incremental regular expression"//LF// &
-                        "search instead (not yet: the search is literal)."//LF// &
+                        "search instead."//LF// &
                         "As you type characters, they add to the search string and are"//LF// &
                         "found.  Type DEL to cancel last input item from end of search"//LF// &
                         "string.  Type RET to exit, leaving point at location found.  Type"//LF// &
@@ -797,6 +864,22 @@ contains
                         "executed normally.  C-g while searching or when search has failed"//LF// &
                         "cancels input back to what has been found successfully.  C-g when"//LF// &
                         "search is successful aborts and moves point to starting point."
+        case ("isearch-forward-regexp")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "call isearch_forward_regexp_command(status)"
+            entry%interactive = .true.
+            entry%doc = "Do incremental search forward for regular expression."//LF// &
+                        "With a prefix argument, do a regular string search instead."//LF// &
+                        "Like ordinary incremental search except that your input is treated"//LF// &
+                        "as a regexp.  See the command `isearch-forward' for more"//LF// &
+                        "information."//LF// &
+                        ""//LF// &
+                        "In incremental searches, a space or spaces normally matches any"//LF// &
+                        "whitespace defined by the variable `search-whitespace-regexp'.  To"//LF// &
+                        "search for a literal space and nothing else, enter C-q SPC.  To"//LF// &
+                        "toggle whitespace matching, use `isearch-toggle-lax-whitespace',"//LF// &
+                        "usually bound to `M-s SPC' during isearch.  This command does not"//LF// &
+                        "support character folding."
         case ("isearch-printing-char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -832,6 +915,17 @@ contains
             entry%interactive = .true.
             entry%doc = "Toggle case folding in searching on or off."//LF// &
                         "Toggles the value of the variable `isearch-case-fold-search'."
+        case ("isearch-toggle-lax-whitespace")
+            entry%file = "isearch_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle lax-whitespace searching on or off."//LF// &
+                        "In ordinary search, toggles the value of the variable"//LF// &
+                        "`isearch-lax-whitespace'.  In regexp search, toggles the value of"//LF// &
+                        "the variable `isearch-regexp-lax-whitespace'."
+        case ("isearch-toggle-regexp")
+            entry%file = "isearch_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle regexp searching on or off."
         case ("isearch-yank-char")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -949,6 +1043,13 @@ contains
             entry%interactive = .true.
             entry%doc = "Save the region as if killed, but don't kill it."//LF// &
                         "In Transient Mark mode, deactivate the mark."
+        case ("kill-sentence")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call kill_sentence(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Kill from point to end of sentence."//LF// &
+                        "With ARG, repeat; negative ARG -N means kill back to Nth start of"//LF// &
+                        "sentence."
         case ("kill-whole-line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -988,6 +1089,34 @@ contains
             entry%file = "lisp_fm.f90"
             entry%fortran = "list(v1, v2, v3, v4, v5, v6, v7, v8)"
             entry%doc = "A list of up to eight values."
+        case ("looking-at")
+            entry%file = "search_fm.f90"
+            entry%fortran = "looking_at(regexp, status, inhibit_modify)"
+            entry%doc = "Return t if text after point matches regular expression REGEXP."//LF// &
+                        "By default, this function modifies the match data that"//LF// &
+                        "`match-beginning', `match-end' and `match-data' access.  If"//LF// &
+                        "INHIBIT-MODIFY is non-nil, don't modify the match data."
+        case ("looking-at-p")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "looking_at_p(regexp, status)"
+            entry%doc = "Same as `looking-at' except this function does not change the match"//LF// &
+                        "data."
+        case ("looking-back")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "looking_back(regexp, status, limit, greedy)"
+            entry%doc = "Return non-nil if text before point matches regular expression"//LF// &
+                        "REGEXP.  Like `looking-at' except matches before point, and is"//LF// &
+                        "slower.  LIMIT if non-nil speeds up the search by specifying a"//LF// &
+                        "minimum starting position, to avoid checking matches that would"//LF// &
+                        "start before LIMIT."//LF// &
+                        ""//LF// &
+                        "If GREEDY is non-nil, extend the match backwards as far as possible,"//LF// &
+                        "stopping when a single additional previous character cannot be part"//LF// &
+                        "of a match for REGEXP.  When the match is extended, its starting"//LF// &
+                        "position is allowed to occur before LIMIT."//LF// &
+                        ""//LF// &
+                        "As a general recommendation, try to avoid using `looking-back'"//LF// &
+                        "wherever possible, since it is slow."
         case ("make-fixnum")
             entry%file = "lisp_fm.f90"
             entry%fortran = "make_fixnum(n)"
@@ -1015,6 +1144,14 @@ contains
                         "the mark is not active.  However, if `mark_even_if_inactive` is true,"//LF// &
                         "or the argument FORCE is true, it disregards whether the mark"//LF// &
                         "is active, and returns an integer or 0 in the usual way."
+        case ("mark-end-of-sentence")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call mark_end_of_sentence(arg)"
+            entry%interactive = .true.
+            entry%doc = "Put mark at end of sentence."//LF// &
+                        "ARG works as in `forward-sentence'.  If this command is repeated,"//LF// &
+                        "it marks the next ARG sentences after the ones already marked.  Port"//LF// &
+                        "of paragraphs.el:mark-end-of-sentence."
         case ("mark-paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call mark_paragraph(arg, allow_extend, status)"
@@ -1069,6 +1206,20 @@ contains
                         "whole string."//LF// &
                         ""//LF// &
                         "Return value is undefined if the last search failed."
+        case ("match-data")
+            entry%file = "search_fm.f90"
+            entry%fortran = "match_data()"
+            entry%doc = "Return a list of positions that record text matched by the last"//LF// &
+                        "search.  Element 2N of the returned list is the position of the"//LF// &
+                        "beginning of the match of the Nth subexpression; it corresponds to"//LF// &
+                        "`(match-beginning N)'; element 2N + 1 is the position of the end of"//LF// &
+                        "the match of the Nth subexpression; it corresponds to `(match-end"//LF// &
+                        "N)'.  See `match-beginning' and `match-end'.  Positions are"//LF// &
+                        "integers, 0 (nil) when the Nth pair didn't match; trailing nils are"//LF// &
+                        "left out."//LF// &
+                        ""//LF// &
+                        "Use `set-match-data' to reinstate the match data from the elements"//LF// &
+                        "of this list."
         case ("match-end")
             entry%file = "search_fm.f90"
             entry%fortran = "match_end(subexp, status)"
@@ -1081,6 +1232,31 @@ contains
                         "whole string."//LF// &
                         ""//LF// &
                         "Return value is undefined if the last search failed."
+        case ("match-string")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "match_string(num, string, matched)"
+            entry%doc = "Return the string of text matched by the previous search or regexp"//LF// &
+                        "operation.  NUM specifies the number of the parenthesized"//LF// &
+                        "sub-expression in the last regexp whose match to return.  Zero"//LF// &
+                        "means the entire text matched by the whole regexp or whole string."//LF// &
+                        ""//LF// &
+                        "The return value is nil (`matched` false, an empty string) if NUMth"//LF// &
+                        "pair didn't match, or there were less than NUM pairs."//LF// &
+                        ""//LF// &
+                        "STRING should be given if the last search was by `string-match' on"//LF// &
+                        "STRING.  If STRING is nil, the current buffer should be the same"//LF// &
+                        "buffer as the one in which the search/match was performed."
+        case ("match-string-no-properties")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "match_string_no_properties(num, string, matched)"
+            entry%doc = "Return string of text matched by last search, without text"//LF// &
+                        "properties.  NUM specifies which parenthesized expression in the"//LF// &
+                        "last regexp.  Value is nil if NUMth pair didn't match, or there"//LF// &
+                        "were less than NUM pairs.  Zero means the entire text matched by"//LF// &
+                        "the whole regexp or whole string.  STRING should be given if the"//LF// &
+                        "last search was by `string-match' on STRING.  If STRING is nil, the"//LF// &
+                        "current buffer should be the same buffer as the one in which the"//LF// &
+                        "search/match was performed."
         case ("message")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "call message(text)"
@@ -1251,6 +1427,50 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Jump to mark, and pop a new position for mark off the ring."
+        case ("posix-looking-at")
+            entry%file = "search_fm.f90"
+            entry%fortran = "posix_looking_at(regexp, status, inhibit_modify)"
+            entry%doc = "Return t if text after point matches REGEXP according to Posix rules."//LF// &
+                        "Find the longest match, in accordance with Posix regular expression"//LF// &
+                        "rules."//LF// &
+                        ""//LF// &
+                        "By default, this function modifies the match data that"//LF// &
+                        "`match-beginning', `match-end' and `match-data' access.  If"//LF// &
+                        "INHIBIT-MODIFY is non-nil, don't modify the match data."
+        case ("posix-search-backward")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call posix_search_backward(regexp, found, status, bound, noerror, count)"
+            entry%interactive = .true.
+            entry%doc = "Search backward from point for match for REGEXP according to Posix"//LF// &
+                        "rules.  Find the longest match in accord with Posix regular"//LF// &
+                        "expression rules.  This function is almost identical to"//LF// &
+                        "`posix-search-forward', except that by default it searches backward"//LF// &
+                        "instead of forward, and the sign of COUNT also indicates exactly the"//LF// &
+                        "opposite searching direction."
+        case ("posix-search-forward")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call posix_search_forward(regexp, found, status, bound, noerror, count)"
+            entry%interactive = .true.
+            entry%doc = "Search forward from point for REGEXP according to Posix rules."//LF// &
+                        "Find the longest match in accord with Posix regular expression rules."//LF// &
+                        "Set point to the end of the occurrence found, and return point."//LF// &
+                        "BOUND, NOERROR and COUNT are as for `re-search-forward'."
+        case ("posix-string-match")
+            entry%file = "search_fm.f90"
+            entry%fortran = "posix_string_match(regexp, string, status, start, inhibit_modify)"
+            entry%doc = "Return index of start of first match for Posix REGEXP in STRING, or"//LF// &
+                        "nil (0).  Find the longest match, in accord with Posix regular"//LF// &
+                        "expression rules.  Case is ignored if `case-fold-search' is non-nil"//LF// &
+                        "in the current buffer."//LF// &
+                        ""//LF// &
+                        "If INHIBIT-MODIFY is non-nil, match data is not changed."//LF// &
+                        ""//LF// &
+                        "If INHIBIT-MODIFY is nil or missing, match data is changed, and"//LF// &
+                        "`match-end' and `match-beginning' give indices of substrings matched"//LF// &
+                        "by parenthesis constructs in the pattern.  You can use the function"//LF// &
+                        "`match-string' to extract the substrings matched by the parenthesis"//LF// &
+                        "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
+                        "do (match-end 0)."
         case ("prefix-numeric-value")
             entry%file = "callint_fm.f90"
             entry%fortran = "prefix_numeric_value(raw)"
@@ -1299,6 +1519,46 @@ contains
             entry%doc = "Read next input character and insert it."//LF// &
                         "This is useful for inserting control characters."//LF// &
                         "With argument, insert ARG copies of the character."
+        case ("re-search-backward")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call re_search_backward(regexp, found, status, bound, noerror, count)"
+            entry%interactive = .true.
+            entry%doc = "Search backward from point for regular expression REGEXP."//LF// &
+                        "This function is almost identical to `re-search-forward', except that"//LF// &
+                        "by default it searches backward instead of forward, and the sign of"//LF// &
+                        "COUNT also indicates exactly the opposite searching direction."//LF// &
+                        "See `re-search-forward' for details."//LF// &
+                        ""//LF// &
+                        "Note that searching backwards may give a shorter match than expected,"//LF// &
+                        "because REGEXP is still matched in the forward direction."
+        case ("re-search-forward")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call re_search_forward(regexp, found, status, bound, noerror, count)"
+            entry%interactive = .true.
+            entry%doc = "Search forward from point for regular expression REGEXP."//LF// &
+                        "Set point to the end of the occurrence found, and return point"//LF// &
+                        "in `found` (0 for nil)."//LF// &
+                        "The optional argument BOUND is a buffer position that bounds the"//LF// &
+                        "search.  The match found must not end after that position.  Absent"//LF// &
+                        "means search to the end of the accessible portion of the buffer."//LF// &
+                        "The optional argument NOERROR indicates how errors are handled"//LF// &
+                        "when the search fails: if it is SEARCH_SIGNAL or absent, emit an"//LF// &
+                        "error; if it is SEARCH_NOERROR, simply return nil and do nothing;"//LF// &
+                        "if it is SEARCH_MOVE, move to the limit of search and return nil."//LF// &
+                        "The optional argument COUNT is a number that indicates the search"//LF// &
+                        "direction and the number of occurrences to search for.  If it is"//LF// &
+                        "positive, search forward for COUNT successive occurrences; if it is"//LF// &
+                        "negative, search backward, instead of forward, for -COUNT"//LF// &
+                        "occurrences.  Absent means the same as 1."//LF// &
+                        "With COUNT positive/negative, the match found is the"//LF// &
+                        "COUNTth/-COUNTth one in the buffer located entirely after/before"//LF// &
+                        "the origin of the search."//LF// &
+                        ""//LF// &
+                        "Search case-sensitivity is determined by the value of the variable"//LF// &
+                        "`case-fold-search', which see."//LF// &
+                        ""//LF// &
+                        "See also the functions `match-beginning', `match-end', `match-string',"//LF// &
+                        "and `replace-match'."
         case ("read-buffer")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_buffer(prompt, result, status, def, require_match, except)"
@@ -1355,6 +1615,11 @@ contains
                         "With numeric prefix ARG, move current line ARG lines below the"//LF// &
                         "window top.  With plain \[universal-argument], move current line"//LF// &
                         "to window center."
+        case ("regexp-quote")
+            entry%file = "search_fm.f90"
+            entry%fortran = "regexp_quote(string)"
+            entry%doc = "Return a regexp string which matches exactly STRING and nothing"//LF// &
+                        "else."
         case ("region-active-p")
             entry%file = "simple_fm.f90"
             entry%fortran = "region_active_p()"
@@ -1499,6 +1764,7 @@ contains
         case ("search-backward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_backward(string, found, status, bound, noerror, count)"
+            entry%interactive = .true.
             entry%doc = "Search backward from point for STRING."//LF// &
                         "This function is almost identical to `search-forward', except that"//LF// &
                         "by default it searches backward instead of forward, and the sign of"//LF// &
@@ -1507,6 +1773,7 @@ contains
         case ("search-forward")
             entry%file = "search_fm.f90"
             entry%fortran = "call search_forward(string, found, status, bound, noerror, count)"
+            entry%interactive = .true.
             entry%doc = "Search forward from point for STRING."//LF// &
                         "Set point to the end of the occurrence found, and return point"//LF// &
                         "in `found` (0 for nil)."//LF// &
@@ -1529,7 +1796,8 @@ contains
                         "Search case-sensitivity is determined by the value of the variable"//LF// &
                         "`case-fold-search', which see."//LF// &
                         ""//LF// &
-                        "See also the functions `match-beginning' and `match-end'."
+                        "See also the functions `match-beginning', `match-end', `match-string',"//LF// &
+                        "and `replace-match'."
         case ("select-window")
             entry%file = "window_fm.f90"
             entry%fortran = "call select_window(h, status, norecord)"
@@ -1549,6 +1817,20 @@ contains
             entry%doc = "Insert the character you type."//LF// &
                         "Whichever character C you type to run this command is inserted."//LF// &
                         "The numeric prefix argument N says how many times to repeat the insertion."
+        case ("sentence-end")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end_regexp()"
+            entry%doc = "Return the regexp describing the end of a sentence."//LF// &
+                        ""//LF// &
+                        "This function returns either the value of the variable"//LF// &
+                        "`sentence-end' if it is non-nil, or the default value constructed"//LF// &
+                        "from the variables `sentence-end-base', `sentence-end-double-space',"//LF// &
+                        "`sentence-end-without-period' and `sentence-end-without-space'."//LF// &
+                        ""//LF// &
+                        "The default value specifies that in order to be recognized as the"//LF// &
+                        "end of a sentence, the ending period, question mark, or exclamation"//LF// &
+                        "point must be followed by two spaces, with perhaps some closing"//LF// &
+                        "delimiters in between."
         case ("set")
             entry%file = "data_fm.f90"
             entry%fortran = "call set(symbol, newval, status)"
@@ -1585,6 +1867,13 @@ contains
                         ""//LF// &
                         "With C-u C-u as prefix argument, unconditionally set mark where point"//LF// &
                         "is."
+        case ("set-match-data")
+            entry%file = "search_fm.f90"
+            entry%fortran = "call set_match_data(data)"
+            entry%doc = "Set internal data on last search match from elements of LIST."//LF// &
+                        "LIST should have been created by calling `match-data' previously;"//LF// &
+                        "nil (0) elements mark groups that didn't match.  The positions are"//LF// &
+                        "taken to be in the current buffer."
         case ("set-syntax-table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call set_syntax_table(h, status)"
@@ -1633,6 +1922,29 @@ contains
             entry%fortran = "standard_syntax_table()"
             entry%doc = "Return the standard syntax table."//LF// &
                         "This is the one used for new buffers."
+        case ("string-match")
+            entry%file = "search_fm.f90"
+            entry%fortran = "string_match(regexp, string, status, start, inhibit_modify)"
+            entry%doc = "Return index of start of first match for REGEXP in STRING, or nil"//LF// &
+                        "(0).  Matching ignores case if `case-fold-search' is non-nil.  If"//LF// &
+                        "START is present, start search at that index in STRING."//LF// &
+                        ""//LF// &
+                        "If INHIBIT-MODIFY is non-nil, match data is not changed."//LF// &
+                        ""//LF// &
+                        "If INHIBIT-MODIFY is nil or missing, match data is changed, and"//LF// &
+                        "`match-end' and `match-beginning' give indices of substrings matched"//LF// &
+                        "by parenthesis constructs in the pattern.  You can use the function"//LF// &
+                        "`match-string' to extract the substrings matched by the parenthesis"//LF// &
+                        "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
+                        "do (match-end 0)."//LF// &
+                        ""//LF// &
+                        "Indices are 1-based character indices, as Fortran's `index` (Emacs"//LF// &
+                        "counts from 0); a negative START counts from the end."
+        case ("string-match-p")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "string_match_p(regexp, string, status, start)"
+            entry%doc = "Same as `string-match' except this function does not change the"//LF// &
+                        "match data."
         case ("substitute-command-keys")
             entry%file = "help_fm.f90"
             entry%fortran = "substitute_command_keys(string)"
@@ -1980,6 +2292,32 @@ contains
                         "default name, if one is provided."//LF// &
                         ""//LF// &
                         "If this variable is nil, the minibuffer often starts out empty."
+        case ("isearch-lax-whitespace")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_lax_whitespace"
+            entry%original = ".true."
+            entry%value = repr(isearch_lax_whitespace)
+            entry%doc = "If non-nil, a space will match a sequence of whitespace chars."//LF// &
+                        "When you enter a space or spaces in ordinary incremental search, it"//LF// &
+                        "will match any sequence matched by the regexp defined by the"//LF// &
+                        "variable `search-whitespace-regexp'.  If the value is nil, each"//LF// &
+                        "space you type matches literally, against one space.  You can"//LF// &
+                        "toggle the value of this variable by the command"//LF// &
+                        "`isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during"//LF// &
+                        "isearch."
+        case ("isearch-regexp-lax-whitespace")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "isearch_regexp_lax_whitespace"
+            entry%original = ".false."
+            entry%value = repr(isearch_regexp_lax_whitespace)
+            entry%doc = "If non-nil, a space will match a sequence of whitespace chars."//LF// &
+                        "When you enter a space or spaces in regexp incremental search, it"//LF// &
+                        "will match any sequence matched by the regexp defined by the"//LF// &
+                        "variable `search-whitespace-regexp'.  If the value is nil, each"//LF// &
+                        "space you type matches literally, against one space.  You can"//LF// &
+                        "toggle the value of this variable by the command"//LF// &
+                        "`isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during"//LF// &
+                        "isearch."
         case ("kill-read-only-ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
@@ -2053,6 +2391,13 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("regexp-search-ring-max")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "regexp_search_ring_max"
+            entry%original = "16"
+            entry%value = repr(regexp_search_ring_max)
+            entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
+                        "thrown away."
         case ("scroll-error-top-bottom")
             entry%file = "window_fm.f90"
             entry%fortran = "scroll_error_top_bottom"
@@ -2105,6 +2450,28 @@ contains
                         "apply to chars in regexps that are prefixed with `\'."//LF// &
                         "If this value is `not-yanks', text yanked into the search string"//LF// &
                         "in Isearch mode is always downcased."
+        case ("sentence-end-double-space")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end_double_space"
+            entry%original = ".true."
+            entry%value = repr(sentence_end_double_space)
+            entry%doc = "Non-nil means a single space does not end a sentence."//LF// &
+                        "This user option affects fill commands and sentence commands."//LF// &
+                        ""//LF// &
+                        "If this variable is non-nil, Emacs considers a period followed by"//LF// &
+                        "two spaces or by a newline as the end of a sentence."
+        case ("sentence-end-without-period")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end_without_period"
+            entry%original = ".false."
+            entry%value = repr(sentence_end_without_period)
+            entry%doc = "Non-nil means a sentence will end without a period."//LF// &
+                        "For example, a sentence in Thai text ends with double space but"//LF// &
+                        "without a period."//LF// &
+                        ""//LF// &
+                        "This value is used by the function `sentence-end' to construct the"//LF// &
+                        "regexp describing the end of a sentence, when the value of the"//LF// &
+                        "variable `sentence-end' is nil."
         case ("suggest-key-bindings")
             entry%file = "simple_fm.f90"
             entry%fortran = "suggest_key_bindings"

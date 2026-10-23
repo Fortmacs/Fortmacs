@@ -20,11 +20,12 @@
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # Upstream's unidata-gen.el writes the general-category property table
-# (lisp/international/uni-category.el) from UnicodeData.txt.  So far
-# Fortmacs needs two things from it: the cased letters (categories Lu,
-# Ll and Lt), which characters.el gives word syntax, and the nonspacing
-# marks (Mn), which it puts in category ^ (combining).  This script writes
-# them as sorted runs.
+# (lisp/international/uni-category.el) from UnicodeData.txt.  This script
+# writes it as sorted runs of characters of one category (character.c's
+# alphabeticp and friends use it), and separately the two sets
+# characters.el needs: the cased letters (categories Lu, Ll and Lt),
+# which it gives word syntax, and the nonspacing marks (Mn), which it puts
+# in category ^ (combining).
 #
 # Usage: tools/gen-unicategory.sh [UnicodeData.txt]
 #   The default is upstream/emacs/admin/unidata/UnicodeData.txt (see
@@ -59,9 +60,15 @@ function array(name, count, a, n,    i, line) {
 }
 # A range is two lines, <..., First> and <..., Last>.
 $2 ~ /, First>$/ { first = hex($1); next }
+BEGIN {
+    split("Lu Ll Lt Lm Lo Mn Mc Me Nd Nl No Pc Pd Ps Pe Pi Pf Po Sm Sc Sk So Zs Zl Zp Cc Cf Cs Co Cn", names, " ")
+    for (i = 1; i <= 30; i++) code[names[i]] = i
+}
 {
     c = hex($1)
     lo = ($2 ~ /, Last>$/) ? first : c
+    if (g > 0 && gc[g] == code[$3] && ge[g] + 1 == lo) ge[g] = c
+    else { g++; gs[g] = lo; ge[g] = c; gc[g] = code[$3] }
     if ($3 == "Lu" || $3 == "Ll" || $3 == "Lt") {
         if (n > 0 && e[n] + 1 == lo) e[n] = c
         else { n++; s[n] = lo; e[n] = c }
@@ -96,22 +103,29 @@ END {
     print "! You should have received a copy of the GNU General Public License"
     print "! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>."
     print ""
-    print "!> The cased letters (general categories Lu, Ll and Lt) and the"
-    print "!> nonspacing marks (Mn), each as sorted runs from `..._starts` to"
-    print "!> `..._ends` (inclusive).  Used by characters_fm."
+    print "!> The general category of each assigned character, as sorted runs"
+    print "!> from `category_starts` to `category_ends` (inclusive) of category"
+    print "!> `category_codes` (character.h unicode_category_t: 1 Lu, 2 Ll, ..."
+    print "!> 30 Cn); and the cased letters (general categories Lu, Ll and Lt)"
+    print "!> and the nonspacing marks (Mn), each as sorted runs from `..._starts`"
+    print "!> to `..._ends`.  Used by character_fm and characters_fm."
     print "module uni_category_fm"
     print "    use, intrinsic :: iso_fortran_env, only: int32"
     print "    implicit none(type, external)"
     print "    private"
     print ""
     print "    public :: cased_letter_runs, cased_letter_starts, cased_letter_ends, &"
-    print "              nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends"
+    print "              nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends, &"
+    print "              category_runs, category_starts, category_ends, category_codes"
     print ""
-    printf "    integer, parameter :: cased_letter_runs = %d, nonspacing_mark_runs = %d\n\n", n, m
+    printf "    integer, parameter :: cased_letter_runs = %d, nonspacing_mark_runs = %d, category_runs = %d\n\n", n, m, g
     array("cased_letter_starts", "cased_letter_runs", s, n)
     array("cased_letter_ends", "cased_letter_runs", e, n)
     array("nonspacing_mark_starts", "nonspacing_mark_runs", ms, m)
     array("nonspacing_mark_ends", "nonspacing_mark_runs", me, m)
+    array("category_starts", "category_runs", gs, g)
+    array("category_ends", "category_runs", ge, g)
+    array("category_codes", "category_runs", gc, g)
     print "end module uni_category_fm"
 }' "$data" >"$out"
 if command -v fprettify >/dev/null 2>&1; then

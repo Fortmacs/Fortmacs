@@ -48,6 +48,7 @@
 module character_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
+    use uni_category_fm, only: category_runs, category_starts, category_ends, category_codes
     implicit none(type, external)
     private
 
@@ -88,6 +89,20 @@ module character_fm
               str_as_unibyte
     public :: char_resolve_modifier_mask
     public :: char_variation_selector_p, char_surrogate_p, char_hexdigit
+    public :: unicode_category, alphabeticp, alphanumericp, graphicp, printablep, blankp
+
+    !> Unicode general categories (character.h unicode_category_t).
+    integer, parameter, public :: UNICODE_CATEGORY_UNKNOWN = 0, UNICODE_CATEGORY_LU = 1, &
+                                  UNICODE_CATEGORY_LL = 2, UNICODE_CATEGORY_LT = 3, UNICODE_CATEGORY_LM = 4, &
+                                  UNICODE_CATEGORY_LO = 5, UNICODE_CATEGORY_MN = 6, UNICODE_CATEGORY_MC = 7, &
+                                  UNICODE_CATEGORY_ME = 8, UNICODE_CATEGORY_ND = 9, UNICODE_CATEGORY_NL = 10, &
+                                  UNICODE_CATEGORY_NO = 11, UNICODE_CATEGORY_PC = 12, UNICODE_CATEGORY_PD = 13, &
+                                  UNICODE_CATEGORY_PS = 14, UNICODE_CATEGORY_PE = 15, UNICODE_CATEGORY_PI = 16, &
+                                  UNICODE_CATEGORY_PF = 17, UNICODE_CATEGORY_PO = 18, UNICODE_CATEGORY_SM = 19, &
+                                  UNICODE_CATEGORY_SC = 20, UNICODE_CATEGORY_SK = 21, UNICODE_CATEGORY_SO = 22, &
+                                  UNICODE_CATEGORY_ZS = 23, UNICODE_CATEGORY_ZL = 24, UNICODE_CATEGORY_ZP = 25, &
+                                  UNICODE_CATEGORY_CC = 26, UNICODE_CATEGORY_CF = 27, UNICODE_CATEGORY_CS = 28, &
+                                  UNICODE_CATEGORY_CO = 29, UNICODE_CATEGORY_CN = 30
 
 contains
 
@@ -633,4 +648,85 @@ contains
             char_hexdigit = -1
         end if
     end function char_hexdigit
+
+    !> The Unicode general category of `c` (`UNICODE_CATEGORY_...`): Cn
+    !> for an unassigned code point, UNKNOWN beyond Unicode.  What
+    !> CHAR_TABLE_REF (Vunicode_category_table, c) gives upstream.
+    pure integer function unicode_category(c) result(cat)
+        integer(int32), intent(in) :: c
+        integer :: lo, hi, mid
+        cat = UNICODE_CATEGORY_UNKNOWN
+        if (c < 0 .or. c > MAX_UNICODE_CHAR) return
+        cat = UNICODE_CATEGORY_CN
+        lo = 1
+        hi = category_runs
+        do while (lo <= hi)
+            mid = (lo + hi)/2
+            if (c < category_starts(mid)) then
+                hi = mid - 1
+            else if (c > category_ends(mid)) then
+                lo = mid + 1
+            else
+                cat = category_codes(mid)
+                return
+            end if
+        end do
+    end function unicode_category
+
+    !> Return true if C is an alphabetic character.  Port of
+    !> character.c:alphabeticp.
+    pure logical function alphabeticp(c)
+        integer(int32), intent(in) :: c
+        select case (unicode_category(c))
+        case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_ME, UNICODE_CATEGORY_NL)
+            alphabeticp = .true.
+        case default
+            alphabeticp = .false.
+        end select
+    end function alphabeticp
+
+    !> Return true if C is an alphabetic or decimal-number character.
+    !> Port of character.c:alphanumericp.
+    pure logical function alphanumericp(c)
+        integer(int32), intent(in) :: c
+        select case (unicode_category(c))
+        case (UNICODE_CATEGORY_LU:UNICODE_CATEGORY_NL)
+            alphanumericp = .true.
+        case default
+            alphanumericp = .false.
+        end select
+    end function alphanumericp
+
+    !> Return true if C is a graphic character.  Port of
+    !> character.c:graphicp.
+    pure logical function graphicp(c)
+        integer(int32), intent(in) :: c
+        select case (unicode_category(c))
+        case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_ZS:UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, &
+              UNICODE_CATEGORY_CN)
+            graphicp = .false.
+        case default
+            graphicp = .true.
+        end select
+    end function graphicp
+
+    !> Return true if C is a printable character.  Port of
+    !> character.c:printablep.
+    pure logical function printablep(c)
+        integer(int32), intent(in) :: c
+        select case (unicode_category(c))
+        case (UNICODE_CATEGORY_UNKNOWN, UNICODE_CATEGORY_CC, UNICODE_CATEGORY_CS, UNICODE_CATEGORY_CN)
+            printablep = .false.
+        case default
+            printablep = .true.
+        end select
+    end function printablep
+
+    !> Return true if C is a horizontal whitespace character, as defined
+    !> by https://www.unicode.org/reports/tr18/tr18-19.html#blank.  Port
+    !> of character.c:blankp.
+    pure logical function blankp(c)
+        integer(int32), intent(in) :: c
+        blankp = unicode_category(c) == UNICODE_CATEGORY_ZS
+    end function blankp
 end module character_fm

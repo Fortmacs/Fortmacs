@@ -32,7 +32,11 @@ module test_paragraphs_fm
     use keyboard_fm, only: unread_command_events, discard_input, command_loop
     use bindings_fm, only: init_bindings
     use paragraphs_fm, only: forward_paragraph, backward_paragraph, mark_paragraph, kill_paragraph, &
-                             backward_kill_paragraph, start_of_paragraph_text, end_of_paragraph_text
+                             backward_kill_paragraph, start_of_paragraph_text, end_of_paragraph_text, &
+                             sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, kill_sentence, &
+                             backward_kill_sentence, mark_end_of_sentence, paragraph_start, paragraph_separate
+    use keyboard_fm, only: last_command, this_command
+    use lread_fm, only: sym
     implicit none(type, external)
     private
 
@@ -54,7 +58,14 @@ contains
                     new_unittest("paragraphs-tests-end-of-paragraph-text", test_end_text), &
                     new_unittest("test-mark-paragraphs", test_mark_paragraphs), &
                     new_unittest("form-feed-and-indented-blank-lines", test_separators), &
-                    new_unittest("paragraph-keys", test_keys) &
+                    new_unittest("paragraph-keys", test_keys), &
+                    new_unittest("paragraphs-tests-sentence-end", test_sentence_end), &
+                    new_unittest("paragraphs-tests-forward-sentence", test_forward_sentence), &
+                    new_unittest("paragraphs-tests-backward-sentence", test_backward_sentence), &
+                    new_unittest("paragraphs-tests-kill-sentence", test_kill_sentence), &
+                    new_unittest("paragraphs-tests-backward-kill-sentence", test_backward_kill_sentence), &
+                    new_unittest("paragraphs-tests-mark-end-of-sentence", test_mark_end_of_sentence), &
+                    new_unittest("paragraph-start-variable", test_paragraph_start) &
                     ]
     end subroutine collect_paragraphs_fm
 
@@ -203,4 +214,95 @@ contains
         call command_loop(st)
         call check(error, point() == 7 .and. mark_position() == 14, "M-h marks the next paragraph")
     end subroutine test_keys
+    subroutine test_sentence_end(error)
+        type(error_type), allocatable, intent(out) :: error
+        call check(error, len(sentence_end_regexp()) > 0)
+        if (allocated(error)) return
+        sentence_end = "override works"
+        call check(error, sentence_end_regexp() == "override works")
+        deallocate (sentence_end)
+    end subroutine test_sentence_end
+
+    subroutine test_forward_sentence(error)
+        type(error_type), allocatable, intent(out) :: error
+        call temp_buffer("First sentence.  Second sentence.")
+        call forward_sentence(1_int64)
+        call check(error, point() == 16, "one")
+        if (allocated(error)) return
+        call goto_char(point_min())
+        call forward_sentence(2_int64)
+        call check(error, point() == 34, "two")
+    end subroutine test_forward_sentence
+
+    subroutine test_backward_sentence(error)
+        type(error_type), allocatable, intent(out) :: error
+        call temp_buffer("First sentence.  Second sentence.")
+        call goto_char(point_max())
+        call backward_sentence(1_int64)
+        call check(error, point() == 18)
+    end subroutine test_backward_sentence
+
+    subroutine test_kill_sentence(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call temp_buffer("First sentence.  Second sentence.")
+        call kill_sentence(1_int64, st)
+        call check(error, buffer_string() == "  Second sentence.")
+    end subroutine test_kill_sentence
+
+    subroutine test_backward_kill_sentence(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call temp_buffer("Should not be killed.  Should be killed.")
+        call goto_char(point_max())
+        call backward_kill_sentence(1_int64, st)
+        call check(error, buffer_string() == "Should not be killed.  ")
+    end subroutine test_backward_kill_sentence
+
+    subroutine test_mark_end_of_sentence(error)
+        type(error_type), allocatable, intent(out) :: error
+        call temp_buffer("Example sentence.  Followed by another one.")
+        call mark_end_of_sentence(1_int64)
+        call check(error, buffers(cur)%mark_active .and. mark_position() == 18, "one")
+        if (allocated(error)) return
+        call temp_buffer("Example sentence.  Followed by another one.")
+        call mark_end_of_sentence(2_int64)
+        call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "two")
+        if (allocated(error)) return
+        ! Repeating the command marks the next sentence.
+        call temp_buffer("Example sentence.  Followed by another one.")
+        call mark_end_of_sentence(1_int64)
+        last_command = sym("mark-end-of-sentence")
+        this_command = sym("mark-end-of-sentence")
+        call mark_end_of_sentence(1_int64)
+        call check(error, buffers(cur)%mark_active .and. mark_position() == 44, "repeated")
+    end subroutine test_mark_end_of_sentence
+
+    !> paragraph-start and paragraph-separate are regexps.
+    subroutine test_paragraph_start(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: saved_start, saved_separate
+        integer(int64) :: left
+        saved_start = paragraph_start
+        saved_separate = paragraph_separate
+        ! Lines starting with "* " start paragraphs; "---" lines separate.
+        paragraph_start = "\* \|---$\|[ "//achar(9)//"]*$"
+        paragraph_separate = "---$\|[ "//achar(9)//"]*$"
+        call temp_buffer("* one"//LF//"text"//LF//"* two"//LF//"---"//LF//"three"//LF)
+        body: block
+            left = forward_paragraph(1_int64)
+            call check(error, point() == 12, "item")
+            if (allocated(error)) exit body
+            left = forward_paragraph(1_int64)
+            call check(error, point() == 18, "before separator")
+            if (allocated(error)) exit body
+            left = forward_paragraph(1_int64)
+            call check(error, point() == point_max(), "last")
+            if (allocated(error)) exit body
+            call backward_paragraph(1_int64)
+            call check(error, point() == 22, "back")
+        end block body
+        paragraph_start = saved_start
+        paragraph_separate = saved_separate
+    end subroutine test_paragraph_start
 end module test_paragraphs_fm
