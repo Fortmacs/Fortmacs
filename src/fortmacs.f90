@@ -45,7 +45,10 @@
 !>         end subroutine insert_date_stamp
 !>     end module user_config
 !>
-!> Settings are the variables below; assign them.  Commands are
+!> Settings are the variables below; assign them (that sets the default
+!> value; `setq_local` sets a buffer's own value).  Major and minor modes
+!> are defined with `define_derived_mode` and `define_minor_mode`, and
+!> customized from their hooks with `add_hook`.  Commands are
 !> subroutines taking a `status_type`, registered with `defcommand` and
 !> bound with `keymap_global_set`.  A `configure` that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
@@ -138,6 +141,19 @@ module fortmacs
     use subr_fm, only: read_number
     use replace_fm, only: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, &
                           replace_regexp, perform_replace, replacement_function
+    ! Buffer-local variables, hooks and modes.
+    use data_fm, only: make_local_variable, make_variable_buffer_local, kill_local_variable, &
+                       kill_all_local_variables, local_variable_p, local_variable_if_set_p, default_value, &
+                       set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
+    use subr_fm, only: add_hook, remove_hook, run_mode_hooks, derived_mode_p, provided_mode_derived_p
+    use eval_fm, only: run_hooks
+    use derived_fm, only: define_derived_mode, derived_mode_begin, derived_mode_end, derived_mode_map
+    use easy_mmode_fm, only: minor_mode_body_proc, define_minor_mode, set_minor_mode, minor_mode_command, &
+                             minor_mode_enabled_p, minor_mode_map
+    use simple_fm, only: fundamental_mode, special_mode
+    use text_mode_fm, only: text_mode
+    use prog_mode_fm, only: prog_mode
+    use files_fm, only: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions
     ! Settings.
     use xdisp_fm, only: tab_width
     use files_fm, only: make_backup_files
@@ -237,6 +253,13 @@ module fortmacs
               JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, back_to_indentation, auto_fill_mode, &
               do_auto_fill, default_indent_new_line, set_fill_column, beginning_of_buffer, end_of_buffer, &
               read_number
+    public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
+              local_variable_p, local_variable_if_set_p, default_value, set_default, default_boundp, &
+              buffer_local_value, buffer_local_variables, setq_local, add_hook, remove_hook, run_hooks, &
+              run_mode_hooks, derived_mode_p, provided_mode_derived_p, define_derived_mode, derived_mode_begin, &
+              derived_mode_end, derived_mode_map, minor_mode_body_proc, define_minor_mode, set_minor_mode, &
+              minor_mode_command, minor_mode_enabled_p, minor_mode_map, fundamental_mode, special_mode, &
+              text_mode, prog_mode, normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions
     public :: tab_width, make_backup_files, line_move_visual, goal_column, &
               history_length, enable_recursive_minibuffers, history_add_new_input, &
               insert_default_directory, inhibit_field_text_motion, visible_bell, &
