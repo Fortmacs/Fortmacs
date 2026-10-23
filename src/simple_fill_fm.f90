@@ -28,12 +28,14 @@ submodule(simple_fm) simple_fill_fm
     use buffer_fm, only: fill_column, auto_fill_function
     use cmds_fm, only: internal_auto_fill_hook, end_of_line
     use indent_fm, only: current_column, move_to_column, indent_to_left_margin, indent_according_to_mode
+    use editfns_fm, only: point_marker
     use subr_fm, only: read_number
     use fill_fm, only: current_justification, current_fill_column, fill_context_prefix, &
                        fill_move_to_break_point, justify_current_line, unjustify_current_line, string_width, &
                        adaptive_fill_mode, fill_indent_according_to_mode, JUSTIFY_NONE, JUSTIFY_LEFT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_RIGHT
-    use paragraphs_fm, only: forward_paragraph
+    use paragraphs_fm, only: forward_paragraph, page_delimiter, init_paragraph_variables
+    use indent_fm, only: current_left_margin, move_to_left_margin, indent_to
     use search_fm, only: string_match
     use insdel_fm, only: insert_before_markers
     use modes_fm, only: minor_modes
@@ -45,10 +47,12 @@ contains
     integer(int64) :: fc, opoint, after_prefix, fill_point, prev_column, col, moved, from, to, left
     integer :: justify
     character(len=:), allocatable :: prefix, saved_prefix
-    logical :: give_up, have_prefix, have_saved, matched, no_good
+    logical :: give_up, have_prefix, have_saved, matched, no_good, at_fill_point
     type(status_type) :: st
     type(handle_type) :: m
     status = status_type()
+    ! Returns t if it really did any work.
+    auto_fill_result = .false.
     justify = current_justification()
     if (justify == JUSTIFY_NONE) return
     fc = current_fill_column()
@@ -118,10 +122,11 @@ contains
             ! Otherwise, if a comment prefix or fill-prefix is inserted,
             ! point will end up before it rather than after it.
             moved = skip_chars_backward(" "//TAB, st)
-            if (point() == fill_point) then
+            at_fill_point = point() == fill_point
+            call goto_char(opoint)
+            if (at_fill_point) then
                 call default_indent_new_line(status, .true.)
             else
-                call goto_char(opoint)
                 call save_excursion_newline_at(fill_point, status)
             end if
             if (.not. status%ok()) exit
@@ -142,6 +147,7 @@ contains
     end do
     ! Justify last line.
     if (status%ok()) call justify_current_line(status, justify, .true., .true.)
+    if (status%ok()) auto_fill_result = .true.
     if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
     if (have_saved) fill_prefix = saved_prefix
     end procedure do_auto_fill
@@ -172,10 +178,10 @@ contains
         if (soft) then
             call insert(LF, status)
         else
-            call newline(1_int64, status)
+            call newline(status, 1_int64)
         end if
     else
-        call newline(1_int64, status)
+        call newline(status, 1_int64)
     end if
     if (.not. status%ok()) return
     opoint = point()
@@ -200,10 +206,90 @@ contains
     end if
     end procedure default_indent_new_line
 
+    module procedure newline
+    logical :: was_page_start, saved_inhibit, blank
+    integer(int64) :: beforepos, n, pos
+    type(handle_type) :: m
+    type(status_type) :: st
+    call barf_if_buffer_read_only(status)
+    if (.not. status%ok()) return
+    if (present(arg)) then
+        if (arg < 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Repetition argument has to be non-negative")
+            return
+        end if
+    end if
+    ! Call self-insert so that auto-fill, abbrev expansion etc. happen.
+    call init_paragraph_variables()
+    was_page_start = .false.
+    if (bolp()) was_page_start = looking_at(page_delimiter, st)
+    beforepos = point()
+    ! Don't auto-fill if we have a prefix argument.
+    saved_inhibit = inhibit_auto_fill
+    if (present(arg)) inhibit_auto_fill = .true.
+    n = 1
+    if (present(arg)) n = arg
+    call self_insert_command(n, 10_int64, status)
+    inhibit_auto_fill = saved_inhibit
+    if (.not. status%ok()) return
+    ! The rest runs in post-self-insert-hook upstream.  If the newline
+    ! leaves the previous line blank, and we have a left margin, delete
+    ! that from the blank line.
+    call point_marker(m)
+    call goto_char(beforepos)
+    call beginning_of_line()
+    blank = looking_at("[ "//TAB//"]+$", st)
+    if (blank) blank = current_left_margin() > 0
+    if (blank) call delete_region(point(), line_end_position(), status)
+    call marker_position(m, pos, st)
+    call goto_char(pos)
+    call free_marker(m, st)
+    if (.not. status%ok()) return
+    ! Indent the line after the newline, except in one case: when we
+    ! added the newline at the beginning of a line that starts a page.
+    if (.not. was_page_start) call move_to_left_margin(status, force=.true.)
+    end procedure newline
+
+    module procedure open_line
+    logical :: do_fill_prefix, do_left_margin
+    integer(int64) :: k, pos, col
+    type(handle_type) :: loc
+    type(status_type) :: st
+    do_fill_prefix = allocated(fill_prefix%value) .and. bolp()
+    do_left_margin = bolp()
+    if (do_left_margin) do_left_margin = current_left_margin() > 0
+    call point_marker(loc)
+    call newline(status, n)
+    if (status%ok()) then
+        call marker_position(loc, pos, st)
+        call goto_char(pos)
+        k = n
+        do while (k > 0)
+            if (bolp()) then
+                if (do_left_margin) col = indent_to(current_left_margin(), status)
+                if (do_fill_prefix .and. status%ok()) call insert(fill_prefix%value, status)
+                if (.not. status%ok()) exit
+            end if
+            if (forward_line(1_int64) /= 0) continue
+            k = k - 1
+        end do
+        call marker_position(loc, pos, st)
+        call goto_char(pos)
+        ! Necessary in case a margin or prefix was inserted.
+        if (status%ok()) call end_of_line()
+    end if
+    call free_marker(loc, st)
+    end procedure open_line
+
     module procedure internal_auto_fill
     status = status_type()
+    filled = .false.
     if (inhibit_auto_fill) return
-    if (associated(auto_fill_function%value)) call auto_fill_function%value(status)
+    if (associated(auto_fill_function%value)) then
+        auto_fill_result = .false.
+        call auto_fill_function%value(status)
+        filled = auto_fill_result
+    end if
     end procedure internal_auto_fill
 
     module procedure auto_fill_mode

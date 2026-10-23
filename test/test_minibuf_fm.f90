@@ -33,7 +33,7 @@ module test_minibuf_fm
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, kill_buffer, get_buffer, &
-                         erase_buffer
+                         erase_buffer, fill_column
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, goto_char, point
     use keymap_fm, only: key_parse, define_key
@@ -132,7 +132,8 @@ contains
                     new_unittest("minibuffer-complete-and-exit", test_complete_and_exit), &
                     new_unittest("minibuffer-complete-word", test_complete_word), &
                     new_unittest("execute-extended-command", test_execute_extended_command), &
-                    new_unittest("file-name-completion", test_file_name_completion) &
+                    new_unittest("file-name-completion", test_file_name_completion), &
+                    new_unittest("fill-paragraph-in-minibuffer", test_fill_minibuffer) &
                     ]
     end subroutine collect_minibuf_fm
 
@@ -962,4 +963,18 @@ contains
         if (allocated(error)) return
         call kill_buffer(current_buffer(), st)
     end subroutine test_file_name_completion
+
+    !> M-q in the minibuffer fills its contents without the prompt
+    !> (fill.el:fill-minibuffer-function).
+    subroutine test_fill_minibuffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        call fresh_scratch()
+        fill_column = 12_int64
+        call type_text("aaa bbb ccc ddd"//achar(27)//"q"//achar(13))
+        call read_from_minibuffer("A long prompt here: ", answer, st)
+        fill_column = 70_int64
+        call check(error, answer, "aaa bbb ccc"//achar(10)//"ddd")
+    end subroutine test_fill_minibuffer
 end module test_minibuf_fm

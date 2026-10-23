@@ -35,7 +35,8 @@ submodule(indent_fm) indent_cmds_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: nil, nilp, fixnump, xfixnum, make_keymap_ref
     use lread_fm, only: sym
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, default_value
+    use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
@@ -48,13 +49,16 @@ submodule(indent_fm) indent_cmds_fm
     use keymap_fm, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
     use keyboard_fm, only: this_command, last_command, set_transient_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, funcall
-    use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation
+    use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation, deactivate_mark
+    use keymap_fm, only: overriding_terminal_local_map
+    use buffer_fm, only: UE_BOUNDARY
     use buffer_fm, only: barf_if_buffer_read_only, vdeactivate_mark, left_margin
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
     use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, JUSTIFY_CENTER, &
                        JUSTIFY_RIGHT, prefix_at_point, nchars
     use xdisp_fm, only: message, tab_width
-    use subr_fm, only: read_number
+    use subr_fm, only: read_number, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
+                       progress_reporter_done
     implicit none(type, external)
 
     !> Transient keymap for adjusting indentation interactively.
@@ -236,10 +240,46 @@ contains
         ! to always insert a tab here.
         call insert_tab(arg, status)
     else
-        ! Indent the line.
+        ! Indent the line.  When the indent-line-function returns
+        ! `noindent', fall back on the default one
+        ! (indent--default-inside-comment is nil: syntax-ppss is not
+        ! ported; tab_always_indent is never `complete').
         call widened_indent_line(status, noindent)
+        if (status%ok() .and. noindent) call widened_default_indent_line(status)
     end if
     end procedure indent_for_tab_command
+
+    ! (indent--funcall-widened (default-value 'indent-line-function)).  A
+    ! default that is a procedure without a name is called through the
+    ! current value.
+    subroutine widened_default_indent_line(status)
+        type(status_type), intent(out) :: status
+        type(value_type) :: v
+        type(status_type) :: st
+        integer(int64) :: savedb, savedz
+        logical :: noindent
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call widen()
+        call default_value(sym("indent_line_function"), v, st)
+        status = status_type()
+        if (.not. st%ok() .or. .not. symbolp(v) .or. value_eq(v, t_value())) then
+            call call_indent_line_function(status, noindent)
+        else
+            select case (symbols(xsymbol(v))%name)
+            case ("indent_relative")
+                call indent_relative_line(status, noindent)
+            case ("indent_relative_first_indent_point")
+                call indent_relative_first_indent_point(status, noindent)
+            case ("indent_to_left_margin")
+                call indent_to_left_margin(status, noindent)
+            case default
+                call funcall(v, status)
+            end select
+        end if
+        call widen()
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end subroutine widened_default_indent_line
 
     ! indent--funcall-widened with the indent-line-function.
     subroutine widened_indent_line(status, noindent)
@@ -340,6 +380,9 @@ contains
     call marker_position(opoint_marker, opoint, st)
     call goto_char(opoint)
     call free_marker(opoint_marker, st)
+    ! Keep the active region in transient mode.
+    if (overriding_terminal_local_map%index == indent_rigidly_map%index .and. &
+        overriding_terminal_local_map%generation == indent_rigidly_map%generation) vdeactivate_mark = .false.
     end procedure indent_rigidly
 
     !> Indent all lines between BEG and END leftward by one space.  Port of
@@ -637,16 +680,23 @@ contains
     end procedure indent_region
 
     !> Indent each nonblank line from START to END with
-    !> `indent_according_to_mode'.  Port of
-    !> indent.el:indent-region-line-by-line.
+    !> `indent_according_to_mode', reporting progress (not in a
+    !> minibuffer).  Port of indent.el:indent-region-line-by-line.
     module procedure indent_region_line_by_line
     type(handle_type) :: end_marker, opoint_marker
     type(status_type) :: st
+    type(progress_reporter_type) :: pr
     integer(int64) :: endpos, shortage, pos
+    logical :: report
     status = status_type()
     call copy_marker_at(point(), opoint_marker, .false., st)
     call copy_marker_at(end, end_marker, .false., st)
     call goto_char(start)
+    report = .not. is_minibuffer()
+    if (report) then
+        call marker_position(end_marker, endpos, st)
+        call make_progress_reporter(pr, "Indenting region...", point(), endpos)
+    end if
     do
         call marker_position(end_marker, endpos, st)
         if (point() >= endpos) exit
@@ -655,7 +705,9 @@ contains
             if (.not. status%ok()) exit
         end if
         shortage = forward_line(1_int64)
+        if (report) call progress_reporter_update(pr, point())
     end do
+    if (report .and. status%ok()) call progress_reporter_done(pr)
     call free_marker(end_marker, st)
     call marker_position(opoint_marker, pos, st)
     call goto_char(pos)
@@ -862,8 +914,7 @@ contains
         if (.not. status%ok()) return
         call region_end(e, status)
         if (nilp(current_prefix_arg)) then
-            call set_transient_map(indent_rigidly_map)
-            call message("Type <left> or <right> to indent region interactively")
+            call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type %k to indent region interactively")
         else
             call indent_rigidly(b, e, prefix_numeric_value(current_prefix_arg), status)
         end if
@@ -876,6 +927,7 @@ contains
         call region_beginning(b, status)
         if (.not. status%ok()) return
         call region_end(e, status)
+        call rigidly_pop_undo()
         select case (which)
         case (1)
             call indent_rigidly_left(b, e, status)
@@ -886,23 +938,26 @@ contains
         case default
             call indent_rigidly_right_to_tab_stop(b, e, status)
         end select
-        ! In the transient mode of `indent_rigidly' (KEEP-PRED t): stay in
-        ! it, and keep the active region.
-        if (in_rigid_mode()) then
-            call set_transient_map(indent_rigidly_map)
-            vdeactivate_mark = .false.
-        end if
     end subroutine region_command
 
-    ! Whether the last command was `indent_rigidly' or one of the commands
-    ! of its transient map.
-    logical function in_rigid_mode()
-        in_rigid_mode = value_eq(last_command, sym("indent_rigidly")) .or. &
-                        value_eq(last_command, sym("indent_rigidly_left")) .or. &
-                        value_eq(last_command, sym("indent_rigidly_right")) .or. &
-                        value_eq(last_command, sym("indent_rigidly_left_to_tab_stop")) .or. &
-                        value_eq(last_command, sym("indent_rigidly_right_to_tab_stop"))
-    end function in_rigid_mode
+    ! The ON-EXIT of indent-rigidly's transient map: `deactivate_mark'.
+    subroutine rigidly_exit()
+        call deactivate_mark()
+    end subroutine rigidly_exit
+
+    ! Undo the boundary between consecutive commands of indent-rigidly's
+    ! transient map, so they undo together.  Port of
+    ! indent.el:indent-rigidly--pop-undo.
+    subroutine rigidly_pop_undo()
+        if (.not. (value_eq(last_command, sym("indent_rigidly_left")) .or. &
+                   value_eq(last_command, sym("indent_rigidly_right")) .or. &
+                   value_eq(last_command, sym("indent_rigidly_left_to_tab_stop")) .or. &
+                   value_eq(last_command, sym("indent_rigidly_right_to_tab_stop")))) return
+        associate (b => buffers(cur))
+            if (.not. b%undo_enabled .or. b%undo_count == 0) return
+            if (b%undo_list(b%undo_count)%kind == UE_BOUNDARY) b%undo_count = b%undo_count - 1
+        end associate
+    end subroutine rigidly_pop_undo
 
     subroutine cmd_indent_rigidly_left(status)
         type(status_type), intent(out) :: status

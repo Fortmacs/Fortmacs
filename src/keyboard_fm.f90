@@ -46,6 +46,7 @@ module keyboard_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_QUIT, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
+    use data_fm, only: value_eq
     use lisp_fm, only: value_type, V_LIST, nil, make_fixnum, &
                        make_keymap_ref, vtag, nilp, fixnump, symbolp, &
                        stringp, xfixnum, xsymbol, xstring, list_elements
@@ -56,7 +57,7 @@ module keyboard_fm
     use keymap_fm, only: keymapp, keymap_live_p, access_keymap, &
                          current_active_maps, &
                          key_description, parse_modifiers, apply_modifiers, &
-                         overriding_terminal_local_map, pushed_terminal_local_map
+                         overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping
     use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
@@ -73,7 +74,7 @@ module keyboard_fm
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
               throw_exit, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
-    public :: READ_KEY_ELTS, redisplay_proc
+    public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
     integer, parameter :: READ_KEY_ELTS = 30
@@ -132,6 +133,11 @@ module keyboard_fm
         subroutine redisplay_proc()
             implicit none(type, external)
         end subroutine redisplay_proc
+
+        !> The ON-EXIT function of a transient map.
+        subroutine transient_exit_proc()
+            implicit none(type, external)
+        end subroutine transient_exit_proc
 
         !> Run a disabled command's handler instead of the command, if
         !> CMD is disabled: `handled' says it was.
@@ -195,6 +201,11 @@ module keyboard_fm
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
     logical :: transient_active = .false.
+    ! The active transient map's KEEP-PRED (t), ON-EXIT and MESSAGE
+    ! (unallocated for nil).
+    logical :: transient_keep = .false.
+    procedure(transient_exit_proc), pointer :: transient_on_exit => null()
+    character(len=:), allocatable :: transient_message
 
     !> keyboard.c:struct keyremap.  `start' and `end' are 0-based offsets
     !> into the key buffer, as upstream.
@@ -442,12 +453,18 @@ contains
         if (keymap_live_p(km)) v = make_keymap_ref(km)
     end function map_value
 
-    !> Port of keyboard.c:test_undefined (without command remapping).
+    !> Whether BINDING is undefined: nil, `undefined', or a command
+    !> remapped to `undefined'.  Port of keyboard.c:test_undefined.
     logical function test_undefined(binding)
         type(value_type), intent(in) :: binding
+        type(value_type) :: remapped
         test_undefined = nilp(binding)
         if (.not. test_undefined .and. symbolp(binding)) then
             test_undefined = xsymbol(binding) == intern("undefined")
+            if (.not. test_undefined) then
+                call command_remapping(binding, remapped)
+                if (symbolp(remapped)) test_undefined = xsymbol(remapped) == intern("undefined")
+            end if
         end if
     end function test_undefined
 
@@ -720,17 +737,82 @@ contains
     ! The command loop
     ! ------------------------------------------------------------------
 
-    !> Make `km' take precedence over all other keymaps for the next key
-    !> sequence only.  Port of subr.el:set-transient-map with KEEP-PRED
-    !> nil (no ON-EXIT, MESSAGE or TIMEOUT); like upstream, the map is
+    !> Set MAP as a temporary keymap taking precedence over other keymaps.
+    !> Normally, MAP is used only once, to look up the very next key.
+    !> However, if the optional argument KEEP_PRED is true, MAP stays
+    !> active if a key from MAP is used.
+    !>
+    !> Optional arg ON_EXIT, if present, specifies a procedure that is
+    !> called, with no arguments, after MAP is deactivated.
+    !>
+    !> Optional arg MESSAGE, if present, requests display of an informative
+    !> message after activating the transient map: the %k specifier in the
+    !> string is replaced with the list of keys from the transient map.
+    !> Upon deactivating the map, the displayed message will be cleared
+    !> out.  Port of subr.el:set-transient-map (no KEEP-PRED function,
+    !> TIMEOUT or nested transient maps); like upstream, the map is
     !> dropped from the pre-command hook.
-    subroutine set_transient_map(km)
+    subroutine set_transient_map(km, keep_pred, on_exit, message)
         type(handle_type), intent(in) :: km
+        logical, intent(in), optional :: keep_pred
+        procedure(transient_exit_proc), optional :: on_exit
+        character(len=*), intent(in), optional :: message
+        type(value_type), allocatable :: events(:), key(:)
+        character(len=:), allocatable :: keys
+        integer :: k, at
         ! internal-push-keymap: the old map stays active below.
         if (.not. transient_active) pushed_terminal_local_map = overriding_terminal_local_map
         overriding_terminal_local_map = km
         transient_active = .true.
+        transient_keep = .false.
+        if (present(keep_pred)) transient_keep = keep_pred
+        transient_on_exit => null()
+        if (present(on_exit)) transient_on_exit => on_exit
+        if (allocated(transient_message)) deallocate (transient_message)
+        if (.not. present(message)) return
+        call keymap_events(km, events)
+        keys = ""
+        do k = 1, size(events)
+            key = [events(k)]
+            if (k > 1) keys = keys//", "
+            keys = keys//key_description(key)
+        end do
+        ! format-spec with %k.
+        transient_message = message
+        at = index(transient_message, "%k")
+        if (at > 0) transient_message = transient_message(1:at - 1)//keys//transient_message(at + 2:)
+        last_message = transient_message
     end subroutine set_transient_map
+
+    !> The pre-command-hook function of the active transient map: keep it
+    !> (repeating its message) when KEEP_PRED is t and the command is the
+    !> map's binding of the keys, else deactivate it.  The clearfun of
+    !> subr.el:set-transient-map, with its exitfun.
+    subroutine clear_transient_map(keys)
+        type(value_type), intent(in) :: keys(:)
+        type(value_type) :: mc
+        type(status_type) :: st
+        procedure(transient_exit_proc), pointer :: on_exit
+        if (transient_keep) then
+            call lookup_key(map_value(overriding_terminal_local_map), keys, mc, st)
+            if (st%ok() .and. .not. nilp(mc) .and. value_eq(this_command, mc)) then
+                ! Repeat the message for the next command.
+                if (allocated(transient_message)) last_message = transient_message
+                return
+            end if
+        end if
+        overriding_terminal_local_map = pushed_terminal_local_map
+        pushed_terminal_local_map = null_handle()
+        transient_active = .false.
+        ! Clear the prompt after exiting.
+        if (allocated(transient_message)) then
+            last_message = ""
+            deallocate (transient_message)
+        end if
+        on_exit => transient_on_exit
+        transient_on_exit => null()
+        if (associated(on_exit)) call on_exit()
+    end subroutine clear_transient_map
 
     !> Redisplay, then wait `ms' milliseconds or until input arrives.
     !> Port of subr.el:sit-for (for a terminal; no wait without one).
@@ -895,7 +977,7 @@ contains
         logical, intent(out) :: done
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(value_type) :: cmd
+        type(value_type) :: cmd, remapped
         logical :: eof, handled
         done = .false.
         this_command = nil()
@@ -917,16 +999,18 @@ contains
         if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
+        ! Remap command through active keymaps (read_key_sequence_remapped).
+        if (symbolp(cmd) .and. .not. nilp(cmd)) then
+            call command_remapping(cmd, remapped)
+            if (.not. nilp(remapped)) cmd = remapped
+        end if
         last_command_event = keys(size(keys))
         this_command_keys = keys
         this_command = cmd
         real_this_command = cmd
-        ! pre-command-hook: a transient map lasts for one key sequence.
-        if (transient_active) then
-            overriding_terminal_local_map = pushed_terminal_local_map
-            pushed_terminal_local_map = null_handle()
-            transient_active = .false.
-        end if
+        ! pre-command-hook: a transient map lasts for one key sequence,
+        ! unless KEEP-PRED keeps it.
+        if (transient_active) call clear_transient_map(keys)
         if (associated(pre_command_hook)) then
             call pre_command_hook()
             ! The hook may have changed the command (command-execute runs

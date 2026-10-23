@@ -27,7 +27,8 @@ module test_bindings_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
     use editfns_fm, only: point, buffer_string, goto_char
-    use lisp_fm, only: value_type, nil
+    use lisp_fm, only: value_type, nil, xstring, list_elt
+    use simple_fm, only: kill_ring
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_binding, key_parse
@@ -160,15 +161,26 @@ contains
         call type_into("*bindings-digits*", char(27)//"3a"//char(27)//"1"//char(27)//"0c", buf)
         call check(error, buffer_string(), "aaa"//repeat("c", 10))
         if (allocated(error)) return
-        ! C-a, then M-- 2 C-d is delete-char -2: beginning-of-buffer.
-        call kbd_store_bytes(char(1)//char(27)//"-2"//char(4))
+        ! C-e, then M-- 2 C-d is delete-char -2 with KILLFLAG: it kills the
+        ! two characters before point.
+        call kbd_store_bytes(char(5)//char(27)//"-2"//char(4))
+        call command_loop(st)
+        call check(error, buffer_string(), "aaa"//repeat("c", 8))
+        if (allocated(error)) return
+        call check(error, xstring(list_elt(kill_ring(), 1_int64)), "cc")
+        if (allocated(error)) return
+        ! C-a, C-u - 2 DEL: delete-backward-char -2 kills forward.
+        call kbd_store_bytes(char(1)//char(21)//"-2"//char(127))
+        call command_loop(st)
+        call check(error, buffer_string(), "a"//repeat("c", 8))
+        if (allocated(error)) return
+        call check(error, xstring(list_elt(kill_ring(), 1_int64)), "aa")
+        if (allocated(error)) return
+        ! Without a prefix argument DEL deletes: at the beginning it
+        ! signals.
+        call kbd_store_bytes(char(1)//char(127))
         call command_loop(st)
         call check(error, last_message, "Beginning of buffer")
-        if (allocated(error)) return
-        ! C-u - 2 DEL: delete-backward-char -2 deletes forward.
-        call kbd_store_bytes(char(21)//"-2"//char(127))
-        call command_loop(st)
-        call check(error, buffer_string(), "a"//repeat("c", 10))
         call done_with(buf)
     end subroutine test_digit_argument
 
