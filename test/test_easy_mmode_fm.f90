@@ -213,7 +213,7 @@ contains
     subroutine test_mode_line_text(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
-        s = mode_line_text("notes", .false., .false., "All", 1_int64, 80, "Text Fill")
+        s = mode_line_text("notes", .false., .false., "All", "1", 80, "Text Fill")
         call check(error, index(s, "(Text Fill)") > 0, s)
     end subroutine test_mode_line_text
 end module test_easy_mmode_fm

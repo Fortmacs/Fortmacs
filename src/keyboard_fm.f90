@@ -98,6 +98,11 @@ module keyboard_fm
     !> after the active minibuffer's contents until the next command
     !> (`minibuffer_message'); unallocated for none.
     character(len=:), allocatable, public :: minibuffer_message_text
+    !> Stand-in for minibuffer.el's minibuffer-message-overlay: the text
+    !> `message' shows after the active minibuffer's contents
+    !> (set-minibuffer-message) until the next input
+    !> (clear-minibuffer-message); unallocated for none.
+    character(len=:), allocatable, public :: set_minibuffer_message_text
 
     !> tty->meta_key: 0 strips the 8th bit, 1 makes it Meta, 2 passes
     !> bytes on to keyboard decoding (UTF-8).
@@ -734,6 +739,8 @@ contains
         if (allocated(last_message)) last_message = ""
         ! minibuffer--delete-message-overlay runs from pre-command-hook.
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
+        ! read_char's clear_message runs clear-message-function.
+        if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
         last_command_event = keys(size(keys))

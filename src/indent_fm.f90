@@ -36,7 +36,7 @@ module indent_fm
     use data_fm, only: logical_setting, integer_setting, setting_type
     use editfns_fm, only: goto_char, pos_bol, point, insert_char_n
     use insdel_fm, only: del_range
-    use xdisp_fm, only: glyph_columns, tab_width
+    use xdisp_fm, only: glyph_columns, tab_width, row_start_type, display_line_rows, display_row_of
     use frame_fm, only: selected_frame, frame_selected_window_ref
     use window_fm, only: window_type, window_text_cols
     implicit none(type, external)
@@ -449,78 +449,33 @@ contains
         end if
     end function window_text_width
 
-    !> Screen rows of the line starting at `bol', `width' columns wide:
-    !> where each row starts, and where the line ends.  Rows continue as
-    !> redisplay continues them (xdisp.c's display_line on a terminal).
-    subroutine line_rows(bol, width, starts, nrows, eol)
-        integer(int64), intent(in) :: bol
-        integer, intent(in) :: width
-        integer(int64), allocatable, intent(out) :: starts(:)
-        integer, intent(out) :: nrows
-        integer(int64), intent(out) :: eol
-        integer(int64), allocatable :: grown(:)
-        integer(int64) :: pos, byte
-        integer(int32) :: c
-        integer :: col, cont, n
-        allocate (starts(8))
-        nrows = 1
-        starts(1) = bol
-        pos = bol
-        byte = char_to_byte(pos)
-        col = 0
-        cont = 0
-        do
-            if (pos >= buffers(cur)%zv) exit
-            c = buf_fetch_char(buffers(cur), byte)
-            if (c == 10) exit
-            n = glyph_columns(c, col + cont)
-            if (col + n > width .and. col > 0) then
-                nrows = nrows + 1
-                if (nrows > size(starts)) then
-                    allocate (grown(2*size(starts)))
-                    grown(1:size(starts)) = starts
-                    call move_alloc(grown, starts)
-                end if
-                starts(nrows) = pos
-                cont = cont + width
-                col = 0
-                cycle
-            end if
-            col = col + n
-            byte = byte + buf_next_char_len(buffers(cur), byte)
-            pos = pos + 1
-        end do
-        eol = pos
-    end subroutine line_rows
-
-    !> The screen row (1-based) of `pos' among `starts(1:nrows)'.
-    pure integer function row_of(pos, starts, nrows) result(k)
-        integer(int64), intent(in) :: pos
-        integer(int64), intent(in) :: starts(:)
-        integer, intent(in) :: nrows
-        k = nrows
-        do while (k > 1)
-            if (starts(k) <= pos) exit
-            k = k - 1
-        end do
-    end function row_of
+    !> Columns the character `c' at column `x' of screen row `row' takes
+    !> there: the rest of it if the row starts in its middle (a TAB's rest
+    !> follows from the column).
+    integer function row_cells(c, x, row, first) result(n)
+        integer(int32), intent(in) :: c
+        integer, intent(in) :: x
+        type(row_start_type), intent(in) :: row
+        !> Whether `c' is the row's first character.
+        logical, intent(in) :: first
+        n = glyph_columns(c, x + row%cont)
+        if (first .and. row%mid .and. c /= 9) n = n - row%skip
+    end function row_cells
 
     !> Point's column on its screen line (the cursor's x in the window).
     integer function screen_column() result(x)
-        integer(int64), allocatable :: starts(:)
+        type(row_start_type), allocatable :: rows(:)
         integer(int64) :: eol, pos, byte
         integer(int32) :: c
-        integer :: nrows, k, width, cont
-        width = window_text_width()
-        call line_rows(pos_bol(), width, starts, nrows, eol)
-        k = row_of(buffers(cur)%pt, starts, nrows)
-        cont = (k - 1)*width
-        pos = starts(k)
-        byte = char_to_byte(pos)
+        integer :: nrows, k
+        call display_line_rows(cur, pos_bol(), window_text_width(), rows, nrows, eol)
+        k = display_row_of(buffers(cur)%pt, rows, nrows)
+        pos = rows(k)%pos
+        byte = rows(k)%byte
         x = 0
         do while (pos < buffers(cur)%pt)
             c = buf_fetch_char(buffers(cur), byte)
-            x = x + glyph_columns(c, x + cont)
+            x = x + row_cells(c, x, rows(k), pos == rows(k)%pos)
             byte = byte + buf_next_char_len(buffers(cur), byte)
             pos = pos + 1
         end do
@@ -530,20 +485,22 @@ contains
     !> of that screen line or, with `goal', to the character at column
     !> `goal' on it (the last one on a continued row if it is shorter).
     !> `moved' is the number of screen lines moved, closer to zero at the
-    !> beginning or end of the buffer.  Port of indent.c:Fvertical_motion
-    !> for the selected window (LINES or (COLS . LINES); no CUR-COL).
+    !> beginning or end of the buffer.  Screen lines are those redisplay
+    !> shows (xdisp_fm:display_line_rows).  Port of
+    !> indent.c:Fvertical_motion for the selected window (LINES or
+    !> (COLS . LINES); no CUR-COL).
     subroutine vertical_motion(lines, moved, goal)
         integer(int64), intent(in) :: lines
         integer(int64), intent(out) :: moved
         integer, intent(in), optional :: goal
-        integer(int64), allocatable :: starts(:)
+        type(row_start_type), allocatable :: rows(:)
         integer(int64) :: bol, eol, target, pos, byte, row_end
         integer(int32) :: c
-        integer :: nrows, width, x, n, cont
+        integer :: nrows, width, x, n
         width = window_text_width()
         bol = pos_bol()
-        call line_rows(bol, width, starts, nrows, eol)
-        target = row_of(buffers(cur)%pt, starts, nrows) + lines
+        call display_line_rows(cur, bol, width, rows, nrows, eol)
+        target = display_row_of(buffers(cur)%pt, rows, nrows) + lines
         moved = lines
         ! Walk whole lines until the target row is in the current one.
         do while (target > nrows)
@@ -554,7 +511,7 @@ contains
             end if
             target = target - nrows
             bol = eol + 1
-            call line_rows(bol, width, starts, nrows, eol)
+            call display_line_rows(cur, bol, width, rows, nrows, eol)
         end do
         do while (target < 1)
             if (bol <= buffers(cur)%begv) then
@@ -564,22 +521,24 @@ contains
             end if
             call goto_char(bol - 1)
             bol = pos_bol()
-            call line_rows(bol, width, starts, nrows, eol)
+            call display_line_rows(cur, bol, width, rows, nrows, eol)
             target = target + nrows
         end do
-        pos = starts(target)
+        pos = rows(target)%pos
         if (present(goal)) then
+            ! The row's characters: up to the next row's start, and the
+            ! character split between the two rows.
             if (target < nrows) then
-                row_end = starts(target + 1)
+                row_end = rows(target + 1)%pos
+                if (rows(target + 1)%mid) row_end = row_end + 1
             else
                 row_end = eol
             end if
-            cont = int(target - 1)*width
-            byte = char_to_byte(pos)
+            byte = rows(target)%byte
             x = 0
             do while (pos < row_end)
                 c = buf_fetch_char(buffers(cur), byte)
-                n = glyph_columns(c, x + cont)
+                n = row_cells(c, x, rows(target), pos == rows(target)%pos)
                 if (x + n > goal) exit
                 x = x + n
                 byte = byte + buf_next_char_len(buffers(cur), byte)
