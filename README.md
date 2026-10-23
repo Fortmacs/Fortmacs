@@ -150,7 +150,10 @@ What an assistant changes:
    few hundred lines on a good day. Line counts say nothing about quality,
    though: a fair share of that output was later rewritten after review,
    and human direction and review remain the bottleneck.
-6. **The safeguards stay human.** Every change is built, tested and checked
+6. **It isn't free.** Every agent run costs tokens, and the project is
+   funded entirely by one person, so cost limits the pace as much as
+   review does.
+7. **The safeguards stay human.** Every change is built, tested and checked
    for memory leaks in CI on two architectures, and a human reviews and
    merges every pull request.
 
