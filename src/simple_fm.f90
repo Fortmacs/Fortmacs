@@ -77,7 +77,9 @@ module simple_fm
     use fns_fm, only: value_equal
     use eval_fm, only: hook_type
     use insdel_fm, only: insert_before_markers
-    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region
+    use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region, char_after, pos_bol, &
+                          inhibit_field_text_motion
+    use minibuf_fm, only: minibufferp
     use cmds_fm, only: forward_char
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
@@ -684,29 +686,32 @@ contains
 
     !> Move `arg' lines down (up if negative), keeping the goal column; by
     !> screen lines unless a goal column is set or line-move-visual is
-    !> off.  With `noerror', stopping early is not an error.  Port of
+    !> off.  With `noerror', stopping early is not an error.  `moved' is
+    !> the function's value: whether all `arg' lines were moved.  Port of
     !> simple.el:line-move (no vscroll, which terminals don't have).
-    subroutine line_move(arg, status, noerror)
+    subroutine line_move(arg, status, noerror, moved)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
-        logical :: quiet
+        logical, intent(out), optional :: moved
+        logical :: quiet, ok
         quiet = .false.
         if (present(noerror)) quiet = noerror
         if (line_move_visual .and. goal_column < 0) then
-            call line_move_visual_1(arg, quiet, status)
+            call line_move_visual_1(arg, quiet, status, ok)
         else
-            call line_move_1(arg, quiet, status)
+            call line_move_1(arg, quiet, status, ok)
         end if
+        if (present(moved)) moved = ok
     end subroutine line_move
 
     !> Port of simple.el:line-move-visual: keep the cursor's screen x.
-    subroutine line_move_visual_1(arg, noerror, status)
+    subroutine line_move_visual_1(arg, noerror, status, ok)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: noerror
         type(status_type), intent(out) :: status
+        logical, intent(out) :: ok
         integer(int64) :: opoint, moved
-        logical :: ok
         opoint = point()
         if (.not. (tgc_visual .and. after_line_move())) then
             temporary_goal_column = screen_column()
@@ -733,12 +738,12 @@ contains
 
     !> Port of simple.el:line-move-1: move by buffer lines to the goal
     !> column (no invisible text or selective display yet).
-    subroutine line_move_1(arg, noerror, status)
+    subroutine line_move_1(arg, noerror, status, done)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: noerror
         type(status_type), intent(out) :: status
+        logical, intent(out) :: done
         integer(int64) :: opoint, n, shortage, npoint, column
-        logical :: done
         opoint = point()
         if (tgc_visual) then
             ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
@@ -896,6 +901,124 @@ contains
         type(status_type), intent(out) :: status
         call previous_line(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_previous_line
+
+    !> Move point to end of current line as displayed.
+    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !>
+    !> To ignore the effects of the `intangible' text or overlay
+    !> property, bind `inhibit_point_motion_hooks' to t.
+    !> If there is an image in the current line, this function
+    !> disregards newlines that are part of the text on which the image
+    !> rests.  Port of simple.el:move-end-of-line (invisible text is
+    !> deferred with the rest of invisibility).
+    subroutine move_end_of_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: n, newpos, opoint, saved_goal
+        integer(int32) :: c
+        logical :: done, moved, saved_visual, saved_inhibit, found
+        type(status_type) :: st
+        status = status_type()
+        n = arg
+        done = .false.
+        do while (.not. done)
+            ! (save-excursion (let ((goal-column 0) (line-move-visual nil)
+            ! (inhibit-field-text-motion (minibufferp))) ...))
+            opoint = point()
+            saved_goal = goal_column
+            saved_visual = line_move_visual
+            saved_inhibit = inhibit_field_text_motion
+            goal_column = 0
+            line_move_visual = .false.
+            inhibit_field_text_motion = minibufferp()
+            call line_move(n, st, noerror=.true., moved=moved)
+            if (moved) then
+                ! With bidi reordering, we may not be at bol, so make sure
+                ! we are.
+                call goto_char(pos_bol())
+                if (.not. bobp()) call goto_char(point() - 1)
+            end if
+            newpos = point()
+            goal_column = saved_goal
+            line_move_visual = saved_visual
+            inhibit_field_text_motion = saved_inhibit
+            call goto_char(opoint)
+            call goto_char(newpos)
+            done = .true.
+            if (point() > newpos) then
+                call char_before(c, found)
+                if (found .and. c == 10) then
+                    call goto_char(point() - 1)
+                else if (.not. eobp()) then
+                    call char_after(c, found)
+                    if (c /= 10) then
+                        ! If we skipped something intangible and now we're
+                        ! not really at eol, keep going.
+                        n = 1
+                        done = .false.
+                    end if
+                end if
+            end if
+        end do
+    end subroutine move_end_of_line
+
+    !> Move point to visible beginning of current logical line.
+    !> This disregards any invisible newline characters.
+    !>
+    !> When moving from position that has no `field' property, this
+    !> command doesn't enter text which has non-nil `field' property.
+    !> In particular, when invoked in the minibuffer, the command will
+    !> stop short of entering the text of the minibuffer prompt.
+    !> See `inhibit_field_text_motion' for how to inhibit this.
+    !>
+    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> If point reaches the beginning or end of buffer, it stops there.
+    !> (But if the buffer doesn't end in a newline, it stops at the
+    !> beginning of the last line.)
+    !>
+    !> To ignore intangibility, bind `inhibit_point_motion_hooks' to t.
+    !> For motion by visual lines, see `beginning_of_visual_line'.  Port
+    !> of simple.el:move-beginning-of-line (invisible text is deferred
+    !> with the rest of invisibility).
+    subroutine move_beginning_of_line(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: orig, first_vis, first_vis_field_value
+        logical :: saved_visual
+        type(status_type) :: st
+        status = status_type()
+        orig = point()
+        ! Move by lines, if ARG is not 1 (the default).
+        if (arg /= 1) then
+            saved_visual = line_move_visual
+            line_move_visual = .false.
+            call line_move(arg - 1, st, noerror=.true.)
+            line_move_visual = saved_visual
+        end if
+        ! Move to beginning-of-line, ignoring fields.
+        call goto_char(pos_bol())
+        first_vis = point()
+        ! See if fields would stop us from reaching FIRST-VIS.
+        first_vis_field_value = constrain_to_field(first_vis, orig, arg /= 1, .true.)
+        if (first_vis_field_value /= first_vis) then
+            ! If yes, obey them.
+            call goto_char(first_vis_field_value)
+        else
+            ! Otherwise, move to START with attention to fields.
+            call goto_char(constrain_to_field(point(), orig, arg /= 1, .true.))
+        end if
+    end subroutine move_beginning_of_line
+
+    subroutine cmd_move_end_of_line(status)
+        type(status_type), intent(out) :: status
+        call move_end_of_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_move_end_of_line
+
+    subroutine cmd_move_beginning_of_line(status)
+        type(status_type), intent(out) :: status
+        call move_beginning_of_line(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_move_beginning_of_line
 
     ! ------------------------------------------------------------------
     ! Minibuffer history
@@ -1109,6 +1232,8 @@ contains
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command
         commands%next_line%run => cmd_next_line
+        commands%move_beginning_of_line%run => cmd_move_beginning_of_line
+        commands%move_end_of_line%run => cmd_move_end_of_line
         commands%previous_line%run => cmd_previous_line
         commands%previous_history_element%run => cmd_previous_history_element
         commands%next_history_element%run => cmd_next_history_element

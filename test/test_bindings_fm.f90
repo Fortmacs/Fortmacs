@@ -26,19 +26,22 @@ module test_bindings_fm
     use error_fm, only: status_type, FM_QUIT
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer
-    use editfns_fm, only: point, buffer_string
+    use editfns_fm, only: point, buffer_string, goto_char
     use lisp_fm, only: value_type, nil
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
-                           discard_input, last_message, last_command
+                           discard_input, last_message, last_command, ring_bell_hook
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
     implicit none(type, external)
     private
 
     public :: collect_bindings_fm
+
+    !> Times the bell rang.
+    integer :: bells = 0
 
 contains
 
@@ -50,7 +53,10 @@ contains
                     new_unittest("newline-and-open-line", test_newline), &
                     new_unittest("universal-argument", test_universal_argument), &
                     new_unittest("digit-and-negative-argument", test_digit_argument), &
-                    new_unittest("quoted-insert-and-quit", test_quoted_insert) &
+                    new_unittest("quoted-insert-and-quit", test_quoted_insert), &
+                    new_unittest("function-key-bindings", test_function_keys), &
+                    new_unittest("move-beginning-and-end-of-line", test_move_line), &
+                    new_unittest("undefined-rings-the-bell", test_undefined) &
                     ]
     end subroutine collect_bindings_fm
 
@@ -180,4 +186,91 @@ contains
         call check(error, st%code == FM_QUIT .and. last_message == "Quit", "C-g")
         call done_with(buf)
     end subroutine test_quoted_insert
+    !> Count a ring of the bell.
+    subroutine count_bell()
+        bells = bells + 1
+    end subroutine count_bell
+
+    !> bindings.el's function keys and help.el's <help>.
+    subroutine test_function_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=16), parameter :: keys(19) = [character(len=16) :: "C-a", "C-e", "<home>", "<end>", &
+                                                                          "S-<insert>", "S-<insertchar>", "<paste>", "C-<insert>", &
+                                                                                "C-<insertchar>", "<copy>", "S-<delete>", "<cut>", &
+                                                                              "<insertline>", "<deleteline>", "<undo>", "<begin>", &
+                                                                                                    "<find>", "<execute>", "<menu>"]
+        character(len=24), parameter :: cmds(19) = [character(len=24) :: "move_beginning_of_line", &
+                                                                                     "move_end_of_line", "move_beginning_of_line", &
+                                                                     "move_end_of_line", "yank", "yank", "yank", "kill_ring_save", &
+                                                                                "kill_ring_save", "kill_ring_save", "kill_region", &
+                                                                                  "kill_region", "open_line", "kill_line", "undo", &
+                                                                                          "beginning_of_buffer", "search_forward", &
+                                                                             "execute_extended_command", "execute_extended_command"]
+        integer :: k
+        call init_bindings()
+        do k = 1, size(keys)
+            call check(error, value_eq(binding_of(trim(keys(k))), sym(trim(cmds(k)))), trim(keys(k)))
+            if (allocated(error)) return
+        end do
+        call check(error, value_eq(binding_of("<help> k"), sym("describe_key")), "<help> k")
+    end subroutine test_function_keys
+
+    !> C-a and C-e with a count; simple.el move-beginning-of-line and
+    !> move-end-of-line.
+    subroutine test_move_line(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+        call type_into("*bindings-lines*", "abc"//char(13)//"def"//char(13)//"ghi", buf)
+        call goto_char(2_int64)
+        call kbd_store_bytes(char(5))
+        call command_loop(st)
+        call check(error, point(), 4_int64)
+        if (allocated(error)) return
+        ! C-u 2 C-e: the end of the next line.
+        call kbd_store_bytes(char(21)//"2"//char(5))
+        call command_loop(st)
+        call check(error, point(), 8_int64)
+        if (allocated(error)) return
+        ! Past the last line: its end.
+        call kbd_store_bytes(char(21)//"5"//char(5))
+        call command_loop(st)
+        call check(error, point(), 12_int64)
+        if (allocated(error)) return
+        call kbd_store_bytes(char(1))
+        call command_loop(st)
+        call check(error, point(), 9_int64)
+        if (allocated(error)) return
+        ! C-u -1 C-a: the previous line's beginning.
+        call kbd_store_bytes(char(21)//"-1"//char(1))
+        call command_loop(st)
+        call check(error, point(), 1_int64)
+        call done_with(buf)
+    end subroutine test_move_line
+
+    !> An undefined key rings the bell and says so (subr.el:undefined); so
+    !> does a command error, which also discards the input typed ahead
+    !> (keyboard.c:command-error-default-function).
+    subroutine test_undefined(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+        logical :: done
+        call type_into("*bindings-undefined*", "", buf)
+        bells = 0
+        ring_bell_hook => count_bell
+        call kbd_store_bytes(char(24)//char(8)//"a")
+        call command_loop_step(done, st)
+        call check(error, last_message == "C-x C-h is undefined" .and. bells == 1, last_message)
+        if (allocated(error)) return
+        call command_loop(st)
+        call check(error, buffer_string(), "a")
+        if (allocated(error)) return
+        ! C-f at the end of the buffer fails: "b" is discarded.
+        call kbd_store_bytes(char(6)//"b")
+        call command_loop(st)
+        ring_bell_hook => null()
+        call check(error, last_message == "End of buffer" .and. bells == 2 .and. buffer_string() == "a", last_message)
+        call done_with(buf)
+    end subroutine test_undefined
 end module test_bindings_fm

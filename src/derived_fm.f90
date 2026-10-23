@@ -53,10 +53,18 @@ module derived_fm
     public :: major_mode_named, derived_mode_p, provided_mode_derived_p
 
     !> Return non-nil if the current major mode is derived from one of
-    !> MODES (mode objects, or names).  Port of subr.el:derived-mode-p.
+    !> MODES (mode objects, or names).  MODES can also be a single mode
+    !> instead of a list.  Port of subr.el:derived-mode-p.
     interface derived_mode_p
-        module procedure derived_mode_p_object, derived_mode_p_names
+        module procedure derived_mode_p_object, derived_mode_p_names, derived_mode_p_name
     end interface derived_mode_p
+
+    !> Non-nil if MODE is derived from a mode that is a member of the list
+    !> MODES.  MODES can also be a single mode instead of a list.  Port of
+    !> subr.el:provided-mode-derived-p.
+    interface provided_mode_derived_p
+        module procedure provided_mode_derived_p_names, provided_mode_derived_p_name
+    end interface provided_mode_derived_p
 
     !> A major mode.  Port of what derived.el:define-derived-mode
     !> defines.
@@ -236,7 +244,7 @@ contains
     !> Non-nil if MODE (a mode name) is derived from a mode that is a
     !> member of the list MODES (names).  Port of
     !> subr.el:provided-mode-derived-p (no extra parents).
-    logical function provided_mode_derived_p(mode, modes) result(derived)
+    logical function provided_mode_derived_p_names(mode, modes) result(derived)
         character(len=*), intent(in) :: mode, modes(:)
         type(major_mode_type), pointer :: m
         integer :: i, depth
@@ -256,7 +264,15 @@ contains
             end do
             m => m%parent
         end do
-    end function provided_mode_derived_p
+    end function provided_mode_derived_p_names
+
+    !> Non-nil if MODE (a mode name) is derived from the mode named
+    !> `parent'.  Port of subr.el:provided-mode-derived-p (MODES a single
+    !> mode).
+    logical function provided_mode_derived_p_name(mode, parent) result(derived)
+        character(len=*), intent(in) :: mode, parent
+        derived = provided_mode_derived_p_names(mode, [parent])
+    end function provided_mode_derived_p_name
 
     !> Return non-nil if the current major mode is derived from MODE.
     !> Port of subr.el:derived-mode-p (one mode).
@@ -277,6 +293,13 @@ contains
         derived = .false.
         if (cur == 0) return
         if (.not. allocated(buffers(cur)%major_mode)) return
-        derived = provided_mode_derived_p(buffers(cur)%major_mode, modes)
+        derived = provided_mode_derived_p_names(buffers(cur)%major_mode, modes)
     end function derived_mode_p_names
+
+    !> Return non-nil if the current major mode is derived from the mode
+    !> named `mode'.  Port of subr.el:derived-mode-p (MODES a single mode).
+    logical function derived_mode_p_name(mode) result(derived)
+        character(len=*), intent(in) :: mode
+        derived = derived_mode_p_names([mode])
+    end function derived_mode_p_name
 end module derived_fm

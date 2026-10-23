@@ -38,7 +38,8 @@ module test_minibuf_fm
     use editfns_fm, only: buffer_string, goto_char, point
     use keymap_fm, only: key_parse, define_key
     use callint_fm, only: command_type
-    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text
+    use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text, &
+                           ring_bell_hook
     use keymap_fm, only: current_global_map
     use minibuffer_fm, only: completing_read, completion_auto_help, read_file_name_internal, REQUIRE_MATCH_T, &
                              last_minibuffer_message
@@ -79,6 +80,10 @@ module test_minibuf_fm
     type(record_type) :: recorded(10)
     logical :: recorded_visible(10) = .false.
     integer :: nrecorded = 0
+
+    !> Keys the user types once the bell rings (after an error, which
+    !> discards the input typed ahead).
+    character(len=:), allocatable :: keys_after_bell
 
 contains
 
@@ -130,6 +135,18 @@ contains
                     new_unittest("file-name-completion", test_file_name_completion) &
                     ]
     end subroutine collect_minibuf_fm
+
+    !> Queue the keys `keys` (kbd syntax) when the bell next rings.
+    subroutine type_after_bell(keys)
+        character(len=*), intent(in) :: keys
+        keys_after_bell = keys
+        ring_bell_hook => bell_rung
+    end subroutine type_after_bell
+
+    subroutine bell_rung()
+        ring_bell_hook => null()
+        call type_keys(keys_after_bell)
+    end subroutine bell_rung
 
     !> Queue the keys described by `keys` (kbd syntax).
     subroutine type_keys(keys)
@@ -212,7 +229,10 @@ contains
         character(len=:), allocatable :: answer
         type(status_type) :: st
         call fresh_scratch()
+        ! The error (the prompt is read-only) discards the keys typed
+        ! ahead.
         call type_keys("b C-a DEL C-b C-b a RET")
+        call type_after_bell("C-b C-b a RET")
         call read_from_minibuffer("Say: ", answer, st)
         call check(error, st%ok() .and. answer == "ab", answer)
     end subroutine test_prompt
@@ -252,7 +272,8 @@ contains
         call read_from_minibuffer("? ", answer, st, default="future")
         call check(error, answer == "future", answer)
         if (allocated(error)) return
-        call type_keys("a M-n RET")
+        call type_keys("a M-n x RET")
+        call type_after_bell("RET")
         call read_from_minibuffer("? ", answer, st, history="empty-history")
         call check(error, answer == "a", answer)
     end subroutine test_default
