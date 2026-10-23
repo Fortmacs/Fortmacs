@@ -548,6 +548,13 @@ contains
             call check(error, point() == 7, "+2 put point on line 2")
             if (allocated(error)) exit body
             deallocate (args)
+            allocate (args(2))
+            args(1)%s = "+2:4"
+            args(2)%s = testdir//"/a.txt"
+            call command_line_1(args, st)
+            call check(error, point() == 10, "+2:4 put point on column 3 of line 2")
+            if (allocated(error)) exit body
+            deallocate (args)
             allocate (args(1))
             args(1)%s = "--bogus"
             call command_line_1(args, st)
