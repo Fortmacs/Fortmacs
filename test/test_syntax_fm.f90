@@ -61,7 +61,8 @@ contains
                     new_unittest("forward-word", test_forward_word), &
                     new_unittest("word-keys", test_word_keys), &
                     new_unittest("skip-chars", test_skip_chars), &
-                    new_unittest("skip-syntax", test_skip_syntax) &
+                    new_unittest("skip-syntax", test_skip_syntax), &
+                    new_unittest("modify-syntax-entry-clears-regexp-cache", test_regexp_cache) &
                     ]
     end subroutine collect_syntax_fm
 
@@ -385,4 +386,22 @@ contains
         moved = skip_syntax_backward("^-")
         call check(error, moved == -4 .and. point() == 10)
     end subroutine test_skip_syntax
+
+    !> modify-syntax-entry clears the regexp cache (clear_regexp_cache):
+    !> a cached \w pattern sees the new syntax.
+    subroutine test_regexp_cache(error)
+        use search_fm, only: string_match
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: t1
+        type(status_type) :: st
+        call temp_buffer("")
+        call make_syntax_table(t1, st)
+        call set_syntax_table(t1, st)
+        call check(error, string_match("\w", "+", st) == 0, "+ is not a word constituent")
+        if (allocated(error)) return
+        call modify_syntax_entry(iachar("+"), iachar("+"), "w", st, t1)
+        call check(error, string_match("\w", "+", st) == 1, "now it is")
+        call set_syntax_table(standard_syntax_table(), st)
+        call free_syntax_table(t1, st)
+    end subroutine test_regexp_cache
 end module test_syntax_fm

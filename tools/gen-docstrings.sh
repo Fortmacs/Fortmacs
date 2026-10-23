@@ -32,7 +32,8 @@
 #     API), named by their citation or else by their Fortran name with
 #     hyphens;
 #   - variables: the variables src/fortmacs.f90 exports, named by their
-#     citation ("Port of files.el make-backup-files") or likewise.
+#     citation ("Port of files.el make-backup-files") or likewise, and
+#     every other variable with such a citation.
 #
 # Usage: tools/gen-docstrings.sh [OUTPUT]
 #   The default output is src/docstrings_fm.f90.  It is formatted with
@@ -104,6 +105,17 @@ function citation(b, var,    flat, k, rest, file, name) {
 }
 
 FNR == 1 { block = ""; sig = ""; insig = 0; base = FILENAME; sub(/.*\//, "", base) }
+# Submodules (their variables are not accessible) and the names in
+# `public ::` statements.
+/^submodule/ { submod[base] = 1 }
+/^[ \t]*public[ \t]*::/ { inpub = 1; l = $0; sub(/^[^:]*::/, "", l) }
+inpub {
+    if (!(/^[ \t]*public[ \t]*::/)) l = $0
+    cont = (l ~ /&[ \t]*$/); sub(/&[ \t]*$/, "", l)
+    np = split(l, pn, ",")
+    for (ip = 1; ip <= np; ip++) { nm = trim(pn[ip]); if (nm != "") pubname[nm SUBSEP base] = 1 }
+    if (!cont) inpub = 0
+}
 
 # Continuation of a procedure header: collect the argument list.
 insig {
@@ -207,6 +219,7 @@ ingeneric != "" && /^[ \t]*module procedure/ {
         vdoc[key] = docstring(block)
         vcite[key] = citation(block, 1)
         vtype[key] = type
+        vpub[key] = (type ~ /public/ || (key in pubname)) && !(base in submod)
         varr[key] = is_array
         vinit[key] = init
     }
@@ -275,6 +288,18 @@ END {
             printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", lisp, api[nm], nm, vtype[key], \
                 varr[key], vinit[key], vdoc[key]
         }
+    }
+    # Every other variable that cites the upstream variable it ports
+    # (upstream documents every DEFVAR and defvar, not only the
+    # settings a configuration uses).
+    for (key in vdoc) {
+        if (vcite[key] == "") continue
+        if (!vpub[key] && !(key in pubname)) continue
+        split(key, kp, SUBSEP)
+        if (kp[2] in submod) continue
+        if ((kp[1] in api) && api[kp[1]] == kp[2]) continue
+        printf "V\037%s\037%s\037%s\037%s\037%d\037%s\037%s\n", vcite[key], kp[2], kp[1], vtype[key], \
+            varr[key], vinit[key], vdoc[key]
     }
     for (name in cmd) {
         proc = cmd[name]
