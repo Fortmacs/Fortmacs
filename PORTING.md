@@ -242,6 +242,12 @@ Copy the FSF year range exactly from the upstream file.
 
 ## Conventions learned while porting
 
+- `.and.` and `.or.` do not short-circuit: guard a substring or element
+  with a nested `if` (or `index(s, "x") == 1`), never `len(s) > 0 .and.
+  s(1:1) == ...`; newer gfortran on Fedora and Arch evaluates both sides.
+- After an interface or derived-type change fpm may keep stale test objects
+  or an old tester binary (bogus segfaults, "Mismatch in components"):
+  delete build/*/fortmacs/test_* and build/*/test/tester.
 - Bytes are default-kind `character` elements: build them with `char(i)` and
   read them with `ichar(c, kind=int32)`. Not `achar`, whose result outside
   0..127 is processor-dependent (gfortran warns).
