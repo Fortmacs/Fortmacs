@@ -57,7 +57,7 @@ module keymap_fm
                        V_KEYMAP, SYM_T, symbols, nil, make_fixnum, &
                        make_symbol_ref, make_keymap_ref, make_list, list, vtag, &
                        nilp, fixnump, symbolp, xfixnum, xsymbol, xstring, &
-                       xhandle, list_length, list_elements, list_tail, keymap_ref_p
+                       xhandle, list_length, list_elements, list_tail, keymap_ref_p, list_elt
     use lread_fm, only: intern
     use data_fm, only: value_eq, symbol_value
     use character_fm, only: CHAR_ALT, CHAR_SUPER, CHAR_HYPER, CHAR_SHIFT, &
@@ -583,6 +583,8 @@ contains
                             do j = keymaps(i)%nranges, 1, -1
                                 if (c < keymaps(i)%range_from(j) .or. &
                                     c > keymaps(i)%range_to(j)) cycle
+                                ! nil in the char-table: no binding here.
+                                if (nilp(keymaps(i)%range_bindings(j))) exit
                                 call take_binding(st, keymaps(i)%range_bindings(j), stop)
                                 if (stop) exit scan
                                 exit
@@ -717,6 +719,15 @@ contains
         end if
         idx = normalize_event(c)
         n = keymaps(i)%n
+        ! Removing a character from a full keymap's char-table makes it nil
+        ! there, even inside a range.
+        if (remove .and. keymaps(i)%full .and. char_table_event_p(idx)) then
+            do j = keymaps(i)%nranges, 1, -1
+                if (xfixnum(idx) < keymaps(i)%range_from(j) .or. xfixnum(idx) > keymaps(i)%range_to(j)) cycle
+                call add_range(i, xfixnum(idx), xfixnum(idx), nil())
+                exit
+            end do
+        end if
         do j = 1, n
             if (.not. value_eq(keymaps(i)%events(j), idx)) cycle
             if (remove) then
@@ -736,17 +747,14 @@ contains
     !> Bind characters `from'..`to' (without modifiers) to `def' in `km',
     !> replacing their single-character entries.  Port of the
     !> (FROM . TO) case of keymap.c:store_in_keymap (Fset_char_table_range
-    !> on the keymap's char-table).  Removing one character of a range
-    !> later lets the range show through, where upstream it would unbind
-    !> the character.
+    !> on the keymap's char-table).  A nil `def' is recorded as t, as
+    !> upstream (nil in a char-table means no binding).
     subroutine define_key_range(km, from, to, def, status)
         type(handle_type), intent(in) :: km
         integer(int64), intent(in) :: from, to
         type(value_type), intent(in) :: def
         type(status_type), intent(out) :: status
-        integer(int64), allocatable :: grown_i(:)
-        type(value_type), allocatable :: grown_v(:)
-        integer(int64) :: i, j, c, n, cap
+        integer(int64) :: i, j, c, n
         call resolve_keymap(km, i, status)
         if (.not. status%ok()) return
         if (from < 0 .or. to > MAX_CHAR .or. from > to) then
@@ -771,6 +779,23 @@ contains
             keymaps(i)%bindings(j) = nil()
         end do
         keymaps(i)%n = n
+        ! nil has a special meaning for char-tables, so we use something
+        ! else to record an explicitly unbound entry.
+        if (nilp(def)) then
+            call add_range(i, from, to, make_symbol_ref(SYM_T))
+        else
+            call add_range(i, from, to, def)
+        end if
+    end subroutine define_key_range
+
+    !> Add the range `from'..`to' with binding `def' (nil: none, the
+    !> char-table's nil) to keymap slot `i'.
+    subroutine add_range(i, from, to, def)
+        integer(int64), intent(in) :: i, from, to
+        type(value_type), intent(in) :: def
+        integer(int64), allocatable :: grown_i(:)
+        type(value_type), allocatable :: grown_v(:)
+        integer(int64) :: cap
         if (.not. allocated(keymaps(i)%range_from)) then
             allocate (keymaps(i)%range_from(4), keymaps(i)%range_to(4), &
                       keymaps(i)%range_bindings(4))
@@ -790,7 +815,7 @@ contains
         keymaps(i)%range_from(keymaps(i)%nranges) = from
         keymaps(i)%range_to(keymaps(i)%nranges) = to
         keymaps(i)%range_bindings(keymaps(i)%nranges) = def
-    end subroutine define_key_range
+    end subroutine add_range
 
     !> The keymap to define into when the prefix binding is `cmd': a
     !> keymap, or the first member of a composite (as store_in_keymap
@@ -1164,11 +1189,14 @@ contains
 
     !> Description of one event: "C-x", "<f1>", "C-s-<home>".  With
     !> `no_angles', symbols are given by name only.  Port of
-    !> keymap.c:Fsingle_key_description; other values give "".
-    function single_key_description(key, no_angles) result(s)
+    !> keymap.c:Fsingle_key_description; a character interval from a
+    !> char-table, the list (FROM TO) here, is "FROM..TO"; other values
+    !> give "".
+    recursive function single_key_description(key, no_angles) result(s)
         type(value_type), intent(in) :: key
         logical, intent(in), optional :: no_angles
         character(len=:), allocatable :: s
+        type(value_type), allocatable :: parts(:)
         character(len=:), allocatable :: name
         integer :: i, n
         logical :: bare
@@ -1194,6 +1222,18 @@ contains
             s = name(1:i - 1)//"<"//name(i:)//">"
         case (V_STRING)
             s = xstring(key)
+        case (V_LIST)
+            call list_elements(key, parts)
+            if (size(parts) == 2) then
+                if (fixnump(parts(1)) .and. fixnump(parts(2))) then
+                    ! An interval from a map-char-table.
+                    s = single_key_description(parts(1), no_angles)//".."//single_key_description(parts(2), no_angles)
+                    return
+                end if
+            end if
+            ! EVENT_HEAD
+            s = ""
+            if (size(parts) > 0) s = single_key_description(parts(1), no_angles)
         case default
             s = ""
         end select
@@ -1709,7 +1749,8 @@ contains
     !> by another binding of the same key are left out.  With FIRSTONLY,
     !> the command's `advertised_binding' comes first if it runs it.
     !> Port of keymap.c:Fwhere_is_internal (no remapping, menus or
-    !> composed keymaps; character ranges are not searched).
+    !> composed keymaps).  A run of characters bound alike in a full
+    !> keymap's char-table is found as one event, the interval (FROM TO).
     subroutine where_is_internal(definition, keys, firstonly, keymap)
         type(value_type), intent(in) :: definition
         type(value_type), intent(out) :: keys
@@ -1774,7 +1815,7 @@ contains
         ! the same key, then pick the result.
         allocate (elems(0))
         do k = 1, nfound
-            call lookup_key(active, found(k)%keys, binding, status)
+            call lookup_key(active, event_heads(found(k)%keys), binding, status)
             if (.not. status%ok() .or. .not. value_eq(binding, definition)) cycle
             if (first) then
                 if (preferred_sequence_p(found(k)%keys) == 2) then
@@ -1795,47 +1836,72 @@ contains
         !> maps to the queue.
         subroutine scan_map(map)
             type(handle_type), intent(in) :: map
-            type(value_type), allocatable :: prefix(:), key(:)
             integer, allocatable :: order(:)
-            integer(int64) :: i, n, ev
-            integer :: j, m
+            integer(int64), allocatable :: run_from(:), run_to(:)
+            type(value_type), allocatable :: run_val(:)
+            type(value_type) :: ev_value
+            integer(int64) :: i, n
+            integer :: m
+            associate (mp => keymaps(map%index))
+                n = mp%n
+                ! A full keymap's char-table first: runs of characters with
+                ! the same binding, in order (map_keymap_char_table_item).
+                if (mp%full) then
+                    call char_table_runs(mp, run_from, run_to, run_val)
+                    do m = 1, size(run_from)
+                        if (run_from(m) == run_to(m)) then
+                            ev_value = make_fixnum(run_from(m))
+                        else
+                            ev_value = list(make_fixnum(run_from(m)), make_fixnum(run_to(m)))
+                        end if
+                        call scan_binding(ev_value, run_val(m))
+                    end do
+                end if
+                call entry_order(mp, order)
+                do m = 1, size(order)
+                    i = order(m)
+                    call scan_binding(mp%events(i), mp%bindings(i))
+                end do
+            end associate
+        end subroutine scan_map
+
+        !> Look at the binding `def' of event `event' in the map being
+        !> scanned.  Port of keymap.c:where_is_internal_1.
+        subroutine scan_binding(event, def)
+            type(value_type), intent(in) :: event, def
+            type(value_type), allocatable :: prefix(:), key(:)
+            integer(int64) :: ev
+            integer :: j
             logical :: last_is_meta
             prefix = queue(qhead)%keys
             last_is_meta = .false.
             if (size(prefix) > 0) then
                 if (fixnump(prefix(size(prefix)))) last_is_meta = xfixnum(prefix(size(prefix))) == META_PREFIX_CHAR
             end if
-            associate (mp => keymaps(map%index))
-                n = mp%n
-                call entry_order(mp, order)
-                do m = 1, size(order)
-                    i = order(m)
-                    ! A prefix key: its map is searched too.
-                    if (keymap_ref_p(mp%bindings(i))) then
-                        key = [prefix, mp%events(i)]
-                        if (.not. cycle_p(xhandle(mp%bindings(i)), key) .and. size(prefix) < 10) then
-                            call push(queue, qtail, key, xhandle(mp%bindings(i)))
-                        end if
-                    end if
-                    if (.not. value_eq(mp%bindings(i), definition)) cycle
-                    ! We have found a match.  Construct the key sequence
-                    ! where we found it.
-                    if (fixnump(mp%events(i)) .and. last_is_meta) then
-                        ev = ior(xfixnum(mp%events(i)), M_META)
-                        key = prefix
-                        key(size(key)) = make_fixnum(ev)
-                    else
-                        key = [prefix, mp%events(i)]
-                    end if
-                    ! Record it, unless it's already been seen (as could
-                    ! happen when inheriting keymaps).
-                    do j = 1, nfound
-                        if (same_keys(found(j)%keys, key)) exit
-                    end do
-                    if (j > nfound) call push(found, nfound, key, null_handle())
-                end do
-            end associate
-        end subroutine scan_map
+            ! A prefix key: its map is searched too.
+            if (keymap_ref_p(def)) then
+                key = [prefix, event]
+                if (.not. cycle_p(xhandle(def), key) .and. size(prefix) < 10) then
+                    call push(queue, qtail, key, xhandle(def))
+                end if
+            end if
+            if (.not. value_eq(def, definition)) return
+            ! We have found a match.  Construct the key sequence where we
+            ! found it.
+            if (fixnump(event) .and. last_is_meta) then
+                ev = ior(xfixnum(event), M_META)
+                key = prefix
+                key(size(key)) = make_fixnum(ev)
+            else
+                key = [prefix, event]
+            end if
+            ! Record it, unless it's already been seen (as could happen
+            ! when inheriting keymaps).
+            do j = 1, nfound
+                if (same_keys(found(j)%keys, key)) exit
+            end do
+            if (j > nfound) call push(found, nfound, key, null_handle())
+        end subroutine scan_binding
 
         !> Whether `map' was reached already through a prefix of `key' (a
         !> cycle; keymap.c:accessible_keymaps_1).  A map reached through
@@ -1874,35 +1940,128 @@ contains
         if (.not. status%ok()) key = key(1:0)
     end subroutine advertised_key
 
-    !> The order upstream's map_keymap visits a keymap's entries in: for a
-    !> full keymap its char-table first (characters in order), then the
-    !> other entries newest first.
+    !> Whether entry event `ev' of a full keymap is in its char-table (a
+    !> character without modifiers).
+    logical function char_table_event_p(ev)
+        type(value_type), intent(in) :: ev
+        char_table_event_p = fixnump(ev)
+        if (char_table_event_p) char_table_event_p = iand(xfixnum(ev), M_ALL) == 0
+    end function char_table_event_p
+
+    !> The runs of characters with the same non-nil binding in the
+    !> char-table of full keymap `mp' (its single characters over its
+    !> ranges), in character order, as map_char_table gives them.
+    subroutine char_table_runs(mp, run_from, run_to, run_val)
+        type(keymap_type), intent(in) :: mp
+        integer(int64), allocatable, intent(out) :: run_from(:), run_to(:)
+        type(value_type), allocatable, intent(out) :: run_val(:)
+        integer(int64), allocatable :: bounds(:)
+        integer(int64) :: b, c, key
+        type(value_type) :: val
+        integer :: i, j, nb, nr
+        logical :: have
+        allocate (bounds(2*int(mp%n) + 2*int(mp%nranges)))
+        nb = 0
+        do i = 1, int(mp%n)
+            if (.not. char_table_event_p(mp%events(i))) cycle
+            nb = nb + 2
+            bounds(nb - 1) = xfixnum(mp%events(i))
+            bounds(nb) = xfixnum(mp%events(i)) + 1
+        end do
+        do i = 1, int(mp%nranges)
+            nb = nb + 2
+            bounds(nb - 1) = mp%range_from(i)
+            bounds(nb) = mp%range_to(i) + 1
+        end do
+        ! Sort and drop duplicates.
+        do i = 2, nb
+            key = bounds(i)
+            j = i - 1
+            do while (j >= 1)
+                if (bounds(j) <= key) exit
+                bounds(j + 1) = bounds(j)
+                j = j - 1
+            end do
+            bounds(j + 1) = key
+        end do
+        j = 0
+        do i = 1, nb
+            if (j > 0) then
+                if (bounds(j) == bounds(i)) cycle
+            end if
+            j = j + 1
+            bounds(j) = bounds(i)
+        end do
+        nb = j
+        allocate (run_from(max(nb, 1)), run_to(max(nb, 1)), run_val(max(nb, 1)))
+        nr = 0
+        do i = 1, nb - 1
+            c = bounds(i)
+            ! The binding of characters c .. bounds(i+1)-1.
+            have = .false.
+            do j = 1, int(mp%n)
+                if (.not. char_table_event_p(mp%events(j))) cycle
+                if (xfixnum(mp%events(j)) /= c) cycle
+                val = mp%bindings(j)
+                have = .true.
+            end do
+            if (.not. have) then
+                do j = int(mp%nranges), 1, -1
+                    if (c < mp%range_from(j) .or. c > mp%range_to(j)) cycle
+                    val = mp%range_bindings(j)
+                    have = .true.
+                    exit
+                end do
+            end if
+            if (.not. have) cycle
+            if (nilp(val)) cycle
+            b = bounds(i + 1) - 1
+            if (nr > 0) then
+                if (run_to(nr) + 1 == c .and. value_eq(run_val(nr), val)) then
+                    run_to(nr) = b
+                    cycle
+                end if
+            end if
+            nr = nr + 1
+            run_from(nr) = c
+            run_to(nr) = b
+            run_val(nr) = val
+        end do
+        run_from = run_from(1:nr)
+        run_to = run_to(1:nr)
+        run_val = run_val(1:nr)
+    end subroutine char_table_runs
+
+    !> `keys' with each event replaced by its head (a character interval
+    !> by its first character), as lookup sees them (EVENT_HEAD).
+    function event_heads(keys) result(heads)
+        type(value_type), intent(in) :: keys(:)
+        type(value_type), allocatable :: heads(:)
+        integer :: k
+        heads = keys
+        do k = 1, size(keys)
+            if (vtag(keys(k)) == V_LIST) heads(k) = list_elt(keys(k), 1_int64)
+        end do
+    end function event_heads
+
+    !> The order upstream's map_keymap visits a keymap's entries in after
+    !> a full keymap's char-table (see `char_table_runs'): the other
+    !> entries, newest first.
     subroutine entry_order(mp, order)
         type(keymap_type), intent(in) :: mp
         integer, allocatable, intent(out) :: order(:)
-        integer :: i, j, n, key
+        integer :: i, n, m
         n = int(mp%n)
-        allocate (order(0))
-        if (mp%full) then
-            do i = 1, n
-                if (fixnump(mp%events(i))) order = [order, i]
-            end do
-            ! Insertion sort by character code.
-            do i = 2, size(order)
-                key = order(i)
-                j = i - 1
-                do while (j >= 1)
-                    if (xfixnum(mp%events(order(j))) <= xfixnum(mp%events(key))) exit
-                    order(j + 1) = order(j)
-                    j = j - 1
-                end do
-                order(j + 1) = key
-            end do
-        end if
+        allocate (order(n))
+        m = 0
         do i = n, 1, -1
-            if (mp%full .and. fixnump(mp%events(i))) cycle
-            order = [order, i]
+            if (mp%full) then
+                if (char_table_event_p(mp%events(i))) cycle
+            end if
+            m = m + 1
+            order(m) = i
         end do
+        order = order(1:m)
     end subroutine entry_order
 
     logical function same_keys(a, b)

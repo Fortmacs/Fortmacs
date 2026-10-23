@@ -224,6 +224,15 @@ contains
                    index(text, "Port of") == 0, text)
         if (allocated(error)) return
         ! An apostrophe becomes a right quote.
+        ! Ordinary text characters are not listed (help-fns--key-bindings).
+        call describe_function_1("self_insert_command", text)
+        call check(error, index(text, LF//LF//"It is bound to many ordinary text characters."//LF//LF) > 0, text)
+        if (allocated(error)) return
+        ! The last key follows " and ".
+        call describe_function_1("kill_ring_save", text)
+        call check(error, index(text, LF//LF//"It is bound to <copy>, C-<insertchar>, C-<insert> and M-w."//LF//LF) > 0, &
+                   text)
+        if (allocated(error)) return
         call describe_function_1("help_quit", text)
         call check(error, index(text, "Just exit from the Help command's") == 0 .and. &
                    index(text, "Just exit from the Help command"//RQ//"s command loop.") > 0, text)
@@ -343,8 +352,9 @@ contains
         call command_loop(st)
         call check(error, buffers(cur)%name == "*Help*", buffers(cur)%name)
         if (allocated(error)) return
+        ! The line is filled (describe-function-1).
         call check(error, index(buffer_string(), "C-f runs the command forward_char (found in global_map), which is "// &
-                                "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF) == 1, &
+                                "an"//LF//"interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF//LF) == 1, &
                    buffer_string())
         if (allocated(error)) return
         call type_keys("<f1> k C-x C-f")

@@ -871,7 +871,7 @@ contains
         case ("describe_key_briefly")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Print the name of the function KEY-LIST invokes."
+            entry%doc = "Print the name of the functions KEY-LIST invokes."
         case ("describe_variable")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_variable(variable, status)"

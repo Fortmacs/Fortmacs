@@ -70,11 +70,12 @@ module help_fm
     type(handle_type), public :: help_map
 
     abstract interface
-        !> The text describing function `name' after "NAME is ".
-        subroutine describe_function_1_proc(name, text)
+        !> The text describing function `name', after `lead'.
+        subroutine describe_function_1_proc(name, text, lead)
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: text
+            character(len=*), intent(in), optional :: lead
         end subroutine describe_function_1_proc
 
         !> The raw docstring of function `name' (`found' false if none).
@@ -405,7 +406,7 @@ contains
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
-        character(len=:), allocatable :: desc, name, text
+        character(len=:), allocatable :: desc, name, text, lead
         logical :: ok
         call read_help_key(keys, binding, ok, status)
         if (.not. ok) return
@@ -420,10 +421,10 @@ contains
         end if
         call symbol_name(binding, name, status)
         if (.not. status%ok()) return
-        text = ""
-        if (associated(describe_function_1_hook)) call describe_function_1_hook(name, text)
-        call with_help_window(desc//" runs the command "//name//found_in(keys, binding)//", which is "//text, &
-                              status)
+        lead = desc//" runs the command "//name//found_in(keys, binding)//", which is "
+        text = lead
+        if (associated(describe_function_1_hook)) call describe_function_1_hook(name, text, lead)
+        call with_help_window(text, status)
     end subroutine describe_key
 
     !> Print the name of the functions KEY-LIST invokes.

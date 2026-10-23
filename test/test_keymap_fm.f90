@@ -26,7 +26,7 @@ module test_keymap_fm
     use error_fm, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: fixnump, list, make_fixnum, make_keymap_ref, make_string, nil, nilp, t_value, &
-                       v_list, value_type, vtag, xfixnum, xhandle, xstring
+                       v_list, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use fns_fm, only: value_equal
@@ -36,7 +36,7 @@ module test_keymap_fm
                          keymap_parent, keymap_prompt, keymapp, lookup_key, make_keymap, &
                          make_sparse_keymap, push_key_description, set_keymap_parent, &
                          single_key_description, use_local_map, key_valid_p, keymap_set, &
-                         keymap_global_set
+                         keymap_global_set, define_key_range, where_is_internal
     use subr_fm, only: global_set_key
     implicit none(type, external)
     private
@@ -65,6 +65,7 @@ contains
                     new_unittest("keymap-lookup-key/accept-default", test_accept_default), &
                     new_unittest("keymap-removal-inherit", test_removal_inherit), &
                     new_unittest("keymap-unset-test-remove-and-inheritance", test_unset_inherit), &
+                    new_unittest("keymap-char-table-range", test_char_table_range), &
                     new_unittest("keymap-prefix-composition", test_prefix_composition), &
                     new_unittest("keymap-meta", test_meta), &
                     new_unittest("keymap-non-prefix-error", test_non_prefix), &
@@ -362,6 +363,45 @@ contains
         call free(map)
         call free(parent)
     end subroutine test_unset_inherit
+
+    !> A full keymap's character range (a char-table range upstream): a
+    !> character removed from it falls through to the parent, one bound
+    !> to nil stays unbound, and where-is finds runs as intervals.
+    subroutine test_char_table_range(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: map, parent
+        type(status_type) :: st
+        type(value_type) :: keys
+        type(value_type), allocatable :: seqs(:), events(:)
+        call make_keymap(map)
+        call make_sparse_keymap(parent)
+        call set_keymap_parent(map, parent, st)
+        call define_key(parent, kbd("b"), sym("undo"), st)
+        call define_key(parent, kbd("c"), sym("undo"), st)
+        call define_key_range(map, 97_int64, 122_int64, sym("self_insert_command"), st)
+        call check(error, value_eq(lookup(ref(map), kbd("b")), sym("self_insert_command")), "range")
+        if (allocated(error)) return
+        call define_key(map, kbd("b"), nil(), st, remove=.true.)
+        call check(error, value_eq(lookup(ref(map), kbd("b")), sym("undo")), "removed")
+        if (allocated(error)) return
+        call define_key(map, kbd("c"), nil(), st)
+        call check(error, nilp(lookup(ref(map), kbd("c"))), "unbound")
+        if (allocated(error)) return
+        call define_key(map, kbd("b"), sym("self_insert_command"), st)
+        call use_local_map(map, st)
+        call where_is_internal(sym("self_insert_command"), keys, keymap=map)
+        call list_elements(keys, seqs)
+        call check(error, size(seqs) == 2, "two runs")
+        if (allocated(error)) return
+        call list_elements(seqs(1), events)
+        call check(error, key_description(events), "a..b")
+        if (allocated(error)) return
+        call list_elements(seqs(2), events)
+        call check(error, key_description(events), "d..z")
+        call use_local_map(null_handle(), st)
+        call free(map)
+        call free(parent)
+    end subroutine test_char_table_range
 
     !> A prefix key bound in both child and parent composes the two
     !> prefix maps, and a nil in the child's still shadows the parent's.
