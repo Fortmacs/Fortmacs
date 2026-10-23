@@ -34,8 +34,9 @@ tools/check.sh          # format, lint, debug build and tests, as CI runs them
 tools/check.sh --fix    # reformat and apply safe lint fixes
 ```
 
-CI runs the same check on Ubuntu and Fedora (x86-64 and aarch64) and Arch
-Linux (x86-64) for every pull request, and on Guix weekly.
+CI runs the same check on Ubuntu (x86-64) for every pull request, on Ubuntu
+and Fedora (x86-64 and aarch64) and Arch Linux (x86-64) after each merge,
+and on Guix weekly.
 
 ## Configuring
 
