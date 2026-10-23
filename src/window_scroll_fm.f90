@@ -453,6 +453,25 @@ contains
         if (buffer_live_p(old)) call set_buffer(old, status)
     end function pos_visible_in_window_p
 
+    module subroutine scroll_window(window, direction, status)
+        type(handle_type), intent(in) :: window
+        integer, intent(in) :: direction
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(window_type), pointer :: w
+        type(status_type) :: st
+        status = status_type()
+        if (.not. window_live_p(window)) return
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        w => windows(window%index)
+        call goto_char(window_point(w))
+        call window_scroll(w, int(direction, int64), .true., status)
+        call set_window_point(w, point(), st)
+        if (buffer_live_p(old)) call set_buffer(old, st)
+    end subroutine scroll_window
+
     module subroutine other_window_for_scrolling(window, status)
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status

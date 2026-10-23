@@ -530,17 +530,24 @@ contains
     !> of that screen line or, with `goal', to the character at column
     !> `goal' on it (the last one on a continued row if it is shorter).
     !> `moved' is the number of screen lines moved, closer to zero at the
-    !> beginning or end of the buffer.  Port of indent.c:Fvertical_motion
-    !> for the selected window (LINES or (COLS . LINES); no CUR-COL).
-    subroutine vertical_motion(lines, moved, goal)
+    !> beginning or end of the buffer.  Lines are as wide as in WINDOW,
+    !> by default the selected window.  Port of indent.c:Fvertical_motion
+    !> (LINES or (COLS . LINES); no CUR-COL).
+    subroutine vertical_motion(lines, moved, goal, window)
         integer(int64), intent(in) :: lines
         integer(int64), intent(out) :: moved
         integer, intent(in), optional :: goal
+        type(window_type), intent(in), optional :: window
         integer(int64), allocatable :: starts(:)
         integer(int64) :: bol, eol, target, pos, byte, row_end
         integer(int32) :: c
         integer :: nrows, width, x, n, cont
-        width = window_text_width()
+        if (present(window)) then
+            width = window_text_cols(window) - 1
+            if (width < 1) width = DEFAULT_WIDTH - 1
+        else
+            width = window_text_width()
+        end if
         bol = pos_bol()
         call line_rows(bol, width, starts, nrows, eol)
         target = row_of(buffers(cur)%pt, starts, nrows) + lines

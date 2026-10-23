@@ -41,7 +41,9 @@ module test_window_fm
                          scroll_up, scroll_down, recenter, move_to_window_line, &
                          scroll_up_command, scroll_down_command, recenter_top_bottom, &
                          move_to_window_line_top_bottom, scroll_error_top_bottom, display_buffer, quit_window, &
-                         select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW
+                         select_window, switch_to_buffer, DEDICATED_STRONG, QR_WINDOW, &
+                         window_configuration_type, current_window_configuration, set_window_configuration, &
+                         free_window_configuration, fit_window_to_buffer, bury_buffer, window_live_p
     use simple_fm, only: goal_column
     use keyboard_fm, only: this_command, last_command, kbd_store_bytes, command_loop, &
                            discard_input
@@ -73,7 +75,10 @@ contains
                     new_unittest("display-buffer-and-quit-window", test_display_buffer), &
                     new_unittest("previous-and-next-buffer", test_previous_next_buffer), &
                     new_unittest("switch-to-buffer-dedicated", test_switch_dedicated), &
-                    new_unittest("scroll-other-window", test_scroll_other_window) &
+                    new_unittest("scroll-other-window", test_scroll_other_window), &
+                    new_unittest("window-configuration", test_window_configuration), &
+                    new_unittest("fit-window-to-buffer", test_fit_window), &
+                    new_unittest("bury-buffer-dedicated", test_bury_dedicated) &
                     ]
     end subroutine collect_window_fm
 
@@ -653,4 +658,78 @@ contains
         call check(error, last_message == "There is no other window", last_message)
         call leave_frame()
     end subroutine test_scroll_other_window
+    !> set-window-configuration puts back the windows, buffers and points
+    !> a configuration recorded, reviving deleted windows.
+    subroutine test_window_configuration(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, top
+        type(handle_type), allocatable :: ws(:)
+        type(window_configuration_type) :: config
+        call enter_frame("abcdef", h)
+        call run_keys("C-x 2")
+        ws = leaves()
+        top = ws(1)
+        call goto_char(3_int64)
+        call current_window_configuration(config)
+        call run_keys("C-x 1 C-x b o t h e r - t e s t RET")
+        call check(error, size(leaves()) == 1 .and. buffers(cur)%name == "other-test", "changed")
+        if (allocated(error)) return
+        call set_window_configuration(config)
+        call free_window_configuration(config)
+        ws = leaves()
+        call check(error, size(ws) == 2 .and. window_live_p(ws(2)) .and. same_window(ws(1), top) .and. &
+                   same_window(selected_frame%selected_window, top), "two windows again")
+        if (allocated(error)) return
+        call check(error, buffers(cur)%name == "split-test" .and. windows(ws(2)%index)%buffer%index == h%index .and. &
+                   windows(ws(1)%index)%total_lines == 12 .and. windows(ws(2)%index)%total_lines == 11, &
+                   buffers(cur)%name)
+        if (allocated(error)) return
+        ! Point in the current buffer is not restored.
+        call check(error, point() == 3, "point")
+        call leave_frame()
+    end subroutine test_window_configuration
+
+    !> fit-window-to-buffer: as tall as the buffer's lines and the mode
+    !> line, at least `window_min_height'.
+    subroutine test_fit_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(handle_type), allocatable :: ws(:)
+        character(len=:), allocatable :: text
+        character(len=7) :: one
+        integer :: k
+        text = ""
+        do k = 1, 6
+            write (one, '("line", i2.2, a)') k, achar(10)
+            text = text//one
+        end do
+        call enter_frame(text//"end", h)
+        call run_keys("C-x 2")
+        ws = leaves()
+        call fit_window_to_buffer(ws(2))
+        ws = leaves()
+        ! Seven lines and the mode line.
+        call check(error, windows(ws(2)%index)%total_lines == 8 .and. windows(ws(1)%index)%total_lines == 15, &
+                   "fitted")
+        if (allocated(error)) return
+        call fit_window_to_buffer(ws(2), 5)
+        ws = leaves()
+        call check(error, windows(ws(2)%index)%total_lines == 5, "max height")
+        call leave_frame()
+    end subroutine test_fit_window
+
+    !> bury-buffer in a dedicated window it can't delete shows another
+    !> buffer there.
+    subroutine test_bury_dedicated(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter_frame("abc", h)
+        call run_keys("C-x b o t h e r - t e s t RET")
+        windows(selected_frame%selected_window%index)%dedicated = DEDICATED_STRONG
+        call bury_buffer(st)
+        call check(error, st%ok() .and. buffers(cur)%name == "split-test" .and. &
+                   windows(selected_frame%selected_window%index)%dedicated == 0, buffers(cur)%name)
+        call leave_frame()
+    end subroutine test_bury_dedicated
 end module test_window_fm

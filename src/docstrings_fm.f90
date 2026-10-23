@@ -48,9 +48,10 @@ module docstrings_fm
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
-                          history_add_new_input
+                          history_add_new_input, read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
-                             completion_show_inline_help, insert_default_directory, minibuffer_completing_file_name
+                             completion_show_inline_help, completions_max_height, insert_default_directory, &
+                             minibuffer_completing_file_name
     use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
                              sentence_end, sentence_end_double_space, sentence_end_without_period
@@ -70,7 +71,11 @@ module docstrings_fm
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
     use undo_fm, only: amalgamating_undo_limit, point_before_last_command_or_undo
-    use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
+    use window_fm, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
+                         DEDICATED_STRONG, even_window_sizes, minibuffer_scroll_window, next_screen_context_lines, &
+                         pop_up_windows, scroll_error_top_bottom, split_height_threshold, split_width_threshold, &
+                         split_window_preferred_direction, SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, &
+                         window_min_height, window_min_width
     use xdisp_fm, only: tab_width
     implicit none(type, external)
     private
@@ -94,7 +99,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(282) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(287) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
@@ -113,6 +118,7 @@ module docstrings_fm
                                                                    "bolp", &
                                                                    "buffer_name", &
                                                                    "buffer_substring", &
+                                                                   "bury_buffer", &
                                                                    "canonically_space_region", &
                                                                    "capitalize", &
                                                                    "capitalize_region", &
@@ -268,6 +274,7 @@ module docstrings_fm
                                                                    "move_to_window_line_top_bottom", &
                                                                    "negative_argument", &
                                                                    "newline", &
+                                                                   "next_buffer", &
                                                                    "next_history_element", &
                                                                    "next_line", &
                                                                    "normal_mode", &
@@ -282,6 +289,7 @@ module docstrings_fm
                                                                    "posix_search_backward", &
                                                                    "posix_search_forward", &
                                                                    "posix_string_match", &
+                                                                   "previous_buffer", &
                                                                    "previous_history_element", &
                                                                    "previous_line", &
                                                                    "prog_mode", &
@@ -316,6 +324,8 @@ module docstrings_fm
                                                                    "save_some_buffers", &
                                                                    "scroll_down", &
                                                                    "scroll_down_command", &
+                                                                   "scroll_other_window", &
+                                                                   "scroll_other_window_down", &
                                                                    "scroll_up", &
                                                                    "scroll_up_command", &
                                                                    "search_backward", &
@@ -379,105 +389,116 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(98) = [character(len=44) :: &
-                                                                  "adaptive_fill_mode", &
-                                                                  "after_change_major_mode_hook", &
-                                                                  "amalgamating_undo_limit", &
-                                                                  "auto_fill_function", &
-                                                                  "auto_fill_inhibit_regexp", &
-                                                                  "auto_fill_mode_hook", &
-                                                                  "case_fold_search", &
-                                                                  "case_replace", &
-                                                                  "case_symbols_as_words", &
-                                                                  "change_major_mode_after_body_hook", &
-                                                                  "change_major_mode_hook", &
-                                                                  "change_major_mode_with_file_name", &
-                                                                  "colon_double_space", &
-                                                                  "commands", &
-                                                                  "completion_auto_help", &
-                                                                  "completion_fail_discreetly", &
-                                                                  "completion_ignore_case", &
-                                                                  "completion_ignored_extensions", &
-                                                                  "completion_show_inline_help", &
-                                                                  "current_prefix_arg", &
-                                                                  "cycle_spacing_actions", &
-                                                                  "default_justification", &
-                                                                  "delete_active_region", &
-                                                                  "disabled_command_function", &
-                                                                  "enable_recursive_minibuffers", &
-                                                                  "fill_column", &
-                                                                  "fill_indent_according_to_mode", &
-                                                                  "fill_nobreak_predicate", &
-                                                                  "fill_prefix", &
-                                                                  "fill_separate_heterogeneous_words_with_space", &
-                                                                  "goal_column", &
-                                                                  "help_map", &
-                                                                  "help_mode_hook", &
-                                                                  "help_mode_map", &
-                                                                  "history_add_new_input", &
-                                                                  "history_length", &
-                                                                  "indent_line_function", &
-                                                                  "indent_tabs_mode", &
-                                                                  "indent_tabs_mode_hook", &
-                                                                  "inhibit_auto_fill", &
-                                                                  "inhibit_field_text_motion", &
-                                                                  "insert_default_directory", &
-                                                                  "isearch_lax_whitespace", &
-                                                                  "isearch_mode_map", &
-                                                                  "isearch_regexp_lax_whitespace", &
-                                                                  "kill_read_only_ok", &
-                                                                  "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", &
-                                                                  "left_margin", &
-                                                                  "line_move_visual", &
-                                                                  "make_backup_files", &
-                                                                  "mark_even_if_inactive", &
-                                                                  "mark_ring_max", &
-                                                                  "minibuffer_completing_file_name", &
-                                                                  "mode_require_final_newline", &
-                                                                  "next_screen_context_lines", &
-                                                                  "paragraph_ignore_fill_prefix", &
-                                                                  "paragraph_separate", &
-                                                                  "paragraph_start", &
-                                                                  "parse_sexp_ignore_comments", &
-                                                                  "pending_undo_list", &
-                                                                  "point", &
-                                                                  "prog_mode_hook", &
-                                                                  "prog_mode_map", &
-                                                                  "query_replace_defaults", &
-                                                                  "query_replace_show_replacement", &
-                                                                  "query_replace_skip_read_only", &
-                                                                  "regexp_search_ring_max", &
-                                                                  "replace_count", &
-                                                                  "replace_lax_whitespace", &
-                                                                  "replace_regexp_lax_whitespace", &
-                                                                  "require_final_newline", &
-                                                                  "scroll_error_top_bottom", &
-                                                                  "search_exit_option", &
-                                                                  "search_nonincremental_instead", &
-                                                                  "search_ring_max", &
-                                                                  "search_upper_case", &
-                                                                  "sentence_end", &
-                                                                  "sentence_end_double_space", &
-                                                                  "sentence_end_without_period", &
-                                                                  "special_mode_hook", &
-                                                                  "special_mode_map", &
-                                                                  "standard_indent", &
-                                                                  "suggest_key_bindings", &
-                                                                  "tab_always_indent", &
-                                                                  "tab_stop_list", &
-                                                                  "tab_width", &
-                                                                  "text_mode_hook", &
-                                                                  "text_mode_map", &
-                                                                  "text_mode_syntax_table", &
-                                                                  "text_mode_variant", &
-                                                                  "transient_mark_mode", &
-                                                                  "transient_mark_mode_hook", &
-                                                                  "undo_in_progress", &
-                                                                  "undo_no_redo", &
-                                                                  "visible_bell", &
-                                                                  "words_include_escapes"]
+    character(len=44), parameter, public :: variable_names(109) = [character(len=44) :: &
+                                                                   "adaptive_fill_mode", &
+                                                                   "after_change_major_mode_hook", &
+                                                                   "amalgamating_undo_limit", &
+                                                                   "auto_fill_function", &
+                                                                   "auto_fill_inhibit_regexp", &
+                                                                   "auto_fill_mode_hook", &
+                                                                   "case_fold_search", &
+                                                                   "case_replace", &
+                                                                   "case_symbols_as_words", &
+                                                                   "change_major_mode_after_body_hook", &
+                                                                   "change_major_mode_hook", &
+                                                                   "change_major_mode_with_file_name", &
+                                                                   "colon_double_space", &
+                                                                   "commands", &
+                                                                   "completion_auto_help", &
+                                                                   "completion_fail_discreetly", &
+                                                                   "completion_ignore_case", &
+                                                                   "completion_ignored_extensions", &
+                                                                   "completion_show_inline_help", &
+                                                                   "completions_max_height", &
+                                                                   "current_prefix_arg", &
+                                                                   "cycle_spacing_actions", &
+                                                                   "default_justification", &
+                                                                   "delete_active_region", &
+                                                                   "disabled_command_function", &
+                                                                   "display_buffer_mark_dedicated", &
+                                                                   "enable_recursive_minibuffers", &
+                                                                   "even_window_sizes", &
+                                                                   "fill_column", &
+                                                                   "fill_indent_according_to_mode", &
+                                                                   "fill_nobreak_predicate", &
+                                                                   "fill_prefix", &
+                                                                   "fill_separate_heterogeneous_words_with_space", &
+                                                                   "goal_column", &
+                                                                   "help_map", &
+                                                                   "help_mode_hook", &
+                                                                   "help_mode_map", &
+                                                                   "history_add_new_input", &
+                                                                   "history_length", &
+                                                                   "indent_line_function", &
+                                                                   "indent_tabs_mode", &
+                                                                   "indent_tabs_mode_hook", &
+                                                                   "inhibit_auto_fill", &
+                                                                   "inhibit_field_text_motion", &
+                                                                   "insert_default_directory", &
+                                                                   "isearch_lax_whitespace", &
+                                                                   "isearch_mode_map", &
+                                                                   "isearch_regexp_lax_whitespace", &
+                                                                   "kill_read_only_ok", &
+                                                                   "kill_ring_max", &
+                                                                   "kill_ring_yank_pointer", &
+                                                                   "kill_whole_line", &
+                                                                   "left_margin", &
+                                                                   "line_move_visual", &
+                                                                   "make_backup_files", &
+                                                                   "mark_even_if_inactive", &
+                                                                   "mark_ring_max", &
+                                                                   "minibuffer_completing_file_name", &
+                                                                   "minibuffer_scroll_window", &
+                                                                   "mode_require_final_newline", &
+                                                                   "next_screen_context_lines", &
+                                                                   "paragraph_ignore_fill_prefix", &
+                                                                   "paragraph_separate", &
+                                                                   "paragraph_start", &
+                                                                   "parse_sexp_ignore_comments", &
+                                                                   "pending_undo_list", &
+                                                                   "point", &
+                                                                   "pop_up_windows", &
+                                                                   "prog_mode_hook", &
+                                                                   "prog_mode_map", &
+                                                                   "query_replace_defaults", &
+                                                                   "query_replace_show_replacement", &
+                                                                   "query_replace_skip_read_only", &
+                                                                   "read_minibuffer_restore_windows", &
+                                                                   "regexp_search_ring_max", &
+                                                                   "replace_count", &
+                                                                   "replace_lax_whitespace", &
+                                                                   "replace_regexp_lax_whitespace", &
+                                                                   "require_final_newline", &
+                                                                   "scroll_error_top_bottom", &
+                                                                   "search_exit_option", &
+                                                                   "search_nonincremental_instead", &
+                                                                   "search_ring_max", &
+                                                                   "search_upper_case", &
+                                                                   "sentence_end", &
+                                                                   "sentence_end_double_space", &
+                                                                   "sentence_end_without_period", &
+                                                                   "special_mode_hook", &
+                                                                   "special_mode_map", &
+                                                                   "split_height_threshold", &
+                                                                   "split_width_threshold", &
+                                                                   "split_window_preferred_direction", &
+                                                                   "standard_indent", &
+                                                                   "suggest_key_bindings", &
+                                                                   "tab_always_indent", &
+                                                                   "tab_stop_list", &
+                                                                   "tab_width", &
+                                                                   "text_mode_hook", &
+                                                                   "text_mode_map", &
+                                                                   "text_mode_syntax_table", &
+                                                                   "text_mode_variant", &
+                                                                   "transient_mark_mode", &
+                                                                   "transient_mark_mode_hook", &
+                                                                   "undo_in_progress", &
+                                                                   "undo_no_redo", &
+                                                                   "visible_bell", &
+                                                                   "window_min_height", &
+                                                                   "window_min_width", &
+                                                                   "words_include_escapes"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -639,6 +660,19 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call buffer_substring(start, end, text, status)"
             entry%doc = "Text between `start' and `end' (either order)."
+        case ("bury_buffer")
+            entry%file = "window_display_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Put BUFFER-OR-NAME at the end of the list of all buffers."//LF// &
+                        "There it is the least likely candidate for `other_buffer' to"//LF// &
+                        "return; thus, the least likely buffer for \[switch-to-buffer] to"//LF// &
+                        "select by default."//LF// &
+                        ""//LF// &
+                        "You can specify a buffer name as BUFFER-OR-NAME, or an actual"//LF// &
+                        "buffer object.  If BUFFER-OR-NAME is nil or omitted, bury the"//LF// &
+                        "current buffer.  Also, if BUFFER-OR-NAME is nil or omitted,"//LF// &
+                        "remove the current buffer from the selected window if it is"//LF// &
+                        "displayed there."
         case ("canonically_space_region")
             entry%file = "fill_fm.f90"
             entry%fortran = "call canonically_space_region(beg, end, status)"
@@ -1881,6 +1915,12 @@ contains
             entry%interactive = .true.
             entry%doc = "Insert a newline, and move to left margin of the new line."//LF// &
                         "With prefix argument ARG, insert that many newlines."
+        case ("next_buffer")
+            entry%file = "window_display_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In selected window switch to ARGth next buffer."//LF// &
+                        "Call `switch_to_next_buffer' unless the selected window is the"//LF// &
+                        "minibuffer window or is dedicated to its buffer."
         case ("next_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2018,6 +2058,12 @@ contains
                         "`match_string' to extract the substrings matched by the parenthesis"//LF// &
                         "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
                         "do (match-end 0)."
+        case ("previous_buffer")
+            entry%file = "window_display_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In selected window switch to ARGth previous buffer."//LF// &
+                        "Call `switch_to_prev_buffer' unless the selected window is the"//LF// &
+                        "minibuffer window or is dedicated to its buffer."
         case ("previous_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2166,10 +2212,21 @@ contains
                         "are passed to `perform_replace' (which see)."
         case ("quit_window")
             entry%file = "window_fm.f90"
-            entry%fortran = "call quit_window(status)"
+            entry%fortran = "call quit_window(kill, status, window)"
             entry%interactive = .true.
-            entry%doc = "Quit WINDOW and bury its buffer.  WINDOW is the selected one: it"//LF// &
-                        "shows the buffer it showed before, or some other buffer."
+            entry%doc = "Quit WINDOW and bury its buffer."//LF// &
+                        "WINDOW must be a live window and defaults to the selected one."//LF// &
+                        "With prefix argument KILL non-nil, kill the buffer instead of"//LF// &
+                        "burying it.  If `quit_window_kill_buffer' is non-nil, perhaps"//LF// &
+                        "kill the buffer even if KILL is nil; see the doc string of"//LF// &
+                        "that variable for the details."//LF// &
+                        ""//LF// &
+                        "This calls the function `quit_restore_window' to delete WINDOW or"//LF// &
+                        "show some other buffer in it.  See Info node `(elisp) Quitting"//LF// &
+                        "Windows' for more details."//LF// &
+                        ""//LF// &
+                        "The functions in `quit_window_hook' will be run before doing"//LF// &
+                        "anything else."
         case ("quoted_insert")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2530,6 +2587,16 @@ contains
                         ""//LF// &
                         "The command \[set_goal_column] can be used to create a"//LF// &
                         "semipermanent goal column for this command."
+        case ("scroll_other_window")
+            entry%file = "window_scroll_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Scroll next window upward LINES lines; or near full screen if no"//LF// &
+                        "ARG.  See `scroll_up_command' for details."
+        case ("scroll_other_window_down")
+            entry%file = "window_scroll_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Scroll next window downward LINES lines; or near full screen if no"//LF// &
+                        "ARG.  See `scroll_down_command' for details."
         case ("scroll_up")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -2753,8 +2820,10 @@ contains
                         "`horizontal' to its right.  Without `have_size' both get half its"//LF// &
                         "size (or close to it); a nonnegative SIZE is the new size of"//LF// &
                         "WINDOW, a negative one minus the size of the new window, in lines"//LF// &
-                        "or columns.  The new window shows WINDOW's buffer, start and"//LF// &
-                        "point."
+                        "or columns.  The new window shows the buffer, start and point of"//LF// &
+                        "WINDOW if it is live, else of the selected window.  WINDOW may"//LF// &
+                        "be internal (the root window, say): its windows share what is"//LF// &
+                        "left."
         case ("split_window_below")
             entry%file = "window_cmds_fm.f90"
             entry%interactive = .true.
@@ -2835,7 +2904,7 @@ contains
                         "output."
         case ("switch_to_buffer")
             entry%file = "window_fm.f90"
-            entry%fortran = "call switch_to_buffer(name, status)"
+            entry%fortran = "call switch_to_buffer(name, status, norecord, force_same_window)"
             entry%interactive = .true.
             entry%doc = "Display buffer BUFFER-OR-NAME in the selected window."//LF// &
                         ""//LF// &
@@ -3248,6 +3317,13 @@ contains
             entry%value = repr(completion_show_inline_help)
             entry%doc = "If non-nil, print helpful inline messages during completion.  Port"//LF// &
                         "of minibuffer.el completion-show-inline-help."
+        case ("completions_max_height")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completions_max_height"
+            entry%original = "0"
+            entry%value = repr(completions_max_height)
+            entry%doc = "Maximum height for *Completions* buffer window (0 for no maximum:"//LF// &
+                        "nil)."
         case ("current_prefix_arg")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_prefix_arg"
@@ -3336,6 +3412,23 @@ contains
             entry%value = repr(disabled_command_function_p)
             entry%doc = "Function to call to handle disabled commands."//LF// &
                         "If nil, the feature is disabled, i.e., all commands work normally."
+        case ("display_buffer_mark_dedicated")
+            entry%file = "window_fm.f90"
+            entry%fortran = "display_buffer_mark_dedicated"
+            entry%original = "DEDICATED_NONE"
+            select case (display_buffer_mark_dedicated)
+            case (DEDICATED_NONE)
+                entry%value = "DEDICATED_NONE"
+            case (DEDICATED_WEAK)
+                entry%value = "DEDICATED_WEAK"
+            case (DEDICATED_STRONG)
+                entry%value = "DEDICATED_STRONG"
+            case default
+                entry%value = repr(display_buffer_mark_dedicated)
+            end select
+            entry%doc = "If non-nil, `display_buffer' marks the windows it creates as"//LF// &
+                        "dedicated.  The actual non-nil value of this variable will be copied"//LF// &
+                        "to the `window_dedicated_p' flag."
         case ("enable_recursive_minibuffers")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "enable_recursive_minibuffers"
@@ -3343,6 +3436,14 @@ contains
             entry%value = repr(enable_recursive_minibuffers)
             entry%doc = "Non-nil means to allow minibuffer commands while in the minibuffer."//LF// &
                         "This variable makes a difference whenever the minibuffer window is active."
+        case ("even_window_sizes")
+            entry%file = "window_fm.f90"
+            entry%fortran = "even_window_sizes"
+            entry%original = ".true."
+            entry%value = repr(even_window_sizes)
+            entry%doc = "If non-nil `display_buffer' will try to even window sizes."//LF// &
+                        "Otherwise `display_buffer' will leave the window configuration"//LF// &
+                        "alone."
         case ("fill_column")
             entry%file = "buffer_fm.f90"
             entry%fortran = "fill_column"
@@ -3587,6 +3688,12 @@ contains
             entry%original = ".false."
             entry%value = repr(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
+        case ("minibuffer_scroll_window")
+            entry%file = "window_fm.f90"
+            entry%fortran = "minibuffer_scroll_window"
+            entry%doc = "The window to scroll with \[scroll_other_window] from the"//LF// &
+                        "minibuffer: the window showing completions (the null handle for"//LF// &
+                        "none)."
         case ("mode_require_final_newline")
             entry%file = "files_fm.f90"
             entry%fortran = "mode_require_final_newline"
@@ -3669,6 +3776,12 @@ contains
             entry%value = repr(point_before_last_command_or_undo)
             entry%doc = "Where point was before the last command or `undo_boundary', and in"//LF// &
                         "which buffer (its serial number), for `record_point'."
+        case ("pop_up_windows")
+            entry%file = "window_fm.f90"
+            entry%fortran = "pop_up_windows"
+            entry%original = ".true."
+            entry%value = repr(pop_up_windows)
+            entry%doc = "Non-nil means `display_buffer' should make a new window."
         case ("prog_mode_hook")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_hook"
@@ -3697,6 +3810,18 @@ contains
             entry%original = ".false."
             entry%value = repr(query_replace_skip_read_only)
             entry%doc = "Non-nil means `query_replace' and friends ignore read-only matches."
+        case ("read_minibuffer_restore_windows")
+            entry%file = "minibuf_fm.f90"
+            entry%fortran = "read_minibuffer_restore_windows"
+            entry%original = ".true."
+            entry%value = repr(read_minibuffer_restore_windows)
+            entry%doc = "True means restore window configurations on exit from minibuffer."//LF// &
+                        "If this is true (the default), reading input with the minibuffer"//LF// &
+                        "will restore, on exit, the window configuration of the frame where"//LF// &
+                        "the minibuffer was entered from."//LF// &
+                        ""//LF// &
+                        "If this is false, window configurations are not restored upon"//LF// &
+                        "exiting the minibuffer."
         case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
@@ -3840,6 +3965,48 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_map"
             entry%doc = "Keymap for `special_mode'."
+        case ("split_height_threshold")
+            entry%file = "window_fm.f90"
+            entry%fortran = "split_height_threshold"
+            entry%original = "80"
+            entry%value = repr(split_height_threshold)
+            entry%doc = "Minimum height for splitting windows sensibly."//LF// &
+                        "If this is an integer, `split_window_sensibly' may split a window"//LF// &
+                        "vertically only if it has at least this many lines.  If, however, a"//LF// &
+                        "window is the only window on its frame, or all the other ones are"//LF// &
+                        "dedicated, `split_window_sensibly' may split it vertically"//LF// &
+                        "disregarding the value of this variable."
+        case ("split_width_threshold")
+            entry%file = "window_fm.f90"
+            entry%fortran = "split_width_threshold"
+            entry%original = "150"
+            entry%value = repr(split_width_threshold)
+            entry%doc = "Minimum width for splitting windows sensibly."//LF// &
+                        "If this is an integer, `split_window_sensibly' may split a window"//LF// &
+                        "horizontally only if it has at least this many columns."
+        case ("split_window_preferred_direction")
+            entry%file = "window_fm.f90"
+            entry%fortran = "split_window_preferred_direction"
+            entry%original = "SPLIT_LONGEST"
+            select case (split_window_preferred_direction)
+            case (SPLIT_LONGEST)
+                entry%value = "SPLIT_LONGEST"
+            case (SPLIT_VERTICAL)
+                entry%value = "SPLIT_VERTICAL"
+            case (SPLIT_HORIZONTAL)
+                entry%value = "SPLIT_HORIZONTAL"
+            case default
+                entry%value = repr(split_window_preferred_direction)
+            end select
+            entry%doc = "The first direction tried when Emacs needs to split a window."//LF// &
+                        "This variable controls in which order `split_window_sensibly' will"//LF// &
+                        "try to split the window.  If set to `vertical' (SPLIT_VERTICAL),"//LF// &
+                        "`split_window_sensibly' tries to split vertically first and then"//LF// &
+                        "horizontally.  If set to `horizontal' (SPLIT_HORIZONTAL) it does the"//LF// &
+                        "opposite.  If set to `longest' (SPLIT_LONGEST, the default), the"//LF// &
+                        "first direction tried depends on the frame shape: in landscape"//LF// &
+                        "orientation it will be like `horizontal', but in portrait it will be"//LF// &
+                        "like `vertical'."
         case ("standard_indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "standard_indent"
@@ -3936,6 +4103,24 @@ contains
             entry%value = repr(visible_bell)
             entry%doc = "term.c's Lisp variables visible-bell, inverse-video and"//LF// &
                         "visible-cursor."
+        case ("window_min_height")
+            entry%file = "window_fm.f90"
+            entry%fortran = "window_min_height"
+            entry%original = "4"
+            entry%value = repr(window_min_height)
+            entry%doc = "The minimum total height, in lines, of any window."//LF// &
+                        "The value has to accommodate one text line, a mode and header line,"//LF// &
+                        "a horizontal scroll bar and a bottom divider, if present.  A value"//LF// &
+                        "less than `window_safe_min_height' is ignored."
+        case ("window_min_width")
+            entry%file = "window_fm.f90"
+            entry%fortran = "window_min_width"
+            entry%original = "10"
+            entry%value = repr(window_min_width)
+            entry%doc = "The minimum total width, in columns, of any window."//LF// &
+                        "The value has to accommodate two text columns as well as margins,"//LF// &
+                        "fringes, a scroll bar and a right divider, if present.  A value less"//LF// &
+                        "than `window_safe_min_width' is ignored."
         case ("words_include_escapes")
             entry%file = "syntax_fm.f90"
             entry%fortran = "words_include_escapes"

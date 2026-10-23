@@ -109,8 +109,7 @@ contains
         end if
     end subroutine select_window
 
-    !> "#<window N on BUFFER>" for window `h'.
-    function window_description(h) result(s)
+    module function window_description(h) result(s)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable :: s
         character(len=20) :: num
@@ -123,36 +122,63 @@ contains
         s = s//">"
     end function window_description
 
+    recursive module integer function window_min_size(window, horizontal) result(n)
+        type(handle_type), intent(in) :: window
+        logical, intent(in) :: horizontal
+        type(handle_type) :: sub
+        n = 0
+        sub = windows(window%index)%child
+        if (window_valid_p(sub)) then
+            if (windows(window%index)%horizontal .eqv. horizontal) then
+                do while (window_valid_p(sub))
+                    n = n + window_min_size(sub, horizontal)
+                    sub = windows(sub%index)%next
+                end do
+            else
+                do while (window_valid_p(sub))
+                    n = max(n, window_min_size(sub, horizontal))
+                    sub = windows(sub%index)%next
+                end do
+            end if
+        else if (horizontal) then
+            n = max(window_safe_min_width, window_min_width)
+        else if (windows(window%index)%mini) then
+            n = window_safe_min_height
+        else
+            ! A text line and the mode line.
+            n = max(window_safe_min_height + 1, window_min_height)
+        end if
+    end function window_min_size
+
     module subroutine split_window(window, size, have_size, horizontal, new, status)
         type(handle_type), intent(in) :: window
         integer, intent(in) :: size
         logical, intent(in) :: have_size, horizontal
         type(handle_type), intent(out) :: new
         type(status_type), intent(out) :: status
-        integer :: old_size, new_size, min_size, safe_size
+        type(handle_type) :: refer, w
+        integer :: old_size, new_size, safe_size, frame_cols
         logical :: too_small
         integer(int64) :: bi
-        if (.not. window_live_p(window)) then
-            call not_live(status)
+        if (.not. window_valid_p(window)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
             return
         end if
         if (horizontal) then
             old_size = windows(window%index)%total_cols
-            min_size = window_min_width
             safe_size = window_safe_min_width
         else
             old_size = windows(window%index)%total_lines
-            min_size = window_min_height
             safe_size = window_safe_min_height
         end if
         if (.not. have_size) then
-            ! Try to give the new window half the size of WINDOW.
+            ! Give the new window half the size of WINDOW.
             new_size = old_size/2
-            too_small = new_size < min_size .or. old_size - new_size < min_size
+            too_small = new_size + window_min_size(window, horizontal) > old_size
         else if (size >= 0) then
             ! SIZE non-negative specifies the new size of WINDOW.
             new_size = old_size - size
-            too_small = size >= old_size .or. new_size < safe_size .or. size < safe_size
+            too_small = size >= old_size .or. new_size < safe_size
         else
             ! SIZE negative specifies the size of the new window.
             new_size = -size
@@ -162,12 +188,28 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Window "//window_description(window)//" too small for splitting")
             return
         end if
-        ! The selected window's point is its buffer's point.
-        if (same_window(window, selected_frame%selected_window)) then
-            call resolve_buffer(windows(window%index)%buffer, bi, status)
-            if (status%ok()) call set_window_point(windows(window%index), buffers(bi)%pt, status)
+        ! The reference window: WINDOW if live, else the selected one.
+        if (window_live_p(window)) then
+            refer = window
+        else
+            refer = selected_frame%selected_window
         end if
-        call split_window_internal(window, horizontal, new_size, selected_frame%root_window, new, status)
+        ! The selected window's point is its buffer's point.
+        if (same_window(refer, selected_frame%selected_window)) then
+            call resolve_buffer(windows(refer%index)%buffer, bi, status)
+            if (status%ok()) call set_window_point(windows(refer%index), buffers(bi)%pt, status)
+        end if
+        ! (A copy: WINDOW may be the root window, which this updates.)
+        w = window
+        call split_window_internal(w, horizontal, new_size, selected_frame%root_window, new, status, refer)
+        if (.not. status%ok()) return
+        if (window_valid_p(windows(window%index)%child)) then
+            ! The windows of an internal WINDOW share what is left.
+            frame_cols = windows(selected_frame%root_window%index)%total_cols
+            associate (w => windows(window%index))
+                call resize_window_tree(window, w%top_line, w%left_col, w%total_lines, w%total_cols, frame_cols)
+            end associate
+        end if
     end subroutine split_window
 
     !> Split WINDOW-TO-SPLIT into two windows, one above the other.
@@ -212,6 +254,19 @@ contains
                           .not. nilp(current_prefix_arg), .true., new, status)
     end subroutine cmd_split_window_right
 
+    !> Run `unshow_buffer' for the live windows of the tree under `h',
+    !> about to be deleted (window.c:delete_all_child_windows and
+    !> Fdelete_window_internal).
+    subroutine unshow_leaves(h)
+        type(handle_type), intent(in) :: h
+        type(handle_type), allocatable :: leaves(:)
+        integer :: k
+        call window_leaves(h, leaves)
+        do k = 1, size(leaves)
+            if (buffer_live_p(windows(leaves(k)%index)%buffer)) call unshow_buffer(leaves(k))
+        end do
+    end subroutine unshow_leaves
+
     module subroutine delete_window(window, status)
         type(handle_type), intent(in) :: window
         type(status_type), intent(out) :: status
@@ -231,6 +286,7 @@ contains
         was_selected = same_window(window, selected_frame%selected_window)
         frame_cols = windows(selected_frame%root_window%index)%total_cols
         call remove_window_from_tree(window, selected_frame%root_window, heir, frame_cols)
+        call unshow_leaves(window)
         call delete_window_tree(window)
         if (.not. was_selected) return
         ! delete-window-choose-selected `mru': the most recently used window.
@@ -288,6 +344,7 @@ contains
             w%next = null_handle()
             w%prev = null_handle()
         end associate
+        call unshow_leaves(old_root)
         call delete_window_tree(old_root)
         selected_frame%root_window = window
         call resize_window_tree(window, top, left, lines, cols, left + cols)
@@ -431,14 +488,18 @@ contains
                 call set_error(status, FM_USER_ERROR, "Cannot switch buffers in minibuffer window")
                 return
             end if
-            call pop_to_buffer(buffer, status, norecord=norec)
+            ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
+            ! non-nil one meaning `inhibit_same_window'.
+            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else if (windows(sw%index)%dedicated == DEDICATED_STRONG) then
             if (force) then
                 call set_error(status, FM_USER_ERROR, "Cannot switch buffers in a dedicated window")
                 return
             end if
-            call pop_to_buffer(buffer, status, norecord=norec)
+            ! (pop-to-buffer buffer norecord): NORECORD is the ACTION, a
+            ! non-nil one meaning `inhibit_same_window'.
+            call pop_to_buffer(buffer, status, alist=display_alist_type(inhibit_same_window=norec))
             if (.not. status%ok()) return
         else
             ! `switch_to_buffer_preserve_window_point' is t.

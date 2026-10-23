@@ -45,7 +45,7 @@ module test_minibuf_fm
                              last_minibuffer_message
     use dired_fm, only: file_name_completion, file_name_all_completions
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type
+    use window_fm, only: window_type, get_buffer_window, window_leaves, same_window
     use bindings_fm, only: init_bindings
     use minibuf_fm, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
                           completion_table_type, completion_list_table, completion_obarray_table, &
@@ -748,12 +748,17 @@ contains
     end subroutine record_completion_state
 
     logical function showing_completions()
-        type(handle_type) :: c
-        type(window_type), pointer :: sw
+        type(handle_type) :: c, w
+        type(handle_type), allocatable :: leaves(:)
         c = get_buffer("*Completions*")
-        sw => frame_selected_window_ref()
-        showing_completions = c%index /= 0 .and. c%index == sw%buffer%index .and. &
-                              c%generation == sw%buffer%generation
+        showing_completions = .false.
+        if (c%index == 0) return
+        w = get_buffer_window(c)
+        if (w%index == 0) return
+        ! A window of its own at the bottom of the frame.
+        call window_leaves(selected_frame%root_window, leaves)
+        showing_completions = size(leaves) == 2 .and. same_window(w, leaves(2)) .and. &
+                              .not. same_window(w, selected_frame%selected_window)
     end function showing_completions
 
     !> Fresh scratch with <f9> recording the completion state.

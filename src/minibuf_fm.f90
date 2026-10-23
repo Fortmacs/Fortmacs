@@ -50,7 +50,8 @@ module minibuf_fm
     use keyboard_fm, only: recursive_edit_1, throw_exit, command_loop_level, post_command_hook, &
                            redisplay_proc, last_message
     use frame_fm, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
-    use window_fm, only: window_type, set_window_buffer, set_window_buffer_internal, window_start, set_window_start
+    use window_fm, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
+                         set_window_configuration, free_window_configuration, minibuffer_scroll_window
     use subr_fm, only: add_to_history
     implicit none(type, external)
     private
@@ -119,6 +120,16 @@ module minibuf_fm
     !> This variable makes a difference whenever the minibuffer window is active.
     !> Port of minibuf.c enable-recursive-minibuffers.
     logical, public :: enable_recursive_minibuffers = .false.
+    !> True means restore window configurations on exit from minibuffer.
+    !> If this is true (the default), reading input with the minibuffer
+    !> will restore, on exit, the window configuration of the frame where
+    !> the minibuffer was entered from.
+    !>
+    !> If this is false, window configurations are not restored upon
+    !> exiting the minibuffer.  Port of minibuf.c
+    !> read-minibuffer-restore-windows (`minibuffer_restore_windows' in
+    !> `minibuffer_exit_hook' is deferred).
+    logical, public :: read_minibuffer_restore_windows = .true.
     !> minibuffer-local-map, the default keymap for reading.
     type(handle_type), public :: minibuffer_local_map
     !> Non-nil means to add new elements in history.
@@ -251,8 +262,8 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: initial, history, default
         type(handle_type), intent(in), optional :: keymap
-        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, old_root_buffer, saved_calling
-        integer(int64) :: old_root_start, bi
+        type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, saved_calling
+        type(window_configuration_type) :: config
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
@@ -294,10 +305,8 @@ contains
         sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()
         old_mini_buffer = mw%buffer
-        ! read-minibuffer-restore-windows: what the root window shows (the
-        ! *Completions* list may replace it while reading).
-        old_root_buffer = sw%buffer
-        old_root_start = window_start(sw)
+        if (read_minibuffer_restore_windows) call current_window_configuration(config)
+        minibuffer_scroll_window = selected_frame%selected_window
         saved_hook => post_command_hook
         call set_buffer(minibuffer, status)
         if (.not. status%ok()) then
@@ -348,16 +357,11 @@ contains
         minibuffer_calling_buffer = saved_calling
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
-        sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()
         mw%buffer = old_mini_buffer
-        if (old_root_buffer%index /= 0 .and. (sw%buffer%index /= old_root_buffer%index .or. &
-                                              sw%buffer%generation /= old_root_buffer%generation)) then
-            call resolve_buffer(old_root_buffer, bi, st)
-            if (st%ok()) then
-                call set_window_buffer_internal(selected_frame%selected_window, old_root_buffer, .false.)
-                call set_window_start(sw, old_root_start, st, noforce=.true.)
-            end if
+        if (read_minibuffer_restore_windows) then
+            call set_window_configuration(config)
+            call free_window_configuration(config)
         end if
         call set_buffer(calling_buffer, st)
         minibuffer_history_variable = saved_histvar

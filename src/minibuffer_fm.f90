@@ -34,9 +34,9 @@ module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
-    use handle_fm, only: handle_type
+    use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
-                         set_buffer_read_only, buffer_list
+                         set_buffer_read_only, buffer_list, bury_buffer_internal
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
                          free_keymap
@@ -46,7 +46,11 @@ module minibuffer_fm
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type, set_window_buffer_internal, set_window_start
+    use window_fm, only: window_type, windows, set_window_start, window_live_p, same_window, get_buffer_window, &
+                         temp_buffer_window_show, fit_window_to_buffer, display_alist_type, delete_window, &
+                         switch_to_prev_buffer, scroll_window, pos_visible_in_window_p, minibuffer_scroll_window, &
+                         display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, BK_BURY, &
+                         DISPLAY_ACTION_MAYBE_SAME_WINDOW, DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp
@@ -129,11 +133,9 @@ module minibuffer_fm
     !> command, unlike the display), for programs and tests.
     character(len=:), allocatable, public :: last_minibuffer_message
 
-    !> minibuffer-scroll-window is the *Completions* window: a repeated
-    !> TAB scrolls it.
-    logical :: completions_scroll_window = .false.
-    !> What the root window showed before *Completions*.
-    type(handle_type) :: completions_previous_buffer
+    !> Maximum height for *Completions* buffer window (0 for no maximum:
+    !> nil).  Port of minibuffer.el completions-max-height.
+    integer, public :: completions_max_height = 0
 
     !> Non-nil means when reading a filename start with default dir in minibuffer.
     !>
@@ -874,11 +876,11 @@ contains
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
         this_command = sym("completion_at_point")
-        if (.not. value_eq(last_command, sym("completion_at_point"))) completions_scroll_window = .false.
-        if (completions_scroll_window .and. completions_visible()) then
-            ! If there's a fresh completion window with a live buffer, and
-            ! this command is repeated, scroll that window.
-            call scroll_completions()
+        if (.not. value_eq(last_command, sym("completion_at_point"))) minibuffer_scroll_window = null_handle()
+        ! If there's a fresh completion window with a live buffer, and this
+        ! command is repeated, scroll that window.
+        if (window_live_p(minibuffer_scroll_window)) then
+            call scroll_completions(minibuffer_scroll_window)
             return
         end if
         bits = completion_do_completion(beg, point_max(), .false., .false.)
@@ -982,28 +984,36 @@ contains
     ! The *Completions* buffer
     ! ------------------------------------------------------------------
 
-    !> Whether the root window shows *Completions* (minibuffer--completions-visible).
-    logical function completions_visible()
+    !> The window showing *Completions*, or the null handle.  Port of
+    !> minibuffer.el:minibuffer--completions-visible.
+    function completions_visible() result(window)
+        type(handle_type) :: window
         type(handle_type) :: buf
-        type(window_type), pointer :: sw
-        sw => frame_selected_window_ref()
+        window = null_handle()
         buf = get_buffer("*Completions*")
-        completions_visible = buf%index /= 0 .and. &
-                              sw%buffer%index == buf%index .and. &
-                              sw%buffer%generation == buf%generation
+        if (buf%index /= 0) window = get_buffer_window(buf)
     end function completions_visible
 
     !> Scroll the window of possible completions: to the top when its end
     !> is visible, else down a screen.  The scrolling part of
     !> completion--in-region-1.
-    subroutine scroll_completions()
+    subroutine scroll_completions(window)
+        type(handle_type), intent(in) :: window
         type(status_type) :: status
-        type(window_type), pointer :: w
-        w => frame_selected_window_ref()
-        if (w%window_end_valid) then
-            call set_window_start(w, 1_int64, status, noforce=.true.)
+        type(handle_type) :: old
+        integer(int64) :: zv, begv
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        zv = buffers(cur)%zv
+        begv = buffers(cur)%begv
+        call set_buffer(old, status)
+        if (pos_visible_in_window_p(zv, window)) then
+            ! If end is in view, scroll up to the end.
+            call set_window_start(windows(window%index), begv, status)
         else
-            call set_window_start(w, w%window_end_pos, status)
+            ! Else scroll down one screen.
+            call scroll_window(window, 1, status)
         end if
     end subroutine scroll_completions
 
@@ -1018,12 +1028,12 @@ contains
         type(value_type) :: completions
         type(value_type), allocatable :: elts(:)
         type(string_box), allocatable :: strings(:)
-        type(handle_type) :: mini, buf
+        type(handle_type) :: mini, buf, window
         type(status_type) :: status
+        type(display_alist_type) :: alist
         character(len=:), allocatable :: string
         integer(int64) :: s, e, base_size
-        integer :: k
-        type(window_type), pointer :: sw
+        integer :: k, saved_mark
         call message("Making completion list...")
         s = minibuffer_prompt_end()
         if (present(start)) s = start
@@ -1064,18 +1074,38 @@ contains
         call set_buffer_read_only(buf, .false., status)
         call erase_buffer(status)
         call display_completion_list(strings)
-        call set_buffer_read_only(buf, .true., status)
-        call goto_char(1_int64)
         call set_buffer(mini, status)
-        sw => frame_selected_window_ref()
-        if (.not. completions_visible()) then
-            completions_previous_buffer = sw%buffer
-            call set_window_buffer_internal(selected_frame%selected_window, buf, .false.)
+        ! If the *Completions* buffer is shown in a new window, mark it
+        ! as softly-dedicated, so bury-buffer in
+        ! minibuffer-hide-completions will know whether to delete the
+        ! window or not.
+        saved_mark = display_buffer_mark_dedicated
+        display_buffer_mark_dedicated = DEDICATED_WEAK
+        ! A copy of `display_buffer_fallback_action' where
+        ! `display_buffer_use_some_window' is replaced with
+        ! `display_buffer_at_bottom' (with-current-buffer-window).
+        alist%window_height => completions_fit_window_to_buffer
+        if (selected_frame%minibuffer_selected) then
+            call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
+                                         DISPLAY_ACTION_REUSE_WINDOW, DISPLAY_ACTION_AT_BOTTOM], alist)
         else
-            call set_window_start(sw, 1_int64, status, noforce=.true.)
+            call temp_buffer_window_show(buf, window, status, [DISPLAY_ACTION_MAYBE_SAME_WINDOW, &
+                                         DISPLAY_ACTION_REUSE_WINDOW], alist)
         end if
-        completions_scroll_window = .true.
+        display_buffer_mark_dedicated = saved_mark
     end subroutine minibuffer_completion_help
+
+    !> Resize *Completions* buffer window.  Port of
+    !> minibuffer.el:completions--fit-window-to-buffer
+    !> (`temp_buffer_resize_mode' off).
+    subroutine completions_fit_window_to_buffer(window)
+        type(handle_type), intent(in) :: window
+        if (completions_max_height > 0) then
+            call fit_window_to_buffer(window, completions_max_height)
+        else
+            call fit_window_to_buffer(window)
+        end if
+    end subroutine completions_fit_window_to_buffer
 
     !> Sort `strings' as `string_lessp' does.
     subroutine sort_strings(strings)
@@ -1154,20 +1184,27 @@ contains
         end do
     end subroutine display_completion_list
 
-    !> Get rid of an out-of-date *Completions* buffer: the root window goes
-    !> back to the buffer it showed.  Port of
-    !> minibuffer.el:minibuffer-hide-completions (bury-buffer).
+    !> Get rid of an out-of-date *Completions* buffer: bury it in its
+    !> window, which is deleted if it was made for it (dedicated), or
+    !> else shows the buffer it showed before.  Port of
+    !> minibuffer.el:minibuffer-hide-completions (with-selected-window and
+    !> bury-buffer).
     subroutine minibuffer_hide_completions()
         type(status_type) :: status
-        type(handle_type) :: previous
-        type(window_type), pointer :: sw
-        if (.not. completions_visible()) return
-        previous = completions_previous_buffer
-        if (previous%index == 0) previous = minibuffer_calling_buffer
-        if (previous%index == 0) return
-        sw => frame_selected_window_ref()
-        call set_window_buffer_internal(selected_frame%selected_window, previous, .false.)
-        status = status_type()
+        type(handle_type) :: window, buffer, b
+        window = completions_visible()
+        if (.not. window_live_p(window)) return
+        buffer = windows(window%index)%buffer
+        call bury_buffer_internal(buffer)
+        ! window--delete with DEDICATED-ONLY.
+        if (windows(window%index)%dedicated /= DEDICATED_NONE .and. &
+            .not. same_window(window, selected_frame%root_window)) then
+            call delete_window(window, status)
+            if (status%ok()) return
+        end if
+        ! Switch to another buffer in window.
+        windows(window%index)%dedicated = DEDICATED_NONE
+        b = switch_to_prev_buffer(window, BK_BURY, status)
     end subroutine minibuffer_hide_completions
 
     ! ------------------------------------------------------------------
@@ -1273,7 +1310,6 @@ contains
         procedure(completion_predicate), pointer :: saved_pred
         type(handle_type) :: keymap
         integer :: saved_confirm, match
-        logical :: saved_scroll
         match = REQUIRE_MATCH_NIL
         if (present(require_match)) match = require_match
         if (match /= REQUIRE_MATCH_NIL) then
@@ -1287,13 +1323,11 @@ contains
         saved_table = minibuffer_completion_table
         saved_pred => minibuffer_completion_predicate
         saved_confirm = minibuffer_completion_confirm
-        saved_scroll = completions_scroll_window
         minibuffer_completion_table = collection
         minibuffer_completion_predicate => null()
         if (present(predicate)) minibuffer_completion_predicate => predicate
         minibuffer_completion_confirm = match
         if (match == REQUIRE_MATCH_T) minibuffer_completion_confirm = REQUIRE_MATCH_NIL
-        completions_scroll_window = .false.
         if (present(history)) then
             call read_from_minibuffer(prompt, result, status, initial, keymap, history, default)
         else
@@ -1302,7 +1336,6 @@ contains
         minibuffer_completion_table = saved_table
         minibuffer_completion_predicate => saved_pred
         minibuffer_completion_confirm = saved_confirm
-        completions_scroll_window = saved_scroll
         if (.not. status%ok()) return
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine completing_read
