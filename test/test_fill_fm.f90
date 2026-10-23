@@ -287,9 +287,12 @@ contains
                 end if
                 cycle
             case (1)
-                if (len_trim(line) > 0 .and. line(1:1) == " ") then
-                    code = code//" "//trim(adjustl(line))
-                    cycle
+                ! (.and. does not short-circuit: test the length first.)
+                if (len_trim(line) > 0) then
+                    if (line(1:1) == " ") then
+                        code = code//" "//trim(adjustl(line))
+                        cycle
+                    end if
                 end if
                 state = 0
             case default

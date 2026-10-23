@@ -913,7 +913,7 @@ contains
                 icase = line(last + 1:) == "i"
                 pattern = unextend(line(2:last - 1))
                 have_pattern = .true.
-            else if (len(line) > 4 .and. line(1:4) == "    " .and. have_pattern) then
+            else if (index(line, "    ") == 1 .and. len(line) > 4 .and. have_pattern) then
                 ! A string: match it against the pattern and save the
                 ! results.
                 string = line(5:)
