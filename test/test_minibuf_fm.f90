@@ -24,7 +24,7 @@
 module test_minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR
+    use error_fm, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nil, list_length, list_elt, xstring, make_string, make_list, &
                        list, list_elements, stringp, nilp, t_value
@@ -52,7 +52,11 @@ module test_minibuf_fm
                           completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
     use fns_fm, only: yes_or_no_p
-    use subr_fm, only: add_to_history, history_length
+    use subr_fm, only: add_to_history, history_length, history_delete_duplicates
+    use fns_fm, only: put
+    use minibuf_fm, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+    use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
+                             read_buffer_completion_ignore_case
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, write_region, &
                          make_directory_internal, delete_file_internal, file_exists_p
     use files_fm, only: set_visited_file_name, write_file
@@ -61,7 +65,7 @@ module test_minibuf_fm
 
     public :: collect_minibuf_fm
 
-    type(command_type), target :: cmd_test_nested_read
+    type(command_type), target :: cmd_test_nested_read, cmd_test_leave_and_read
     type(command_type), target :: cmd_test_record_completion
 
     !> What the nested-minibuffer command saw.
@@ -78,6 +82,7 @@ module test_minibuf_fm
 
     type(record_type) :: recorded(10)
     logical :: recorded_visible(10) = .false.
+    integer(int64) :: recorded_point(10) = 0
     integer :: nrecorded = 0
 
 contains
@@ -90,10 +95,17 @@ contains
                     new_unittest("prompt-is-protected", test_prompt), &
                     new_unittest("history", test_history), &
                     new_unittest("future-history-default", test_default), &
+                    new_unittest("line-or-history-element", test_line_or_history), &
                     new_unittest("add-to-history", test_add_to_history), &
                     new_unittest("no-recursive-minibuffer", test_no_recursion), &
                     new_unittest("yes-or-no-p", test_yes_or_no), &
                     new_unittest("read-file-name", test_read_file_name), &
+                    new_unittest("read-file-name-history", test_read_file_name_history), &
+                    new_unittest("read-file-name-directory", test_read_file_name_directory), &
+                    new_unittest("file-name-table-substitutes", test_file_name_table_sifn), &
+                    new_unittest("read-buffer-ignore-case", test_read_buffer_ignore_case), &
+                    new_unittest("internal-complete-buffer", test_internal_complete_buffer), &
+                    new_unittest("minibuffer-from-other-window", test_minibuffer_other_window), &
                     new_unittest("find-file-command", test_find_file_command), &
                     new_unittest("write-file", test_write_file), &
                     new_unittest("try-completion-string-list", test_try_string_list), &
@@ -205,8 +217,10 @@ contains
         call check(error, st%code == FM_QUIT .and. len(answer) == 0)
     end subroutine test_abort
 
-    !> C-a stops after the prompt; DEL there and C-b into it don't
-    !> change the prompt, and typing still lands in the input.
+    !> C-a stops after the prompt; DEL there doesn't change the prompt.
+    !> The prompt is not cursor-intangible (minibuffer-prompt-properties
+    !> is (read-only t)): C-b moves into it, and typing there is a
+    !> read-only error.
     subroutine test_prompt(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: answer
@@ -214,7 +228,14 @@ contains
         call fresh_scratch()
         call type_keys("b C-a DEL C-b C-b a RET")
         call read_from_minibuffer("Say: ", answer, st)
-        call check(error, st%ok() .and. answer == "ab", answer)
+        call check(error, st%ok() .and. answer == "b", answer)
+        if (allocated(error)) return
+        call completion_setup()
+        call type_keys("b C-a C-b C-b <f9> M-> a RET")
+        call read_from_minibuffer("Say: ", answer, st)
+        call check(error, st%ok() .and. answer == "ba", answer)
+        if (allocated(error)) return
+        call check(error, nrecorded == 1 .and. recorded_point(1) == 4, "point in the prompt")
     end subroutine test_prompt
 
     subroutine test_history(error)
@@ -242,6 +263,34 @@ contains
         call read_from_minibuffer("? ", answer, st, history="test-history")
         call check(error, answer == "one", answer)
     end subroutine test_history
+
+    !> <up> and <down> move between the lines of a multi-line input, and
+    !> to the history past the first or last line; TAB inserts itself.
+    subroutine test_line_or_history(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(status_type) :: st
+        call fresh_scratch()
+        call set(sym("test-history"), list(make_string("old")), st)
+        ! Two lines: <up> goes to the first line, a second <up> to the
+        ! history.
+        call type_keys("a C-q C-j b <up> X RET")
+        call read_from_minibuffer("? ", answer, st, history="test-history")
+        call check(error, answer == "aX"//achar(10)//"b", answer)
+        if (allocated(error)) return
+        call type_keys("a C-q C-j b <up> <up> RET")
+        call read_from_minibuffer("? ", answer, st, history="test-history")
+        call check(error, answer == "old", answer)
+        if (allocated(error)) return
+        ! Back down to the input.
+        call type_keys("x <up> <down> RET")
+        call read_from_minibuffer("? ", answer, st, history="test-history")
+        call check(error, answer == "x", answer)
+        if (allocated(error)) return
+        call type_keys("a TAB b RET")
+        call read_from_minibuffer("? ", answer, st)
+        call check(error, answer == "a"//achar(9)//"b", answer)
+    end subroutine test_line_or_history
 
     subroutine test_default(error)
         type(error_type), allocatable, intent(out) :: error
@@ -279,6 +328,33 @@ contains
         history_length = saved
         call symbol_value(sym("h-test"), h, st)
         call check(error, list_length(h) == 3 .and. xstring(list_elt(h, 1_int64)) == "5")
+        if (allocated(error)) return
+        ! history-delete-duplicates
+        call set(sym("h-test"), nil(), st)
+        history_delete_duplicates = .true.
+        call add_to_history("h-test", "a")
+        call add_to_history("h-test", "b")
+        call add_to_history("h-test", "a")
+        history_delete_duplicates = .false.
+        call symbol_value(sym("h-test"), h, st)
+        call check(error, list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "a" .and. &
+                   xstring(list_elt(h, 2_int64)) == "b", "duplicates deleted")
+        if (allocated(error)) return
+        ! The history_length property.
+        call put(sym("h-test"), sym("history_length"), make_fixnum(1_int64), st)
+        call add_to_history("h-test", "c")
+        call symbol_value(sym("h-test"), h, st)
+        call check(error, list_length(h) == 1 .and. xstring(list_elt(h, 1_int64)) == "c", "history_length property")
+        if (allocated(error)) return
+        call put(sym("h-test"), sym("history_length"), t_value(), st)
+        call add_to_history("h-test", "d")
+        call add_to_history("h-test", "e")
+        call symbol_value(sym("h-test"), h, st)
+        call check(error, list_length(h) == 3, "no truncation")
+        if (allocated(error)) return
+        ! A void history variable.
+        call add_to_history("h-test-void-variable", "x", status=st)
+        call check(error, st%code == FM_VOID_VARIABLE, "void-variable")
     end subroutine test_add_to_history
 
     subroutine nested_read(status)
@@ -343,6 +419,164 @@ contains
         call read_file_name("File: ", name, st)
         call check(error, name == "/x/y/a.txt", name)
     end subroutine test_read_file_name
+
+    !> The history gets what read_file_name returns; unchanged input is
+    !> the default, empty input gives "".
+    subroutine test_read_file_name_history(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: name
+        type(status_type) :: st
+        type(value_type) :: h
+        call fresh_scratch()
+        buffers(cur)%directory = "/x/y/"
+        call set(sym("file_name_history"), nil(), st)
+        call type_keys("RET")
+        call read_file_name("File: ", name, st, default_filename="/x/y/z")
+        call symbol_value(sym("file_name_history"), h, st)
+        call check(error, name == "/x/y/z" .and. xstring(list_elt(h, 1_int64)) == "/x/y/z", name)
+        if (allocated(error)) return
+        ! Typed after the directory: the substituted name.
+        call type_text("~/f"//achar(13))
+        call read_file_name("File: ", name, st, default_filename="/x/y/z")
+        call symbol_value(sym("file_name_history"), h, st)
+        call check(error, name == "~/f" .and. list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "~/f", &
+                   xstring(list_elt(h, 1_int64)))
+        if (allocated(error)) return
+        ! The same name again is a repeat: no new element.
+        call type_text("~/f"//achar(13))
+        call read_file_name("File: ", name, st, default_filename="/x/y/z")
+        call symbol_value(sym("file_name_history"), h, st)
+        call check(error, name == "~/f" .and. list_length(h) == 2, "repeat")
+        if (allocated(error)) return
+        ! Erasing the input gives "".
+        call type_keys("C-a C-k RET")
+        call read_file_name("File: ", name, st, default_filename="/x/y/z")
+        call check(error, st%ok() .and. len(name) == 0, name)
+    end subroutine test_read_file_name_history
+
+    !> The minibuffer's default directory is DIR: relative names complete
+    !> there.
+    subroutine test_read_file_name_directory(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: name, dir
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call fresh_scratch()
+        call init_fileio()
+        dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
+        call make_directory_internal(dir, st)
+        call get_buffer_create(" rfn-source", buf, st)
+        call set_buffer(buf, st)
+        call insert("data", st)
+        call write_region(dir//"only-file.txt", .false., st)
+        call kill_buffer(buf, st)
+        call fresh_scratch()
+        buffers(cur)%directory = "/"
+        insert_default_directory = .false.
+        call type_keys("o n TAB RET")
+        call read_file_name("File: ", name, st, dir=dir, mustmatch=REQUIRE_MATCH_T)
+        insert_default_directory = .true.
+        call check(error, st%ok() .and. name == "only-file.txt", name)
+        if (allocated(error)) return
+        call check(error, buffers(cur)%directory == "/", "the caller's directory is unchanged")
+    end subroutine test_read_file_name_directory
+
+    !> read-file-name-internal completes the name substitute-in-file-name
+    !> makes of the input, keeping the input's text.
+    subroutine test_file_name_table_sifn(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: dir
+        type(value_type) :: result
+        type(status_type) :: st
+        call fresh_scratch()
+        call init_fileio()
+        dir = file_name_as_directory(emacs_wd)//"build/test-rfn-dir/"
+        call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_TRY, result, st)
+        call check(error, stringp(result), "a completion")
+        if (allocated(error)) return
+        call check(error, xstring(result) == "/nonexistent/"//dir//"only-file.txt", xstring(result))
+        if (allocated(error)) return
+        call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_ALL, result, st)
+        call check(error, list_length(result) == 1, "all completions")
+        if (allocated(error)) return
+        call check(error, xstring(list_elt(result, 1_int64)) == "only-file.txt", xstring(list_elt(result, 1_int64)))
+    end subroutine test_file_name_table_sifn
+
+    !> read-buffer-completion-ignore-case.
+    subroutine test_read_buffer_ignore_case(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: name
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call fresh_scratch()
+        call get_buffer_create("Zebra-Buffer", buf, st)
+        read_buffer_completion_ignore_case = .true.
+        call type_keys("z e b TAB RET")
+        call read_buffer("Buffer: ", name, st)
+        read_buffer_completion_ignore_case = .false.
+        call kill_buffer(buf, st)
+        call check(error, st%ok() .and. name == "Zebra-Buffer", name)
+        if (allocated(error)) return
+        call check(error, .not. completion_ignore_case%value, "completion-ignore-case restored")
+    end subroutine test_read_buffer_ignore_case
+
+    !> all-completions of "" leaves out internal buffers (names starting
+    !> with a space), unless asked for them.
+    subroutine test_internal_complete_buffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: result
+        type(value_type), allocatable :: elts(:)
+        type(status_type) :: st
+        type(handle_type) :: buf
+        integer :: k
+        logical :: internal
+        call fresh_scratch()
+        call get_buffer_create(" internal-test", buf, st)
+        call internal_complete_buffer("", COMPLETE_ALL, result, st)
+        call list_elements(result, elts)
+        internal = .false.
+        do k = 1, size(elts)
+            if (xstring(elts(k)) == " internal-test") internal = .true.
+        end do
+        call check(error, size(elts) > 0 .and. .not. internal, "internal buffers left out")
+        if (allocated(error)) return
+        call internal_complete_buffer(" internal-t", COMPLETE_ALL, result, st)
+        call check(error, list_length(result) == 1, "asked for")
+        if (allocated(error)) return
+        call internal_complete_buffer(" internal-test", COMPLETE_TEST, result, st)
+        call check(error, .not. nilp(result), "test-completion")
+        call kill_buffer(buf, st)
+    end subroutine test_internal_complete_buffer
+
+    !> Reading from the minibuffer with another window selected cancels
+    !> the active minibuffer.
+    subroutine leave_and_read(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: answer
+        selected_frame%minibuffer_selected = .false.
+        call read_from_minibuffer("Inner: ", answer, nested_status)
+        status = status_type()
+    end subroutine leave_and_read
+
+    subroutine test_minibuffer_other_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: answer
+        type(value_type), allocatable :: key(:)
+        type(status_type) :: st
+        call fresh_scratch()
+        cmd_test_leave_and_read = command_type("test-leave-and-read", leave_and_read)
+        call cmd_test_leave_and_read%define()
+        call key_parse("C-t", key, st)
+        call define_key(minibuffer_local_map, key, sym("test-leave-and-read"), st)
+        call type_keys("C-t x RET")
+        call read_from_minibuffer("Outer: ", answer, st)
+        call check(error, .not. st%ok() .and. &
+                   format_error(st) == "Command attempted to use minibuffer while in minibuffer", format_error(st))
+        if (allocated(error)) return
+        call check(error, minibuf_level == 0, "left the minibuffer")
+        call discard_input()
+        call define_key(minibuffer_local_map, key, nil(), st)
+    end subroutine test_minibuffer_other_window
 
     subroutine test_find_file_command(error)
         type(error_type), allocatable, intent(out) :: error
@@ -743,6 +977,7 @@ contains
         last_minibuffer_message = ""
         recorded_visible(nrecorded) = showing_completions()
         recorded(nrecorded)%contents = minibuffer_contents()
+        recorded_point(nrecorded) = point()
     end subroutine record_completion_state
 
     logical function showing_completions()

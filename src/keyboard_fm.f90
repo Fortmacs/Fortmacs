@@ -65,7 +65,7 @@ module keyboard_fm
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
-              throw_exit, exit_recursive_edit, abort_recursive_edit, sit_for
+              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: READ_KEY_ELTS, redisplay_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -157,6 +157,11 @@ module keyboard_fm
     integer, public, protected :: command_loop_level = 0
     !> A (throw 'exit VALUE) is pending; `exit_abort' for VALUE t.
     logical :: exit_pending = .false., exit_abort = .false.
+    !> How many recursive edits the pending abort leaves
+    !> (minibuffer-quit-recursive-edit's LEVELS).
+    integer :: exit_levels = 1
+    !> VALUE is this string: the recursive edit signals it as an error.
+    character(len=:), allocatable :: exit_string
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
     logical :: transient_active = .false.
@@ -813,23 +818,53 @@ contains
         logical :: done
         command_loop_level = command_loop_level + 1
         exit_pending = .false.
+        exit_levels = 1
+        if (allocated(exit_string)) deallocate (exit_string)
         do
             call command_loop_step(done, step_status)
             if (exit_pending .or. done .or. exit_requested) exit
         end do
-        if (.not. exit_pending .or. exit_abort) call set_error(status, FM_QUIT)
-        exit_pending = .false.
-        exit_abort = .false.
+        if (allocated(exit_string)) then
+            call set_error(status, FM_GENERIC_ERROR, exit_string)
+            deallocate (exit_string)
+        else if (.not. exit_pending .or. exit_abort) then
+            call set_error(status, FM_QUIT)
+        end if
         command_loop_level = command_loop_level - 1
+        if (exit_pending .and. exit_abort .and. exit_levels > 1) then
+            ! Quit the enclosing recursive edits too.
+            exit_levels = exit_levels - 1
+        else
+            exit_pending = .false.
+            exit_abort = .false.
+            exit_levels = 1
+        end if
     end subroutine recursive_edit_1
 
     !> (throw 'exit nil), or with `abort' (throw 'exit t): end the
-    !> innermost recursive edit once the current command returns.
-    subroutine throw_exit(abort)
+    !> innermost recursive edit once the current command returns.  With
+    !> `abort', `levels' (default 1) is the number of nested recursive
+    !> edits to quit (as minibuffer.el:minibuffer-quit-recursive-edit).
+    subroutine throw_exit(abort, levels)
         logical, intent(in) :: abort
+        integer, intent(in), optional :: levels
         exit_pending = .true.
         exit_abort = abort
+        exit_levels = 1
+        if (present(levels)) exit_levels = max(1, levels)
     end subroutine throw_exit
+
+    !> (throw 'exit STRING): end the innermost recursive edit once the
+    !> current command returns; it signals an error with message `msg'.
+    !> Port of keyboard.c:Frecursive_edit's handling of a string thrown
+    !> to `exit'.
+    subroutine throw_exit_string(msg)
+        character(len=*), intent(in) :: msg
+        exit_pending = .true.
+        exit_abort = .false.
+        exit_levels = 1
+        exit_string = msg
+    end subroutine throw_exit_string
 
     !> Leave the innermost recursive edit or minibuffer.
     !> Port of keyboard.c:Fexit_recursive_edit.

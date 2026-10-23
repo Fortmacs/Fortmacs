@@ -47,6 +47,7 @@ submodule(data_fm) data_buffer_fm
     use callint_fm, only: find_command, command_type, funcall, command_name_of
     use lisp_fm, only: command_proc
     use search_fm, only: case_fold_search
+    use minibuf_fm, only: completion_ignore_case
     use paragraphs_fm, only: paragraph_start, paragraph_separate, sentence_end, &
                              sentence_end_double_space, init_paragraph_variables
     use fill_fm, only: adaptive_fill_mode
@@ -68,26 +69,27 @@ submodule(data_fm) data_buffer_fm
     !> The variables forwarded to Fortran settings; slot variables are
     !> per-buffer fields of buffer_type (always local, like buffer.c's
     !> slots with a local flag of -1).
-    integer, parameter :: NFWD = 23
+    integer, parameter :: NFWD = 24
     character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=24) :: &
                                                 "fill_column", "left_margin", "tab_width", "indent_tabs_mode", "case_fold_search", &
                                                       "fill_prefix", "paragraph_start", "paragraph_separate", "sentence_end", &
                                                     "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
-                                                "parse_sexp_ignore_comments", "require_final_newline", "mode_require_final_newline"]
+                                                "parse_sexp_ignore_comments", "require_final_newline", &
+                                                      "mode_require_final_newline", "completion_ignore_case"]
     integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
-                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT]
+                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT, K_BOOL]
     !> DEFVAR_PER_BUFFER, `make_variable_buffer_local' or `:local t':
     !> local when set.
     logical, parameter :: FWD_PER_BUFFER(NFWD) = [.true., .true., .true., .false., .true., &
                                                   .true., .false., .false., .false., &
                                                   .false., .false., .false., &
                                                   .false., .true., .false., .false., &
-                                                  .true., .true., .true., .false., .false., .false., .false.]
+                                                  .true., .true., .true., .false., .false., .false., .false., .false.]
 
     !> Saved procedure pointers: the default while the current buffer
     !> has a local value, or a buffer's local value while it is not
@@ -292,6 +294,8 @@ contains
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL: always t or nil.
             v = bool_value(indent_tabs_mode%value)
+        case ("completion_ignore_case")
+            v = bool_value(completion_ignore_case%value)
         case ("case_fold_search")
             call setting_value(case_fold_search, bool_value(case_fold_search%value), v, bound)
         case ("fill_prefix")
@@ -381,6 +385,8 @@ contains
             call set_integer(tab_width, v, .true., status)
         case ("indent_tabs_mode")
             indent_tabs_mode = .not. nilp(v)
+        case ("completion_ignore_case")
+            completion_ignore_case = .not. nilp(v)
         case ("case_fold_search")
             call set_logical(case_fold_search, v)
         case ("fill_prefix")
@@ -537,6 +543,8 @@ contains
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
+        case ("completion_ignore_case")
+            completion_ignore_case = .true.
         case ("major_mode")
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "symbolp")
         case ("mode_name", "buffer_read_only")

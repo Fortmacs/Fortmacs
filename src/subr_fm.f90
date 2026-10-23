@@ -28,10 +28,11 @@
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT
     use, intrinsic :: iso_fortran_env, only: int64
-    use lisp_fm, only: value_type, fixnump, xfixnum, nil, make_string, cons, list_length, list_elt, &
+    use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
                        list_elements, make_list, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
+    use fns_fm, only: get
     use eval_fm, only: hook_type
     use keyboard_fm, only: read_event, discard_input
     use xdisp_fm, only: message, cursor_in_echo_area
@@ -68,8 +69,17 @@ module subr_fm
     !> Maximum length of history lists before truncation takes place.
     !> A number means truncate to that length; truncation deletes old
     !> elements, and is done just after inserting a new element.
-    !> Port of minibuf.c history-length (no t for "no truncation" yet).
+    !>
+    !> This variable only affects history lists that don't specify their own
+    !> maximum lengths.  Setting the `history_length' property of a history
+    !> variable overrides this default.  Port of minibuf.c history-length
+    !> (the value t, no truncation, is not ported: Deferred).
     integer, public :: history_length = 100
+    !> Non-nil means to delete duplicates in history.
+    !> If set to t when adding a new history element, all previous identical
+    !> elements are deleted from the history list.  Port of minibuf.c
+    !> history-delete-duplicates.
+    logical, public :: history_delete_duplicates = .false.
     public :: ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, ANSWER_ACT_AND_EXIT, &
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE, &
               ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, &
@@ -272,26 +282,50 @@ contains
 
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
-    !> Otherwise, the maximum history length is the value of the
-    !> `history_length' variable.
-    !> If KEEP-ALL is true, add NEWELT to history even if it is empty or
-    !> duplicates the most recent entry in the history.  Port of
-    !> subr.el:add-to-history (history-delete-duplicates nil).
-    subroutine add_to_history(history_var, newelt, maxelt, keep_all)
+    !> Otherwise, the maximum history length is the value of the `history_length'
+    !> property on symbol HISTORY-VAR, if set, or the value of the `history_length'
+    !> variable.  The possible values of maximum length have the same meaning as
+    !> the values of `history_length'.
+    !> Remove duplicates of NEWELT if `history_delete_duplicates' is non-nil.
+    !> If optional fourth arg KEEP-ALL is non-nil, add NEWELT to history even
+    !> if it is empty or duplicates the most recent entry in the history.
+    !> Port of subr.el:add-to-history (NEWELT a string; `added' says
+    !> whether the list changed; a void HISTORY-VAR is a void-variable
+    !> error in `status').
+    subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
         character(len=*), intent(in) :: history_var, newelt
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
-        type(value_type) :: history, first, longer
-        type(value_type), allocatable :: elems(:)
-        type(status_type) :: status
-        logical :: ok, all
-        integer :: limit
+        logical, intent(out), optional :: added
+        type(status_type), intent(out), optional :: status
+        type(value_type) :: history, prop, first
+        type(value_type), allocatable :: elems(:), kept(:)
+        type(status_type) :: st
+        logical :: all, limited
+        integer :: limit, k, n
+        if (present(added)) added = .false.
+        if (present(status)) status = status_type()
+        limited = .true.
         limit = history_length
-        if (present(maxelt)) limit = maxelt
+        if (present(maxelt)) then
+            limit = maxelt
+        else
+            call get(sym(history_var), sym("history_length"), prop, st)
+            if (fixnump(prop)) then
+                limit = int(xfixnum(prop))
+            else if (.not. nilp(prop)) then
+                ! A non-integer MAXELT: no truncation.
+                limited = .false.
+            end if
+        end if
         all = .false.
         if (present(keep_all)) all = keep_all
-        call symbol_value(sym(history_var), history, status)
-        if (.not. status%ok()) history = nil()
+        call symbol_value(sym(history_var), history, st)
+        if (.not. st%ok()) then
+            if (present(status)) status = st
+            return
+        end if
+        if (.not. listp(history)) return
         if (.not. all .and. len(newelt) == 0) return
         if (.not. all .and. list_length(history) > 0) then
             first = list_elt(history, 1_int64)
@@ -299,15 +333,29 @@ contains
                 if (xstring(first) == newelt .and. len(xstring(first)) == len(newelt)) return
             end if
         end if
-        call cons(make_string(newelt), history, longer, ok)
-        if (.not. ok) return
-        if (limit <= 0) then
-            longer = nil()
-        else if (list_length(longer) > limit) then
-            call list_elements(longer, elems)
-            longer = make_list(elems(1:limit))
+        call list_elements(history, elems)
+        allocate (kept(size(elems) + 1))
+        kept(1) = make_string(newelt)
+        n = 1
+        do k = 1, size(elems)
+            if (history_delete_duplicates) then
+                ! (delete newelt history)
+                if (stringp(elems(k))) then
+                    if (xstring(elems(k)) == newelt .and. len(xstring(elems(k))) == len(newelt)) cycle
+                end if
+            end if
+            n = n + 1
+            kept(n) = elems(k)
+        end do
+        if (limited) then
+            if (limit <= 0) then
+                n = 0
+            else
+                n = min(n, limit)
+            end if
         end if
-        call set(sym(history_var), longer, status)
+        call set(sym(history_var), make_list(kept(1:n)), st)
+        if (present(added)) added = .true.
     end subroutine add_to_history
 
     !> Give KEY a global binding as COMMAND.

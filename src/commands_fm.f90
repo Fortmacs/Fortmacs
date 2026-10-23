@@ -157,6 +157,7 @@ module commands_fm
         type(command_type) :: newline
         type(command_type) :: next_history_element
         type(command_type) :: next_line
+        type(command_type) :: next_line_or_history_element
         type(command_type) :: normal_mode
         type(command_type) :: open_line
         type(command_type) :: other_window
@@ -165,6 +166,7 @@ module commands_fm
         type(command_type) :: posix_search_forward
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
+        type(command_type) :: previous_line_or_history_element
         type(command_type) :: prog_mode
         type(command_type) :: query_replace
         type(command_type) :: query_replace_regexp
@@ -226,7 +228,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(188) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(190) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
@@ -352,6 +354,7 @@ module commands_fm
                                                                  "newline", &
                                                                  "next_history_element", &
                                                                  "next_line", &
+                                                                 "next_line_or_history_element", &
                                                                  "normal_mode", &
                                                                  "open_line", &
                                                                  "other_window", &
@@ -360,6 +363,7 @@ module commands_fm
                                                                  "posix_search_forward", &
                                                                  "previous_history_element", &
                                                                  "previous_line", &
+                                                                 "previous_line_or_history_element", &
                                                                  "prog_mode", &
                                                                  "query_replace", &
                                                                  "query_replace_regexp", &
@@ -675,6 +679,8 @@ contains
             p => commands%next_history_element
         case ("next_line")
             p => commands%next_line
+        case ("next_line_or_history_element")
+            p => commands%next_line_or_history_element
         case ("normal_mode")
             p => commands%normal_mode
         case ("open_line")
@@ -691,6 +697,8 @@ contains
             p => commands%previous_history_element
         case ("previous_line")
             p => commands%previous_line
+        case ("previous_line_or_history_element")
+            p => commands%previous_line_or_history_element
         case ("prog_mode")
             p => commands%prog_mode
         case ("query_replace")

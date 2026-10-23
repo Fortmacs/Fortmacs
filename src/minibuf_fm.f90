@@ -40,15 +40,14 @@ module minibuf_fm
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use lread_fm, only: sym
-    use data_fm, only: set
+    use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
                          erase_buffer, resolve_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: field_end, buffer_substring, goto_char
     use textprop_fm, only: add_text_properties, get_text_property
     use keymap_fm, only: make_sparse_keymap, use_local_map, keymap_live_p
-    use keyboard_fm, only: recursive_edit_1, throw_exit, command_loop_level, post_command_hook, &
-                           redisplay_proc, last_message
+    use keyboard_fm, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message
     use frame_fm, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
     use window_fm, only: window_type, set_window_buffer, window_start, set_window_start
     use subr_fm, only: add_to_history
@@ -56,7 +55,8 @@ module minibuf_fm
     private
 
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
-              minibufferp, abort_minibuffers, init_minibuf
+              minibufferp, abort_minibuffers, init_minibuf, minibuffer_innermost_command_loop_p, &
+              innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
               completion_function
@@ -95,6 +95,12 @@ module minibuf_fm
             procedure(completion_predicate), optional :: pred
             character(len=*), intent(in), optional :: suffix
         end subroutine completion_function
+
+        !> A function run once the minibuffer is set up (see
+        !> `minibuffer_setup_function').
+        subroutine minibuffer_setup_proc()
+            implicit none(type, external)
+        end subroutine minibuffer_setup_proc
     end interface
 
     !> A completion table (COLLECTION).
@@ -112,7 +118,7 @@ module minibuf_fm
     !> For buffer name completion, `read_buffer_completion_ignore_case'
     !> controls the behavior, rather than this variable.  Port of minibuf.c
     !> completion-ignore-case.
-    logical, public :: completion_ignore_case = .false.
+    type(logical_setting), public :: completion_ignore_case = logical_setting(name="completion_ignore_case")
     !> minibuf_level: the depth of active minibuffers.
     integer, public, protected :: minibuf_level = 0
     !> Non-nil means to allow minibuffer commands while in the minibuffer.
@@ -150,6 +156,21 @@ module minibuf_fm
 
     !> Vminibuffer_list: the minibuffer of each depth (index depth + 1).
     type(handle_type), allocatable :: minibuffers(:)
+    !> Vcommand_loop_level_list: the command loop level of each depth's
+    !> recursive edit (index depth + 1).
+    integer, allocatable :: minibuffer_loop_levels(:)
+
+    !> A function to run once by the next `read_from_minibuffer', after
+    !> the minibuffer is current and set up (its local keymap made, the
+    !> initial input inserted), as minibuffer-setup-hook would run one
+    !> added by subr.el:minibuffer-with-setup-hook; null for none.  It is
+    !> cleared before it runs, so recursive minibuffers don't run it.
+    procedure(minibuffer_setup_proc), pointer, public :: minibuffer_setup_function => null()
+
+    !> Whether the last `read_from_minibuffer' added its input (or
+    !> default) to the history list, so that it is the list's first
+    !> element (what read-file-name tests with `eq').
+    logical, public, protected :: history_added = .false.
 
 contains
 
@@ -167,13 +188,22 @@ contains
         type(handle_type), intent(out) :: buf
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: grown(:)
+        integer, allocatable :: grown_levels(:)
         character(len=20) :: num
         integer(int64) :: i
         if (.not. allocated(minibuffers)) allocate (minibuffers(4))
+        if (.not. allocated(minibuffer_loop_levels)) then
+            allocate (minibuffer_loop_levels(4))
+            minibuffer_loop_levels = 0
+        end if
         if (depth + 1 > size(minibuffers)) then
             allocate (grown(2*(depth + 1)))
             grown(1:size(minibuffers)) = minibuffers
             call move_alloc(grown, minibuffers)
+            allocate (grown_levels(2*(depth + 1)))
+            grown_levels = 0
+            grown_levels(1:size(minibuffer_loop_levels)) = minibuffer_loop_levels
+            call move_alloc(grown_levels, minibuffer_loop_levels)
         end if
         call resolve_buffer(minibuffers(depth + 1), i, status)
         if (status%ok()) then
@@ -208,6 +238,48 @@ contains
         end do
     end function minibufferp
 
+    !> The depth of the active minibuffer `buf' (default: the current
+    !> buffer), or 0 if it is not one.  Port of
+    !> minibuf.c:this_minibuffer_depth.
+    integer function minibuffer_depth_of(buf) result(depth)
+        type(handle_type), intent(in), optional :: buf
+        type(handle_type) :: b
+        integer :: k
+        if (present(buf)) then
+            b = buf
+        else
+            b = current_buffer()
+        end if
+        depth = 0
+        if (.not. allocated(minibuffers) .or. b%index == 0) return
+        do k = 2, min(minibuf_level + 1, size(minibuffers))
+            if (minibuffers(k)%index == b%index .and. minibuffers(k)%generation == b%generation) then
+                depth = k - 1
+                return
+            end if
+        end do
+    end function minibuffer_depth_of
+
+    !> Return t if BUFFER is a minibuffer at the current command loop level.
+    !> BUFFER defaults to the current buffer.  Port of
+    !> minibuf.c:Fminibuffer_innermost_command_loop_p.
+    logical function minibuffer_innermost_command_loop_p(buffer) result(innermost)
+        type(handle_type), intent(in), optional :: buffer
+        integer :: depth
+        depth = minibuffer_depth_of(buffer)
+        innermost = depth > 0
+        if (innermost) innermost = minibuffer_loop_levels(depth + 1) == command_loop_level
+    end function minibuffer_innermost_command_loop_p
+
+    !> Return t if BUFFER is the most nested active minibuffer.
+    !> No recursive minibuffers are active if BUFFER is the minibuffer.
+    !> BUFFER defaults to the current buffer.  Port of
+    !> minibuf.c:Finnermost_minibuffer_p.
+    logical function innermost_minibuffer_p(buffer) result(innermost)
+        type(handle_type), intent(in), optional :: buffer
+        innermost = minibuffer_depth_of(buffer) == minibuf_level .and. minibuf_level > 0
+    end function innermost_minibuffer_p
+
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
     integer(int64) function minibuffer_prompt_end() result(pos)
@@ -230,21 +302,14 @@ contains
         call buffer_substring(minibuffer_prompt_end(), buffers(cur)%zv, text, status)
     end function minibuffer_contents
 
-    !> Keep point out of the prompt after each command (the prompt's
-    !> cursor-intangible property, as cursor-intangible-mode would).
-    subroutine leave_prompt()
-        integer(int64) :: pend
-        if (.not. minibufferp()) return
-        pend = minibuffer_prompt_end()
-        if (buffers(cur)%pt < pend) call goto_char(pend)
-    end subroutine leave_prompt
-
     !> Read a string in the minibuffer with `prompt', starting with
     !> `initial' (point after it), using `keymap' (default
     !> minibuffer-local-map) and history list `history' (default
     !> "minibuffer-history").  C-g (abort-minibuffers) gives a quit.
     !> Port of minibuf.c:read_minibuf with Fread_from_minibuffer (no
     !> READ, no INHERIT-INPUT-METHOD, DEFAULT only for the history).
+    !> minibuffer-mode is not ported: as set_minibuffer_mode does when it
+    !> is not defined, the minibuffer's local variables are killed.
     recursive subroutine read_from_minibuffer(prompt, result, status, initial, keymap, history, default)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
@@ -255,15 +320,24 @@ contains
         integer(int64) :: old_root_start, bi
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
+        type(value_type) :: histval
         character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_default, &
-                                         saved_before
+                                         saved_before, histstring
         integer :: saved_histpos
-        logical :: had_default, had_before
+        logical :: had_default, had_before, have_histstring
         logical :: changed, old_selected, have_dir
-        procedure(redisplay_proc), pointer :: saved_hook
+        procedure(minibuffer_setup_proc), pointer :: setup
         result = ""
+        history_added = .false.
         if (.not. enable_recursive_minibuffers .and. minibuf_level > 0) then
-            call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
+            if (selected_frame%minibuffer_selected) then
+                call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
+            else
+                ! If we're in another window, cancel the minibuffer that's
+                ! active.
+                call throw_exit_string("Command attempted to use minibuffer while in minibuffer")
+                call set_error(status, FM_GENERIC_ERROR, "Command attempted to use minibuffer while in minibuffer")
+            end if
             return
         end if
         histvar = "minibuffer_history"
@@ -274,6 +348,9 @@ contains
         call get_minibuffer(minibuf_level + 1, minibuffer, status)
         if (.not. status%ok()) return
         minibuf_level = minibuf_level + 1
+        ! Vcommand_loop_level_list: the level of this minibuffer's
+        ! recursive edit.
+        minibuffer_loop_levels(minibuf_level + 1) = command_loop_level + 1
         saved_calling = minibuffer_calling_buffer
         minibuffer_calling_buffer = calling_buffer
         ! minibuf_save_list
@@ -290,6 +367,9 @@ contains
         if (present(default)) minibuffer_default = default
         had_before = allocated(minibuffer_text_before_history)
         if (had_before) call move_alloc(minibuffer_text_before_history, saved_before)
+        ! If variable is unbound, make it nil.
+        call symbol_value(sym(histvar), histval, st)
+        if (.not. st%ok()) call set(sym(histvar), nil(), st)
         old_selected = selected_frame%minibuffer_selected
         sw => frame_selected_window_ref()
         mw => minibuffer_window_ref()
@@ -298,49 +378,63 @@ contains
         ! *Completions* list may replace it while reading).
         old_root_buffer = sw%buffer
         old_root_start = window_start(sw)
-        saved_hook => post_command_hook
         call set_buffer(minibuffer, status)
         if (.not. status%ok()) then
             minibuf_level = minibuf_level - 1
             minibuffer_calling_buffer = saved_calling
             return
         end if
+        ! set_minibuffer_mode
+        call kill_all_local_variables()
         ! The minibuffer works in the caller's directory.
         if (have_dir) buffers(cur)%directory = ambient_dir
         call set_window_buffer(mw, minibuffer, st)
         selected_frame%minibuffer_selected = .true.
         mw%hscroll = 0
-        ! The prompt: read-only text in its own field.
+        ! Erase the buffer.
         call set(sym("inhibit_read_only"), t_value(), st)
         call erase_buffer(st)
-        call set(sym("inhibit_read_only"), nil(), st)
         buffers(cur)%multibyte = .true.
+        ! Insert the prompt, record where it ends.
         if (len(prompt) > 0) then
             call insert(prompt, st)
             ! front-sticky, rear-nonsticky and field, then
-            ! minibuffer-prompt-properties (read-only, cursor-intangible;
-            ! the minibuffer-prompt face is not ported).
+            ! minibuffer-prompt-properties (by default read-only t and the
+            ! minibuffer-prompt face, which is not ported).
             call add_text_properties(1_int64, buffers(cur)%pt, &
                                      list(sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value(), &
                                           sym("field"), t_value(), sym("read_only"), t_value()), changed, st)
-            call add_text_properties(1_int64, buffers(cur)%pt, list(sym("cursor_intangible"), t_value()), &
-                                     changed, st)
         end if
+        call set(sym("inhibit_read_only"), nil(), st)
         if (present(initial)) call insert(initial, st)
         if (present(keymap)) then
             call use_local_map(keymap, st)
         else
             call use_local_map(minibuffer_local_map, st)
         end if
-        post_command_hook => leave_prompt
         ! The minibuffer replaces whatever the echo area showed.
         if (allocated(last_message)) last_message = ""
+        ! minibuffer-setup-hook (a function `minibuffer_with_setup_hook'
+        ! added for this minibuffer).
+        if (associated(minibuffer_setup_function)) then
+            setup => minibuffer_setup_function
+            minibuffer_setup_function => null()
+            call setup()
+        end if
         call recursive_edit_1(edit_status)
         ! Make the minibuffer contents into a string.
         call set_buffer(minibuffer, st)
         result = minibuffer_contents()
+        ! Choose the string to add to the history.
+        have_histstring = .true.
+        if (len(result) /= 0) then
+            histstring = result
+        else if (present(default)) then
+            histstring = default
+        else
+            have_histstring = .false.
+        end if
         ! read_minibuf_unwind
-        post_command_hook => saved_hook
         minibuf_level = minibuf_level - 1
         call set(sym("inhibit_read_only"), t_value(), st)
         call erase_buffer(st)
@@ -371,13 +465,9 @@ contains
             result = ""
             return
         end if
-        ! Add the value (or the default, for empty input) to the history.
-        if (history_add_new_input) then
-            if (len(result) > 0) then
-                call add_to_history(histvar, result)
-            else if (present(default)) then
-                call add_to_history(histvar, default)
-            end if
+        ! Add the value to the appropriate history list, if any.
+        if (history_add_new_input .and. have_histstring) then
+            call add_to_history(histvar, histstring, added=history_added)
         end if
     end subroutine read_from_minibuffer
 
@@ -394,20 +484,49 @@ contains
         if (len(result) == 0 .and. present(default)) result = default
     end subroutine read_string
 
-    !> Abort the current minibuffer (C-g there).  Port of
-    !> minibuf.c:Fabort_minibuffers for the innermost minibuffer.
-    subroutine abort_minibuffers(status)
+    !> Abort the current minibuffer.
+    !> If we are not currently in the innermost minibuffer, prompt the user to
+    !> confirm the aborting of the current minibuffer and all contained ones.
+    !> Port of minibuf.c:Fabort_minibuffers (`ask' stands for
+    !> `yes_or_no_p', which this module cannot use).
+    recursive subroutine abort_minibuffers(status, ask)
         type(status_type), intent(out) :: status
-        if (minibuf_level == 0) then
+        interface
+            recursive subroutine ask(prompt, answer, status)
+                import :: status_type
+                implicit none(type, external)
+                character(len=*), intent(in) :: prompt
+                logical, intent(out) :: answer
+                type(status_type), intent(out) :: status
+            end subroutine ask
+        end interface
+        integer :: depth
+        character(len=20) :: num
+        logical :: answer
+        status = status_type()
+        depth = minibuffer_depth_of()
+        if (depth == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Not in a minibuffer")
             return
         end if
-        if (command_loop_level < minibuf_level) then
+        if (.not. minibuffer_innermost_command_loop_p()) then
             call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
             return
         end if
-        ! minibuffer-quit-recursive-edit
-        call throw_exit(.true.)
+        if (depth < minibuf_level) then
+            write (num, "(i0)") minibuf_level - depth + 1
+            call ask("Abort "//trim(num)//" minibuffer levels? ", answer, status)
+            if (.not. status%ok()) return
+            ! Due to the above check, the current minibuffer is in the
+            ! most nested command loop, which means that we don't have to
+            ! abort any extra non-minibuffer recursive edits.  Thus, the
+            ! number of recursive edits we have to abort equals the number
+            ! of minibuffers we have to abort.
+            if (answer) call throw_exit(.true., minibuf_level - depth + 1)
+        else
+            ! minibuffer-quit-recursive-edit
+            call throw_exit(.true.)
+        end if
     end subroutine abort_minibuffers
 
     ! ------------------------------------------------------------------
@@ -486,7 +605,7 @@ contains
         integer(int64) :: n
         n = schars(string)
         prefix_matches = n <= schars(name)
-        if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case, end1=n) &
+        if (prefix_matches) prefix_matches = compare_strings(name, string, completion_ignore_case%value, end1=n) &
                                              == COMPARE_EQUAL
     end function prefix_matches
 
@@ -567,13 +686,13 @@ contains
                 have_best = .true.
             else
                 compare = min(bestmatchsize, neltstring)
-                tem = compare_strings(bestmatch, eltstring, completion_ignore_case, end1=compare, &
+                tem = compare_strings(bestmatch, eltstring, completion_ignore_case%value, end1=compare, &
                                       end2=compare)
                 matchsize = compare
                 if (tem /= COMPARE_EQUAL) matchsize = abs(tem) - 1
                 old_bestmatch = bestmatch
                 nbest = schars(bestmatch)
-                if (completion_ignore_case) then
+                if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
                     ! the best match rather than one that is not an exact
                     ! match.  This way, we get the case pattern of the
@@ -592,14 +711,14 @@ contains
                 ! Don't count the same string multiple times.
                 if (bestmatchsize /= neltstring .or. bestmatchsize /= matchsize) then
                     if (matchcount <= 1) matchcount = matchcount + 1
-                else if (completion_ignore_case) then
+                else if (completion_ignore_case%value) then
                     if (compare_strings(old_bestmatch, eltstring, end1=compare, end2=compare) /= COMPARE_EQUAL &
                         .and. matchcount <= 1) matchcount = matchcount + 1
                 end if
                 bestmatchsize = matchsize
                 ! No need to look any further (unless ignoring case, to find
                 ! the best possible match *including* case differences).
-                if (matchsize <= nstring .and. .not. completion_ignore_case .and. matchcount > 1) exit
+                if (matchsize <= nstring .and. .not. completion_ignore_case%value .and. matchcount > 1) exit
             end if
         end do
         ! No completions found.
@@ -699,7 +818,7 @@ contains
             id = intern_soft(string)
             if (id /= 0) then
                 tem = make_symbol_ref(id)
-            else if (completion_ignore_case) then
+            else if (completion_ignore_case%value) then
                 do k = 1, nsymbols
                     if (compare_strings(string, symbols(k)%name, .true.) == COMPARE_EQUAL) then
                         id = k
@@ -715,7 +834,7 @@ contains
             id = 0
             do k = 1, size(elts, kind=int64)
                 if (.not. ok(k)) cycle
-                if (compare_strings(string, names(k)%s, completion_ignore_case) == COMPARE_EQUAL) then
+                if (compare_strings(string, names(k)%s, completion_ignore_case%value) == COMPARE_EQUAL) then
                     id = k
                     tem = elts(k)
                     exit

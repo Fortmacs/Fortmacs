@@ -60,7 +60,7 @@ module isearch_fm
                            pre_command_hook, redisplay_proc, discard_input, input_pending_p, &
                            read_event
     use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
-    use subr_fm, only: add_to_history
+    use subr_fm, only: add_to_history, history_delete_duplicates
     use minibuf_fm, only: read_from_minibuffer, history_add_new_input, minibuf_level
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
@@ -391,20 +391,16 @@ contains
 
     !> Add STRING to the beginning of the search ring.
     !> REGEXP if non-nil says use the regexp search ring.  Port of
-    !> isearch.el:isearch-update-ring.
+    !> isearch.el:isearch-update-ring (no text properties on STRING).
     subroutine isearch_update_ring(string, regexp)
         character(len=*), intent(in) :: string
         logical, intent(in) :: regexp
-        type(value_type), allocatable :: elems(:)
-        type(value_type) :: ring
-        type(status_type) :: status
-        integer :: max_len
-        call add_to_history(ring_name(regexp), string)
-        call symbol_value(sym(ring_name(regexp)), ring, status)
-        if (.not. status%ok()) return
-        call list_elements(ring, elems)
-        max_len = merge(regexp_search_ring_max, search_ring_max, regexp)
-        if (size(elems) > max_len) call set(sym(ring_name(regexp)), make_list(elems(1:max_len)), status)
+        logical :: saved
+        saved = history_delete_duplicates
+        history_delete_duplicates = .true.
+        call add_to_history(ring_name(regexp), string, merge(regexp_search_ring_max, search_ring_max, regexp), &
+                            keep_all=.true.)
+        history_delete_duplicates = saved
     end subroutine isearch_update_ring
 
     !> Port of isearch.el:isearch-ring-adjust1.

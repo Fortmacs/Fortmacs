@@ -325,18 +325,21 @@ contains
         call syms_of_files(ctl_x_map)
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
-        ! then its history keys from bindings.el (<up> and <down> are
-        ! previous/next-line-or-history-element upstream, the same in a
-        ! one-line minibuffer).
+        ! then its keys from bindings.el.
         if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
         call bind(minibuffer_local_map, "M-n", "next_history_element")
         call bind(minibuffer_local_map, "<next>", "next_history_element")
-        call bind(minibuffer_local_map, "<down>", "next_history_element")
+        call bind(minibuffer_local_map, "<down>", "next_line_or_history_element")
         call bind(minibuffer_local_map, "M-p", "previous_history_element")
         call bind(minibuffer_local_map, "<prior>", "previous_history_element")
-        call bind(minibuffer_local_map, "<up>", "previous_history_element")
+        call bind(minibuffer_local_map, "<up>", "previous_line_or_history_element")
+        ! Override the global binding (which calls indent-relative via
+        ! indent-for-tab-command).  The alignment that indent-relative
+        ! tries to do doesn't make much sense here since the prompt messes
+        ! it up.
+        call bind(minibuffer_local_map, "TAB", "self_insert_command")
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call syms_of_help(global_map)
         call syms_of_help_fns()

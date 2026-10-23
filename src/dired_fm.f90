@@ -191,7 +191,7 @@ contains
             elen = schars(ext)
             skip = schars(name) - elen
             if (skip < 0) cycle
-            if (compare_strings(name, ext, completion_ignore_case, start1=skip) == COMPARE_EQUAL) then
+            if (compare_strings(name, ext, completion_ignore_case%value, start1=skip) == COMPARE_EQUAL) then
                 ignored = .true.
                 return
             end if
@@ -236,7 +236,7 @@ contains
         do k = 1, size(names)
             name = names(k)%s
             if (schars(name) < nfile) cycle
-            if (compare_strings(name, file, completion_ignore_case, end1=nfile) /= COMPARE_EQUAL) cycle
+            if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
             directoryp = file_directory_p(dir//name)
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when
@@ -281,10 +281,10 @@ contains
                 have_best = .true.
             else
                 compare = min(bestmatchsize, nname)
-                cmp = compare_strings(bestmatch, name, completion_ignore_case, end1=compare, end2=compare)
+                cmp = compare_strings(bestmatch, name, completion_ignore_case%value, end1=compare, end2=compare)
                 matchsize = compare
                 if (cmp /= COMPARE_EQUAL) matchsize = abs(cmp) - 1
-                if (completion_ignore_case) then
+                if (completion_ignore_case%value) then
                     ! If this is an exact match except for case, use it as
                     ! the best match rather than one that is not an exact
                     ! match.  This way, we get the case pattern of the
@@ -301,7 +301,7 @@ contains
                 ! we're trying to complete, then we already know there's no
                 ! other completion, so there's no point looking any further.
                 if (matchsize <= nfile .and. .not. includeall .and. &
-                    (.not. completion_ignore_case .or. matchsize == 0) .and. matchcount > 1) exit
+                    (.not. completion_ignore_case%value .or. matchsize == 0) .and. matchcount > 1) exit
             end if
         end do
         if (all_flag) then

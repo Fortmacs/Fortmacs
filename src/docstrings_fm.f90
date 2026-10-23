@@ -50,7 +50,8 @@ module docstrings_fm
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
-                             completion_show_inline_help, insert_default_directory, minibuffer_completing_file_name
+                             completion_show_inline_help, insert_default_directory, minibuffer_completing_file_name, &
+                             read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
     use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
                              sentence_end, sentence_end_double_space, sentence_end_without_period
@@ -65,7 +66,7 @@ module docstrings_fm
                          line_move_visual, mark_ring_max, pending_undo_list, special_mode_hook, special_mode_map, &
                          suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
-                       history_length
+                       history_delete_duplicates, history_length
     use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
@@ -94,7 +95,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(282) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(284) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
@@ -270,6 +271,7 @@ module docstrings_fm
                                                                    "newline", &
                                                                    "next_history_element", &
                                                                    "next_line", &
+                                                                   "next_line_or_history_element", &
                                                                    "normal_mode", &
                                                                    "open_line", &
                                                                    "other_buffer", &
@@ -284,6 +286,7 @@ module docstrings_fm
                                                                    "posix_string_match", &
                                                                    "previous_history_element", &
                                                                    "previous_line", &
+                                                                   "previous_line_or_history_element", &
                                                                    "prog_mode", &
                                                                    "provided_mode_derived_p", &
                                                                    "push_mark", &
@@ -379,105 +382,108 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(98) = [character(len=44) :: &
-                                                                  "adaptive_fill_mode", &
-                                                                  "after_change_major_mode_hook", &
-                                                                  "amalgamating_undo_limit", &
-                                                                  "auto_fill_function", &
-                                                                  "auto_fill_inhibit_regexp", &
-                                                                  "auto_fill_mode_hook", &
-                                                                  "case_fold_search", &
-                                                                  "case_replace", &
-                                                                  "case_symbols_as_words", &
-                                                                  "change_major_mode_after_body_hook", &
-                                                                  "change_major_mode_hook", &
-                                                                  "change_major_mode_with_file_name", &
-                                                                  "colon_double_space", &
-                                                                  "commands", &
-                                                                  "completion_auto_help", &
-                                                                  "completion_fail_discreetly", &
-                                                                  "completion_ignore_case", &
-                                                                  "completion_ignored_extensions", &
-                                                                  "completion_show_inline_help", &
-                                                                  "current_prefix_arg", &
-                                                                  "cycle_spacing_actions", &
-                                                                  "default_justification", &
-                                                                  "delete_active_region", &
-                                                                  "disabled_command_function", &
-                                                                  "enable_recursive_minibuffers", &
-                                                                  "fill_column", &
-                                                                  "fill_indent_according_to_mode", &
-                                                                  "fill_nobreak_predicate", &
-                                                                  "fill_prefix", &
-                                                                  "fill_separate_heterogeneous_words_with_space", &
-                                                                  "goal_column", &
-                                                                  "help_map", &
-                                                                  "help_mode_hook", &
-                                                                  "help_mode_map", &
-                                                                  "history_add_new_input", &
-                                                                  "history_length", &
-                                                                  "indent_line_function", &
-                                                                  "indent_tabs_mode", &
-                                                                  "indent_tabs_mode_hook", &
-                                                                  "inhibit_auto_fill", &
-                                                                  "inhibit_field_text_motion", &
-                                                                  "insert_default_directory", &
-                                                                  "isearch_lax_whitespace", &
-                                                                  "isearch_mode_map", &
-                                                                  "isearch_regexp_lax_whitespace", &
-                                                                  "kill_read_only_ok", &
-                                                                  "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", &
-                                                                  "left_margin", &
-                                                                  "line_move_visual", &
-                                                                  "make_backup_files", &
-                                                                  "mark_even_if_inactive", &
-                                                                  "mark_ring_max", &
-                                                                  "minibuffer_completing_file_name", &
-                                                                  "mode_require_final_newline", &
-                                                                  "next_screen_context_lines", &
-                                                                  "paragraph_ignore_fill_prefix", &
-                                                                  "paragraph_separate", &
-                                                                  "paragraph_start", &
-                                                                  "parse_sexp_ignore_comments", &
-                                                                  "pending_undo_list", &
-                                                                  "point", &
-                                                                  "prog_mode_hook", &
-                                                                  "prog_mode_map", &
-                                                                  "query_replace_defaults", &
-                                                                  "query_replace_show_replacement", &
-                                                                  "query_replace_skip_read_only", &
-                                                                  "regexp_search_ring_max", &
-                                                                  "replace_count", &
-                                                                  "replace_lax_whitespace", &
-                                                                  "replace_regexp_lax_whitespace", &
-                                                                  "require_final_newline", &
-                                                                  "scroll_error_top_bottom", &
-                                                                  "search_exit_option", &
-                                                                  "search_nonincremental_instead", &
-                                                                  "search_ring_max", &
-                                                                  "search_upper_case", &
-                                                                  "sentence_end", &
-                                                                  "sentence_end_double_space", &
-                                                                  "sentence_end_without_period", &
-                                                                  "special_mode_hook", &
-                                                                  "special_mode_map", &
-                                                                  "standard_indent", &
-                                                                  "suggest_key_bindings", &
-                                                                  "tab_always_indent", &
-                                                                  "tab_stop_list", &
-                                                                  "tab_width", &
-                                                                  "text_mode_hook", &
-                                                                  "text_mode_map", &
-                                                                  "text_mode_syntax_table", &
-                                                                  "text_mode_variant", &
-                                                                  "transient_mark_mode", &
-                                                                  "transient_mark_mode_hook", &
-                                                                  "undo_in_progress", &
-                                                                  "undo_no_redo", &
-                                                                  "visible_bell", &
-                                                                  "words_include_escapes"]
+    character(len=44), parameter, public :: variable_names(101) = [character(len=44) :: &
+                                                                   "adaptive_fill_mode", &
+                                                                   "after_change_major_mode_hook", &
+                                                                   "amalgamating_undo_limit", &
+                                                                   "auto_fill_function", &
+                                                                   "auto_fill_inhibit_regexp", &
+                                                                   "auto_fill_mode_hook", &
+                                                                   "case_fold_search", &
+                                                                   "case_replace", &
+                                                                   "case_symbols_as_words", &
+                                                                   "change_major_mode_after_body_hook", &
+                                                                   "change_major_mode_hook", &
+                                                                   "change_major_mode_with_file_name", &
+                                                                   "colon_double_space", &
+                                                                   "commands", &
+                                                                   "completion_auto_help", &
+                                                                   "completion_fail_discreetly", &
+                                                                   "completion_ignore_case", &
+                                                                   "completion_ignored_extensions", &
+                                                                   "completion_show_inline_help", &
+                                                                   "current_prefix_arg", &
+                                                                   "cycle_spacing_actions", &
+                                                                   "default_justification", &
+                                                                   "delete_active_region", &
+                                                                   "disabled_command_function", &
+                                                                   "enable_recursive_minibuffers", &
+                                                                   "fill_column", &
+                                                                   "fill_indent_according_to_mode", &
+                                                                   "fill_nobreak_predicate", &
+                                                                   "fill_prefix", &
+                                                                   "fill_separate_heterogeneous_words_with_space", &
+                                                                   "goal_column", &
+                                                                   "help_map", &
+                                                                   "help_mode_hook", &
+                                                                   "help_mode_map", &
+                                                                   "history_add_new_input", &
+                                                                   "history_delete_duplicates", &
+                                                                   "history_length", &
+                                                                   "indent_line_function", &
+                                                                   "indent_tabs_mode", &
+                                                                   "indent_tabs_mode_hook", &
+                                                                   "inhibit_auto_fill", &
+                                                                   "inhibit_field_text_motion", &
+                                                                   "insert_default_directory", &
+                                                                   "isearch_lax_whitespace", &
+                                                                   "isearch_mode_map", &
+                                                                   "isearch_regexp_lax_whitespace", &
+                                                                   "kill_read_only_ok", &
+                                                                   "kill_ring_max", &
+                                                                   "kill_ring_yank_pointer", &
+                                                                   "kill_whole_line", &
+                                                                   "left_margin", &
+                                                                   "line_move_visual", &
+                                                                   "make_backup_files", &
+                                                                   "mark_even_if_inactive", &
+                                                                   "mark_ring_max", &
+                                                                   "minibuffer_completing_file_name", &
+                                                                   "mode_require_final_newline", &
+                                                                   "next_screen_context_lines", &
+                                                                   "paragraph_ignore_fill_prefix", &
+                                                                   "paragraph_separate", &
+                                                                   "paragraph_start", &
+                                                                   "parse_sexp_ignore_comments", &
+                                                                   "pending_undo_list", &
+                                                                   "point", &
+                                                                   "prog_mode_hook", &
+                                                                   "prog_mode_map", &
+                                                                   "query_replace_defaults", &
+                                                                   "query_replace_show_replacement", &
+                                                                   "query_replace_skip_read_only", &
+                                                                   "read_buffer_completion_ignore_case", &
+                                                                   "read_file_name_completion_ignore_case", &
+                                                                   "regexp_search_ring_max", &
+                                                                   "replace_count", &
+                                                                   "replace_lax_whitespace", &
+                                                                   "replace_regexp_lax_whitespace", &
+                                                                   "require_final_newline", &
+                                                                   "scroll_error_top_bottom", &
+                                                                   "search_exit_option", &
+                                                                   "search_nonincremental_instead", &
+                                                                   "search_ring_max", &
+                                                                   "search_upper_case", &
+                                                                   "sentence_end", &
+                                                                   "sentence_end_double_space", &
+                                                                   "sentence_end_without_period", &
+                                                                   "special_mode_hook", &
+                                                                   "special_mode_map", &
+                                                                   "standard_indent", &
+                                                                   "suggest_key_bindings", &
+                                                                   "tab_always_indent", &
+                                                                   "tab_stop_list", &
+                                                                   "tab_width", &
+                                                                   "text_mode_hook", &
+                                                                   "text_mode_map", &
+                                                                   "text_mode_syntax_table", &
+                                                                   "text_mode_variant", &
+                                                                   "transient_mark_mode", &
+                                                                   "transient_mark_mode_hook", &
+                                                                   "undo_in_progress", &
+                                                                   "undo_no_redo", &
+                                                                   "visible_bell", &
+                                                                   "words_include_escapes"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -499,7 +505,9 @@ contains
         case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Abort the current minibuffer."
+            entry%doc = "Abort the current minibuffer."//LF// &
+                        "If we are not currently in the innermost minibuffer, prompt the user to"//LF// &
+                        "confirm the aborting of the current minibuffer and all contained ones."
         case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
@@ -1909,6 +1917,12 @@ contains
                         "column (or as close as possible).  Note that setting `goal_column'"//LF// &
                         "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
+        case ("next_line_or_history_element")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move cursor vertically down ARG lines, or to the next history element."//LF// &
+                        "When point moves over the bottom line of multi-line minibuffer, puts ARGth"//LF// &
+                        "next element of the minibuffer history in the minibuffer."
         case ("normal_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call normal_mode(status, find_file)"
@@ -2042,6 +2056,12 @@ contains
                         "column (or as close as possible).  Note that setting `goal_column'"//LF// &
                         "overrides `line_move_visual' and causes this command to move by buffer"//LF// &
                         "lines rather than by display lines."
+        case ("previous_line_or_history_element")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
+                        "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
+                        "previous element of the minibuffer history in the minibuffer."
         case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
@@ -2226,16 +2246,56 @@ contains
                         " instead of that empty string; the prompt shows it."//LF// &
                         "Optional third arg REQUIRE-MATCH has the same meaning as the"//LF// &
                         " REQUIRE-MATCH argument of `completing_read'."//LF// &
+                        "If `read_buffer_completion_ignore_case' is non-nil, completion ignores"//LF// &
+                        "case while reading the buffer name."//LF// &
                         "The buffer `except' (if given) is left out of the completions, as"//LF// &
-                        "internal-complete-buffer-except does."
+                        "internal-complete-buffer-except does (read-buffer-to-switch puts that"//LF// &
+                        "table in the minibuffer)."
         case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
-            entry%doc = "Read a file name in the minibuffer, starting with directory `dir'"//LF// &
-                        "(default: default-directory) abbreviated as the input to edit."//LF// &
-                        "Unchanged input gives `default_filename' (default: the buffer's"//LF// &
-                        "file); the result goes through substitute-in-file-name, so typing"//LF// &
-                        """~/x"" or ""/x"" after the directory means just that."
+            entry%doc = "Read a file name, prompting with PROMPT and completing in directory DIR."//LF// &
+                        "Return the file name as a string."//LF// &
+                        "The return value is not expanded---you must call `expand_file_name'"//LF// &
+                        "yourself."//LF// &
+                        ""//LF// &
+                        "DIR is the directory to use for completing relative file names."//LF// &
+                        "It should be an absolute directory name, or absent (which means the"//LF// &
+                        "current buffer's value of `default_directory')."//LF// &
+                        ""//LF// &
+                        "DEFAULT-FILENAME specifies the default file name to return if the"//LF// &
+                        "user exits the minibuffer with the same non-empty string inserted"//LF// &
+                        "by this function.  If DEFAULT-FILENAME is absent, then if INITIAL"//LF// &
+                        "is present, the default is DIR combined with INITIAL; otherwise, if"//LF// &
+                        "the current buffer is visiting a file, that file serves as the"//LF// &
+                        "default; otherwise, the default is simply the string inserted into"//LF// &
+                        "the minibuffer."//LF// &
+                        ""//LF// &
+                        "If the user exits with an empty minibuffer, return an empty"//LF// &
+                        "string.  (This happens only if the user erases the pre-inserted"//LF// &
+                        "contents, or if `insert_default_directory' is nil.)"//LF// &
+                        ""//LF// &
+                        "Fourth arg MUSTMATCH can take the following values:"//LF// &
+                        "- REQUIRE_MATCH_NIL means that the user can exit with any input."//LF// &
+                        "- REQUIRE_MATCH_T means that the user is not allowed to exit unless"//LF// &
+                        "  the input is (or completes to) an existing file."//LF// &
+                        "- REQUIRE_MATCH_CONFIRM means that the user can exit with any input,"//LF// &
+                        "  but she needs to confirm her choice if the input is not an"//LF// &
+                        "  existing file."//LF// &
+                        "- REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION means that the user can"//LF// &
+                        "  exit with any input, but she needs to confirm her choice if she"//LF// &
+                        "  called `minibuffer_complete' right before"//LF// &
+                        "  `minibuffer_complete_and_exit' and the input is not an existing"//LF// &
+                        "  file."//LF// &
+                        "- REQUIRE_MATCH_OTHER behaves like REQUIRE_MATCH_T except that"//LF// &
+                        "  typing RET does not exit if it does non-null completion."//LF// &
+                        ""//LF// &
+                        "Fifth arg INITIAL specifies text to start with.  It will be"//LF// &
+                        "interpreted as the trailing part of DEFAULT-FILENAME, so using a"//LF// &
+                        "full file name for INITIAL will usually lead to surprising"//LF// &
+                        "results."//LF// &
+                        ""//LF// &
+                        "See also `read_file_name_completion_ignore_case'."
         case ("read_multiple_choice")
             entry%file = "rmc_fm.f90"
             entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help)"
@@ -3225,8 +3285,7 @@ contains
         case ("completion_ignore_case")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "completion_ignore_case"
-            entry%original = ".false."
-            entry%value = repr(completion_ignore_case)
+            entry%value = repr(completion_ignore_case%value)
             entry%doc = "Non-nil means don't consider case significant in completion."//LF// &
                         "For file-name completion, `read_file_name_completion_ignore_case'"//LF// &
                         "controls the behavior, rather than this variable."//LF// &
@@ -3414,6 +3473,14 @@ contains
                         "If set to false, minibuffer reading functions don't add new elements to the"//LF// &
                         "history list, so it is possible to do this afterwards by calling"//LF// &
                         "`add_to_history' explicitly."
+        case ("history_delete_duplicates")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "history_delete_duplicates"
+            entry%original = ".false."
+            entry%value = repr(history_delete_duplicates)
+            entry%doc = "Non-nil means to delete duplicates in history."//LF// &
+                        "If set to t when adding a new history element, all previous identical"//LF// &
+                        "elements are deleted from the history list."
         case ("history_length")
             entry%file = "subr_fm.f90"
             entry%fortran = "history_length"
@@ -3421,7 +3488,11 @@ contains
             entry%value = repr(history_length)
             entry%doc = "Maximum length of history lists before truncation takes place."//LF// &
                         "A number means truncate to that length; truncation deletes old"//LF// &
-                        "elements, and is done just after inserting a new element."
+                        "elements, and is done just after inserting a new element."//LF// &
+                        ""//LF// &
+                        "This variable only affects history lists that don't specify their own"//LF// &
+                        "maximum lengths.  Setting the `history_length' property of a history"//LF// &
+                        "variable overrides this default."
         case ("indent_line_function")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_line_function"
@@ -3697,6 +3768,18 @@ contains
             entry%original = ".false."
             entry%value = repr(query_replace_skip_read_only)
             entry%doc = "Non-nil means `query_replace' and friends ignore read-only matches."
+        case ("read_buffer_completion_ignore_case")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "read_buffer_completion_ignore_case"
+            entry%original = ".false."
+            entry%value = repr(read_buffer_completion_ignore_case)
+            entry%doc = "Non-nil means completion ignores case when reading a buffer name."
+        case ("read_file_name_completion_ignore_case")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "read_file_name_completion_ignore_case"
+            entry%original = ".false."
+            entry%value = repr(read_file_name_completion_ignore_case)
+            entry%doc = "Non-nil means when reading a file name completion ignores case."
         case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
