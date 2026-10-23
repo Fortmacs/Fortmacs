@@ -68,6 +68,7 @@ contains
                     new_unittest("keymap-unset-test-remove-and-inheritance", test_unset_inherit), &
                     new_unittest("keymap-char-table-range", test_char_table_range), &
                     new_unittest("keymap-print", test_print_keymap), &
+                    new_unittest("keymap-equal", test_equal_keymap), &
                     new_unittest("keymap-prefix-composition", test_prefix_composition), &
                     new_unittest("keymap-meta", test_meta), &
                     new_unittest("keymap-non-prefix-error", test_non_prefix), &
@@ -404,6 +405,37 @@ contains
         call free(map)
         call free(parent)
     end subroutine test_char_table_range
+
+    !> `equal' compares keymaps as the lists they are upstream.
+    subroutine test_equal_keymap(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: a, b, fa, fb
+        type(status_type) :: st
+        type(value_type) :: key(1)
+        integer(int64) :: c
+        call make_sparse_keymap(a)
+        call make_sparse_keymap(b)
+        call define_key(a, kbd("C-x f"), sym("find_file"), st)
+        call define_key(b, kbd("C-x f"), sym("find_file"), st)
+        call check(error, value_equal(ref(a), ref(b)) .and. .not. value_eq(ref(a), ref(b)), "same bindings")
+        if (allocated(error)) return
+        call define_key(b, kbd("C-x g"), sym("undo"), st)
+        call check(error,.not. value_equal(ref(a), ref(b)), "different bindings")
+        if (allocated(error)) return
+        ! Full keymaps: their char-tables' contents.
+        call make_keymap(fa)
+        call make_keymap(fb)
+        call define_key_range(fa, 97_int64, 99_int64, sym("undo"), st)
+        do c = 97, 99
+            key(1) = make_fixnum(c)
+            call define_key(fb, key, sym("undo"), st)
+        end do
+        call check(error, value_equal(ref(fa), ref(fb)), "char-tables")
+        call free(a)
+        call free(b)
+        call free(fa)
+        call free(fb)
+    end subroutine test_equal_keymap
 
     !> A sparse keymap prints as its list (print.c).
     subroutine test_print_keymap(error)

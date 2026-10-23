@@ -72,7 +72,7 @@ module keymap_fm
 
     public :: make_keymap, make_sparse_keymap, free_keymap, keymap_live_p
     public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap
-    public :: keymap_prompt, keymap_full_p, keymap_entries
+    public :: keymap_prompt, keymap_full_p, keymap_entries, keymap_equal, value_equal_proc
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
     public :: current_global_map, use_global_map
@@ -93,6 +93,15 @@ module keymap_fm
     interface keymap_global_set
         module procedure keymap_global_set_value, keymap_global_set_command
     end interface keymap_global_set
+
+    abstract interface
+        !> Structural equality of two values (fns.c:Fequal).
+        recursive logical function value_equal_proc(a, b)
+            import :: value_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: a, b
+        end function value_equal_proc
+    end interface
 
     !> Modifier bits as int64 (termhooks.h).
     integer(int64), parameter :: M_ALT = int(CHAR_ALT, int64), &
@@ -267,6 +276,55 @@ contains
         range_to = keymaps(i)%range_to(k:1:-1)
         range_bindings = keymaps(i)%range_bindings(k:1:-1)
     end subroutine keymap_entries
+
+    !> Whether keymaps `a' and `b' are `equal': the same bindings
+    !> (compared with `equal'), prompt and parent, as fns.c:internal_equal
+    !> compares their lists (and a full keymap's char-tables).
+    recursive logical function keymap_equal(a, b, equal) result(eq)
+        type(handle_type), intent(in) :: a, b
+        procedure(value_equal_proc) :: equal
+        integer(int64), allocatable :: from_a(:), to_a(:), from_b(:), to_b(:)
+        type(value_type), allocatable :: val_a(:), val_b(:)
+        integer, allocatable :: order_a(:), order_b(:)
+        integer(int64) :: i, j
+        integer :: k
+        eq = same_handle(a, b)
+        if (eq) return
+        if (.not. (table%is_live(a) .and. table%is_live(b))) return
+        i = a%index
+        j = b%index
+        if (keymaps(i)%full .neqv. keymaps(j)%full) return
+        if (.not. equal(keymaps(i)%prompt, keymaps(j)%prompt)) return
+        if (keymaps(i)%full) then
+            call char_table_runs(keymaps(i), from_a, to_a, val_a)
+            call char_table_runs(keymaps(j), from_b, to_b, val_b)
+            if (size(from_a) /= size(from_b)) return
+            do k = 1, size(from_a)
+                if (from_a(k) /= from_b(k) .or. to_a(k) /= to_b(k)) return
+                if (.not. equal(val_a(k), val_b(k))) return
+            end do
+        else
+            if (keymaps(i)%nranges /= keymaps(j)%nranges) return
+            do k = 1, int(keymaps(i)%nranges)
+                if (keymaps(i)%range_from(k) /= keymaps(j)%range_from(k)) return
+                if (keymaps(i)%range_to(k) /= keymaps(j)%range_to(k)) return
+                if (.not. equal(keymaps(i)%range_bindings(k), keymaps(j)%range_bindings(k))) return
+            end do
+        end if
+        call entry_order(keymaps(i), order_a)
+        call entry_order(keymaps(j), order_b)
+        if (size(order_a) /= size(order_b)) return
+        do k = 1, size(order_a)
+            if (.not. equal(keymaps(i)%events(order_a(k)), keymaps(j)%events(order_b(k)))) return
+            if (.not. equal(keymaps(i)%bindings(order_a(k)), keymaps(j)%bindings(order_b(k)))) return
+        end do
+        if (table%is_live(keymaps(i)%parent) .neqv. table%is_live(keymaps(j)%parent)) return
+        if (table%is_live(keymaps(i)%parent)) then
+            eq = keymap_equal(keymaps(i)%parent, keymaps(j)%parent, equal)
+        else
+            eq = .true.
+        end if
+    end function keymap_equal
 
     !> Whether `km' was made by make-keymap (upstream: has a char-table).
     logical function keymap_full_p(km)
