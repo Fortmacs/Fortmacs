@@ -54,11 +54,35 @@ module fns_fm
     public :: plist_get, plist_put, plist_member, get, put
     public :: yes_or_no_p
 
+    !> Non-nil means `yes_or_no_p' accepts single-key answers "y" or "n".
+    !> When non-nil, `yes_or_no_p' will use `y_or_n_p' to read the answer.
+    !> This means the user will be able to press just one key to answer, whereas
+    !> by default the user needs to type the full "yes" or "no" response
+    !> and then press RET.  Port of fns.c use-short-answers.
+    logical, public :: use_short_answers = .false.
+
+    !> String to append when `yes_or_no_p' asks a question.
+    !> For best results this should end in a space.  Port of fns.c
+    !> yes-or-no-prompt.
+    character(len=:), allocatable, public :: yes_or_no_prompt
+
     interface
-        !> Ask a yes-or-no question in the minibuffer: `answer' is true for
-        !> "yes", false for "no"; anything else asks again.  Port of
-        !> fns.c:Fyes_or_no_p.  (In submodule fns_ask_fm, as the minibuffer
-        !> depends on this module.)
+        !> Ask user a yes-or-no question.
+        !> Return t if answer is yes, and nil if the answer is no.
+        !>
+        !> PROMPT is the string to display to ask the question; `yes_or_no_p'
+        !> appends `yes_or_no_prompt' (default "(yes or no) ") to it.  If
+        !> PROMPT is a non-empty string, and it ends with a non-space character,
+        !> a space character will be appended to it.
+        !>
+        !> The user must confirm the answer with RET, and can edit it until it
+        !> has been confirmed.
+        !>
+        !> If the `use_short_answers' variable is non-nil, instead of asking for
+        !> "yes" or "no", this function will ask for "y" or "n" (and
+        !> ignore the value of `yes_or_no_prompt').  Port of
+        !> fns.c:Fyes_or_no_p (no dialog boxes).  (In submodule fns_ask_fm,
+        !> as the minibuffer depends on this module.)
         recursive module subroutine yes_or_no_p(prompt, answer, status)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt

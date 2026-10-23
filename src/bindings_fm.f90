@@ -57,6 +57,7 @@ module bindings_fm
     use help_fns_fm, only: syms_of_help_fns
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
+    use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
     use prog_mode_fm, only: syms_of_prog_mode
     implicit none(type, external)
@@ -329,6 +330,7 @@ contains
         if (keymap_live_p(minibuffer_local_map)) call free_keymap(minibuffer_local_map, status)
         call init_minibuf()
         call syms_of_minibuffer()
+        call syms_of_subr()
         call bind(minibuffer_local_map, "M-n", "next_history_element")
         call bind(minibuffer_local_map, "<next>", "next_history_element")
         call bind(minibuffer_local_map, "<down>", "next_line_or_history_element")

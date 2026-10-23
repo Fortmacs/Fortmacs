@@ -61,14 +61,14 @@ module replace_fm
                        ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_EDIT_REPLACEMENT, &
                        ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, ANSWER_EDIT, &
                        ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, ANSWER_DIFF, &
-                       ANSWER_SCROLL_UP
+                       ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
     use isearch_fm, only: search_upper_case, UPPER_CASE_NIL, search_whitespace_regexp, &
                           isearch_no_upper_case_p, word_search_regexp
     use minibuf_fm, only: read_from_minibuffer, read_string, history_add_new_input
     use keyboard_fm, only: this_command, unread_command_events, sit_for, recursive_edit_1
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use simple_fm, only: push_mark, use_region_p, deactivate_mark
-    use window_fm, only: recenter_top_bottom, scroll_up_command
+    use window_fm, only: recenter_top_bottom, scroll_up, scroll_down
     use help_fm, only: with_help_window
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
@@ -1145,14 +1145,22 @@ contains
                     call message("The diff answer needs diff-mode, which is not ported yet")
                     call ding()
                     call sit_for(1000)
-                case (ANSWER_SCROLL_UP)
-                    call scroll_up_command(nil(), st)
+                case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)
+                    ! (commandp def t): (call-interactively def).
+                    if (def == ANSWER_SCROLL_UP) then
+                        call scroll_up(nil(), status)
+                    else
+                        call scroll_down(nil(), status)
+                    end if
+                    if (.not. status%ok()) exit main
                 case (ANSWER_QUIT)
                     call set_error(status, FM_QUIT)
                     exit main
                 case default
                     ! Any other key (and exit-prefix) exits, and is then
-                    ! re-executed as a normal key sequence.
+                    ! re-executed as a normal key sequence.  (The commands
+                    ! scroll-other-window and scroll-other-window-down are
+                    ! not ported: Deferred.)
                     this_command = sym("mode_exited")
                     keep_going = .false.
                     call unread_command_events([key])

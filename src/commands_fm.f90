@@ -33,6 +33,7 @@ module commands_fm
     !> One component per built-in command.
     type :: command_table_type
         type(command_type) :: abort_minibuffers
+        type(command_type) :: abort_recursive_edit
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
@@ -149,6 +150,9 @@ module commands_fm
         type(command_type) :: minibuffer_complete_word
         type(command_type) :: minibuffer_completion_exit
         type(command_type) :: minibuffer_completion_help
+        type(command_type) :: minibuffer_recenter_top_bottom
+        type(command_type) :: minibuffer_scroll_down_command
+        type(command_type) :: minibuffer_scroll_up_command
         type(command_type) :: move_to_left_margin
         type(command_type) :: move_to_tab_stop
         type(command_type) :: move_to_window_line
@@ -220,6 +224,9 @@ module commands_fm
         type(command_type) :: upcase_word
         type(command_type) :: where_is
         type(command_type) :: write_file
+        type(command_type) :: y_or_n_p_insert_n
+        type(command_type) :: y_or_n_p_insert_other
+        type(command_type) :: y_or_n_p_insert_y
         type(command_type) :: yank
         type(command_type) :: yank_pop
     end type command_table_type
@@ -228,8 +235,9 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(190) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(197) = [character(len=34) :: &
                                                                  "abort_minibuffers", &
+                                                                 "abort_recursive_edit", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
@@ -346,6 +354,9 @@ module commands_fm
                                                                  "minibuffer_complete_word", &
                                                                  "minibuffer_completion_exit", &
                                                                  "minibuffer_completion_help", &
+                                                                 "minibuffer_recenter_top_bottom", &
+                                                                 "minibuffer_scroll_down_command", &
+                                                                 "minibuffer_scroll_up_command", &
                                                                  "move_to_left_margin", &
                                                                  "move_to_tab_stop", &
                                                                  "move_to_window_line", &
@@ -417,6 +428,9 @@ module commands_fm
                                                                  "upcase_word", &
                                                                  "where_is", &
                                                                  "write_file", &
+                                                                 "y_or_n_p_insert_n", &
+                                                                 "y_or_n_p_insert_other", &
+                                                                 "y_or_n_p_insert_y", &
                                                                  "yank", &
                                                                  "yank_pop"]
 
@@ -431,6 +445,8 @@ contains
         select case (name)
         case ("abort_minibuffers")
             p => commands%abort_minibuffers
+        case ("abort_recursive_edit")
+            p => commands%abort_recursive_edit
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("back_to_indentation")
@@ -663,6 +679,12 @@ contains
             p => commands%minibuffer_completion_exit
         case ("minibuffer_completion_help")
             p => commands%minibuffer_completion_help
+        case ("minibuffer_recenter_top_bottom")
+            p => commands%minibuffer_recenter_top_bottom
+        case ("minibuffer_scroll_down_command")
+            p => commands%minibuffer_scroll_down_command
+        case ("minibuffer_scroll_up_command")
+            p => commands%minibuffer_scroll_up_command
         case ("move_to_left_margin")
             p => commands%move_to_left_margin
         case ("move_to_tab_stop")
@@ -805,6 +827,12 @@ contains
             p => commands%where_is
         case ("write_file")
             p => commands%write_file
+        case ("y_or_n_p_insert_n")
+            p => commands%y_or_n_p_insert_n
+        case ("y_or_n_p_insert_other")
+            p => commands%y_or_n_p_insert_other
+        case ("y_or_n_p_insert_y")
+            p => commands%y_or_n_p_insert_y
         case ("yank")
             p => commands%yank
         case ("yank_pop")

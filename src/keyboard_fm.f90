@@ -65,7 +65,8 @@ module keyboard_fm
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
-              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
+              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for, &
+              run_at_time, cancel_timer
     public :: READ_KEY_ELTS, redisplay_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -150,6 +151,18 @@ module keyboard_fm
     !> is set (keyboard.c's pre-command-hook, with one function); null
     !> for none.
     procedure(redisplay_proc), pointer, public :: pre_command_hook => null()
+
+    !> How long to display an echo-area message when the minibuffer is active.
+    !> If the value is a number, it should be specified in seconds.
+    !> Port of keyboard.c minibuffer-message-timeout (a non-number, no
+    !> timeout, is not ported: Deferred).
+    integer, public :: minibuffer_message_timeout = 2
+
+    !> A timer (timer.el run-at-time, one at a time): the function to run
+    !> while waiting for input once `system_clock' reaches `timer_due';
+    !> null for none.
+    procedure(redisplay_proc), pointer :: timer_function => null()
+    integer(int64) :: timer_due = 0
 
     !> Set by `request_exit' to end `command_loop'.
     logical :: exit_requested = .false.
@@ -379,7 +392,10 @@ contains
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
-            if (.not. input_available(input_fd, -1_int32)) cycle
+            if (.not. input_available(input_fd, timer_wait())) then
+                call run_due_timer()
+                cycle
+            end if
             call tty_read_avail_input(nread, status)
             if (.not. status%ok()) return
             ! End of file: the terminal went away.
@@ -678,6 +694,44 @@ contains
         overriding_terminal_local_map = km
         transient_active = .true.
     end subroutine set_transient_map
+
+    !> Run `fn' once after `ms' milliseconds, while waiting for input,
+    !> replacing any timer set before.  Port of timer.el:run-at-time (one
+    !> timer; it runs only while reading terminal input).
+    subroutine run_at_time(ms, fn)
+        integer(int32), intent(in) :: ms
+        procedure(redisplay_proc) :: fn
+        integer(int64) :: count, rate
+        call system_clock(count, rate)
+        timer_due = count + int(ms, int64)*rate/1000
+        timer_function => fn
+    end subroutine run_at_time
+
+    !> Cancel the timer.  Port of timer.el:cancel-timer.
+    subroutine cancel_timer()
+        timer_function => null()
+    end subroutine cancel_timer
+
+    !> Milliseconds until the timer is due (0 if it is), or -1 (wait
+    !> forever) when there is none.
+    integer(int32) function timer_wait() result(ms)
+        integer(int64) :: count, rate
+        ms = -1_int32
+        if (.not. associated(timer_function)) return
+        call system_clock(count, rate)
+        ms = int(max(0_int64, min((timer_due - count)*1000/max(rate, 1_int64), int(huge(0_int32), int64))), int32)
+    end function timer_wait
+
+    !> Run the timer if it is due (timer.c:timer_check), then redisplay.
+    subroutine run_due_timer()
+        procedure(redisplay_proc), pointer :: fn
+        if (.not. associated(timer_function)) return
+        if (timer_wait() > 0) return
+        fn => timer_function
+        timer_function => null()
+        call fn()
+        if (associated(redisplay_hook)) call redisplay_hook()
+    end subroutine run_due_timer
 
     !> Redisplay, then wait `ms' milliseconds or until input arrives.
     !> Port of subr.el:sit-for (for a terminal; no wait without one).

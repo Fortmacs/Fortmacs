@@ -51,8 +51,8 @@ module test_minibuf_fm
                           try_completion, all_completions, test_completion, completion_ignore_case, &
                           completion_function_table, minibuffer_contents
     use minibuffer_fm, only: read_file_name
-    use fns_fm, only: yes_or_no_p
-    use subr_fm, only: add_to_history, history_length, history_delete_duplicates
+    use fns_fm, only: yes_or_no_p, use_short_answers
+    use subr_fm, only: add_to_history, history_length, history_delete_duplicates, y_or_n_p, y_or_n_p_use_read_key
     use fns_fm, only: put
     use minibuf_fm, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_fm, only: read_buffer, internal_complete_buffer, insert_default_directory, &
@@ -99,6 +99,8 @@ contains
                     new_unittest("add-to-history", test_add_to_history), &
                     new_unittest("no-recursive-minibuffer", test_no_recursion), &
                     new_unittest("yes-or-no-p", test_yes_or_no), &
+                    new_unittest("y-or-n-p-minibuffer", test_y_or_n_p_minibuffer), &
+                    new_unittest("y-or-n-p-read-key", test_y_or_n_p_read_key), &
                     new_unittest("read-file-name", test_read_file_name), &
                     new_unittest("read-file-name-history", test_read_file_name_history), &
                     new_unittest("read-file-name-directory", test_read_file_name_directory), &
@@ -397,7 +399,63 @@ contains
         call type_keys("C-g")
         call yes_or_no_p("Really? ", answer, st)
         call check(error, st%code == FM_QUIT)
+        if (allocated(error)) return
+        ! use-short-answers
+        use_short_answers = .true.
+        call type_keys("y")
+        call yes_or_no_p("Really?", answer, st)
+        use_short_answers = .false.
+        call check(error, st%ok() .and. answer .and. last_message == "Really? (y or n) y", last_message)
     end subroutine test_yes_or_no
+
+    !> y-or-n-p reads its answer in the minibuffer: other keys ask again
+    !> with "Please answer y or n", RET exits with "no", C-g quits.
+    subroutine test_y_or_n_p_minibuffer(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        logical :: answer
+        call fresh_scratch()
+        last_minibuffer_message = ""
+        call type_keys("x y")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%ok() .and. answer .and. last_message == "Go? (y or n) y", last_message)
+        if (allocated(error)) return
+        call check(error, last_minibuffer_message == " [Please answer y or n]", last_minibuffer_message)
+        if (allocated(error)) return
+        call type_keys("RET")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%ok() .and. .not. answer, "RET is no")
+        if (allocated(error)) return
+        call type_keys("SPC")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%ok() .and. answer, "SPC is yes")
+        if (allocated(error)) return
+        call type_keys("C-g")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%code == FM_QUIT, "C-g quits")
+        if (allocated(error)) return
+        call check(error, minibuf_level == 0 .and. buffers(cur)%name == "*scratch*", "back")
+    end subroutine test_y_or_n_p_minibuffer
+
+    !> y-or-n-p-use-read-key: one key in the echo area; ESC quits.
+    subroutine test_y_or_n_p_read_key(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        logical :: answer
+        call fresh_scratch()
+        y_or_n_p_use_read_key = .true.
+        call type_keys("x n")
+        call y_or_n_p("Go?", answer, st)
+        call check(error, st%ok() .and. .not. answer .and. last_message == "Go? (y or n) n", last_message)
+        if (allocated(error)) then
+            y_or_n_p_use_read_key = .false.
+            return
+        end if
+        call type_keys("ESC")
+        call y_or_n_p("Go?", answer, st)
+        y_or_n_p_use_read_key = .false.
+        call check(error, st%code == FM_QUIT, "ESC quits")
+    end subroutine test_y_or_n_p_read_key
 
     subroutine test_read_file_name(error)
         type(error_type), allocatable, intent(out) :: error

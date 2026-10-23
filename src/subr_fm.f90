@@ -19,16 +19,14 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions in the echo area (`read_key', `y_or_n_p'),
+!> Questions (`read_key', `y_or_n_p', `read_number'),
 !> `add_to_history', and the match data helpers (`match_string',
 !> `string_match_p', `looking_at_p', `looking_back').
-!>
-!> Without a minibuffer yet, `y_or_n_p' behaves as upstream does with
-!> `y_or_n_p_use_read_key' set: it reads a single key in the echo area.
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT
     use, intrinsic :: iso_fortran_env, only: int64
     use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
+                       make_keymap_ref, symbolp, xsymbol, symbols, &
                        list_elements, make_list, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
@@ -36,7 +34,8 @@ module subr_fm
     use eval_fm, only: hook_type
     use keyboard_fm, only: read_event, discard_input
     use xdisp_fm, only: message, cursor_in_echo_area
-    use keymap_fm, only: define_key, current_global_map
+    use keymap_fm, only: define_key, current_global_map, make_sparse_keymap, keymap_live_p, key_parse, lookup_key
+    use handle_fm, only: handle_type
     use search_fm, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
                          match_in_string_p, string_index_to_offset, SEARCH_NOERROR, match_data, &
                          set_match_data, match_data_translate, replace_match
@@ -45,7 +44,7 @@ module subr_fm
     private
 
     public :: read_key, y_or_n_p, query_replace_answer, add_to_history
-    public :: global_set_key, read_number
+    public :: global_set_key, read_number, syms_of_subr
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
@@ -84,18 +83,97 @@ module subr_fm
               ANSWER_AUTOMATIC, ANSWER_RECENTER, ANSWER_HELP, ANSWER_QUIT, ANSWER_NONE, &
               ANSWER_EDIT_REPLACEMENT, ANSWER_EDIT_REPLACEMENT_EXACT_CASE, ANSWER_ACT_AND_SHOW, &
               ANSWER_EDIT, ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, &
-              ANSWER_DIFF, ANSWER_SCROLL_UP, ANSWER_EXIT_PREFIX
+              ANSWER_DIFF, ANSWER_SCROLL_UP, ANSWER_EXIT_PREFIX, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_OTHER_WINDOW, &
+              ANSWER_SCROLL_OTHER_WINDOW_DOWN
 
-    ! The `query-replace-map` bindings in use (replace.el).
+    !> query-replace-map (replace.el), made by `init_query_replace_map'.
+    type(handle_type), public :: query_replace_map
+    public :: init_query_replace_map
+
+    !> The keys of `query_replace_map' and their answers.  (Binding ESC
+    !> would prohibit the M-v binding.  Instead, callers should check for
+    !> ESC specially.)
+    character(len=*), parameter, public :: QRM_KEYS(38) = [character(len=11) :: &
+                                            "SPC", "DEL", "<delete>", "<backspace>", "y", "n", "Y", "N", "e", "E", ",", &
+                                            "q", "RET", "<return>", ".", "C-r", "C-w", "C-l", "!", "^", "u", "U", &
+                                            "d", "C-h", "<f1>", "<help>", "?", "C-g", "C-]", "C-v", "M-v", "<next>", &
+                                            "<prior>", "C-M-v", "M-<next>", "C-M-S-v", "M-<prior>", "<escape>"]
+    character(len=*), parameter, public :: QRM_ANSWERS(38) = [character(len=27) :: &
+                                               "act", "skip", "skip", "skip", "act", "skip", "act", "skip", &
+                                               "edit_replacement", "edit_replacement_exact_case", "act_and_show", &
+                                               "exit", "exit", "exit", "act_and_exit", "edit", "delete_and_edit", &
+                                               "recenter", "automatic", "backup", "undo", "undo_all", "diff", &
+                                               "help", "help", "help", "help", "quit", "quit", "scroll_up", &
+                                               "scroll_down", "scroll_up", "scroll_down", "scroll_other_window", &
+                                               "scroll_other_window", "scroll_other_window_down", &
+                                               "scroll_other_window_down", "exit_prefix"]
+
+    ! The answers of `query_replace_map'.
     integer, parameter :: ANSWER_NONE = 0, ANSWER_ACT = 1, ANSWER_SKIP = 2, ANSWER_EXIT = 3, &
                           ANSWER_ACT_AND_EXIT = 4, ANSWER_AUTOMATIC = 5, ANSWER_RECENTER = 6, &
                           ANSWER_HELP = 7, ANSWER_QUIT = 8, ANSWER_EDIT_REPLACEMENT = 9, &
                           ANSWER_EDIT_REPLACEMENT_EXACT_CASE = 10, ANSWER_ACT_AND_SHOW = 11, &
                           ANSWER_EDIT = 12, ANSWER_DELETE_AND_EDIT = 13, ANSWER_BACKUP = 14, &
                           ANSWER_UNDO = 15, ANSWER_UNDO_ALL = 16, ANSWER_DIFF = 17, &
-                          ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19
+                          ANSWER_SCROLL_UP = 18, ANSWER_EXIT_PREFIX = 19, ANSWER_SCROLL_DOWN = 20, &
+                          ANSWER_SCROLL_OTHER_WINDOW = 21, ANSWER_SCROLL_OTHER_WINDOW_DOWN = 22
+
+    !> Use `read_key' when reading answers to "y or n" questions by `y_or_n_p'.
+    !> Otherwise, use the `read_from_minibuffer' to read the answers.
+    !>
+    !> When reading via the minibuffer, you can use the normal commands
+    !> available in the minibuffer, and can, for instance, temporarily
+    !> switch to another buffer, do things there, and then switch back
+    !> to the minibuffer before entering the character.  This is not
+    !> possible when using `read_key', but using `read_key' may be less
+    !> confusing to some users.  Port of subr.el y-or-n-p-use-read-key.
+    logical, public :: y_or_n_p_use_read_key = .false.
+
+    !> History list symbol to add `y_or_n_p' answers to (unallocated for
+    !> nil: no history).  Port of subr.el y-or-n-p-history-variable.
+    character(len=:), allocatable, public :: y_or_n_p_history_variable
 
     interface
+        !> Ask user a "y or n" question.
+        !> Return t if answer is "y" and nil if it is "n".
+        !>
+        !> PROMPT is the string to display to ask the question; `y_or_n_p'
+        !> adds "(y or n) " to it.  If PROMPT is a non-empty string, and
+        !> it ends with a non-space character, a space character will be
+        !> appended to it.
+        !>
+        !> No confirmation of the answer is requested; a single character is
+        !> enough.  SPC also means yes, and DEL means no.
+        !>
+        !> To be precise, this function translates user input into responses
+        !> by consulting the bindings in `query_replace_map'; see the
+        !> documentation of that variable for more information.  In this
+        !> case, the useful bindings are `act', `skip', `recenter',
+        !> `scroll_up', `scroll_down', and `quit'.
+        !> An `act' response means yes, and a `skip' response means no.
+        !> A `quit' response means to invoke `abort_recursive_edit'.
+        !> If the user enters `recenter', `scroll_up', or `scroll_down'
+        !> responses, perform the requested window recentering or scrolling
+        !> and ask again.
+        !>
+        !> By default, this function uses the minibuffer to read the key.
+        !> If `y_or_n_p_use_read_key' is non-nil, `read_key' is used
+        !> instead (which means that the user can't change buffers (and the
+        !> like) while `y_or_n_p' is running).  Port of subr.el:y-or-n-p
+        !> (no help-form or dialog boxes).  (In subr_read_fm.)
+        recursive module subroutine y_or_n_p(prompt, answer, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            logical, intent(out) :: answer
+            type(status_type), intent(out) :: status
+        end subroutine y_or_n_p
+
+        !> Register subr.el's commands (and keyboard.c's
+        !> abort-recursive-edit).  (In subr_read_fm.)
+        module subroutine syms_of_subr()
+            implicit none(type, external)
+        end subroutine syms_of_subr
+
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
         !> For historical reasons, the value of DEFAULT is always inserted into
@@ -179,106 +257,89 @@ contains
         if (.not. have) call set_error(status, FM_QUIT)
     end subroutine read_key
 
-    !> What `key' means in replace.el:query-replace-map (the bindings
-    !> y-or-n-p, map-y-or-n-p and perform-replace use), or ANSWER_NONE.
-    !> ESC is `exit_prefix' (upstream binds [escape]; a terminal reads
-    !> it as ESC).
+    !> Keymap of responses to questions posed by commands like `query_replace'.
+    !> The "bindings" in this map are not commands; they are answers.
+    !> The valid answers include `act', `skip', `act_and_show',
+    !> `act_and_exit', `exit', `exit_prefix', `recenter', `scroll_up',
+    !> `scroll_down', `scroll_other_window', `scroll_other_window_down',
+    !> `edit', `edit_replacement', `edit_replacement_exact_case',
+    !> `delete_and_edit', `automatic', `backup', `undo', `undo_all',
+    !> `quit', and `help'.  Made on first use.  Port of replace.el
+    !> query-replace-map.
+    subroutine init_query_replace_map()
+        type(value_type), allocatable :: seq(:)
+        type(status_type) :: st
+        integer :: k
+        if (keymap_live_p(query_replace_map)) return
+        call make_sparse_keymap(query_replace_map)
+        do k = 1, size(QRM_KEYS)
+            call key_parse(trim(QRM_KEYS(k)), seq, st)
+            if (st%ok()) call define_key(query_replace_map, seq, sym(trim(QRM_ANSWERS(k))), st)
+        end do
+    end subroutine init_query_replace_map
+
+    !> The answer `key' is in `query_replace_map' (the bindings
+    !> y-or-n-p, map-y-or-n-p and perform-replace use): an ANSWER_ code,
+    !> ANSWER_NONE if it has none.
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
+        type(value_type) :: def
+        type(status_type) :: st
+        character(len=:), allocatable :: name
         answer = ANSWER_NONE
-        if (.not. fixnump(key)) return
-        select case (xfixnum(key))
-        case (iachar(" "), iachar("y"), iachar("Y"))
+        call init_query_replace_map()
+        call lookup_key(make_keymap_ref(query_replace_map), [key], def, st, .true.)
+        if (.not. st%ok() .or. .not. symbolp(def)) return
+        name = symbols(xsymbol(def))%name
+        select case (name)
+        case ("act")
             answer = ANSWER_ACT
-        case (127, iachar("n"), iachar("N"))
+        case ("skip")
             answer = ANSWER_SKIP
-        case (iachar("e"))
+        case ("edit_replacement")
             answer = ANSWER_EDIT_REPLACEMENT
-        case (iachar("E"))
+        case ("edit_replacement_exact_case")
             answer = ANSWER_EDIT_REPLACEMENT_EXACT_CASE
-        case (iachar(","))
+        case ("act_and_show")
             answer = ANSWER_ACT_AND_SHOW
-        case (iachar("q"), 13)
+        case ("exit")
             answer = ANSWER_EXIT
-        case (iachar("."))
+        case ("act_and_exit")
             answer = ANSWER_ACT_AND_EXIT
-        case (18)
+        case ("edit")
             answer = ANSWER_EDIT
-        case (23)
+        case ("delete_and_edit")
             answer = ANSWER_DELETE_AND_EDIT
-        case (12)
+        case ("recenter")
             answer = ANSWER_RECENTER
-        case (iachar("!"))
+        case ("automatic")
             answer = ANSWER_AUTOMATIC
-        case (iachar("^"))
+        case ("backup")
             answer = ANSWER_BACKUP
-        case (iachar("u"))
+        case ("undo")
             answer = ANSWER_UNDO
-        case (iachar("U"))
+        case ("undo_all")
             answer = ANSWER_UNDO_ALL
-        case (iachar("d"))
+        case ("diff")
             answer = ANSWER_DIFF
-        case (8, iachar("?"))
+        case ("help")
             answer = ANSWER_HELP
-        case (7, 29)
+        case ("quit")
             answer = ANSWER_QUIT
-        case (22)
+        case ("scroll_up")
             answer = ANSWER_SCROLL_UP
-        case (27)
+        case ("scroll_down")
+            answer = ANSWER_SCROLL_DOWN
+        case ("scroll_other_window")
+            answer = ANSWER_SCROLL_OTHER_WINDOW
+        case ("scroll_other_window_down")
+            answer = ANSWER_SCROLL_OTHER_WINDOW_DOWN
+        case ("exit_prefix")
             answer = ANSWER_EXIT_PREFIX
         case default
             answer = ANSWER_NONE
         end select
     end function query_replace_answer
-
-    !> Ask a "y or n" question in the echo area: `answer' is true for y
-    !> (or SPC), false for n (or DEL); C-g quits.  Other keys ask again,
-    !> with "Please answer y or n.".  Port of subr.el:y-or-n-p, the
-    !> `y_or_n_p_use_read_key' branch (no help-form, scrolling or ding).
-    subroutine y_or_n_p(prompt, answer, status)
-        character(len=*), intent(in) :: prompt
-        logical, intent(out) :: answer
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: padded
-        type(value_type) :: key
-        integer :: def
-        logical :: first
-        answer = .false.
-        padded = prompt
-        if (len(prompt) > 0) then
-            if (prompt(len(prompt):len(prompt)) /= " ") padded = padded//" "
-        end if
-        padded = padded//"(y or n) "
-        first = .true.
-        do
-            if (first) then
-                call read_key(padded, key, status)
-            else
-                call read_key("Please answer y or n.  "//padded, key, status)
-            end if
-            if (.not. status%ok()) return
-            first = .false.
-            def = query_replace_answer(key)
-            select case (def)
-            case (ANSWER_ACT, ANSWER_SKIP)
-                exit
-            case (ANSWER_RECENTER)
-                first = .true.
-            case (ANSWER_QUIT, ANSWER_EXIT_PREFIX)
-                ! quit, or exit-prefix (ESC)
-                call set_error(status, FM_QUIT)
-                return
-            case default
-                call discard_input()
-            end select
-        end do
-        answer = def == ANSWER_ACT
-        if (answer) then
-            call message(padded//"y")
-        else
-            call message(padded//"n")
-        end if
-    end subroutine y_or_n_p
 
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.

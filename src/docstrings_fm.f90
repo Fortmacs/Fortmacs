@@ -40,6 +40,7 @@ module docstrings_fm
                        JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
+    use fns_fm, only: use_short_answers
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
@@ -47,6 +48,7 @@ module docstrings_fm
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use keyboard_fm, only: minibuffer_message_timeout
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
@@ -66,7 +68,7 @@ module docstrings_fm
                          line_move_visual, mark_ring_max, pending_undo_list, special_mode_hook, special_mode_map, &
                          suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
-                       history_delete_duplicates, history_length
+                       history_delete_duplicates, history_length, y_or_n_p_use_read_key
     use syntax_fm, only: parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
@@ -95,8 +97,9 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(284) = [character(len=34) :: &
+    character(len=34), parameter, public :: function_names(291) = [character(len=34) :: &
                                                                    "abort_minibuffers", &
+                                                                   "abort_recursive_edit", &
                                                                    "add_auto_mode", &
                                                                    "auto_fill_mode", &
                                                                    "back_to_indentation", &
@@ -262,6 +265,9 @@ module docstrings_fm
                                                                    "minibuffer_complete_word", &
                                                                    "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", &
+                                                                   "minibuffer_recenter_top_bottom", &
+                                                                   "minibuffer_scroll_down_command", &
+                                                                   "minibuffer_scroll_up_command", &
                                                                    "modify_syntax_entry", &
                                                                    "move_to_left_margin", &
                                                                    "move_to_tab_stop", &
@@ -377,12 +383,15 @@ module docstrings_fm
                                                                    "where_is", &
                                                                    "write_file", &
                                                                    "y_or_n_p", &
+                                                                   "y_or_n_p_insert_n", &
+                                                                   "y_or_n_p_insert_other", &
+                                                                   "y_or_n_p_insert_y", &
                                                                    "yank", &
                                                                    "yank_pop", &
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(101) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(104) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
@@ -439,6 +448,7 @@ module docstrings_fm
                                                                    "mark_even_if_inactive", &
                                                                    "mark_ring_max", &
                                                                    "minibuffer_completing_file_name", &
+                                                                   "minibuffer_message_timeout", &
                                                                    "mode_require_final_newline", &
                                                                    "next_screen_context_lines", &
                                                                    "paragraph_ignore_fill_prefix", &
@@ -482,8 +492,10 @@ module docstrings_fm
                                                                    "transient_mark_mode_hook", &
                                                                    "undo_in_progress", &
                                                                    "undo_no_redo", &
+                                                                   "use_short_answers", &
                                                                    "visible_bell", &
-                                                                   "words_include_escapes"]
+                                                                   "words_include_escapes", &
+                                                                   "y_or_n_p_use_read_key"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -508,6 +520,10 @@ contains
             entry%doc = "Abort the current minibuffer."//LF// &
                         "If we are not currently in the innermost minibuffer, prompt the user to"//LF// &
                         "confirm the aborting of the current minibuffer and all contained ones."
+        case ("abort_recursive_edit")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Abort the command that requested this recursive edit or minibuffer input."
         case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
@@ -1829,6 +1845,18 @@ contains
                         "contents.  The list goes in buffer *Completions*, shown in the"//LF// &
                         "frame's root window until the minibuffer is done (there is no"//LF// &
                         "window splitting yet)."
+        case ("minibuffer_recenter_top_bottom")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `recenter_top_bottom' from the minibuffer in its original window."
+        case ("minibuffer_scroll_down_command")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `scroll_down_command' from the minibuffer in its original window."
+        case ("minibuffer_scroll_up_command")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `scroll_up_command' from the minibuffer in its original window."
         case ("modify_syntax_entry")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call modify_syntax_entry(from, to, newentry, status, syntax_table_h)"
@@ -3124,9 +3152,48 @@ contains
         case ("y_or_n_p")
             entry%file = "subr_fm.f90"
             entry%fortran = "call y_or_n_p(prompt, answer, status)"
-            entry%doc = "Ask a ""y or n"" question in the echo area: `answer' is true for y"//LF// &
-                        "(or SPC), false for n (or DEL); C-g quits.  Other keys ask again,"//LF// &
-                        "with ""Please answer y or n.""."
+            entry%doc = "Ask user a ""y or n"" question."//LF// &
+                        "Return t if answer is ""y"" and nil if it is ""n""."//LF// &
+                        ""//LF// &
+                        "PROMPT is the string to display to ask the question; `y_or_n_p'"//LF// &
+                        "adds ""(y or n) "" to it.  If PROMPT is a non-empty string, and"//LF// &
+                        "it ends with a non-space character, a space character will be"//LF// &
+                        "appended to it."//LF// &
+                        ""//LF// &
+                        "No confirmation of the answer is requested; a single character is"//LF// &
+                        "enough.  SPC also means yes, and DEL means no."//LF// &
+                        ""//LF// &
+                        "To be precise, this function translates user input into responses"//LF// &
+                        "by consulting the bindings in `query_replace_map'; see the"//LF// &
+                        "documentation of that variable for more information.  In this"//LF// &
+                        "case, the useful bindings are `act', `skip', `recenter',"//LF// &
+                        "`scroll_up', `scroll_down', and `quit'."//LF// &
+                        "An `act' response means yes, and a `skip' response means no."//LF// &
+                        "A `quit' response means to invoke `abort_recursive_edit'."//LF// &
+                        "If the user enters `recenter', `scroll_up', or `scroll_down'"//LF// &
+                        "responses, perform the requested window recentering or scrolling"//LF// &
+                        "and ask again."//LF// &
+                        ""//LF// &
+                        "By default, this function uses the minibuffer to read the key."//LF// &
+                        "If `y_or_n_p_use_read_key' is non-nil, `read_key' is used"//LF// &
+                        "instead (which means that the user can't change buffers (and the"//LF// &
+                        "like) while `y_or_n_p' is running)."
+        case ("y_or_n_p_insert_n")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the answer ""n"" and exit the minibuffer of `y_or_n_p'."//LF// &
+                        "Discard all previous input before inserting and exiting the minibuffer."
+        case ("y_or_n_p_insert_other")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Handle inserting of other answers in the minibuffer of `y_or_n_p'."//LF// &
+                        "Display an error on trying to insert a disallowed character."//LF// &
+                        "Also discard all previous input in the minibuffer."
+        case ("y_or_n_p_insert_y")
+            entry%file = "subr_read_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the answer ""y"" and exit the minibuffer of `y_or_n_p'."//LF// &
+                        "Discard all previous input before inserting and exiting the minibuffer."
         case ("yank")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -3155,8 +3222,20 @@ contains
         case ("yes_or_no_p")
             entry%file = "fns_fm.f90"
             entry%fortran = "call yes_or_no_p(prompt, answer, status)"
-            entry%doc = "Ask a yes-or-no question in the minibuffer: `answer' is true for"//LF// &
-                        """yes"", false for ""no""; anything else asks again."
+            entry%doc = "Ask user a yes-or-no question."//LF// &
+                        "Return t if answer is yes, and nil if the answer is no."//LF// &
+                        ""//LF// &
+                        "PROMPT is the string to display to ask the question; `yes_or_no_p'"//LF// &
+                        "appends `yes_or_no_prompt' (default ""(yes or no) "") to it.  If"//LF// &
+                        "PROMPT is a non-empty string, and it ends with a non-space character,"//LF// &
+                        "a space character will be appended to it."//LF// &
+                        ""//LF// &
+                        "The user must confirm the answer with RET, and can edit it until it"//LF// &
+                        "has been confirmed."//LF// &
+                        ""//LF// &
+                        "If the `use_short_answers' variable is non-nil, instead of asking for"//LF// &
+                        """yes"" or ""no"", this function will ask for ""y"" or ""n"" (and"//LF// &
+                        "ignore the value of `yes_or_no_prompt')."
         case default
             found = .false.
         end select
@@ -3658,6 +3737,13 @@ contains
             entry%original = ".false."
             entry%value = repr(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
+        case ("minibuffer_message_timeout")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "minibuffer_message_timeout"
+            entry%original = "2"
+            entry%value = repr(minibuffer_message_timeout)
+            entry%doc = "How long to display an echo-area message when the minibuffer is active."//LF// &
+                        "If the value is a number, it should be specified in seconds."
         case ("mode_require_final_newline")
             entry%file = "files_fm.f90"
             entry%fortran = "mode_require_final_newline"
@@ -4012,6 +4098,16 @@ contains
             entry%original = ".false."
             entry%value = repr(undo_no_redo)
             entry%doc = "If t, `undo' doesn't go through redo entries."
+        case ("use_short_answers")
+            entry%file = "fns_fm.f90"
+            entry%fortran = "use_short_answers"
+            entry%original = ".false."
+            entry%value = repr(use_short_answers)
+            entry%doc = "Non-nil means `yes_or_no_p' accepts single-key answers ""y"" or ""n""."//LF// &
+                        "When non-nil, `yes_or_no_p' will use `y_or_n_p' to read the answer."//LF// &
+                        "This means the user will be able to press just one key to answer, whereas"//LF// &
+                        "by default the user needs to type the full ""yes"" or ""no"" response"//LF// &
+                        "and then press RET."
         case ("visible_bell")
             entry%file = "term_fm.f90"
             entry%fortran = "visible_bell"
@@ -4025,6 +4121,20 @@ contains
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
             entry%doc = "Non-nil means `forward_word', etc., should treat escape chars part of words."
+        case ("y_or_n_p_use_read_key")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "y_or_n_p_use_read_key"
+            entry%original = ".false."
+            entry%value = repr(y_or_n_p_use_read_key)
+            entry%doc = "Use `read_key' when reading answers to ""y or n"" questions by `y_or_n_p'."//LF// &
+                        "Otherwise, use the `read_from_minibuffer' to read the answers."//LF// &
+                        ""//LF// &
+                        "When reading via the minibuffer, you can use the normal commands"//LF// &
+                        "available in the minibuffer, and can, for instance, temporarily"//LF// &
+                        "switch to another buffer, do things there, and then switch back"//LF// &
+                        "to the minibuffer before entering the character.  This is not"//LF// &
+                        "possible when using `read_key', but using `read_key' may be less"//LF// &
+                        "confusing to some users."
         case default
             found = .false.
         end select

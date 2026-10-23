@@ -46,13 +46,16 @@ module minibuffer_fm
     use character_fm, only: string_char_and_length
     use editfns_fm, only: point, point_max, goto_char, buffer_substring
     use frame_fm, only: selected_frame, frame_selected_window_ref
-    use window_fm, only: window_type, set_window_buffer, set_window_start
+    use window_fm, only: window_type, set_window_buffer, set_window_start, recenter_top_bottom, scroll_up_command, &
+                         scroll_down_command
+    use callint_fm, only: current_prefix_arg
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring, string_lessp, yes_or_no_p
     use dired_fm, only: file_name_completion, file_name_all_completions
     use lread_fm, only: sym
-    use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text
+    use keyboard_fm, only: throw_exit, command_loop_level, this_command, last_command, minibuffer_message_text, &
+                           run_at_time, cancel_timer, minibuffer_message_timeout
     use minibuf_fm, only: minibufferp, minibuf_level, minibuffer_prompt_end, abort_minibuffers, &
                           minibuffer_innermost_command_loop_p, innermost_minibuffer_p, &
                           minibuffer_local_map, read_from_minibuffer, completion_table_type, &
@@ -490,6 +493,59 @@ contains
         call exit_minibuffer(status)
     end subroutine cmd_minibuffer_completion_exit
 
+    !> Run `recenter_top_bottom' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-recenter-top-bottom.
+    subroutine cmd_minibuffer_recenter_top_bottom(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(1, status)
+    end subroutine cmd_minibuffer_recenter_top_bottom
+
+    !> Run `scroll_up_command' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-scroll-up-command (no shift
+    !> selection).
+    subroutine cmd_minibuffer_scroll_up_command(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(2, status)
+    end subroutine cmd_minibuffer_scroll_up_command
+
+    !> Run `scroll_down_command' from the minibuffer in its original window.
+    !> Port of minibuffer.el:minibuffer-scroll-down-command (no shift
+    !> selection).
+    subroutine cmd_minibuffer_scroll_down_command(status)
+        type(status_type), intent(out) :: status
+        call with_minibuffer_selected_window(3, status)
+    end subroutine cmd_minibuffer_scroll_down_command
+
+    !> Run command `which' (1 recenter-top-bottom, 2 scroll-up-command,
+    !> 3 scroll-down-command) with the prefix argument in the window that
+    !> was selected when the minibuffer was entered.  Port of
+    !> minibuffer.el:with-minibuffer-selected-window.
+    recursive subroutine with_minibuffer_selected_window(which, status)
+        integer, intent(in) :: which
+        type(status_type), intent(out) :: status
+        type(handle_type) :: mini
+        type(window_type), pointer :: sw
+        type(status_type) :: st
+        logical :: saved
+        status = status_type()
+        if (.not. selected_frame%minibuffer_selected .or. minibuf_level == 0) return
+        mini = current_buffer()
+        saved = selected_frame%minibuffer_selected
+        selected_frame%minibuffer_selected = .false.
+        sw => frame_selected_window_ref()
+        call set_buffer(sw%buffer, st)
+        select case (which)
+        case (1)
+            call recenter_top_bottom(current_prefix_arg, status)
+        case (2)
+            call scroll_up_command(current_prefix_arg, status)
+        case default
+            call scroll_down_command(current_prefix_arg, status)
+        end select
+        selected_frame%minibuffer_selected = saved
+        call set_buffer(mini, st)
+    end subroutine with_minibuffer_selected_window
+
     !> Register the commands, minibuffer.el's minibuffer-local-map keys, and
     !> the completion keymaps.
     subroutine syms_of_minibuffer()
@@ -501,6 +557,9 @@ contains
         commands%minibuffer_completion_help%run => cmd_minibuffer_completion_help
         commands%minibuffer_complete_and_exit%run => cmd_minibuffer_complete_and_exit
         commands%minibuffer_completion_exit%run => cmd_minibuffer_completion_exit
+        commands%minibuffer_recenter_top_bottom%run => cmd_minibuffer_recenter_top_bottom
+        commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
+        commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
         call bind(minibuffer_local_map, "C-g", "abort_minibuffers")
         call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
         call bind(minibuffer_local_map, "RET", "exit_minibuffer")
@@ -797,14 +856,18 @@ contains
 
     !> Temporarily display MESSAGE at the end of minibuffer text.
     !> This function is designed to be called from the minibuffer, i.e.,
-    !> when Emacs prompts the user for some input, and the user types into
-    !> the minibuffer.  If called when the current buffer is not the
-    !> minibuffer, this function just calls `message', and thus displays
-    !> MESSAGE in the echo-area.  When called from the minibuffer, this
-    !> function displays MESSAGE at the end of minibuffer text until the
-    !> next input event arrives.  It encloses MESSAGE in [...] if it is
-    !> not yet enclosed.  Port of minibuffer.el:minibuffer-message (no
-    !> timeout; the overlay is minibuffer_message_text).
+    !> when Emacs prompts the user for some input, and the user types
+    !> into the minibuffer.  If called when the current buffer is not
+    !> the minibuffer, this function just calls `message', and thus
+    !> displays MESSAGE in the echo-area.
+    !> When called from the minibuffer, this function displays MESSAGE
+    !> at the end of minibuffer text for `minibuffer_message_timeout'
+    !> seconds, or until the next input event arrives, whichever comes first.
+    !> It encloses MESSAGE in [...] if it is not yet enclosed.
+    !> The intent is to show the message without hiding what the user typed.
+    !> Port of minibuffer.el:minibuffer-message (no ARGS, text properties
+    !> or `minibuffer_message' property; the overlay is
+    !> minibuffer_message_text).
     subroutine minibuffer_message(msg)
         character(len=*), intent(in) :: msg
         integer :: k
@@ -814,18 +877,23 @@ contains
         end if
         ! Clear out any old echo-area message to make way for our new
         ! thing.
+        call delete_message_overlay()
         call message("")
+        minibuffer_message_text = " ["//msg//"]"
         k = verify(msg, " ")
         if (k > 0 .and. len(msg) >= 2) then
-            if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) then
-                minibuffer_message_text = msg
-                last_minibuffer_message = msg
-                return
-            end if
+            if (msg(k:k) == "[" .and. msg(len(msg):) == "]" .and. len(msg) - k >= 2) minibuffer_message_text = msg
         end if
-        minibuffer_message_text = " ["//msg//"]"
         last_minibuffer_message = minibuffer_message_text
+        call run_at_time(int(minibuffer_message_timeout*1000, int32), delete_message_overlay)
     end subroutine minibuffer_message
+
+    !> Remove the text `minibuffer_message' shows.  Port of
+    !> minibuffer.el:minibuffer--delete-message-overlay.
+    subroutine delete_message_overlay()
+        if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
+        call cancel_timer()
+    end subroutine delete_message_overlay
 
     !> Port of minibuffer.el:completion--message.
     subroutine completion_message(msg)

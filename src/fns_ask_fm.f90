@@ -23,13 +23,14 @@
 !> minibuffer depends on fns_fm, which a module cannot.
 submodule(fns_fm) fns_ask_fm
     use minibuf_fm, only: read_from_minibuffer, enable_recursive_minibuffers
-    use keyboard_fm, only: discard_input, sit_for
+    use keyboard_fm, only: discard_input, sit_for, real_this_command
+    use lisp_fm, only: value_type
     use xdisp_fm, only: message
+    use dispnew_fm, only: ding
     use subr_fm, only: y_or_n_p
+    use casefiddle_fm, only: downcase_string
+    use character_fm, only: blankp
     implicit none(type, external)
-
-    !> use-short-answers: ask with y-or-n-p instead.
-    logical :: use_short_answers = .false.
 
 contains
 
@@ -38,48 +39,57 @@ contains
         logical, intent(out) :: answer
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: full, ans
-        logical :: saved_enable
+        type(value_type) :: saved_real_this
+        integer(int64) :: n
+        integer(int32) :: c, clen
+        integer(int64) :: byte, last
+        logical :: saved_enable, nonspace
         answer = .false.
         if (use_short_answers) then
             call y_or_n_p(prompt, answer, status)
             return
         end if
-        full = prompt
-        if (len(prompt) > 0) then
-            if (prompt(len(prompt):len(prompt)) /= " " .and. prompt(len(prompt):len(prompt)) /= achar(9)) then
-                full = full//" "
-            end if
+        ! Whether PROMPT ends in a non-blank character.
+        nonspace = .false.
+        n = schars(prompt)
+        if (n > 0) then
+            byte = 1
+            last = 0
+            do while (byte <= len(prompt))
+                call string_char_and_length(prompt, byte, c, clen)
+                last = c
+                byte = byte + clen
+            end do
+            nonspace = .not. blankp(int(last, int32))
         end if
-        ! yes-or-no-prompt
-        full = full//"(yes or no) "
+        full = prompt
+        if (nonspace) full = full//" "
+        if (allocated(yes_or_no_prompt)) then
+            full = full//yes_or_no_prompt
+        else
+            full = full//"(yes or no) "
+        end if
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
+        ! Preserve the actual command that eventually called
+        ! `yes_or_no_p' (otherwise `repeat' will be repeating
+        ! `exit_minibuffer').
+        saved_real_this = real_this_command
         do
             call read_from_minibuffer(full, ans, status, history="yes_or_no_p_history")
             if (.not. status%ok()) exit
-            ans = downcase_ascii(ans)
+            ans = downcase_string(ans)
             if (ans == "yes" .and. len(ans) == 3) then
                 answer = .true.
                 exit
             end if
             if (ans == "no" .and. len(ans) == 2) exit
-            ! (Fding is not ported.)
+            call ding()
             call discard_input()
             call message("Please answer yes or no.")
             call sit_for(2000)
         end do
         enable_recursive_minibuffers = saved_enable
-    contains
-
-        !> ASCII-only Fdowncase.
-        pure function downcase_ascii(s) result(d)
-            character(len=*), intent(in) :: s
-            character(len=len(s)) :: d
-            integer :: i
-            d = s
-            do i = 1, len(s)
-                if (s(i:i) >= "A" .and. s(i:i) <= "Z") d(i:i) = achar(iachar(s(i:i)) + 32)
-            end do
-        end function downcase_ascii
+        real_this_command = saved_real_this
     end subroutine yes_or_no_p
 end submodule fns_ask_fm
