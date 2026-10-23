@@ -38,7 +38,8 @@ submodule(indent_fm) indent_cmds_fm
     use data_fm, only: value_eq
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
-                          char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position
+                          char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
+                          preceding_char, following_char
     use insdel_fm, only: insert
     use cmds_fm, only: forward_line, beginning_of_line
     use textprop_fm, only: get_text_property
@@ -52,7 +53,8 @@ submodule(indent_fm) indent_cmds_fm
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
     use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, JUSTIFY_CENTER, &
                        JUSTIFY_RIGHT, prefix_at_point, nchars
-    use xdisp_fm, only: message
+    use xdisp_fm, only: message, tab_width
+    use subr_fm, only: read_number
     implicit none(type, external)
 
     !> Transient keymap for adjusting indentation interactively.
@@ -271,14 +273,13 @@ contains
     !> indent.el:indent-rigidly (the program path; the command is
     !> cmd_indent_rigidly).
     module procedure indent_rigidly
-    type(handle_type) :: end_marker
+    type(handle_type) :: end_marker, opoint_marker
     type(status_type) :: st
     integer(int64) :: opoint, endpos, indent, shortage, moved, from, col
     logical :: eol_flag
     status = status_type()
-    call copy_marker_at(point(), end_marker, .false., st)
-    opoint = point()
-    call free_marker(end_marker, st)
+    ! (save-excursion ...)
+    call copy_marker_at(point(), opoint_marker, .false., st)
     call copy_marker_at(end, end_marker, .false., st)
     call goto_char(start)
     if (.not. bolp()) shortage = forward_line(1_int64)
@@ -299,7 +300,9 @@ contains
         shortage = forward_line(1_int64)
     end do
     call free_marker(end_marker, st)
-    call goto_char(min(opoint, point_max()))
+    call marker_position(opoint_marker, opoint, st)
+    call goto_char(opoint)
+    call free_marker(opoint_marker, st)
     end procedure indent_rigidly
 
     !> Indent all lines between BEG and END leftward by one space.  Port of
@@ -531,14 +534,15 @@ contains
     !> column to indent to; if it is nil, use one of the three methods above.
     !> Port of indent.el:indent-region (no progress reporter).
     module procedure indent_region
-    type(handle_type) :: end_marker
+    type(handle_type) :: end_marker, opoint_marker
     type(status_type) :: st
     integer(int64) :: opoint, endpos, shortage, moved, from, col, savedb, savedz
     character(len=:), allocatable :: regexp
     status = status_type()
-    opoint = point()
     if (present(column)) then
         ! If a numeric prefix is given, indent to that column.
+        ! (save-excursion ...)
+        call copy_marker_at(point(), opoint_marker, .false., st)
         call copy_marker_at(end, end_marker, .false., st)
         call goto_char(start)
         if (.not. bolp()) shortage = forward_line(1_int64)
@@ -554,9 +558,13 @@ contains
             shortage = forward_line(1_int64)
         end do
         call free_marker(end_marker, st)
-        call goto_char(min(opoint, point_max()))
+        call marker_position(opoint_marker, opoint, st)
+        call goto_char(opoint)
+        call free_marker(opoint_marker, st)
     else if (allocated(fill_prefix)) then
         ! If a fill-prefix is specified, use it.
+        ! (save-excursion ...)
+        call copy_marker_at(point(), opoint_marker, .false., st)
         call copy_marker_at(end, end_marker, .false., st)
         call goto_char(start)
         regexp = regexp_quote(fill_prefix)
@@ -570,7 +578,9 @@ contains
             shortage = forward_line(1_int64)
         end do
         call free_marker(end_marker, st)
-        call goto_char(min(opoint, point_max()))
+        call marker_position(opoint_marker, opoint, st)
+        call goto_char(opoint)
+        call free_marker(opoint_marker, st)
     else
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
@@ -768,29 +778,29 @@ contains
     !> The variable `tab-stop-list' is a list of columns at which there are tab stops.
     !> Port of indent.el:move-to-tab-stop.
     module procedure move_to_tab_stop
-    integer(int64) :: nexttab, before, col, tabend, moved, pos
-    integer(int32) :: c
-    logical :: found
+    integer(int64) :: nexttab, before, col, tabend, pos
+    type(handle_type) :: saved
     type(status_type) :: st
     nexttab = indent_next_tab_stop(current_column())
     before = point()
     call move_to_column(nexttab, col, .true., status)
     if (.not. status%ok()) return
-    pos = point()
+    ! (save-excursion ...)
+    call copy_marker_at(point(), saved, .false., st)
     call goto_char(before)
     ! If we just added a tab, or moved over one, delete any superfluous
     ! spaces before the old point.
-    call char_before(c, found, pos)
-    if (found .and. c == 9) then
-        tabend = before
-        moved = skip_chars_backward(" ", st)
-        if (point() /= tabend) then
-            ! A whitespace run before the old point that a tab replaces.
-            call delete_region(point(), tabend, status)
-            pos = pos - (tabend - point())
-        end if
+    if (preceding_char() == 32 .and. following_char() == 9) then
+        tabend = (current_column()/tab_width)*tab_width
+        do while (current_column() > tabend)
+            if (preceding_char() /= 32) exit
+            call goto_char(point() - 1)
+        end do
+        call delete_region(point(), before, status)
     end if
+    call marker_position(saved, pos, st)
     call goto_char(pos)
+    call free_marker(saved, st)
     end procedure move_to_tab_stop
 
     ! ------------------------------------------------------------------
@@ -922,11 +932,18 @@ contains
         call beginning_of_line_text(prefix_numeric_value(current_prefix_arg))
     end subroutine cmd_beginning_of_line_text
 
-    subroutine cmd_indent_to(status)
+    ! Interactive spec "NIndent to column: ": the numeric prefix argument,
+    ! or else a number read in the minibuffer.
+    recursive subroutine cmd_indent_to(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: col
-        call barf_if_buffer_read_only(status)
-        if (status%ok()) col = indent_to(prefix_numeric_value(current_prefix_arg), status)
+        integer(int64) :: col, column
+        if (nilp(current_prefix_arg)) then
+            call read_number("Indent to column: ", column, status)
+            if (.not. status%ok()) return
+        else
+            column = prefix_numeric_value(current_prefix_arg)
+        end if
+        col = indent_to(column, status)
     end subroutine cmd_indent_to
 
     !> Register the indentation commands and make indent-rigidly-map.

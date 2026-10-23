@@ -28,7 +28,7 @@ submodule(search_fm) search_regexp_fm
     use commands_fm, only: commands
     use regex_emacs_fm, only: re_pattern_buffer_type, re_registers_type, re_subject_type, re_compile_pattern, &
                               re_search, re_match, subject_from_string, subject_from_buffer
-    use syntax_fm, only: syntax_table
+    use syntax_fm, only: syntax_table, syntax_modiff
     use minibuf_fm, only: read_string
     use casefiddle_fm, only: upcase_string, upcase_initials_string, upcase_region, upcase_initials_region, &
                              case_symbols_as_words
@@ -52,6 +52,9 @@ submodule(search_fm) search_regexp_fm
         logical :: has_whitespace_regexp = .false.
         character(len=:), allocatable :: whitespace_regexp
         type(handle_type) :: syntax_table
+        !> `syntax_modiff` when compiled: clear_regexp_cache drops entries
+        !> that used a syntax table when any syntax entry changes.
+        integer(int64) :: syntax_modiff = 0
         integer(int64) :: used_at = 0
         type(re_pattern_buffer_type) :: buf
     end type regexp_cache_type
@@ -80,7 +83,10 @@ contains
                 if (.not. cp%valid) cycle
                 if (cp%regexp /= pattern .or. len(cp%regexp) /= len(pattern)) cycle
                 if ((cp%buf%translate .neqv. translate) .or. (cp%posix .neqv. posix)) cycle
-                if (cp%buf%used_syntax .and. .not. same_handle(cp%syntax_table, syntax_table())) cycle
+                if (cp%buf%used_syntax) then
+                    if (.not. same_handle(cp%syntax_table, syntax_table())) cycle
+                    if (cp%syntax_modiff /= syntax_modiff) cycle
+                end if
                 if (cp%has_whitespace_regexp .neqv. has_ws) cycle
                 if (has_ws) then
                     if (cp%whitespace_regexp /= search_spaces_regexp .or. &
@@ -108,6 +114,7 @@ contains
             ! If the compiled pattern hard codes some of the contents of the
             ! syntax-table, it can only be reused with *this* syntax table.
             cp%syntax_table = syntax_table()
+            cp%syntax_modiff = syntax_modiff
             if (.not. status%ok()) return
             cp%regexp = pattern
             cp%valid = .true.

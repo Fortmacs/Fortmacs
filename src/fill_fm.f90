@@ -37,7 +37,8 @@ module fill_fm
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
-    use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only
+    use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
+                         buffer_modified_p, restore_buffer_modified_p, current_buffer
     use character_fm, only: string_char_and_length
     use characters_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
@@ -1090,7 +1091,46 @@ contains
         integer, intent(in), optional :: justify
         logical, intent(in), optional :: region
         character(len=:), allocatable, intent(out), optional :: used
-        integer(int64) :: before, end, beg, b, e, opoint
+        character(len=:), allocatable :: before_text, after_text
+        logical :: modified
+        type(status_type) :: st
+        ! (with-buffer-unmodified-if-unchanged ...)
+        call buffer_modified_p(current_buffer(), modified, st)
+        if (.not. modified) before_text = whole_buffer_text()
+        call fill_paragraph_1(status, justify, region, used)
+        if (allocated(before_text) .and. cur > 0) then
+            call buffer_modified_p(current_buffer(), modified, st)
+            if (modified) then
+                after_text = whole_buffer_text()
+                if (after_text == before_text .and. len(after_text) == len(before_text)) then
+                    call restore_buffer_modified_p(.false.)
+                end if
+            end if
+        end if
+    end subroutine fill_paragraph
+
+    !> The bytes of the whole current buffer, ignoring narrowing (what
+    !> subr-x.el's with-buffer-unmodified-if-unchanged compares with
+    !> `buffer-hash').
+    function whole_buffer_text() result(text)
+        character(len=:), allocatable :: text
+        integer(int64) :: savedb, savedz
+        type(status_type) :: st
+        savedb = buffers(cur)%begv
+        savedz = buffers(cur)%text%z - buffers(cur)%zv
+        call widen()
+        call buffer_substring(point_min(), point_max(), text, st)
+        call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
+    end function whole_buffer_text
+
+    !> The body of fill_paragraph.
+    recursive subroutine fill_paragraph_1(status, justify, region, used)
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: justify
+        logical, intent(in), optional :: region
+        character(len=:), allocatable, intent(out), optional :: used
+        type(handle_type) :: saved
+        integer(int64) :: before, end, beg, b, e
         type(status_type) :: st
         character(len=:), allocatable :: pfx
         integer :: how
@@ -1119,22 +1159,21 @@ contains
         ! otherwise skipping past the last few chars of a
         ! paragraph-separator would count as a paragraph (and not skipping
         ! any chars at EOB would not count as a paragraph even if it is).
-        opoint = point()
+        call save_point(saved)
         call move_to_left_margin(st)
         if (forward_paragraph(1_int64) /= 0) then
             ! There's no paragraph at or after point: give up.
             pfx = ""
-            call goto_char(opoint)
         else
             end = point()
             if (forward_paragraph(-1_int64) /= 0) continue
             beg = point()
             call goto_char(before)
             call fill_region_as_paragraph(beg, end, status, how, used=pfx)
-            call goto_char(opoint)
         end if
+        call restore_point(saved)
         if (present(used)) used = pfx
-    end subroutine fill_paragraph
+    end subroutine fill_paragraph_1
 
     !> Join lines of this paragraph and fix up whitespace at joins.
     !> Interactively, if the region is active, join lines of each paragraph in
@@ -1456,7 +1495,8 @@ contains
     !> Port of fill.el:unjustify-current-line.
     subroutine unjustify_current_line(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, moved, from
+        type(handle_type) :: saved
+        integer(int64) :: moved, from
         type(status_type) :: st
         status = status_type()
         select case (current_justification())
@@ -1465,14 +1505,14 @@ contains
             call beginning_of_line_text()
             call canonically_space_region(point(), line_end_position(), status)
         case (JUSTIFY_CENTER, JUSTIFY_RIGHT)
-            opoint = point()
+            call save_point(saved)
             call move_to_left_margin(st, force=.true.)
             ! Position ourselves after any fill-prefix.
             if (prefix_at_point()) call goto_char(point() + nchars(fill_prefix))
             from = point()
             moved = skip_chars_forward(" "//TAB, st)
             call delete_region(from, point(), status)
-            call goto_char(min(opoint, point_max()))
+            call restore_point(saved)
         case default
             continue
         end select
@@ -1487,10 +1527,11 @@ contains
     subroutine unjustify_region(status, begin, end)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: begin, end
-        integer(int64) :: opoint, savedb, savedz, shortage
+        integer(int64) :: savedb, savedz, shortage
+        type(handle_type) :: saved
         type(status_type) :: st
         status = status_type()
-        opoint = point()
+        call save_point(saved)
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
         if (present(end)) call narrow_to_region(point_min(), end, st)
@@ -1506,8 +1547,25 @@ contains
         end do
         call widen()
         call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
-        call goto_char(min(opoint, point_max()))
+        call restore_point(saved)
     end subroutine unjustify_region
+
+    !> Start a `save-excursion': remember point in marker SAVED.
+    subroutine save_point(saved)
+        type(handle_type), intent(out) :: saved
+        type(status_type) :: st
+        call copy_marker_at(point(), saved, .false., st)
+    end subroutine save_point
+
+    !> End a `save-excursion': go back to SAVED and free it.
+    subroutine restore_point(saved)
+        type(handle_type), intent(inout) :: saved
+        type(status_type) :: st
+        integer(int64) :: pos
+        call marker_position(saved, pos, st)
+        call goto_char(pos)
+        call free_marker(saved, st)
+    end subroutine restore_point
 
     ! ------------------------------------------------------------------
     ! Commands
