@@ -79,7 +79,7 @@ module simple_fm
     use keyboard_fm, only: last_command_event, this_command, &
                            real_this_command, last_command, &
                            real_last_command, last_prefix_arg, read_event, &
-                           set_transient_map, last_message
+                           set_transient_map, last_message, disabled_command_hook
     implicit none(type, external)
     private
 
@@ -910,6 +910,7 @@ contains
         type(value_type) :: function, binding
         type(value_type), allocatable :: keys(:)
         integer(int64) :: id
+        logical :: handled
         if (present(command_name)) then
             name = command_name
         else
@@ -935,7 +936,9 @@ contains
         ! command-execute
         current_prefix_arg = prefixarg
         prefix_arg = nil()
-        call call_interactively(function, status)
+        handled = .false.
+        if (associated(disabled_command_hook)) call disabled_command_hook(function, handled, status)
+        if (.not. handled) call call_interactively(function, status)
         if (.not. status%ok()) return
         if (suggest_key_bindings .and. .not. nilp(binding)) then
             if (echo_area_empty()) then

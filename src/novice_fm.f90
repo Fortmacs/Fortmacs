@@ -36,8 +36,7 @@ module novice_fm
     use keyboard_fm, only: this_command_keys, disabled_command_hook
     use callint_fm, only: defcommand, call_interactively, commandp
     use character_fm, only: CHAR_META
-    use docstrings_fm, only: doc_entry_type, function_doc
-    use help_fm, only: substitute_command_keys
+    use help_fm, only: substitute_command_keys, documentation_hook
     use minibuffer_fm, only: completing_read, REQUIRE_MATCH_T
     use minibuf_fm, only: completion_obarray_table
     use rmc_fm, only: rmc_choice_type, read_multiple_choice
@@ -82,18 +81,19 @@ contains
         type(status_type), intent(out) :: status
         type(rmc_choice_type) :: choices(4)
         type(value_type) :: disabled
-        type(doc_entry_type) :: entry
         character(len=:), allocatable :: name, help_string, doc
         logical :: by_name, found
         integer :: answer, at
-        name = symbol_name(cmd)
+        call symbol_name(cmd, name, status)
+        if (.not. status%ok()) return
         by_name = .false.
         if (size(keys) >= 1) then
             if (fixnump(keys(1))) by_name = xfixnum(keys(1)) == ior(CHAR_META, iachar("x"))
         end if
         if (size(keys) >= 2 .and. .not. by_name) then
-            if (fixnump(keys(1)) .and. fixnump(keys(2))) &
+            if (fixnump(keys(1)) .and. fixnump(keys(2))) then
                 by_name = xfixnum(keys(1)) == 27 .and. xfixnum(keys(2)) == iachar("x")
+            end if
         end if
         if (by_name .or. size(keys) == 0) then
             help_string = "You have invoked the disabled command "//name//"."//LF
@@ -102,10 +102,12 @@ contains
         end if
         ! Any special message saying why the command is disabled.
         call get(cmd, sym("disabled"), disabled, status)
-        call function_doc(name, entry, found)
-        doc = "<< not documented >>"
-        if (found .and. allocated(entry%doc)) then
-            if (len(entry%doc) > 0) doc = substitute_command_keys(entry%doc)
+        found = .false.
+        if (associated(documentation_hook)) call documentation_hook(name, doc, found)
+        if (found .and. len(doc) > 0) then
+            doc = substitute_command_keys(doc)
+        else
+            doc = "<< not documented >>"
         end if
         ! Keep only the first paragraph of the documentation.
         at = index(doc, LF//LF)

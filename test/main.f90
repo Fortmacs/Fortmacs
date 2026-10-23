@@ -31,6 +31,8 @@ program tester
     use test_regex_emacs_fm, only: collect_regex_emacs_fm
     use test_casefiddle_fm, only: collect_casefiddle_fm
     use test_replace_fm, only: collect_replace_fm
+    use test_rmc_fm, only: collect_rmc_fm
+    use test_novice_fm, only: collect_novice_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
     use test_character_fm, only: collect_character_fm
@@ -111,7 +113,9 @@ program tester
                  new_testsuite("paragraphs_fm", collect_paragraphs_fm), &
                  new_testsuite("regex_emacs_fm", collect_regex_emacs_fm), &
                  new_testsuite("casefiddle_fm", collect_casefiddle_fm), &
-                 new_testsuite("replace_fm", collect_replace_fm) &
+                 new_testsuite("replace_fm", collect_replace_fm), &
+                 new_testsuite("rmc_fm", collect_rmc_fm), &
+                 new_testsuite("novice_fm", collect_novice_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

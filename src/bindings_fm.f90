@@ -46,6 +46,7 @@ module bindings_fm
     use search_fm, only: syms_of_search
     use replace_fm, only: syms_of_replace
     use casefiddle_fm, only: syms_of_casefiddle
+    use novice_fm, only: syms_of_novice
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
@@ -180,6 +181,7 @@ contains
         call syms_of_search()
         call syms_of_replace()
         call syms_of_casefiddle()
+        call syms_of_novice()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)

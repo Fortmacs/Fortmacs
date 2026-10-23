@@ -42,7 +42,12 @@ module test_simple_fm
     use simple_fm, only: kill_ring, kill_new, kill_append, current_kill, kill_region, &
                          copy_region_as_kill, kill_line, kill_whole_line, yank, yank_pop, push_mark, &
                          pop_to_mark_command, deactivate_mark, region_active_p, set_mark, &
-                         exchange_point_and_mark, mark_whole_buffer, kill_ring_yank_pointer
+                         exchange_point_and_mark, mark_whole_buffer, kill_ring_yank_pointer, &
+                         delete_indentation, fill_prefix, transpose_chars, transpose_words, transpose_lines, &
+                         delete_horizontal_space, just_one_space, fixup_whitespace, delete_blank_lines, &
+                         cycle_spacing
+    use cmds_fm, only: forward_line, end_of_line
+    use editfns_fm, only: narrow_to_region, widen, pos_bol, pos_eol
     implicit none(type, external)
     private
 
@@ -66,7 +71,16 @@ contains
                     new_unittest("yank-and-yank-pop", test_yank), &
                     new_unittest("mark-ring", test_mark_ring), &
                     new_unittest("exchange-point-and-mark", test_exchange), &
-                    new_unittest("mark-and-kill-keys", test_keys) &
+                    new_unittest("mark-and-kill-keys", test_keys), &
+                    new_unittest("simple-delete-indentation-no-region", test_delete_indentation_no_region), &
+                    new_unittest("simple-delete-indentation-inactive-region", test_delete_indentation_inactive_region), &
+                    new_unittest("simple-delete-indentation-blank-line", test_delete_indentation_blank_line), &
+                    new_unittest("simple-delete-indentation-boundaries", test_delete_indentation_boundaries), &
+                    new_unittest("simple-delete-indentation-region", test_delete_indentation_region), &
+                    new_unittest("simple-delete-indentation-prefix", test_delete_indentation_prefix), &
+                    new_unittest("transpose-chars-words-lines", test_transpose), &
+                    new_unittest("whitespace-commands", test_whitespace), &
+                    new_unittest("transpose-and-whitespace-keys", test_space_keys) &
                     ]
     end subroutine collect_simple_fm
 
@@ -471,4 +485,338 @@ contains
         call check(error,.not. region_active_p() .and. last_message == "Mark deactivated", last_message)
         call kill_buffer(h, st)
     end subroutine test_keys
+
+    !> Check (buffer-substring before point . after point): port of
+    !> simple-tests.el:simple-test--buffer-substrings.
+    subroutine check_substrings(error, before, after)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), intent(in) :: before, after
+        character(len=:), allocatable :: b, a
+        type(status_type) :: st
+        call buffer_substring(point_min(), point(), b, st)
+        call buffer_substring(point(), point_max(), a, st)
+        call check(error, b == before .and. a == after .and. len(b) == len(before) .and. len(a) == len(after), &
+                   "got """//b//""" . """//a//"""")
+    end subroutine check_substrings
+
+    subroutine test_delete_indentation_no_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert(" first "//nl//" second "//nl//" third "//nl//" fourth ", st)
+        ! Without prefix argument.
+        call delete_indentation(.false., st)
+        call check_substrings(error, " first "//nl//" second "//nl//" third", " fourth ")
+        if (allocated(error)) return
+        call delete_indentation(.false., st)
+        call check_substrings(error, " first "//nl//" second", " third fourth ")
+        if (allocated(error)) return
+        ! With prefix argument.
+        call goto_char(point_min())
+        call delete_indentation(.true., st)
+        call check_substrings(error, " first", " second third fourth ")
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_no_region
+
+    subroutine test_delete_indentation_inactive_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert(" first "//nl//" second "//nl//" third ", st)
+        call set_mark(point_min())
+        call deactivate_mark(.true.)
+        call delete_indentation(.false., st)
+        call check_substrings(error, " first "//nl//" second", " third ")
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_inactive_region
+
+    subroutine test_delete_indentation_blank_line(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert(nl//nl//" third "//nl//" "//nl//" "//nl//" sixth "//nl//nl, st)
+        ! Without prefix argument.
+        call delete_indentation(.false., st)
+        call check_substrings(error, nl//nl//" third "//nl//" "//nl//" "//nl//" sixth "//nl, "")
+        if (allocated(error)) return
+        call delete_indentation(.false., st)
+        call check_substrings(error, nl//nl//" third "//nl//" "//nl//" "//nl//" sixth", "")
+        if (allocated(error)) return
+        call delete_indentation(.false., st)
+        call check_substrings(error, nl//nl//" third "//nl//" "//nl, "sixth")
+        if (allocated(error)) return
+        ! With prefix argument.
+        call goto_char(point_min())
+        call delete_indentation(.true., st)
+        call check_substrings(error, "", nl//" third "//nl//" "//nl//"sixth")
+        if (allocated(error)) return
+        call delete_indentation(.true., st)
+        call check_substrings(error, "", "third "//nl//" "//nl//"sixth")
+        if (allocated(error)) return
+        call delete_indentation(.true., st)
+        call check_substrings(error, "third", nl//"sixth")
+        if (allocated(error)) return
+        call delete_indentation(.true., st)
+        call check_substrings(error, "third", " sixth")
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_blank_line
+
+    subroutine test_delete_indentation_boundaries(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: shortage
+        call fresh(h)
+        call insert(" first "//nl//" second "//nl//" third ", st)
+        ! Stay at EOB.
+        call delete_indentation(.true., st)
+        call check_substrings(error, " first "//nl//" second "//nl//" third ", "")
+        if (allocated(error)) return
+        ! Stay at BOB.
+        shortage = forward_line(-1_int64)
+        call narrow_to_region(point(), pos_eol(), st)
+        call delete_indentation(.false., st)
+        call check_substrings(error, "", " second ")
+        if (allocated(error)) return
+        ! Go to EOB.
+        call delete_indentation(.true., st)
+        call check_substrings(error, " second ", "")
+        if (allocated(error)) return
+        call widen()
+        ! Go to BOB.
+        call end_of_line(0_int64)
+        call delete_indentation(.false., st)
+        call check_substrings(error, "", " first "//nl//" second "//nl//" third ")
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_boundaries
+
+    subroutine test_delete_indentation_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        ! Empty region.
+        call insert(" first ", st)
+        call delete_indentation(.false., st, point(), point())
+        call check_substrings(error, " first ", "")
+        if (allocated(error)) return
+        ! Single line.
+        call delete_indentation(.false., st, pos_bol(), point() - 1)
+        call check_substrings(error, "", " first ")
+        if (allocated(error)) return
+        call delete_indentation(.false., st, point() + 1, pos_eol())
+        call check_substrings(error, " ", "first ")
+        if (allocated(error)) return
+        call delete_indentation(.false., st, pos_bol(), pos_eol())
+        call check_substrings(error, "", " first ")
+        if (allocated(error)) return
+        ! Multiple lines.
+        call goto_char(point_max())
+        call insert(nl//" second "//nl//" third "//nl//" fourth ", st)
+        call goto_char(point_min())
+        call delete_indentation(.false., st, pos_eol(), pos_bol(2_int64))
+        call check_substrings(error, " first", " second "//nl//" third "//nl//" fourth ")
+        if (allocated(error)) return
+        call delete_indentation(.false., st, point(), 1 + pos_bol(2_int64))
+        call check_substrings(error, " first second", " third "//nl//" fourth ")
+        if (allocated(error)) return
+        ! Prefix argument overrides region.
+        call delete_indentation(.true., st, point_min(), point())
+        call check_substrings(error, " first second third", " fourth ")
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_region
+
+    subroutine test_delete_indentation_prefix(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call insert("> first "//nl//"> second "//nl//"> third "//nl//"> fourth ", st)
+        fill_prefix = ""
+        call delete_indentation(.false., st)
+        call check_substrings(error, "> first "//nl//"> second "//nl//"> third", " > fourth ")
+        if (allocated(error)) return
+        fill_prefix = "<"
+        call delete_indentation(.false., st)
+        call check_substrings(error, "> first "//nl//"> second", " > third > fourth ")
+        if (allocated(error)) return
+        fill_prefix = ">"
+        call delete_indentation(.false., st)
+        call check_substrings(error, "> first", " second > third > fourth ")
+        deallocate (fill_prefix)
+        call kill_buffer(h, st)
+    end subroutine test_delete_indentation_prefix
+
+    !> Fortmacs: transpose-chars, -words and -lines, with positive,
+    !> negative and zero arguments.
+    subroutine test_transpose(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call set_text_point_mark("ab"//point_tag//"cd")
+        call transpose_chars(1_int64, st)
+        call check(error, get_text_point_mark(), "acb"//point_tag//"d")
+        if (allocated(error)) return
+        ! At end of line, the previous two chars are exchanged.
+        call set_text_point_mark("abcd"//point_tag)
+        call transpose_chars(1_int64, st)
+        call check(error, get_text_point_mark(), "abdc"//point_tag)
+        if (allocated(error)) return
+        call set_text_point_mark("ab"//point_tag//"cde")
+        call transpose_chars(2_int64, st)
+        call check(error, get_text_point_mark(), "acdb"//point_tag//"e")
+        if (allocated(error)) return
+        call set_text_point_mark("abc"//point_tag//"de")
+        call transpose_chars(-1_int64, st)
+        call check(error, get_text_point_mark(), "ac"//point_tag//"bde")
+        if (allocated(error)) return
+        call set_text_point_mark("foo bar"//point_tag//" baz")
+        call transpose_words(1_int64, st)
+        call check(error, get_text_point_mark(), "foo baz bar"//point_tag)
+        if (allocated(error)) return
+        call set_text_point_mark("foo "//point_tag//"bar baz")
+        call transpose_words(1_int64, st)
+        call check(error, get_text_point_mark(), "bar foo"//point_tag//" baz")
+        if (allocated(error)) return
+        call set_text_point_mark("one"//mark_tag//" two three"//point_tag)
+        call transpose_words(0_int64, st)
+        call check(error, buffer_string() == "one three two", buffer_string())
+        if (allocated(error)) return
+        call kill_buffer(h, st)
+        call fresh(h)
+        call set_text_point_mark("one"//nl//"tw"//point_tag//"o"//nl//"three"//nl)
+        call transpose_lines(1_int64, st)
+        call check(error, get_text_point_mark(), "two"//nl//"one"//nl//point_tag//"three"//nl)
+        if (allocated(error)) return
+        ! Lines are created at the end if necessary.
+        call set_text_point_mark("one"//nl//point_tag//"two")
+        call transpose_lines(1_int64, st)
+        call check(error, get_text_point_mark(), "two"//nl//"one"//nl//point_tag)
+        if (allocated(error)) return
+        call transpose_chars(1_int64, st)
+        call kill_buffer(h, st)
+        call fresh(h)
+        call insert("a", st)
+        call goto_char(point_min())
+        ! Nothing before point to drag.
+        call transpose_chars(1_int64, st)
+        call check(error,.not. st%ok() .and. st%code == FM_BEGINNING_OF_BUFFER, format_error(st))
+        call kill_buffer(h, st)
+    end subroutine test_transpose
+
+    !> Fortmacs: delete-horizontal-space, just-one-space, fixup-whitespace,
+    !> delete-blank-lines and cycle-spacing.
+    subroutine test_whitespace(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call fresh(h)
+        call set_text_point_mark("a "//achar(9)//" "//point_tag//"  b")
+        call delete_horizontal_space(.false., st)
+        call check(error, get_text_point_mark(), "a"//point_tag//"b")
+        if (allocated(error)) return
+        call set_text_point_mark("a  "//point_tag//"  b")
+        call delete_horizontal_space(.true., st)
+        call check(error, get_text_point_mark(), "a"//point_tag//"  b")
+        if (allocated(error)) return
+        call set_text_point_mark("a  "//point_tag//"  b")
+        call just_one_space(1_int64, st)
+        call check(error, get_text_point_mark(), "a "//point_tag//"b")
+        if (allocated(error)) return
+        call set_text_point_mark("a "//nl//point_tag//"  b")
+        call just_one_space(-2_int64, st)
+        call check(error, get_text_point_mark(), "a  "//point_tag//"b")
+        if (allocated(error)) return
+        call set_text_point_mark("foo  "//point_tag//"  bar")
+        call fixup_whitespace(st)
+        call check(error, get_text_point_mark(), "foo"//point_tag//" bar")
+        if (allocated(error)) return
+        call set_text_point_mark("(  "//point_tag//"foo")
+        call fixup_whitespace(st)
+        call check(error, get_text_point_mark(), "("//point_tag//"foo")
+        if (allocated(error)) return
+        ! delete-blank-lines: on a blank line, keep one; on an isolated
+        ! one, delete it; on a nonblank line, delete the following ones.
+        call set_text_point_mark("a"//nl//nl//point_tag//nl//nl//"b")
+        call delete_blank_lines(st)
+        call check(error, get_text_point_mark(), "a"//nl//point_tag//nl//"b")
+        if (allocated(error)) return
+        call delete_blank_lines(st)
+        call check(error, get_text_point_mark(), "a"//nl//point_tag//"b")
+        if (allocated(error)) return
+        call set_text_point_mark("a"//point_tag//nl//nl//" "//nl//"b")
+        call delete_blank_lines(st)
+        call check(error, get_text_point_mark(), "a"//point_tag//nl//"b")
+        if (allocated(error)) return
+        ! cycle-spacing: one space, no space, the original spacing.
+        call set_text_point_mark("a  "//point_tag//" b")
+        this_command = sym("cycle-spacing")
+        last_command = nil()
+        call cycle_spacing(nil(), st)
+        call check(error, get_text_point_mark(), "a "//point_tag//"b")
+        if (allocated(error)) return
+        last_command = this_command
+        call cycle_spacing(nil(), st)
+        call check(error, get_text_point_mark(), "a"//point_tag//"b")
+        if (allocated(error)) return
+        call cycle_spacing(nil(), st)
+        call check(error, get_text_point_mark(), "a  "//point_tag//" b")
+        if (allocated(error)) return
+        call cycle_spacing(nil(), st)
+        call check(error, get_text_point_mark(), "a "//point_tag//"b")
+        last_command = nil()
+        this_command = nil()
+        call kill_buffer(h, st)
+    end subroutine test_whitespace
+
+    !> Fortmacs: the bindings (C-t, M-t, C-x C-t, M-SPC, M-\, C-x C-o,
+    !> M-^, M-u, M-l, M-c).
+    subroutine test_space_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call init_bindings()
+        call fresh(h)
+        call insert("ab cd", st)
+        call goto_char(2_int64)
+        call kbd_store_bytes(achar(20))
+        call command_loop(st)
+        call check(error, buffer_string() == "ba cd", buffer_string())
+        if (allocated(error)) return
+        call goto_char(point_min())
+        call kbd_store_bytes(achar(27)//"u"//achar(27)//"c"//achar(1)//achar(27)//"f"//achar(27)//"t")
+        call command_loop(st)
+        call check(error, buffer_string() == "Cd BA", buffer_string())
+        if (allocated(error)) return
+        call goto_char(point_min())
+        call kbd_store_bytes(achar(27)//"l"//achar(5)//achar(27)//"^")
+        call command_loop(st)
+        call check(error, buffer_string() == "cd BA", buffer_string())
+        if (allocated(error)) return
+        call goto_char(3_int64)
+        call kbd_store_bytes(achar(27)//"\")
+        call command_loop(st)
+        call check(error, buffer_string() == "cdBA", buffer_string())
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(27)//" ")
+        call command_loop(st)
+        call check(error, buffer_string() == "cd BA", buffer_string())
+        if (allocated(error)) return
+        call goto_char(point_max())
+        call insert(nl//nl//nl//"x", st)
+        call goto_char(point_min())
+        call kbd_store_bytes(achar(24)//achar(15))
+        call command_loop(st)
+        call check(error, buffer_string() == "cd BA"//nl//"x", buffer_string())
+        if (allocated(error)) return
+        call goto_char(point_max())
+        call kbd_store_bytes(achar(24)//achar(20))
+        call command_loop(st)
+        call check(error, buffer_string() == "x"//nl//"cd BA"//nl, buffer_string())
+        call kill_buffer(h, st)
+    end subroutine test_space_keys
 end module test_simple_fm

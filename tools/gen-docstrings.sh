@@ -489,8 +489,9 @@ END {
             print "                entry%value = repr(" vfort[i] ")"
             print "            end select"
         } else {
+            # Other derived types have no printed representation yet.
             if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
-            else print "            entry%value = repr(" vfort[i] ")"
+            else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
     }

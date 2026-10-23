@@ -25,8 +25,7 @@
 !> the selected one, removed afterwards (save-window-excursion).
 !>
 !> Not ported: the long-answers and minibuffer paths, dialog boxes,
-!> touch-screen events, the `edit` answer (recursive edit), the
-!> multi-column layout of the generated help (one choice per line here).
+!> touch-screen events, the `edit` answer (recursive edit).
 module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
@@ -36,7 +35,7 @@ module rmc_fm
                          kill_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char
-    use keymap_fm, only: key_description
+    use keymap_fm, only: single_key_description
     use subr_fm, only: read_key, query_replace_answer, ANSWER_RECENTER, ANSWER_SCROLL_UP
     use window_fm, only: window_ref, window_type, set_window_buffer, split_window, delete_window, window_live_p, &
                          recenter_top_bottom, scroll_up_command
@@ -46,7 +45,7 @@ module rmc_fm
     implicit none(type, external)
     private
 
-    public :: read_multiple_choice, rmc_add_key_description
+    public :: read_multiple_choice, rmc_add_key_description, generated_help
 
     !> A choice of `read_multiple_choice`: (CHAR NAME [DESCRIPTION]).
     type, public :: rmc_choice_type
@@ -64,8 +63,10 @@ contains
     function rmc_add_key_description(choice) result(altered)
         type(rmc_choice_type), intent(in) :: choice
         character(len=:), allocatable :: altered, desc
+        type(value_type) :: key
         integer :: pos
-        desc = key_description([make_fixnum(int(choice%key, int64))])
+        key = make_fixnum(int(choice%key, int64))
+        desc = single_key_description(key)
         pos = 0
         if (choice%key < 128) pos = index(choice%name, achar(choice%key))
         if (pos == 0 .or. desc == "ESC" .or. desc == "TAB" .or. desc == "RET" .or. desc == "DEL" .or. &
@@ -193,11 +194,7 @@ contains
             if (present(help_string)) then
                 text = help_string
             else
-                text = prompt//achar(10)//achar(10)
-                do i = 1, size(choices)
-                    text = text//achar(choices(i)%key)//": "//rmc_add_key_description(choices(i))//achar(10)
-                    if (allocated(choices(i)%description)) text = text//choices(i)%description//achar(10)
-                end do
+                text = prompt//achar(10)//achar(10)//generated_help(choices, help_columns())
             end if
             call insert(text, st)
             call goto_char(1_int64)
@@ -220,4 +217,128 @@ contains
             call set_window_buffer(w, buf, st, record=.false.)
         end subroutine show
     end subroutine read_multiple_choice
+    ! (/ (window-width) 25): the columns of the generated help.
+    integer function help_columns() result(columns)
+        type(window_type), pointer :: w
+        columns = 80/25
+        if (.not. window_live_p(selected_window())) return
+        w => window_ref(selected_window())
+        if (w%total_cols > 0) columns = max(1, w%total_cols/25)
+    end function help_columns
+
+    ! Number of characters of the UTF-8 string S.
+    pure integer function nchars(s)
+        character(len=*), intent(in) :: s
+        integer :: i
+        nchars = 0
+        do i = 1, len(s)
+            if (iand(iachar(s(i:i)), 192) /= 128) nchars = nchars + 1
+        end do
+    end function nchars
+
+    ! TEXT (one line) filled at fill-column 21: the lines, each ended by
+    ! a newline.
+    function fill21(text) result(filled)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: filled, line, word
+        integer :: i, j
+        filled = ""
+        line = ""
+        i = 1
+        do while (i <= len(text))
+            if (text(i:i) == " ") then
+                i = i + 1
+                cycle
+            end if
+            j = index(text(i:), " ")
+            if (j == 0) then
+                word = text(i:)
+                i = len(text) + 1
+            else
+                word = text(i:i + j - 2)
+                i = i + j
+            end if
+            if (len(line) == 0) then
+                line = word
+            else if (nchars(line) + 1 + nchars(word) <= 21) then
+                line = line//" "//word
+            else
+                filled = filled//line//achar(10)
+                line = word
+            end if
+        end do
+        filled = filled//line//achar(10)
+    end function fill21
+
+    !> The help text rmc--show-help generates: each choice ("KEY: NAME"
+    !> and its description, filled at column 21) in COLUMNS columns 25
+    !> characters apart.  Port of the layout in rmc.el:rmc--show-help.
+    function generated_help(choices, columns) result(text)
+        type(rmc_choice_type), intent(in) :: choices(:)
+        integer, intent(in) :: columns
+        character(len=:), allocatable :: text, entry
+        type :: line_type
+            character(len=:), allocatable :: s
+        end type line_type
+        type(line_type), allocatable :: lines(:), grown(:)
+        integer :: times, start, n, k, row, i, j, pad
+        allocate (lines(0))
+        n = 0
+        start = 1
+        times = 0
+        do k = 1, size(choices)
+            if (times /= 0) then
+                if (mod(times, columns) == 0) then
+                    ! Go to the next "line".
+                    start = n + 1
+                else
+                    ! Add padding.
+                    do row = start, n
+                        lines(row)%s = lines(row)%s//repeat(" ", max(mod(times, columns)*25 - nchars(lines(row)%s), 0))
+                    end do
+                end if
+            end if
+            times = times + 1
+            entry = fill21(achar(choices(k)%key)//": "//rmc_add_key_description(choices(k)))
+            if (allocated(choices(k)%description)) entry = entry//fill21(choices(k)%description)
+            pad = mod(times - 1, columns)*25
+            row = start
+            i = 1
+            ! (split-string text "\n"): the lines, then a last empty one.
+            do
+                j = index(entry(i:), achar(10))
+                if (row <= n) then
+                    if (len(lines(row)%s) > 0) then
+                        if (j > 0) then
+                            lines(row)%s = lines(row)%s//entry(i:i + j - 2)
+                        else
+                            lines(row)%s = lines(row)%s//entry(i:)
+                        end if
+                        row = row + 1
+                        if (j == 0) exit
+                        i = i + j
+                        cycle
+                    end if
+                end if
+                ! At the beginning of a line: a new line before it.
+                allocate (grown(n + 1))
+                grown(1:row - 1) = lines(1:row - 1)
+                if (j > 0) then
+                    grown(row)%s = repeat(" ", pad)//entry(i:i + j - 2)
+                else
+                    grown(row)%s = repeat(" ", pad)//entry(i:)
+                end if
+                if (row <= n) grown(row + 1:) = lines(row:)
+                call move_alloc(grown, lines)
+                n = n + 1
+                row = row + 1
+                if (j == 0) exit
+                i = i + j
+            end do
+        end do
+        text = ""
+        do row = 1, n
+            text = text//lines(row)%s//achar(10)
+        end do
+    end function generated_help
 end module rmc_fm

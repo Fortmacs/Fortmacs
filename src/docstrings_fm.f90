@@ -40,12 +40,13 @@ module docstrings_fm
                           history_add_new_input
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
                              completion_show_inline_help, insert_default_directory
+    use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: sentence_end_double_space, sentence_end_without_period
     use replace_fm, only: case_replace, query_replace_show_replacement, query_replace_skip_read_only, &
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use search_fm, only: case_fold_search
-    use simple_fm, only: delete_active_region, goal_column, kill_read_only_ok, kill_ring_max, &
-                         kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
+    use simple_fm, only: cycle_spacing_actions, delete_active_region, goal_column, kill_read_only_ok, &
+                         kill_ring_max, kill_whole_line_option, line_move_visual, mark_ring_max, suggest_key_bindings
     use subr_fm, only: history_length
     use syntax_fm, only: words_include_escapes
     use term_fm, only: visible_bell
@@ -73,7 +74,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=30), parameter, public :: function_names(230) = [character(len=30) :: &
+    character(len=30), parameter, public :: function_names(250) = [character(len=30) :: &
                                                                    "abort-minibuffers", &
                                                                    "all-completions", &
                                                                    "backward-char", &
@@ -102,12 +103,17 @@ module docstrings_fm
                                                                    "current-buffer", &
                                                                    "current-global-map", &
                                                                    "current-kill", &
+                                                                   "cycle-spacing", &
                                                                    "deactivate-mark", &
                                                                    "defcommand", &
                                                                    "define-key", &
+                                                                   "delete-all-space", &
                                                                    "delete-backward-char", &
+                                                                   "delete-blank-lines", &
                                                                    "delete-char", &
                                                                    "delete-forward-char", &
+                                                                   "delete-horizontal-space", &
+                                                                   "delete-indentation", &
                                                                    "delete-other-windows", &
                                                                    "delete-region", &
                                                                    "delete-window", &
@@ -116,9 +122,11 @@ module docstrings_fm
                                                                    "describe-key-briefly", &
                                                                    "describe-variable", &
                                                                    "digit-argument", &
+                                                                   "disable-command", &
                                                                    "downcase", &
                                                                    "downcase-region", &
                                                                    "downcase-word", &
+                                                                   "enable-command", &
                                                                    "end-of-line", &
                                                                    "eobp", &
                                                                    "eolp", &
@@ -126,6 +134,7 @@ module docstrings_fm
                                                                    "execute-extended-command", &
                                                                    "exit-minibuffer", &
                                                                    "find-file", &
+                                                                   "fixup-whitespace", &
                                                                    "format-error", &
                                                                    "forward-char", &
                                                                    "forward-line", &
@@ -163,6 +172,8 @@ module docstrings_fm
                                                                    "isearch-yank-line", &
                                                                    "isearch-yank-pop-only", &
                                                                    "isearch-yank-word-or-char", &
+                                                                   "join-line", &
+                                                                   "just-one-space", &
                                                                    "key-description", &
                                                                    "key-parse", &
                                                                    "key-valid-p", &
@@ -238,6 +249,7 @@ module docstrings_fm
                                                                    "re-search-forward", &
                                                                    "read-buffer", &
                                                                    "read-file-name-default", &
+                                                                   "read-multiple-choice", &
                                                                    "read-string", &
                                                                    "recenter", &
                                                                    "recenter-top-bottom", &
@@ -271,6 +283,10 @@ module docstrings_fm
                                                                    "set-mark-command", &
                                                                    "set-match-data", &
                                                                    "set-syntax-table", &
+                                                                   "skip-chars-backward", &
+                                                                   "skip-chars-forward", &
+                                                                   "skip-syntax-backward", &
+                                                                   "skip-syntax-forward", &
                                                                    "split-window", &
                                                                    "split-window-below", &
                                                                    "split-window-right", &
@@ -284,6 +300,11 @@ module docstrings_fm
                                                                    "syntax-table", &
                                                                    "t-value", &
                                                                    "test-completion", &
+                                                                   "transpose-chars", &
+                                                                   "transpose-lines", &
+                                                                   "transpose-paragraphs", &
+                                                                   "transpose-sentences", &
+                                                                   "transpose-words", &
                                                                    "try-completion", &
                                                                    "undo", &
                                                                    "undo-boundary", &
@@ -306,7 +327,7 @@ module docstrings_fm
                                                                    "yes-or-no-p"]
 
     !> The documented variables, sorted.
-    character(len=30), parameter, public :: variable_names(43) = [character(len=30) :: &
+    character(len=30), parameter, public :: variable_names(45) = [character(len=30) :: &
                                                                   "case-fold-search", &
                                                                   "case-replace", &
                                                                   "case-symbols-as-words", &
@@ -316,7 +337,9 @@ module docstrings_fm
                                                                   "completion-ignored-extensions", &
                                                                   "completion-show-inline-help", &
                                                                   "current-prefix-arg", &
+                                                                  "cycle-spacing-actions", &
                                                                   "delete-active-region", &
+                                                                  "disabled-command-function", &
                                                                   "enable-recursive-minibuffers", &
                                                                   "goal-column", &
                                                                   "history-add-new-input", &
@@ -597,6 +620,29 @@ contains
             entry%doc = "Rotate the yanking point by N places, and then return that kill."//LF// &
                         "If DO_NOT_MOVE is true, then don't actually move the yanking point;"//LF// &
                         "just return the Nth kill forward."
+        case ("cycle-spacing")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call cycle_spacing(n, status)"
+            entry%interactive = .true.
+            entry%doc = "Manipulate whitespace around point in a smart way."//LF// &
+                        "Repeated calls perform the actions in `cycle-spacing-actions' one"//LF// &
+                        "after the other, wrapping around after the last one."//LF// &
+                        ""//LF// &
+                        "All actions are amendable using a prefix arg N.  In general, a"//LF// &
+                        "zero or positive prefix arg allows only for deletion of tabs and"//LF// &
+                        "spaces whereas a negative prefix arg also allows for deleting"//LF// &
+                        "newlines."//LF// &
+                        ""//LF// &
+                        "The prefix arg given at the first invocation starting a cycle is"//LF// &
+                        "provided to all following actions, i.e.,"//LF// &
+                        "    M-- M-SPC M-SPC M-SPC"//LF// &
+                        "is equivalent to"//LF// &
+                        "    M-- M-SPC M-- M-SPC M-- M-SPC."//LF// &
+                        ""//LF// &
+                        "A new sequence can be started by providing a different prefix arg"//LF// &
+                        "than provided at the initial invocation (except for 1), or by"//LF// &
+                        "doing any other command before the next M-SPC.  N is the raw"//LF// &
+                        "prefix argument."
         case ("deactivate-mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call deactivate_mark(force)"
@@ -614,6 +660,12 @@ contains
             entry%doc = "In keymap `km`, bind key sequence `key` to `def`; with `remove`,"//LF// &
                         "delete the binding instead (so an inherited one shows through)."//LF// &
                         "Missing prefix keys get new sparse keymaps."
+        case ("delete-all-space")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call delete_all_space(backward_only, status)"
+            entry%interactive = .true.
+            entry%doc = "Delete all spaces, tabs, and newlines around point."//LF// &
+                        "If BACKWARD-ONLY is non-nil, delete them only before point."
         case ("delete-backward-char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -625,6 +677,13 @@ contains
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are killed (saved in the kill ring) instead of"//LF// &
                         "deleted."
+        case ("delete-blank-lines")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call delete_blank_lines(status)"
+            entry%interactive = .true.
+            entry%doc = "On blank line, delete all surrounding blank lines, leaving just one."//LF// &
+                        "On isolated blank line, delete that one."//LF// &
+                        "On nonblank line, delete any immediately following blank lines."
         case ("delete-char")
             entry%file = "cmds_fm.f90"
             entry%interactive = .true.
@@ -644,6 +703,25 @@ contains
                         "A numeric prefix argument specifies N, and if a prefix argument is"//LF// &
                         "used, the characters are killed (saved in the kill ring) instead of"//LF// &
                         "deleted."
+        case ("delete-horizontal-space")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call delete_horizontal_space(backward_only, status)"
+            entry%interactive = .true.
+            entry%doc = "Delete all spaces and tabs around point."//LF// &
+                        "If BACKWARD-ONLY is non-nil (interactively, the prefix argument), delete"//LF// &
+                        "them only before point."
+        case ("delete-indentation")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call delete_indentation(arg, status, beg, end)"
+            entry%interactive = .true.
+            entry%doc = "Join this line to previous and fix up whitespace at join."//LF// &
+                        "If there is a fill prefix, delete it from the beginning of this"//LF// &
+                        "line."//LF// &
+                        "With prefix ARG, join the current line to the following line."//LF// &
+                        "When BEG and END are non-nil, join all lines in the region they"//LF// &
+                        "define.  Interactively, BEG and END are, respectively, the start"//LF// &
+                        "and end of the region if it is active, else nil.  (The region is"//LF// &
+                        "ignored if prefix ARG is given.)"
         case ("delete-other-windows")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_other_windows(window, status)"
@@ -690,6 +768,12 @@ contains
             entry%interactive = .true.
             entry%doc = "Part of the numeric argument for the next command."//LF// &
                         "\[universal-argument] following digits or minus sign ends the argument."
+        case ("disable-command")
+            entry%file = "novice_fm.f90"
+            entry%fortran = "call disable_command(command, status)"
+            entry%interactive = .true.
+            entry%doc = "Require special confirmation to execute COMMAND from now on."//LF// &
+                        "COMMAND must be a symbol."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "downcase_char(ch)"
@@ -712,6 +796,12 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."
+        case ("enable-command")
+            entry%file = "novice_fm.f90"
+            entry%fortran = "call enable_command(command, status)"
+            entry%interactive = .true.
+            entry%doc = "Allow COMMAND to be executed without special confirmation from now on."//LF// &
+                        "COMMAND must be a symbol."
         case ("end-of-line")
             entry%file = "cmds_fm.f90"
             entry%fortran = "call end_of_line(n)"
@@ -764,6 +854,12 @@ contains
                         "Interactively, the default if you just type RET is the current directory,"//LF// &
                         "but the visited file name is available through the minibuffer history:"//LF// &
                         "type \[next-history-element] to pull it into the minibuffer."
+        case ("fixup-whitespace")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call fixup_whitespace(status)"
+            entry%interactive = .true.
+            entry%doc = "Fixup white space between objects around point."//LF// &
+                        "Leave one space or none, according to the context."
         case ("format-error")
             entry%file = "error_fm.f90"
             entry%fortran = "format_error(status)"
@@ -1029,6 +1125,18 @@ contains
             entry%interactive = .true.
             entry%doc = "Pull next character or word from buffer into search string."//LF// &
                         "If optional ARG is non-nil, pull in the next ARG characters/words."
+        case ("join-line")
+            entry%file = "simple_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("just-one-space")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call just_one_space(n, status)"
+            entry%interactive = .true.
+            entry%doc = "Delete all spaces and tabs around point, leaving one space (or N spaces)."//LF// &
+                        "Interactively, N is the prefix numeric argument."//LF// &
+                        "If N is negative, delete newlines as well, leaving -N spaces."//LF// &
+                        "See also `cycle-spacing'."
         case ("key-description")
             entry%file = "keymap_fm.f90"
             entry%fortran = "key_description(keys, prefix)"
@@ -1826,6 +1934,30 @@ contains
                         "Unchanged input gives `default_filename` (default: the buffer's"//LF// &
                         "file); the result goes through substitute-in-file-name, so typing"//LF// &
                         """~/x"" or ""/x"" after the directory means just that."
+        case ("read-multiple-choice")
+            entry%file = "rmc_fm.f90"
+            entry%fortran = "call read_multiple_choice(prompt, choices, answer, status, help_string, show_help)"
+            entry%doc = "Ask user to select an entry from CHOICES, prompting with PROMPT."//LF// &
+                        "This function lets a user select an option from a list of options"//LF// &
+                        "by typing a single character, and returns the index of the choice"//LF// &
+                        "(`answer`)."//LF// &
+                        ""//LF// &
+                        "CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character"//LF// &
+                        "to be entered.  NAME is a short name for the entry to be displayed"//LF// &
+                        "while prompting (if there's no room, it might be shortened)."//LF// &
+                        "DESCRIPTION is an optional longer explanation for the entry that"//LF// &
+                        "will be displayed in a help buffer if the user requests more help."//LF// &
+                        ""//LF// &
+                        "HELP-STRING argument is a string that contains overall"//LF// &
+                        "information about the choices.  If this argument is given, it is"//LF// &
+                        "displayed in the help buffer instead of the generated help."//LF// &
+                        ""//LF// &
+                        "SHOW-HELP, if present, means show the help buffer from the start"//LF// &
+                        "(named SHOW-HELP when it is a non-empty string)."//LF// &
+                        ""//LF// &
+                        "If the user types the `?' key, the help is displayed; other keys"//LF// &
+                        "not in CHOICES ask again after ""Invalid choice.""; C-g quits.  Port"//LF// &
+                        "of rmc.el:read-multiple-choice (short answers)."
         case ("read-string")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call read_string(prompt, result, status, initial, history, default)"
@@ -2240,6 +2372,41 @@ contains
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
+        case ("skip-chars-backward")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "skip_chars_backward(string, status, lim)"
+            entry%doc = "Move point backward, stopping after a char not in STRING, or at pos LIM."//LF// &
+                        "See `skip-chars-forward' for details."//LF// &
+                        "Returns the distance traveled, either zero or negative."
+        case ("skip-chars-forward")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "skip_chars_forward(string, status, lim)"
+            entry%doc = "Move point forward, stopping before a char not in STRING, or at pos LIM."//LF// &
+                        "STRING is like the inside of a `[...]' in a regular expression"//LF// &
+                        "except that `]' is never special and `\' quotes `^', `-' or `\'"//LF// &
+                        " (but not at the end of a range; quoting is never needed there)."//LF// &
+                        "Thus, with arg ""a-zA-Z"", this skips letters stopping before first nonletter."//LF// &
+                        "With arg ""^a-zA-Z"", skips nonletters stopping before first letter."//LF// &
+                        "Char classes, e.g. `[:alpha:]', are supported."//LF// &
+                        ""//LF// &
+                        "Returns the distance traveled, either zero or positive."
+        case ("skip-syntax-backward")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "skip_syntax_backward(syntax, lim)"
+            entry%doc = "Move point backward across chars in specified syntax classes."//LF// &
+                        "SYNTAX is a string of syntax code characters."//LF// &
+                        "Stop on reaching a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
+                        "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
+                        "This function returns either zero or a negative number, and the absolute value"//LF// &
+                        "of this is the distance traveled."
+        case ("skip-syntax-forward")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "skip_syntax_forward(syntax, lim)"
+            entry%doc = "Move point forward across chars in specified syntax classes."//LF// &
+                        "SYNTAX is a string of syntax code characters."//LF// &
+                        "Stop before a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
+                        "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
+                        "This function returns the distance traveled, either zero or positive."
         case ("split-window")
             entry%file = "window_fm.f90"
             entry%fortran = "call split_window(window, size, have_size, horizontal, new, status)"
@@ -2369,6 +2536,50 @@ contains
                         ""//LF// &
                         "If COLLECTION is a function, it is called with STRING, PREDICATE and"//LF// &
                         "COMPLETE_TEST (`lambda')."
+        case ("transpose-chars")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call transpose_chars(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Interchange characters around point, moving forward one character."//LF// &
+                        "With prefix arg ARG, effect is to take character before point"//LF// &
+                        "and drag it forward past ARG other characters (backward if ARG negative)."//LF// &
+                        "If at end of line, the previous two chars are exchanged."
+        case ("transpose-lines")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call transpose_lines(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Exchange current line and previous line, leaving point after both."//LF// &
+                        "With argument ARG, takes previous line and moves it past ARG lines."//LF// &
+                        "With argument 0, interchanges line point is in with line mark is in."
+        case ("transpose-paragraphs")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call transpose_paragraphs(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Interchange the current paragraph with the next one."//LF// &
+                        "With prefix argument ARG a non-zero integer, moves the current"//LF// &
+                        "paragraph past ARG paragraphs, leaving point after the current paragraph."//LF// &
+                        "If ARG is positive, moves the current paragraph forwards, if"//LF// &
+                        "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
+                        "the current paragraph with the one containing the mark."
+        case ("transpose-sentences")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "call transpose_sentences(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Interchange the current sentence with the next one."//LF// &
+                        "With prefix argument ARG a non-zero integer, moves the current"//LF// &
+                        "sentence past ARG sentences, leaving point after the current sentence."//LF// &
+                        "If ARG is positive, moves the current sentence forwards, if"//LF// &
+                        "ARG is negative moves it backwards.  If ARG is zero, exchanges"//LF// &
+                        "the current sentence with the one containing the mark."
+        case ("transpose-words")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call transpose_words(arg, status)"
+            entry%interactive = .true.
+            entry%doc = "Interchange words around point, leaving point at end of them."//LF// &
+                        "With prefix arg ARG, effect is to take word before or around point"//LF// &
+                        "and drag it forward past ARG other words (backward if ARG negative)."//LF// &
+                        "If ARG is zero, the words around or after point and around or after mark"//LF// &
+                        "are interchanged."
         case ("try-completion")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call try_completion(string, collection, result, status, predicate)"
@@ -2655,6 +2866,42 @@ contains
             entry%value = prin1_to_string(current_prefix_arg)
             entry%doc = "callint.c:Vcurrent_prefix_arg: the raw prefix argument of the"//LF// &
                         "command being run."
+        case ("cycle-spacing-actions")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "cycle_spacing_actions"
+            entry%doc = "List of actions cycled through by `cycle-spacing'."//LF// &
+                        "Supported values are:"//LF// &
+                        "- `just-one-space'      Delete all but N (prefix arg) spaces."//LF// &
+                        "                        See that command's docstring for details."//LF// &
+                        "- `delete-space-after'  Delete spaces after point keeping only N."//LF// &
+                        "- `delete-space-before' Delete spaces before point keeping only N."//LF// &
+                        "- `delete-all-space'    Delete all spaces around point."//LF// &
+                        "- `restore'             Restore the original spacing."//LF// &
+                        ""//LF// &
+                        "All actions make use of the prefix arg given to `cycle-spacing'"//LF// &
+                        "in the initial invocation, i.e., `just-one-space' keeps this"//LF// &
+                        "amount of spaces deleting surplus ones.  `just-one-space' and all"//LF// &
+                        "other actions have the contract that a positive prefix arg (or"//LF// &
+                        "zero) only deletes tabs and spaces whereas a negative prefix arg"//LF// &
+                        "also deletes newlines."//LF// &
+                        ""//LF// &
+                        "The `delete-space-before' and `delete-space-after' actions handle"//LF// &
+                        "the prefix arg M-- without a number provided"//LF// &
+                        "specially: all spaces before/after point are deleted (as if N was"//LF// &
+                        "0) including newlines (as if N was negative)."//LF// &
+                        ""//LF// &
+                        "In addition, an action may take the form (ACTION ARG) where"//LF// &
+                        "ACTION is one of the predefined actions (except for `restore')"//LF// &
+                        "and ARG is either"//LF// &
+                        "- an integer with the meaning that ACTION should always use this"//LF// &
+                        "  fixed integer instead of the actual prefix arg or"//LF// &
+                        "- the symbol `inverted-arg' with the meaning that ACTION should"//LF// &
+                        "  be performed with the inverted actual prefix arg."//LF// &
+                        "- the symbol `-' with the meaning that ACTION should include"//LF// &
+                        "  newlines but it's up to the ACTION to decide how to interpret"//LF// &
+                        "  it as a number, e.g., `delete-space-before' and"//LF// &
+                        "  `delete-space-after' treat it like 0 whereas `just-one-space'"//LF// &
+                        "  treats it like -1 as is usual."
         case ("delete-active-region")
             entry%file = "simple_fm.f90"
             entry%fortran = "delete_active_region"
@@ -2663,6 +2910,13 @@ contains
             entry%doc = "Whether single-char deletion commands delete an active region."//LF// &
                         "This has an effect only if Transient Mark mode is enabled, and"//LF// &
                         "affects `delete-forward-char` and `delete-backward-char`."
+        case ("disabled-command-function")
+            entry%file = "novice_fm.f90"
+            entry%fortran = "disabled_command_function_p"
+            entry%original = ".true."
+            entry%value = repr(disabled_command_function_p)
+            entry%doc = "Function to call to handle disabled commands."//LF// &
+                        "If nil, the feature is disabled, i.e., all commands work normally."
         case ("enable-recursive-minibuffers")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "enable_recursive_minibuffers"
