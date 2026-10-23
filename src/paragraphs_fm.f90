@@ -21,13 +21,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Paragraph and sentence motion, by the regexps `paragraph-start`,
-!> `paragraph-separate` and `sentence-end`.  With `left-margin` 0, so
-!> that the left margin is the start of the line.
+!> `paragraph-separate` and `sentence-end`, honouring `fill-prefix` and
+!> the left margin.
 !>
-!> Deferred: `fill-prefix` and `paragraph-ignore-fill-prefix` (with
-!> filling), `use-hard-newlines`, `transpose-paragraphs` and
-!> `transpose-sentences` (transpose-subr), `repunctuate-sentences`
-!> (query-replace), `count-sentences`, `forward-sentence-function`.
+!> Deferred: `use-hard-newlines`, `repunctuate-sentences` (query-replace),
+!> `count-sentences`, `forward-sentence-function`.
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
@@ -35,14 +33,14 @@ module paragraphs_fm
     use marker_fm, only: char_to_byte
     use editfns_fm, only: point, goto_char, bobp, eobp, bolp, point_min, point_max, constrain_to_field
     use cmds_fm, only: forward_line, beginning_of_line, end_of_line
-    use indent_fm, only: current_column
-    use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr
+    use indent_fm, only: current_column, move_to_left_margin, current_left_margin
+    use simple_fm, only: kill_region, set_mark, push_mark, transpose_subr, fill_prefix
     use editfns_fm, only: mark_position
     use data_fm, only: value_eq
     use callint_fm, only: defcommand, current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: this_command, last_command
     use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
-                         SEARCH_NOERROR, SEARCH_MOVE
+                         SEARCH_NOERROR, SEARCH_MOVE, regexp_quote
     implicit none(type, external)
     private
 
@@ -90,6 +88,11 @@ module paragraphs_fm
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
     logical, public :: sentence_end_double_space = .true.
+
+    !> Non-nil means the paragraph commands are not affected by `fill-prefix'.
+    !> This is desirable in modes where blank lines are the paragraph delimiters.
+    !> Port of paragraphs.el paragraph-ignore-fill-prefix.
+    logical, public :: paragraph_ignore_fill_prefix = .false.
 
     !> Non-nil means a sentence will end without a period.
     !> For example, a sentence in Thai text ends with double space but
@@ -187,10 +190,11 @@ contains
         found = status%ok() .and. pos > 0
     end function re_search_fwd
 
-    !> move-to-left-margin with `left-margin' 0: the start of the line.
-    subroutine move_to_left_margin()
-        call beginning_of_line()
-    end subroutine move_to_left_margin
+    !> (move-to-left-margin)
+    subroutine to_left_margin()
+        type(status_type) :: st
+        call move_to_left_margin(st)
+    end subroutine to_left_margin
 
     !> skip-chars-backward " \t".
     subroutine skip_blanks_backward()
@@ -219,22 +223,30 @@ contains
     !> A paragraph end is the beginning of a line which is not part of the paragraph
     !> to which the end of the previous line belongs, or the end of the buffer.
     !> Returns the count of paragraphs left to move.  Port of
-    !> paragraphs.el:forward-paragraph (no fill prefix or hard newlines).
+    !> paragraphs.el:forward-paragraph (no hard newlines).
     integer(int64) function forward_paragraph(arg) result(left)
         integer(int64), intent(in) :: arg
         integer(int64) :: opoint, start, shortage
-        character(len=:), allocatable :: parstart, parsep, sp_parstart
-        logical :: found_start
+        character(len=:), allocatable :: parstart, parsep, sp_parstart, fill_prefix_regexp
+        logical :: found_start, have_fpr
         type(status_type) :: status
         call init_paragraph_variables()
         left = arg
         opoint = point()
+        have_fpr = .false.
+        if (allocated(fill_prefix) .and. .not. paragraph_ignore_fill_prefix) then
+            if (len(fill_prefix) > 0) then
+                have_fpr = .true.
+                fill_prefix_regexp = regexp_quote(fill_prefix)
+            end if
+        end if
         ! Remove ^ from paragraph-start and paragraph-sep if they are there.
         ! These regexps shouldn't be anchored, because we look for them
         ! starting at the left-margin.  This allows paragraph commands to
         ! work normally with indented text.
         parstart = unanchored(paragraph_start)
         parsep = unanchored(paragraph_separate)
+        if (have_fpr) parsep = parsep//"\|"//fill_prefix_regexp//"[ "//achar(TAB)//"]*$"
         ! This is used for searching.
         sp_parstart = "^[ "//achar(TAB)//"]*\(?:"//parstart//"\|"//parsep//"\)"
         start = point()
@@ -249,7 +261,7 @@ contains
                 call goto_char(point() - 1)
                 call beginning_of_line()
                 do while (.not. bobp())
-                    call move_to_left_margin()
+                    call to_left_margin()
                     if (.not. looking_at_p(parsep)) exit
                     shortage = forward_line(-1_int64)
                 end do
@@ -259,31 +271,45 @@ contains
                     call end_of_line()
                     ! Search back for line that starts or separates paragraphs.
                     found_start = .false.
-                    do
-                        if (.not. re_search_back(sp_parstart, SEARCH_MOVE)) exit
-                        found_start = .true.
-                        ! Found a candidate, but need to check if it is a
-                        ! REAL parstart.
-                        start = point()
-                        call move_to_left_margin()
-                        if (looking_at_p(parsep)) exit
-                        if (looking_at_p(parstart)) exit
-                        found_start = .false.
-                        call goto_char(start)
-                    end do
+                    if (have_fpr) then
+                        ! There is a fill prefix; it overrides parstart.
+                        do
+                            call beginning_of_line()
+                            if (bobp()) exit
+                            call to_left_margin()
+                            if (looking_at_p(parsep)) exit
+                            if (.not. looking_at_p(fill_prefix_regexp)) exit
+                            shortage = forward_line(-1_int64)
+                        end do
+                        call to_left_margin()
+                        found_start = .not. bobp()
+                    else
+                        do
+                            if (.not. re_search_back(sp_parstart, SEARCH_MOVE)) exit
+                            found_start = .true.
+                            ! Found a candidate, but need to check if it is a
+                            ! REAL parstart.
+                            start = point()
+                            call to_left_margin()
+                            if (looking_at_p(parsep)) exit
+                            if (looking_at_p(parstart)) exit
+                            found_start = .false.
+                            call goto_char(start)
+                        end do
+                    end if
                     if (found_start) then
                         ! Move forward over paragraph separators.  We know
                         ! this cannot reach the place we started because we
                         ! know we moved back over a non-separator.
                         do while (.not. eobp())
-                            call move_to_left_margin()
+                            call to_left_margin()
                             if (.not. looking_at_p(parsep)) exit
                             shortage = forward_line(1_int64)
                         end do
                         ! If line before paragraph is just margin, back up
                         ! to there.
                         call end_of_line(0_int64)
-                        if (current_column() > 0) then
+                        if (current_column() > current_left_margin()) then
                             call goto_char(point() + 1)
                         else
                             call skip_blanks_backward()
@@ -299,7 +325,7 @@ contains
         do while (left > 0 .and. .not. eobp())
             ! Move forward over separator lines...
             do while (.not. eobp())
-                call move_to_left_margin()
+                call to_left_margin()
                 if (eobp()) exit
                 if (.not. looking_at_p(parsep)) exit
                 shortage = forward_line(1_int64)
@@ -307,17 +333,28 @@ contains
             if (.not. eobp()) left = left - 1
             ! ... and one more line.
             shortage = forward_line(1_int64)
-            do
-                if (.not. re_search_fwd(sp_parstart, SEARCH_MOVE)) exit
-                start = match_beginning(0, status)
-                call goto_char(start)
-                if (eobp()) exit
-                call move_to_left_margin()
-                if (looking_at_p(parsep)) exit
-                if (looking_at_p(parstart)) exit
-                call goto_char(point() + 1)
-            end do
-            if (point() < point_max()) call goto_char(start)
+            if (have_fpr) then
+                ! There is a fill prefix; it overrides parstart.
+                do while (.not. eobp())
+                    call to_left_margin()
+                    if (eobp()) exit
+                    if (looking_at_p(parsep)) exit
+                    if (.not. looking_at_p(fill_prefix_regexp)) exit
+                    shortage = forward_line(1_int64)
+                end do
+            else
+                do
+                    if (.not. re_search_fwd(sp_parstart, SEARCH_MOVE)) exit
+                    start = match_beginning(0, status)
+                    call goto_char(start)
+                    if (eobp()) exit
+                    call to_left_margin()
+                    if (looking_at_p(parsep)) exit
+                    if (looking_at_p(parstart)) exit
+                    call goto_char(point() + 1)
+                end do
+                if (point() < point_max()) call goto_char(start)
+            end if
         end do
         call goto_char(constrain_to_field(point(), opoint, .true., .false.))
     end function forward_paragraph

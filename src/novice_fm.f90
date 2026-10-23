@@ -23,8 +23,8 @@
 !> property asks before it runs (`disabled-command-function`), as
 !> simple.el:command-execute arranges.  `enable-command` and
 !> `disable-command` change the property and record the choice in the
-!> init file, as `call put(sym("CMD"), sym("disabled"), nil(), status)`
-!> in `configure` (the Fortran form of upstream's `(put 'CMD 'disabled
+!> init file, as `call put("CMD", "disabled", .false., status)` in
+!> `configure` (the Fortran form of upstream's `(put 'CMD 'disabled
 !> nil)`), which takes effect from the next `--recompile`.
 module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -201,7 +201,7 @@ contains
     end subroutine disable_command
 
     !> Set the `disabled` property of COMMAND and record it in the init
-    !> file: its line `call put(sym("COMMAND"), sym("disabled"), ...)` is
+    !> file: its line `call put("COMMAND", "disabled", ...)` is
     !> replaced by one at the end of `configure`.  A missing init file is
     !> created with a `user_config` module.  Port of
     !> novice.el:en/disable-command.
@@ -268,7 +268,7 @@ contains
             if (i > 0 .and. j > i + 1) var = trim(adjustl(header(i + 1:j - 1)))
         end if
         call goto_char(point_min())
-        call search_forward('call put(sym("'//command//'"), sym("disabled")', found, st, noerror=SEARCH_NOERROR)
+        call search_forward('call put("'//command//'", "disabled"', found, st, noerror=SEARCH_NOERROR)
         if (found > 0) then
             beg = line_beginning_position()
             call goto_char(beg)
@@ -287,11 +287,11 @@ contains
         end if
         call goto_char(line_beginning_position())
         if (disable) then
-            line = "t_value()"
+            line = ".true."
         else
-            line = "nil()"
+            line = ".false."
         end if
-        call insert('        call put(sym("'//command//'"), sym("disabled"), '//line//", "//var//")"//LF, status)
+        call insert('        call put("'//command//'", "disabled", '//line//", "//var//")"//LF, status)
         if (status%ok()) call save_buffer(1_int64, .false., status)
         call set_buffer(old, st)
     end subroutine en_disable_command

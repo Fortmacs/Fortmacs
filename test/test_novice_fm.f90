@@ -137,7 +137,7 @@ contains
         user_init_file = path
         call write_text(user_init_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                         "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
-                        "        call put(sym(""upcase-region""), sym(""disabled""), t_value(), st)"//LF// &
+                        "        call put(""upcase-region"", ""disabled"", .true., st)"//LF// &
                         "    end subroutine configure"//LF//"end module user_config"//LF)
         call enter(h)
         call enable_command("upcase-region", st)
@@ -150,15 +150,15 @@ contains
         text = read_text(user_init_file)
         call check(error, text == "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
                    "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
-                   "        call put(sym(""upcase-region""), sym(""disabled""), nil(), st)"//LF// &
+                   "        call put(""upcase-region"", ""disabled"", .false., st)"//LF// &
                    "    end subroutine configure"//LF//"end module user_config"//LF, text)
         if (allocated(error)) return
         call disable_command("upcase-region", st)
         call check(error, disabled("upcase-region"))
         if (allocated(error)) return
         text = read_text(user_init_file)
-        call check(error, index(text, "sym(""disabled""), t_value(), st)") > 0 .and. &
-                   index(text, "nil(), st)") == 0, text)
+        call check(error, index(text, """disabled"", .true., st)") > 0 .and. &
+                   index(text, ".false., st)") == 0, text)
         if (allocated(error)) return
         call enable_command("no-such-command", st)
         call check(error,.not. st%ok())

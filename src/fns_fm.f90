@@ -29,8 +29,8 @@ module fns_fm
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
                        make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
-                       v_string, v_symbol, value_type, vtag, xsymbol
-    use lread_fm, only: ensure_obarray
+                       v_string, v_symbol, value_type, vtag, xsymbol, nil, t_value
+    use lread_fm, only: ensure_obarray, sym
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
     implicit none(type, external)
@@ -52,6 +52,13 @@ module fns_fm
     !> The value of `compare_strings` for strings that match (t).
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
+
+    !> `put` also takes the symbol and property by name and a logical
+    !> value (.false. is nil, .true. is t), so configuration code can
+    !> write `call put("upcase-region", "disabled", .false., status)`.
+    interface put
+        module procedure put, put_named_logical
+    end interface put
     public :: yes_or_no_p
 
     interface
@@ -495,4 +502,17 @@ contains
         call ensure_obarray()
         call plist_put(symbols(xsymbol(symbol))%plist, prop, val, status)
     end subroutine put
+
+    !> Set property PROP of the symbol named SYMBOL to VAL (.false. is
+    !> nil, .true. is t).  Port of fns.c:Fput.
+    subroutine put_named_logical(symbol, prop, val, status)
+        character(len=*), intent(in) :: symbol, prop
+        logical, intent(in) :: val
+        type(status_type), intent(out) :: status
+        if (val) then
+            call put(sym(symbol), sym(prop), t_value(), status)
+        else
+            call put(sym(symbol), sym(prop), nil(), status)
+        end if
+    end subroutine put_named_logical
 end module fns_fm
