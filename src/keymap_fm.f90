@@ -72,7 +72,7 @@ module keymap_fm
 
     public :: make_keymap, make_sparse_keymap, free_keymap, keymap_live_p
     public :: keymapp, keymap_parent, set_keymap_parent, copy_keymap
-    public :: keymap_prompt, keymap_full_p
+    public :: keymap_prompt, keymap_full_p, keymap_entries
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
     public :: current_global_map, use_global_map
@@ -248,6 +248,25 @@ contains
         type(value_type) :: v
         if (table%is_live(km)) v = keymaps(km%index)%prompt
     end function keymap_prompt
+
+    !> The bindings of `km' in upstream's list order, newest first: its
+    !> events and their definitions, and its character ranges with theirs.
+    subroutine keymap_entries(km, events, bindings, range_from, range_to, range_bindings)
+        type(handle_type), intent(in) :: km
+        type(value_type), allocatable, intent(out) :: events(:), bindings(:), range_bindings(:)
+        integer(int64), allocatable, intent(out) :: range_from(:), range_to(:)
+        integer(int64) :: i, n, k
+        allocate (events(0), bindings(0), range_bindings(0), range_from(0), range_to(0))
+        if (.not. table%is_live(km)) return
+        i = km%index
+        n = keymaps(i)%n
+        events = keymaps(i)%events(n:1:-1)
+        bindings = keymaps(i)%bindings(n:1:-1)
+        k = keymaps(i)%nranges
+        range_from = keymaps(i)%range_from(k:1:-1)
+        range_to = keymaps(i)%range_to(k:1:-1)
+        range_bindings = keymaps(i)%range_bindings(k:1:-1)
+    end subroutine keymap_entries
 
     !> Whether `km' was made by make-keymap (upstream: has a char-table).
     logical function keymap_full_p(km)

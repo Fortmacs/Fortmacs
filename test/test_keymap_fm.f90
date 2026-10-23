@@ -38,6 +38,7 @@ module test_keymap_fm
                          single_key_description, use_local_map, key_valid_p, keymap_set, &
                          keymap_global_set, define_key_range, where_is_internal
     use subr_fm, only: global_set_key
+    use print_fm, only: prin1_to_string
     implicit none(type, external)
     private
 
@@ -66,6 +67,7 @@ contains
                     new_unittest("keymap-removal-inherit", test_removal_inherit), &
                     new_unittest("keymap-unset-test-remove-and-inheritance", test_unset_inherit), &
                     new_unittest("keymap-char-table-range", test_char_table_range), &
+                    new_unittest("keymap-print", test_print_keymap), &
                     new_unittest("keymap-prefix-composition", test_prefix_composition), &
                     new_unittest("keymap-meta", test_meta), &
                     new_unittest("keymap-non-prefix-error", test_non_prefix), &
@@ -402,6 +404,24 @@ contains
         call free(map)
         call free(parent)
     end subroutine test_char_table_range
+
+    !> A sparse keymap prints as its list (print.c).
+    subroutine test_print_keymap(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: map, parent
+        type(status_type) :: st
+        call make_sparse_keymap(map)
+        call check(error, prin1_to_string(ref(map)), "(keymap)")
+        if (allocated(error)) return
+        call make_sparse_keymap(parent, make_string("Menu"))
+        call define_key(parent, kbd("<f5>"), sym("undo"), st)
+        call set_keymap_parent(map, parent, st)
+        call define_key(map, kbd("a"), sym("undo"), st)
+        call define_key(map, kbd("C-x b"), nil(), st)
+        call check(error, prin1_to_string(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
+        call free(map)
+        call free(parent)
+    end subroutine test_print_keymap
 
     !> A prefix key bound in both child and parent composes the two
     !> prefix maps, and a nil in the child's still shadows the parent's.
