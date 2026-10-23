@@ -212,6 +212,7 @@ contains
     !> Make `ynp_remap' (the remap keymap of map-y-or-n-p's minibuffer
     !> path, flattened: keymap_fm has no command remapping).
     subroutine init_remap()
+        type(value_type) :: key1(1)
         type(value_type), allocatable :: seq(:)
         type(value_type) :: b
         type(status_type) :: st
@@ -226,13 +227,15 @@ contains
         call set_keymap_parent(ynp_remap, minibuffer_local_map, st)
         ! [remap self-insert-command]
         do c = 0, 127
-            call lookup_key(make_keymap_ref(minibuffer_local_map), [make_fixnum(c)], b, st)
-            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(c)], b, st)
+            key1(1) = make_fixnum(c)
+            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
+            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
             if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(ynp_remap, [make_fixnum(c)], sym("map_y_or_n_p__help"), st)
+                call define_key(ynp_remap, key1, sym("map_y_or_n_p__help"), st)
             end if
         end do
-        call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(128_int64)], b, st)
+        key1(1) = make_fixnum(128_int64)
+        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
         if (value_eq(b, sym("self_insert_command"))) then
             call define_key_range(ynp_remap, 128_int64, int(MAX_CHAR, int64), sym("map_y_or_n_p__help"), st)
         end if

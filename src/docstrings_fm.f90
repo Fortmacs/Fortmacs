@@ -3102,7 +3102,7 @@ contains
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
         case ("undefined")
-            entry%file = "subr_fm.f90"
+            entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
             entry%doc = "Beep to tell the user this binding is undefined."
         case ("undo")

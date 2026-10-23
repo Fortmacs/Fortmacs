@@ -374,6 +374,7 @@ contains
     !> subr.el y-or-n-p-map (minibuffer-scroll-other-window and
     !> minibuffer-scroll-other-window-down are not ported: Deferred).
     subroutine init_y_or_n_p_map()
+        type(value_type) :: key1(1)
         type(value_type), allocatable :: seq(:)
         type(value_type) :: b
         type(status_type) :: st
@@ -392,17 +393,19 @@ contains
         end do
         ! [remap self-insert-command]
         do c = 0, 127
-            call lookup_key(make_keymap_ref(minibuffer_local_map), [make_fixnum(c)], b, st)
+            key1(1) = make_fixnum(c)
+            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
             if (nilp(b)) then
-                call lookup_key(make_keymap_ref(query_replace_map), [make_fixnum(c)], b, st)
+                call lookup_key(make_keymap_ref(query_replace_map), key1, b, st)
                 if (.not. nilp(b)) cycle
-                call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(c)], b, st)
+                call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
             end if
             if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(y_or_n_p_map, [make_fixnum(c)], sym("y_or_n_p_insert_other"), st)
+                call define_key(y_or_n_p_map, key1, sym("y_or_n_p_insert_other"), st)
             end if
         end do
-        call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(128_int64)], b, st)
+        key1(1) = make_fixnum(128_int64)
+        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
         if (value_eq(b, sym("self_insert_command"))) then
             call define_key_range(y_or_n_p_map, 128_int64, int(MAX_CHAR, int64), sym("y_or_n_p_insert_other"), st)
         end if

@@ -262,6 +262,7 @@ contains
     !> remapping; its [help-char] binding binds a symbol event, which
     !> never arrives).
     recursive subroutine from_minibuffer(answer, status)
+        type(value_type) :: key1(1)
         integer, intent(out) :: answer
         type(status_type), intent(out) :: status
         type(handle_type) :: map
@@ -279,20 +280,24 @@ contains
         call set_keymap_parent(map, minibuffer_local_map, st)
         ! [remap self-insert-command]
         do c = 0, 127
-            call lookup_key(make_keymap_ref(minibuffer_local_map), [make_fixnum(c)], b, st)
-            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(c)], b, st)
+            key1(1) = make_fixnum(c)
+            call lookup_key(make_keymap_ref(minibuffer_local_map), key1, b, st)
+            if (nilp(b)) call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
             if (value_eq(b, sym("self_insert_command"))) then
-                call define_key(map, [make_fixnum(c)], sym("rmc__wrong"), st)
+                call define_key(map, key1, sym("rmc__wrong"), st)
             end if
         end do
-        call lookup_key(make_keymap_ref(current_global_map()), [make_fixnum(128_int64)], b, st)
+        key1(1) = make_fixnum(128_int64)
+        call lookup_key(make_keymap_ref(current_global_map()), key1, b, st)
         if (value_eq(b, sym("self_insert_command"))) then
             call define_key_range(map, 128_int64, int(MAX_CHAR, int64), sym("rmc__wrong"), st)
         end if
         do k = 1, size(rmc_choices)
-            call define_key(map, [make_fixnum(int(rmc_choices(k)%key, int64))], sym("rmc__char"), st)
+            key1(1) = make_fixnum(int(rmc_choices(k)%key, int64))
+            call define_key(map, key1, sym("rmc__char"), st)
         end do
-        if (.not. rmc_have_show_help) call define_key(map, [make_fixnum(int(iachar("?"), int64))], &
+        key1(1) = make_fixnum(int(iachar("?"), int64))
+        if (.not. rmc_have_show_help) call define_key(map, key1, &
                                                       sym("rmc__help"), st)
         saved_this = this_command
         saved_real_this = real_this_command
