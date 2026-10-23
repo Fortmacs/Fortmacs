@@ -51,7 +51,13 @@ module bindings_fm
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
-    use help_fm, only: syms_of_help
+    use help_fm, only: syms_of_help, register_keymap_name
+    use isearch_fm, only: isearch_mode_map
+    use text_mode_fm, only: text_mode_map
+    use prog_mode_fm, only: prog_mode_map
+    use simple_fm, only: special_mode_map
+    use minibuffer_fm, only: minibuffer_local_completion_map, minibuffer_local_must_match_map, &
+                             minibuffer_local_filename_completion_map, minibuffer_local_filename_must_match_map
     use help_fns_fm, only: syms_of_help_fns
     use subr_fm, only: syms_of_subr
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
@@ -358,6 +364,17 @@ contains
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call syms_of_help(global_map)
         call syms_of_help_fns()
+        ! The other keymap variables, for \<MAP> and help--binding-locus.
+        call register_keymap_name("esc_map", esc_map)
+        call register_keymap_name("ctl_x_map", ctl_x_map)
+        call register_keymap_name("isearch_mode_map", isearch_mode_map)
+        call register_keymap_name("text_mode_map", text_mode_map)
+        call register_keymap_name("prog_mode_map", prog_mode_map)
+        call register_keymap_name("special_mode_map", special_mode_map)
+        call register_keymap_name("minibuffer_local_completion_map", minibuffer_local_completion_map)
+        call register_keymap_name("minibuffer_local_must_match_map", minibuffer_local_must_match_map)
+        call register_keymap_name("minibuffer_local_filename_completion_map", minibuffer_local_filename_completion_map)
+        call register_keymap_name("minibuffer_local_filename_must_match_map", minibuffer_local_filename_must_match_map)
         ! bindings.el: function-key-map, the parent of every terminal's
         ! local-function-key-map.
         call make_sparse_keymap(function_key_map)

@@ -25,10 +25,11 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type
+    use lisp_fm, only: value_type, nil
     use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer, buffer_modified_p
     use editfns_fm, only: buffer_string
-    use keymap_fm, only: key_parse, keymap_global_set
+    use keymap_fm, only: key_parse, keymap_global_set, keymap_set
+    use text_mode_fm, only: text_mode, text_mode_map
     use keyboard_fm, only: unread_command_events, discard_input, last_message, command_loop
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
@@ -65,6 +66,7 @@ contains
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
                     new_unittest("describe-key-undefined", test_describe_key_undefined), &
+                    new_unittest("describe-key-binding-locus", test_binding_locus), &
                     new_unittest("describe-key-briefly", test_describe_key_briefly), &
                     new_unittest("where-is", test_where_is), &
                     new_unittest("advertised-binding", test_advertised_binding), &
@@ -386,6 +388,25 @@ contains
         call command_loop(st)
         call check(error, last_message == "C-c z is undefined", last_message)
     end subroutine test_describe_key_undefined
+
+    !> help--binding-locus names the major mode's map.
+    subroutine test_binding_locus(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call fresh_scratch()
+        call get_buffer_create("*locus*", buf, st)
+        call set_buffer(buf, st)
+        call text_mode(st)
+        call keymap_set(text_mode_map, "C-c t", "forward_char", st)
+        call type_keys("C-h k C-c t")
+        call command_loop(st)
+        call check(error, index(buffer_string(), "C-c t runs the command forward_char (found in text_mode_map)") == 1, &
+                   buffer_string())
+        call keymap_set(text_mode_map, "C-c t", nil(), st)
+        call type_keys("q")
+        call command_loop(st)
+    end subroutine test_binding_locus
 
     !> bindings.el's :advertised-binding of undo and set-mark-command.
     subroutine test_advertised_binding(error)

@@ -76,7 +76,7 @@ module keymap_fm
     public :: access_keymap, define_key, define_key_range, lookup_key, &
               key_binding
     public :: current_global_map, use_global_map
-    public :: current_local_map, use_local_map, current_active_maps, add_minor_mode_map
+    public :: current_local_map, use_local_map, current_active_maps, add_minor_mode_map, active_minor_mode_of_map
     public :: parse_modifiers, apply_modifiers
     public :: key_parse, key_description, single_key_description, &
               push_key_description
@@ -1126,6 +1126,25 @@ contains
         call move_alloc(maps, minor_mode_maps)
         n_minor_mode_maps = n + 1
     end subroutine add_minor_mode_map
+
+    !> The variable of an enabled minor mode whose keymap (in
+    !> minor-mode-map-alist) is `map'; "" if none.
+    function active_minor_mode_of_map(map) result(variable)
+        type(handle_type), intent(in) :: map
+        character(len=:), allocatable :: variable
+        type(value_type) :: v
+        type(status_type) :: st
+        integer :: i
+        variable = ""
+        do i = 1, n_minor_mode_maps
+            if (.not. same_handle(minor_mode_maps(i), map)) cycle
+            call symbol_value(make_symbol_ref(minor_mode_vars(i)), v, st)
+            if (.not. st%ok()) cycle
+            if (nilp(v)) cycle
+            variable = symbols(minor_mode_vars(i))%name
+            return
+        end do
+    end function active_minor_mode_of_map
 
     !> The active keymaps, highest precedence first, as one composite:
     !> overriding-terminal-local-map, the minor-mode maps, the local map,

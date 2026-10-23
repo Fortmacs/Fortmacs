@@ -46,7 +46,9 @@ module help_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq, symbol_name
     use keymap_fm, only: make_sparse_keymap, keymap_live_p, free_keymap, keymap_set, define_key, key_parse, &
-                         key_valid_p, key_description, where_is_internal, lookup_key, current_active_maps
+                         key_valid_p, key_description, where_is_internal, lookup_key, current_active_maps, &
+                         overriding_terminal_local_map, active_minor_mode_of_map, current_global_map
+    use derived_fm, only: major_mode_type, major_mode_named
     use keyboard_fm, only: read_key_sequence
     use callint_fm, only: commandp
     use buffer_fm, only: current_buffer, get_buffer_create, set_buffer, set_buffer_read_only, erase_buffer, &
@@ -346,16 +348,34 @@ contains
         call message(substitute_command_keys("Type \<help_mode_map>\[quit_window] to restore previous buffer"))
     end subroutine with_help_window
 
-    !> " (found in MAP)" for the active map in which `keys' is bound to
-    !> `binding', if that map has a name; else "".
-    function found_in(keys, binding) result(s)
-        type(value_type), intent(in) :: keys(:), binding
+    !> " (found in MAP)" for the keymap variable holding the active map
+    !> in which `keys' is bound; "" if none holds it.  The locus of
+    !> help.el:describe-key.
+    function found_in(keys) result(s)
+        type(value_type), intent(in) :: keys(:)
         character(len=:), allocatable :: s
+        s = binding_locus(keys)
+        if (len(s) > 0) s = " (found in "//s//")"
+    end function found_in
+
+    !> Describe in which keymap KEY is defined.
+    !> Return the name of a variable pointing to that keymap if one exists;
+    !> otherwise return "".  Port of help.el:help--binding-locus (with
+    !> help--key-binding-keymap; no remapping; the variables are those
+    !> `register_keymap_name' knows, the minor mode maps and the major
+    !> mode's map).
+    function binding_locus(keys) result(name)
+        type(value_type), intent(in) :: keys(:)
+        character(len=:), allocatable :: name
         type(value_type) :: active, val
         type(value_type), allocatable :: maps(:)
         type(status_type) :: status
+        type(handle_type) :: map
+        type(major_mode_type), pointer :: mode
+        logical :: found
         integer :: k
-        s = ""
+        name = ""
+        ! help--key-binding-keymap: the first active map binding KEY.
         active = current_active_maps()
         if (keymap_ref_p(active)) then
             allocate (maps(1))
@@ -363,16 +383,53 @@ contains
         else
             call list_elements(active, maps)
         end if
+        found = .false.
         do k = 1, size(maps)
             if (.not. keymap_ref_p(maps(k))) cycle
-            call lookup_key(maps(k), keys, val, status)
+            call lookup_key(maps(k), keys, val, status, accept_default=.true.)
             if (.not. status%ok()) cycle
-            if (.not. value_eq(val, binding)) cycle
-            s = keymap_name(xhandle(maps(k)))
-            if (len(s) > 0) s = " (found in "//s//")"
-            return
+            ! A number: the first events of KEY were found but not all.
+            if (nilp(val) .or. fixnump(val)) cycle
+            map = xhandle(maps(k))
+            found = .true.
+            exit
         end do
-    end function found_in
+        if (.not. found) return
+        ! Look into these advertised symbols first.
+        if (keymap_live_p(overriding_terminal_local_map)) then
+            if (same_map(map, overriding_terminal_local_map)) then
+                name = "overriding_terminal_local_map"
+                return
+            end if
+        end if
+        name = active_minor_mode_of_map(map)
+        if (len(name) > 0) then
+            name = name//"_map"
+            return
+        end if
+        if (same_map(map, current_global_map())) then
+            name = "global_map"
+            return
+        end if
+        if (cur /= 0) then
+            if (allocated(buffers(cur)%major_mode)) then
+                mode => major_mode_named(buffers(cur)%major_mode)
+                if (associated(mode)) then
+                    if (same_map(map, mode%map)) then
+                        name = trim(mode%name)//"_map"
+                        return
+                    end if
+                end if
+            end if
+        end if
+        ! Only look in other symbols otherwise.
+        name = keymap_name(map)
+    end function binding_locus
+
+    logical function same_map(a, b)
+        type(handle_type), intent(in) :: a, b
+        same_map = a%index == b%index .and. a%generation == b%generation
+    end function same_map
 
     !> Read a key sequence from the user; `ok' false at end of input.
     !> Port of help.el:help--read-key-sequence (one key sequence).
@@ -421,7 +478,7 @@ contains
         end if
         call symbol_name(binding, name, status)
         if (.not. status%ok()) return
-        lead = desc//" runs the command "//name//found_in(keys, binding)//", which is "
+        lead = desc//" runs the command "//name//found_in(keys)//", which is "
         text = lead
         if (associated(describe_function_1_hook)) call describe_function_1_hook(name, text, lead)
         call with_help_window(text, status)
