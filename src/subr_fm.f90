@@ -27,11 +27,13 @@ module subr_fm
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
                        make_keymap_ref, symbolp, xsymbol, symbols, &
-                       list_elements, make_list, stringp, xstring
+                       list_elements, make_list, stringp, xstring, t_value
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set
     use fns_fm, only: get
     use eval_fm, only: hook_type
+    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p
+    use insdel_fm, only: inhibit_modification_hooks
     use keyboard_fm, only: read_event, discard_input, this_command_keys
     use dispnew_fm, only: ding
     use commands_fm, only: commands
@@ -66,6 +68,8 @@ module subr_fm
         integer :: min_change = 1
         real(real64) :: min_time = 0.2_real64
     end type progress_reporter_type
+    public :: after_hook_proc, add_delayed_after_hook, silent_modifications_type, silent_modifications_begin, &
+              silent_modifications_end
     public :: run_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, delaying_mode_hooks, &
               kill_delayed_mode_hooks
 
@@ -153,6 +157,26 @@ module subr_fm
     !> History list symbol to add `y_or_n_p' answers to (unallocated for
     !> nil: no history).  Port of subr.el y-or-n-p-history-variable.
     character(len=:), allocatable, public :: y_or_n_p_history_variable
+
+    !> What `silent_modifications_begin' changed, for
+    !> `silent_modifications_end' to restore (the bindings of
+    !> with-silent-modifications).
+    type :: silent_modifications_type
+        logical :: modified = .false.
+        logical :: undo_enabled = .true.
+        logical :: inhibit_modification_hooks = .false.
+        type(value_type) :: inhibit_read_only
+    end type silent_modifications_type
+
+    abstract interface
+        !> A function run after a mode's hooks (a minor mode's :after-hook,
+        !> an element of `delayed_after_hook_functions').
+        subroutine after_hook_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine after_hook_proc
+    end interface
 
     interface
         !> Ask user a "y or n" question.
@@ -263,9 +287,48 @@ module subr_fm
         module logical function delaying_mode_hooks()
             implicit none(type, external)
         end function delaying_mode_hooks
+
+        !> Arrange for FN to run after the delayed mode hooks: add it to
+        !> the current buffer's `delayed_after_hook_functions', which
+        !> `run_mode_hooks' runs after `after_change_major_mode_hook'.
+        !> (Upstream's minor modes push their :after-hook there while mode
+        !> hooks are delayed.)  (In subr_hooks_fm.)
+        module subroutine add_delayed_after_hook(fn)
+            implicit none(type, external)
+            procedure(after_hook_proc) :: fn
+        end subroutine add_delayed_after_hook
     end interface
 
 contains
+
+    !> Start modifying the current buffer without marking it modified,
+    !> recording undo, running the change hooks or asking about read-only
+    !> text; S keeps what to restore.  The start of subr.el's
+    !> with-silent-modifications.
+    subroutine silent_modifications_begin(s)
+        type(silent_modifications_type), intent(out) :: s
+        type(status_type) :: st
+        if (cur == 0) return
+        call buffer_modified_p(current_buffer(), s%modified, st)
+        s%undo_enabled = buffers(cur)%undo_enabled
+        buffers(cur)%undo_enabled = .false.
+        call symbol_value(sym("inhibit_read_only"), s%inhibit_read_only, st)
+        call set(sym("inhibit_read_only"), t_value(), st)
+        s%inhibit_modification_hooks = inhibit_modification_hooks%value
+        inhibit_modification_hooks = .true.
+    end subroutine silent_modifications_begin
+
+    !> Restore what `silent_modifications_begin' changed: the end of
+    !> with-silent-modifications (the buffer's modified flag as it was).
+    subroutine silent_modifications_end(s)
+        type(silent_modifications_type), intent(in) :: s
+        type(status_type) :: st
+        if (cur == 0) return
+        inhibit_modification_hooks = s%inhibit_modification_hooks
+        call set(sym("inhibit_read_only"), s%inhibit_read_only, st)
+        buffers(cur)%undo_enabled = s%undo_enabled
+        call restore_buffer_modified_p(s%modified)
+    end subroutine silent_modifications_end
 
     !> Read one key with `prompt' in the echo area and the cursor after it.
     !> End of input reads as a quit.  Port of subr.el:read-key (single

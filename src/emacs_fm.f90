@@ -47,6 +47,7 @@ module emacs_fm
     use xdisp_fm, only: redisplay, init_frame_windows, message
     use xfaces_fm, only: init_frame_faces
     use faces_fm, only: init_faces
+    use modes_fm, only: minor_modes
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
@@ -357,6 +358,9 @@ contains
         ! the terminal (frame-set-background-mode).
         call init_faces()
         call init_frame_faces(selected_frame, terminal_type)
+        ! global-font-lock-mode's delayed initialization (its :init-value
+        ! is true when not in batch mode), before the init file.
+        call minor_modes%global_font_lock_mode%enable(st)
         call tty_set_terminal_modes(selected_frame%tty)
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor

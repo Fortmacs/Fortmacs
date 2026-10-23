@@ -73,7 +73,8 @@ contains
         type(named_face_type), pointer :: face
         integer :: k
         call init_faces()
-        call check(error, face_count(), size(names))
+        ! (Faces of other files, such as font-lock.el's, may follow.)
+        call check(error, face_count() >= size(names), "all of faces.el's faces")
         if (allocated(error)) return
         do k = 1, size(names)
             face => face_at(k)

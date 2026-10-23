@@ -86,6 +86,15 @@ module commands_fm
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
         type(command_type) :: fixup_whitespace
+        type(command_type) :: font_lock_change_mode
+        type(command_type) :: font_lock_debug_fontify
+        type(command_type) :: font_lock_defontify
+        type(command_type) :: font_lock_fontify_block
+        type(command_type) :: font_lock_fontify_buffer
+        type(command_type) :: font_lock_mode
+        type(command_type) :: font_lock_mode_set_explicitly
+        type(command_type) :: font_lock_refresh_defaults
+        type(command_type) :: font_lock_update
         type(command_type) :: forward_char
         type(command_type) :: forward_line
         type(command_type) :: forward_list
@@ -94,6 +103,8 @@ module commands_fm
         type(command_type) :: forward_sexp
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
+        type(command_type) :: global_font_lock_mode
+        type(command_type) :: global_font_lock_mode_enable_in_buffer
         type(command_type) :: help_mode
         type(command_type) :: help_quit
         type(command_type) :: indent_according_to_mode
@@ -228,6 +239,8 @@ module commands_fm
         type(command_type) :: transpose_words
         type(command_type) :: turn_off_auto_fill
         type(command_type) :: turn_on_auto_fill
+        type(command_type) :: turn_on_font_lock
+        type(command_type) :: turn_on_font_lock_if_desired
         type(command_type) :: undefined
         type(command_type) :: undo
         type(command_type) :: undo_only
@@ -253,7 +266,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(215) = [character(len=34) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(228) = [character(len=38) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "auto_fill_mode", &
@@ -308,6 +321,15 @@ module commands_fm
                                                                  "fill_region_as_paragraph", &
                                                                  "find_file", &
                                                                  "fixup_whitespace", &
+                                                                 "font_lock_change_mode", &
+                                                                 "font_lock_debug_fontify", &
+                                                                 "font_lock_defontify", &
+                                                                 "font_lock_fontify_block", &
+                                                                 "font_lock_fontify_buffer", &
+                                                                 "font_lock_mode", &
+                                                                 "font_lock_mode_set_explicitly", &
+                                                                 "font_lock_refresh_defaults", &
+                                                                 "font_lock_update", &
                                                                  "forward_char", &
                                                                  "forward_line", &
                                                                  "forward_list", &
@@ -316,6 +338,8 @@ module commands_fm
                                                                  "forward_sexp", &
                                                                  "forward_word", &
                                                                  "fundamental_mode", &
+                                                                 "global_font_lock_mode", &
+                                                                 "global_font_lock_mode_enable_in_buffer", &
                                                                  "help_mode", &
                                                                  "help_quit", &
                                                                  "indent_according_to_mode", &
@@ -450,6 +474,8 @@ module commands_fm
                                                                  "transpose_words", &
                                                                  "turn_off_auto_fill", &
                                                                  "turn_on_auto_fill", &
+                                                                 "turn_on_font_lock", &
+                                                                 "turn_on_font_lock_if_desired", &
                                                                  "undefined", &
                                                                  "undo", &
                                                                  "undo_only", &
@@ -587,6 +613,24 @@ contains
             p => commands%find_file
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
+        case ("font_lock_change_mode")
+            p => commands%font_lock_change_mode
+        case ("font_lock_debug_fontify")
+            p => commands%font_lock_debug_fontify
+        case ("font_lock_defontify")
+            p => commands%font_lock_defontify
+        case ("font_lock_fontify_block")
+            p => commands%font_lock_fontify_block
+        case ("font_lock_fontify_buffer")
+            p => commands%font_lock_fontify_buffer
+        case ("font_lock_mode")
+            p => commands%font_lock_mode
+        case ("font_lock_mode_set_explicitly")
+            p => commands%font_lock_mode_set_explicitly
+        case ("font_lock_refresh_defaults")
+            p => commands%font_lock_refresh_defaults
+        case ("font_lock_update")
+            p => commands%font_lock_update
         case ("forward_char")
             p => commands%forward_char
         case ("forward_line")
@@ -603,6 +647,10 @@ contains
             p => commands%forward_word
         case ("fundamental_mode")
             p => commands%fundamental_mode
+        case ("global_font_lock_mode")
+            p => commands%global_font_lock_mode
+        case ("global_font_lock_mode_enable_in_buffer")
+            p => commands%global_font_lock_mode_enable_in_buffer
         case ("help_mode")
             p => commands%help_mode
         case ("help_quit")
@@ -871,6 +919,10 @@ contains
             p => commands%turn_off_auto_fill
         case ("turn_on_auto_fill")
             p => commands%turn_on_auto_fill
+        case ("turn_on_font_lock")
+            p => commands%turn_on_font_lock
+        case ("turn_on_font_lock_if_desired")
+            p => commands%turn_on_font_lock_if_desired
         case ("undefined")
             p => commands%undefined
         case ("undo")

@@ -54,7 +54,7 @@ module eval_fm
     private
 
     public :: funcall_noargs, kill_local_hooks
-    public :: change_function, after_change_function
+    public :: change_function, after_change_function, position_function, region_function, region_entry_type
 
     abstract interface
         !> A function of a `change_hook_type' hook such as
@@ -76,7 +76,35 @@ module eval_fm
             integer(int64), intent(in) :: beg, end, old_len
             type(status_type), intent(out) :: status
         end subroutine after_change_function
+
+        !> A function of a `position_hook_type' hook such as
+        !> `fontification_functions': POS is the position to work from.
+        subroutine position_function(pos, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: pos
+            type(status_type), intent(out) :: status
+        end subroutine position_function
+
+        !> A function of a `region_hook_type' hook such as
+        !> `jit_lock_functions': do something to the text from BEG to END,
+        !> giving in DONE_BEG and DONE_END the part it actually did
+        !> (upstream's return value (jit-lock-bounds BEG . END); by default
+        !> BEG and END).
+        subroutine region_function(beg, end, done_beg, done_end, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg, end
+            integer(int64), intent(out) :: done_beg, done_end
+            type(status_type), intent(out) :: status
+        end subroutine region_function
     end interface
+
+    !> A function of a `region_hook_type' hook, as `region_hook_functions'
+    !> lists them.
+    type :: region_entry_type
+        procedure(region_function), pointer, nopass :: fn => null()
+    end type region_entry_type
 
     !> One function of a hook, or the `t' marker of a buffer's own value.
     !> The pointer of the hook's kind is the one set.  In a hook's depths
@@ -86,6 +114,8 @@ module eval_fm
         procedure(command_proc), pointer, nopass :: fn => null()
         procedure(change_function), pointer, nopass :: change_fn => null()
         procedure(after_change_function), pointer, nopass :: after_change_fn => null()
+        procedure(position_function), pointer, nopass :: position_fn => null()
+        procedure(region_function), pointer, nopass :: region_fn => null()
         integer :: depth = 0
         logical :: is_t = .false.
     end type hook_entry_type
@@ -186,6 +216,35 @@ module eval_fm
         procedure :: member => after_change_hook_member
     end type after_change_hook_type
 
+    !> A hook of functions taking a position (`position_function'), like
+    !> `fontification_functions'.
+    type, extends(hook_base_type), public :: position_hook_type
+    contains
+        !> Add a function to the hook (subr.el's add-hook).
+        procedure :: add => position_hook_add
+        !> Remove a function from the hook (subr.el's remove-hook).
+        procedure :: remove => position_hook_remove
+        !> Run the hook's functions with a position (run-hook-with-args).
+        procedure :: run => position_hook_run
+        !> Whether FN is one of the functions run in the current buffer.
+        procedure :: member => position_hook_member
+    end type position_hook_type
+
+    !> A hook of functions taking a region and telling what part of it
+    !> they did (`region_function'), like `jit_lock_functions'.
+    type, extends(hook_base_type), public :: region_hook_type
+    contains
+        !> Add a function to the hook (subr.el's add-hook).
+        procedure :: add => region_hook_add
+        !> Remove a function from the hook (subr.el's remove-hook).
+        procedure :: remove => region_hook_remove
+        !> The functions run in the current buffer, in order (for
+        !> run-hook-wrapped).
+        procedure :: functions => region_hook_functions
+        !> Whether FN is one of the functions run in the current buffer.
+        procedure :: member => region_hook_member
+    end type region_hook_type
+
     !> Normal hook run before changing the major mode of a buffer.
     !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
@@ -220,6 +279,10 @@ contains
             if (associated(b%change_fn)) same = associated(a%change_fn, b%change_fn)
         else if (associated(a%after_change_fn)) then
             if (associated(b%after_change_fn)) same = associated(a%after_change_fn, b%after_change_fn)
+        else if (associated(a%position_fn)) then
+            if (associated(b%position_fn)) same = associated(a%position_fn, b%position_fn)
+        else if (associated(a%region_fn)) then
+            if (associated(b%region_fn)) same = associated(a%region_fn, b%region_fn)
         end if
     end function same_function
 
@@ -563,13 +626,19 @@ contains
     !> those run, with the default functions in the place of `t'.  BEG,
     !> END and OLD_LEN are the arguments for the functions of the kinds
     !> that take them.  Port of eval.c:run_hook_with_args.
-    recursive subroutine hook_run_entries(self, beg, end, old_len, status)
+    recursive subroutine hook_run_entries(self, beg, end, old_len, status, safe)
         class(hook_base_type), intent(in) :: self
         integer(int64), intent(in) :: beg, end, old_len
         type(status_type), intent(out) :: status
+        !> Ignore errors: an error in one function doesn't stop the others
+        !> (redisplay's safe calls).
+        logical, intent(in), optional :: safe
         type(hook_entry_type), allocatable :: entries(:), global(:)
         integer :: i, j, k
+        logical :: keep_going
         status = status_type()
+        keep_going = .false.
+        if (present(safe)) keep_going = safe
         k = local_index(self)
         ! Copies, in case a function changes the hook.
         if (k > 0) then
@@ -590,10 +659,12 @@ contains
                     ! we must ignore it to avoid an endless loop.
                     if (global(j)%is_t) cycle
                     call call_entry(global(j), beg, end, old_len, status)
+                    if (keep_going) status = status_type()
                     if (.not. status%ok()) return
                 end do
             else
                 call call_entry(entries(i), beg, end, old_len, status)
+                if (keep_going) status = status_type()
                 if (.not. status%ok()) return
             end if
         end do
@@ -617,6 +688,8 @@ contains
             call e%change_fn(beg, end, status)
         else if (associated(e%after_change_fn)) then
             call e%after_change_fn(beg, end, old_len, status)
+        else if (associated(e%position_fn)) then
+            call e%position_fn(beg, status)
         end if
     end subroutine call_entry
 
@@ -818,4 +891,120 @@ contains
         e%after_change_fn => fn
         found = self%member_entry(e)
     end function after_change_hook_member
+
+    ! ------------------------------------------------------------------
+    ! Position and region hooks
+    ! ------------------------------------------------------------------
+
+    !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
+    subroutine position_hook_add(self, fn, depth, local)
+        class(position_hook_type), intent(inout), target :: self
+        procedure(position_function) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%position_fn => fn
+        call self%add_entry(e, depth, local)
+    end subroutine position_hook_add
+
+    !> Remove FN from the hook, as `hook_remove' does.
+    !> Port of subr.el:remove-hook.
+    subroutine position_hook_remove(self, fn, local)
+        class(position_hook_type), intent(inout) :: self
+        procedure(position_function) :: fn
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%position_fn => fn
+        call self%remove_entry(e, local)
+    end subroutine position_hook_remove
+
+    !> Call each function of the hook with POS, in order, stopping at the
+    !> first error; buffers' own functions as `hook_run'.  Port of
+    !> eval.c:Frun_hook_with_args.
+    recursive subroutine position_hook_run(self, pos, status, safe)
+        class(position_hook_type), intent(in) :: self
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        !> Ignore errors, calling every function (redisplay's safe calls).
+        logical, intent(in), optional :: safe
+        call self%run_entries(pos, 0_int64, 0_int64, status, safe)
+    end subroutine position_hook_run
+
+    logical function position_hook_member(self, fn) result(found)
+        class(position_hook_type), intent(in) :: self
+        procedure(position_function) :: fn
+        type(hook_entry_type) :: e
+        e%position_fn => fn
+        found = self%member_entry(e)
+    end function position_hook_member
+
+    !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
+    subroutine region_hook_add(self, fn, depth, local)
+        class(region_hook_type), intent(inout), target :: self
+        procedure(region_function) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%region_fn => fn
+        call self%add_entry(e, depth, local)
+    end subroutine region_hook_add
+
+    !> Remove FN from the hook, as `hook_remove' does.
+    !> Port of subr.el:remove-hook.
+    subroutine region_hook_remove(self, fn, local)
+        class(region_hook_type), intent(inout) :: self
+        procedure(region_function) :: fn
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%region_fn => fn
+        call self%remove_entry(e, local)
+    end subroutine region_hook_remove
+
+    logical function region_hook_member(self, fn) result(found)
+        class(region_hook_type), intent(in) :: self
+        procedure(region_function) :: fn
+        type(hook_entry_type) :: e
+        e%region_fn => fn
+        found = self%member_entry(e)
+    end function region_hook_member
+
+    !> The functions of the hook run in the current buffer, in order: the
+    !> buffer's own, with the global ones in place of `t'.
+    function region_hook_functions(self) result(fns)
+        class(region_hook_type), intent(in) :: self
+        type(region_entry_type), allocatable :: fns(:)
+        type(hook_entry_type), allocatable :: entries(:)
+        integer :: i, j, k, n
+        allocate (fns(0))
+        k = local_index(self)
+        if (k > 0) then
+            entries = self%locals(k)%entries
+        else if (allocated(self%entries)) then
+            entries = self%entries
+        else
+            return
+        end if
+        n = 0
+        do i = 1, size(entries)
+            if (entries(i)%is_t) then
+                if (.not. allocated(self%entries)) cycle
+                do j = 1, size(self%entries)
+                    if (self%entries(j)%is_t) cycle
+                    call push(self%entries(j))
+                end do
+            else
+                call push(entries(i))
+            end if
+        end do
+    contains
+        subroutine push(e)
+            type(hook_entry_type), intent(in) :: e
+            type(region_entry_type), allocatable :: grown(:)
+            allocate (grown(size(fns) + 1))
+            grown(1:size(fns)) = fns
+            grown(size(fns) + 1)%fn => e%region_fn
+            call move_alloc(grown, fns)
+            n = n + 1
+        end subroutine push
+    end function region_hook_functions
 end module eval_fm

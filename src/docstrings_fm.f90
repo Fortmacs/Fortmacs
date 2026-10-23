@@ -42,6 +42,11 @@ module docstrings_fm
                        fill_indent_according_to_mode, fill_nobreak_predicate, &
                        fill_separate_heterogeneous_words_with_space
     use fns_fm, only: use_short_answers
+    use font_core_fm, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
+                            global_font_lock_mode_hook
+    use font_lock_fm, only: font_lock_dont_widen, font_lock_extra_managed_props, &
+                            font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_support_mode, &
+                            FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_tabs_mode, standard_indent, tab_always_indent, &
@@ -51,6 +56,7 @@ module docstrings_fm
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+    use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: minibuffer_message_timeout
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
@@ -87,7 +93,7 @@ module docstrings_fm
                          pop_up_windows, scroll_error_top_bottom, split_height_threshold, split_width_threshold, &
                          split_window_preferred_direction, SPLIT_LONGEST, SPLIT_VERTICAL, SPLIT_HORIZONTAL, &
                          window_min_height, window_min_width
-    use xdisp_fm, only: tab_width, truncate_partial_width_windows
+    use xdisp_fm, only: fontification_functions, tab_width, truncate_partial_width_windows
     implicit none(type, external)
     private
 
@@ -110,7 +116,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=34), parameter, public :: function_names(313) = [character(len=34) :: &
+    character(len=38), parameter, public :: function_names(330) = [character(len=38) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "add_auto_mode", &
@@ -192,6 +198,19 @@ module docstrings_fm
                                                                    "fill_single_word_nobreak_p", &
                                                                    "find_file", &
                                                                    "fixup_whitespace", &
+                                                                   "font_lock_add_keywords", &
+                                                                   "font_lock_anchored", &
+                                                                   "font_lock_change_mode", &
+                                                                   "font_lock_debug_fontify", &
+                                                                   "font_lock_defontify", &
+                                                                   "font_lock_fontify_block", &
+                                                                   "font_lock_fontify_buffer", &
+                                                                   "font_lock_highlight", &
+                                                                   "font_lock_keyword", &
+                                                                   "font_lock_mode", &
+                                                                   "font_lock_mode_set_explicitly", &
+                                                                   "font_lock_refresh_defaults", &
+                                                                   "font_lock_update", &
                                                                    "format_error", &
                                                                    "forward_char", &
                                                                    "forward_comment", &
@@ -203,6 +222,8 @@ module docstrings_fm
                                                                    "forward_word", &
                                                                    "fundamental_mode", &
                                                                    "get_buffer_create", &
+                                                                   "global_font_lock_mode", &
+                                                                   "global_font_lock_mode_enable_in_buffer", &
                                                                    "global_set_key", &
                                                                    "goto_char", &
                                                                    "help_mode", &
@@ -400,6 +421,8 @@ module docstrings_fm
                                                                    "transpose_words", &
                                                                    "turn_off_auto_fill", &
                                                                    "turn_on_auto_fill", &
+                                                                   "turn_on_font_lock", &
+                                                                   "turn_on_font_lock_if_desired", &
                                                                    "undefined", &
                                                                    "undo", &
                                                                    "undo_boundary", &
@@ -426,7 +449,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(125) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(140) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
@@ -467,6 +490,16 @@ module docstrings_fm
                                                                    "fill_prefix", &
                                                                    "fill_separate_heterogeneous_words_with_space", &
                                                                    "first_change_hook", &
+                                                                   "font_lock_defaults", &
+                                                                   "font_lock_dont_widen", &
+                                                                   "font_lock_extra_managed_props", &
+                                                                   "font_lock_global_modes", &
+                                                                   "font_lock_maximum_decoration", &
+                                                                   "font_lock_mode_hook", &
+                                                                   "font_lock_support_mode", &
+                                                                   "font_lock_verbose", &
+                                                                   "fontification_functions", &
+                                                                   "global_font_lock_mode_hook", &
                                                                    "goal_column", &
                                                                    "help_map", &
                                                                    "help_mode_hook", &
@@ -484,6 +517,7 @@ module docstrings_fm
                                                                    "isearch_lax_whitespace", &
                                                                    "isearch_mode_map", &
                                                                    "isearch_regexp_lax_whitespace", &
+                                                                   "jit_lock_chunk_size", &
                                                                    "kill_read_only_ok", &
                                                                    "kill_ring_max", &
                                                                    "kill_ring_yank_pointer", &
@@ -1061,8 +1095,9 @@ contains
                         "report errors as appropriate for this kind of usage."
         case ("downcase")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "downcase_char(ch)"
-            entry%doc = "Convert a character to lower case."
+            entry%fortran = "downcase_string(str)"
+            entry%doc = "Convert argument to lower case and return that."//LF// &
+                        "The argument object is not altered--the value is a copy."
         case ("downcase_region")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "call downcase_region(beg, end, status)"
@@ -1267,6 +1302,149 @@ contains
             entry%interactive = .true.
             entry%doc = "Fixup white space between objects around point."//LF// &
                         "Leave one space or none, according to the context."
+        case ("font_lock_add_keywords")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "call font_lock_add_keywords(mode, keywords, status, how)"
+            entry%doc = "Add highlighting KEYWORDS for MODE."//LF// &
+                        ""//LF// &
+                        "MODE should be the major mode command name, such as ""c_mode"", or"//LF// &
+                        "empty.  If empty, highlighting keywords are added for the current"//LF// &
+                        "buffer.  By default they are added at the beginning of the current"//LF// &
+                        "highlighting list.  If HOW is FONT_LOCK_ADD_SET, they are used to"//LF// &
+                        "replace the current highlighting list.  If HOW is FONT_LOCK_ADD_END,"//LF// &
+                        "they are added at the end of the current highlighting list."//LF// &
+                        ""//LF// &
+                        "For example:"//LF// &
+                        ""//LF// &
+                        " type(font_lock_highlight_type) :: fixme(1)"//LF// &
+                        " type(font_lock_keyword_type) :: keywords(2)"//LF// &
+                        " fixme(1) = font_lock_highlight(1, ""font_lock_warning_face"", FONT_LOCK_OVERRIDE_PREPEND)"//LF// &
+                        " keywords(1) = font_lock_keyword(""\\<\\(FIXME\\):"", fixme)"//LF// &
+                        " keywords(2) = font_lock_keyword(""\\<\\(and\\|or\\|not\\)\\>"", face=""font_lock_keyword_fac"// &
+                        "e"")"//LF// &
+                        " call font_lock_add_keywords(""c_mode"", keywords, status)"//LF// &
+                        ""//LF// &
+                        "adds two fontification patterns for C mode, to fontify `FIXME:'"//LF// &
+                        "words, even in comments, and to fontify `and', `or' and `not' words"//LF// &
+                        "as keywords."//LF// &
+                        ""//LF// &
+                        "The above procedure will only add the keywords for C mode, not"//LF// &
+                        "for modes derived from C mode.  To add them for derived modes too,"//LF// &
+                        "pass an empty MODE and add the call to `c_mode_hook'."
+        case ("font_lock_anchored")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_anchored(highlights, regexp, matcher, pre_match_form, post_match_form)"
+            entry%doc = "A MATCH-ANCHORED highlight: REGEXP (or MATCHER) searched for after"//LF// &
+                        "each match of the keyword, each match highlighted as HIGHLIGHTS say"//LF// &
+                        "(their `match' parts)."
+        case ("font_lock_change_mode")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Get rid of fontification for the old major mode (run when the"//LF// &
+                        "major mode changes)."
+        case ("font_lock_debug_fontify")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Reinitialize the font-lock machinery and (re-)fontify the buffer."//LF// &
+                        "This functions is a convenience functions when developing font"//LF// &
+                        "locking for a mode, and is not meant to be called from Fortran code."
+        case ("font_lock_defontify")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Clear out all `font_lock_face' properties in current buffer."//LF// &
+                        "A major mode that uses `font_lock_face' properties might want to put"//LF// &
+                        "this function onto `change_major_mode_hook'."
+        case ("font_lock_fontify_block")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Fontify some lines the way `font_lock_fontify_buffer' would."//LF// &
+                        "The lines could be a function or paragraph, or a specified number"//LF// &
+                        "of lines.  If ARG is given, fontify that many lines before and after"//LF// &
+                        "point, or 16 lines if no ARG is given."
+        case ("font_lock_fontify_buffer")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The interactive `font_lock_fontify_buffer'."
+        case ("font_lock_highlight")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function)"
+            entry%doc = "A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face"//LF// &
+                        "FACE (or the face FACE_FUNCTION names), combined with existing"//LF// &
+                        "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),"//LF// &
+                        "LAXMATCH if SUBEXP need not match."
+        case ("font_lock_keyword")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_keyword(regexp, highlights, face, subexp, matcher)"
+            entry%doc = "A keyword: REGEXP (or the function MATCHER), with HIGHLIGHTS; with"//LF// &
+                        "only FACE, subexpression 0 (or SUBEXP) in FACE; with neither,"//LF// &
+                        "subexpression 0 (or SUBEXP) in `font_lock_keyword_face'"//LF// &
+                        "(font-lock-compile-keyword's forms MATCHER, (MATCHER . SUBEXP),"//LF// &
+                        "(MATCHER . FACENAME))."
+        case ("font_lock_mode")
+            entry%file = "font_core_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle syntax highlighting in this buffer (Font Lock mode)."//LF// &
+                        ""//LF// &
+                        "When Font Lock mode is enabled, text is fontified as you type it:"//LF// &
+                        ""//LF// &
+                        " - Comments are displayed in `font_lock_comment_face';"//LF// &
+                        " - Strings are displayed in `font_lock_string_face';"//LF// &
+                        " - Certain other expressions are displayed in other faces"//LF// &
+                        "   according to the value of the variable `font_lock_keywords'."//LF// &
+                        ""//LF// &
+                        "To customize the faces (colors, fonts, etc.) used by Font Lock for"//LF// &
+                        "fontifying different parts of buffer text, use \[customize-face]."//LF// &
+                        ""//LF// &
+                        "You can enable Font Lock mode in any major mode automatically by"//LF// &
+                        "turning on in the major mode's hook.  For example, put in your"//LF// &
+                        "init.f90:"//LF// &
+                        ""//LF// &
+                        " call c_mode_hook%add(turn_on_font_lock)"//LF// &
+                        ""//LF// &
+                        "Alternatively, you can use Global Font Lock mode to automagically"//LF// &
+                        "turn on Font Lock mode in buffers whose major mode supports it"//LF// &
+                        "and whose major mode is one of `font_lock_global_modes'."//LF// &
+                        ""//LF// &
+                        "Where major modes support different levels of fontification, you"//LF// &
+                        "can use the variable `font_lock_maximum_decoration' to specify"//LF// &
+                        "which level you generally prefer.  When you turn Font Lock mode"//LF// &
+                        "on/off the buffer is fontified/defontified."//LF// &
+                        ""//LF// &
+                        "To add your own highlighting for some major mode, and modify the"//LF// &
+                        "highlighting selected automatically via the variable"//LF// &
+                        "`font_lock_maximum_decoration', you can use"//LF// &
+                        "`font_lock_add_keywords'."//LF// &
+                        ""//LF// &
+                        "To fontify a buffer, without turning on Font Lock mode and"//LF// &
+                        "regardless of buffer size, you can use \[font-lock-fontify-buffer]."//LF// &
+                        ""//LF// &
+                        "You can set your own default settings for some mode, by setting a"//LF// &
+                        "buffer local value for `font_lock_defaults', via its mode hook."//LF// &
+                        ""//LF// &
+                        "The above is the default behavior of `font_lock_mode'; you may"//LF// &
+                        "specify your own function which is called when `font_lock_mode'"//LF// &
+                        "is toggled via `font_lock_function'."
+        case ("font_lock_mode_set_explicitly")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Record that Font Lock mode was set explicitly in the current buffer"//LF// &
+                        "(it runs from `font_lock_mode_hook')."
+        case ("font_lock_refresh_defaults")
+            entry%file = "font_lock_fm.f90"
+            entry%doc = "Restart fontification in current buffer after recomputing from"//LF// &
+                        "defaults.  Recompute fontification variables using"//LF// &
+                        "`font_lock_defaults' and `font_lock_maximum_decoration'.  Then"//LF// &
+                        "restart fontification."//LF// &
+                        ""//LF// &
+                        "Use this function when you have changed any of the above"//LF// &
+                        "variables directly."//LF// &
+                        ""//LF// &
+                        "Note: This function will erase modifications done by"//LF// &
+                        "`font_lock_add_keywords'."
+        case ("font_lock_update")
+            entry%file = "font_lock_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Update the syntax highlighting in this buffer."//LF// &
+                        "Refontify the accessible portion of this buffer, or enable Font Lock"//LF// &
+                        "mode in this buffer if it is currently disabled.  With prefix ARG,"//LF// &
+                        "toggle Font Lock mode."
         case ("format_error")
             entry%file = "error_fm.f90"
             entry%fortran = "format_error(status)"
@@ -1381,6 +1559,22 @@ contains
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
             entry%doc = "Live buffer named `name', created (empty, multibyte) if needed."//LF// &
                         "The first buffer created becomes current."
+        case ("global_font_lock_mode")
+            entry%file = "font_core_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle Font Lock mode in many buffers."//LF// &
+                        "Specifically, Font Lock mode is enabled in all buffers where"//LF// &
+                        "`turn_on_font_lock_if_desired' would do it."//LF// &
+                        ""//LF// &
+                        "With prefix ARG, enable Global Font Lock mode if ARG is positive;"//LF// &
+                        "otherwise, disable it."//LF// &
+                        ""//LF// &
+                        "See `font_lock_mode' for more information on Font Lock mode.  Port"//LF// &
+                        "of font-core.el:global-font-lock-mode."
+        case ("global_font_lock_mode_enable_in_buffer")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Turn on Font Lock mode in the current buffer unless the user set it"//LF// &
+                        "explicitly there."
         case ("global_set_key")
             entry%file = "subr_fm.f90"
             entry%fortran = "call global_set_key(key, command, status)"
@@ -3383,6 +3577,15 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("turn_on_font_lock")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "call turn_on_font_lock(status)"
+            entry%doc = "Turn on Font Lock mode (only if the terminal can display it).  Port"//LF// &
+                        "of font-core.el:turn-on-font-lock."
+        case ("turn_on_font_lock_if_desired")
+            entry%file = "font_core_fm.f90"
+            entry%doc = "Turn on Font Lock mode if the major mode is one of"//LF// &
+                        "`font_lock_global_modes'."
         case ("undefined")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -3473,10 +3676,9 @@ contains
                         "On error, location of point is unspecified."
         case ("upcase")
             entry%file = "casefiddle_fm.f90"
-            entry%fortran = "upcase_string(str)"
-            entry%doc = "Convert argument to upper case and return that."//LF// &
-                        "The argument object is not altered--the value is a copy.  See also"//LF// &
-                        "`capitalize', `downcase' and `upcase_initials'."
+            entry%fortran = "upcase_char(ch)"
+            entry%doc = "Convert a character to upper case.  Characters which map to"//LF// &
+                        "multiple code points when cased, e.g. ﬁ, are returned unchanged."
         case ("upcase_initials")
             entry%file = "casefiddle_fm.f90"
             entry%fortran = "upcase_initials_string(str)"
@@ -4006,6 +4208,89 @@ contains
             entry%original = "hook_type(name=""first_change_hook"")"
             entry%doc = "A list of functions to call before changing a buffer which is unmodified."//LF// &
                         "The functions are run using the `run_hooks' function."
+        case ("font_lock_defaults")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_defaults"
+            entry%doc = "The current buffer's Font Lock defaults (see the type)."
+        case ("font_lock_dont_widen")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_dont_widen"
+            entry%original = ".false."
+            entry%value = repr(font_lock_dont_widen)
+            entry%doc = "If true, font-lock will work on the non-widened buffer."//LF// &
+                        "Useful for things like RMAIL and Info where the whole buffer is not"//LF// &
+                        "a very meaningful entity to highlight."
+        case ("font_lock_extra_managed_props")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_extra_managed_props"
+            if (allocated(font_lock_extra_managed_props)) entry%value = repr(font_lock_extra_managed_props)
+            entry%doc = "Additional text properties managed by font-lock."//LF// &
+                        "This is used by `font_lock_default_unfontify_region' to decide"//LF// &
+                        "what properties to clear before refontifying a region."
+        case ("font_lock_global_modes")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_global_modes"
+            entry%doc = "Modes for which Font Lock mode is automagically turned on (see the"//LF// &
+                        "type)."
+        case ("font_lock_maximum_decoration")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_maximum_decoration"
+            entry%original = "FONT_LOCK_DECORATION_MAX"
+            select case (font_lock_maximum_decoration)
+            case (FONT_LOCK_DECORATION_MAX)
+                entry%value = "FONT_LOCK_DECORATION_MAX"
+            case default
+                entry%value = repr(font_lock_maximum_decoration)
+            end select
+            entry%doc = "Maximum decoration level for fontification."//LF// &
+                        "If 0, use the default decoration (typically the minimum available)."//LF// &
+                        "If FONT_LOCK_DECORATION_MAX (the default), use the maximum decoration"//LF// &
+                        "available."//LF// &
+                        "If a number, use that level of decoration (or if not available the"//LF// &
+                        "maximum).  The higher the number, the more decoration is done."
+        case ("font_lock_mode_hook")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "font_lock_mode_hook"
+            entry%original = "hook_type(name=""font_lock_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `font_lock_mode'."
+        case ("font_lock_support_mode")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_support_mode"
+            entry%original = "FONT_LOCK_SUPPORT_JIT_LOCK"
+            select case (font_lock_support_mode)
+            case (FONT_LOCK_SUPPORT_NONE)
+                entry%value = "FONT_LOCK_SUPPORT_NONE"
+            case (FONT_LOCK_SUPPORT_JIT_LOCK)
+                entry%value = "FONT_LOCK_SUPPORT_JIT_LOCK"
+            case default
+                entry%value = repr(font_lock_support_mode)
+            end select
+            entry%doc = "Support mode for Font Lock mode."//LF// &
+                        "If FONT_LOCK_SUPPORT_NONE, means support for Font Lock mode is never"//LF// &
+                        "performed.  This can be useful for debugging."//LF// &
+                        ""//LF// &
+                        "The value of this variable is used when Font Lock mode is turned on."
+        case ("font_lock_verbose")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_verbose"
+            entry%original = ".false."
+            entry%value = repr(font_lock_verbose)
+            entry%doc = "If true, means show status messages for buffer fontification.  Port"//LF// &
+                        "of font-lock.el:font-lock-verbose (the size threshold form is"//LF// &
+                        "deferred)."
+        case ("fontification_functions")
+            entry%file = "xdisp_fm.f90"
+            entry%fortran = "fontification_functions"
+            entry%doc = "List of functions to call to fontify regions of text."//LF// &
+                        "Each function is called with one argument POS.  Functions must"//LF// &
+                        "fontify a region starting at POS in the current buffer, and give"//LF// &
+                        "fontified regions the property `fontified' with a true value."
+        case ("global_font_lock_mode_hook")
+            entry%file = "font_core_fm.f90"
+            entry%fortran = "global_font_lock_mode_hook"
+            entry%original = "hook_type(name=""global_font_lock_mode_hook"")"
+            entry%doc = "Hook run after entering or leaving `global_font_lock_mode'.  Port"//LF// &
+                        "of font-core.el:global-font-lock-mode-hook."
         case ("goal_column")
             entry%file = "simple_fm.f90"
             entry%fortran = "goal_column"
@@ -4151,6 +4436,23 @@ contains
                         "toggle the value of this variable by the command"//LF// &
                         "`isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during"//LF// &
                         "isearch."
+        case ("jit_lock_chunk_size")
+            entry%file = "jit_lock_fm.f90"
+            entry%fortran = "jit_lock_chunk_size"
+            entry%original = "1500"
+            entry%value = repr(jit_lock_chunk_size)
+            entry%doc = "Jit-lock asks to fontify chunks of at most this many characters at"//LF// &
+                        "a time."//LF// &
+                        ""//LF// &
+                        "The actual size of the fontified chunk of text can be different,"//LF// &
+                        "depending on what the `fontification_functions' actually decide to"//LF// &
+                        "do."//LF// &
+                        ""//LF// &
+                        "This variable controls both display-time and stealth"//LF// &
+                        "fontifications."//LF// &
+                        ""//LF// &
+                        "The optimum value is a little over the typical number of buffer"//LF// &
+                        "characters which fit in a typical window."
         case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"

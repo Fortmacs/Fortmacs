@@ -44,6 +44,8 @@ module modes_fm
     !> One component per built-in minor mode.
     type :: minor_mode_table_type
         type(minor_mode_type) :: auto_fill_mode
+        type(minor_mode_type) :: font_lock_mode
+        type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: transient_mark_mode
     end type minor_mode_table_type

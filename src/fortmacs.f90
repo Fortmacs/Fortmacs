@@ -158,6 +158,22 @@ module fortmacs
     use simple_fm, only: suggest_key_bindings
     use dired_fm, only: completion_ignored_extensions
     use search_fm, only: case_fold_search
+    ! Font Lock.
+    use font_core_fm, only: font_lock_defaults, font_lock_defaults_setting, font_lock_global_modes, &
+                            font_lock_global_modes_type, font_lock_mode_hook, global_font_lock_mode_hook, &
+                            turn_on_font_lock, font_lock_keyword_type, font_lock_highlight_type, &
+                            font_lock_match_highlight_type, font_lock_keywords_type, font_lock_syntax_entry_type, &
+                            FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+                            FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, &
+                            font_lock_face_proc, font_lock_form_proc
+    use font_lock_fm, only: font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
+                            font_lock_dont_widen, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, &
+                            FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_extra_managed_props, font_lock_syntactic_face_function, &
+                            font_lock_keyword, font_lock_highlight, font_lock_anchored, font_lock_add_keywords, &
+                            FONT_LOCK_ADD_BEGINNING, FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET
+    use jit_lock_fm, only: jit_lock_chunk_size
+    use xdisp_fm, only: fontification_functions
+    use eval_fm, only: position_hook_type, position_function
     use isearch_fm, only: search_upper_case, search_exit_option, search_nonincremental_instead, search_ring_max, &
                           UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
     use window_fm, only: next_screen_context_lines, scroll_error_top_bottom
@@ -288,4 +304,15 @@ module fortmacs
               FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, change_hook_type, &
               after_change_hook_type, change_function, after_change_function, before_change_functions, &
               after_change_functions, first_change_hook, inhibit_modification_hooks
+    public :: font_lock_defaults, font_lock_defaults_setting, font_lock_global_modes, font_lock_global_modes_type, &
+              font_lock_mode_hook, global_font_lock_mode_hook, turn_on_font_lock, font_lock_keyword_type, &
+              font_lock_highlight_type, font_lock_match_highlight_type, font_lock_keywords_type, &
+              font_lock_syntax_entry_type, FONT_LOCK_OVERRIDE_NIL, FONT_LOCK_OVERRIDE_T, FONT_LOCK_OVERRIDE_KEEP, &
+              FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, font_lock_matcher_proc, font_lock_face_proc, &
+              font_lock_form_proc, font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_verbose, &
+              font_lock_dont_widen, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, &
+              font_lock_extra_managed_props, font_lock_syntactic_face_function, font_lock_keyword, &
+              font_lock_highlight, font_lock_anchored, font_lock_add_keywords, FONT_LOCK_ADD_BEGINNING, &
+              FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET, jit_lock_chunk_size, fontification_functions, &
+              position_hook_type, position_function
 end module fortmacs

@@ -896,6 +896,13 @@ contains
         end if
         call drop_local(i)
     end do
+    ! The buffer-local variables kept in Fortran objects (none of them
+    ! permanent).
+    if (allocated(killers)) then
+        do i = 1, size(killers)
+            call killers(i)%fn()
+        end do
+    end if
     end procedure kill_all_local_variables
 
     module procedure local_variable_p

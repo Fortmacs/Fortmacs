@@ -32,11 +32,18 @@ submodule(subr_fm) subr_hooks_fm
         type(hook_type), pointer :: p => null()
     end type hook_ref_type
 
-    !> One buffer's `delay_mode_hooks' and `delayed_mode_hooks'.
+    !> A function of `delayed_after_hook_functions'.
+    type :: after_fn_type
+        procedure(after_hook_proc), pointer, nopass :: fn => null()
+    end type after_fn_type
+
+    !> One buffer's `delay_mode_hooks', `delayed_mode_hooks' and
+    !> `delayed_after_hook_functions'.
     type :: delay_type
         integer(int64) :: serial = 0
         logical :: delay = .false.
         type(hook_ref_type), allocatable :: delayed(:)
+        type(after_fn_type), allocatable :: after(:)
     end type delay_type
 
     type(delay_type), allocatable :: delays(:)
@@ -63,6 +70,7 @@ contains
         grown(1:n) = delays
         grown(n + 1)%serial = buffers(cur)%serial
         allocate (grown(n + 1)%delayed(0))
+        allocate (grown(n + 1)%after(0))
         call move_alloc(grown, delays)
         k = n + 1
     end function delay_index
@@ -73,7 +81,22 @@ contains
     if (k == 0) return
     deallocate (delays(k)%delayed)
     allocate (delays(k)%delayed(0))
+    deallocate (delays(k)%after)
+    allocate (delays(k)%after(0))
     end procedure kill_delayed_mode_hooks
+
+    module procedure add_delayed_after_hook
+    type(after_fn_type), allocatable :: grown(:)
+    integer :: k, n
+    k = delay_index(.true.)
+    if (k == 0) return
+    ! push: the newest first.
+    n = size(delays(k)%after)
+    allocate (grown(n + 1))
+    grown(2:n + 1) = delays(k)%after
+    grown(1)%fn => fn
+    call move_alloc(grown, delays(k)%after)
+    end procedure add_delayed_after_hook
 
     module procedure delaying_mode_hooks
     integer :: k
@@ -97,6 +120,7 @@ contains
 
     module procedure run_mode_hooks
     type(hook_ref_type), allocatable :: delayed(:)
+    type(after_fn_type), allocatable :: after(:)
     integer :: k, i, n
     status = status_type()
     k = delay_index(.true.)
@@ -126,5 +150,15 @@ contains
         if (.not. status%ok()) return
     end if
     call after_change_major_mode_hook%run(status)
+    if (.not. status%ok()) return
+    ! The delayed after-hook functions, oldest first (nreverse).
+    k = delay_index(.false.)
+    if (k == 0) return
+    call move_alloc(delays(k)%after, after)
+    allocate (delays(k)%after(0))
+    do i = size(after), 1, -1
+        call after(i)%fn(status)
+        if (.not. status%ok()) return
+    end do
     end procedure run_mode_hooks
 end submodule subr_hooks_fm

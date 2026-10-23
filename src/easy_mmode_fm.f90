@@ -41,6 +41,7 @@ module easy_mmode_fm
     use keymap_fm, only: make_sparse_keymap, keymap_live_p, add_minor_mode_map
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
+    use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
     implicit none(type, external)
     private
 
@@ -73,6 +74,9 @@ module easy_mmode_fm
         !> Run every time the mode is turned on or off, after the state
         !> is set.
         procedure(minor_mode_body_proc), pointer, nopass :: body => null()
+        !> Run after the mode's hooks and message (upstream's :after-hook);
+        !> while mode hooks are delayed, after the delayed mode hooks.
+        procedure(after_hook_proc), pointer, nopass :: after_hook => null()
         !> The keymap active while the mode is on (`MODE-map'), made by
         !> `define' with KEYMAP; the null handle for none.
         type(handle_type) :: map
@@ -266,12 +270,13 @@ contains
     !> is turned on or off.  KEYMAP true makes the mode's keymap
     !> (`MODE-map', upstream's :keymap), active while the mode is on.
     !> Port of easy-mmode.el:define-minor-mode.
-    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook, keymap)
+    subroutine minor_mode_define(self, name, lighter, global, variable, body, hook, keymap, after_hook)
         class(minor_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: lighter, variable
         logical, intent(in), optional :: global
         procedure(minor_mode_body_proc), optional :: body
+        procedure(after_hook_proc), optional :: after_hook
         type(hook_type), intent(inout), target, optional :: hook
         logical, intent(in), optional :: keymap
         type(minor_mode_ref_type), allocatable :: grown(:)
@@ -286,6 +291,8 @@ contains
         if (present(variable)) self%variable = variable
         self%body => null()
         if (present(body)) self%body => body
+        self%after_hook => null()
+        if (present(after_hook)) self%after_hook => after_hook
         self%hook => null()
         if (present(hook)) then
             self%hook => hook
@@ -413,20 +420,31 @@ contains
             call self%off_hook%run(status)
         end if
         if (.not. status%ok()) return
-        if (.not. interactive) return
-        ! Avoid overwriting a message shown by the body, but do overwrite
-        ! previous messages.
-        if (allocated(last_message)) then
-            if (len(last_message) > 0) then
-                if (.not. had_message) return
-                if (last_message /= before) return
+        if (interactive) call say(on)
+        if (associated(self%after_hook)) then
+            if (delaying_mode_hooks()) then
+                call add_delayed_after_hook(self%after_hook)
+            else
+                call self%after_hook(status)
             end if
         end if
-        if (on) then
-            call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" enabled"//local_text(self))
-        else
-            call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" disabled"//local_text(self))
-        end if
+    contains
+        !> Say whether the mode is now on, avoiding overwriting a message
+        !> shown by the body, but overwriting previous messages.
+        subroutine say(on)
+            logical, intent(in) :: on
+            if (allocated(last_message)) then
+                if (len(last_message) > 0) then
+                    if (.not. had_message) return
+                    if (last_message /= before) return
+                end if
+            end if
+            if (on) then
+                call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" enabled"//local_text(self))
+            else
+                call message(easy_mmode_pretty_mode_name(trim(self%name), self%lighter)//" disabled"//local_text(self))
+            end if
+        end subroutine say
     end subroutine set_mode
 
     function bool(b) result(v)

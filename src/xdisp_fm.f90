@@ -57,6 +57,9 @@ module xdisp_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use handle_fm, only: handle_type
+    use eval_fm, only: position_hook_type
+    use textprop_fm, only: get_text_property, next_single_property_change
+    use buffer_fm, only: cur, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                          buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
@@ -82,6 +85,17 @@ module xdisp_fm
     public :: redisplay, init_frame_windows, glyph_width, &
               mode_line_text, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent
+
+    !> List of functions to call to fontify regions of text.
+    !> Each function is called with one argument POS.  Functions must
+    !> fontify a region starting at POS in the current buffer, and give
+    !> fontified regions the property `fontified' with a true value.
+    !> Port of xdisp.c fontification-functions (buffer-local when set).
+    type(position_hook_type), target, public :: fontification_functions = &
+                                                position_hook_type(name="fontification_functions")
+
+    !> fontification-functions is bound to nil while its functions run.
+    logical :: fontifying = .false.
 
     !> xdisp.c cursor-in-echo-area: put the cursor after the echo area
     !> text (while a prompt there waits for an answer).
@@ -272,7 +286,7 @@ contains
         integer(int64), intent(in), optional :: rb, re
         type(frame_type), intent(inout), optional :: f
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
-        integer(int64) :: zv, stop, rbeg, rend, endpos
+        integer(int64) :: zv, stop, rbeg, rend, endpos, fstop
         integer(int32) :: c, face_id, extend_face_id
         integer :: col, n, first, ncells, k
         logical :: faces
@@ -294,9 +308,11 @@ contains
                 ends = ROW_ENDS_AT_ZV
                 exit
             end if
-            ! handle_face_prop at the next face change.
+            ! handle_fontified_prop and handle_face_prop at the next stop.
             if (faces .and. s%pos >= stop) then
+                call handle_fontified_prop(bi, s%pos, s%pos + TEXT_PROP_DISTANCE_LIMIT, fstop)
                 face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend)
+                stop = min(stop, fstop)
             end if
             c = buf_fetch_char(buffers(bi), s%byte)
             if (c == 10) then
@@ -367,6 +383,41 @@ contains
         end do
         used = min(col, last_x + 1)
     end subroutine display_row
+
+    !> If the text at POS in buffer slot BI is not fontified (its
+    !> `fontified' property is false), call `fontification_functions' with
+    !> POS, in that buffer; NEXT gets the next position (at most LIMIT)
+    !> where `fontified' changes, if there are such functions.  Port of
+    !> xdisp.c:handle_fontified_prop.
+    subroutine handle_fontified_prop(bi, pos, limit, next)
+        integer(int64), intent(in) :: bi, pos, limit
+        integer(int64), intent(out) :: next
+        type(value_type) :: prop
+        type(status_type) :: st
+        integer(int64) :: saved
+        logical :: found
+        next = limit
+        if (fontifying) return
+        saved = cur
+        call set_buffer_internal(bi)
+        if (.not. fontification_functions%empty()) then
+            ! (The nil value always present at the end of the buffer is
+            ! ignored: no amount of fontifying will change it.)
+            if (pos < buffers(bi)%text%z) then
+                call get_text_property(pos, sym("fontified"), prop, st)
+                if (nilp(prop)) then
+                    fontifying = .true.
+                    call fontification_functions%run(pos, st, safe=.true.)
+                    fontifying = .false.
+                    ! (A function may have switched buffers: a fig leaf.)
+                    call set_buffer_internal(bi)
+                end if
+            end if
+            call next_single_property_change(pos, sym("fontified"), next, found, st, limit)
+            if (.not. found) next = limit
+        end if
+        if (saved > 0) call set_buffer_internal(saved)
+    end subroutine handle_fontified_prop
 
     !> The face of character C in text whose face is FACE_ID on frame F:
     !> control characters and raw bytes shown as ^X or \ooo in the
@@ -1030,7 +1081,7 @@ contains
         integer(int64) :: bi, pos, byte
         integer(int32) :: c
         integer :: x, n, cols, col_of_point
-        integer(int64) :: mpos, stop
+        integer(int64) :: mpos, stop, fstop
         integer(int32) :: clen, face_id
         cursor_col = 0
         call resolve_buffer(windows(f%minibuffer_window%index)%buffer, bi, status)
@@ -1047,7 +1098,11 @@ contains
         do while (pos < buffers(bi)%zv)
             if (pos == buffers(bi)%pt) col_of_point = x
             ! The faces of the text (the prompt's minibuffer_prompt).
-            if (pos >= stop) face_id = face_at_buffer_position(f, bi, pos, stop, pos + TEXT_PROP_DISTANCE_LIMIT)
+            if (pos >= stop) then
+                call handle_fontified_prop(bi, pos, pos + TEXT_PROP_DISTANCE_LIMIT, fstop)
+                face_id = face_at_buffer_position(f, bi, pos, stop, pos + TEXT_PROP_DISTANCE_LIMIT)
+                stop = min(stop, fstop)
+            end if
             c = buf_fetch_char(buffers(bi), byte)
             call put(c)
             byte = byte + buf_next_char_len(buffers(bi), byte)

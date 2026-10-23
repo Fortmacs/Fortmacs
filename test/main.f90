@@ -28,6 +28,7 @@ program tester
     use test_help_fm, only: collect_help_fm
     use test_syntax_fm, only: collect_syntax_fm
     use test_syntax_scan_fm, only: collect_syntax_scan_fm
+    use test_font_lock_fm, only: collect_font_lock_fm
     use test_paragraphs_fm, only: collect_paragraphs_fm
     use test_regex_emacs_fm, only: collect_regex_emacs_fm
     use test_casefiddle_fm, only: collect_casefiddle_fm
@@ -133,7 +134,8 @@ program tester
                  new_testsuite("fill_fm", collect_fill_fm), &
                  new_testsuite("tty_colors_fm", collect_tty_colors_fm), &
                  new_testsuite("faces_fm", collect_faces_fm), &
-                 new_testsuite("xfaces_fm", collect_xfaces_fm) &
+                 new_testsuite("xfaces_fm", collect_xfaces_fm), &
+                 new_testsuite("font_lock_fm", collect_font_lock_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
