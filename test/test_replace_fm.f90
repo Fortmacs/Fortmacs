@@ -42,7 +42,14 @@ module test_replace_fm
     use bindings_fm, only: init_bindings
     use subr_fm, only: match_string
     use replace_fm, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
-                          replace_expand_count, query_replace_compile_replacement
+                          replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
+                          query_replace_read_from_suggestions
+    use minibuf_fm, only: minibuffer_string_type
+    use subr_fm, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
+                       ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
+                       ANSWER_NONE
+    use data_fm, only: symbol_value
+    use lisp_fm, only: list_length, list_elt, xstring
     implicit none(type, external)
     private
 
@@ -62,7 +69,12 @@ contains
                     new_unittest("query-replace-undo-bug37073", test_undo_37073), &
                     new_unittest("query-replace-undo-bug37287", test_undo_37287), &
                     new_unittest("replace-regexp-bug45973", test_bug45973), &
-                    new_unittest("replace-compile-replacement", test_compile) &
+                    new_unittest("replace-compile-replacement", test_compile), &
+                    new_unittest("query-replace-undo-control-chars", test_undo_control), &
+                    new_unittest("replace-edit-question-mark", test_edit_question_mark), &
+                    new_unittest("query-replace-map-events", test_map_events), &
+                    new_unittest("query-replace-suggestions", test_suggestions), &
+                    new_unittest("map-query-replace-regexp-history", test_map_history) &
                     ]
     end subroutine collect_replace_fm
 
@@ -320,4 +332,90 @@ contains
         call query_replace_compile_replacement("\#", .false., counted, st)
         call check(error, st%ok() .and. .not. counted)
     end subroutine test_compile
+
+    !> The stack keeps the replacement itself (query-replace-descr only
+    !> changes how it is displayed), so undo finds it again.
+    subroutine test_undo_control(error)
+        type(error_type), allocatable, intent(out) :: error
+        call with_undo(error, "aaa", "a", "x"//achar(10), "SPC u q", "aaa")
+    end subroutine test_undo_control
+
+    !> `\?' in a replacement: edit it with point where it was.
+    subroutine test_edit_question_mark(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call enter("a", h)
+        call queue_keys("Z RET")
+        call perform_replace("a", "x\?y", .false., .true., .false., st)
+        call check(error, st%ok() .and. buffer_string() == "xZy", buffer_string())
+        call leave(h)
+    end subroutine test_edit_question_mark
+
+    !> All the events of query-replace-map.
+    subroutine test_map_events(error)
+        type(error_type), allocatable, intent(out) :: error
+        call check(error, answer_of("M-v") == ANSWER_SCROLL_DOWN .and. answer_of("<prior>") == ANSWER_SCROLL_DOWN &
+                   .and. answer_of("<next>") == ANSWER_SCROLL_UP .and. answer_of("<delete>") == ANSWER_SKIP &
+                   .and. answer_of("<backspace>") == ANSWER_SKIP .and. answer_of("<return>") == ANSWER_EXIT &
+                   .and. answer_of("<f1>") == ANSWER_HELP .and. answer_of("<help>") == ANSWER_HELP &
+                   .and. answer_of("C-M-v") == ANSWER_SCROLL_OTHER_WINDOW &
+                   .and. answer_of("M-<next>") == ANSWER_SCROLL_OTHER_WINDOW &
+                   .and. answer_of("C-M-S-v") == ANSWER_SCROLL_OTHER_WINDOW_DOWN &
+                   .and. answer_of("M-<prior>") == ANSWER_SCROLL_OTHER_WINDOW_DOWN &
+                   .and. answer_of("SPC") == ANSWER_ACT .and. answer_of("ESC") == ANSWER_NONE, "answers")
+    contains
+
+        integer function answer_of(keys)
+            character(len=*), intent(in) :: keys
+            type(value_type), allocatable :: evs(:)
+            type(status_type) :: st
+            call key_parse(keys, evs, st)
+            answer_of = query_replace_answer(evs(1))
+        end function answer_of
+    end subroutine test_map_events
+
+    !> M-n offers the symbol at point (find-tag-default) for FROM; the
+    !> regexp suggestions have it quoted and as a symbol regexp.
+    subroutine test_suggestions(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(minibuffer_string_type), allocatable :: list(:)
+        integer :: n
+        call enter("foo_bar foo", h)
+        call goto_char(2_int64)
+        call query_replace_read_from_suggestions(list, n)
+        call check(error, n >= 1, "a suggestion")
+        if (allocated(error)) return
+        call check(error, list(1)%s == "foo_bar", list(1)%s)
+        if (allocated(error)) return
+        call read_regexp_suggestions(list, n)
+        call check(error, n >= 2, "regexp suggestions")
+        if (allocated(error)) return
+        call check(error, list(1)%s == "foo_bar" .and. list(2)%s == "\_<foo_bar\_>", list(1)%s//" "//list(2)%s)
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call type_keys("M-% M-n RET x RET !")
+        call check(error, buffer_string() == "x foo", buffer_string())
+        call leave(h)
+    end subroutine test_suggestions
+
+    !> map-query-replace-regexp records FROM and TO in their histories.
+    subroutine test_map_history(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        type(value_type) :: v
+        call enter("aa", h)
+        call set(sym("query_replace_history"), nil(), st)
+        call type_keys("M-x map_query_replace_regexp RET a RET x SPC y RET !")
+        call check(error, buffer_string() == "xy", buffer_string())
+        if (allocated(error)) return
+        call symbol_value(sym("query_replace_history"), v, st)
+        call check(error, list_length(v) == 2, "from and to in query_replace_history")
+        if (allocated(error)) return
+        call check(error, xstring(list_elt(v, 1_int64)) == "x y" .and. xstring(list_elt(v, 2_int64)) == "a", &
+                   xstring(list_elt(v, 1_int64)))
+        call leave(h)
+    end subroutine test_map_history
 end module test_replace_fm

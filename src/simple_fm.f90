@@ -56,18 +56,18 @@ module simple_fm
     use xdisp_fm, only: message
     use frame_fm, only: selected_frame, selected_window_ref
     use window_fm, only: window_type, window_start, window_body_lines, recenter
-    use subr_fm, only: add_to_history
+    use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                           bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
-                          delete_region, mark_marker, mark_position, region_beginning, region_end
+                          delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
     use textprop_fm, only: get_text_property
-    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column
+    use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
     use lisp_fm, only: list_length, xstring, stringp, symbolp, xsymbol, symbols, make_keymap_ref
     use editfns_fm, only: insert_char_n
     use minibuf_fm, only: minibuffer_history_position, minibuffer_history_variable, &
-                          minibuffer_default, minibuffer_text_before_history, &
+                          minibuffer_default, minibuffer_text_before_history, minibuffer_temporary_goal_position, &
                           minibuffer_prompt_end, minibuffer_contents, minibuf_level
     use cmds_fm, only: delete_char, self_insert_command, forward_line, end_of_line, beginning_of_line, &
                        backward_char
@@ -470,8 +470,6 @@ module simple_fm
     !> `tgc_visual' when it is a screen x (upstream's (X . HSCROLL) form)
     !> rather than a current-column.
     integer(int64) :: temporary_goal_column = 0
-    ! simple.el minibuffer-temporary-goal-position (-1 for nil).
-    integer(int64) :: minibuffer_temporary_goal_position = -1
     logical :: tgc_visual = .false.
 
     type(handle_type) :: uarg_map
@@ -1270,28 +1268,32 @@ contains
         if (.not. status%ok()) history = nil()
     end function history_value
 
-    !> Put history element `nabs' in the minibuffer: 0 is the input typed
-    !> before moving into the history, N > 0 the Nth previous input, -1
-    !> the default ("future history").  Point goes back to where it was
-    !> before the run of history commands, unless that was the end or the
-    !> prompt.  Port of
-    !> simple.el:goto-history-element (one default; no
-    !> minibuffer-default-add-function or history-sexp flag).
+    !> Insert into the minibuffer the element of minibuffer history specified by NABS.
+    !> It specifies the absolute history position in descending order,
+    !> where 0 means the current element and a positive number N means
+    !> the Nth previous element.  NABS that is a negative number -N means
+    !> the Nth entry of "future history."  Port of
+    !> simple.el:goto-history-element (no minibuffer-default-add-function
+    !> or history-sexp flag).
     subroutine goto_history_element(nabs, status)
         integer, intent(in) :: nabs
         type(status_type), intent(out) :: status
         type(value_type) :: history, elt
         character(len=:), allocatable :: text
-        integer(int64) :: goal, pend
-        integer :: minimum
-        minimum = 0
-        if (allocated(minibuffer_default)) minimum = -1
+        integer(int64) :: pend
+        integer :: minimum, ndefaults
+        logical :: have_default
+        status = status_type()
+        ndefaults = 0
+        if (allocated(minibuffer_default)) ndefaults = size(minibuffer_default)
+        have_default = ndefaults > 0
+        minimum = -ndefaults
         history = history_value()
         if (minibuffer_history_position == 0 .and. .not. allocated(minibuffer_text_before_history)) then
             minibuffer_text_before_history = minibuffer_contents()
         end if
         if (nabs < minimum) then
-            if (allocated(minibuffer_default)) then
+            if (have_default) then
                 call set_error(status, FM_USER_ERROR, "End of defaults; no next item")
             else
                 call set_error(status, FM_USER_ERROR, "End of history; no default available")
@@ -1302,23 +1304,23 @@ contains
             call set_error(status, FM_USER_ERROR, "Beginning of history; no preceding item")
             return
         end if
-        pend = minibuffer_prompt_end()
         if (.not. (value_eq(last_command, sym("next_history_element")) .or. &
                    value_eq(last_command, sym("previous_history_element")))) then
+            pend = minibuffer_prompt_end()
             if (point() <= pend) then
                 minibuffer_temporary_goal_position = pend
             else if (eobp()) then
-                minibuffer_temporary_goal_position = -1
+                minibuffer_temporary_goal_position = 0
             else
                 minibuffer_temporary_goal_position = point()
             end if
         end if
-        goal = minibuffer_temporary_goal_position
-        call del_range(pend, buffers(cur)%zv, status)
+        call goto_char(point_max())
+        call del_range(minibuffer_prompt_end(), buffers(cur)%zv, status)
         if (.not. status%ok()) return
         minibuffer_history_position = nabs
         if (nabs < 0) then
-            text = minibuffer_default
+            text = minibuffer_default(-nabs)%s
         else if (nabs == 0) then
             text = ""
             if (allocated(minibuffer_text_before_history)) then
@@ -1330,8 +1332,8 @@ contains
             if (stringp(elt)) text = xstring(elt)
         end if
         call insert(text, status)
-        if (goal >= 0) then
-            call goto_char(goal)
+        if (minibuffer_temporary_goal_position > 0) then
+            call goto_char(minibuffer_temporary_goal_position)
         else
             call goto_char(point_max())
         end if
@@ -1358,6 +1360,172 @@ contains
         n = int(prefix_numeric_value(current_prefix_arg))
         if (n /= 0) call goto_history_element(minibuffer_history_position - n, status)
     end subroutine cmd_next_history_element
+
+    !> The column of the end of the minibuffer prompt that ends at
+    !> `prompt_end' (the column of its last character).
+    integer(int64) function prompt_column(prompt_end) result(column)
+        integer(int64), intent(in) :: prompt_end
+        integer(int64) :: opoint
+        opoint = point()
+        call goto_char(prompt_end - 1)
+        column = current_column()
+        call goto_char(opoint)
+    end function prompt_column
+
+    !> Move cursor vertically down ARG lines, or to the next history element.
+    !> When point moves over the bottom line of multi-line minibuffer, puts ARGth
+    !> next element of the minibuffer history in the minibuffer.
+    !> Port of simple.el:next-line-or-history-element (no shift selection).
+    subroutine next_line_or_history_element(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: old_point, prompt_end, old_column, reached
+        logical :: have_column
+        old_point = point()
+        ! Remember the original goal column of possibly multi-line input
+        ! excluding the length of the prompt on the first line.
+        prompt_end = minibuffer_prompt_end()
+        have_column = .not. (eolp() .and. point() > prompt_end)
+        old_column = 0
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                old_column = max(current_column() - prompt_column(prompt_end), 0_int64)
+            else
+                old_column = current_column()
+            end if
+        end if
+        call next_line(arg, status)
+        if (status%code /= FM_END_OF_BUFFER) return
+        ! Restore old position since `line_move_visual' moves point to the
+        ! end of the line when it fails to go to the next line.
+        call goto_char(old_point)
+        if (arg /= 0) then
+            call goto_history_element(minibuffer_history_position - int(arg), status)
+            if (.not. status%ok()) return
+        else
+            status = status_type()
+        end if
+        ! Reset `temporary_goal_column' because a correct value is not
+        ! calculated when `next_line' above fails by bumping against the
+        ! bottom of the minibuffer (bug#22544).
+        temporary_goal_column = 0
+        ! Restore the original goal column on the last line of possibly
+        ! multi-line input.
+        call goto_char(point_max())
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                call move_to_column(old_column + prompt_column(minibuffer_prompt_end()), reached)
+            else
+                call move_to_column(old_column, reached)
+            end if
+        end if
+    end subroutine next_line_or_history_element
+
+    !> Move cursor vertically up ARG lines, or to the previous history element.
+    !> When point moves over the top line of multi-line minibuffer, puts ARGth
+    !> previous element of the minibuffer history in the minibuffer.
+    !> Port of simple.el:previous-line-or-history-element (no shift
+    !> selection).
+    subroutine previous_line_or_history_element(arg, status)
+        integer(int64), intent(in) :: arg
+        type(status_type), intent(out) :: status
+        integer(int64) :: old_point, prompt_end, old_column, reached, line_end, moved
+        logical :: have_column, to_history
+        old_point = point()
+        ! Remember the original goal column of possibly multi-line input
+        ! excluding the length of the prompt on the first line.
+        prompt_end = minibuffer_prompt_end()
+        have_column = .not. (eolp() .and. point() > prompt_end)
+        old_column = 0
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                old_column = max(current_column() - prompt_column(prompt_end), 1_int64)
+            else
+                old_column = current_column()
+            end if
+        end if
+        call previous_line(arg, status)
+        to_history = status%code == FM_BEGINNING_OF_BUFFER
+        if (.not. status%ok() .and. .not. to_history) return
+        if (status%ok()) then
+            ! Avoid moving point to the prompt.
+            if (point() < minibuffer_prompt_end()) then
+                ! If there is minibuffer contents on the same line
+                line_end = visual_line_end()
+                if (minibuffer_prompt_end() < line_end) then
+                    ! Move to the beginning of minibuffer contents
+                    call goto_char(minibuffer_prompt_end())
+                else
+                    ! Otherwise, go to the previous history element
+                    to_history = .true.
+                end if
+            end if
+        end if
+        if (.not. to_history) return
+        ! Restore old position since `line_move_visual' moves point to the
+        ! beginning of the line when it fails to go to the previous line.
+        call goto_char(old_point)
+        if (arg /= 0) then
+            call goto_history_element(minibuffer_history_position + int(arg), status)
+            if (.not. status%ok()) return
+        else
+            status = status_type()
+        end if
+        ! Reset `temporary_goal_column' because a correct value is not
+        ! calculated when `previous_line' above fails by bumping against
+        ! the top of the minibuffer (bug#22544).
+        temporary_goal_column = 0
+        ! Restore the original goal column on the first line of possibly
+        ! multi-line input.
+        call goto_char(minibuffer_prompt_end())
+        if (have_column) then
+            if (pos_bol() == point_min()) then
+                call move_to_column(old_column + prompt_column(minibuffer_prompt_end()), reached)
+            else
+                call move_to_column(old_column, reached)
+            end if
+        else if (.not. line_move_visual) then
+            ! Handle logical lines (bug#42862)
+            call end_of_line()
+        else
+            ! Put the cursor at the end of the visual line instead of the
+            ! logical line, so the next `previous_line_or_history_element'
+            ! would move to the previous history element, not to a
+            ! possible upper visual line from the end of logical line in
+            ! `line_move_visual' mode.
+            call vertical_motion(0_int64, moved, window_text_width())
+            ! Since `end_of_visual_line' puts the cursor at the beginning
+            ! of the next visual line, move it one char back to the end of
+            ! the first visual line (bug#22544).
+            if (.not. eolp()) call backward_char(status)
+            status = status_type()
+        end if
+    contains
+
+        ! Where (end-of-line), or with line-move-visual
+        ! (end-of-visual-line), would move point; point doesn't move.
+        integer(int64) function visual_line_end() result(pos)
+            integer(int64) :: opoint, moved
+            opoint = point()
+            if (.not. line_move_visual) then
+                call end_of_line()
+            else
+                call vertical_motion(0_int64, moved, window_text_width())
+            end if
+            pos = point()
+            call goto_char(opoint)
+        end function visual_line_end
+    end subroutine previous_line_or_history_element
+
+    subroutine cmd_next_line_or_history_element(status)
+        type(status_type), intent(out) :: status
+        call next_line_or_history_element(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_next_line_or_history_element
+
+    subroutine cmd_previous_line_or_history_element(status)
+        type(status_type), intent(out) :: status
+        call previous_line_or_history_element(prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_previous_line_or_history_element
 
     ! ------------------------------------------------------------------
     ! M-x
@@ -1475,6 +1643,7 @@ contains
     end subroutine cmd_execute_extended_command
 
     subroutine syms_of_simple()
+        call defvar_nil("kill_ring")
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command
@@ -1484,6 +1653,8 @@ contains
         commands%previous_line%run => cmd_previous_line
         commands%previous_history_element%run => cmd_previous_history_element
         commands%next_history_element%run => cmd_next_history_element
+        commands%next_line_or_history_element%run => cmd_next_line_or_history_element
+        commands%previous_line_or_history_element%run => cmd_previous_line_or_history_element
         commands%newline%run => cmd_newline
         commands%open_line%run => cmd_open_line
         commands%delete_backward_char%run => cmd_delete_backward_char

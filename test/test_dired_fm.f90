@@ -23,9 +23,9 @@
 module test_dired_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_fm, only: status_type, format_error
+    use error_fm, only: status_type, format_error, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list_length, list_elements, xstring
+    use lisp_fm, only: value_type, list_length, list_elements, xstring, list_elt
     use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
     use fileio_fm, only: write_region, delete_file_internal, delete_directory_internal, &
                          make_directory_internal
@@ -62,7 +62,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=1), parameter :: made(4) = ["a", "b", "c", "d"]
         character(len=:), allocatable :: testdir
-        type(value_type) :: files
+        type(value_type) :: files, one
         type(handle_type) :: h
         type(status_type) :: st
         integer :: k
@@ -91,6 +91,18 @@ contains
             call directory_files(testdir, files, st, full=.true.)
             call check(error, joined(files), testdir//"/."//testdir//"/.."//testdir//"/a"//testdir//"/b"// &
                        testdir//"/c"//testdir//"/d")
+            if (allocated(error)) exit body
+            ! NOSORT: the entries in the reverse of the order they are
+            ! read, so the first one read (COUNT 1) comes last.
+            call directory_files(testdir, one, st, nosort=.true., count=1_int64)
+            call directory_files(testdir, files, st, nosort=.true.)
+            call check(error, list_length(files) == 6 .and. list_length(one) == 1, "nosort")
+            if (allocated(error)) exit body
+            call check(error, xstring(list_elt(files, 6_int64)) == xstring(list_elt(one, 1_int64)), "reversed")
+            if (allocated(error)) exit body
+            ! A negative COUNT is an error.
+            call directory_files(testdir, files, st, count=-1_int64)
+            call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wholenump")
             if (allocated(error)) exit body
             call directory_files(testdir//"/missing", files, st)
             call check(error, format_error(st), "Opening directory: No such file or directory, "// &

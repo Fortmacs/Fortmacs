@@ -72,7 +72,8 @@ module keyboard_fm
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
-              throw_exit, exit_recursive_edit, abort_recursive_edit, sit_for
+              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for, &
+              run_at_time, cancel_timer
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc
 
@@ -192,12 +193,29 @@ module keyboard_fm
     !> loop, where they end the macro.
     logical :: loop_handles_errors = .true.
 
+    !> How long to display an echo-area message when the minibuffer is active.
+    !> If the value is a number, it should be specified in seconds.
+    !> Port of keyboard.c minibuffer-message-timeout (a non-number, no
+    !> timeout, is not ported: Deferred).
+    integer, public :: minibuffer_message_timeout = 2
+
+    !> A timer (timer.el run-at-time, one at a time): the function to run
+    !> while waiting for input once `system_clock' reaches `timer_due';
+    !> null for none.
+    procedure(redisplay_proc), pointer :: timer_function => null()
+    integer(int64) :: timer_due = 0
+
     !> Set by `request_exit' to end `command_loop'.
     logical :: exit_requested = .false.
     !> keyboard.c:command_loop_level, the depth of recursive edits.
     integer, public, protected :: command_loop_level = 0
     !> A (throw 'exit VALUE) is pending; `exit_abort' for VALUE t.
     logical :: exit_pending = .false., exit_abort = .false.
+    !> How many recursive edits the pending abort leaves
+    !> (minibuffer-quit-recursive-edit's LEVELS).
+    integer :: exit_levels = 1
+    !> VALUE is this string: the recursive edit signals it as an error.
+    character(len=:), allocatable :: exit_string
     !> overriding-terminal-local-map holds a transient map, to be dropped
     !> before the next command runs.
     logical :: transient_active = .false.
@@ -435,7 +453,10 @@ contains
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
-            if (.not. input_available(input_fd, -1_int32)) cycle
+            if (.not. input_available(input_fd, timer_wait())) then
+                call run_due_timer()
+                cycle
+            end if
             call tty_read_avail_input(nread, status)
             if (.not. status%ok()) return
             ! End of file: the terminal went away.
@@ -814,6 +835,44 @@ contains
         if (associated(on_exit)) call on_exit()
     end subroutine clear_transient_map
 
+    !> Run `fn' once after `ms' milliseconds, while waiting for input,
+    !> replacing any timer set before.  Port of timer.el:run-at-time (one
+    !> timer; it runs only while reading terminal input).
+    subroutine run_at_time(ms, fn)
+        integer(int32), intent(in) :: ms
+        procedure(redisplay_proc) :: fn
+        integer(int64) :: count, rate
+        call system_clock(count, rate)
+        timer_due = count + int(ms, int64)*rate/1000
+        timer_function => fn
+    end subroutine run_at_time
+
+    !> Cancel the timer.  Port of timer.el:cancel-timer.
+    subroutine cancel_timer()
+        timer_function => null()
+    end subroutine cancel_timer
+
+    !> Milliseconds until the timer is due (0 if it is), or -1 (wait
+    !> forever) when there is none.
+    integer(int32) function timer_wait() result(ms)
+        integer(int64) :: count, rate
+        ms = -1_int32
+        if (.not. associated(timer_function)) return
+        call system_clock(count, rate)
+        ms = int(max(0_int64, min((timer_due - count)*1000/max(rate, 1_int64), int(huge(0_int32), int64))), int32)
+    end function timer_wait
+
+    !> Run the timer if it is due (timer.c:timer_check), then redisplay.
+    subroutine run_due_timer()
+        procedure(redisplay_proc), pointer :: fn
+        if (.not. associated(timer_function)) return
+        if (timer_wait() > 0) return
+        fn => timer_function
+        timer_function => null()
+        call fn()
+        if (associated(redisplay_hook)) call redisplay_hook()
+    end subroutine run_due_timer
+
     !> Redisplay, then wait `ms' milliseconds or until input arrives.
     !> Port of subr.el:sit-for (for a terminal; no wait without one).
     subroutine sit_for(ms)
@@ -1100,6 +1159,8 @@ contains
         saved_handles = loop_handles_errors
         loop_handles_errors = .true.
         macro_end = .false.
+        exit_levels = 1
+        if (allocated(exit_string)) deallocate (exit_string)
         do
             call command_loop_step(done, step_status)
             if (done .and. macro_active) macro_end = at_end_of_macro_p()
@@ -1114,19 +1175,47 @@ contains
             exit_pending = .true.
             exit_abort = .false.
         end if
-        if (.not. exit_pending .or. exit_abort) call set_error(status, FM_QUIT)
-        exit_pending = .false.
-        exit_abort = .false.
+        if (allocated(exit_string)) then
+            call set_error(status, FM_GENERIC_ERROR, exit_string)
+            deallocate (exit_string)
+        else if (.not. exit_pending .or. exit_abort) then
+            call set_error(status, FM_QUIT)
+        end if
         command_loop_level = command_loop_level - 1
+        if (exit_pending .and. exit_abort .and. exit_levels > 1) then
+            ! Quit the enclosing recursive edits too.
+            exit_levels = exit_levels - 1
+        else
+            exit_pending = .false.
+            exit_abort = .false.
+            exit_levels = 1
+        end if
     end subroutine recursive_edit_1
 
     !> (throw 'exit nil), or with `abort' (throw 'exit t): end the
-    !> innermost recursive edit once the current command returns.
-    subroutine throw_exit(abort)
+    !> innermost recursive edit once the current command returns.  With
+    !> `abort', `levels' (default 1) is the number of nested recursive
+    !> edits to quit (as minibuffer.el:minibuffer-quit-recursive-edit).
+    subroutine throw_exit(abort, levels)
         logical, intent(in) :: abort
+        integer, intent(in), optional :: levels
         exit_pending = .true.
         exit_abort = abort
+        exit_levels = 1
+        if (present(levels)) exit_levels = max(1, levels)
     end subroutine throw_exit
+
+    !> (throw 'exit STRING): end the innermost recursive edit once the
+    !> current command returns; it signals an error with message `msg'.
+    !> Port of keyboard.c:Frecursive_edit's handling of a string thrown
+    !> to `exit'.
+    subroutine throw_exit_string(msg)
+        character(len=*), intent(in) :: msg
+        exit_pending = .true.
+        exit_abort = .false.
+        exit_levels = 1
+        exit_string = msg
+    end subroutine throw_exit_string
 
     !> Leave the innermost recursive edit or minibuffer.
     !> Port of keyboard.c:Fexit_recursive_edit.
