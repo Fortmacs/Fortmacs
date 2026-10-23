@@ -20,12 +20,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Paragraph and sentence motion, by the regexps `paragraph-start`,
-!> `paragraph-separate` and `sentence-end`, honouring `fill-prefix` and
+!> Paragraph and sentence motion, by the regexps `paragraph_start',
+!> `paragraph_separate' and `sentence_end', honouring `fill_prefix' and
 !> the left margin.
 !>
-!> Deferred: `use-hard-newlines`, `repunctuate-sentences` (query-replace),
-!> `count-sentences`, `forward-sentence-function`.
+!> Deferred: `use_hard_newlines', `repunctuate_sentences' (query-replace),
+!> `count_sentences', `forward_sentence_function'.
 module paragraphs_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -63,24 +63,24 @@ module paragraphs_fm
     !> as an anchor.  This ensures that the paragraph functions will work
     !> equally well within a region of text indented by a margin setting.
     !>
-    !> The variable `paragraph-separate' specifies how to distinguish lines
+    !> The variable `paragraph_separate' specifies how to distinguish lines
     !> that start paragraphs from lines that separate them.
     !>
-    !> If the variable `use-hard-newlines' is non-nil, then only lines
+    !> If the variable `use_hard_newlines' is non-nil, then only lines
     !> following a hard newline are considered to match.  Port of
     !> paragraphs.el paragraph-start (one global value; set by
     !> syms_of_paragraphs).
-    type(string_setting), public :: paragraph_start = string_setting(name="paragraph-start")
+    type(string_setting), public :: paragraph_start = string_setting(name="paragraph_start")
 
     !> Regexp for beginning of a line that separates paragraphs.
-    !> If you change this, you may have to change `paragraph-start' also.
+    !> If you change this, you may have to change `paragraph_start' also.
     !>
     !> This is matched against the text at the left margin, which is not
     !> necessarily the beginning of the line, so it should not use "^" as
     !> an anchor.  This ensures that the paragraph functions will work
     !> equally within a region of text indented by a margin setting.  Port
     !> of paragraphs.el paragraph-separate.
-    type(string_setting), public :: paragraph_separate = string_setting(name="paragraph-separate")
+    type(string_setting), public :: paragraph_separate = string_setting(name="paragraph_separate")
 
     !> Non-nil means a single space does not end a sentence.
     !> This user option affects fill commands and sentence commands.
@@ -89,9 +89,9 @@ module paragraphs_fm
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
     type(logical_setting), public :: sentence_end_double_space = &
-                                     logical_setting(name="sentence-end-double-space", value=.true.)
+                                     logical_setting(name="sentence_end_double_space", value=.true.)
 
-    !> Non-nil means the paragraph commands are not affected by `fill-prefix'.
+    !> Non-nil means the paragraph commands are not affected by `fill_prefix'.
     !> This is desirable in modes where blank lines are the paragraph delimiters.
     !> Port of paragraphs.el paragraph-ignore-fill-prefix.
     logical, public :: paragraph_ignore_fill_prefix = .false.
@@ -100,17 +100,17 @@ module paragraphs_fm
     !> For example, a sentence in Thai text ends with double space but
     !> without a period.
     !>
-    !> This value is used by the function `sentence-end' to construct the
+    !> This value is used by the function `sentence_end' to construct the
     !> regexp describing the end of a sentence, when the value of the
-    !> variable `sentence-end' is nil.  Port of paragraphs.el
+    !> variable `sentence_end' is nil.  Port of paragraphs.el
     !> sentence-end-without-period.
     logical, public :: sentence_end_without_period = .false.
 
     !> String of characters that end sentence without following spaces.
     !>
-    !> This value is used by the function `sentence-end' to construct the
+    !> This value is used by the function `sentence_end' to construct the
     !> regexp describing the end of a sentence, when the value of the
-    !> variable `sentence-end' is nil.  Port of paragraphs.el
+    !> variable `sentence_end' is nil.  Port of paragraphs.el
     !> sentence-end-without-space.
     character(len=:), allocatable, public :: sentence_end_without_space
 
@@ -119,10 +119,10 @@ module paragraphs_fm
     !> All paragraph boundaries also end sentences, regardless.
     !>
     !> The value nil (unallocated) means to use the default value defined
-    !> by the function `sentence-end'.  You should always use this function
+    !> by the function `sentence_end'.  You should always use this function
     !> to obtain the value of this variable.  Port of paragraphs.el
     !> sentence-end.
-    type(string_setting), public :: sentence_end = string_setting(name="sentence-end")
+    type(string_setting), public :: sentence_end = string_setting(name="sentence_end")
 
     !> Regexp matching the basic end of a sentence, not including
     !> following space.  Port of paragraphs.el sentence-end-base.
@@ -141,7 +141,7 @@ contains
         if (.not. allocated(sentence_end_base)) sentence_end_base = "[.?!…‽][]""'”’)}»›]*"
     end subroutine init_paragraph_variables
 
-    !> The character at `pos`, or -1 outside the accessible region.
+    !> The character at `pos', or -1 outside the accessible region.
     integer function char_at(pos)
         integer(int64), intent(in) :: pos
         char_at = -1
@@ -149,7 +149,7 @@ contains
         char_at = buf_fetch_char(buffers(cur), char_to_byte(pos))
     end function char_at
 
-    !> The first position from `pos` on that is not one of `chars`
+    !> The first position from `pos' on that is not one of `chars'
     !> (skip-chars-forward).
     integer(int64) function skip(pos, chars) result(p)
         integer(int64), intent(in) :: pos
@@ -169,7 +169,7 @@ contains
     end function looking_at_p
 
     !> (re-search-backward REGEXP BOUND NOERROR) for NOERROR t or other
-    !> than nil and t (`mode`).
+    !> than nil and t (`mode').
     logical function re_search_back(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -181,7 +181,7 @@ contains
     end function re_search_back
 
     !> (re-search-forward REGEXP BOUND NOERROR) for NOERROR t or other than
-    !> nil and t (`mode`).
+    !> nil and t (`mode').
     logical function re_search_fwd(regexp, mode, bound) result(found)
         character(len=*), intent(in) :: regexp
         integer, intent(in) :: mode
@@ -220,8 +220,8 @@ contains
     !> With argument ARG, do it ARG times;
     !> a negative argument ARG = -N means move backward N paragraphs.
     !>
-    !> A line which `paragraph-start' matches either separates paragraphs
-    !> (if `paragraph-separate' matches it also) or is the first line of a paragraph.
+    !> A line which `paragraph_start' matches either separates paragraphs
+    !> (if `paragraph_separate' matches it also) or is the first line of a paragraph.
     !> A paragraph end is the beginning of a line which is not part of the paragraph
     !> to which the end of the previous line belongs, or the end of the buffer.
     !> Returns the count of paragraphs left to move.  Port of
@@ -366,12 +366,12 @@ contains
     !> a negative argument ARG = -N means move forward N paragraphs.
     !>
     !> A paragraph start is the beginning of a line which is a
-    !> `paragraph-start' or which is ordinary text and follows a
-    !> `paragraph-separate'ing line; except: if the first real line of a
+    !> `paragraph_start' or which is ordinary text and follows a
+    !> `paragraph_separate'ing line; except: if the first real line of a
     !> paragraph is preceded by a blank line, the paragraph starts at that
     !> blank line.
     !>
-    !> See `forward-paragraph' for more information.  Port of
+    !> See `forward_paragraph' for more information.  Port of
     !> paragraphs.el:backward-paragraph.
     subroutine backward_paragraph(arg)
         integer(int64), intent(in) :: arg
@@ -476,9 +476,9 @@ contains
     !> Return the regexp describing the end of a sentence.
     !>
     !> This function returns either the value of the variable
-    !> `sentence-end' if it is non-nil, or the default value constructed
-    !> from the variables `sentence-end-base', `sentence-end-double-space',
-    !> `sentence-end-without-period' and `sentence-end-without-space'.
+    !> `sentence_end' if it is non-nil, or the default value constructed
+    !> from the variables `sentence_end_base', `sentence_end_double_space',
+    !> `sentence_end_without_period' and `sentence_end_without_space'.
     !>
     !> The default value specifies that in order to be recognized as the
     !> end of a sentence, the ending period, question mark, or exclamation
@@ -506,7 +506,7 @@ contains
     !> Move forward to next end of sentence.  With argument ARG, repeat.
     !> If ARG is negative, move backward repeatedly to start of sentence.
     !>
-    !> The variable `sentence-end' is a regular expression that matches
+    !> The variable `sentence_end' is a regular expression that matches
     !> ends of sentences.  Also, every paragraph boundary terminates
     !> sentences as well.  Port of paragraphs.el:forward-sentence with
     !> forward-sentence-default-function.
@@ -572,7 +572,7 @@ contains
     end subroutine skip_whitespace_backward
 
     !> Move backward to start of sentence.
-    !> With ARG, do it ARG times.  See `forward-sentence' for more
+    !> With ARG, do it ARG times.  See `forward_sentence' for more
     !> information.  Port of paragraphs.el:backward-sentence.
     subroutine backward_sentence(arg)
         integer(int64), intent(in) :: arg
@@ -604,7 +604,7 @@ contains
     end subroutine backward_kill_sentence
 
     !> Put mark at end of sentence.
-    !> ARG works as in `forward-sentence'.  If this command is repeated,
+    !> ARG works as in `forward_sentence'.  If this command is repeated,
     !> it marks the next ARG sentences after the ones already marked.  Port
     !> of paragraphs.el:mark-end-of-sentence.
     subroutine mark_end_of_sentence(arg)
@@ -622,8 +622,8 @@ contains
     !> With argument ARG, do it ARG times;
     !> a negative argument ARG = -N means move backward N paragraphs.
     !>
-    !> A line which `paragraph-start' matches either separates paragraphs
-    !> (if `paragraph-separate' matches it also) or is the first line of a paragraph.
+    !> A line which `paragraph_start' matches either separates paragraphs
+    !> (if `paragraph_separate' matches it also) or is the first line of a paragraph.
     !> A paragraph end is the beginning of a line which is not part of the paragraph
     !> to which the end of the previous line belongs, or the end of the buffer.
     !> Port of paragraphs.el:forward-paragraph (the command).

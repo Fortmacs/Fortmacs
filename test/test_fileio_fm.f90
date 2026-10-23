@@ -549,6 +549,9 @@ contains
         call make_directory_internal(testdir//"/sub", st)
         call check(error, condition_matches(st%code, FM_FILE_ERROR), "already exists")
         if (allocated(error)) return
+        call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. index(format_error(st), "File exists: /") == 1 &
+                   .and. index(format_error(st), testdir//"/sub") > 0, format_error(st))
+        if (allocated(error)) return
         call delete_directory_internal(testdir//"/sub", st)
         call check(error, st%ok() .and. .not. file_exists_p(testdir//"/sub"))
         call teardown(buf)

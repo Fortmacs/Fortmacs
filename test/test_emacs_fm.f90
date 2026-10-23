@@ -29,7 +29,8 @@ module test_emacs_fm
                          emacs_tty_type
     use keyboard_fm, only: last_message
     use lread_fm, only: user_init_file
-    use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file
+    use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
+    use error_fm, only: format_error, format_message
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_buffer_create, set_buffer, &
                         handle_type, tab_width
@@ -46,6 +47,7 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
                     new_unittest("command-line-options", test_command_line), &
+                    new_unittest("sort-args", test_sort_args), &
                     new_unittest("init-file-configure", test_configure), &
                     new_unittest("init-file-skipped-with-q", test_no_init_file), &
                     new_unittest("init-file-error", test_init_error) &
@@ -105,38 +107,88 @@ contains
         call close_fd(master)
     end subroutine run_on_pty
 
+    !> Arguments from strings.
+    function argv(strings) result(args)
+        character(len=*), intent(in) :: strings(:)
+        type(arg_type), allocatable :: args(:)
+        integer :: i
+        allocate (args(size(strings)))
+        do i = 1, size(strings)
+            args(i)%s = trim(strings(i))
+        end do
+    end function argv
+
+    !> The arguments joined by spaces.
+    function joined(args) result(s)
+        type(arg_type), intent(in) :: args(:)
+        character(len=:), allocatable :: s
+        integer :: i
+        s = ""
+        do i = 1, size(args)
+            if (i > 1) s = s//" "
+            s = s//args(i)%s
+        end do
+    end function joined
+
     subroutine test_command_line(error)
         type(error_type), allocatable, intent(out) :: error
-        type(arg_type), allocatable :: args(:), rest(:)
+        type(arg_type), allocatable :: rest(:)
+        type(status_type) :: st
         logical :: init
-        allocate (args(3))
-        args(1)%s = "-q"
-        args(2)%s = "+3"
-        args(3)%s = "file"
-        call command_line(args, rest, init)
-        call check(error,.not. init .and. size(rest) == 2, "-q")
+        call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, init, st)
+        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "-q")
         if (allocated(error)) return
-        call check(error, rest(1)%s == "+3" .and. rest(2)%s == "file", "-q leaves the rest")
+        call command_line(argv([character(len=14) :: "--no-init-file", "+3", "file"]), rest, init, st)
+        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "--no-init-file")
         if (allocated(error)) return
-        args(1)%s = "--no-init-file"
-        call command_line(args, rest, init)
-        call check(error,.not. init .and. size(rest) == 2, "--no-init-file")
-        if (allocated(error)) return
-        args(1)%s = "-Q"
-        call command_line(args, rest, init)
+        call command_line(argv([character(len=2) :: "-Q"]), rest, init, st)
         call check(error,.not. init, "-Q")
         if (allocated(error)) return
-        ! Options come before the files: after one, -q is a file name.
-        args(1)%s = "file"
-        args(2)%s = "-q"
-        call command_line(args, rest, init)
-        call check(error, init .and. size(rest) == 3, "after a file")
+        ! Long options may be abbreviated.
+        call command_line(argv([character(len=6) :: "--no-i", "file"]), rest, init, st)
+        call check(error, st%ok() .and. .not. init .and. joined(rest) == "file", "--no-i")
         if (allocated(error)) return
-        deallocate (args)
-        allocate (args(0))
-        call command_line(args, rest, init)
+        call command_line(argv([character(len=5) :: "--no-", "file"]), rest, init, st)
+        call check(error, format_error(st) == format_message("Option `--no-' is ambiguous"), format_error(st))
+        if (allocated(error)) return
+        call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, init, st)
+        call check(error, format_error(st) == format_message("Option `-no-init-file' doesn't allow an argument"), &
+                   format_error(st))
+        if (allocated(error)) return
+        ! The options end at the first other argument.
+        call command_line(argv([character(len=4) :: "file", "-q"]), rest, init, st)
+        call check(error, init .and. joined(rest) == "file -q", "after a file")
+        if (allocated(error)) return
+        call command_line(argv([character(len=1) ::]), rest, init, st)
         call check(error, init .and. size(rest) == 0, "no arguments")
     end subroutine test_command_line
+
+    !> emacs.c:sort_args puts known options first, by priority.
+    subroutine test_sort_args(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(arg_type), allocatable :: args(:)
+        character(len=:), allocatable :: why
+        logical :: ok
+        args = argv([character(len=4) :: "file", "-q", "+3", "-Q"])
+        call sort_args(args, ok, why)
+        call check(error, ok .and. joined(args) == "-Q -q file +3", joined(args))
+        if (allocated(error)) return
+        args = argv([character(len=4) :: "-q", "a", "-q"])
+        call sort_args(args, ok, why)
+        call check(error, joined(args) == "-q a", "duplicates")
+        if (allocated(error)) return
+        args = argv([character(len=4) :: "a", "--", "-q"])
+        call sort_args(args, ok, why)
+        call check(error, joined(args) == "a -- -q", "after --")
+        if (allocated(error)) return
+        args = argv([character(len=8) :: "x", "-l", "lib", "--no-ini"])
+        call sort_args(args, ok, why)
+        call check(error, joined(args) == "--no-ini x -l lib", joined(args))
+        if (allocated(error)) return
+        args = argv([character(len=4) :: "x", "-l"])
+        call sort_args(args, ok, why)
+        call check(error,.not. ok .and. why == "Option '-l' requires an argument", why)
+    end subroutine test_sort_args
 
     subroutine test_configure(error)
         type(error_type), allocatable, intent(out) :: error

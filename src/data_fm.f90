@@ -20,7 +20,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Type checks, `eq`, list access, symbol values, and (in the submodule
+!> Type checks, `eq', list access, symbol values, and (in the submodule
 !> data_buffer_fm) buffer-local values and the variables forwarded to
 !> Fortran settings.
 !>
@@ -28,10 +28,10 @@
 !> of a variable (its symbol slot, or the Fortran variable it forwards
 !> to) is always the current buffer's; switching buffers saves the old
 !> buffer's local values and loads the new buffer's.  So Fortran code
-!> reads settings such as `fill_column` directly.
+!> reads settings such as `fill_column' directly.
 !>
 !> Wrong-type errors carry the predicate name as detail (upstream's DATA is
-!> `(PREDICATE VALUE)`).  Dynamic binding (`let`), variable watchers and
+!> `(PREDICATE VALUE)').  Dynamic binding (`let'), variable watchers and
 !> aliases are not here yet.
 module data_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -48,18 +48,18 @@ module data_fm
     !> A setting: a variable that a buffer can have its own value of
     !> (upstream any variable can be buffer-local).  Assigning to it sets
     !> the value seen in the current buffer (the default, unless the
-    !> buffer has its own); `set_local` gives the current buffer its own
-    !> value, as upstream's `setq-local`:
+    !> buffer has its own); `set_local' gives the current buffer its own
+    !> value, as upstream's `setq_local':
     !>
     !>     fill_column = 72               ! the default
     !>     call fill_column%set_local(60) ! this buffer only
     !>
-    !> Fortran code reads `fill_column%value`.
+    !> Fortran code reads `fill_column%value'.
     type, abstract, public :: setting_type
         !> The variable's name, as the help commands show it.
         character(len=48) :: name = ""
         !> The exact value last given through the variable's name (as
-        !> `set-variable' does) when the Fortran value can't hold it, such
+        !> `set_variable' does) when the Fortran value can't hold it, such
         !> as a symbol in a logical setting; cleared by any assignment.
         type(value_type) :: exact
         logical :: has_exact = .false.
@@ -110,8 +110,8 @@ module data_fm
     end type string_setting
 
     !> A setting whose value is a function of no arguments (a
-    !> `command_type` procedure); null is nil.  Assign with `=>` to
-    !> `value`.
+    !> `command_type' procedure); null is nil.  Assign with `=>' to
+    !> `value'.
     type, extends(setting_type), public :: function_setting
         procedure(command_proc), pointer, nopass :: value => null()
     contains
@@ -128,7 +128,7 @@ module data_fm
 
     interface
         !> The value of the Fortran variable forwarded to by the symbol
-        !> with id ID: `found` is false if it is a plain variable.  (In
+        !> with id ID: `found' is false if it is a plain variable.  (In
         !> data_buffer_fm.)
         module subroutine forwarded_get(id, v, found, bound)
             implicit none(type, external)
@@ -139,7 +139,7 @@ module data_fm
             logical, intent(out), optional :: bound
         end subroutine forwarded_get
 
-        !> makunbound on the forwarded variable of symbol ID; `found` is
+        !> makunbound on the forwarded variable of symbol ID; `found' is
         !> false if it is a plain variable.  (In data_buffer_fm.)
         module subroutine forwarded_makunbound(id, status, found)
             implicit none(type, external)
@@ -148,7 +148,7 @@ module data_fm
             logical, intent(out) :: found
         end subroutine forwarded_makunbound
 
-        !> Set the Fortran variable forwarded to by symbol ID; `found` is
+        !> Set the Fortran variable forwarded to by symbol ID; `found' is
         !> false if it is a plain variable.  (In data_buffer_fm.)
         module subroutine forwarded_set(id, v, status, found)
             implicit none(type, external)
@@ -166,7 +166,7 @@ module data_fm
         end function local_in_current
 
         !> Whether symbol ID becomes buffer-local when set (made so by
-        !> `make-variable-buffer-local`, or a per-buffer variable of
+        !> `make_variable_buffer_local', or a per-buffer variable of
         !> buffer.c).  (In data_buffer_fm.)
         module logical function auto_local(id)
             implicit none(type, external)
@@ -214,20 +214,20 @@ module data_fm
         !> Switch to Fundamental mode by killing current buffer's local variables.
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
-        !> `standard-syntax-table', the local keymap is set to nil,
-        !> and the abbrev table from `fundamental-mode-abbrev-table'.
+        !> `standard_syntax_table', the local keymap is set to nil,
+        !> and the abbrev table from `fundamental_mode_abbrev_table'.
         !> This function also forces redisplay of the mode line.
         !>
         !> Every function to select a new major mode starts by
         !> calling this function.
         !>
         !> As a special exception, local variables whose names have
-        !> a non-nil `permanent-local' property are not eliminated by this function.
+        !> a non-nil `permanent_local' property are not eliminated by this function.
         !> If the optional KILL-PERMANENT argument is non-nil, clear out these local
         !> variables, too.
         !>
         !> The first thing this function does is run
-        !> the normal hook `change-major-mode-hook'.  Port of
+        !> the normal hook `change_major_mode_hook'.  Port of
         !> buffer.c:Fkill_all_local_variables.  (In data_buffer_fm.)
         module subroutine kill_all_local_variables(kill_permanent)
             implicit none(type, external)
@@ -248,7 +248,7 @@ module data_fm
         !>
         !> More precisely, return non-nil if either VARIABLE already has a local
         !> value in BUFFER, or if VARIABLE is automatically buffer-local (see
-        !> `make-variable-buffer-local').  Port of
+        !> `make_variable_buffer_local').  Port of
         !> data.c:Flocal_variable_if_set_p.  (In data_buffer_fm.)
         module logical function local_variable_if_set_p(variable, buffer)
             implicit none(type, external)
@@ -389,7 +389,7 @@ contains
     end subroutine integer_set_local_int64
 
     !> Give the current buffer its own value, the value of V (as
-    !> `(setq-local SELF V)`).  Port of subr.el:setq-local.
+    !> `(setq-local SELF V)').  Port of subr.el:setq-local.
     subroutine integer_set_local_setting(self, v)
         class(integer_setting), intent(inout) :: self
         class(integer_setting), intent(in) :: v
@@ -489,8 +489,8 @@ contains
     ! Identity and lists
     ! ------------------------------------------------------------------
 
-    !> `eq`: same integer, symbol or object handle.  Strings and lists have
-    !> no identity once copied, so they are never `eq` (upstream: only the
+    !> `eq': same integer, symbol or object handle.  Strings and lists have
+    !> no identity once copied, so they are never `eq' (upstream: only the
     !> very same object is).  Port of data.c:Feq.
     elemental logical function value_eq(a, b)
         type(value_type), intent(in) :: a, b
@@ -540,14 +540,14 @@ contains
         end select
     end subroutine cdr
 
-    !> Like `car`, but nil for a non-list.  Port of data.c:Fcar_safe.
+    !> Like `car', but nil for a non-list.  Port of data.c:Fcar_safe.
     pure function car_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
         if (vtag(list) == V_LIST) v = list_elt(list, 1_int64)
     end function car_safe
 
-    !> Like `cdr`, but nil for a non-list.  Port of data.c:Fcdr_safe.
+    !> Like `cdr', but nil for a non-list.  Port of data.c:Fcdr_safe.
     pure function cdr_safe(list) result(v)
         type(value_type), intent(in) :: list
         type(value_type) :: v
@@ -595,7 +595,7 @@ contains
         if (.not. found) bound = symbols(xsymbol(symbol))%bound
     end subroutine boundp
 
-    !> The value of `symbol`; void-variable if unbound.
+    !> The value of `symbol'; void-variable if unbound.
     !> Port of data.c:Fsymbol_value (global value only).
     subroutine symbol_value(symbol, v, status)
         type(value_type), intent(in) :: symbol
@@ -619,7 +619,7 @@ contains
         v = symbols(id)%val
     end subroutine symbol_value
 
-    !> Give `symbol` the value `newval`.  Constants (nil, t, keywords)
+    !> Give `symbol' the value `newval'.  Constants (nil, t, keywords)
     !> signal setting-constant, except a keyword set to itself.
     !> Port of data.c:Fset / set_internal (global value only).
     recursive subroutine set(symbol, newval, status)
@@ -650,7 +650,7 @@ contains
         symbols(id)%bound = .true.
     end subroutine set
 
-    !> Make `symbol` unbound.  Port of data.c:Fmakunbound.
+    !> Make `symbol' unbound.  Port of data.c:Fmakunbound.
     subroutine makunbound(symbol, status)
         type(value_type), intent(in) :: symbol
         type(status_type), intent(out) :: status

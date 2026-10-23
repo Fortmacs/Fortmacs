@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `skip-chars-forward` and `skip-chars-backward`: a submodule because
+!> `skip_chars_forward' and `skip_chars_backward': a submodule because
 !> the character classes come from regex_emacs_fm, which uses syntax_fm.
 !> The set is kept as character ranges and classes rather than
 !> upstream's fastmap of bytes and leading codes; the result is the same

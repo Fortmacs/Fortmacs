@@ -28,18 +28,18 @@
 !> C-x 0, C-x 1, C-x o) and on buffers (C-x b, C-x k).  The selected
 !> window shows the current buffer: selecting a window makes its buffer
 !> current with point at the window's point, and the window it leaves
-!> keeps its point in `pointm`.  These need the frame (frame_fm), which
+!> keeps its point in `pointm'.  These need the frame (frame_fm), which
 !> depends on window_fm, so they live in a submodule.
 !>
 !> Deferred: window parameters, side and atomic windows, dedicated
-!> windows, `window-combination-resize`, `split-window-keep-point` nil,
-!> `delete-window-choose-selected` other than `mru`, other frames, the
+!> windows, `window_combination_resize', `split_window_keep_point' nil,
+!> `delete_window_choose_selected' other than `mru', other frames, the
 !> window commands while the minibuffer is selected, buffer menus
-!> (C-x C-b), `switch-to-buffer-preserve-window-point`,
-!> `kill-buffer-query-functions` and `kill-buffer-hook`.
+!> (C-x C-b), `switch_to_buffer_preserve_window_point',
+!> `kill_buffer_query_functions' and `kill_buffer_hook'.
 submodule(window_fm) window_cmds_fm
     use commands_fm, only: commands
-    use error_fm, only: set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use buffer_fm, only: cur, current_buffer, set_buffer, buffer_list, get_buffer, get_buffer_create, &
                          record_buffer, buffer_live_p, kill_buffer, buffer_modified_p, &
                          replace_buffer_in_windows_hook
@@ -69,7 +69,7 @@ contains
     !> An error for a window that is not live.
     subroutine not_live(status)
         type(status_type), intent(out) :: status
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-live-p")
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_live_p")
     end subroutine not_live
 
     !> The window commands can't run in the minibuffer yet.
@@ -77,7 +77,7 @@ contains
         type(status_type), intent(out) :: status
         in_minibuffer = selected_frame%minibuffer_selected
         if (in_minibuffer) then
-            call set_error(status, FM_GENERIC_ERROR, "Window commands don't work in the minibuffer yet")
+            call set_error(status, FM_GENERIC_ERROR, format_message("Window commands don't work in the minibuffer yet"))
         else
             status = status_type()
         end if
@@ -119,7 +119,7 @@ contains
         end if
     end subroutine select_window
 
-    !> "#<window N on BUFFER>" for window `h`.
+    !> "#<window N on BUFFER>" for window `h'.
     function window_description(h) result(s)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable :: s
@@ -193,7 +193,7 @@ contains
     !>
     !> Both windows get the same value of point as the WINDOW-TO-SPLIT.
     !> Port of window.el:split-window-below (the command;
-    !> `split-window-keep-point' is t).
+    !> `split_window_keep_point' is t).
     subroutine cmd_split_window_below(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: new
@@ -231,7 +231,7 @@ contains
         logical :: was_selected
         status = status_type()
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-valid-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
             return
         end if
         if (same_window(window, selected_frame%root_window) .or. windows(window%index)%mini) then
@@ -273,7 +273,7 @@ contains
         type(handle_type) :: old_root, parent
         integer :: top, left, lines, cols
         if (.not. window_valid_p(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window-valid-p")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "window_valid_p")
             return
         end if
         status = status_type()
@@ -343,7 +343,7 @@ contains
         call other_window(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_other_window
 
-    !> Whether buffer `b` is shown in a window of the frame.
+    !> Whether buffer `b' is shown in a window of the frame.
     logical function buffer_visible_p(b)
         type(handle_type), intent(in) :: b
         type(handle_type), allocatable :: leaves(:)
@@ -429,16 +429,16 @@ contains
 
     !> Display buffer BUFFER-OR-NAME in the selected window.
     !>
-    !> If called interactively, read the buffer name using `read-buffer'.
-    !> The variable `confirm-nonexistent-file-or-buffer' determines
+    !> If called interactively, read the buffer name using `read_buffer'.
+    !> The variable `confirm_nonexistent_file_or_buffer' determines
     !> whether to request confirmation before creating a new buffer.
     !>
     !> If BUFFER-OR-NAME is a string that does not identify an existing
     !> buffer, create a buffer with that name.  If BUFFER-OR-NAME is
-    !> empty, switch to the buffer returned by `other-buffer'.
+    !> empty, switch to the buffer returned by `other_buffer'.
     !> Port of window.el:switch-to-buffer (the command, with
-    !> read-buffer-to-switch; `confirm-nonexistent-file-or-buffer' is
-    !> `after-completion').
+    !> read-buffer-to-switch; `confirm_nonexistent_file_or_buffer' is
+    !> `after_completion').
     recursive subroutine cmd_switch_to_buffer(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
@@ -457,7 +457,7 @@ contains
 
     !> Ask the user to confirm killing of a modified BUFFER.
     !> If the user confirms, optionally save BUFFER that is about to be
-    !> killed.  `ok` is false if the user says no.  Port of
+    !> killed.  `ok' is false if the user says no.  Port of
     !> simple.el:kill-buffer--possibly-save (read-multiple-choice with long
     !> answers).
     recursive subroutine kill_buffer_possibly_save(buffer, ok, status)

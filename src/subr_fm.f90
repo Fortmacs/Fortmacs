@@ -19,12 +19,12 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Questions in the echo area (`read-key`, `y-or-n-p`),
-!> `add-to-history`, and the match data helpers (`match-string`,
-!> `string-match-p`, `looking-at-p`, `looking-back`).
+!> Questions in the echo area (`read_key', `y_or_n_p'),
+!> `add_to_history', and the match data helpers (`match_string',
+!> `string_match_p', `looking_at_p', `looking_back').
 !>
-!> Without a minibuffer yet, `y-or-n-p` behaves as upstream does with
-!> `y-or-n-p-use-read-key` set: it reads a single key in the echo area.
+!> Without a minibuffer yet, `y_or_n_p' behaves as upstream does with
+!> `y_or_n_p_use_read_key' set: it reads a single key in the echo area.
 module subr_fm
     use error_fm, only: status_type, set_error, FM_QUIT
     use, intrinsic :: iso_fortran_env, only: int64
@@ -51,11 +51,11 @@ module subr_fm
     !> Normal hook run in major mode functions, before the mode hooks.
     !> Port of subr.el change-major-mode-after-body-hook.
     type(hook_type), public, target :: change_major_mode_after_body_hook = &
-                                       hook_type(name="change-major-mode-after-body-hook")
+                                       hook_type(name="change_major_mode_after_body_hook")
 
     !> Normal hook run at the very end of major mode functions.  Port of
     !> subr.el after-change-major-mode-hook.
-    type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after-change-major-mode-hook")
+    type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
     public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
               match_substitute_replacement
 
@@ -89,9 +89,9 @@ module subr_fm
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
         !> For historical reasons, the value of DEFAULT is always inserted into
-        !> PROMPT, so it's recommended to use `format' instead of `format-prompt'
+        !> PROMPT, so it's recommended to use `format' instead of `format_prompt'
         !> to generate PROMPT.  HIST specifies a history list variable.  See
-        !> `read-from-minibuffer' for details of the HIST argument.
+        !> `read_from_minibuffer' for details of the HIST argument.
         !>
         !> This function is used by the `interactive' code letter "n".  Port
         !> of subr.el:read-number (integers only).  (In subr_read_fm.)
@@ -104,15 +104,15 @@ module subr_fm
             character(len=*), intent(in), optional :: hist
         end subroutine read_number
 
-        !> Run mode hooks `delayed-mode-hooks' and HOOK, or delay HOOK.
+        !> Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK.
         !>
-        !> If the variable `delay-mode-hooks' is non-nil, does not do anything,
-        !> just adds HOOK to the list `delayed-mode-hooks'.
-        !> Otherwise, runs hooks in the sequence: `change-major-mode-after-body-hook',
-        !> `delayed-mode-hooks' (in reverse order), HOOK, then
-        !> runs the hook `after-change-major-mode-hook'.
+        !> If the variable `delay_mode_hooks' is non-nil, does not do anything,
+        !> just adds HOOK to the list `delayed_mode_hooks'.
+        !> Otherwise, runs hooks in the sequence: `change_major_mode_after_body_hook',
+        !> `delayed_mode_hooks' (in reverse order), HOOK, then
+        !> runs the hook `after_change_major_mode_hook'.
         !>
-        !> Major mode functions should use this instead of `run-hooks' when
+        !> Major mode functions should use this instead of `run_hooks' when
         !> running their FOO-mode-hook.  Port of subr.el:run-mode-hooks
         !> (no file-local variables yet).  (In subr_hooks_fm.)
         recursive module subroutine run_mode_hooks(status, hook)
@@ -121,8 +121,8 @@ module subr_fm
             type(hook_type), intent(in), target, optional :: hook
         end subroutine run_mode_hooks
 
-        !> Start `delay-mode-hooks': until the matching
-        !> delay_mode_hooks_end, `run-mode-hooks' only records its hooks
+        !> Start `delay_mode_hooks': until the matching
+        !> delay_mode_hooks_end, `run_mode_hooks' only records its hooks
         !> (in the current buffer).  SAVED keeps the outer value.  Port of
         !> subr.el:delay-mode-hooks.  (In subr_hooks_fm.)
         module subroutine delay_mode_hooks_begin(saved)
@@ -130,22 +130,22 @@ module subr_fm
             logical, intent(out) :: saved
         end subroutine delay_mode_hooks_begin
 
-        !> End `delay-mode-hooks', restoring the value SAVED.  (In
+        !> End `delay_mode_hooks', restoring the value SAVED.  (In
         !> subr_hooks_fm.)
         module subroutine delay_mode_hooks_end(saved)
             implicit none(type, external)
             logical, intent(in) :: saved
         end subroutine delay_mode_hooks_end
 
-        !> Forget the current buffer's `delayed-mode-hooks' (a local
-        !> variable that `kill-all-local-variables' kills).  (In
+        !> Forget the current buffer's `delayed_mode_hooks' (a local
+        !> variable that `kill_all_local_variables' kills).  (In
         !> subr_hooks_fm.)
         module subroutine kill_delayed_mode_hooks()
             implicit none(type, external)
         end subroutine kill_delayed_mode_hooks
 
         !> Whether mode hooks are being delayed in the current buffer (the
-        !> variable `delay-mode-hooks').  (In subr_hooks_fm.)
+        !> variable `delay_mode_hooks').  (In subr_hooks_fm.)
         module logical function delaying_mode_hooks()
             implicit none(type, external)
         end function delaying_mode_hooks
@@ -153,7 +153,7 @@ module subr_fm
 
 contains
 
-    !> Read one key with `prompt` in the echo area and the cursor after it.
+    !> Read one key with `prompt' in the echo area and the cursor after it.
     !> End of input reads as a quit.  Port of subr.el:read-key (single
     !> events; no keymap lookup of multi-event keys yet).
     subroutine read_key(prompt, key, status)
@@ -169,9 +169,9 @@ contains
         if (.not. have) call set_error(status, FM_QUIT)
     end subroutine read_key
 
-    !> What `key` means in replace.el:query-replace-map (the bindings
+    !> What `key' means in replace.el:query-replace-map (the bindings
     !> y-or-n-p, map-y-or-n-p and perform-replace use), or ANSWER_NONE.
-    !> ESC is `exit-prefix` (upstream binds [escape]; a terminal reads
+    !> ESC is `exit_prefix' (upstream binds [escape]; a terminal reads
     !> it as ESC).
     integer function query_replace_answer(key) result(answer)
         type(value_type), intent(in) :: key
@@ -221,10 +221,10 @@ contains
         end select
     end function query_replace_answer
 
-    !> Ask a "y or n" question in the echo area: `answer` is true for y
+    !> Ask a "y or n" question in the echo area: `answer' is true for y
     !> (or SPC), false for n (or DEL); C-g quits.  Other keys ask again,
     !> with "Please answer y or n.".  Port of subr.el:y-or-n-p, the
-    !> `y-or-n-p-use-read-key` branch (no help-form, scrolling or ding).
+    !> `y_or_n_p_use_read_key' branch (no help-form, scrolling or ding).
     subroutine y_or_n_p(prompt, answer, status)
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: answer
@@ -273,7 +273,7 @@ contains
     !> Add NEWELT to the history list stored in the variable HISTORY-VAR.
     !> If MAXELT is present, it specifies the maximum length of the history.
     !> Otherwise, the maximum history length is the value of the
-    !> `history_length` variable.
+    !> `history_length' variable.
     !> If KEEP-ALL is true, add NEWELT to history even if it is empty or
     !> duplicates the most recent entry in the history.  Port of
     !> subr.el:add-to-history (history-delete-duplicates nil).
@@ -311,12 +311,12 @@ contains
     end subroutine add_to_history
 
     !> Give KEY a global binding as COMMAND.
-    !> This is a legacy function; see `keymap_global_set` for the
+    !> This is a legacy function; see `keymap_global_set' for the
     !> recommended function to use instead.
     !>
     !> COMMAND is the command definition to use; usually it is
     !> a symbol naming an interactively-callable function.
-    !> KEY is a key sequence: a vector of events, as `key_parse` makes.
+    !> KEY is a key sequence: a vector of events, as `key_parse' makes.
     !>
     !> Note that if KEY has a local binding in the current buffer,
     !> that local binding will continue to shadow any global binding
@@ -327,7 +327,7 @@ contains
         call define_key(current_global_map(), key, command, status)
     end subroutine global_set_key_value
 
-    !> `global_set_key` with the command named COMMAND.
+    !> `global_set_key' with the command named COMMAND.
     subroutine global_set_key_command(key, command, status)
         type(value_type), intent(in) :: key(:)
         character(len=*), intent(in) :: command
@@ -340,10 +340,10 @@ contains
     !> sub-expression in the last regexp whose match to return.  Zero
     !> means the entire text matched by the whole regexp or whole string.
     !>
-    !> The return value is nil (`matched` false, an empty string) if NUMth
+    !> The return value is nil (`matched' false, an empty string) if NUMth
     !> pair didn't match, or there were less than NUM pairs.
     !>
-    !> STRING should be given if the last search was by `string-match' on
+    !> STRING should be given if the last search was by `string_match' on
     !> STRING.  If STRING is nil, the current buffer should be the same
     !> buffer as the one in which the search/match was performed.  Port of
     !> subr.el:match-string.
@@ -372,7 +372,7 @@ contains
     !> last regexp.  Value is nil if NUMth pair didn't match, or there
     !> were less than NUM pairs.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
-    !> last search was by `string-match' on STRING.  If STRING is nil, the
+    !> last search was by `string_match' on STRING.  If STRING is nil, the
     !> current buffer should be the same buffer as the one in which the
     !> search/match was performed.  Port of
     !> subr.el:match-string-no-properties.
@@ -384,11 +384,11 @@ contains
         text = match_string(num, string, matched)
     end function match_string_no_properties
 
-    !> Return REPLACEMENT as it will be inserted by `replace-match'.
+    !> Return REPLACEMENT as it will be inserted by `replace_match'.
     !> In other words, all back-references in the form `\&' and `\N'
     !> are substituted with actual strings matched by the last search.
     !> Optional FIXEDCASE, LITERAL, STRING and SUBEXP have the same
-    !> meaning as for `replace-match'.  Port of
+    !> meaning as for `replace_match'.  Port of
     !> subr.el:match-substitute-replacement.
     function match_substitute_replacement(replacement, status, fixedcase, literal, string, subexp) result(text)
         character(len=*), intent(in) :: replacement
@@ -410,7 +410,7 @@ contains
         call set_match_data(saved)
     end function match_substitute_replacement
 
-    !> Same as `string-match' except this function does not change the
+    !> Same as `string_match' except this function does not change the
     !> match data.  Port of subr.el:string-match-p.
     integer(int64) function string_match_p(regexp, string, status, start) result(idx)
         character(len=*), intent(in) :: regexp, string
@@ -419,7 +419,7 @@ contains
         idx = string_match(regexp, string, status, start, inhibit_modify=.true.)
     end function string_match_p
 
-    !> Same as `looking-at' except this function does not change the match
+    !> Same as `looking_at' except this function does not change the match
     !> data.  Port of subr.el:looking-at-p.
     logical function looking_at_p(regexp, status)
         character(len=*), intent(in) :: regexp
@@ -428,7 +428,7 @@ contains
     end function looking_at_p
 
     !> Return non-nil if text before point matches regular expression
-    !> REGEXP.  Like `looking-at' except matches before point, and is
+    !> REGEXP.  Like `looking_at' except matches before point, and is
     !> slower.  LIMIT if non-nil speeds up the search by specifying a
     !> minimum starting position, to avoid checking matches that would
     !> start before LIMIT.
@@ -438,7 +438,7 @@ contains
     !> of a match for REGEXP.  When the match is extended, its starting
     !> position is allowed to occur before LIMIT.
     !>
-    !> As a general recommendation, try to avoid using `looking-back'
+    !> As a general recommendation, try to avoid using `looking_back'
     !> wherever possible, since it is slow.  Port of subr.el:looking-back.
     logical function looking_back(regexp, status, limit, greedy) result(found)
         character(len=*), intent(in) :: regexp

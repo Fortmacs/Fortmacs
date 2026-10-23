@@ -26,13 +26,13 @@
 !> The parts of characters.el that word motion needs: the entries it
 !> makes in the standard syntax table for Unicode characters, in its
 !> order (later entries override earlier ones), and the categories that
-!> `word-combining-categories` and `word-separating-categories` refer to
+!> `word_combining_categories' and `word_separating_categories' refer to
 !> (^ combining, C han, H hiragana, K katakana).
 !>
-!> Deferred: entries made through legacy charsets (`map-charset-chars`
+!> Deferred: entries made through legacy charsets (`map_charset_chars'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
 !> their mapping tables), the other categories, the case-table side of
-!> `set-case-syntax`, and everything else characters.el sets up.
+!> `set_case_syntax', and everything else characters.el sets up.
 module characters_fm
     use uni_category_fm, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
@@ -42,8 +42,8 @@ module characters_fm
     public :: syntax_entry_proc, characters_syntax, char_has_category
 
     abstract interface
-        !> Give the characters `from` to `to` the syntax `descriptor`
-        !> (as for `modify-syntax-entry`).
+        !> Give the characters `from' to `to' the syntax `descriptor'
+        !> (as for `modify_syntax_entry').
         subroutine syntax_entry_proc(from, to, descriptor)
             implicit none(type, external)
             integer, intent(in) :: from, to
@@ -54,7 +54,7 @@ module characters_fm
 contains
 
     !> Make characters.el's standard-syntax-table entries through
-    !> `entry`, in characters.el's order.
+    !> `entry', in characters.el's order.
     subroutine characters_syntax(entry)
         procedure(syntax_entry_proc) :: entry
         ! CJK parentheses, in more than one charset.
@@ -202,7 +202,7 @@ contains
 
     contains
 
-        !> `open` and `close` as matching parentheses.
+        !> `open' and `close' as matching parentheses.
         subroutine pair(open, close)
             integer, intent(in) :: open, close
             call entry(open, open, "("//utf8(close))
@@ -210,7 +210,7 @@ contains
         end subroutine pair
     end subroutine characters_syntax
 
-    !> The UTF-8 encoding of character `c`.
+    !> The UTF-8 encoding of character `c'.
     pure function utf8(c) result(s)
         integer, intent(in) :: c
         character(len=:), allocatable :: s
@@ -226,7 +226,7 @@ contains
         end if
     end function utf8
 
-    !> Whether character `c` has category `category` (one of ^, C, H, K,
+    !> Whether character `c' has category `category' (one of ^, C, H, K,
     !> l and | so far; false for others).
     pure logical function char_has_category(c, category)
         integer, intent(in) :: c
@@ -270,7 +270,7 @@ contains
         end function in
     end function char_has_category
 
-    !> Whether `c` is in one of the sorted runs `starts(k)`..`ends(k)`.
+    !> Whether `c' is in one of the sorted runs `starts(k)'..`ends(k)'.
     pure logical function in_runs(c, starts, ends, n)
         integer, intent(in) :: c, n
         integer, intent(in) :: starts(:), ends(:)

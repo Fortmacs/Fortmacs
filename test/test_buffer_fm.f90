@@ -24,6 +24,7 @@
 module test_buffer_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use error_fm, only: format_message
     use error_fm, only: status_type, FM_INVALID_HANDLE, FM_BUFFER_READ_ONLY, &
                         FM_GENERIC_ERROR
     use handle_fm, only: handle_type
@@ -150,7 +151,7 @@ contains
         call rename_buffer("tb-ren-b", .false., actual, st)
         call check(error, st%code, FM_GENERIC_ERROR)
         if (allocated(error)) return
-        call check(error, st%detail, "Buffer name `tb-ren-b' is in use")
+        call check(error, st%detail, format_message("Buffer name `")//"tb-ren-b"//format_message("' is in use"))
         if (allocated(error)) return
         call rename_buffer("tb-ren-b", .true., actual, st)
         call check(error, actual, "tb-ren-b<2>")

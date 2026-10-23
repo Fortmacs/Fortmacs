@@ -20,12 +20,12 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Help mode, the major mode of *Help*, derived from Special mode
-!> (simple.el): a read-only buffer where `q` quits the window, SPC and
-!> DEL scroll, digits and `-` make prefix arguments.
+!> (simple.el): a read-only buffer where `q' quits the window, SPC and
+!> DEL scroll, digits and `-' make prefix arguments.
 !>
-!> Deferred: cross-reference buttons and the help-xref stack (`l`, `r`,
-!> `n`, `p`), `s` (help-view-source), `i`/`I` (Info), `c` (customize),
-!> `g` (revert), `h`/`?` (describe-mode).
+!> Deferred: cross-reference buttons and the help-xref stack (`l', `r',
+!> `n', `p'), `s' (help-view-source), `i'/`I' (Info), `c' (customize),
+!> `g' (revert), `h'/`?' (describe-mode).
 module help_mode_fm
     use commands_fm, only: commands
     use error_fm, only: status_type
@@ -43,15 +43,15 @@ module help_mode_fm
     !> parent is special-mode-map).
     type(handle_type), public :: help_mode_map
 
-    !> Hook run by `help-mode'.  Port of help-mode.el help-mode-hook.
-    type(hook_type), target, public :: help_mode_hook = hook_type(name="help-mode-hook")
+    !> Hook run by `help_mode'.  Port of help-mode.el help-mode-hook.
+    type(hook_type), target, public :: help_mode_hook = hook_type(name="help_mode_hook")
 
 contains
 
     !> Define Help mode and its parent, Special mode.
     subroutine init_help_mode()
         call syms_of_simple_modes()
-        call major_modes%help_mode%define("help-mode", "Help", help_mode, help_mode_hook, &
+        call major_modes%help_mode%define("help_mode", "Help", help_mode, help_mode_hook, &
                                           parent=major_modes%special_mode)
         help_mode_map = major_modes%help_mode%map
         commands%help_mode%run => help_mode

@@ -25,24 +25,24 @@
 !> A table is a registry object referenced by handle; the standard one,
 !> made on first use, has init_syntax_once's ASCII entries, word syntax
 !> for every other character, and characters.el's entries (characters_fm)
-!> on top.  A table made by `make_syntax_table` or `copy_syntax_table`
+!> on top.  A table made by `make_syntax_table' or `copy_syntax_table'
 !> inherits from a parent what it doesn't set.  Each buffer has a syntax
-!> table (the standard one unless `set_syntax_table` gave it another).
+!> table (the standard one unless `set_syntax_table' gave it another).
 !>
-!> A raw syntax descriptor is a `syntax_descriptor_type`: the class plus
+!> A raw syntax descriptor is a `syntax_descriptor_type': the class plus
 !> the flags (bits 16 up, as upstream) and the matching character.
 !>
-!> Words: `scan_words` and `forward-word`.  Two word-constituent
+!> Words: `scan_words' and `forward_word'.  Two word-constituent
 !> characters are in the same word unless they belong to different
-!> scripts (`char-script-table`, charscript_fm), with the exceptions of
-!> `word-combining-categories`; or, in the same script, the exceptions of
-!> `word-separating-categories` (category.c:word_boundary_p, with
+!> scripts (`char_script_table', charscript_fm), with the exceptions of
+!> `word_combining_categories'; or, in the same script, the exceptions of
+!> `word_separating_categories' (category.c:word_boundary_p, with
 !> characters.el's values for those variables).
 !>
-!> Deferred: `syntax-table` text properties (parse-sexp-lookup-properties),
-!> comments and sexps (`forward-comment`, `scan-lists`, `scan-sexps`,
-!> `parse-partial-sexp`), `skip-chars-*` and `skip-syntax-*`,
-!> `find-word-boundary-function-table`, `describe-syntax`, unibyte
+!> Deferred: `syntax_table' text properties (parse-sexp-lookup-properties),
+!> comments and sexps (`forward_comment', `scan_lists', `scan_sexps',
+!> `parse_partial_sexp'), `skip_chars_*' and `skip_syntax_*',
+!> `find_word_boundary_function_table', `describe_syntax', unibyte
 !> buffers' raw bytes.
 module syntax_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -76,21 +76,21 @@ module syntax_fm
     !> The descriptor character of each class (syntax.c:syntax_code_spec).
     character(len=16), parameter :: syntax_code_spec = " .w_()'""$\/<>@!|"
 
-    !> Non-nil means `forward-word', etc., should treat escape chars part of words.
+    !> Non-nil means `forward_word', etc., should treat escape chars part of words.
     !> Port of syntax.c words-include-escapes.
     logical, public :: words_include_escapes = .false.
 
-    !> Non-nil means `forward-sexp', etc., should treat comments as whitespace.
+    !> Non-nil means `forward_sexp', etc., should treat comments as whitespace.
     !> Port of syntax.c parse-sexp-ignore-comments.
     type(logical_setting), public :: parse_sexp_ignore_comments = &
-                                     logical_setting(name="parse-sexp-ignore-comments", value=.false.)
+                                     logical_setting(name="parse_sexp_ignore_comments", value=.false.)
 
-    !> Counts `modify-syntax-entry' calls, so compiled regexps that depend
+    !> Counts `modify_syntax_entry' calls, so compiled regexps that depend
     !> on syntax can tell they are stale (search.c:clear_regexp_cache).
     integer(int64), public, protected :: syntax_modiff = 0
 
-    !> A raw syntax descriptor, (CODE . MATCHING-CHAR) upstream.  `code`
-    !> -1 is nil: inherit from the parent table.  `match` -1 is nil.
+    !> A raw syntax descriptor, (CODE . MATCHING-CHAR) upstream.  `code'
+    !> -1 is nil: inherit from the parent table.  `match' -1 is nil.
     type :: syntax_descriptor_type
         integer(int32) :: code = -1
         integer(int32) :: match = -1
@@ -149,22 +149,22 @@ contains
         tables(h%index)%parent = parent
     end subroutine new_table
 
-    !> Slot of table `h`, or a wrong-type-argument error.
+    !> Slot of table `h', or a wrong-type-argument error.
     subroutine resolve_table(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
         call table%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax-table-p")
+        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "syntax_table_p")
     end subroutine resolve_table
 
-    !> Whether `h` is a live syntax table.
+    !> Whether `h' is a live syntax table.
     logical function syntax_table_live_p(h)
         type(handle_type), intent(in) :: h
         syntax_table_live_p = table%is_live(h)
     end function syntax_table_live_p
 
-    !> Free syntax table `h` (not the standard one).  Not a port: upstream
+    !> Free syntax table `h' (not the standard one).  Not a port: upstream
     !> relies on GC.
     subroutine free_syntax_table(h, status)
         type(handle_type), intent(in) :: h
@@ -280,7 +280,7 @@ contains
 
     !> Return a new syntax table.
     !> Create a syntax table that inherits from OLDTABLE (if non-nil) or
-    !> from `standard-syntax-table' otherwise.  Port of
+    !> from `standard_syntax_table' otherwise.  Port of
     !> subr.el:make-syntax-table.
     subroutine make_syntax_table(h, status, oldtable)
         type(handle_type), intent(out) :: h
@@ -323,7 +323,7 @@ contains
     ! Entries
     ! ------------------------------------------------------------------
 
-    !> Give characters `from` to `to` entry `d` in table slot `t`.
+    !> Give characters `from' to `to' entry `d' in table slot `t'.
     subroutine set_range(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -335,8 +335,8 @@ contains
         if (to >= 128) call paint(t, max(128, from), to, d)
     end subroutine set_range
 
-    !> Set the non-ASCII characters `from` to `to` of table slot `t` to
-    !> `d`, keeping the runs sorted and disjoint.
+    !> Set the non-ASCII characters `from' to `to' of table slot `t' to
+    !> `d', keeping the runs sorted and disjoint.
     subroutine paint(t, from, to, d)
         integer(int64), intent(in) :: t
         integer, intent(in) :: from, to
@@ -406,7 +406,7 @@ contains
         same = a%code == b%code .and. a%match == b%match
     end function same
 
-    !> The entry of character `c` in table slot `t` itself (nil, code -1,
+    !> The entry of character `c' in table slot `t' itself (nil, code -1,
     !> if it has none).
     function own_entry(t, c) result(d)
         integer(int64), intent(in) :: t
@@ -432,7 +432,7 @@ contains
         end do
     end function own_entry
 
-    !> The raw syntax descriptor of character `c` in `table` (default: the
+    !> The raw syntax descriptor of character `c' in `table' (default: the
     !> current buffer's), inherited from parents as needed; whitespace if
     !> no table has one.  SYNTAX_ENTRY.
     function syntax_entry(c, table_h) result(d)
@@ -458,7 +458,7 @@ contains
         d = syntax_descriptor_type(SWHITESPACE, -1)
     end function syntax_entry
 
-    !> The syntax class of character `c` in the current buffer.  SYNTAX.
+    !> The syntax class of character `c' in the current buffer.  SYNTAX.
     integer function char_syntax_class(c)
         integer, intent(in) :: c
         type(syntax_descriptor_type) :: d
@@ -470,7 +470,7 @@ contains
     !> For example, if CHARACTER is a word constituent, the
     !> character `w' (119) is returned.
     !> The characters that correspond to various syntax codes
-    !> are listed in the documentation of `modify-syntax-entry'.
+    !> are listed in the documentation of `modify_syntax_entry'.
     !> Port of syntax.c:Fchar_syntax.
     character function char_syntax(c)
         integer, intent(in) :: c
@@ -506,7 +506,7 @@ contains
 
     !> Convert a syntax descriptor STRING into a raw syntax descriptor.
     !> STRING should be a string of the form allowed as argument of
-    !> `modify-syntax-entry'.  The return value is a raw syntax descriptor:
+    !> `modify_syntax_entry'.  The return value is a raw syntax descriptor:
     !> (CODE . MATCHING-CHAR); "@" (inherit) gives nil, code -1.  Port of
     !> syntax.c:Fstring_to_syntax.
     subroutine string_to_syntax(string, d, status)
@@ -560,7 +560,7 @@ contains
     !> Set syntax for character CHAR according to string NEWENTRY.
     !> The syntax is changed only for table SYNTAX-TABLE, which defaults to
     !>  the current buffer's syntax table.
-    !> The characters `from` to `to` (one character if equal) are changed.
+    !> The characters `from' to `to' (one character if equal) are changed.
     !> The first character of NEWENTRY should be one of the following:
     !>   Space or -  whitespace syntax.    w   word constituent.
     !>   _           symbol constituent.   .   punctuation.
@@ -623,9 +623,9 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether there is a word boundary between the word-constituent
-    !> characters `c1` and `c2`.  Port of category.c:word_boundary_p, with
-    !> characters.el's `word-combining-categories' ((nil . ^) (^ . nil)
-    !> (C . H) (C . K)) and `word-separating-categories' ((H . K)).
+    !> characters `c1' and `c2'.  Port of category.c:word_boundary_p, with
+    !> characters.el's `word_combining_categories' ((nil . ^) (^ . nil)
+    !> (C . H) (C . K)) and `word_separating_categories' ((H . K)).
     logical function word_boundary_p(c1, c2)
         integer, intent(in) :: c1, c2
         if (char_script(c1) == char_script(c2)) then
@@ -649,7 +649,7 @@ contains
         end function between
     end function word_boundary_p
 
-    !> Whether syntax class `code` is part of a word.
+    !> Whether syntax class `code' is part of a word.
     logical function word_code_p(code)
         integer, intent(in) :: code
         word_code_p = code == SWORD .or. (words_include_escapes .and. (code == SESCAPE .or. code == SCHARQUOTE))
@@ -730,12 +730,12 @@ contains
     !> Normally returns t.
     !> If an edge of the buffer or a field boundary is reached, point is
     !> left there and the function returns nil.  Field boundaries are not
-    !> noticed if `inhibit-field-text-motion' is non-nil.
+    !> noticed if `inhibit_field_text_motion' is non-nil.
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char-script-table').
-    !> Port of syntax.c:Fforward_word (`ok` is the value; no
-    !> `find-word-boundary-function-table').
+    !> table and character script (according to `char_script_table').
+    !> Port of syntax.c:Fforward_word (`ok' is the value; no
+    !> `find_word_boundary_function_table').
     subroutine forward_word(arg, ok)
         integer(int64), intent(in) :: arg
         logical, intent(out), optional :: ok
@@ -761,7 +761,7 @@ contains
     !> left there.
     !>
     !> The word boundaries are normally determined by the buffer's syntax
-    !> table and character script (according to `char-script-table').
+    !> table and character script (according to `char_script_table').
     !> Port of syntax.c:Fforward_word (the command).
     subroutine cmd_forward_word(status)
         type(status_type), intent(out) :: status
@@ -796,7 +796,7 @@ contains
     end function skip_chars_forward
 
     !> Move point backward, stopping after a char not in STRING, or at pos LIM.
-    !> See `skip-chars-forward' for details.
+    !> See `skip_chars_forward' for details.
     !> Returns the distance traveled, either zero or negative.  Port of
     !> syntax.c:Fskip_chars_backward.
     integer(int64) function skip_chars_backward(string, status, lim) result(moved)

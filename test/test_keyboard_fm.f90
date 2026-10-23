@@ -212,18 +212,18 @@ contains
         type(value_type) :: binding
         logical :: eof
         call fresh_global(global)
-        call define_key(global, kbd("C-x C-f"), sym("find-file"), st)
-        call define_key(global, kbd("M-x"), sym("execute-extended-command"), st)
+        call define_key(global, kbd("C-x C-f"), sym("find_file"), st)
+        call define_key(global, kbd("M-x"), sym("execute_extended_command"), st)
         call kbd_store_bytes(char(24)//char(6)//char(27)//"x")
         call read_key_sequence(keys, binding, eof, st)
         call check(error, st%ok() .and. .not. eof .and. size(keys) == 2, "C-x C-f keys")
         if (allocated(error)) return
-        call check(error, value_eq(binding, sym("find-file")), "C-x C-f")
+        call check(error, value_eq(binding, sym("find_file")), "C-x C-f")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
         call check(error, key_description(keys), "M-x")
         if (allocated(error)) return
-        call check(error, value_eq(binding, sym("execute-extended-command")), "ESC x")
+        call check(error, value_eq(binding, sym("execute_extended_command")), "ESC x")
         if (allocated(error)) return
         ! Input ending in the middle of a prefix.
         call kbd_store_bytes(char(24))
@@ -263,8 +263,8 @@ contains
         logical :: eof
         call fresh_global(global)
         up(1) = sym("up")
-        call define_key(global, up, sym("previous-line"), st)
-        call define_key(global, kbd("M-x"), sym("execute-extended-command"), st)
+        call define_key(global, up, sym("previous_line"), st)
+        call define_key(global, kbd("M-x"), sym("execute_extended_command"), st)
         call make_sparse_keymap(decode)
         call define_key(decode, kbd("ESC [ A"), list(sym("up")), st)
         input_decode_map = decode
@@ -273,10 +273,10 @@ contains
         call check(error, st%ok() .and. size(keys) == 1, "one key")
         if (allocated(error)) return
         call check(error, value_eq(keys(1), sym("up")) .and. &
-                   value_eq(binding, sym("previous-line")), "up")
+                   value_eq(binding, sym("previous_line")), "up")
         if (allocated(error)) return
         call read_key_sequence(keys, binding, eof, st)
-        call check(error, value_eq(binding, sym("execute-extended-command")), "M-x")
+        call check(error, value_eq(binding, sym("execute_extended_command")), "M-x")
         call free(decode)
         call free(global)
     end subroutine test_input_decode_map
@@ -431,7 +431,7 @@ contains
         integer(int32) :: master, slave
         logical :: eof
         call fresh_global(global)
-        call define_key(global, kbd("C-x C-s"), sym("save-buffer"), st)
+        call define_key(global, kbd("C-x C-s"), sym("save_buffer"), st)
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
@@ -442,7 +442,7 @@ contains
             call set_input_fd(slave)
             call emacs_write(master, char(24)//char(19), st)
             call read_key_sequence(keys, binding, eof, st)
-            call check(error, st%ok() .and. value_eq(binding, sym("save-buffer")), "C-x C-s")
+            call check(error, st%ok() .and. value_eq(binding, sym("save_buffer")), "C-x C-s")
             call reset_sys_modes(slave, old, st)
         end block run
         call set_input_fd(-1_int32)

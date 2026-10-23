@@ -22,8 +22,8 @@
 
 !> A capability that the terminal lacks is an unallocated string (NULL
 !> upstream).  Output collects in the description's buffer until
-!> `tty_flush` writes it to the terminal (upstream: a stdio stream); with
-!> no output descriptor (tests), `tty_take_output` returns it instead.
+!> `tty_flush' writes it to the terminal (upstream: a stdio stream); with
+!> no output descriptor (tests), `tty_take_output' returns it instead.
 module termchar_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
@@ -124,7 +124,7 @@ contains
         tty%olen = tty%olen + n
     end subroutine tty_put_bytes
 
-    !> Output capability string `cap` if the terminal has it.  The OUTPUT
+    !> Output capability string `cap' if the terminal has it.  The OUTPUT
     !> macros of term.c (emacs_tputs with cm.c:cmputc); padding is dropped.
     subroutine tty_output(tty, cap)
         type(tty_display_info), intent(inout) :: tty

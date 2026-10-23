@@ -37,20 +37,20 @@ module text_mode_fm
 
     !> Non-nil if this buffer's major mode is a variant of Text mode.
     !> Obsolete since 27.1: don't set it, and instead of testing its value
-    !> use `derived-mode-p'.  Port of text-mode.el text-mode-variant.
-    type(logical_setting), public :: text_mode_variant = logical_setting(name="text-mode-variant", value=.false.)
+    !> use `derived_mode_p'.  Port of text-mode.el text-mode-variant.
+    type(logical_setting), public :: text_mode_variant = logical_setting(name="text_mode_variant", value=.false.)
 
     !> Normal hook run when entering Text mode and many related modes.
     !> Port of text-mode.el text-mode-hook.
-    type(hook_type), target, public :: text_mode_hook = hook_type(name="text-mode-hook")
+    type(hook_type), target, public :: text_mode_hook = hook_type(name="text_mode_hook")
 
-    !> Keymap for `text-mode`.
-    !> Many other modes, such as `mail-mode` and `outline-mode`, inherit
+    !> Keymap for `text_mode'.
+    !> Many other modes, such as `mail_mode' and `outline_mode', inherit
     !> all the commands defined in this map.  Port of text-mode.el
     !> text-mode-map.
     type(handle_type), public :: text_mode_map
 
-    !> Syntax table used while in `text-mode'.
+    !> Syntax table used while in `text_mode'.
     type(handle_type), public :: text_mode_syntax_table
 
 contains
@@ -78,8 +78,8 @@ contains
     !> Major mode for editing text written for humans to read.
     !> In this mode, paragraphs are delimited only by blank or white lines.
     !> You can thus get the full benefit of adaptive filling
-    !>  (see the variable `adaptive-fill-mode').
-    !> Turning on Text mode runs the normal hook `text-mode-hook'.  Port of
+    !>  (see the variable `adaptive_fill_mode').
+    !> Turning on Text mode runs the normal hook `text_mode_hook'.  Port of
     !> text-mode.el:text-mode.
     recursive subroutine text_mode(status)
         type(status_type), intent(out) :: status
@@ -95,7 +95,7 @@ contains
     !> Define Text mode.
     subroutine syms_of_text_mode()
         if (.not. syntax_table_live_p(text_mode_syntax_table)) call init_text_mode_syntax_table()
-        call major_modes%text_mode%define("text-mode", "Text", text_mode, text_mode_hook, &
+        call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &
                                           syntax_table=text_mode_syntax_table)
         text_mode_map = major_modes%text_mode%map
         commands%text_mode%run => text_mode

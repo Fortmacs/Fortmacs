@@ -20,11 +20,11 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Motion, deletion and insertion commands on the current buffer, and
-!> their registration as commands (`syms_of_cmds`).
+!> their registration as commands (`syms_of_cmds').
 !>
 !> Deferred: overwrite mode, abbrevs, auto-fill and electric characters
-!> in `self-insert-command`, `translation-table-for-input`, the kill-ring
-!> path of `delete-char`, undo amalgamation, and intangible/invisible
+!> in `self_insert_command', `translation_table_for_input', the kill-ring
+!> path of `delete_char', undo amalgamation, and intangible/invisible
 !> text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -50,13 +50,13 @@ module cmds_fm
     public :: forward_char, backward_char, forward_line, beginning_of_line, &
               end_of_line, delete_char, self_insert_command, syms_of_cmds
 
-    !> simple.el:internal-auto-fill, which `self-insert-command' calls to
+    !> simple.el:internal-auto-fill, which `self_insert_command' calls to
     !> perform auto-filling; set by simple_fm (null: no auto-filling).
     procedure(auto_fill_proc), pointer, public :: internal_auto_fill_hook => null()
 
 contains
 
-    !> Move point `n` characters (backward if not `forward`), stopping at
+    !> Move point `n' characters (backward if not `forward'), stopping at
     !> the accessible region's edge with beginning-/end-of-buffer.
     !> Port of cmds.c:move_point.
     subroutine move_point(n, forward, status)
@@ -102,7 +102,7 @@ contains
         end if
     end subroutine backward_char
 
-    !> Move to the start of the line `n` lines away (default 1) and return
+    !> Move to the start of the line `n' lines away (default 1) and return
     !> the count of lines left to move (see the forward-line docstring:
     !> a non-empty last line counts as moved).  Port of cmds.c:Fforward_line.
     integer(int64) function forward_line(n) result(shortage)
@@ -135,14 +135,14 @@ contains
         if (excessive) shortage = shortage - count + n
     end function forward_line
 
-    !> Move to the start of the line (after moving `n` - 1 lines).
+    !> Move to the start of the line (after moving `n' - 1 lines).
     !> Port of cmds.c:Fbeginning_of_line (fields pending).
     subroutine beginning_of_line(n)
         integer(int64), intent(in), optional :: n
         call goto_char(line_beginning_position(n))
     end subroutine beginning_of_line
 
-    !> Move to the end of the line (after moving `n` - 1 lines).
+    !> Move to the end of the line (after moving `n' - 1 lines).
     !> Port of cmds.c:Fend_of_line; the intangible-text retry loop is moot
     !> until text properties exist.
     subroutine end_of_line(n)
@@ -150,7 +150,7 @@ contains
         call goto_char(line_end_position(n))
     end subroutine end_of_line
 
-    !> Delete `n` characters after point (before, if negative); signals
+    !> Delete `n' characters after point (before, if negative); signals
     !> beginning-/end-of-buffer instead of deleting fewer.
     !> Port of cmds.c:Fdelete_char (without KILLFLAG).
     subroutine delete_char(n, status)
@@ -174,9 +174,9 @@ contains
         end if
     end subroutine delete_char
 
-    !> Insert character `c` `n` times.  Port of cmds.c:Fself_insert_command
+    !> Insert character `c' `n' times.  Port of cmds.c:Fself_insert_command
     !> with internal_self_insert reduced to the insertion and auto-fill
-    !> (no overwrite, abbrevs or hooks).  A non-character `c` does nothing
+    !> (no overwrite, abbrevs or hooks).  A non-character `c' does nothing
     !> (upstream rings the bell).
     subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
@@ -220,7 +220,7 @@ contains
     !>
     !> Depending on the bidirectional context, the movement may be to the
     !> right or to the left on the screen.  This is in contrast with
-    !> \[right-char], which see.  Port of cmds.c:Fforward_char (the command).
+    !> \[right_char], which see.  Port of cmds.c:Fforward_char (the command).
     subroutine cmd_forward_char(status)
         type(status_type), intent(out) :: status
         call forward_char(status, arg_p())
@@ -233,7 +233,7 @@ contains
     !>
     !> Depending on the bidirectional context, the movement may be to the
     !> right or to the left on the screen.  This is in contrast with
-    !> \[left-char], which see.  Port of cmds.c:Fbackward_char (the command).
+    !> \[left_char], which see.  Port of cmds.c:Fbackward_char (the command).
     subroutine cmd_backward_char(status)
         type(status_type), intent(out) :: status
         call backward_char(status, arg_p())
@@ -253,7 +253,7 @@ contains
     !> line successfully moved (for the return value).  This means in that case
     !> it returns one less than the number of lines left to move.
     !>
-    !> The command C-n (\[next-line]) can also be used to move to the next
+    !> The command C-n (\[next_line]) can also be used to move to the next
     !> line.  Port of cmds.c:Fforward_line (the command).
     subroutine cmd_forward_line(status)
         type(status_type), intent(out) :: status
@@ -270,7 +270,7 @@ contains
     !> point to a different line from the original, unconstrained result.
     !> If N is nil or 1, and a front-sticky field starts at point, the point
     !> does not move.  To ignore field boundaries set
-    !> `inhibit-field-text-motion' to t, or use the `forward-line' function
+    !> `inhibit_field_text_motion' to t, or use the `forward_line' function
     !> instead.  Port of cmds.c:Fbeginning_of_line (the command).
     subroutine cmd_beginning_of_line(status)
         type(status_type), intent(out) :: status
@@ -285,7 +285,7 @@ contains
     !> This function constrains point to the current field unless this moves
     !> point to a different line from the original, unconstrained result.  If
     !> N is nil or 1, and a rear-sticky field ends at point, the point does
-    !> not move.  To ignore field boundaries set `inhibit-field-text-motion'
+    !> not move.  To ignore field boundaries set `inhibit_field_text_motion'
     !> to t.  Port of cmds.c:Fend_of_line (the command).
     subroutine cmd_end_of_line(status)
         type(status_type), intent(out) :: status
@@ -296,8 +296,8 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> Interactively, N is the prefix arg.
     !>
-    !> The command `delete-forward-char' is preferable for interactive use, e.g.
-    !> because it respects values of `delete-active-region'.  Port of
+    !> The command `delete_forward_char' is preferable for interactive use, e.g.
+    !> because it respects values of `delete_active_region'.  Port of
     !> cmds.c:Fdelete_char (the command; KILLFLAG is not ported).
     subroutine cmd_delete_char(status)
         type(status_type), intent(out) :: status

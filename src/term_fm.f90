@@ -79,7 +79,7 @@ contains
     ! Initialization
     ! ------------------------------------------------------------------
 
-    !> `dest` = termcap string capability `code`, unallocated if absent.
+    !> `dest' = termcap string capability `code', unallocated if absent.
     subroutine getcap(tty, code, dest)
         type(tty_display_info), intent(in) :: tty
         character(len=*), intent(in) :: code
@@ -90,7 +90,7 @@ contains
         if (found) dest = s
     end subroutine getcap
 
-    !> Like `getcap` with a terminfo name.
+    !> Like `getcap' with a terminfo name.
     subroutine getcap_ti(tty, name, dest)
         type(tty_display_info), intent(in) :: tty
         character(len=*), intent(in) :: name
@@ -109,8 +109,8 @@ contains
         s = trim(buf)
     end function itoa
 
-    !> Set up `tty` as terminal type `terminal_type` on file descriptor
-    !> `fd` (-1: no terminal; the size then comes from the terminfo entry):
+    !> Set up `tty' as terminal type `terminal_type' on file descriptor
+    !> `fd' (-1: no terminal; the size then comes from the terminfo entry):
     !> read its capabilities, register its function keys in
     !> input-decode-map, put it in raw mode, and compute motion costs.
     !> Port of term.c:init_tty.
@@ -125,7 +125,7 @@ contains
         call init_tty_entry(tty, ti, terminal_type, fd, status)
     end subroutine init_tty
 
-    !> init_tty with the terminal description `ti` already loaded.
+    !> init_tty with the terminal description `ti' already loaded.
     subroutine init_tty_entry(tty, ti, terminal_type, fd, status)
         type(tty_display_info), intent(out) :: tty
         type(terminfo_type), intent(in) :: ti
@@ -386,7 +386,7 @@ contains
         call cmcostinit(tty)
     end subroutine calculate_costs
 
-    !> The output cost of capability `cap` (0 if absent).  Port of
+    !> The output cost of capability `cap' (0 if absent).  Port of
     !> term.c:string_cost (and string_cost_one_line: padding is dropped).
     integer function string_cost(cap)
         character(len=:), allocatable, intent(in) :: cap
@@ -589,7 +589,7 @@ contains
         call tty_flush(tty, status)
     end subroutine tty_update_end
 
-    !> Limit scrolling to the first `size` lines (0: all).  Port of
+    !> Limit scrolling to the first `size' lines (0: all).  Port of
     !> term.c:tty_set_terminal_window.
     subroutine tty_set_terminal_window(tty, size)
         type(tty_display_info), intent(inout) :: tty
@@ -599,7 +599,7 @@ contains
         if (tty%scroll_region_ok) call tty_set_scroll_region(tty, 0, tty%specified_window)
     end subroutine tty_set_terminal_window
 
-    !> Port of term.c:tty_set_scroll_region (lines `start`..`stop`-1).
+    !> Port of term.c:tty_set_scroll_region (lines `start'..`stop'-1).
     subroutine tty_set_scroll_region(tty, start, stop)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: start, stop
@@ -691,7 +691,7 @@ contains
     ! Cursor motion and clearing
     ! ------------------------------------------------------------------
 
-    !> Move the cursor to row `vpos`, column `hpos` (0-based).  Port of
+    !> Move the cursor to row `vpos', column `hpos' (0-based).  Port of
     !> term.c:tty_cursor_to.
     subroutine tty_cursor_to(tty, vpos, hpos)
         type(tty_display_info), intent(inout) :: tty
@@ -743,7 +743,7 @@ contains
         end if
     end subroutine tty_clear_frame
 
-    !> Clear from the cursor to column `first_unused_hpos` (the end of
+    !> Clear from the cursor to column `first_unused_hpos' (the end of
     !> what was written).  Port of term.c:tty_clear_end_of_line.
     subroutine tty_clear_end_of_line(tty, first_unused_hpos)
         type(tty_display_info), intent(inout) :: tty
@@ -772,7 +772,7 @@ contains
     ! Glyphs
     ! ------------------------------------------------------------------
 
-    !> The bytes that show `glyphs` on a UTF-8 terminal; padding glyphs
+    !> The bytes that show `glyphs' on a UTF-8 terminal; padding glyphs
     !> (the rest of a wide character) produce nothing.  Port of
     !> term.c:encode_terminal_code for the UTF-8 terminal coding system.
     function encode_terminal_code(glyphs) result(bytes)
@@ -798,7 +798,7 @@ contains
         end do
     end function encode_terminal_code
 
-    !> Whether attribute `attr` may be combined with colors.
+    !> Whether attribute `attr' may be combined with colors.
     !> term.c's MAY_USE_WITH_COLORS_P.
     logical function may_use_with_colors(tty, attr)
         type(tty_display_info), intent(in) :: tty
@@ -807,7 +807,7 @@ contains
         if (tty%tn_max_colors > 0) may_use_with_colors = iand(tty%tn_no_color_video, attr) == 0
     end function may_use_with_colors
 
-    !> Output a color capability for `color`.
+    !> Output a color capability for `color'.
     subroutine set_color(tty, cap, color)
         type(tty_display_info), intent(inout) :: tty
         character(len=:), allocatable, intent(in) :: cap
@@ -823,7 +823,7 @@ contains
         call tty_output(tty, p)
     end subroutine set_color
 
-    !> Start drawing in `face`.  Port of term.c:turn_on_face.
+    !> Start drawing in `face'.  Port of term.c:turn_on_face.
     subroutine turn_on_face(tty, face)
         type(tty_display_info), intent(inout) :: tty
         type(face_type), intent(in) :: face
@@ -888,7 +888,7 @@ contains
         end if
     end subroutine turn_on_face
 
-    !> Stop drawing in `face`.  Port of term.c:turn_off_face.
+    !> Stop drawing in `face'.  Port of term.c:turn_off_face.
     subroutine turn_off_face(tty, face)
         type(tty_display_info), intent(inout) :: tty
         type(face_type), intent(in) :: face
@@ -915,7 +915,7 @@ contains
         end if
     end subroutine turn_off_face
 
-    !> The face for `face_id`, or the default face if out of range.
+    !> The face for `face_id', or the default face if out of range.
     function face_of(faces, face_id) result(face)
         type(face_type), intent(in) :: faces(0:)
         integer(int32), intent(in) :: face_id
@@ -923,7 +923,7 @@ contains
         if (face_id >= 0 .and. face_id <= ubound(faces, 1)) face = faces(face_id)
     end function face_of
 
-    !> Write `glyphs` at the cursor, in runs of the same face.  Port of
+    !> Write `glyphs' at the cursor, in runs of the same face.  Port of
     !> term.c:tty_write_glyphs_1.
     subroutine tty_write_glyphs_1(tty, glyphs, faces)
         type(tty_display_info), intent(inout) :: tty
@@ -954,9 +954,9 @@ contains
         call cmcheckmagic(tty)
     end subroutine tty_write_glyphs_1
 
-    !> Write `glyphs` at the cursor.  Writing the last cell of an
+    !> Write `glyphs' at the cursor.  Writing the last cell of an
     !> autowrapping terminal would scroll it, so that cell is inserted
-    !> instead; when only that cell is written, `prev` (the glyph before
+    !> instead; when only that cell is written, `prev' (the glyph before
     !> it, which upstream reads from the glyph row) is rewritten too, and
     !> without it the last cell is left alone.  Port of
     !> term.c:tty_write_glyphs.
@@ -989,7 +989,7 @@ contains
         end if
     end subroutine tty_write_glyphs
 
-    !> Insert `len` blanks, or `glyphs` when given, at the cursor.  Port of
+    !> Insert `len' blanks, or `glyphs' when given, at the cursor.  Port of
     !> term.c:tty_insert_glyphs.
     recursive subroutine tty_insert_glyphs(tty, faces, glyphs, len)
         type(tty_display_info), intent(inout) :: tty
@@ -1041,7 +1041,7 @@ contains
         call cmcheckmagic(tty)
     end subroutine tty_insert_glyphs
 
-    !> Delete `n` characters at the cursor.  Port of term.c:tty_delete_glyphs.
+    !> Delete `n' characters at the cursor.  Port of term.c:tty_delete_glyphs.
     subroutine tty_delete_glyphs(tty, n)
         type(tty_display_info), intent(inout) :: tty
         integer, intent(in) :: n
@@ -1064,7 +1064,7 @@ contains
         if (.not. tty%delete_in_insert_mode) call tty_output(tty, tty%ts_end_delete_mode)
     end subroutine tty_delete_glyphs
 
-    !> Insert `n` blank lines at row `vpos` (delete -`n` lines if
+    !> Insert `n' blank lines at row `vpos' (delete -`n' lines if
     !> negative), within the scroll window.  Port of term.c:tty_ins_del_lines.
     subroutine tty_ins_del_lines(tty, vpos, n)
         type(tty_display_info), intent(inout) :: tty

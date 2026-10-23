@@ -26,10 +26,10 @@
 !> Part of window_fm.  Scrolling moves by screen lines (indent_fm), and
 !> the screen-line code depends on window_fm, so these live in a
 !> submodule.  Scrolling is line based, as upstream on text terminals,
-!> with `scroll-margin` 0 and `scroll-preserve-screen-position` nil.
+!> with `scroll_margin' 0 and `scroll_preserve_screen_position' nil.
 submodule(window_fm) window_scroll_fm
     use commands_fm, only: commands
-    use error_fm, only: set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use error_fm, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
     use lisp_fm, only: nil, nilp, consp, make_fixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
@@ -45,12 +45,12 @@ submodule(window_fm) window_scroll_fm
 
     integer, parameter :: RECENTER_MIDDLE = 1, RECENTER_TOP = 2, RECENTER_BOTTOM = 3
 
-    !> Cycling order for `recenter-top-bottom' (window.el
+    !> Cycling order for `recenter_top_bottom' (window.el
     !> recenter-positions, not yet customizable): middle, top, bottom.
     integer, parameter :: recenter_positions(3) = [RECENTER_MIDDLE, RECENTER_TOP, RECENTER_BOTTOM]
 
-    !> Index in recenter_positions of the last op of `recenter-top-bottom'
-    !> or `move-to-window-line-top-bottom'; 0 for none (window.el
+    !> Index in recenter_positions of the last op of `recenter_top_bottom'
+    !> or `move_to_window_line_top_bottom'; 0 for none (window.el
     !> recenter-last-op).
     integer :: recenter_last_op = 0
 
@@ -63,7 +63,7 @@ contains
         w => selected_window_ref()
     end function selected_window
 
-    !> Whether `w` shows the current buffer.
+    !> Whether `w' shows the current buffer.
     logical function shows_current_buffer(w)
         type(window_type), intent(in) :: w
         type(status_type) :: status
@@ -72,7 +72,7 @@ contains
         shows_current_buffer = status%ok() .and. bi == cur
     end function shows_current_buffer
 
-    !> Whether point is in the `ht` screen lines from the start of `w`.
+    !> Whether point is in the `ht' screen lines from the start of `w'.
     !> Port of the use of window.c:Fpos_visible_in_window_p in
     !> window_scroll_line_based.
     logical function point_visible_p(w, ht) result(visible)
@@ -90,8 +90,8 @@ contains
         call goto_char(opoint)
     end function point_visible_p
 
-    !> Scroll `w` (showing the current buffer) up `n` screen lines, down
-    !> if negative; with `whole`, `n` screenfuls less
+    !> Scroll `w' (showing the current buffer) up `n' screen lines, down
+    !> if negative; with `whole', `n' screenfuls less
     !> next-screen-context-lines.  Port of window.c:window_scroll_line_based
     !> (scroll-margin 0, scroll-preserve-screen-position nil).
     subroutine window_scroll(w, n, whole, status)
@@ -149,7 +149,7 @@ contains
         end if
     end subroutine window_scroll
 
-    !> Scroll the selected window by ARG in `direction` (1 up, -1 down).
+    !> Scroll the selected window by ARG in `direction' (1 up, -1 down).
     !> Port of window.c:scroll_command.
     subroutine scroll_command(arg, direction, status)
         type(value_type), intent(in) :: arg
@@ -201,7 +201,7 @@ contains
         status = status_type()
         w => selected_window()
         if (.not. shows_current_buffer(w)) then
-            call set_error(status, FM_GENERIC_ERROR, "`recenter'ing a window that does not display current-buffer")
+            call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current-buffer"))
             return
         end if
         center_p = .false.

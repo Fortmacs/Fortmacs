@@ -25,12 +25,12 @@
 !> unconditional special casings (uni_special_casing_fm: ß upcases to SS,
 !> ﬁ to FI), and the Greek final sigma rule.  Words are runs of
 !> word-constituent characters (and symbol constituents with
-!> `case-symbols-as-words`) by the current syntax table.
+!> `case_symbols_as_words') by the current syntax table.
 !>
 !> Strings are always multibyte (the unibyte paths are left out).  The
-!> word commands (`upcase-word` and friends) are registered here; their
+!> word commands (`upcase_word' and friends) are registered here; their
 !> keys come with the rest of the case commands.  Deferred: noncontiguous
-!> regions (`region-extract-function`), compositions, after-change hooks.
+!> regions (`region_extract_function'), compositions, after-change hooks.
 module casefiddle_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -62,7 +62,7 @@ module casefiddle_fm
 
     !> If non-nil, case functions treat symbol syntax as part of words.
     !>
-    !> Functions such as `upcase-initials' and `replace-match' check or
+    !> Functions such as `upcase_initials' and `replace_match' check or
     !> modify the case pattern of sequences of characters.  Normally, these
     !> operate on sequences of characters whose syntax is word constituent.
     !> If this variable is non-nil, then they operate on sequences of
@@ -198,7 +198,7 @@ contains
 
     !> Based on CTX, case character CH.  With BUF, save the result in it
     !> (using the special casings) and return whether the character has
-    !> been changed (as `changed`); always return the cased character.
+    !> been changed (as `changed'); always return the cased character.
     !> Port of casefiddle.c:case_character_impl.
     integer(int32) function case_character_impl(ctx, ch, buf, changed) result(cased)
         type(casing_context), intent(inout) :: ctx
@@ -367,7 +367,7 @@ contains
 
     !> Convert argument to upper case and return that.
     !> The argument object is not altered--the value is a copy.  See also
-    !> `capitalize', `downcase' and `upcase-initials'.  Port of
+    !> `capitalize', `downcase' and `upcase_initials'.  Port of
     !> casefiddle.c:Fupcase for a string.
     function upcase_string(str) result(out)
         character(len=*), intent(in) :: str
@@ -520,7 +520,7 @@ contains
     !> These arguments specify the starting and ending character numbers
     !> of the region to operate on.  When used as a command, the text
     !> between point and the mark is operated on.
-    !> See also `capitalize-region'.  Port of casefiddle.c:Fupcase_region.
+    !> See also `capitalize_region'.  Port of casefiddle.c:Fupcase_region.
     subroutine upcase_region(beg, end, status)
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
@@ -590,7 +590,7 @@ contains
     !> point is ignored when moving forward.
     !>
     !> With negative argument, convert previous words but do not move.
-    !> See also `capitalize-word'.  Port of casefiddle.c:Fupcase_word.
+    !> See also `capitalize_word'.  Port of casefiddle.c:Fupcase_word.
     subroutine upcase_word(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status

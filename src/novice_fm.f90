@@ -19,19 +19,19 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Disabled commands: a command whose symbol has a non-nil `disabled`
-!> property asks before it runs (`disabled-command-function`), as
-!> simple.el:command-execute arranges.  `enable-command` and
-!> `disable-command` change the property and record the choice in the
-!> init file, as `commands%CMD%disabled = .false.` in `configure` (the
-!> Fortran form of upstream's `(put 'CMD 'disabled nil)`; `CMD` is the
-!> command's name with `_` for `-`), which takes effect from the next
-!> `--recompile`.  A command that is not built in is recorded as
-!> `call set_command_disabled("CMD", .false., status)`.
+!> Disabled commands: a command whose symbol has a non-nil `disabled'
+!> property asks before it runs (`disabled_command_function'), as
+!> simple.el:command-execute arranges.  `enable_command' and
+!> `disable_command' change the property and record the choice in the
+!> init file, as `commands%CMD%disabled = .false.' in `configure' (the
+!> Fortran form of upstream's `(put 'CMD 'disabled nil)`; 'CMD` is the
+!> command's name with `_' for `-'), which takes effect from the next
+!> `--recompile'.  A command that is not built in is recorded as
+!> `call set_command_disabled("CMD", .false., status)'.
 module novice_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands, builtin_command
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR
     use lisp_fm, only: value_type, nil, nilp, symbolp, fixnump, xfixnum, symbols, xsymbol
     use lread_fm, only: sym, user_init_file
     use handle_fm, only: handle_type
@@ -69,7 +69,7 @@ module novice_fm
 contains
 
     !> The hook keyboard_fm runs before each command (command-execute's
-    !> test of the `disabled` property).
+    !> test of the `disabled' property).
     recursive subroutine check_disabled(cmd, handled, status)
         type(value_type), intent(in) :: cmd
         logical, intent(out) :: handled
@@ -132,14 +132,18 @@ contains
             at = index(doc, LF//LF)
             if (at > 0) doc = doc(1:at - 1)
             help_string = help_string//"It is disabled because new users often find it confusing."//LF// &
-                          "Here's the first part of its description:"//LF//LF//indent(doc, 3)
+                          substitute_command_keys("Here's the first part of its description:"//LF//LF)//indent(doc, 3)
         end if
-        help_string = help_string//LF//LF//"Do you want to use this command anyway?"//LF//LF// &
-                      "You can now type:"//LF// &
-                      " n    (also C-g) to cancel--don't try the command; it remains disabled."//LF// &
-                      " y    to enable the command (no questions if you use it again)."//LF// &
-                      " SPC  to try the command just this once, but leave it disabled."//LF// &
-                      " !    to enable it and all the disabled commands for this session."
+        help_string = help_string//substitute_command_keys(LF//LF//"Do you want to use this command anyway?"//LF//LF// &
+                                                           "You can now type:"//LF// &
+                                                           " \`n'    (also C-g) to cancel--don't try the command; "// &
+                                                           "it remains disabled."//LF// &
+                                                           " \`y'    to enable the command (no questions if you use "// &
+                                                           "it again)."//LF// &
+                                                           " \`SPC'  to try the command just this once, but leave it "// &
+                                                           "disabled."//LF// &
+                                                           " \`!'    to enable it and all the disabled commands for "// &
+                                                           "this session.")
         choices(1)%key = iachar("n")
         choices(1)%name = "no"
         choices(2)%key = iachar("y")
@@ -209,10 +213,10 @@ contains
         call en_disable_command(command, .true., status)
     end subroutine disable_command
 
-    !> Set the `disabled` property of COMMAND and record it in the init
-    !> file: its line `commands%COMMAND%disabled = ...` is
-    !> replaced by one at the end of `configure`.  A missing init file is
-    !> created with a `user_config` module.  Port of
+    !> Set the `disabled' property of COMMAND and record it in the init
+    !> file: its line `commands%COMMAND%disabled = ...' is
+    !> replaced by one at the end of `configure'.  A missing init file is
+    !> created with a `user_config' module.  Port of
     !> novice.el:en/disable-command.
     recursive subroutine en_disable_command(command, disable, status)
         character(len=*), intent(in) :: command
@@ -226,7 +230,7 @@ contains
         integer :: i, j
         logical :: saved_fold, builtin
         if (.not. commandp(sym(command))) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid command name `"//command//"'")
+            call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//command//format_message("'"))
             return
         end if
         p => find_command(command)
@@ -342,15 +346,15 @@ contains
     end subroutine cmd_disable_command
 
     !> Install the check for disabled commands, disable the commands
-    !> upstream disables (subr.el `upcase-region` and `downcase-region`)
+    !> upstream disables (subr.el `upcase_region' and `downcase_region')
     !> and register
-    !> `enable-command` and `disable-command`.
+    !> `enable_command' and `disable_command'.
     subroutine syms_of_novice()
         disabled_command_hook => check_disabled
         commands%enable_command%run => cmd_enable_command
         commands%disable_command%run => cmd_disable_command
         commands%upcase_region%disabled = .true.
         commands%downcase_region%disabled = .true.
-        ! bindings.el also disables `narrow-to-region', not ported yet.
+        ! bindings.el also disables `narrow_to_region', not ported yet.
     end subroutine syms_of_novice
 end module novice_fm

@@ -49,7 +49,7 @@ module frame_fm
         !> Hide the cursor after the update (cursor_off_p).
         logical :: cursor_off_p = .false.
         !> The minibuffer window is the selected window (while a minibuffer
-        !> is active; `selected_window` is the window it was entered from).
+        !> is active; `selected_window' is the window it was entered from).
         logical :: minibuffer_selected = .false.
         !> The screen contents are unknown and must be redrawn.
         logical :: garbaged = .true.
@@ -63,7 +63,7 @@ module frame_fm
 
 contains
 
-    !> Make `selected_frame`'s windows if they don't exist yet: one window
+    !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by
     !> xdisp_fm:init_frame_windows.
     subroutine ensure_frame_windows()
@@ -93,8 +93,8 @@ contains
         end if
     end function selected_window
 
-    !> The selected window of `selected_frame`: the minibuffer window while
-    !> it is selected, else `selected_window`.  window.c:selected_window.
+    !> The selected window of `selected_frame': the minibuffer window while
+    !> it is selected, else `selected_window'.  window.c:selected_window.
     function selected_window_ref() result(w)
         type(window_type), pointer :: w
         if (selected_frame%minibuffer_selected) then

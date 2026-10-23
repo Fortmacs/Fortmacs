@@ -19,20 +19,20 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Filling: `fill-paragraph` (M-q), `fill-region`,
-!> `fill-region-as-paragraph`, `set-fill-prefix` (C-x .), adaptive fill
+!> Filling: `fill_paragraph' (M-q), `fill_region',
+!> `fill_region_as_paragraph', `set_fill_prefix' (C-x .), adaptive fill
 !> prefixes, the no-break predicates, canonical spacing and
 !> justification (left, right, full, center).
 !>
-!> Not ported yet: comments (`fill-comment-paragraph`; no comment syntax
-!> yet), hard newlines, `fill-paragraph-function` and
-!> `fill-region-as-paragraph-function`, the semantic-linefeed variants,
-!> kinsoku (`fill-find-break-point`), invisible text,
-!> `fill-individual-paragraphs` and `set-justification`.
+!> Not ported yet: comments (`fill_comment_paragraph'; no comment syntax
+!> yet), hard newlines, `fill_paragraph_function' and
+!> `fill_region_as_paragraph_function', the semantic-linefeed variants,
+!> kinsoku (`fill_find_break_point'), invisible text,
+!> `fill_individual_paragraphs' and `set_justification'.
 module fill_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
-    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
@@ -75,8 +75,8 @@ module fill_fm
               unjustify_current_line, unjustify_region, string_width, syms_of_fill
     public :: fill_nobreak_predicate_proc
 
-    !> Justification styles: the values of `default-justification` (and
-    !> `none`), and t for "as `current-justification` says".
+    !> Justification styles: the values of `default_justification' (and
+    !> `none'), and t for "as `current_justification' says".
     integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
                                   JUSTIFY_CENTER = 4, JUSTIFY_T = 5
 
@@ -89,14 +89,14 @@ module fill_fm
     !> at the beginning of the next line are joined into a single line, they
     !> will be separated by a space if this variable is non-nil.
     !> Whether to use a space to separate such words also depends on the entry
-    !> in `fill-nospace-between-words-table' for the characters before and
+    !> in `fill_nospace_between_words_table' for the characters before and
     !> after the newline.  Port of fill.el
     !> fill-separate-heterogeneous-words-with-space.
     logical, public :: fill_separate_heterogeneous_words_with_space = .false.
 
     !> Non-nil means determine a paragraph's fill prefix from its text.
     !> Port of fill.el adaptive-fill-mode.
-    type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive-fill-mode", value=.true.)
+    type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive_fill_mode", value=.true.)
 
     !> Regexp to match text at start of line that constitutes indentation.
     !> If Adaptive Fill mode is enabled, a prefix matching this pattern
@@ -104,12 +104,12 @@ module fill_fm
     !> standard indentation for the whole paragraph.
     !>
     !> If the paragraph has just one line, the indentation is taken from that
-    !> line, but in that case `adaptive-fill-first-line-regexp' also plays
+    !> line, but in that case `adaptive_fill_first_line_regexp' also plays
     !> a role.  Port of fill.el adaptive-fill-regexp (unallocated is nil).
     character(len=:), allocatable, public :: adaptive_fill_regexp
 
     !> Regexp specifying whether to set fill prefix from a one-line paragraph.
-    !> When a paragraph has just one line, then after `adaptive-fill-regexp'
+    !> When a paragraph has just one line, then after `adaptive_fill_regexp'
     !> finds the prefix at the beginning of the line, if it doesn't
     !> match this regexp, it is replaced with whitespace.
     !>
@@ -136,14 +136,14 @@ module fill_fm
     integer, public :: default_justification = JUSTIFY_LEFT
 
     abstract interface
-        !> A predicate of `fill-nobreak-predicate`: true forbids breaking
+        !> A predicate of `fill_nobreak_predicate': true forbids breaking
         !> the line at point.
         logical function fill_nobreak_predicate_proc()
             implicit none(type, external)
         end function fill_nobreak_predicate_proc
     end interface
 
-    !> An element of `fill_nobreak_predicate`.
+    !> An element of `fill_nobreak_predicate'.
     type, public :: fill_nobreak_predicate_type
         procedure(fill_nobreak_predicate_proc), pointer, nopass :: fn => null()
     end type fill_nobreak_predicate_type
@@ -213,9 +213,9 @@ contains
     end subroutine set_fill_prefix
 
     !> Return the fill-column to use for this line.
-    !> The fill-column to use for a buffer is stored in the variable `fill-column',
-    !> but can be locally modified by the `right-margin' text property, which is
-    !> subtracted from `fill-column'.
+    !> The fill-column to use for a buffer is stored in the variable `fill_column',
+    !> but can be locally modified by the `right_margin' text property, which is
+    !> subtracted from `fill_column'.
     !>
     !> The fill column to use for a line is the first column at which the column
     !> number equals or exceeds the local fill-column - right-margin difference.
@@ -233,10 +233,10 @@ contains
         ! Look separately at each region of line with a different
         ! right-margin.
         do
-            call get_text_property(here, sym("right-margin"), margin, st)
+            call get_text_property(here, sym("right_margin"), margin, st)
             fill_col = fill_column%value
             if (fixnump(margin)) fill_col = fill_column%value - xfixnum(margin)
-            call text_property_not_all(here, eol, sym("right-margin"), margin, change, found, st)
+            call text_property_not_all(here, eol, sym("right_margin"), margin, change, found, st)
             if (.not. found) exit
             call goto_char(change - 1)
             col = current_column()
@@ -250,8 +250,8 @@ contains
 
     !> Remove extra spaces between words in region.
     !> Leave one space between words, two at end of sentences or after colons
-    !> (depending on values of `sentence-end-double-space', `colon-double-space',
-    !> and `sentence-end-without-period').
+    !> (depending on values of `sentence_end_double_space', `colon_double_space',
+    !> and `sentence_end_without_period').
     !> Remove indentation from each line.  Port of
     !> fill.el:canonically-space-region.
     subroutine canonically_space_region(beg, end, status)
@@ -282,12 +282,12 @@ contains
             me1 = match_end(1, st)
             mb0 = match_beginning(0, st)
             if (me1 > 0 .and. me0 > me1) then
-                ! `sentence-end' matched and did not match all spaces.
+                ! `sentence_end' matched and did not match all spaces.
                 ! I.e. it only matched the number of spaces it needs: drop the
                 ! rest.
                 from = me1
             else if (me1 > 0) then
-                ! `sentence-end' matched but with nothing left.  Either that
+                ! `sentence_end' matched but with nothing left.  Either that
                 ! means nothing should be removed, or it means it's the
                 ! "old-style" sentence-end which matches all it can.  Keep only
                 ! 2 spaces.
@@ -327,7 +327,7 @@ contains
     end subroutine canonically_space_region
 
     !> Return the longest common prefix of strings S1 and S2, or nil if none.
-    !> `found` is false for nil.  Port of fill.el:fill-common-string-prefix.
+    !> `found' is false for nil.  Port of fill.el:fill-common-string-prefix.
     subroutine fill_common_string_prefix(s1, s2, prefix, found)
         character(len=*), intent(in) :: s1, s2
         character(len=:), allocatable, intent(out) :: prefix
@@ -374,10 +374,10 @@ contains
     end subroutine fill_match_adaptive_prefix
 
     !> Compute a fill prefix from the text between FROM and TO.
-    !> This uses the variables `adaptive-fill-regexp' and `adaptive-fill-function'
-    !> and `adaptive-fill-first-line-regexp'.  `paragraph-start' also plays a role;
+    !> This uses the variables `adaptive_fill_regexp' and `adaptive_fill_function'
+    !> and `adaptive_fill_first_line_regexp'.  `paragraph_start' also plays a role;
     !> we reject a prefix based on a one-line paragraph if that prefix would
-    !> act as a paragraph-separator.  `found` is false for nil.  Port of
+    !> act as a paragraph-separator.  `found' is false for nil.  Port of
     !> fill.el:fill-context-prefix.
     subroutine fill_context_prefix(from, to, prefix, found, first_line_regexp)
         integer(int64), intent(in) :: from, to
@@ -464,7 +464,7 @@ contains
     end function fill_single_word_nobreak_p
 
     !> Return nil if French style allows breaking the line at point.
-    !> This is used in `fill-nobreak-predicate' to prevent breaking lines just
+    !> This is used in `fill_nobreak_predicate' to prevent breaking lines just
     !> after an opening paren or just before a closing paren or a punctuation
     !> mark such as `?' or `:'.  It is common in French writing to put a space
     !> at such places, which would normally allow breaking the line at those
@@ -492,8 +492,8 @@ contains
     end function fill_french_nobreak_p
 
     !> Return nil if Polish style allows breaking the line at point.
-    !> This function may be used in the `fill-nobreak-predicate' hook.
-    !> It is almost the same as `fill-single-char-nobreak-p', with the
+    !> This function may be used in the `fill_nobreak_predicate' hook.
+    !> It is almost the same as `fill_single_char_nobreak_p', with the
     !> exception that it does not require the one-letter word to be
     !> preceded by a space.  This blocks line-breaking in cases like
     !> "(a jednak)".  Port of fill.el:fill-polish-nobreak-p.
@@ -502,7 +502,7 @@ contains
     end function fill_polish_nobreak_p
 
     !> Return non-nil if a one-letter word is before point.
-    !> This function is suitable for adding to the hook `fill-nobreak-predicate',
+    !> This function is suitable for adding to the hook `fill_nobreak_predicate',
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.  Port
     !> of fill.el:fill-single-char-nobreak-p.
@@ -528,8 +528,8 @@ contains
     end function two_back_looking_at
 
     !> Return nil if breaking the line at point is allowed.
-    !> Can be customized with the variables `fill-nobreak-predicate'
-    !> and `fill-nobreak-invisible'.  Port of fill.el:fill-nobreak-p.
+    !> Can be customized with the variables `fill_nobreak_predicate'
+    !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
     logical function fill_nobreak_p() result(nobreak)
         type(status_type) :: st
         integer(int64) :: opoint, moved
@@ -638,7 +638,7 @@ contains
         script = char_script(int(c))
         if (script <= 0) return
         select case (trim(script_names(script)))
-        case ("han", "kana", "bopomofo", "cjk-misc")
+        case ("han", "kana", "bopomofo", "cjk_misc")
             nospace_between_words = .true.
         case default
             nospace_between_words = .false.
@@ -675,7 +675,7 @@ contains
         if (.not. colon_double_space) then
             eol_double_space_re = se//"$"
         else if (string_match("\[[^][]*\(\.\)[^][]*\]", se, st) > 0) then
-            ! Try to add the : inside the `sentence-end' regexp.
+            ! Try to add the : inside the `sentence_end' regexp.
             at = int(match_beginning(1, st))
             eol_double_space_re = se(1:at - 1)//".:"//se(at + 1:)//"$"
         else
@@ -700,7 +700,7 @@ contains
         call goto_char(from)
         ! Delete unnecessary newlines surrounded by words.  The character
         ! category `|' means that we can break a line at the character.
-        ! And, char-table `fill-nospace-between-words-table' tells how to
+        ! And, char-table `fill_nospace_between_words_table' tells how to
         ! concatenate words.  If a character has non-nil value in the
         ! table, never put spaces between words, thus delete a newline
         ! between them.  Otherwise, delete a newline only when a character
@@ -710,7 +710,7 @@ contains
             call search_forward(LF, pos, status, bound=endpos, noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. pos == 0) exit
             mb = match_beginning(0, st)
-            call get_text_property(mb, sym("fill-space"), fill_space, st)
+            call get_text_property(mb, sym("fill_space"), fill_space, st)
             if (stringp(fill_space)) then
                 call replace_match(xstring(fill_space), status, literal=.true.)
                 if (.not. status%ok()) exit
@@ -835,7 +835,7 @@ contains
 
     !> Replace whitespace here with one newline, then indent to left
     !> margin, and insert the fill prefix.  Port of fill.el:fill-newline
-    !> (no text properties other than `fill-space`).
+    !> (no text properties other than `fill_space').
     subroutine fill_newline(prefix, have_prefix, status)
         character(len=*), intent(in) :: prefix
         logical, intent(in) :: have_prefix
@@ -855,7 +855,7 @@ contains
             ! When refilling later on, this newline would normally not be
             ! replaced by a space, so we need to mark it specially to
             ! re-install the space when we unfill.
-            if (mark_space) call put_text_property(point() - 1, point(), sym("fill-space"), &
+            if (mark_space) call put_text_property(point() - 1, point(), sym("fill_space"), &
                                                    make_string(match_string(1)), st)
         end if
         if (have_prefix .or. .not. fill_indent_according_to_mode) then
@@ -870,7 +870,7 @@ contains
         if (have_prefix .and. len(prefix) > 0) call insert_before_markers(prefix, status)
     end subroutine fill_newline
 
-    !> Indent current line to the column given by `current-left-margin'.
+    !> Indent current line to the column given by `current_left_margin'.
     !> Port of fill.el:fill-indent-to-left-margin.
     subroutine fill_indent_to_left_margin(status)
         type(status_type), intent(out) :: status
@@ -880,33 +880,33 @@ contains
     !> Fill the region as if it were a single paragraph.
     !> This command removes any paragraph breaks in the region and
     !> extra newlines at the end, and indents and fills lines between the
-    !> margins given by the `current-left-margin' and `current-fill-column'
-    !> functions.  (In most cases, the variable `fill-column' controls the
+    !> margins given by the `current_left_margin' and `current_fill_column'
+    !> functions.  (In most cases, the variable `fill_column' controls the
     !> width.)  It leaves point at the beginning of the line following the
     !> region.
     !>
     !> Normally, the command performs justification according to
-    !> the `current-justification' function, but with a prefix arg, it
+    !> the `current_justification' function, but with a prefix arg, it
     !> does full justification instead.
     !>
-    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current-justification`)
-    !> can specify any type of justification; see `default-justification'
+    !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current_justification')
+    !> can specify any type of justification; see `default_justification'
     !> for the possible values.
     !> Optional fourth arg NOSQUEEZE non-nil means not to make spaces
     !> between words canonical before filling.
     !> Fifth arg SQUEEZE-AFTER, if non-nil, should be a buffer position; it
     !> means canonicalize spaces only starting from that position.
-    !> See `canonically-space-region' for the meaning of canonicalization
+    !> See `canonically_space_region' for the meaning of canonicalization
     !> of spaces.
     !>
-    !> Return the `fill-prefix' used for filling (`used`, with
-    !> `have_used` false for nil).
+    !> Return the `fill_prefix' used for filling (`used', with
+    !> `have_used' false for nil).
     !>
-    !> If `sentence-end-double-space' is non-nil, then period followed by one
+    !> If `sentence_end_double_space' is non-nil, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
     !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_T, as the
-    !> `current-justification` default).
+    !> `current_justification' default).
     recursive subroutine fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, &
                                                   used, have_used)
         integer(int64), intent(in) :: from_in, to_in
@@ -1026,7 +1026,7 @@ contains
                 if (point() < to .and. linebeg < to) then
                     ! Find the position where we'll break the line.  Use an
                     ! immediately following space, if any.  However, note
-                    ! that `move-to-column' may overshoot if there are wide
+                    ! that `move_to_column' may overshoot if there are wide
                     ! characters (Bug#3234).
                     if (.not. (current_column() > current_fill_column())) call goto_char(point() + 1)
                     call fill_move_to_break_point(linebeg)
@@ -1074,15 +1074,15 @@ contains
     !> Fill paragraph at or after point.
     !>
     !> If JUSTIFY is non-nil (interactively, with prefix argument), justify as well.
-    !> If `sentence-end-double-space' is non-nil, then period followed by one
+    !> If `sentence_end_double_space' is non-nil, then period followed by one
     !> space does not end a sentence, so don't break a line there.
-    !> The variable `fill-column' controls the width for filling.
+    !> The variable `fill_column' controls the width for filling.
     !>
-    !> Return the `fill-prefix' used for filling (`used`).
+    !> Return the `fill_prefix' used for filling (`used').
     !>
     !> The REGION argument is non-nil if called interactively; in that
     !> case, if Transient Mark mode is enabled and the mark is active,
-    !> call `fill-region' to fill each of the paragraphs in the active
+    !> call `fill_region' to fill each of the paragraphs in the active
     !> region, instead of just filling the current paragraph.  Port of
     !> fill.el:fill-paragraph (no fill-paragraph-function or comments;
     !> JUSTIFY is a JUSTIFY_ constant, JUSTIFY_T for nil).
@@ -1111,7 +1111,7 @@ contains
 
     !> The bytes of the whole current buffer, ignoring narrowing (what
     !> subr-x.el's with-buffer-unmodified-if-unchanged compares with
-    !> `buffer-hash').
+    !> `buffer_hash').
     function whole_buffer_text() result(text)
         character(len=:), allocatable :: text
         integer(int64) :: savedb, savedz
@@ -1181,7 +1181,7 @@ contains
     !> following ARG paragraphs.  In this case an active region is ignored.
     !>
     !> With an active region and no prefix argument this is roughly the same as
-    !> `delete-indentation' with that active region, except that this command
+    !> `delete_indentation' with that active region, except that this command
     !> only joins lines within paragraphs, preserving the paragraphs
     !> themselves.
     !>
@@ -1200,7 +1200,7 @@ contains
             e = end
         else
             if (arg == 0) then
-                call set_error(status, FM_USER_ERROR, "Invalid numeric argument to `unfill-paragraph'")
+                call set_error(status, FM_USER_ERROR, format_message("Invalid numeric argument to `unfill_paragraph'"))
                 return
             end if
             opoint = point()
@@ -1219,7 +1219,7 @@ contains
 
     !> Fill each of the paragraphs in the region.
     !> A prefix arg means justify as well.
-    !> The `fill-column' variable controls the width.
+    !> The `fill_column' variable controls the width.
     !>
     !> Noninteractively, the third argument JUSTIFY specifies which
     !> kind of justification to do: `full', `left', `right', `center',
@@ -1229,11 +1229,11 @@ contains
     !> The fourth arg NOSQUEEZE non-nil means to leave whitespace other
     !> than line breaks untouched, and fifth arg TO-EOP non-nil means
     !> to keep filling to the end of the paragraph (or next hard newline,
-    !> if variable `use-hard-newlines' is on).
+    !> if variable `use_hard_newlines' is on).
     !>
-    !> Return the `fill-prefix' used for filling the last paragraph.
+    !> Return the `fill_prefix' used for filling the last paragraph.
     !>
-    !> If `sentence-end-double-space' is non-nil, then period followed by one
+    !> If `sentence_end_double_space' is non-nil, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region (JUSTIFY_T for nil).
     recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
@@ -1290,7 +1290,7 @@ contains
 
     !> How should we justify this line?
     !> This returns the value of the text-property `justification',
-    !> or the variable `default-justification' if there is no text-property.
+    !> or the variable `default_justification' if there is no text-property.
     !> However, it returns nil rather than `none' to mean "don't justify".
     !> Port of fill.el:current-justification (JUSTIFY_NONE for nil).
     integer function current_justification() result(j)
@@ -1325,11 +1325,11 @@ contains
 
     !> Do some kind of justification on this line.
     !> Normally does full justification: adds spaces to the line to make it end at
-    !> the column given by `current-fill-column'.
+    !> the column given by `current_fill_column'.
     !> Optional first argument HOW specifies alternate type of justification:
     !> it can be `left', `right', `full', `center', or `none'; for their
-    !> meaning, see `default-justification'.
-    !> If HOW is t, will justify however the `current-justification' function says to.
+    !> meaning, see `default_justification'.
+    !> If HOW is t, will justify however the `current_justification' function says to.
     !> If HOW is nil or missing, full justification is done by default.
     !> Second arg EOP non-nil means that this is the last line of the paragraph, so
     !> it will not be stretched by full justification.
@@ -1550,14 +1550,14 @@ contains
         call restore_point(saved)
     end subroutine unjustify_region
 
-    !> Start a `save-excursion': remember point in marker SAVED.
+    !> Start a `save_excursion': remember point in marker SAVED.
     subroutine save_point(saved)
         type(handle_type), intent(out) :: saved
         type(status_type) :: st
         call copy_marker_at(point(), saved, .false., st)
     end subroutine save_point
 
-    !> End a `save-excursion': go back to SAVED and free it.
+    !> End a `save_excursion': go back to SAVED and free it.
     subroutine restore_point(saved)
         type(handle_type), intent(inout) :: saved
         type(status_type) :: st

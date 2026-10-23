@@ -19,18 +19,18 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Incremental search: C-s and C-r.  As upstream, `isearch_mode` makes
-!> `isearch-mode-map` the overriding terminal-local map and installs a
+!> Incremental search: C-s and C-r.  As upstream, `isearch_mode' makes
+!> `isearch_mode_map' the overriding terminal-local map and installs a
 !> pre-command hook; keys bound there extend or move the search, and any
 !> other command ends the search first and then runs as usual.
 !>
 !> Literal and regexp search (C-M-s, C-M-r, M-r), with lax whitespace
 !> matching (M-s SPC).  Not ported yet: word, symbol and char-fold search
-!> (`isearch-regexp-function`, `search-default-mode`),
+!> (`isearch_regexp_function', `search_default_mode'),
 !> highlighting the match and lazy highlighting (faces from overlays),
 !> C-M-w (symbol syntax: forward-symbol), reading a kill with the
-!> minibuffer (`isearch-yank-from-kill-ring`, C-u M-y), search through invisible text, scrolling during search
-!> (`isearch-allow-scroll`), `isearch-allow-motion`, query-replace and
+!> minibuffer (`isearch_yank_from_kill_ring', C-u M-y), search through invisible text, scrolling during search
+!> (`isearch_allow_scroll'), `isearch_allow_motion', query-replace and
 !> occur from isearch, the help map, input methods, completion, the
 !> minibuffer's own isearch keys while editing the string.
 module isearch_fm
@@ -80,25 +80,25 @@ module isearch_fm
               isearch_backward_regexp_command, isearch_toggle_regexp, isearch_toggle_lax_whitespace, &
               isearch_no_upper_case_p, word_search_regexp
 
-    !> Values of `isearch_case_fold_search`: nil, t, and `yes` (set by
+    !> Values of `isearch_case_fold_search': nil, t, and `yes' (set by
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NIL = 0, CASE_FOLD_T = 1, CASE_FOLD_YES = 2
 
-    !> Values of `search_upper_case`: nil, t and `not-yanks`.
+    !> Values of `search_upper_case': nil, t and `not_yanks'.
     integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
 
     !> If non-nil, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
-    !> If this value is `not-yanks', text yanked into the search string
+    !> If this value is `not_yanks', text yanked into the search string
     !> in Isearch mode is always downcased.  Port of isearch.el
     !> search-upper-case.
     integer, public :: search_upper_case = UPPER_CASE_NOT_YANKS
 
     !> Non-nil means random control characters terminate incremental
-    !> search.  (Only t and nil: `edit`, `append`, `move` and
-    !> `shift-move` are not ported.)  Port of isearch.el search-exit-option.
+    !> search.  (Only t and nil: `edit', `append', `move' and
+    !> `shift_move' are not ported.)  Port of isearch.el search-exit-option.
     logical, public :: search_exit_option = .true.
 
     !> If non-nil, do a nonincremental search instead of an incremental
@@ -123,8 +123,8 @@ module isearch_fm
     !>
     !> If the value is a string, it applies to both ordinary and regexp
     !> incremental search.  If the value is nil (unallocated), or
-    !> `isearch-lax-whitespace' is nil for ordinary incremental search, or
-    !> `isearch-regexp-lax-whitespace' is nil for regexp incremental
+    !> `isearch_lax_whitespace' is nil for ordinary incremental search, or
+    !> `isearch_regexp_lax_whitespace' is nil for regexp incremental
     !> search, then each space you type matches literally, against one
     !> space.  Port of isearch.el search-whitespace-regexp (made "[ \t]+"
     !> by syms_of_isearch).
@@ -133,31 +133,31 @@ module isearch_fm
     !> If non-nil, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in ordinary incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search-whitespace-regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is nil, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
-    !> `isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during
+    !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-lax-whitespace.
     logical, public :: isearch_lax_whitespace = .true.
 
     !> If non-nil, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in regexp incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search-whitespace-regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is nil, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
-    !> `isearch-toggle-lax-whitespace', usually bound to `M-s SPC' during
+    !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-regexp-lax-whitespace.
     logical, public :: isearch_regexp_lax_whitespace = .false.
 
     !> isearch.el isearch-mode: whether Isearch mode is on.
     logical, public, protected :: isearch_active = .false.
 
-    !> Keymap for `isearch-mode'.  Port of isearch.el isearch-mode-map.
+    !> Keymap for `isearch_mode'.  Port of isearch.el isearch-mode-map.
     type(handle_type), public, protected :: isearch_mode_map
 
     !> The search state, as isearch.el's global variables.  Strings are
-    !> UTF-8; an unallocated `isearch_error` is nil; position 0 is nil.
+    !> UTF-8; an unallocated `isearch_error' is nil; position 0 is nil.
     character(len=:), allocatable, public, protected :: isearch_string, isearch_message
     character(len=:), allocatable, public, protected :: isearch_error
     logical, public, protected :: isearch_forward = .true., isearch_success = .true.
@@ -201,7 +201,7 @@ contains
     ! Strings
     ! ------------------------------------------------------------------
 
-    !> The characters of UTF-8 `s`.
+    !> The characters of UTF-8 `s'.
     subroutine decode(s, chars, n)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -219,7 +219,7 @@ contains
         end do
     end subroutine decode
 
-    !> The UTF-8 encoding of character `c`.
+    !> The UTF-8 encoding of character `c'.
     function encode(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
@@ -230,14 +230,14 @@ contains
         s = buf(1:nbytes)
     end function encode
 
-    !> Number of characters in UTF-8 `s`.
+    !> Number of characters in UTF-8 `s'.
     integer function nchars(s)
         character(len=*), intent(in) :: s
         integer(int32), allocatable :: chars(:)
         call decode(s, chars, nchars)
     end function nchars
 
-    !> `s` without its last `n` characters.
+    !> `s' without its last `n' characters.
     function drop_chars(s, n) result(r)
         character(len=*), intent(in) :: s
         integer, intent(in) :: n
@@ -314,8 +314,8 @@ contains
     !> Otherwise if LAX is non-nil, the beginning or the end of the string
     !> need not match a word boundary.
     !>
-    !> Used in `word-search-forward', `word-search-backward',
-    !> `word-search-forward-lax', `word-search-backward-lax'.  Port of
+    !> Used in `word_search_forward', `word_search_backward',
+    !> `word_search_forward_lax', `word_search_backward_lax'.  Port of
     !> isearch.el:word-search-regexp.
     function word_search_regexp(string, lax) result(regexp)
         character(len=*), intent(in) :: string
@@ -366,15 +366,15 @@ contains
     ! The search ring
     ! ------------------------------------------------------------------
 
-    !> The name of the search ring for regexp search if `regexp`, else of
+    !> The name of the search ring for regexp search if `regexp', else of
     !> the ordinary search ring.
     function ring_name(regexp) result(name)
         logical, intent(in) :: regexp
         character(len=:), allocatable :: name
         if (regexp) then
-            name = "regexp-search-ring"
+            name = "regexp_search_ring"
         else
-            name = "search-ring"
+            name = "search_ring"
         end if
     end function ring_name
 
@@ -552,7 +552,7 @@ contains
 
     !> Do incremental search backward.
     !> With a prefix argument, do a regular expression search instead.
-    !> See the command `isearch-forward' for more information.  Port of
+    !> See the command `isearch_forward' for more information.  Port of
     !> isearch.el:isearch-backward.
     subroutine isearch_backward_command(status)
         type(status_type), intent(out) :: status
@@ -563,13 +563,13 @@ contains
     !> Do incremental search forward for regular expression.
     !> With a prefix argument, do a regular string search instead.
     !> Like ordinary incremental search except that your input is treated
-    !> as a regexp.  See the command `isearch-forward' for more
+    !> as a regexp.  See the command `isearch_forward' for more
     !> information.
     !>
     !> In incremental searches, a space or spaces normally matches any
-    !> whitespace defined by the variable `search-whitespace-regexp'.  To
+    !> whitespace defined by the variable `search_whitespace_regexp'.  To
     !> search for a literal space and nothing else, enter C-q SPC.  To
-    !> toggle whitespace matching, use `isearch-toggle-lax-whitespace',
+    !> toggle whitespace matching, use `isearch_toggle_lax_whitespace',
     !> usually bound to `M-s SPC' during isearch.  This command does not
     !> support character folding.  Port of
     !> isearch.el:isearch-forward-regexp.
@@ -582,7 +582,7 @@ contains
     !> Do incremental search backward for regular expression.
     !> With a prefix argument, do a regular string search instead.
     !> Like ordinary incremental search except that your input is treated
-    !> as a regexp.  See the command `isearch-forward-regexp' for more
+    !> as a regexp.  See the command `isearch_forward_regexp' for more
     !> information.  Port of isearch.el:isearch-backward-regexp.
     subroutine isearch_backward_regexp_command(status)
         type(status_type), intent(out) :: status
@@ -591,7 +591,7 @@ contains
     end subroutine isearch_backward_regexp_command
 
     !> Start Isearch minor mode.
-    !> It is called by the function `isearch-forward' and other related
+    !> It is called by the function `isearch_forward' and other related
     !> functions.  The arg FORWARD means searching in the forward
     !> direction.  The non-nil arg REGEXP does an incremental regular
     !> expression search.  Port of isearch.el:isearch-mode (no OP-FUN,
@@ -620,7 +620,7 @@ contains
         regexp_search_ring_yank_pointer = -1
         isearch_active = .true.
         ! Prevent successive calls overriding original map in
-        ! `isearch-done'.  (Bug#79368)
+        ! `isearch_done'.  (Bug#79368)
         if (.not. same_handle(overriding_terminal_local_map, isearch_mode_map)) then
             saved_local_map = overriding_terminal_local_map
         end if
@@ -687,8 +687,8 @@ contains
 
     !> Exit search normally.
     !> However, if this is the first command after starting incremental
-    !> search and `search-nonincremental-instead' is non-nil, do a
-    !> nonincremental search instead via `isearch-edit-string'.  Port of
+    !> search and `search_nonincremental_instead' is non-nil, do a
+    !> nonincremental search instead via `isearch_edit_string'.  Port of
     !> isearch.el:isearch-exit.
     subroutine isearch_exit(status)
         type(status_type), intent(out) :: status
@@ -718,7 +718,7 @@ contains
 
     !> Abort incremental search mode if searching is successful, signaling
     !> quit.  Otherwise, revert to previous successful search and continue
-    !> searching.  Use `isearch-exit' to quit without signaling.  Port of
+    !> searching.  Use `isearch_exit' to quit without signaling.  Port of
     !> isearch.el:isearch-abort.
     subroutine isearch_abort(status)
         type(status_type), intent(out) :: status
@@ -741,16 +741,16 @@ contains
 
     !> Decide whether to exit Isearch mode before executing the command.
     !> Don't exit Isearch if the key sequence that invoked this command
-    !> is bound in `isearch-mode-map', or if the invoked command is a
+    !> is bound in `isearch_mode_map', or if the invoked command is a
     !> prefix argument command.  Otherwise, exit Isearch (when
-    !> `search-exit-option' is t) before the command is executed globally
+    !> `search_exit_option' is t) before the command is executed globally
     !> with terminated Isearch.  Port of isearch.el:isearch-pre-command-hook
     !> (isearch-allow-prefix t, no scrolling or motion).
     subroutine isearch_pre_command_hook()
         type(value_type) :: binding
         type(status_type) :: status
         ! Don't exit Isearch if we're in the middle of some
-        ! `set-transient-map' thingy like `universal-argument--mode'.
+        ! `set_transient_map' thingy like `universal_argument__mode'.
         if (.not. same_handle(overriding_terminal_local_map, saved_overriding_local_map)) return
         ! Don't exit Isearch for isearch key bindings.
         if (allocated(this_command_keys)) then
@@ -760,10 +760,10 @@ contains
             end if
         end if
         ! Handle a prefix argument.
-        if (value_eq(this_command, sym("universal-argument")) .or. &
-            value_eq(this_command, sym("universal-argument-more")) .or. &
-            value_eq(this_command, sym("digit-argument")) .or. &
-            value_eq(this_command, sym("negative-argument"))) return
+        if (value_eq(this_command, sym("universal_argument")) .or. &
+            value_eq(this_command, sym("universal_argument_more")) .or. &
+            value_eq(this_command, sym("digit_argument")) .or. &
+            value_eq(this_command, sym("negative_argument"))) return
         ! Other characters terminate the search and are then executed
         ! normally.
         if (search_exit_option) call isearch_done()
@@ -853,7 +853,7 @@ contains
 
     !> Search for the first occurrence of STRING.  If found, move point
     !> to the end of the occurrence, update the match data, and return
-    !> true.  An invalid regexp is an error in `status`.  Port of
+    !> true.  An invalid regexp is an error in `status'.  Port of
     !> isearch.el:isearch-search-string (BOUND nil, NOERROR t; no
     !> translation-table-for-input) with isearch-search-fun-default.
     logical function isearch_search_string(string, status) result(found)
@@ -928,7 +928,7 @@ contains
     end subroutine isearch_search
 
     !> Whether the text at point matches the search string (as a regexp,
-    !> or literally), folding case with `fold`; `mend` is where the match
+    !> or literally), folding case with `fold'; `mend' is where the match
     !> ends.  An invalid regexp doesn't match.
     logical function looking_at_string(string, fold, mend) result(found)
         character(len=*), intent(in) :: string
@@ -1176,7 +1176,7 @@ contains
 
     !> Undo last input item during a search.
     !> An input item is the result of a command that pushes a new state
-    !> of isearch to `isearch-cmds'.  If no input items have been entered
+    !> of isearch to `isearch_cmds'.  If no input items have been entered
     !> yet, just beep.  Port of isearch.el:isearch-delete-char.
     subroutine isearch_delete_char()
         if (ncmds <= 1) then
@@ -1188,7 +1188,7 @@ contains
     end subroutine isearch_delete_char
 
     !> Delete character from end of search string and search again.
-    !> Unlike `isearch-delete-char', it only deletes the last character,
+    !> Unlike `isearch_delete_char', it only deletes the last character,
     !> but doesn't cancel the effect of other isearch command.
     !> If search string is empty, just beep.  Port of
     !> isearch.el:isearch-del-char.
@@ -1271,7 +1271,7 @@ contains
 
     !> Return point to previous successful match to allow regexp
     !> liberalization.  Respects C-s and C-r by stopping at
-    !> `isearch-barrier' as needed.
+    !> `isearch_barrier' as needed.
     !>
     !> Do nothing if a backslash is escaping the liberalizing character.
     !> If WANT-BACKSLASH is non-nil, invert this behavior (for \} and \|).
@@ -1357,9 +1357,9 @@ contains
         call isearch_process_search_string(s, s)
     end subroutine isearch_yank_string
 
-    !> Pull the text from point to the point reached by `jump`: 1 moves
-    !> forward `arg` characters, 2 to the end of the line (`arg` lines
-    !> on), 3 over `arg` words or characters (isearch--yank-char-or-syntax
+    !> Pull the text from point to the point reached by `jump': 1 moves
+    !> forward `arg' characters, 2 to the end of the line (`arg' lines
+    !> on), 3 over `arg' words or characters (isearch--yank-char-or-syntax
     !> with word syntax).  Port of isearch.el:isearch-yank-internal.
     subroutine isearch_yank_internal(jump, arg)
         integer, intent(in) :: jump
@@ -1407,7 +1407,7 @@ contains
         call isearch_yank_internal(3, arg)
     end subroutine isearch_yank_word_or_char
 
-    !> The character at `pos`, or 0 at the end of the accessible region
+    !> The character at `pos', or 0 at the end of the accessible region
     !> ((or (char-after POS) 0)).
     integer function char_after(pos)
         integer(int64), intent(in) :: pos
@@ -1437,15 +1437,15 @@ contains
 
     !> Replace just-yanked search string with previously killed string.
     !> When this command is called not immediately after a
-    !> `isearch-yank-kill' or a `isearch-yank-pop-only', it only pops the
+    !> `isearch_yank_kill' or a `isearch_yank_pop_only', it only pops the
     !> last killed string.  Port of isearch.el:isearch-yank-pop-only (no
     !> C-u: reading from the kill ring needs the minibuffer completion).
     subroutine isearch_yank_pop_only(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
-        if (.not. (value_eq(last_command, sym("isearch-yank-kill")) .or. &
-                   value_eq(last_command, sym("isearch-yank-pop")) .or. &
-                   value_eq(last_command, sym("isearch-yank-pop-only")))) then
+        if (.not. (value_eq(last_command, sym("isearch_yank_kill")) .or. &
+                   value_eq(last_command, sym("isearch_yank_pop")) .or. &
+                   value_eq(last_command, sym("isearch_yank_pop_only")))) then
             call isearch_yank_kill(status)
         else
             call isearch_pop_state()
@@ -1455,7 +1455,7 @@ contains
     end subroutine isearch_yank_pop_only
 
     !> Toggle case folding in searching on or off.
-    !> Toggles the value of the variable `isearch-case-fold-search'.
+    !> Toggles the value of the variable `isearch_case_fold_search'.
     !> Port of isearch.el:isearch-toggle-case-fold.
     subroutine isearch_toggle_case_fold()
         if (.not. isearch_active) call isearch_mode(.true.)
@@ -1483,8 +1483,8 @@ contains
 
     !> Toggle lax-whitespace searching on or off.
     !> In ordinary search, toggles the value of the variable
-    !> `isearch-lax-whitespace'.  In regexp search, toggles the value of
-    !> the variable `isearch-regexp-lax-whitespace'.  Port of
+    !> `isearch_lax_whitespace'.  In regexp search, toggles the value of
+    !> the variable `isearch_regexp_lax_whitespace'.  Port of
     !> isearch.el:isearch-toggle-lax-whitespace.
     subroutine isearch_toggle_lax_whitespace()
         logical :: on
@@ -1545,7 +1545,7 @@ contains
         old_point = point()
         old_other_end = isearch_other_end
         ! Don't add a new search string to the search ring here; it should
-        ! be added only by `isearch-update-ring' called from `isearch-done'.
+        ! be added only by `isearch_update_ring' called from `isearch_done'.
         saved_history_add = history_add_new_input
         history_add_new_input = .false.
         call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
@@ -1766,7 +1766,7 @@ contains
         call isearch_ring_retreat(status)
     end subroutine cmd_isearch_ring_retreat
 
-    !> Bind `keys` (kbd syntax) to command `cmd` in `map`.
+    !> Bind `keys' (kbd syntax) to command `cmd' in `map'.
     subroutine bind(map, keys, cmd)
         type(handle_type), intent(in) :: map
         character(len=*), intent(in) :: keys, cmd
@@ -1776,8 +1776,8 @@ contains
         call define_key(map, key, sym(cmd), status)
     end subroutine bind
 
-    !> Register the isearch commands, build `isearch-mode-map`, and bind
-    !> C-s, C-r, C-M-s and C-M-r in `global_map`.  Port of isearch.el's
+    !> Register the isearch commands, build `isearch_mode_map', and bind
+    !> C-s, C-r, C-M-s and C-M-r in `global_map'.  Port of isearch.el's
     !> isearch-mode-map and global bindings.
     subroutine syms_of_isearch(global_map)
         type(handle_type), intent(in) :: global_map
@@ -1815,52 +1815,52 @@ contains
         call make_keymap(isearch_mode_map)
         ! Make all multibyte characters search for themselves.
         call define_key_range(isearch_mode_map, 256_int64, int(MAX_CHAR, int64), &
-                              sym("isearch-printing-char"), status)
+                              sym("isearch_printing_char"), status)
         ! Single-byte printing chars extend the search string by default.
-        call define_key_range(isearch_mode_map, 32_int64, 255_int64, sym("isearch-printing-char"), status)
+        call define_key_range(isearch_mode_map, 32_int64, 255_int64, sym("isearch_printing_char"), status)
         ! To handle local bindings with meta char prefix keys, define
         ! another full keymap.
         call make_sparse_keymap(meta_map)
         key(1) = make_count(27_int64)
         call define_key(isearch_mode_map, key, make_keymap_ref(meta_map), status)
         ! Several non-printing chars change the searching behavior.
-        call bind(isearch_mode_map, "C-s", "isearch-repeat-forward")
-        call bind(isearch_mode_map, "C-r", "isearch-repeat-backward")
+        call bind(isearch_mode_map, "C-s", "isearch_repeat_forward")
+        call bind(isearch_mode_map, "C-r", "isearch_repeat_backward")
         ! Define M-C-s and M-C-r like C-s and C-r so that the same key
         ! combinations can be used to repeat regexp isearches that can be
         ! used to start these searches.
-        call bind(isearch_mode_map, "C-M-s", "isearch-repeat-forward")
-        call bind(isearch_mode_map, "C-M-r", "isearch-repeat-backward")
-        call bind(isearch_mode_map, "DEL", "isearch-delete-char")
+        call bind(isearch_mode_map, "C-M-s", "isearch_repeat_forward")
+        call bind(isearch_mode_map, "C-M-r", "isearch_repeat_backward")
+        call bind(isearch_mode_map, "DEL", "isearch_delete_char")
         call bind(isearch_mode_map, "<backspace>", "undefined")
-        call bind(isearch_mode_map, "C-g", "isearch-abort")
-        call bind(isearch_mode_map, "ESC ESC ESC", "isearch-cancel")
-        call bind(isearch_mode_map, "C-q", "isearch-quote-char")
-        call bind(isearch_mode_map, "RET", "isearch-exit")
-        call bind(isearch_mode_map, "<return>", "isearch-exit")
-        call bind(isearch_mode_map, "C-j", "isearch-printing-char")
-        call bind(isearch_mode_map, "TAB", "isearch-printing-char")
-        call bind(isearch_mode_map, "S-SPC", "isearch-printing-char")
-        call bind(isearch_mode_map, "C-M-d", "isearch-del-char")
-        call bind(isearch_mode_map, "C-w", "isearch-yank-word-or-char")
-        call bind(isearch_mode_map, "C-M-y", "isearch-yank-char")
-        call bind(isearch_mode_map, "M-s C-e", "isearch-yank-line")
-        call bind(isearch_mode_map, "M-s M-<", "isearch-beginning-of-buffer")
-        call bind(isearch_mode_map, "M-s M->", "isearch-end-of-buffer")
-        call bind(isearch_mode_map, "M-n", "isearch-ring-advance")
-        call bind(isearch_mode_map, "M-p", "isearch-ring-retreat")
-        call bind(isearch_mode_map, "C-y", "isearch-yank-kill")
-        call bind(isearch_mode_map, "M-y", "isearch-yank-pop-only")
-        call bind(isearch_mode_map, "M-c", "isearch-toggle-case-fold")
-        call bind(isearch_mode_map, "M-s c", "isearch-toggle-case-fold")
-        call bind(isearch_mode_map, "M-r", "isearch-toggle-regexp")
-        call bind(isearch_mode_map, "M-s r", "isearch-toggle-regexp")
-        call bind(isearch_mode_map, "M-s SPC", "isearch-toggle-lax-whitespace")
-        call bind(isearch_mode_map, "M-e", "isearch-edit-string")
-        call bind(isearch_mode_map, "M-s e", "isearch-edit-string")
-        call bind(global_map, "C-s", "isearch-forward")
-        call bind(global_map, "C-r", "isearch-backward")
-        call bind(global_map, "C-M-s", "isearch-forward-regexp")
-        call bind(global_map, "C-M-r", "isearch-backward-regexp")
+        call bind(isearch_mode_map, "C-g", "isearch_abort")
+        call bind(isearch_mode_map, "ESC ESC ESC", "isearch_cancel")
+        call bind(isearch_mode_map, "C-q", "isearch_quote_char")
+        call bind(isearch_mode_map, "RET", "isearch_exit")
+        call bind(isearch_mode_map, "<return>", "isearch_exit")
+        call bind(isearch_mode_map, "C-j", "isearch_printing_char")
+        call bind(isearch_mode_map, "TAB", "isearch_printing_char")
+        call bind(isearch_mode_map, "S-SPC", "isearch_printing_char")
+        call bind(isearch_mode_map, "C-M-d", "isearch_del_char")
+        call bind(isearch_mode_map, "C-w", "isearch_yank_word_or_char")
+        call bind(isearch_mode_map, "C-M-y", "isearch_yank_char")
+        call bind(isearch_mode_map, "M-s C-e", "isearch_yank_line")
+        call bind(isearch_mode_map, "M-s M-<", "isearch_beginning_of_buffer")
+        call bind(isearch_mode_map, "M-s M->", "isearch_end_of_buffer")
+        call bind(isearch_mode_map, "M-n", "isearch_ring_advance")
+        call bind(isearch_mode_map, "M-p", "isearch_ring_retreat")
+        call bind(isearch_mode_map, "C-y", "isearch_yank_kill")
+        call bind(isearch_mode_map, "M-y", "isearch_yank_pop_only")
+        call bind(isearch_mode_map, "M-c", "isearch_toggle_case_fold")
+        call bind(isearch_mode_map, "M-s c", "isearch_toggle_case_fold")
+        call bind(isearch_mode_map, "M-r", "isearch_toggle_regexp")
+        call bind(isearch_mode_map, "M-s r", "isearch_toggle_regexp")
+        call bind(isearch_mode_map, "M-s SPC", "isearch_toggle_lax_whitespace")
+        call bind(isearch_mode_map, "M-e", "isearch_edit_string")
+        call bind(isearch_mode_map, "M-s e", "isearch_edit_string")
+        call bind(global_map, "C-s", "isearch_forward")
+        call bind(global_map, "C-r", "isearch_backward")
+        call bind(global_map, "C-M-s", "isearch_forward_regexp")
+        call bind(global_map, "C-M-r", "isearch_backward_regexp")
     end subroutine syms_of_isearch
 end module isearch_fm

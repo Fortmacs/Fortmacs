@@ -36,7 +36,7 @@ module casetab_fm
 
 contains
 
-    !> The value for `c` in the sorted table `keys`/`values`; `c` if absent.
+    !> The value for `c' in the sorted table `keys'/`values'; `c' if absent.
     pure integer(int32) function lookup(c, keys, values, n) result(v)
         integer(int32), intent(in) :: c
         integer, intent(in) :: n
@@ -82,7 +82,7 @@ contains
         end if
     end function upcase
 
-    !> The canonical form of `c` for case-insensitive comparison: the
+    !> The canonical form of `c' for case-insensitive comparison: the
     !> case_canon_table entry (casetab.c:set_canon), so that σ, ς and Σ
     !> all compare equal.
     elemental integer(int32) function case_canon(c)

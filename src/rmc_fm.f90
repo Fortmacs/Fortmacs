@@ -19,13 +19,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `read-multiple-choice`, the short-answers path (one key per choice,
+!> `read_multiple_choice', the short-answers path (one key per choice,
 !> read in the echo area), for a terminal: the key of each name is shown
 !> in [brackets].  The help is shown in a window split off the bottom of
 !> the selected one, removed afterwards (save-window-excursion).
 !>
 !> Not ported: the long-answers and minibuffer paths, dialog boxes,
-!> touch-screen events, the `edit` answer (recursive edit).
+!> touch-screen events, the `edit' answer (recursive edit).
 module rmc_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
@@ -47,7 +47,7 @@ module rmc_fm
 
     public :: read_multiple_choice, rmc_add_key_description, generated_help
 
-    !> A choice of `read_multiple_choice`: (CHAR NAME [DESCRIPTION]).
+    !> A choice of `read_multiple_choice': (CHAR NAME [DESCRIPTION]).
     type, public :: rmc_choice_type
         integer :: key = 0
         character(len=:), allocatable :: name
@@ -87,7 +87,7 @@ contains
     !> Ask user to select an entry from CHOICES, prompting with PROMPT.
     !> This function lets a user select an option from a list of options
     !> by typing a single character, and returns the index of the choice
-    !> (`answer`).
+    !> (`answer').
     !>
     !> CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character
     !> to be entered.  NAME is a short name for the entry to be displayed

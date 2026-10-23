@@ -110,21 +110,21 @@ contains
     subroutine test_commands(error)
         type(error_type), allocatable, intent(out) :: error
         call fresh_scratch()
-        call test_sck(error, "foo \[forward-char]", "foo C-f")
+        call test_sck(error, "foo \[forward_char]", "foo C-f")
         if (allocated(error)) return
-        call test_sck(error, "\[next-line]", "C-n")
+        call test_sck(error, "\[next_line]", "C-n")
         if (allocated(error)) return
-        call test_sck(error, "\[next-line]"//LF//"\[next-line]", "C-n"//LF//"C-n")
+        call test_sck(error, "\[next_line]"//LF//"\[next_line]", "C-n"//LF//"C-n")
         if (allocated(error)) return
-        call test_sck(error, "\[next-line]\[previous-line]", "C-nC-p")
+        call test_sck(error, "\[next_line]\[previous_line]", "C-nC-p")
         if (allocated(error)) return
-        call test_sck(error, "\[next-line]\=\[previous-line]", "C-n\[previous-line]")
+        call test_sck(error, "\[next_line]\=\[previous_line]", "C-n\[previous_line]")
         if (allocated(error)) return
-        call test_sck(error, "\[next-line]`foo'", "C-n"//LQ//"foo"//RQ)
+        call test_sck(error, "\[next_line]`foo'", "C-n"//LQ//"foo"//RQ)
         if (allocated(error)) return
         call test_sck(error, "\[emacs-version]", "M-x emacs-version")
         if (allocated(error)) return
-        call test_sck(error, "\[emacs-version]\[next-line]", "M-x emacs-versionC-n")
+        call test_sck(error, "\[emacs-version]\[next_line]", "M-x emacs-versionC-n")
         if (allocated(error)) return
         call test_sck(error, "\[emacs-version]`foo'", "M-x emacs-version"//LQ//"foo"//RQ)
     end subroutine test_commands
@@ -166,15 +166,12 @@ contains
         call test_sck(error, "'", RQ)
         if (allocated(error)) return
         call test_sck(error, "\`", "\"//LQ)
-        if (allocated(error)) return
-        ! A FORD-style `x` closes with a right quote too.
-        call test_sck(error, "`x`", LQ//"x"//RQ)
     end subroutine test_quotes
 
     subroutine test_literals(error)
         type(error_type), allocatable, intent(out) :: error
         call fresh_scratch()
-        call test_sck(error, "foo \=\[goto-char]", "foo \[goto-char]")
+        call test_sck(error, "foo \=\[goto_char]", "foo \[goto_char]")
         if (allocated(error)) return
         call test_sck(error, "foo \=\=", "foo \=")
         if (allocated(error)) return
@@ -197,20 +194,20 @@ contains
     subroutine test_keymap(error)
         type(error_type), allocatable, intent(out) :: error
         call fresh_scratch()
-        call test_sck(error, "\[next-history-element]", "M-x next-history-element")
+        call test_sck(error, "\[next_history_element]", "M-x next_history_element")
         if (allocated(error)) return
-        call test_sck(error, "\<minibuffer-local-map>\[next-history-element]", "M-n")
+        call test_sck(error, "\<minibuffer_local_map>\[next_history_element]", "M-n")
         if (allocated(error)) return
-        call test_sck(error, "\<help-mode-map>\[quit-window]", "q")
+        call test_sck(error, "\<help_mode_map>\[quit_window]", "q")
         if (allocated(error)) return
-        call test_sck(error, "\<no-such-map>\[forward-char]", "C-f")
+        call test_sck(error, "\<no-such-map>\[forward_char]", "C-f")
     end subroutine test_keymap
 
     subroutine test_describe_command(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
         call fresh_scratch()
-        call describe_function_1("forward-char", text)
+        call describe_function_1("forward_char", text)
         call check(error, index(text, "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF//LF) == 1, &
                    text)
         if (allocated(error)) return
@@ -218,12 +215,12 @@ contains
         if (allocated(error)) return
         call check(error, index(text, "Move point N characters forward (backward if N is negative).") > 0, text)
         if (allocated(error)) return
-        ! \[right-char] became a key, and the citation is gone.
+        ! \[right_char] became a key, and the citation is gone.
         call check(error, index(text, "This is in contrast with"//LF//"<right>, which see.") > 0 .and. &
                    index(text, "Port of") == 0, text)
         if (allocated(error)) return
         ! An apostrophe becomes a right quote.
-        call describe_function_1("help-quit", text)
+        call describe_function_1("help_quit", text)
         call check(error, index(text, "Just exit from the Help command's") == 0 .and. &
                    index(text, "Just exit from the Help command"//RQ//"s command loop.") > 0, text)
     end subroutine test_describe_command
@@ -252,23 +249,23 @@ contains
         call fresh_scratch()
         saved = tab_width%value
         tab_width = 4
-        call describe_variable_text("tab-width", text, found)
+        call describe_variable_text("tab_width", text, found)
         tab_width = saved
-        call check(error, found .and. index(text, "tab-width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ// &
+        call check(error, found .and. index(text, "tab_width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ// &
                                             "."//LF//LF//"Its value is 4"//LF//"Original value was 8"//LF// &
                                             "Its Fortran name is "//LQ//"tab_width"//RQ//"."//LF//LF// &
                                             "Distance between tab stops") == 1, text)
         if (allocated(error)) return
-        call describe_variable_text("tab-width", text, found)
+        call describe_variable_text("tab_width", text, found)
         call check(error, index(text, "Original value") == 0, text)
         if (allocated(error)) return
-        call describe_variable_text("search-upper-case", text, found)
+        call describe_variable_text("search_upper_case", text, found)
         call check(error, index(text, "Its value is UPPER_CASE_NOT_YANKS"//LF) > 0, text)
         if (allocated(error)) return
-        call describe_variable_text("completion-ignored-extensions", text, found)
+        call describe_variable_text("completion_ignored_extensions", text, found)
         call check(error, index(text, "Its value is"//LF//"["".o"", ""~"", ") > 0, text)
         if (allocated(error)) return
-        call describe_variable_text("current-prefix-arg", text, found)
+        call describe_variable_text("current_prefix_arg", text, found)
         call check(error, index(text, "Its value is nil"//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
@@ -303,13 +300,13 @@ contains
         call command_loop(st)
         call check(error, buffers(cur)%name == "*Help*", buffers(cur)%name)
         if (allocated(error)) return
-        call check(error, index(buffer_string(), "C-f runs the command forward-char (found in global-map), which is "// &
+        call check(error, index(buffer_string(), "C-f runs the command forward_char (found in global_map), which is "// &
                                 "an interactive Fortran subroutine in "//LQ//"cmds_fm.f90"//RQ//"."//LF) == 1, &
                    buffer_string())
         if (allocated(error)) return
         call type_keys("<f1> k C-x C-f")
         call command_loop(st)
-        call check(error, index(buffer_string(), "C-x C-f runs the command find-file (found in global-map)") == 1, &
+        call check(error, index(buffer_string(), "C-x C-f runs the command find_file (found in global_map)") == 1, &
                    buffer_string())
         if (allocated(error)) return
         call type_keys("q")
@@ -332,20 +329,20 @@ contains
         call fresh_scratch()
         call type_keys("C-h c C-n")
         call command_loop(st)
-        call check(error, last_message == "C-n runs the command next-line", last_message)
+        call check(error, last_message == "C-n runs the command next_line", last_message)
     end subroutine test_describe_key_briefly
 
     subroutine test_where_is(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         call fresh_scratch()
-        call type_keys("C-h w f o r w a r d - c h a r RET")
+        call type_keys("C-h w f o r w a r d _ c h a r RET")
         call command_loop(st)
-        call check(error, last_message == "forward-char is on C-f", last_message)
+        call check(error, last_message == "forward_char is on C-f", last_message)
         if (allocated(error)) return
-        call type_keys("C-h w h e l p - q u i t RET")
+        call type_keys("C-h w h e l p _ q u i t RET")
         call command_loop(st)
-        call check(error, last_message == "help-quit is on C-h q, <f1> q", last_message)
+        call check(error, last_message == "help_quit is on C-h q, <f1> q", last_message)
     end subroutine test_where_is
 
     subroutine test_describe_function_keys(error)
@@ -363,10 +360,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         call fresh_scratch()
-        call type_keys("C-h v t a b - w i d t h RET")
+        call type_keys("C-h v t a b _ w i d t h RET")
         call command_loop(st)
         call check(error, buffers(cur)%name == "*Help*" .and. &
-                   index(buffer_string(), "tab-width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ) == 1, &
+                   index(buffer_string(), "tab_width is a variable defined in "//LQ//"xdisp_fm.f90"//RQ) == 1, &
                    buffer_string())
     end subroutine test_describe_variable_keys
 end module test_help_fm

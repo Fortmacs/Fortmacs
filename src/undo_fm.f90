@@ -22,20 +22,20 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Every change to a buffer is recorded in its `buffer-undo-list` (here
-!> the `undo_list` array of buffer_type, newest entry last): insertions,
+!> Every change to a buffer is recorded in its `buffer_undo_list' (here
+!> the `undo_list' array of buffer_type, newest entry last): insertions,
 !> deletions with the deleted text, where point was, and the first change
 !> after the buffer was saved.  Boundaries (nil entries) separate the
 !> changes of one command from the next; the command loop adds them before
-!> each command (`undo_auto_add_boundary`), and runs of self-inserting or
-!> deleting commands are merged up to `amalgamating_undo_limit` at a time.
+!> each command (`undo_auto_add_boundary'), and runs of self-inserting or
+!> deleting commands are merged up to `amalgamating_undo_limit' at a time.
 !>
 !> The undo-auto functions are simple.el's, here because the C side
 !> calls them (keyboard.c before each command, cmds.c for
 !> self-insert-command and delete-char).
 !>
 !> Not ported yet: marker adjustments, text property changes,
-!> `combine-change-calls`, the boundary timer, and truncating the list
+!> `combine_change_calls', the boundary timer, and truncating the list
 !> (undo-limit and friends): undo information grows without bound.
 module undo_fm
     use, intrinsic :: iso_fortran_env, only: int64
@@ -51,15 +51,15 @@ module undo_fm
     public :: push_undo_entry, undo_last_kind
     public :: undo_auto_add_boundary, undo_auto_amalgamate, undo_auto_undoable_change
 
-    !> Where point was before the last command or `undo_boundary`, and in
-    !> which buffer (its serial number), for `record_point`.  Port of
+    !> Where point was before the last command or `undo_boundary', and in
+    !> which buffer (its serial number), for `record_point'.  Port of
     !> undo.c point_before_last_command_or_undo and
     !> buffer_before_last_command_or_undo.
     integer(int64), public :: point_before_last_command_or_undo = 0
     integer(int64), public :: buffer_before_last_command_or_undo = -1
 
     !> The maximum number of changes to possibly amalgamate when undoing
-    !> changes.  The `undo` command will normally consider "similar"
+    !> changes.  The `undo' command will normally consider "similar"
     !> changes (like inserting characters) to be part of the same change.
     !> Port of simple.el amalgamating-undo-limit.
     integer, public :: amalgamating_undo_limit = 20
@@ -86,7 +86,7 @@ contains
         if (buffers(cur)%undo_count > 0) kind = buffers(cur)%undo_list(buffers(cur)%undo_count)%kind
     end function undo_last_kind
 
-    !> Push `entry` onto the current buffer's undo list.
+    !> Push `entry' onto the current buffer's undo list.
     subroutine push_undo_entry(entry)
         type(undo_entry_type), intent(in) :: entry
         type(undo_entry_type), allocatable :: grown(:)
@@ -222,7 +222,7 @@ contains
         if (.not. member(changed_buffers, h)) call add_handle(changed_buffers, h)
     end subroutine undo_auto_undoable_change
 
-    !> Whether `h` is in `list`.
+    !> Whether `h' is in `list'.
     logical function member(list, h)
         type(handle_type), allocatable, intent(in) :: list(:)
         type(handle_type), intent(in) :: h
@@ -247,7 +247,7 @@ contains
         call move_alloc(longer, list)
     end subroutine add_handle
 
-    !> Add an `undo_boundary` to the current buffer if needed.  Port of
+    !> Add an `undo_boundary' to the current buffer if needed.  Port of
     !> simple.el:undo-auto--ensure-boundary.
     subroutine ensure_boundary(cause)
         integer, intent(in) :: cause
@@ -293,7 +293,7 @@ contains
         deallocate (changed_buffers)
     end subroutine undo_auto_boundaries
 
-    !> Add an `undo-boundary` in appropriate buffers.  The command loop
+    !> Add an `undo_boundary' in appropriate buffers.  The command loop
     !> calls this before each command.  Port of
     !> simple.el:undo-auto--add-boundary.
     subroutine undo_auto_add_boundary()
@@ -306,8 +306,8 @@ contains
 
     !> Amalgamate undo if necessary.
     !> This function can be called before an amalgamating command.  It
-    !> removes the previous `undo-boundary` if a series of such calls
-    !> have been made.  `self-insert-command` and `delete-char` are the
+    !> removes the previous `undo_boundary' if a series of such calls
+    !> have been made.  `self_insert_command' and `delete_char' are the
     !> most common amalgamating commands.  SAME_COMMAND says whether
     !> this-command is last-command.  Port of simple.el:undo-auto-amalgamate.
     subroutine undo_auto_amalgamate(same_command)

@@ -55,7 +55,7 @@ contains
         saved_enable = enable_recursive_minibuffers
         enable_recursive_minibuffers = .true.
         do
-            call read_from_minibuffer(full, ans, status, history="yes-or-no-p-history")
+            call read_from_minibuffer(full, ans, status, history="yes_or_no_p_history")
             if (.not. status%ok()) exit
             ans = downcase_ascii(ans)
             if (ans == "yes" .and. len(ans) == 3) then

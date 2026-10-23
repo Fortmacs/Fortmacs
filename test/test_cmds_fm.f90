@@ -167,10 +167,10 @@ contains
         call check(error, point(), 3_int64)
         if (allocated(error)) return
         call forward_char(st, 5_int64)
-        call check(error, st%code == FM_END_OF_BUFFER .and. point() == 4, "end-of-buffer")
+        call check(error, st%code == FM_END_OF_BUFFER .and. point() == 4, "end_of_buffer")
         if (allocated(error)) return
         call backward_char(st, 10_int64)
-        call check(error, st%code == FM_BEGINNING_OF_BUFFER .and. point() == 1, "beginning-of-buffer")
+        call check(error, st%code == FM_BEGINNING_OF_BUFFER .and. point() == 1, "beginning_of_buffer")
         call leave(h, old)
     end subroutine test_chars
 
@@ -243,7 +243,7 @@ contains
         call check(error, buffer_string(), "aef")
         if (allocated(error)) return
         call delete_char(10_int64, st)
-        call check(error, st%code == FM_END_OF_BUFFER .and. buffer_string() == "aef", "end-of-buffer")
+        call check(error, st%code == FM_END_OF_BUFFER .and. buffer_string() == "aef", "end_of_buffer")
         if (allocated(error)) return
         call delete_char(-10_int64, st)
         call check(error, st%code, FM_BEGINNING_OF_BUFFER)
