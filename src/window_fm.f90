@@ -37,6 +37,7 @@ module window_fm
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
+              switch_to_buffer_other_window, window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, copy_quit_restore, window_resize, syms_of_window_display, &
               current_window_configuration, set_window_configuration, free_window_configuration
@@ -104,11 +105,13 @@ module window_fm
     !> display-buffer-same-window, display-buffer--maybe-same-window,
     !> display-buffer-reuse-window, display-buffer-pop-up-window,
     !> display-buffer--maybe-pop-up-window, display-buffer-in-previous-window,
-    !> display-buffer-use-some-window and display-buffer-at-bottom).
+    !> display-buffer-use-some-window, display-buffer-at-bottom and
+    !> display-buffer-below-selected).
     integer, parameter, public :: DISPLAY_ACTION_SAME_WINDOW = 1, DISPLAY_ACTION_MAYBE_SAME_WINDOW = 2, &
                                   DISPLAY_ACTION_REUSE_WINDOW = 3, DISPLAY_ACTION_POP_UP_WINDOW = 4, &
                                   DISPLAY_ACTION_MAYBE_POP_UP_WINDOW = 5, DISPLAY_ACTION_IN_PREVIOUS_WINDOW = 6, &
-                                  DISPLAY_ACTION_USE_SOME_WINDOW = 7, DISPLAY_ACTION_AT_BOTTOM = 8
+                                  DISPLAY_ACTION_USE_SOME_WINDOW = 7, DISPLAY_ACTION_AT_BOTTOM = 8, &
+                                  DISPLAY_ACTION_BELOW_SELECTED = 9
 
     !> A function that sets the height of a window `display_buffer' made
     !> (the `window_height' entry of an action alist).
@@ -121,13 +124,18 @@ module window_fm
     end interface
 
     !> A buffer display action alist: the entries ported.  Port of the
-    !> `inhibit_same_window' and `window_height' (a function) entries.
+    !> `inhibit_same_window', `window_height' (a function) and
+    !> `body_function' entries.
     type, public :: display_alist_type
         !> Don't use the selected window.
         logical :: inhibit_same_window = .false.
         !> Called with a window made to display the buffer, to set its
         !> height.
         procedure(window_height_function), pointer, nopass :: window_height => null()
+        !> Called with the window chosen to display the buffer (the buffer
+        !> current, read-only text and modification hooks inhibited), to
+        !> fill it before its size is adjusted.
+        procedure(window_height_function), pointer, nopass :: body_function => null()
     end type display_alist_type
 
     !> The window to scroll with \[scroll_other_window] from the
@@ -696,6 +704,36 @@ module window_fm
             type(display_alist_type), intent(in), optional :: alist
             logical, intent(in), optional :: norecord
         end subroutine pop_to_buffer
+
+        !> Select the buffer BUFFER in another window.  Return the buffer
+        !> switched to.  Unless NORECORD, BUFFER becomes the most
+        !> recently selected buffer.
+        !>
+        !> This uses the function `display_buffer' as a subroutine; see its
+        !> documentation for additional customization information.
+        !> If this command needs to split the current window, it by default
+        !> obeys the user options `split_height_threshold' and
+        !> `split_width_threshold', when it decides whether to split the
+        !> window horizontally or vertically.  Port of
+        !> window.el:switch-to-buffer-other-window (a buffer, not a name).
+        module subroutine switch_to_buffer_other_window(buffer, status, norecord)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: norecord
+        end subroutine switch_to_buffer_other_window
+
+        !> The window below WINDOW (the selected one by default), as seen
+        !> from the position of its point: the nearest window below that
+        !> covers point's column, else the nearest one below.  The
+        !> minibuffer window counts while it is active.  The null handle if
+        !> there is none.  Port of window.el:window-in-direction (DIRECTION
+        !> `below'; IGNORE, SIGN and WRAP nil).
+        module function window_in_direction_below(window) result(best)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+            type(handle_type) :: best
+        end function window_in_direction_below
 
         !> Port of window.el:pop-to-buffer-same-window.
         module subroutine pop_to_buffer_same_window(buffer, status, norecord)

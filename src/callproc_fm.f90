@@ -246,19 +246,25 @@ contains
     end subroutine call_process
 
     !> The directory a subprocess runs in: the current buffer's
-    !> `default_directory' (or the directory the editor started in), which
-    !> must be accessible.  Port of callproc.c:get_current_directory.
+    !> `default_directory' (or the directory the editor started in),
+    !> expanded (it may start with `~'), which must be accessible.  Port of
+    !> callproc.c:get_current_directory (as a directory name, with the
+    !> trailing slash).
     subroutine get_current_directory(dir, status)
         character(len=:), allocatable, intent(out) :: dir
         type(status_type), intent(out) :: status
-        dir = ""
+        character(len=:), allocatable :: curdir, expanded
+        curdir = ""
         if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+            if (allocated(buffers(cur)%directory)) curdir = buffers(cur)%directory
         end if
-        if (len(dir) == 0 .and. allocated(emacs_wd)) dir = file_name_as_directory(emacs_wd)
-        if (len(dir) == 0) dir = "/"
+        if (len(curdir) == 0 .and. allocated(emacs_wd)) curdir = file_name_as_directory(emacs_wd)
+        if (len(curdir) == 0) curdir = "/"
+        call expand_file_name(curdir, expanded, status)
+        if (.not. status%ok()) return
+        dir = file_name_as_directory(expanded)
         if (.not. file_accessible_directory_p(dir)) then
-            call report_file_errno("Setting current directory", dir, ENOENT, status)
+            call report_file_errno("Setting current directory", curdir, ENOENT, status)
         end if
     end subroutine get_current_directory
 
