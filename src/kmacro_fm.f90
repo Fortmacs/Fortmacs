@@ -68,7 +68,7 @@ module kmacro_fm
                            real_this_command, last_command, this_command_keys, last_input_event, last_message, &
                            read_event, unread_command_events, set_transient_map, redisplay_hook, defining_kbd_macro_p
     use xdisp_fm, only: message, add_minor_mode_lighter
-    use print_fm, only: prin1_string, marker_repr
+    use print_fm, only: fortran_string, marker_repr
     use subr_fm, only: read_number
     use minibuf_fm, only: read_string
     use register_fm, only: register_read_with_preview, get_register, set_register, register_value_type, REGISTER_EMPTY, &
@@ -382,7 +382,7 @@ contains
         case (REGISTER_MARKER)
             call marker_position(v%marker, n, status)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number-or-marker-p, "//register_value_repr(v))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, "//register_value_repr(v))
         end select
     end subroutine register_as_number
 
@@ -395,22 +395,22 @@ contains
         integer :: k
         select case (v%kind)
         case (REGISTER_EMPTY)
-            s = "nil"
+            s = ".false."
         case (REGISTER_TEXT)
-            s = prin1_string(v%text)
+            s = fortran_string(v%text)
         case (REGISTER_RECTANGLE)
-            s = "("
+            s = "["
             do k = 1, size(v%rectangle)
-                if (k > 1) s = s//" "
-                s = s//prin1_string(v%rectangle(k)%text)
+                if (k > 1) s = s//", "
+                s = s//fortran_string(v%rectangle(k)%text)
             end do
-            s = s//")"
+            s = s//"]"
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "(#<window-configuration> "//marker_repr(v%marker)//")"
         case (REGISTER_FILE)
-            s = "(file . "//prin1_string(v%text)//")"
+            s = "(file . "//fortran_string(v%text)//")"
         case (REGISTER_FILE_QUERY)
-            s = "(file-query "//prin1_string(v%text)//" "//int_text(v%number)//")"
+            s = "(file-query "//fortran_string(v%text)//" "//int_text(v%number)//")"
         case (REGISTER_BUFFER)
             if (buffer_live_p(v%buffer)) then
                 name = buffers(v%buffer%index)%name
@@ -419,7 +419,7 @@ contains
                 s = "(buffer . #<killed buffer>)"
             end if
         case default
-            s = "nil"
+            s = ".false."
         end select
         st = status_type()
     end function register_value_repr
@@ -867,7 +867,7 @@ contains
         n = ring_size()
         if (n < 2) then
             ! (kmacro-split-ring-element nil)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "kmacro, nil")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "kmacro, .false.")
             return
         end if
         elt = kmacro_ring(n)
@@ -1094,7 +1094,7 @@ contains
         a = arg
         if (consp(a)) a = list_elt(a, 1_int64)
         if (.not. (nilp(a) .or. fixnump(a))) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number-or-marker-p, -")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, -")
             return
         end if
         if (fixnump(a)) then

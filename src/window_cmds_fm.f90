@@ -211,18 +211,18 @@ contains
         end if
     end subroutine split_window
 
-    !> Split WINDOW-TO-SPLIT into two windows, one above the other.
-    !> WINDOW-TO-SPLIT defaults to the selected window if omitted or nil.
-    !> The newly created window will be below WINDOW-TO-SPLIT and will show
-    !> the same buffer as WINDOW-TO-SPLIT.
+    !> Split WINDOW_TO_SPLIT into two windows, one above the other.
+    !> WINDOW_TO_SPLIT defaults to the selected window if omitted.
+    !> The newly created window will be below WINDOW_TO_SPLIT and will show
+    !> the same buffer as WINDOW_TO_SPLIT.
     !>
-    !> If optional argument SIZE is omitted or nil, both windows get the
+    !> If optional argument SIZE is omitted, both windows get the
     !> same height, or close to it.  If SIZE is positive, the upper
     !> (selected) window gets SIZE lines.  If SIZE is negative, the
     !> lower (new) window gets -SIZE lines.  Interactively, SIZE is
     !> the prefix numeric argument.
     !>
-    !> Both windows get the same value of point as the WINDOW-TO-SPLIT.
+    !> Both windows get the same value of point as the WINDOW_TO_SPLIT.
     !> Port of window.el:split-window-below (the command;
     !> `split_window_keep_point' is t).
     subroutine cmd_split_window_below(status)
@@ -233,12 +233,12 @@ contains
                           .not. nilp(current_prefix_arg), .false., new, status)
     end subroutine cmd_split_window_below
 
-    !> Split WINDOW-TO-SPLIT into two side-by-side windows.
-    !> WINDOW-TO-SPLIT defaults to the selected window if omitted or nil.
-    !> The newly created window will be to the right of WINDOW-TO-SPLIT and
-    !> will show the same buffer as WINDOW-TO-SPLIT.
+    !> Split WINDOW_TO_SPLIT into two side-by-side windows.
+    !> WINDOW_TO_SPLIT defaults to the selected window if omitted.
+    !> The newly created window will be to the right of WINDOW_TO_SPLIT and
+    !> will show the same buffer as WINDOW_TO_SPLIT.
     !>
-    !> If optional argument SIZE is omitted or nil, both windows get the
+    !> If optional argument SIZE is omitted, both windows get the
     !> same width, or close to it.  If SIZE is positive, the left-hand
     !> (selected) window gets SIZE columns.  If SIZE is negative, the
     !> right-hand (new) window gets -SIZE columns.  Here, SIZE includes
@@ -536,14 +536,14 @@ contains
         call set_buffer(buffer, status)
     end subroutine switch_to_buffer
 
-    !> Display buffer BUFFER-OR-NAME in the selected window.
+    !> Display buffer BUFFER_OR_NAME in the selected window.
     !>
     !> If called interactively, read the buffer name using `read_buffer'.
     !> The variable `confirm_nonexistent_file_or_buffer' determines
     !> whether to request confirmation before creating a new buffer.
     !>
-    !> If BUFFER-OR-NAME is a string that does not identify an existing
-    !> buffer, create a buffer with that name.  If BUFFER-OR-NAME is
+    !> If BUFFER_OR_NAME is a string that does not identify an existing
+    !> buffer, create a buffer with that name.  If BUFFER_OR_NAME is
     !> empty, switch to the buffer returned by `other_buffer'.
     !> Port of window.el:switch-to-buffer (the command, with
     !> read-buffer-to-switch; `confirm_nonexistent_file_or_buffer' is
@@ -609,9 +609,9 @@ contains
         end if
     end subroutine kill_buffer_possibly_save
 
-    !> Kill the buffer specified by BUFFER-OR-NAME.
+    !> Kill the buffer specified by BUFFER_OR_NAME.
     !> The argument may be a buffer or the name of an existing buffer.
-    !> Argument nil or omitted means kill the current buffer.
+    !> Argument omitted means kill the current buffer.
     !>
     !> A modified buffer visiting a file is killed only after asking (and
     !> perhaps saving it).  Port of buffer.c:Fkill_buffer (the command:

@@ -66,7 +66,7 @@ module paragraphs_fm
     !> The variable `paragraph_separate' specifies how to distinguish lines
     !> that start paragraphs from lines that separate them.
     !>
-    !> If the variable `use_hard_newlines' is non-nil, then only lines
+    !> If the variable `use_hard_newlines' is true, then only lines
     !> following a hard newline are considered to match.  Port of
     !> paragraphs.el paragraph-start (one global value; set by
     !> syms_of_paragraphs).
@@ -82,27 +82,27 @@ module paragraphs_fm
     !> of paragraphs.el paragraph-separate.
     type(string_setting), public :: paragraph_separate = string_setting(name="paragraph_separate")
 
-    !> Non-nil means a single space does not end a sentence.
+    !> True means a single space does not end a sentence.
     !> This user option affects fill commands and sentence commands.
     !>
-    !> If this variable is non-nil, Emacs considers a period followed by
+    !> If this variable is true, Emacs considers a period followed by
     !> two spaces or by a newline as the end of a sentence.  Port of
     !> paragraphs.el sentence-end-double-space.
     type(logical_setting), public :: sentence_end_double_space = &
                                      logical_setting(name="sentence_end_double_space", value=.true.)
 
-    !> Non-nil means the paragraph commands are not affected by `fill_prefix'.
+    !> True means the paragraph commands are not affected by `fill_prefix'.
     !> This is desirable in modes where blank lines are the paragraph delimiters.
     !> Port of paragraphs.el paragraph-ignore-fill-prefix.
     logical, public :: paragraph_ignore_fill_prefix = .false.
 
-    !> Non-nil means a sentence will end without a period.
+    !> True means a sentence will end without a period.
     !> For example, a sentence in Thai text ends with double space but
     !> without a period.
     !>
     !> This value is used by the function `sentence_end' to construct the
     !> regexp describing the end of a sentence, when the value of the
-    !> variable `sentence_end' is nil.  Port of paragraphs.el
+    !> variable `sentence_end' is unallocated.  Port of paragraphs.el
     !> sentence-end-without-period.
     logical, public :: sentence_end_without_period = .false.
 
@@ -110,7 +110,7 @@ module paragraphs_fm
     !>
     !> This value is used by the function `sentence_end' to construct the
     !> regexp describing the end of a sentence, when the value of the
-    !> variable `sentence_end' is nil.  Port of paragraphs.el
+    !> variable `sentence_end' is unallocated.  Port of paragraphs.el
     !> sentence-end-without-space.
     character(len=:), allocatable, public :: sentence_end_without_space
 
@@ -118,7 +118,7 @@ module paragraphs_fm
     !> The value includes the whitespace following the sentence.
     !> All paragraph boundaries also end sentences, regardless.
     !>
-    !> The value nil (unallocated) means to use the default value defined
+    !> An unallocated value means to use the default value defined
     !> by the function `sentence_end'.  You should always use this function
     !> to obtain the value of this variable.  Port of paragraphs.el
     !> sentence-end.
@@ -394,7 +394,7 @@ contains
     !> If ARG is negative, point is put at end of this paragraph, mark is put
     !> at beginning of this or a previous paragraph.
     !>
-    !> Interactively (or if ALLOW-EXTEND is non-nil), if this command is
+    !> Interactively (or if ALLOW_EXTEND is true), if this command is
     !> repeated or (in Transient Mark mode) if the mark is active,
     !> it marks the next ARG paragraphs after the ones already marked.
     !> Port of paragraphs.el:mark-paragraph.
@@ -482,7 +482,7 @@ contains
     !> Return the regexp describing the end of a sentence.
     !>
     !> This function returns either the value of the variable
-    !> `sentence_end' if it is non-nil, or the default value constructed
+    !> `sentence_end' if it is allocated, or the default value constructed
     !> from the variables `sentence_end_base', `sentence_end_double_space',
     !> `sentence_end_without_period' and `sentence_end_without_space'.
     !>

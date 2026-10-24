@@ -1076,14 +1076,14 @@ contains
     !> Errors.
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
-        call bad("\(", "Unmatched ( or \\(")
-        call bad("\)", "Unmatched ) or \\)")
+        call bad("\(", "Unmatched ( or \(")
+        call bad("\)", "Unmatched ) or \)")
         call bad("[a", "Unmatched [ or [^")
         call bad("a\", "Trailing backslash")
         call bad("[[:foo:]]", "Invalid character class name")
         call bad("\(a\)\2", "Invalid back reference")
-        call bad("a\{2,1\}", "Invalid content of \\{\\}")
-        call bad("a\{1", "Unmatched \\{")
+        call bad("a\{2,1\}", "Invalid content of \{\}")
+        call bad("a\{1", "Unmatched \{")
         ! Class names must match exactly (re_wctype_parse compares lengths).
         call bad("[[:word :]]", "Invalid character class name")
         call bad("[[:alpha  :]]", "Invalid character class name")

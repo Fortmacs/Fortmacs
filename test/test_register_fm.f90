@@ -441,7 +441,7 @@ contains
         call check(error, describe_register_1(ra), "Register a contains the buffer #<killed buffer>.")
         if (allocated(error)) return
         call file_to_register("/tmp/a""b", rb)
-        call check(error, describe_register_1(rb), "Register b contains the file ""/tmp/a\""b"".")
+        call check(error, describe_register_1(rb), "Register b contains the file ""/tmp/a""""b"".")
         call kill_buffer(h, st)
     end subroutine test_file_and_buffer
 

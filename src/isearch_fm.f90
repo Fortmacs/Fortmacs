@@ -87,21 +87,21 @@ module isearch_fm
     !> Values of `search_upper_case': nil, t and `not_yanks'.
     integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
 
-    !> If non-nil, upper case chars disable case fold searching.
+    !> If not UPPER_CASE_NIL, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
-    !> If this value is `not_yanks', text yanked into the search string
+    !> If this value is UPPER_CASE_NOT_YANKS, text yanked into the search string
     !> in Isearch mode is always downcased.  Port of isearch.el
     !> search-upper-case.
     integer, public :: search_upper_case = UPPER_CASE_NOT_YANKS
 
-    !> Non-nil means random control characters terminate incremental
-    !> search.  (Only t and nil: `edit', `append', `move' and
+    !> True means random control characters terminate incremental
+    !> search.  (Only true and false: `edit', `append', `move' and
     !> `shift_move' are not ported.)  Port of isearch.el search-exit-option.
     logical, public :: search_exit_option = .true.
 
-    !> If non-nil, do a nonincremental search instead of an incremental
+    !> If true, do a nonincremental search instead of an incremental
     !> one.  This applies to RET typed immediately after entering
     !> incremental search.  Port of isearch.el
     !> search-nonincremental-instead.
@@ -115,35 +115,35 @@ module isearch_fm
     !> thrown away.  Port of isearch.el regexp-search-ring-max.
     integer, public :: regexp_search_ring_max = 16
 
-    !> If non-nil, regular expression to match a sequence of whitespace
+    !> If allocated, regular expression to match a sequence of whitespace
     !> chars.  When you enter a space or spaces in the incremental search,
     !> it will match any sequence matched by this regexp.  As an
     !> exception, spaces are treated normally in regexp incremental search
     !> if they occur in a regexp construct like [...] or *, + or ?.
     !>
     !> If the value is a string, it applies to both ordinary and regexp
-    !> incremental search.  If the value is nil (unallocated), or
-    !> `isearch_lax_whitespace' is nil for ordinary incremental search, or
-    !> `isearch_regexp_lax_whitespace' is nil for regexp incremental
+    !> incremental search.  If the value is unallocated, or
+    !> `isearch_lax_whitespace' is false for ordinary incremental search, or
+    !> `isearch_regexp_lax_whitespace' is false for regexp incremental
     !> search, then each space you type matches literally, against one
     !> space.  Port of isearch.el search-whitespace-regexp (made "[ \t]+"
     !> by syms_of_isearch).
     character(len=:), allocatable, public :: search_whitespace_regexp
 
-    !> If non-nil, a space will match a sequence of whitespace chars.
+    !> If true, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in ordinary incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search_whitespace_regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
     !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-lax-whitespace.
     logical, public :: isearch_lax_whitespace = .true.
 
-    !> If non-nil, a space will match a sequence of whitespace chars.
+    !> If true, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in regexp incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search_whitespace_regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
     !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
@@ -265,8 +265,8 @@ contains
         end do
     end function downcase_string
 
-    !> Return t if there are no upper case chars in STRING.
-    !> If REGEXP-FLAG is non-nil, disregard letters preceded by `\' (but
+    !> Return true if there are no upper case chars in STRING.
+    !> If REGEXP-FLAG is true, disregard letters preceded by `\' (but
     !> not `\\') since they have special meaning in a regexp.  Port of
     !> isearch.el:isearch-no-upper-case-p.
     logical function isearch_no_upper_case_p(string, regexp_flag) result(none)
@@ -683,7 +683,7 @@ contains
 
     !> Exit search normally.
     !> However, if this is the first command after starting incremental
-    !> search and `search_nonincremental_instead' is non-nil, do a
+    !> search and `search_nonincremental_instead' is true, do a
     !> nonincremental search instead via `isearch_edit_string'.  Port of
     !> isearch.el:isearch-exit.
     subroutine isearch_exit(status)
@@ -1441,7 +1441,7 @@ contains
     end subroutine isearch_yank_internal
 
     !> Pull next character from buffer into search string.
-    !> If optional ARG is non-nil, pull in the next ARG characters.  Port
+    !> If optional ARG is given, pull in the next ARG characters.  Port
     !> of isearch.el:isearch-yank-char.
     subroutine isearch_yank_char(arg)
         integer(int64), intent(in) :: arg
@@ -1449,7 +1449,7 @@ contains
     end subroutine isearch_yank_char
 
     !> Pull next character or word from buffer into search string.
-    !> If optional ARG is non-nil, pull in the next ARG characters/words.
+    !> If optional ARG is given, pull in the next ARG characters/words.
     !> Port of isearch.el:isearch-yank-word-or-char.
     subroutine isearch_yank_word_or_char(arg)
         integer(int64), intent(in) :: arg
@@ -1467,7 +1467,7 @@ contains
     end function char_after
 
     !> Pull rest of line from buffer into search string.
-    !> If optional ARG is non-nil, yank the next ARG lines.  Port of
+    !> If optional ARG is given, yank the next ARG lines.  Port of
     !> isearch.el:isearch-yank-line.
     subroutine isearch_yank_line(arg)
         integer(int64), intent(in) :: arg

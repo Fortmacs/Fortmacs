@@ -141,7 +141,7 @@ module buffer_fm
         !> BVAR mark: the mark marker (marker_fm), made on first use; the null
         !> handle until then.
         type(handle_type) :: mark
-        !> BVAR mark_active (`mark_active'): Non-nil means the mark and region
+        !> BVAR mark_active (`mark_active'): True means the mark and region
         !> are currently active in this buffer.
         logical :: mark_active = .false.
         !> simple.el `mark_ring' (buffer-local): former marks, newest first.
@@ -169,18 +169,18 @@ module buffer_fm
         character(len=:), allocatable :: mode_name
     end type buffer_type
 
-    !> Non-nil if Transient Mark mode is enabled.
-    !> Non-nil also enables highlighting of the region whenever the mark is
+    !> True if Transient Mark mode is enabled.
+    !> True also enables highlighting of the region whenever the mark is
     !> active.  The region is highlighted with the `region' face.  Port of
     !> buffer.c transient-mark-mode (on by default, as simple.el makes it).
     type(logical_setting), public :: transient_mark_mode = logical_setting(name="transient_mark_mode", value=.true.)
     !> Whether to deactivate the mark after an editing command.
-    !> The command loop sets this to nil before each command,
+    !> The command loop sets this to false before each command,
     !> and tests the value when the command returns.
-    !> If an editing command sets this non-nil, deactivate the mark after
+    !> If an editing command sets this true, deactivate the mark after
     !> the command returns.
     !>
-    !> Buffer modifications store t in this variable.  Port of keyboard.c
+    !> Buffer modifications store true in this variable.  Port of keyboard.c
     !> Vdeactivate_mark, the variable `deactivate_mark' (here because
     !> insdel_fm sets it; the function is simple_fm's `deactivate_mark').
     logical, public :: vdeactivate_mark = .false.
@@ -211,11 +211,11 @@ module buffer_fm
         end subroutine auto_fill_proc
     end interface
 
-    !> Function called (if non-nil) to perform auto-fill.
+    !> Function called (if not null) to perform auto-fill.
     !> It is called after self-inserting any character specified in
     !> the `auto_fill_chars' table.
     !> NOTE: This variable is not a hook;
-    !> its value may not be a list of functions.  Port of buffer.c
+    !> its value may not be several functions.  Port of buffer.c
     !> auto-fill-function (null is nil; one global value).
     type(function_setting), public :: auto_fill_function = function_setting(name="auto_fill_function")
 
@@ -312,7 +312,8 @@ contains
         buffer_live_p = table%is_live(h)
     end function buffer_live_p
 
-    !> Port of buffer.c:Fcurrent_buffer.  Null before any buffer exists.
+    !> Return the current buffer as a buffer handle.  Port of
+    !> buffer.c:Fcurrent_buffer (null before any buffer exists).
     function current_buffer() result(h)
         type(handle_type) :: h
         integer(int64) :: k
@@ -481,7 +482,9 @@ contains
         end function same
     end function generate_new_buffer_name
 
-    !> Port of buffer.c:Fbuffer_name.
+    !> Return the name of BUFFER (handle `h'), as a string.  Port of
+    !> buffer.c:Fbuffer_name (a killed buffer is an error, where upstream
+    !> returns nil).
     subroutine buffer_name(h, name, status)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable, intent(out) :: name

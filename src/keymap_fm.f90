@@ -84,7 +84,7 @@ module keymap_fm
     public :: where_is_internal, keymap_events, command_remapping
 
     !> Bind a key given as a `key_valid_p' string.  A character `command'
-    !> names a command (a symbol); a value is any key definition.
+    !> names a command; otherwise it is any key definition.
     interface keymap_set
         module procedure keymap_set_value, keymap_set_command
     end interface keymap_set
@@ -1723,7 +1723,7 @@ contains
         end function numeric_word
     end subroutine key_parse
 
-    !> Return non-nil if KEYS, a key sequence, is valid.
+    !> Return true if KEYS, a key sequence, is valid.
     !> This function checks key sequences that are being input to
     !> `keymap_set', `keymap_global_set' and the like.
     !>

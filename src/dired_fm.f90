@@ -40,10 +40,10 @@ module dired_fm
 
     public :: directory_files, file_name_completion, file_name_all_completions
 
-    !> Completion ignores file names ending in any string in this list.
+    !> Completion ignores file names ending in any string in this array.
     !> It does not ignore them if all possible completions end in one of
     !> these strings or when displaying a list of completions.  It ignores
-    !> directory names if they match any string in this list which ends in
+    !> directory names if they match any string in this array which ends in
     !> a slash.  Port of dired.c completion-ignored-extensions, with the
     !> value bindings.el gives it.
     character(len=8), public :: completion_ignored_extensions(67) = [character(len=8) :: &

@@ -202,7 +202,7 @@ contains
         status = status_type()
         w => selected_window()
         if (.not. shows_current_buffer(w)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current-buffer"))
+            call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current_buffer"))
             return
         end if
         center_p = .false.
@@ -244,7 +244,7 @@ contains
         line = 0
         w => selected_window()
         if (.not. shows_current_buffer(w)) then
-            call set_error(status, FM_GENERIC_ERROR, "move-to-window-line called from unrelated buffer")
+            call set_error(status, FM_GENERIC_ERROR, "move_to_window_line called from unrelated buffer")
             return
         end if
         lines = window_body_lines(w)

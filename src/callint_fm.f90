@@ -47,18 +47,17 @@ module callint_fm
     public :: call_interactively, funcall, prefix_numeric_value
 
     !> The value of the prefix argument for this editing command.
-    !> It may be a number, or the symbol `-' for just a minus sign as arg,
-    !> or a list whose car is a number for just one or more C-u's
-    !> or nil if no argument has been specified.
-    !> This is what `(interactive "P")' returns.  Port of callint.c
-    !> current-prefix-arg.
+    !> It may be an integer, or `-' for just a minus sign as arg, or an
+    !> array whose first element is an integer ([4], [16], ...) for just one
+    !> or more C-u's, or .false. if no argument has been specified.  Port
+    !> of callint.c current-prefix-arg.
     type(value_type), public :: current_prefix_arg
     !> keyboard.c KVAR prefix_arg: the raw prefix argument for the next
     !> command (set by universal-argument and friends).
     type(value_type), public :: prefix_arg
-    !> Non-nil means you can use the mark even when inactive.
+    !> True means you can use the mark even when inactive.
     !> This option makes a difference in Transient Mark mode.
-    !> When the option is non-nil, deactivation of the mark
+    !> When the option is true, deactivation of the mark
     !> turns off region highlighting, but commands that use the mark
     !> behave as if the mark were still active.  Port of callint.c
     !> mark-even-if-inactive.
@@ -117,7 +116,7 @@ contains
         end do
     end subroutine intern_command_names
 
-    !> Return t if SYMBOL's function definition is not void.  Port of
+    !> Return true if SYMBOL's function definition is not void.  Port of
     !> data.c:Ffboundp.
     logical function fboundp(v)
         type(value_type), intent(in) :: v

@@ -19,8 +19,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The printed representation of a value, as `prin1' writes it: what
-!> help shows for a variable holding a value.
+!> The printed representation of a value, as `prin1' writes it, and as
+!> Fortran (`fortran_repr'), which help shows for a variable holding a value.
 !>
 !> Deferred: `princ', print streams, `print_length' and `print_level',
 !> escaping in symbol names, circular structure, floats, the char-table
@@ -40,7 +40,7 @@ module print_fm
     implicit none(type, external)
     private
 
-    public :: prin1_to_string, prin1_string, marker_repr
+    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr, fortran_string
 
 contains
 
@@ -95,6 +95,57 @@ contains
             s = "#<unknown>"
         end select
     end function prin1_to_string
+
+    !> OBJECT written as Fortran, as help shows a value: .false. for nil,
+    !> .true. for t, integers, strings as Fortran literals (doubling each
+    !> double quote), other symbols by name (as named constants are
+    !> written), lists as array constructors; buffers, markers and keymaps,
+    !> which have no Fortran notation, as `prin1_to_string' gives them.
+    !> (Ours: Fortmacs shows values as Fortran, not as Lisp.)
+    recursive function fortran_repr(object) result(s)
+        type(value_type), intent(in) :: object
+        character(len=:), allocatable :: s
+        type(value_type), allocatable :: elems(:)
+        type(status_type) :: status
+        integer :: k
+        select case (vtag(object))
+        case (V_NIL)
+            s = ".false."
+        case (V_SYMBOL)
+            call symbol_name(object, s, status)
+            if (.not. status%ok()) then
+                s = "#<symbol>"
+            else if (s == "t") then
+                s = ".true."
+            end if
+        case (V_STRING)
+            s = fortran_string(xstring(object))
+        case (V_LIST)
+            call list_elements(object, elems)
+            s = "["
+            do k = 1, size(elems)
+                if (k > 1) s = s//", "
+                s = s//fortran_repr(elems(k))
+            end do
+            s = s//"]"
+        case default
+            s = prin1_to_string(object)
+        end select
+    end function fortran_repr
+
+    !> The string TEXT as a Fortran literal: in double quotes, each double
+    !> quote doubled.  (Ours: how help and error messages show a string.)
+    pure function fortran_string(text) result(s)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: s
+        integer :: k
+        s = """"
+        do k = 1, len(text)
+            s = s//text(k:k)
+            if (text(k:k) == """") s = s//""""
+        end do
+        s = s//""""
+    end function fortran_string
 
     !> The printed representation of the string TEXT, as `prin1' writes
     !> it: in double quotes, a backslash escaping each double quote and

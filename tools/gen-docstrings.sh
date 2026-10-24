@@ -53,6 +53,9 @@ trap 'rm -f "$tmp".*' EXIT
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort | xargs awk '
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 function help_name(s) { return s }
+# A declaration line with deferred lengths (len=:) written as len=*, so
+# the "::" that separates the names is the first colon.
+function declline(s) { gsub(/len=:/, "len=*", s); return s }
 
 # The docstring of comment block b (lines joined by \036): the text
 # before "Port of".
@@ -62,6 +65,9 @@ function docstring(b,    n, i, lines, out, k, line) {
     for (i = 1; i <= n; i++) {
         line = lines[i]
         k = index(line, "Port of")
+        # "Port" at the end of a line, "of" starting the next.
+        if (k == 0 && i < n && match(line, /(^|[ \t])Port$/) && lines[i + 1] ~ /^of /)
+            k = length(line) - 3
         if (k > 0) {
             line = substr(line, 1, k - 1)
             sub(/[ \t]+$/, "", line)
@@ -91,6 +97,8 @@ function citation(b, var,    flat, k, rest, file, name) {
         if (!match(rest, /^ [a-z][A-Za-z0-9*+-]*/)) return ""
         # (lower case: dired-ls-F-marks-symlinks is dired_ls_f_marks_symlinks)
         name = tolower(substr(rest, 2, RLENGTH - 1))
+        # A C variable (point_before_last_command_or_undo), not a DEFVAR.
+        if (substr(rest, RLENGTH + 1, 1) == "_") return ""
         sub(/-$/, "", name)
         gsub(/-/, "_", name)
         return name
@@ -166,6 +174,24 @@ ingeneric != "" && /^[ \t]*module procedure/ {
     next
 }
 
+# A separate module procedure in a submodule (`module procedure NAME`):
+# its comment documents the procedure its parent declares.
+ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
+    if (block != "") {
+        pname = tolower($3)
+        key = pname SUBSEP base
+        if (!(key in pdoc)) {
+            pdoc[key] = docstring(block)
+            c = citation(block, 0)
+            pcite[key] = c
+            if (c != "" && !(c in cited)) cited[c] = key
+        }
+        if (!(pname in anydoc) || anydoc[pname] == "") anydoc[pname] = pdoc[key]
+    }
+    block = ""
+    next
+}
+
 # Built-in commands (not in comments): `commands%NAME%run => PROC`, and
 # `commands%NAME%interactive = .false.` for a function that is not a
 # command.
@@ -194,11 +220,17 @@ ingeneric != "" && /^[ \t]*module procedure/ {
         sig = pname sig
         if (sig ~ /&[ \t]*$/) { sub(/&[ \t]*$/, "", sig); insig = 1; block = ""; next }
         finish_sig()
-    } else if (block != "" && line !~ /parameter/ && match(line, /^[ \t]*(integer|logical|character|real|type[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
-        decl = substr(line, 1, RLENGTH)
+    } else if (block != "" && line !~ /parameter/ && match(declline(line), /^[ \t]*(integer|logical|character|real|type[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
+        decl = substr(declline(line), 1, RLENGTH)
         vname = decl; sub(/.*[ \t:]/, "", vname)
         type = decl; sub(/[ \t]*::.*/, "", type); sub(/^[ \t]+/, "", type)
         rest = substr($0, RLENGTH + 1)
+        # A declaration continued over several lines is joined into one.
+        while (rest ~ /&[ \t]*$/ && (getline nextl) > 0) {
+            sub(/[ \t]*&[ \t]*$/, " ", rest)
+            sub(/^[ \t]*&?[ \t]*/, "", nextl)
+            rest = rest nextl
+        }
         is_array = (rest ~ /^\(/) ? 1 : 0
         init = ""
         if (!is_array && match(rest, /^[ \t]*=[ \t]*/)) {
@@ -217,6 +249,9 @@ ingeneric != "" && /^[ \t]*module procedure/ {
                 init = substr(rest, RSTART, RLENGTH)
                 sub(/value[ \t]*=[ \t]*/, "", init)
             }
+        } else if (type ~ /^type/) {
+            # Other derived types have no printed value to compare.
+            init = ""
         }
         key = vname SUBSEP base
         vdoc[key] = docstring(block)
@@ -320,6 +355,19 @@ END {
         if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
         finter[name] = (name in noninteractive) ? 0 : 1
     }
+    # A command without a docstring of its own that runs the procedure of
+    # another command is an alias of it (join_line of delete_indentation):
+    # it gets the docstring of that command, the first such name in order
+    # whatever order this awk visits the array in.
+    for (name in cmd) {
+        if (fdoc[name] != "") continue
+        best = ""
+        for (other in cmd)
+            if (other != name && cmd[other] == cmd[name] && fdoc[other] != "" && (best == "" || other < best))
+                best = other
+        if (best != "") alias_doc[name] = fdoc[best]
+    }
+    for (name in alias_doc) fdoc[name] = alias_doc[name]
     for (lisp in fdoc)
         printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]
 }
@@ -389,6 +437,11 @@ $1 == "V" {
     nv++; vname[nv] = $2; vfile[nv] = $3; vfort[nv] = $4; vtype[nv] = $5; varr[nv] = $6
     vinit[nv] = $7; vdoc[nv] = $8
     mods[$3] = mods[$3] (mods[$3] == "" ? "" : ", ") $4
+    # The procedures naming the value of a procedure setting.
+    if ($5 ~ /function_setting\)/ && !named_cmd++)
+        mods["callint_fm.f90"] = mods["callint_fm.f90"] (mods["callint_fm.f90"] == "" ? "" : ", ") "command_name_of"
+    if ($5 ~ /indent_line_setting\)/ && !named_indent++)
+        mods["indent_fm.f90"] = mods["indent_fm.f90"] (mods["indent_fm.f90"] == "" ? "" : ", ") "indent_line_function_name"
     if ($7 ~ /^[A-Z][A-Z0-9_]*$/ && ($7 in group)) {
         venum[nv] = group[$7]
         n = split(group[$7], defs, ",")
@@ -435,7 +488,7 @@ END {
         mlist[j + 1] = x
     }
     print "    use, intrinsic :: iso_fortran_env, only: int64"
-    print "    use print_fm, only: prin1_to_string"
+    print "    use print_fm, only: fortran_repr"
     for (i = 1; i <= nm; i++) {
         m = mlist[i]; sub(/\.f90$/, "", m)
         line = "    use " m ", only: "
@@ -536,7 +589,10 @@ END {
             print "            entry%original = " q(init)
         }
         if (venum[i] != "") {
-            print "            select case (" vfort[i] ")"
+            # The value of a setting object is its value component.
+            ex = vfort[i]
+            if (vtype[i] ~ /_setting\)/) ex = ex "%value"
+            print "            select case (" ex ")"
             n = split(venum[i], defs, ",")
             for (k = 1; k <= n; k++) {
                 d = defs[k]; gsub(/[ \t]/, "", d); sub(/=.*/, "", d)
@@ -544,17 +600,36 @@ END {
                 print "                entry%value = " q(d)
             }
             print "            case default"
-            print "                entry%value = repr(" vfort[i] ")"
+            print "                entry%value = repr(" ex ")"
             print "            end select"
         } else {
-            # Other derived types have no printed representation yet.
+            # Values as Fortran: a string or array that is not allocated
+            # is "unallocated", a procedure pointer the name of its procedure or
+            # null().  Other derived types (hooks, keymaps, syntax tables)
+            # have no printed representation yet: help leaves the value out.
             if (vtype[i] ~ /(integer|logical)_setting\)/) print "            entry%value = repr(" vfort[i] "%value)"
-            else if (vtype[i] ~ /string_setting\)/)
-                print "            if (allocated(" vfort[i] "%value)) entry%value = repr(" vfort[i] "%value)"
-            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = prin1_to_string(" vfort[i] ")"
-            else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/)
-                print "            if (allocated(" vfort[i] ")) entry%value = repr(" vfort[i] ")"
-            else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
+            else if (vtype[i] ~ /string_setting\)/) {
+                print "            if (allocated(" vfort[i] "%value)) then"
+                print "                entry%value = repr(" vfort[i] "%value)"
+                print "            else"
+                print "                entry%value = \"unallocated\""
+                print "            end if"
+            } else if (vtype[i] ~ /function_setting\)/) {
+                print "            if (associated(" vfort[i] "%value)) then"
+                print "                entry%value = command_name_of(" vfort[i] "%value)"
+                print "            else"
+                print "                entry%value = \"null()\""
+                print "            end if"
+            } else if (vtype[i] ~ /indent_line_setting\)/)
+                print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
+            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
+            else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
+                print "            if (allocated(" vfort[i] ")) then"
+                print "                entry%value = repr(" vfort[i] ")"
+                print "            else"
+                print "                entry%value = \"unallocated\""
+                print "            end if"
+            } else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"
         }
         print "            entry%doc = " docexpr(vdoc[i], "                        ")
     }
@@ -580,7 +655,7 @@ END {
     print "        s = trim(buf)"
     print "    end function repr_integer"
     print ""
-    print "    ! A real as the Lisp printer shows a float: at least one digit"
+    print "    ! A real with at least one digit"
     print "    ! after the point, no trailing zeros."
     print "    function repr_real(v) result(s)"
     print "        real, intent(in) :: v"

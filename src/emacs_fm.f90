@@ -279,7 +279,7 @@ contains
             ! process-file-arg
             dir = file_name_as_directory(emacs_wd)
             if (len(emacs_wd) == 0 .and. .not. file_name_absolute_p(argi)) then
-                call message("Ignoring relative file name ("//argi//") due to nil default-directory")
+                call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
             call visit(argi, dir, line, column, status)
