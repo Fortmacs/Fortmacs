@@ -56,20 +56,23 @@ if $style; then
     fi
     # src/commands_fm.f90 is generated from the `commands%NAME%run =>`
     # assignments, src/modes_fm.f90 from the `major_modes%NAME%define(`
-    # and `minor_modes%NAME%define(` calls, src/docstrings_fm.f90 from
-    # the docstrings (help).
+    # and `minor_modes%NAME%define(` calls, src/face_table_fm.f90 from the
+    # face declarations, src/docstrings_fm.f90 from the docstrings (help).
     if $fix; then
         tools/gen-commands.sh
         tools/gen-modes.sh
+        tools/gen-faces.sh
         tools/gen-docstrings.sh
     else
-        for gen in commands modes; do
-            fresh=${TMPDIR:-/tmp}/${gen}_fm.$$.f90
+        for pair in commands:commands_fm modes:modes_fm faces:face_table_fm; do
+            gen=${pair%%:*}
+            file=${pair#*:}
+            fresh=${TMPDIR:-/tmp}/${file}.$$.f90
             tools/gen-$gen.sh "$fresh"
             if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
-                src/${gen}_fm.f90 "$fresh"; then
+                src/${file}.f90 "$fresh"; then
                 rm -f "$fresh"
-                echo "src/${gen}_fm.f90 is out of date: run tools/gen-$gen.sh" >&2
+                echo "src/${file}.f90 is out of date: run tools/gen-$gen.sh" >&2
                 exit 1
             fi
             rm -f "$fresh"

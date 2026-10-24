@@ -24,7 +24,9 @@ module test_faces_fm
                         FACE_UNSPECIFIED, FACE_NIL, FACE_T, FACE_PLIST, FACE_LIST, &
                         line_number, line_number_major_tick, fill_column_indicator, show_paren_match, &
                         tty_menu_selected_face, tty_menu_disabled_face, read_multiple_choice_face, tool_bar, &
-                        glyphless_char, tab_line, menu, cursor
+                        glyphless_char, tab_line, menu, cursor, region, FACE_COLOR
+    use comint_fm, only: comint_highlight_input_face
+    use fortmacs, only: faces, face_underline, face_box, FACE_STYLE_WAVE, FACE_STYLE_LINE, FACE_BOX_RELEASED_BUTTON
     implicit none(type, external)
     private
 
@@ -40,6 +42,7 @@ contains
                     new_unittest("color-8-dark", test_color_8_dark), &
                     new_unittest("mono-fallbacks", test_mono), &
                     new_unittest("default-alternative", test_default_alternative), &
+                    new_unittest("config-faces", test_config_faces), &
                     new_unittest("relative-height", test_relative_height) &
                     ]
     end subroutine collect_faces_fm
@@ -210,6 +213,46 @@ contains
         call face_spec_recalc_all()
         call check(error, tool_bar%lface%background, "grey")
     end subroutine test_default_alternative
+
+    !> The configuration sets faces through `faces', and property-list
+    !> attributes through `face_underline' and `face_box'.
+    subroutine test_config_faces(error)
+        type(error_type), allocatable, intent(out) :: error
+        call init_faces()
+        faces%region%background = "blue"
+        call check(error, associated(faces%region, region), "faces%region is the region face")
+        if (allocated(error)) return
+        call check(error, region%background == "blue", "background set")
+        if (allocated(error)) return
+        call check(error, associated(faces%comint_highlight_input, comint_highlight_input_face), &
+                   "a face whose variable has another name")
+        if (allocated(error)) return
+        faces%link%underline = .true.
+        call check(error, faces%link%underline%state == FACE_T, "underline t")
+        if (allocated(error)) return
+        faces%error%underline = face_underline(color="red", style=FACE_STYLE_WAVE)
+        call check(error, faces%error%underline%state == FACE_PLIST .and. faces%error%underline%color == "red" .and. &
+                   faces%error%underline%style == FACE_STYLE_WAVE .and. .not. faces%error%underline%position, &
+                   "(:color ""red"" :style wave)")
+        if (allocated(error)) return
+        faces%error%underline = face_underline(position=.true.)
+        call check(error, faces%error%underline%state == FACE_PLIST .and. faces%error%underline%color == "" .and. &
+                   faces%error%underline%style == FACE_STYLE_LINE .and. faces%error%underline%position, &
+                   "(:position t), the foreground color")
+        if (allocated(error)) return
+        faces%mode_line%box = face_box(line_width=-1, style=FACE_BOX_RELEASED_BUTTON)
+        call check(error, faces%mode_line%box%state == FACE_PLIST .and. faces%mode_line%box%line_width == 1 .and. &
+                   faces%mode_line%box%line_height == -1 .and. faces%mode_line%box%style == "released-button", &
+                   "(:line-width -1 :style released-button)")
+        if (allocated(error)) return
+        faces%mode_line%box = "gray"
+        call check(error, faces%mode_line%box%state == FACE_COLOR .and. faces%mode_line%box%color == "gray" .and. &
+                   .not. allocated(faces%mode_line%box%style), "a box color")
+        deallocate (region%background)
+        call faces%link%underline%unspecify()
+        call faces%error%underline%unspecify()
+        call faces%mode_line%box%unspecify()
+    end subroutine test_config_faces
 
     !> Float heights are relative.
     subroutine test_relative_height(error)
