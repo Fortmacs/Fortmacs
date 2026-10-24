@@ -166,6 +166,22 @@ module simple_fm
     !> for none.  Port of simple.el fill-prefix.
     type(string_setting), public :: fill_prefix = string_setting(name="fill_prefix")
 
+    abstract interface
+        !> A `comment_line_break_function': break the line at point (SOFT: the
+        !> newline is soft).
+        subroutine line_break_proc(status, soft)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: soft
+        end subroutine line_break_proc
+    end interface
+
+    !> Mode-specific function that breaks a line in a comment (newcomment_fm
+    !> sets `comment_indent_new_line's).  Port of simple.el
+    !> comment-line-break-function.
+    procedure(line_break_proc), pointer, public :: comment_line_break_function => null()
+
     !> The actions of `cycle_spacing' (the symbols of
     !> `cycle_spacing_actions').
     integer, parameter, public :: CYCLE_JUST_ONE_SPACE = 1, CYCLE_DELETE_SPACE_AFTER = 2, &
@@ -293,13 +309,15 @@ module simple_fm
         !> If a comment syntax is defined, call `comment_line_break_function'.
         !>
         !> The inserted newline is marked hard if variable `use_hard_newlines' is true,
-        !> unless optional argument SOFT is true.  Port of
-        !> simple.el:default-indent-new-line (no comments or hard
+        !> unless optional argument SOFT is true.  FORCE (an interactive call)
+        !> breaks the line even where `comment_auto_fill_only_comments' is
+        !> true.  Port of simple.el:default-indent-new-line (no hard
         !> newlines).  (In simple_fill_fm.)
-        module subroutine default_indent_new_line(status, soft)
+        module subroutine default_indent_new_line(status, soft, force)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: soft
+            logical, intent(in), optional :: force
         end subroutine default_indent_new_line
 
         !> The function called by `self_insert_command' to perform auto-filling.
