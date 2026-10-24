@@ -47,7 +47,8 @@ module simple_fm
     use data_fm, only: value_eq, string_setting
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
     use casetab_fm, only: downcase
-    use buffer_fm, only: resolve_buffer
+    use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE
+    use marker_fm, only: char_to_byte
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
                          inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
                          UE_POINT, UE_FIRST_CHANGE
@@ -133,7 +134,7 @@ module simple_fm
               exchange_point_and_mark, mark_whole_buffer
     public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
-              forward_visible_line
+              forward_visible_line, count_lines, line_number_at_pos
     public :: backward_word, kill_word, backward_kill_word, mark_word
     public :: indicate_copied_region, region_indistinguishable_p, predicate_proc
     ! (Public because gfortran drops private parent procedures that only a
@@ -2456,6 +2457,69 @@ contains
             end do
         end if
     end subroutine forward_visible_line
+
+    !> Return number of lines between START and END.
+    !> This is usually the number of newlines between them, but can be
+    !> one more if START is not equal to END and the greater of them is
+    !> not at the start of a line.  Port of simple.el:count-lines (no
+    !> IGNORE-INVISIBLE-LINES, nor `selective_display'; positions outside
+    !> the buffer are taken as its ends).
+    integer(int64) function count_lines(start, end) result(n)
+        integer(int64), intent(in) :: start, end
+        character(len=:), allocatable :: text
+        integer(int64) :: s, e
+        s = max(BEG, min(start, end))
+        e = min(buffers(cur)%text%z, max(start, end))
+        n = 0
+        if (e <= s) return
+        text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
+        n = newlines_in(text)
+        ! (if (bolp) (1- (line-number-at-pos)) (line-number-at-pos)) at
+        ! the end of the region narrowed to.
+        if (text(len(text):len(text)) /= char(10)) n = n + 1
+    end function count_lines
+
+    !> Return the line number at POSITION in the current buffer.
+    !> If POSITION is absent, it defaults to point's position in the
+    !> current buffer.
+    !>
+    !> If the buffer is narrowed, the return value by default counts the lines
+    !> from the beginning of the accessible portion of the buffer.  But if the
+    !> second optional argument ABSOLUTE is true, the value counts the lines
+    !> from the absolute start of the buffer, disregarding the narrowing.
+    !> Port of fns.c:Fline_number_at_pos (here rather than in fns_fm, which
+    !> does not see the buffer text; a POSITION outside the buffer is
+    !> taken as its end).
+    integer(int64) function line_number_at_pos(position, absolute) result(line)
+        integer(int64), intent(in), optional :: position
+        logical, intent(in), optional :: absolute
+        integer(int64) :: pos_byte, start_byte
+        logical :: whole
+        whole = .false.
+        if (present(absolute)) whole = absolute
+        associate (b => buffers(cur))
+            pos_byte = b%pt_byte
+            if (present(position)) pos_byte = char_to_byte(max(BEG, min(position, b%text%z)))
+            start_byte = b%begv_byte
+            if (whole) then
+                start_byte = BEG_BYTE
+            else
+                pos_byte = max(b%begv_byte, min(pos_byte, b%zv_byte))
+            end if
+            line = 1
+            if (pos_byte > start_byte) line = newlines_in(buf_bytes(b, start_byte, pos_byte)) + 1
+        end associate
+    end function line_number_at_pos
+
+    !> The number of newlines in TEXT.
+    pure integer(int64) function newlines_in(text) result(n)
+        character(len=*), intent(in) :: text
+        integer(int64) :: k
+        n = 0
+        do k = 1, len(text, kind=int64)
+            if (text(k:k) == char(10)) n = n + 1
+        end do
+    end function newlines_in
 
     !> Kill the rest of the current line; if no nonblanks there, kill thru
     !> newline.  With prefix argument ARG, kill that many lines from point.

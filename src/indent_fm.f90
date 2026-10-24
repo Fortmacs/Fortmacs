@@ -327,15 +327,24 @@ contains
     !> to reach COLUMN, add spaces/tabs to get there.
     !>
     !> The return value is the current column (`reached').  Port of
-    !> indent.c:Fmove_to_column (FORCE is t or nil).
-    subroutine move_to_column(column, reached, force, status)
+    !> indent.c:Fmove_to_column.  FORCE true is a FORCE of t; COERCE true
+    !> (without FORCE) is a FORCE that is neither nil nor t, such as the
+    !> `coerce' rect.el passes: a tab is split, but a short line is not
+    !> padded.
+    recursive subroutine move_to_column(column, reached, force, status, coerce)
         integer(int64), intent(in) :: column
         integer(int64), intent(out) :: reached
         logical, intent(in), optional :: force
         type(status_type), intent(out), optional :: status
+        logical, intent(in), optional :: coerce
         integer(int64) :: pos, byte, prev_pos, prev_col, goal_pt, col
         integer(int32) :: c
         type(status_type) :: st
+        logical :: split, pad
+        pad = .false.
+        if (present(force)) pad = force
+        split = pad
+        if (present(coerce)) split = split .or. coerce
         pos = pos_bol()
         byte = char_to_byte(pos)
         reached = 0
@@ -353,8 +362,7 @@ contains
         end do
         call goto_char(pos)
         if (present(status)) status = status_type()
-        if (.not. present(force)) return
-        if (.not. force) return
+        if (.not. split) return
         ! If a tab char made us overshoot, change it to spaces and scan
         ! through it again.
         if (reached > column .and. c == 9 .and. prev_col < column .and. prev_pos < pos) then
@@ -370,7 +378,7 @@ contains
             reached = column
         end if
         ! If line ends prematurely, add space to the end.
-        if (reached < column .and. st%ok()) reached = indent_to(column, st)
+        if (pad .and. reached < column .and. st%ok()) reached = indent_to(column, st)
         if (present(status)) status = st
     end subroutine move_to_column
 

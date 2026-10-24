@@ -70,6 +70,8 @@ module docstrings_fm
     use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
                              sentence_end, sentence_end_double_space, sentence_end_without_period
     use prog_mode_fm, only: prog_mode_hook, prog_mode_map
+    use rect_fm, only: killed_rectangle
+    use register_fm, only: register_alist, register_separator
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_show_replacement, &
                           query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
                           replace_regexp_lax_whitespace
@@ -117,10 +119,12 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=38), parameter, public :: function_names(330) = [character(len=38) :: &
+    character(len=38), parameter, public :: function_names(368) = [character(len=38) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "add_auto_mode", &
+                                                                   "append_to_register", &
+                                                                   "apply_on_rectangle", &
                                                                    "auto_fill_mode", &
                                                                    "back_to_indentation", &
                                                                    "backward_char", &
@@ -141,14 +145,20 @@ module docstrings_fm
                                                                    "bolp", &
                                                                    "buffer_name", &
                                                                    "buffer_substring", &
+                                                                   "buffer_to_register", &
                                                                    "bury_buffer", &
                                                                    "canonically_space_region", &
                                                                    "capitalize", &
                                                                    "capitalize_region", &
                                                                    "capitalize_word", &
                                                                    "char_syntax", &
+                                                                   "clear_rectangle", &
+                                                                   "copy_rectangle_as_kill", &
+                                                                   "copy_rectangle_to_register", &
                                                                    "copy_region_as_kill", &
                                                                    "copy_syntax_table", &
+                                                                   "copy_to_register", &
+                                                                   "count_lines", &
                                                                    "current_buffer", &
                                                                    "current_fill_column", &
                                                                    "current_global_map", &
@@ -162,11 +172,14 @@ module docstrings_fm
                                                                    "delete_backward_char", &
                                                                    "delete_blank_lines", &
                                                                    "delete_char", &
+                                                                   "delete_extract_rectangle", &
                                                                    "delete_forward_char", &
                                                                    "delete_horizontal_space", &
                                                                    "delete_indentation", &
                                                                    "delete_other_windows", &
+                                                                   "delete_rectangle", &
                                                                    "delete_region", &
+                                                                   "delete_whitespace_rectangle", &
                                                                    "delete_window", &
                                                                    "derived_mode_p", &
                                                                    "describe_function", &
@@ -188,7 +201,10 @@ module docstrings_fm
                                                                    "exchange_point_and_mark", &
                                                                    "execute_extended_command", &
                                                                    "exit_minibuffer", &
+                                                                   "extract_rectangle", &
+                                                                   "extract_rectangle_bounds", &
                                                                    "file_name_sans_versions", &
+                                                                   "file_to_register", &
                                                                    "fill_french_nobreak_p", &
                                                                    "fill_paragraph", &
                                                                    "fill_polish_nobreak_p", &
@@ -223,12 +239,14 @@ module docstrings_fm
                                                                    "forward_word", &
                                                                    "fundamental_mode", &
                                                                    "get_buffer_create", &
+                                                                   "get_register", &
                                                                    "global_font_lock_mode", &
                                                                    "global_font_lock_mode_enable_in_buffer", &
                                                                    "global_set_key", &
                                                                    "goto_char", &
                                                                    "help_mode", &
                                                                    "help_quit", &
+                                                                   "increment_register", &
                                                                    "indent_according_to_mode", &
                                                                    "indent_for_tab_command", &
                                                                    "indent_region", &
@@ -242,6 +260,8 @@ module docstrings_fm
                                                                    "indent_tabs_mode", &
                                                                    "indent_to", &
                                                                    "insert", &
+                                                                   "insert_rectangle", &
+                                                                   "insert_register", &
                                                                    "isearch_abort", &
                                                                    "isearch_backward", &
                                                                    "isearch_backward_regexp", &
@@ -269,6 +289,7 @@ module docstrings_fm
                                                                    "isearch_yank_pop_only", &
                                                                    "isearch_yank_word_or_char", &
                                                                    "join_line", &
+                                                                   "jump_to_register", &
                                                                    "just_one_space", &
                                                                    "justify_current_line", &
                                                                    "key_valid_p", &
@@ -279,6 +300,7 @@ module docstrings_fm
                                                                    "kill_line", &
                                                                    "kill_new", &
                                                                    "kill_paragraph", &
+                                                                   "kill_rectangle", &
                                                                    "kill_region", &
                                                                    "kill_ring_save", &
                                                                    "kill_sentence", &
@@ -287,6 +309,8 @@ module docstrings_fm
                                                                    "kill_word", &
                                                                    "left_char", &
                                                                    "left_word", &
+                                                                   "line_number_at_pos", &
+                                                                   "list_registers", &
                                                                    "looking_at", &
                                                                    "looking_at_p", &
                                                                    "looking_back", &
@@ -328,18 +352,22 @@ module docstrings_fm
                                                                    "next_line", &
                                                                    "next_line_or_history_element", &
                                                                    "normal_mode", &
+                                                                   "number_to_register", &
                                                                    "open_line", &
+                                                                   "open_rectangle", &
                                                                    "other_buffer", &
                                                                    "other_window", &
                                                                    "parse_partial_sexp", &
                                                                    "point", &
                                                                    "point_max", &
                                                                    "point_min", &
+                                                                   "point_to_register", &
                                                                    "pop_to_mark_command", &
                                                                    "posix_looking_at", &
                                                                    "posix_search_backward", &
                                                                    "posix_search_forward", &
                                                                    "posix_string_match", &
+                                                                   "prepend_to_register", &
                                                                    "previous_buffer", &
                                                                    "previous_history_element", &
                                                                    "previous_line", &
@@ -360,10 +388,15 @@ module docstrings_fm
                                                                    "read_string", &
                                                                    "recenter", &
                                                                    "recenter_top_bottom", &
+                                                                   "rectangle_dimensions", &
+                                                                   "rectangle_intersect_p", &
+                                                                   "rectangle_number_lines", &
+                                                                   "rectangle_position_as_coordinates", &
                                                                    "regexp_quote", &
                                                                    "region_active_p", &
                                                                    "region_beginning", &
                                                                    "region_end", &
+                                                                   "register_read_with_preview", &
                                                                    "replace_match", &
                                                                    "replace_regexp", &
                                                                    "replace_string", &
@@ -397,18 +430,22 @@ module docstrings_fm
                                                                    "set_mark", &
                                                                    "set_mark_command", &
                                                                    "set_match_data", &
+                                                                   "set_register", &
                                                                    "set_syntax_table", &
                                                                    "skip_chars_backward", &
                                                                    "skip_chars_forward", &
                                                                    "skip_syntax_backward", &
                                                                    "skip_syntax_forward", &
+                                                                   "spaces_string", &
                                                                    "special_mode", &
                                                                    "split_window", &
                                                                    "split_window_below", &
                                                                    "split_window_right", &
                                                                    "standard_syntax_table", &
+                                                                   "string_insert_rectangle", &
                                                                    "string_match", &
                                                                    "string_match_p", &
+                                                                   "string_rectangle", &
                                                                    "substitute_command_keys", &
                                                                    "switch_to_buffer", &
                                                                    "syntax_table", &
@@ -439,7 +476,9 @@ module docstrings_fm
                                                                    "upcase_initials_region", &
                                                                    "upcase_region", &
                                                                    "upcase_word", &
+                                                                   "view_register", &
                                                                    "where_is", &
+                                                                   "window_configuration_to_register", &
                                                                    "write_file", &
                                                                    "y_or_n_p", &
                                                                    "y_or_n_p_insert_n", &
@@ -447,10 +486,11 @@ module docstrings_fm
                                                                    "y_or_n_p_insert_y", &
                                                                    "yank", &
                                                                    "yank_pop", &
+                                                                   "yank_rectangle", &
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(139) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(142) = [character(len=44) :: &
                                                                    "adaptive_fill_mode", &
                                                                    "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
@@ -523,6 +563,7 @@ module docstrings_fm
                                                                    "kill_ring_max", &
                                                                    "kill_ring_yank_pointer", &
                                                                    "kill_whole_line", &
+                                                                   "killed_rectangle", &
                                                                    "left_margin", &
                                                                    "line_move_visual", &
                                                                    "make_backup_files", &
@@ -552,6 +593,8 @@ module docstrings_fm
                                                                    "read_minibuffer_restore_windows", &
                                                                    "read_quoted_char_radix", &
                                                                    "regexp_search_ring_max", &
+                                                                   "register_alist", &
+                                                                   "register_separator", &
                                                                    "replace_count", &
                                                                    "replace_lax_whitespace", &
                                                                    "replace_regexp_lax_whitespace", &
@@ -625,6 +668,27 @@ contains
                         "whose names match REGEXP get major mode MODE.  The counterpart"//LF// &
                         "of (add-to-list 'auto-mode-alist '(REGEXP . MODE)).  (In"//LF// &
                         "files_mode_fm.)"
+        case ("append_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call append_to_register(register, start, end, status, delete_flag)"
+            entry%interactive = .true.
+            entry%doc = "Append region of text between START and END to REGISTER."//LF// &
+                        "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
+                        "after appending."//LF// &
+                        "Called from Fortran, takes four args: REGISTER, START, END and DELETE_FLAG."//LF// &
+                        "START and END are buffer positions indicating what to append."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview',"//LF// &
+                        "and use mark and point as START and END."
+        case ("apply_on_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call apply_on_rectangle(action, start, end, status, final_point)"
+            entry%doc = "Call ACTION's `line' for each line of rectangle with corners at"//LF// &
+                        "START, END.  It is called with two arguments: the start and end"//LF// &
+                        "columns of the rectangle (the extra ARGS are ACTION's components)."//LF// &
+                        "Point is at the beginning of line when it is called."//LF// &
+                        "The final point after the last operation is returned in"//LF// &
+                        "FINAL_POINT.  Point is kept (save-excursion), also on an error."
         case ("auto_fill_mode")
             entry%file = "simple_fill_fm.f90"
             entry%interactive = .true.
@@ -808,6 +872,15 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call buffer_substring(start, end, text, status)"
             entry%doc = "Text between `start' and `end' (either order)."
+        case ("buffer_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call buffer_to_register(buffer, register)"
+            entry%interactive = .true.
+            entry%doc = "Store reference to BUFFER in REGISTER."//LF// &
+                        "To visit the buffer, use \[jump_to_register]."//LF// &
+                        ""//LF// &
+                        "Interactively, use current buffer as BUFFER, and prompt for REGISTER."//LF// &
+                        "With a prefix argument, prompt for BUFFER as well."
         case ("bury_buffer")
             entry%file = "window_display_fm.f90"
             entry%interactive = .true.
@@ -863,6 +936,35 @@ contains
                         "character `w' (119) is returned."//LF// &
                         "The characters that correspond to various syntax codes"//LF// &
                         "are listed in the documentation of `modify_syntax_entry'."
+        case ("clear_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call clear_rectangle(start, end, status, fill)"
+            entry%interactive = .true.
+            entry%doc = "Blank out the region-rectangle."//LF// &
+                        "The text previously in the region is overwritten with blanks."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "With a prefix (or a FILL) argument, also fill with blanks the parts of the"//LF// &
+                        "rectangle which were empty."
+        case ("copy_rectangle_as_kill")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call copy_rectangle_as_kill(start, end, status)"
+            entry%interactive = .true.
+            entry%doc = "Copy the region-rectangle and save it as the last killed one."
+        case ("copy_rectangle_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call copy_rectangle_to_register(register, start, end, status, delete_flag)"
+            entry%interactive = .true.
+            entry%doc = "Copy rectangular region of text between START and END into REGISTER."//LF// &
+                        "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
+                        "after copying."//LF// &
+                        "To insert this register into a buffer, use \[insert_register]."//LF// &
+                        ""//LF// &
+                        "Called from Fortran, takes four args: REGISTER, START, END and DELETE_FLAG."//LF// &
+                        "START and END are buffer positions giving two corners of rectangle."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview',"//LF// &
+                        "and use mark and point as START and END."
         case ("copy_region_as_kill")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -874,6 +976,28 @@ contains
             entry%fortran = "call copy_syntax_table(copy, status, from)"
             entry%doc = "Construct a new syntax table and return it."//LF// &
                         "It is a copy of the TABLE, which defaults to the standard syntax table."
+        case ("copy_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call copy_to_register(register, start, end, status, delete_flag, region)"
+            entry%interactive = .true.
+            entry%doc = "Copy region of text between START and END into REGISTER."//LF// &
+                        "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
+                        "after copying."//LF// &
+                        "Called from Fortran, takes five args: REGISTER, START, END, DELETE_FLAG,"//LF// &
+                        "and REGION.  START and END are buffer positions indicating what to copy."//LF// &
+                        "The optional argument REGION, if true, means START..END denotes the"//LF// &
+                        "region."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'"//LF// &
+                        "and use mark and point as START and END; REGION is always true in"//LF// &
+                        "this case."
+        case ("count_lines")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "count_lines(start, end)"
+            entry%doc = "Return number of lines between START and END."//LF// &
+                        "This is usually the number of newlines between them, but can be"//LF// &
+                        "one more if START is not equal to END and the greater of them is"//LF// &
+                        "not at the start of a line."
         case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
@@ -984,6 +1108,15 @@ contains
                         ""//LF// &
                         "The command `delete_forward_char' is preferable for interactive use, e.g."//LF// &
                         "because it respects values of `delete_active_region' and `overwrite_mode'."
+        case ("delete_extract_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call delete_extract_rectangle(start, end, rectangle, status, fill)"
+            entry%doc = "Delete the contents of the rectangle with corners at START and END."//LF// &
+                        "Return it as RECTANGLE, one string for each line of the rectangle."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "With an optional FILL argument, also fill lines where nothing has to be"//LF// &
+                        "deleted."
         case ("delete_forward_char")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1020,10 +1153,33 @@ contains
             entry%interactive = .true.
             entry%doc = "Make WINDOW fill its frame."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."
+        case ("delete_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call delete_rectangle(start, end, status, fill)"
+            entry%interactive = .true.
+            entry%doc = "Delete (don't save) text in the region-rectangle."//LF// &
+                        "The same range of columns is deleted in each line starting with the"//LF// &
+                        "line where the region begins and ending with the line where the region"//LF// &
+                        "ends."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "With a prefix (or a FILL) argument, also fill lines where nothing has"//LF// &
+                        "to be deleted."
         case ("delete_region")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call delete_region(start, end, status)"
             entry%doc = "Delete the text between `start' and `end' (either order)."
+        case ("delete_whitespace_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call delete_whitespace_rectangle(start, end, status, fill)"
+            entry%interactive = .true.
+            entry%doc = "Delete all whitespace following a specified column in each line."//LF// &
+                        "The left edge of the rectangle specifies the position in each line"//LF// &
+                        "at which whitespace deletion should begin.  On each line in the"//LF// &
+                        "rectangle, all contiguous whitespace starting at that column is deleted."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "With a prefix (or a FILL) argument, also fill too short lines."
         case ("delete_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call delete_window(window, status)"
@@ -1174,12 +1330,34 @@ contains
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Terminate this minibuffer argument."
+        case ("extract_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
+            entry%doc = "Return the contents of the rectangle with corners at START and END."//LF// &
+                        "Return it as RECTANGLE, one string for each line of the rectangle."
+        case ("extract_rectangle_bounds")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call extract_rectangle_bounds(start, end, starts, ends, status)"
+            entry%doc = "Return the bounds of the rectangle with corners at START and END."//LF// &
+                        "Return it as STARTS and ENDS, the start and end positions of each"//LF// &
+                        "line of the rectangle."
         case ("file_name_sans_versions")
             entry%file = "files_fm.f90"
             entry%fortran = "file_name_sans_versions(name)"
             entry%doc = "Return file NAME sans backup versions or strings."//LF// &
                         "This is a separate procedure so your site-init or startup file can"//LF// &
                         "redefine it."
+        case ("file_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call file_to_register(file_name, register)"
+            entry%interactive = .true.
+            entry%doc = "Insert FILE_NAME into REGISTER."//LF// &
+                        "To visit the file, use \[jump_to_register]."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."//LF// &
+                        "With a prefix-argument, prompt for FILE_NAME using `read_file_name',"//LF// &
+                        "With no prefix-argument, use the currently visited file or directory"//LF// &
+                        "for FILE_NAME."
         case ("fill_french_nobreak_p")
             entry%file = "fill_fm.f90"
             entry%fortran = "fill_french_nobreak_p()"
@@ -1556,6 +1734,12 @@ contains
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
             entry%doc = "Live buffer named `name', created (empty, multibyte) if needed."//LF// &
                         "The first buffer created becomes current."
+        case ("get_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call get_register(register, value)"
+            entry%doc = "Return contents of Emacs register named REGISTER in VALUE (of kind"//LF// &
+                        "`REGISTER_EMPTY' if none).  The markers and the window configuration"//LF// &
+                        "in VALUE belong to the register."
         case ("global_font_lock_mode")
             entry%file = "font_core_fm.f90"
             entry%interactive = .true.
@@ -1588,6 +1772,20 @@ contains
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Just exit from the Help command's command loop."
+        case ("increment_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call increment_register(register, status, prefix)"
+            entry%interactive = .true.
+            entry%doc = "Augment contents of REGISTER using PREFIX."//LF// &
+                        "Interactively, PREFIX is the raw prefix argument."//LF// &
+                        ""//LF// &
+                        "If REGISTER contains a number, add `prefix_numeric_value' of"//LF// &
+                        "PREFIX to it."//LF// &
+                        ""//LF// &
+                        "If REGISTER is empty or if it contains text, call"//LF// &
+                        "`append_to_register' with `delete_flag' set to PREFIX."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("indent_according_to_mode")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
@@ -1647,6 +1845,27 @@ contains
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
             entry%doc = "Insert `string' (in the buffer's representation) before point."
+        case ("insert_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call insert_rectangle(rectangle, status)"
+            entry%doc = "Insert text of RECTANGLE with upper left corner at point."//LF// &
+                        "RECTANGLE's first line is inserted at point, its second"//LF// &
+                        "line is inserted at a point vertically under point, etc."//LF// &
+                        "RECTANGLE should be an array of strings."//LF// &
+                        "After this command, the mark is at the upper left corner"//LF// &
+                        "and point is at the lower right corner."
+        case ("insert_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call insert_register(register, status, arg)"
+            entry%interactive = .true.
+            entry%doc = "Insert contents of REGISTER at point."//LF// &
+                        "REGISTER is a character, the name of the register."//LF// &
+                        "Normally puts point before and mark after the inserted text, but"//LF// &
+                        "if optional second argument ARG is true, puts mark before and"//LF// &
+                        "point after.  Interactively, ARG is false if prefix arg is supplied,"//LF// &
+                        "and true otherwise."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -1823,6 +2042,24 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = ""
+        case ("jump_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call jump_to_register(register, status, delete)"
+            entry%interactive = .true.
+            entry%doc = "Go to location stored in REGISTER, or restore configuration stored there."//LF// &
+                        "Push the mark if going to the location moves point, unless called in succession."//LF// &
+                        "If the register contains a file name, find that file."//LF// &
+                        "If the register references a buffer, switch to that buffer."//LF// &
+                        "If the register contains a window configuration (one frame) or a frameset"//LF// &
+                        "(all frames), restore the configuration of that frame or of all frames"//LF// &
+                        "accordingly."//LF// &
+                        "First argument REGISTER is a character, the name of the register."//LF// &
+                        "Optional second arg DELETE true (interactively, prefix argument) says"//LF// &
+                        "to delete any existing frames that the frameset doesn't mention."//LF// &
+                        "(Otherwise, these frames are iconified.)  This argument is currently"//LF// &
+                        "ignored if the register contains anything but a frameset."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("just_one_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call just_one_space(n, status)"
@@ -1904,6 +2141,23 @@ contains
             entry%doc = "Kill forward to end of paragraph."//LF// &
                         "With ARG N, kill forward to Nth end of paragraph;"//LF// &
                         "negative ARG -N means kill backward to Nth start of paragraph."
+        case ("kill_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call kill_rectangle(start, end, status, fill)"
+            entry%interactive = .true.
+            entry%doc = "Delete the region-rectangle and save it as the last killed one."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "You might prefer to use `delete_extract_rectangle' from a program."//LF// &
+                        ""//LF// &
+                        "With a prefix (or a FILL) argument, also fill lines where nothing has to be"//LF// &
+                        "deleted."//LF// &
+                        ""//LF// &
+                        "If the buffer is read-only, Emacs will beep and refrain from deleting"//LF// &
+                        "the rectangle, but put it in `killed_rectangle' anyway.  This means that"//LF// &
+                        "you can use this command to copy text from a read-only buffer."//LF// &
+                        "(If the variable `kill_read_only_ok' is true, then this won't"//LF// &
+                        "even beep.)"
         case ("kill_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call kill_region(beg, end, status, region, read_only_ok)"
@@ -1982,6 +2236,23 @@ contains
                         "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
                         "Field boundaries are not noticed if `inhibit_field_text_motion' is"//LF// &
                         "non-nil."
+        case ("line_number_at_pos")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "line_number_at_pos(position, absolute)"
+            entry%doc = "Return the line number at POSITION in the current buffer."//LF// &
+                        "If POSITION is absent, it defaults to point's position in the"//LF// &
+                        "current buffer."//LF// &
+                        ""//LF// &
+                        "If the buffer is narrowed, the return value by default counts the lines"//LF// &
+                        "from the beginning of the accessible portion of the buffer.  But if the"//LF// &
+                        "second optional argument ABSOLUTE is true, the value counts the lines"//LF// &
+                        "from the absolute start of the buffer, disregarding the narrowing."
+        case ("list_registers")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call list_registers(status)"
+            entry%interactive = .true.
+            entry%doc = "Display the list of nonempty registers with brief descriptions of"//LF// &
+                        "contents."
         case ("looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "looking_at(regexp, status, inhibit_modify)"
@@ -2415,6 +2686,17 @@ contains
                         "invoke this command prefixed with two or three \[universal_argument]'s."//LF// &
                         ""//LF// &
                         "If a file's name is FOO, its backup file is called FOO~."
+        case ("number_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call number_to_register(register, status, number)"
+            entry%interactive = .true.
+            entry%doc = "Store NUMBER in REGISTER."//LF// &
+                        "REGISTER is a character, the name of the register."//LF// &
+                        "If NUMBER is absent, a decimal number is read from the buffer"//LF// &
+                        "at point, and point moves to the end of that number."//LF// &
+                        "Interactively, NUMBER is the prefix arg (none means absent)."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("open_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2422,6 +2704,18 @@ contains
                         "If there is a fill prefix and/or a `left_margin', insert them on"//LF// &
                         "the new line if the line would have been blank."//LF// &
                         "With arg N, insert N newlines."
+        case ("open_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call open_rectangle(start, end, status, fill)"
+            entry%interactive = .true.
+            entry%doc = "Blank out the region-rectangle, shifting text right."//LF// &
+                        ""//LF// &
+                        "The text previously in the region is not overwritten by the blanks,"//LF// &
+                        "but instead winds up to the right of the rectangle."//LF// &
+                        ""//LF// &
+                        "When called from a program the rectangle's corners are START and END."//LF// &
+                        "With a prefix (or a FILL) argument, fill with blanks even if there is"//LF// &
+                        "no text on the right side of the rectangle."
         case ("other_buffer")
             entry%file = "window_fm.f90"
             entry%fortran = "other_buffer(buffer)"
@@ -2479,6 +2773,18 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "point_min()"
             entry%doc = ""
+        case ("point_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call point_to_register(register, status, arg)"
+            entry%interactive = .true.
+            entry%doc = "Store current location of point in REGISTER."//LF// &
+                        "With prefix argument ARG, store current frame configuration (a.k.a."//LF// &
+                        """frameset"")."//LF// &
+                        "Use \[jump_to_register] to go to that location or restore that"//LF// &
+                        "configuration."//LF// &
+                        "Argument is a character, the name of the register."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("pop_to_mark_command")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2527,6 +2833,18 @@ contains
                         "`match_string' to extract the substrings matched by the parenthesis"//LF// &
                         "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
                         "use `match_end(0)'."
+        case ("prepend_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call prepend_to_register(register, start, end, status, delete_flag)"
+            entry%interactive = .true.
+            entry%doc = "Prepend region of text between START and END to REGISTER."//LF// &
+                        "If DELETE_FLAG is true (interactively, prefix arg), delete the region"//LF// &
+                        "after prepending."//LF// &
+                        "Called from program, takes four args: REGISTER, START, END and DELETE_FLAG."//LF// &
+                        "START and END are buffer positions indicating what to prepend."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview',"//LF// &
+                        "and use mark and point as START and END."
         case ("previous_buffer")
             entry%file = "window_display_fm.f90"
             entry%interactive = .true.
@@ -2895,6 +3213,34 @@ contains
                         "With numeric prefix ARG, move current line ARG lines below the"//LF// &
                         "window top.  With plain \[universal_argument], move current line"//LF// &
                         "to window center."
+        case ("rectangle_dimensions")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call rectangle_dimensions(start, end, width, height)"
+            entry%doc = "Return the dimensions of the rectangle with corners at START and END."//LF// &
+                        "The returned values are WIDTH and HEIGHT."
+        case ("rectangle_intersect_p")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "rectangle_intersect_p(pos1, size1, pos2, size2)"
+            entry%doc = "Return true if two rectangles intersect."//LF// &
+                        "POS1 and POS2 specify the positions of the upper-left corners of"//LF// &
+                        "the first and second rectangles as arrays of the form [COLUMN, LINE]."//LF// &
+                        "SIZE1 and SIZE2 specify the dimensions of the first and second"//LF// &
+                        "rectangles, as arrays of the form [WIDTH, HEIGHT]."
+        case ("rectangle_number_lines")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call rectangle_number_lines(start, end, start_at, status, format)"
+            entry%interactive = .true.
+            entry%doc = "Insert numbers in front of the region-rectangle."//LF// &
+                        ""//LF// &
+                        "START_AT, if present, should be a number from which to begin"//LF// &
+                        "counting.  FORMAT, if present, should be a format string to pass"//LF// &
+                        "to `format' along with the line count.  When called interactively"//LF// &
+                        "with a prefix argument, prompt for START_AT and FORMAT."
+        case ("rectangle_position_as_coordinates")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call rectangle_position_as_coordinates(position, column, line)"
+            entry%doc = "Return the column and line values of POSITION, as COLUMN and LINE."//LF// &
+                        "POSITION specifies a position of the current buffer."
         case ("regexp_quote")
             entry%file = "search_fm.f90"
             entry%fortran = "regexp_quote(string)"
@@ -2912,6 +3258,20 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_end(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is larger."
+        case ("register_read_with_preview")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call register_read_with_preview(prompt, register, status, pred)"
+            entry%doc = "Read register name, prompting with PROMPT; possibly show existing"//LF// &
+                        "registers."//LF// &
+                        "This reads and returns the name of a register.  PROMPT should be a"//LF// &
+                        "string to prompt the user for the name."//LF// &
+                        "If `help_char' is pressed, display preview window unconditionally."//LF// &
+                        ""//LF// &
+                        "PRED if present should be a function specifying the kinds of"//LF// &
+                        "registers that can be used.  It is called with one argument, a"//LF// &
+                        "register value, and should return true if and only if that register"//LF// &
+                        "value can be used.  The register value of kind `REGISTER_EMPTY'"//LF// &
+                        "represents an empty register."
         case ("replace_match")
             entry%file = "search_fm.f90"
             entry%fortran = "call replace_match(newtext, status, fixedcase, literal, string, subexp, result)"
@@ -3337,6 +3697,13 @@ contains
                         "DATA should have been created by calling `match_data' previously;"//LF// &
                         "0 elements mark groups that didn't match.  The positions are"//LF// &
                         "taken to be in the current buffer."
+        case ("set_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call set_register(register, value)"
+            entry%doc = "Set contents of Emacs register named REGISTER to VALUE (text, a"//LF// &
+                        "number or a rectangle)."//LF// &
+                        "See the documentation of the variable `register_alist' for possible"//LF// &
+                        "VALUEs."
         case ("set_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call set_syntax_table(h, status)"
@@ -3377,6 +3744,10 @@ contains
                         "Stop before a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
                         "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
                         "This function returns the distance traveled, either zero or positive."
+        case ("spaces_string")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "spaces_string(n)"
+            entry%doc = "Return a string with N spaces."
         case ("special_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call special_mode(status)"
@@ -3430,6 +3801,15 @@ contains
             entry%fortran = "standard_syntax_table()"
             entry%doc = "Return the standard syntax table."//LF// &
                         "This is the one used for new buffers."
+        case ("string_insert_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call string_insert_rectangle(start, end, string, status)"
+            entry%interactive = .true.
+            entry%doc = "Insert STRING on each line of region-rectangle, shifting text right."//LF// &
+                        ""//LF// &
+                        "When called from a program, the rectangle's corners are START and END."//LF// &
+                        "The left edge of the rectangle specifies the column for insertion."//LF// &
+                        "This command does not delete or overwrite any existing text."
         case ("string_match")
             entry%file = "search_fm.f90"
             entry%fortran = "string_match(regexp, string, status, start, inhibit_modify)"
@@ -3453,6 +3833,18 @@ contains
             entry%fortran = "string_match_p(regexp, string, status, start)"
             entry%doc = "Same as `string_match' except this function does not change the"//LF// &
                         "match data."
+        case ("string_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call string_rectangle(start, end, string, status)"
+            entry%interactive = .true.
+            entry%doc = "Replace rectangle contents with STRING on each line."//LF// &
+                        "The length of STRING need not be the same as the rectangle width."//LF// &
+                        ""//LF// &
+                        "When called interactively and option `rectangle_preview' is"//LF// &
+                        "true, display the result as the user enters the string into"//LF// &
+                        "the minibuffer."//LF// &
+                        ""//LF// &
+                        "Called from a program, takes three args; START, END and STRING."
         case ("substitute_command_keys")
             entry%file = "help_fm.f90"
             entry%fortran = "substitute_command_keys(string)"
@@ -3707,10 +4099,27 @@ contains
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."//LF// &
                         "See also `capitalize_word'."
+        case ("view_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call view_register(register, status)"
+            entry%interactive = .true.
+            entry%doc = "Display the description of the contents of REGISTER."//LF// &
+                        "REGISTER is a character, the name of the register."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("where_is")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
             entry%doc = "Print message listing key sequences that invoke the command DEFINITION."
+        case ("window_configuration_to_register")
+            entry%file = "register_fm.f90"
+            entry%fortran = "call window_configuration_to_register(register)"
+            entry%interactive = .true.
+            entry%doc = "Store the window configuration of the selected frame in REGISTER."//LF// &
+                        "Use \[jump_to_register] to restore the configuration."//LF// &
+                        "Argument is a character, the name of the register."//LF// &
+                        ""//LF// &
+                        "Interactively, prompt for REGISTER using `register_read_with_preview'."
         case ("write_file")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
@@ -3799,6 +4208,11 @@ contains
                         ""//LF// &
                         "The sequence of kills wraps around, so that after the oldest one"//LF// &
                         "comes the newest one."
+        case ("yank_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call yank_rectangle(status)"
+            entry%interactive = .true.
+            entry%doc = "Yank the last killed rectangle with upper left corner at point."
         case ("yes_or_no_p")
             entry%file = "fns_fm.f90"
             entry%fortran = "call yes_or_no_p(prompt, answer, status)"
@@ -4476,6 +4890,11 @@ contains
             entry%value = repr(kill_whole_line_option)
             entry%doc = "If true, `kill_line' with no arg at start of line kills the whole"//LF// &
                         "line."
+        case ("killed_rectangle")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "killed_rectangle"
+            entry%doc = "Rectangle for `yank_rectangle' to insert.  Unallocated (or empty)"//LF// &
+                        "for none."
         case ("left_margin")
             entry%file = "buffer_fm.f90"
             entry%fortran = "left_margin"
@@ -4738,6 +5157,27 @@ contains
             entry%value = repr(regexp_search_ring_max)
             entry%doc = "Maximum length of regexp search ring before oldest elements are"//LF// &
                         "thrown away."
+        case ("register_alist")
+            entry%file = "register_fm.f90"
+            entry%fortran = "register_alist"
+            entry%doc = "The registers, one element for each Emacs register, the most"//LF// &
+                        "recently made first.  NAME is a character (a number).  The value"//LF// &
+                        "is text, a number, a buffer position, a rectangle (a list of"//LF// &
+                        "strings), a file name, a position in a file to visit again (a"//LF// &
+                        "file-query reference), a buffer, or a window configuration with"//LF// &
+                        "a saved value of point.  Set it with `set_register' and the register"//LF// &
+                        "commands."
+        case ("register_separator")
+            entry%file = "register_fm.f90"
+            entry%fortran = "register_separator"
+            entry%original = "-1"
+            entry%value = repr(register_separator)
+            entry%doc = "Register containing the text to put between collected texts, or -1"//LF// &
+                        "if none."//LF// &
+                        ""//LF// &
+                        "When collecting text with \[append_to_register] (or \[prepend_to_register]),"//LF// &
+                        "contents of this register is added to the beginning (or end, respectively)"//LF// &
+                        "of the marked text."
         case ("replace_count")
             entry%file = "replace_fm.f90"
             entry%fortran = "replace_count"

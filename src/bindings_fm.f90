@@ -68,6 +68,8 @@ module bindings_fm
     use font_core_fm, only: syms_of_font_core
     use font_lock_fm, only: syms_of_font_lock
     use jit_lock_fm, only: syms_of_jit_lock
+    use rect_fm, only: syms_of_rect
+    use register_fm, only: syms_of_register
     implicit none(type, external)
     private
 
@@ -77,9 +79,10 @@ module bindings_fm
                                  M_META = int(CHAR_META, int64)
 
     !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map;
-    !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x').
+    !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x');
+    !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
-                                 function_key_map, ctl_x_x_map
+                                 function_key_map, ctl_x_x_map, ctl_x_r_map
 
 contains
 
@@ -185,6 +188,7 @@ contains
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
         if (keymap_live_p(ctl_x_map)) call free_keymap(ctl_x_map, status)
         if (keymap_live_p(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
+        if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         call syms_of_cmds()
         call syms_of_simple()
@@ -207,6 +211,8 @@ contains
         call syms_of_jit_lock()
         call syms_of_font_core()
         call syms_of_font_lock()
+        call syms_of_rect()
+        call syms_of_register()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -292,6 +298,33 @@ contains
         call bind(ctl_x_x_map, "f", "font_lock_update")
         key(1) = make_fixnum(int(iachar("x"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_x_map), status)
+        ! bindings.el: ctl-x-r-map (rect.el and register.el; frameset-to-register
+        ! on f and the bookmark keys are not ported).
+        call make_sparse_keymap(ctl_x_r_map)
+        call bind(ctl_x_r_map, "c", "clear_rectangle")
+        call bind(ctl_x_r_map, "k", "kill_rectangle")
+        call bind(ctl_x_r_map, "d", "delete_rectangle")
+        call bind(ctl_x_r_map, "y", "yank_rectangle")
+        call bind(ctl_x_r_map, "o", "open_rectangle")
+        call bind(ctl_x_r_map, "t", "string_rectangle")
+        call bind(ctl_x_r_map, "N", "rectangle_number_lines")
+        call bind(ctl_x_r_map, "M-w", "copy_rectangle_as_kill")
+        call bind(ctl_x_r_map, "C-@", "point_to_register")
+        call bind(ctl_x_r_map, "C-SPC", "point_to_register")
+        call bind(ctl_x_r_map, "SPC", "point_to_register")
+        call bind(ctl_x_r_map, "j", "jump_to_register")
+        call bind(ctl_x_r_map, "s", "copy_to_register")
+        call bind(ctl_x_r_map, "x", "copy_to_register")
+        call bind(ctl_x_r_map, "i", "insert_register")
+        call bind(ctl_x_r_map, "g", "insert_register")
+        call bind(ctl_x_r_map, "r", "copy_rectangle_to_register")
+        call bind(ctl_x_r_map, "n", "number_to_register")
+        call bind(ctl_x_r_map, "+", "increment_register")
+        call bind(ctl_x_r_map, "w", "window_configuration_to_register")
+        call bind(ctl_x_r_map, "F", "file_to_register")
+        call bind(ctl_x_r_map, "B", "buffer_to_register")
+        key(1) = make_fixnum(int(iachar("r"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_r_map), status)
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
@@ -419,6 +452,7 @@ contains
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
+        call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
         call register_keymap_name("isearch_mode_map", isearch_mode_map)
         call register_keymap_name("text_mode_map", text_mode_map)
         call register_keymap_name("prog_mode_map", prog_mode_map)

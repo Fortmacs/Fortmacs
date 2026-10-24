@@ -40,7 +40,7 @@ module print_fm
     implicit none(type, external)
     private
 
-    public :: prin1_to_string, prin1_string, fortran_repr
+    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr
 
 contains
 
