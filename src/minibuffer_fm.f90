@@ -78,6 +78,7 @@ module minibuffer_fm
     private
 
     public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer, read_buffer
+    public :: completion_insert_strings
     public :: internal_complete_buffer, minibuffer_maybe_quote_filename
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               minibuffer_complete, minibuffer_complete_word, minibuffer_complete_and_exit, &
@@ -1438,23 +1439,56 @@ contains
         type(string_box), intent(in) :: strings(:)
         type(status_type) :: status
         character(len=20) :: count
-        character(len=:), allocatable :: last_string
-        integer(int64) :: length, wwidth, columns, colwidth, column, cur_col, width
-        integer :: k
-        logical :: first
+        integer(int64) :: wwidth
         type(window_type), pointer :: sw
         call goto_char(point_max())
         ! completions-header-format
         write (count, "(i0)") size(strings)
         call insert(trim(count)//" possible completions:"//achar(10), status)
         if (size(strings) == 0) return
+        wwidth = 79
+        sw => frame_selected_window_ref()
+        if (sw%total_cols > 0) wwidth = sw%total_cols - 1
+        call insert_strings_horizontal(strings, wwidth)
+    end subroutine display_completion_list
+
+    !> Insert STRINGS into the current buffer in columns: the window
+    !> showing the buffer gives the width (79 columns if none).  Port of
+    !> minibuffer.el:completion--insert-strings with
+    !> completion--insert-horizontal (no GROUP-FUN; spaces in place of the
+    !> `display' alignment, no truncation).
+    subroutine completion_insert_strings(strings)
+        type(minibuffer_string_type), intent(in) :: strings(:)
+        type(string_box), allocatable :: boxes(:)
+        type(handle_type) :: window
+        integer(int64) :: wwidth
+        integer :: k
+        if (size(strings) == 0) return
+        allocate (boxes(size(strings)))
+        do k = 1, size(strings)
+            boxes(k)%s = strings(k)%s
+        end do
+        wwidth = 79
+        window = get_buffer_window(current_buffer())
+        if (window_live_p(window)) wwidth = windows(window%index)%total_cols - 1
+        call insert_strings_horizontal(boxes, wwidth)
+    end subroutine completion_insert_strings
+
+    !> The candidates STRINGS in columns of a window WWIDTH columns wide.
+    !> Port of minibuffer.el:completion--insert-strings and
+    !> completion--insert-horizontal (see above).
+    subroutine insert_strings_horizontal(strings, wwidth)
+        type(string_box), intent(in) :: strings(:)
+        integer(int64), intent(in) :: wwidth
+        type(status_type) :: status
+        character(len=:), allocatable :: last_string
+        integer(int64) :: length, columns, colwidth, column, cur_col, width
+        integer :: k
+        logical :: first
         length = 0
         do k = 1, size(strings)
             length = max(length, schars(strings(k)%s))
         end do
-        wwidth = 79
-        sw => frame_selected_window_ref()
-        if (sw%total_cols > 0) wwidth = sw%total_cols - 1
         ! At least 2 spaces between columns; don't allocate more columns
         ! than we can fill.
         columns = min(max(1_int64, wwidth/(2 + length)), max(1_int64, int(size(strings), int64)/2))
@@ -1487,7 +1521,7 @@ contains
             ! Next column to align to.
             column = column + colwidth*((length + colwidth - 1)/colwidth)
         end do
-    end subroutine display_completion_list
+    end subroutine insert_strings_horizontal
 
     !> Get rid of an out-of-date *Completions* buffer: bury it in its
     !> window, which is deleted if it was made for it (dedicated), or

@@ -25,7 +25,7 @@
 submodule(map_ynp_fm) map_ynp_ask_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: set_error, FM_QUIT
-    use lisp_fm, only: nil, nilp, symbolp, make_fixnum, make_keymap_ref
+    use lisp_fm, only: nil, nilp, symbolp, make_fixnum, make_keymap_ref, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: value_eq
     use keymap_fm, only: key_description, make_sparse_keymap, set_keymap_parent, define_key, define_key_range, &
@@ -33,10 +33,17 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use keyboard_fm, only: this_command, real_this_command, this_command_keys, last_message, sit_for
     use callint_fm, only: commandp, call_interactively
     use character_fm, only: MAX_CHAR
+    use, intrinsic :: iso_fortran_env, only: int32
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers
-    use minibuffer_fm, only: exit_minibuffer
+    use minibuffer_fm, only: exit_minibuffer, delete_minibuffer_contents
+    use keymap_fm, only: free_keymap
+    use lisp_fm, only: list, list_elements
+    use casefiddle_fm, only: downcase_string
+    use insdel_fm, only: insert
+    use fns_fm, only: use_short_answers
+    use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use help_fm, only: with_help_window
     use subr_fm, only: read_key, query_replace_answer, query_replace_map, init_query_replace_map, QRM_KEYS, &
                        y_or_n_p_use_read_key, y_or_n_p_history_variable, ANSWER_ACT, ANSWER_SKIP, ANSWER_EXIT, &
@@ -258,4 +265,161 @@ contains
         status = status_type()
         call message("Type C-h for help")
     end subroutine ynp_help
+
+    recursive module subroutine read_answer(question, answers, answer, status)
+        character(len=*), intent(in) :: question
+        type(read_answer_type), intent(in) :: answers(:)
+        character(len=:), allocatable, intent(out) :: answer
+        type(status_type), intent(out) :: status
+        type(read_answer_type), allocatable :: with_help(:)
+        type(read_answer_type) :: help_answer
+        character(len=:), allocatable :: prompt, msg, str, text
+        type(value_type) :: key1(1), saved_this, saved_real_this
+        type(value_type), allocatable :: remap_events(:)
+        type(status_type) :: st
+        logical :: short, has_help, found
+        integer :: k
+        if (read_answer_short == READ_ANSWER_SHORT_AUTO) then
+            short = use_short_answers
+        else
+            short = read_answer_short == READ_ANSWER_SHORT_T
+        end if
+        has_help = .false.
+        do k = 1, size(answers)
+            if (answers(k)%long == "help") has_help = .true.
+        end do
+        if (has_help) then
+            with_help = answers
+        else
+            help_answer%long = "help"
+            help_answer%short = iachar("?")
+            help_answer%help = "show this help message"
+            allocate (with_help(size(answers) + 1))
+            with_help(1:size(answers)) = answers
+            with_help(size(answers) + 1) = help_answer
+        end if
+        prompt = question//"("
+        msg = "Please answer "
+        do k = 1, size(with_help)
+            if (k > 1) then
+                prompt = prompt//", "
+                msg = msg//" or "
+            end if
+            if (short) then
+                prompt = prompt//char_string_of(with_help(k)%short)
+                msg = msg//"`"//char_string_of(with_help(k)%short)//"'"
+            else
+                prompt = prompt//with_help(k)%long
+                msg = msg//"`"//with_help(k)%long//"'"
+            end if
+        end do
+        prompt = prompt//") "
+        msg = msg//"."
+        if (short) then
+            ! short-answer-map
+            if (.not. associated(cmd_answer_select%run)) then
+                cmd_answer_select = command_type("read_answer__select", answer_select)
+                call cmd_answer_select%define()
+                cmd_answer_reject = command_type("read_answer__reject", answer_reject)
+                call cmd_answer_reject%define()
+            end if
+            if (keymap_live_p(short_answer_map)) call free_keymap(short_answer_map, st)
+            call make_sparse_keymap(short_answer_map)
+            call set_keymap_parent(short_answer_map, minibuffer_local_map, st)
+            do k = 1, size(with_help)
+                key1(1) = make_fixnum(int(with_help(k)%short, int64))
+                call define_key(short_answer_map, key1, sym("read_answer__select"), st)
+            end do
+            call list_elements(list(sym("remap"), sym("self_insert_command")), remap_events)
+            call define_key(short_answer_map, remap_events, sym("read_answer__reject"), st)
+            short_answers = with_help
+            short_answer_message = msg
+        end if
+        status = status_type()
+        do
+            saved_this = this_command
+            saved_real_this = real_this_command
+            if (short) then
+                call read_from_minibuffer(prompt, str, status, keymap=short_answer_map, history="read_char_history")
+            else
+                call read_from_minibuffer(prompt, str, status, history="yes_or_no_p_history")
+            end if
+            this_command = saved_this
+            real_this_command = saved_real_this
+            if (.not. status%ok()) exit
+            answer = downcase_string(str)
+            found = .false.
+            do k = 1, size(with_help)
+                if (with_help(k)%long == "help") cycle
+                if (with_help(k)%long == answer .and. len(with_help(k)%long) == len(answer)) found = .true.
+            end do
+            if (found) exit
+            if (answer == "help" .and. len(answer) == 4) then
+                text = "Type:"//achar(10)
+                do k = 1, size(with_help)
+                    if (k > 1) text = text//","//achar(10)
+                    if (short) then
+                        text = text//"`"//char_string_of(with_help(k)%short)//"' ("//with_help(k)%long//")"
+                    else
+                        text = text//"`"//with_help(k)%long//"'"
+                    end if
+                    text = text//" to "//with_help(k)%help
+                end do
+                call with_help_window(text//"."//achar(10), st)
+            else
+                call ding()
+                call message(msg)
+                call sit_for(2000)
+            end if
+        end do
+        if (short) then
+            call free_keymap(short_answer_map, st)
+            deallocate (short_answers)
+        end if
+    end subroutine read_answer
+
+    !> A short answer's key in read-answer's minibuffer: replace the input
+    !> with the long answer it stands for and exit.
+    subroutine answer_select(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+        integer(int64) :: c
+        status = status_type()
+        if (.not. allocated(this_command_keys)) return
+        if (size(this_command_keys) < 1) return
+        c = xfixnum_or_zero(this_command_keys(size(this_command_keys)))
+        call delete_minibuffer_contents(status)
+        do k = 1, size(short_answers)
+            if (short_answers(k)%short == c) call insert(short_answers(k)%long, status)
+        end do
+        call exit_minibuffer(status)
+    end subroutine answer_select
+
+    !> Any other key that would insert itself: clear the input, ring the
+    !> bell and show the message.
+    subroutine answer_reject(status)
+        type(status_type), intent(out) :: status
+        call delete_minibuffer_contents(status)
+        call ding()
+        call message(short_answer_message)
+        call sit_for(2000)
+    end subroutine answer_reject
+
+    !> The text of character C.
+    function char_string_of(c) result(text)
+        integer, intent(in) :: c
+        character(len=:), allocatable :: text
+        character(len=MAX_MULTIBYTE_LENGTH) :: buf
+        integer(int32) :: n
+        type(status_type) :: st
+        call char_string(int(c, int32), buf, n, st)
+        text = buf(1:n)
+    end function char_string_of
+
+    !> The character of event EV, or 0.
+    integer(int64) function xfixnum_or_zero(ev) result(c)
+        type(value_type), intent(in) :: ev
+        c = 0
+        if (fixnump(ev)) c = xfixnum(ev)
+    end function xfixnum_or_zero
 end submodule map_ynp_ask_fm
