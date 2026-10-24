@@ -260,6 +260,10 @@ module buffer_fm
     !> window_fm; buffer_fm is below the windows).
     procedure(buffer_proc), pointer, public :: replace_buffer_in_windows_hook => null()
 
+    !> Called by kill_buffer to kill the processes of the buffer being
+    !> killed (process.c:kill_buffer_processes, set by process_fm).
+    procedure(buffer_proc), pointer, public :: kill_buffer_processes_hook => null()
+
     interface
         !> Kill buffer `h': unchain its markers, free its text, and if it was
         !> current make another buffer current.  Port of the core of

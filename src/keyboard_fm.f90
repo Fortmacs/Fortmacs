@@ -71,7 +71,7 @@ module keyboard_fm
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
-    use sysdep_fm, only: emacs_read, input_available, interrupt_pending
+    use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available
     use eval_fm, only: hook_type
     implicit none(type, external)
     private
@@ -192,6 +192,14 @@ module keyboard_fm
     !> ring_bell's FRAME_TERMINAL (f)->ring_bell_hook); set by the
     !> program, null without a terminal.
     procedure(redisplay_proc), pointer, public :: ring_bell_hook => null()
+
+    !> Subprocess output: while waiting for input, `process_wake_fd' (the
+    !> descriptor the process workers wake the main thread through, -1 for
+    !> none) is watched too, and when it is ready `process_output_hook'
+    !> takes the output (runs filters and sentinels), as
+    !> process.c:wait_reading_process_output does.  Set by process_fm.
+    integer(int32), public :: process_wake_fd = -1
+    procedure(redisplay_proc), pointer, public :: process_output_hook => null()
 
     !> macros.c:Vexecuting_kbd_macro: `macro_events' are the events of
     !> the keyboard macro being executed (when `macro_active'); a string
@@ -645,7 +653,7 @@ contains
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
-            if (.not. input_available(input_fd, timer_wait())) then
+            if (.not. wait_for_input(timer_wait())) then
                 call run_due_timer()
                 cycle
             end if
@@ -1065,14 +1073,51 @@ contains
         if (associated(redisplay_hook)) call redisplay_hook()
     end subroutine run_due_timer
 
-    !> Redisplay, then wait `ms' milliseconds or until input arrives.
-    !> Port of subr.el:sit-for (for a terminal; no wait without one).
+    !> Redisplay, then wait `ms' milliseconds or until input arrives,
+    !> taking subprocess output meanwhile.  Port of subr.el:sit-for (for a
+    !> terminal; without one, only subprocess output is waited for).
     subroutine sit_for(ms)
         integer(int32), intent(in) :: ms
-        logical :: ready
+        integer(int64) :: start, now, rate, left
+        logical :: ready(2)
+        integer(int32) :: fds(2)
         if (associated(redisplay_hook)) call redisplay_hook()
-        if (input_fd >= 0 .and. .not. input_pending_p()) ready = input_available(input_fd, ms)
+        if (input_fd >= 0) then
+            if (input_pending_p()) return
+        end if
+        call system_clock(start, rate)
+        do
+            call system_clock(now)
+            left = int(ms, int64) - (now - start)*1000/max(rate, 1_int64)
+            if (left < 0) return
+            fds = [input_fd, -1_int32]
+            if (associated(process_output_hook)) fds(2) = process_wake_fd
+            if (all(fds < 0)) return
+            call inputs_available(fds, int(left, int32), ready)
+            if (ready(1)) return
+            if (.not. ready(2)) return
+            call process_output_hook()
+            if (associated(redisplay_hook)) call redisplay_hook()
+        end do
     end subroutine sit_for
+
+    !> Wait up to `timeout' milliseconds (negative: no limit) for terminal
+    !> input, taking subprocess output if it arrives first (then
+    !> redisplaying and returning false, as for a timeout).
+    logical function wait_for_input(timeout) result(ready)
+        integer(int32), intent(in) :: timeout
+        logical :: got(2)
+        if (process_wake_fd < 0 .or. .not. associated(process_output_hook)) then
+            ready = input_available(input_fd, timeout)
+            return
+        end if
+        call inputs_available([input_fd, process_wake_fd], timeout, got)
+        ready = got(1)
+        if (got(2) .and. .not. ready) then
+            call process_output_hook()
+            if (associated(redisplay_hook)) call redisplay_hook()
+        end if
+    end function wait_for_input
 
     !> Make `command_loop' return after the current command.
     subroutine request_exit()

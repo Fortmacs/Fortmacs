@@ -44,7 +44,7 @@ module simple_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
     use lread_fm, only: sym
-    use data_fm, only: value_eq, string_setting
+    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
     use casetab_fm, only: downcase
     use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE
@@ -105,6 +105,8 @@ module simple_fm
 
     public :: execute_extended_command, read_extended_command
     public :: fundamental_mode, special_mode, syms_of_simple_modes
+    public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
+              syms_of_simple_shell
 
     !> Non-nil means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -403,7 +405,152 @@ module simple_fm
         module subroutine syms_of_simple_modes()
             implicit none(type, external)
         end subroutine syms_of_simple_modes
+
+        !> Read a shell command from the minibuffer, and return it as a
+        !> string.  The arguments are the same as the ones of
+        !> `read_from_minibuffer', except READ and KEYMAP are missing and
+        !> HISTORY defaults to `shell_command_history'.  Port of
+        !> simple.el:read-shell-command.  (In simple_shell_fm.)
+        module subroutine read_shell_command(prompt, result, status, initial, history, default, history_position)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: result
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: initial, history, default
+            !> The initial position in the history (HIST of the form
+            !> (SYMBOL . POSITION)).
+            integer, intent(in), optional :: history_position
+        end subroutine read_shell_command
+
+        !> Execute string COMMAND in inferior shell; display output, if any.
+        !>
+        !> If COMMAND ends in `&', execute it asynchronously (not ported
+        !> yet: an error).  Otherwise, COMMAND is executed synchronously.
+        !> The output appears in the buffer named by
+        !> `shell_command_buffer_name'.  If the output is short enough to
+        !> display in the echo area, it is shown there, but it is
+        !> nonetheless available in buffer named by
+        !> `shell_command_buffer_name' even though that buffer is not
+        !> automatically displayed.
+        !>
+        !> OUTPUT_BUFFER (a buffer) or OUTPUT_BUFFER_NAME says to put the
+        !> output in some other buffer, erased first unless
+        !> `shell_command_dont_erase_buffer' says otherwise; a true INSERT_HERE
+        !> means to insert it in the current buffer after point, leaving
+        !> mark after it.  ERROR_BUFFER names a buffer for the standard
+        !> error output; without it, error output is mingled with regular
+        !> output.  Port of simple.el:shell-command.  (In simple_shell_fm.)
+        module subroutine shell_command(command, status, output_buffer, output_buffer_name, insert_here, error_buffer)
+            implicit none(type, external)
+            character(len=*), intent(in) :: command
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: output_buffer
+            character(len=*), intent(in), optional :: output_buffer_name, error_buffer
+            logical, intent(in), optional :: insert_here
+        end subroutine shell_command
+
+        !> Execute string COMMAND in inferior shell with region as input.
+        !> Normally display output (if any) in temp buffer specified by
+        !> `shell_command_buffer_name'; prefix arg means replace the
+        !> region with it.
+        !>
+        !> OUTPUT_BUFFER, OUTPUT_BUFFER_NAME and INSERT_HERE are as for
+        !> `shell_command' (INSERT_HERE inserts the output after START).
+        !> REPLACE true means to insert the output in place of text from
+        !> START to END, putting point and mark around it (NO_MARK: don't
+        !> set the mark).  ERROR_BUFFER names a buffer for the standard
+        !> error output, displayed if there were errors when
+        !> DISPLAY_ERROR_BUFFER is true.  EXIT_STATUS is the command's exit
+        !> code, or -1 if it was killed by a signal described by
+        !> SIGNAL_DESCRIPTION.  Port of simple.el:shell-command-on-region.
+        !> (In simple_shell_fm.)
+        module subroutine shell_command_on_region(start, end, command, status, output_buffer, output_buffer_name, &
+                                                  insert_here, replace, no_mark, error_buffer, display_error_buffer, &
+                                                  exit_status, signal_description)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            character(len=*), intent(in) :: command
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: output_buffer
+            character(len=*), intent(in), optional :: output_buffer_name, error_buffer
+            logical, intent(in), optional :: insert_here, replace, no_mark, display_error_buffer
+            integer, intent(out), optional :: exit_status
+            character(len=:), allocatable, intent(out), optional :: signal_description
+        end subroutine shell_command_on_region
+
+        !> Display the contents of BUFFER in the echo area if possible,
+        !> otherwise in a pop-up window.  Port of
+        !> simple.el:display-message-or-buffer (a buffer MESSAGE).  (In
+        !> simple_shell_fm.)
+        module subroutine display_message_or_buffer(buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine display_message_or_buffer
+
+        !> Register the shell commands.  (In simple_shell_fm.)
+        module subroutine syms_of_simple_shell()
+            implicit none(type, external)
+        end subroutine syms_of_simple_shell
     end interface
+
+    !> Name of the output buffer for shell commands.  Port of simple.el
+    !> shell-command-buffer-name.
+    character(len=*), parameter, public :: shell_command_buffer_name = "*Shell Command Output*"
+
+    !> Name of the output buffer for asynchronous shell commands.  Port of
+    !> simple.el shell-command-buffer-name-async.
+    character(len=*), parameter, public :: shell_command_buffer_name_async = "*Async Shell Command*"
+
+    !> Switch used to have the shell execute its command line argument.
+    !> Port of simple.el shell-command-switch.
+    type(string_setting), public :: shell_command_switch = string_setting(name="shell_command_switch")
+
+    !> Buffer name for `shell_command' and `shell_command_on_region' error
+    !> output.  This buffer is used when `shell_command' or
+    !> `shell_command_on_region' is run interactively.  A value of nil
+    !> means that output to stderr and stdout will be intermixed in the
+    !> output stream.  Port of simple.el shell-command-default-error-buffer.
+    type(string_setting), public :: shell_command_default_error_buffer = &
+                                    string_setting(name="shell_command_default_error_buffer")
+
+    !> If true, show current directory when prompting for a shell command.
+    !> This affects `shell_command' and `async_shell_command'.  Port of
+    !> simple.el shell-command-prompt-show-cwd.
+    type(logical_setting), public :: shell_command_prompt_show_cwd = &
+                                     logical_setting(name="shell_command_prompt_show_cwd", value=.false.)
+
+    !> Values of `shell_command_dont_erase_buffer': nil, `erase',
+    !> `beg-last-out', `end-last-out' and `save-point'.
+    integer, parameter, public :: DONT_ERASE_NIL = 0, DONT_ERASE_ERASE = 1, DONT_ERASE_BEG_LAST_OUT = 2, &
+                                  DONT_ERASE_END_LAST_OUT = 3, DONT_ERASE_SAVE_POINT = 4
+
+    !> Whether to erase the output buffer before executing shell command.
+    !>
+    !> A nil value erases the output buffer before execution of the
+    !> shell command, except when the output buffer is the current one.
+    !>
+    !> The value `erase' ensures the output buffer is erased before
+    !> execution of the shell command even if it is the current buffer.
+    !>
+    !> Other values prevent the output buffer from being erased; they
+    !> also reposition point in the shell output buffer after execution of the
+    !> shell command, except when the output buffer is the current buffer.
+    !>
+    !> The value `beg_last_out' sets point at the beginning of the last
+    !> output, `end_last_out' sets point at the end of the last output,
+    !> and `save_point' restores the buffer position as it was before the
+    !> shell command.  Port of simple.el shell-command-dont-erase-buffer
+    !> (DONT_ERASE_NIL is nil, DONT_ERASE_ERASE `erase',
+    !> DONT_ERASE_BEG_LAST_OUT `beg-last-out', DONT_ERASE_END_LAST_OUT
+    !> `end-last-out', DONT_ERASE_SAVE_POINT `save-point').
+    type(integer_setting), public :: shell_command_dont_erase_buffer = &
+                                     integer_setting(name="shell_command_dont_erase_buffer", value=DONT_ERASE_NIL)
+
+    !> Keymap used for completing shell commands in minibuffer.  Port of
+    !> simple.el minibuffer-local-shell-command-map (without its
+    !> completion keys).
+    type(handle_type), public :: minibuffer_local_shell_command_map
 
     abstract interface
         !> A motion for `transpose_subr': move over N objects.
@@ -1711,6 +1858,7 @@ contains
         kill_forward_chars_hook => kill_forward_chars
         call syms_of_simple_fill()
         call syms_of_simple_modes()
+        call syms_of_simple_shell()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]

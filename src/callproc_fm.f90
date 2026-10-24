@@ -28,8 +28,10 @@
 !>     call call_process("ls", result, status, destination=t_value(), &
 !>                       args=list(make_string("-l")))
 !>
-!> Not ported yet: DESTINATION 0 (not waiting, which needs SIGCHLD
-!> reaping), `(:file FILE)' and `(REAL-BUFFER STDERR-FILE)', DISPLAY,
+!> Standard error can go to a file of its own (DESTINATION's
+!> (REAL-DESTINATION ERROR-FILE) form, as `error_file').  Not ported yet:
+!> DESTINATION 0 (not waiting), `(:file FILE)', an ERROR-FILE of nil
+!> (discarding standard error), DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
 !> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
 !> (the editor's environment is passed), remote directories, executable
@@ -41,7 +43,7 @@ module callproc_fm
     use lisp_fm, only: value_type, nil, nilp, make_fixnum, make_string, fixnump, xfixnum, &
                        stringp, xstring, bufferp, xhandle, vtag, V_SYMBOL, SYM_T, xsymbol, &
                        list_elements
-    use data_fm, only: check_string
+    use data_fm, only: check_string, string_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, BEG, &
                          buffer_live_p
     use character_fm, only: str_as_multibyte
@@ -58,9 +60,25 @@ module callproc_fm
     implicit none(type, external)
     private
 
-    public :: call_process, call_process_region
+    public :: call_process, call_process_region, get_current_directory, locate_program, init_callproc
+
+    !> File name to load inferior shells from.
+    !> Initialized from the SHELL environment variable, or to a system-dependent
+    !> default if SHELL is unset.  See Info node `(elisp)Security Considerations'.
+    !> Port of callproc.c shell-file-name.
+    type(string_setting), public :: shell_file_name = string_setting(name="shell_file_name")
 
 contains
+
+    !> Set `shell_file_name' from SHELL (/bin/sh if unset).  Port of
+    !> callproc.c:init_callproc (the part ported).
+    subroutine init_callproc()
+        character(len=:), allocatable :: sh
+        logical :: found
+        call getenv("SHELL", sh, found)
+        if (.not. found) sh = "/bin/sh"
+        shell_file_name = sh
+    end subroutine init_callproc
 
     !> Call PROGRAM synchronously in separate process.
     !> The remaining arguments are optional.
@@ -81,6 +99,11 @@ contains
     !>
     !> ARGS, a list of strings, are passed as command arguments to PROGRAM.
     !>
+    !> ERROR_FILE, if present, is a file to write the standard error output
+    !> to (DESTINATION's (REAL-DESTINATION ERROR-FILE) form; the file is
+    !> created or truncated); otherwise standard error goes where standard
+    !> output goes.
+    !>
     !> If PROGRAM is not an absolute file name, `call_process' will look
     !> for PROGRAM in PATH.
     !>
@@ -93,33 +116,24 @@ contains
     !>
     !> The process runs in `default_directory'.  Port of
     !> callproc.c:Fcall_process and call_process.
-    subroutine call_process(program, result, status, infile, destination, args)
+    subroutine call_process(program, result, status, infile, destination, args, error_file)
         character(len=*), intent(in) :: program
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: infile
+        character(len=*), intent(in), optional :: infile, error_file
         type(value_type), intent(in), optional :: destination, args
         type(sys_string_type), allocatable :: argv(:)
         type(value_type), allocatable :: elems(:)
         type(handle_type) :: buffer, old
-        character(len=:), allocatable :: dir, input, output, path
+        character(len=:), allocatable :: dir, input, output, path, errpath
         character(len=65536) :: chunk
         logical :: discard
         integer(int32) :: fds(2), err, fd, pid, code, sig
         integer(int64) :: n, k
         type(status_type) :: rst
         result = nil()
-        ! get_current_directory: the current buffer's default-directory.
-        dir = ""
-        if (cur /= 0) then
-            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
-        end if
-        if (len(dir) == 0 .and. allocated(emacs_wd)) dir = file_name_as_directory(emacs_wd)
-        if (len(dir) == 0) dir = "/"
-        if (.not. file_accessible_directory_p(dir)) then
-            call report_file_errno("Setting current directory", dir, ENOENT, status)
-            return
-        end if
+        call get_current_directory(dir, status)
+        if (.not. status%ok()) return
         input = "/dev/null"
         if (present(infile)) then
             call expand_file_name(infile, input, status, dir)
@@ -188,7 +202,17 @@ contains
                 return
             end if
         end if
-        err = emacs_spawn(path, argv, input, fds(2), dir, pid)
+        if (present(error_file)) then
+            call expand_file_name(error_file, errpath, status, dir)
+            if (.not. status%ok()) then
+                if (.not. discard) call close_fd(fds(1))
+                if (.not. discard) call close_fd(fds(2))
+                return
+            end if
+            err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath)
+        else
+            err = emacs_spawn(path, argv, input, fds(2), dir, pid)
+        end if
         if (.not. discard) call close_fd(fds(2))
         if (err /= 0) then
             if (.not. discard) call close_fd(fds(1))
@@ -220,6 +244,23 @@ contains
             result = make_fixnum(int(code, int64))
         end if
     end subroutine call_process
+
+    !> The directory a subprocess runs in: the current buffer's
+    !> `default_directory' (or the directory the editor started in), which
+    !> must be accessible.  Port of callproc.c:get_current_directory.
+    subroutine get_current_directory(dir, status)
+        character(len=:), allocatable, intent(out) :: dir
+        type(status_type), intent(out) :: status
+        dir = ""
+        if (cur /= 0) then
+            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        end if
+        if (len(dir) == 0 .and. allocated(emacs_wd)) dir = file_name_as_directory(emacs_wd)
+        if (len(dir) == 0) dir = "/"
+        if (.not. file_accessible_directory_p(dir)) then
+            call report_file_errno("Setting current directory", dir, ENOENT, status)
+        end if
+    end subroutine get_current_directory
 
     !> The executable file PROGRAM names: itself if it has a slash (relative
     !> to `dir'), else the first one in a directory of PATH (an empty entry
@@ -295,14 +336,17 @@ contains
     !> ARGS, a list of strings, are passed to PROGRAM at startup as
     !> command-line arguments.
     !>
+    !> ERROR_FILE is as for `call_process'.
+    !>
     !> If PROGRAM is not an absolute file name, `call_process_region' will
     !> look for PROGRAM in PATH.
     !>
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.  Port of
     !> callproc.c:Fcall_process_region.
-    subroutine call_process_region(program, result, status, start, end, delete, destination, args)
+    subroutine call_process_region(program, result, status, start, end, delete, destination, args, error_file)
         character(len=*), intent(in) :: program
+        character(len=*), intent(in), optional :: error_file
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
@@ -348,10 +392,10 @@ contains
             end if
         end if delete_text
         if (len(tempfile) > 0) then
-            call call_process(program, result, status, tempfile, destination, args)
+            call call_process(program, result, status, tempfile, destination, args, error_file)
             call delete_file_internal(tempfile, dst)
         else
-            call call_process(program, result, status, destination=destination, args=args)
+            call call_process(program, result, status, destination=destination, args=args, error_file=error_file)
         end if
     end subroutine call_process_region
 

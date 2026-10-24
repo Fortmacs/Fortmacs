@@ -240,10 +240,49 @@ module fortmacs
     use edmacro_fm, only: edmacro_eight_bits
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    ! Processes and shell commands.
+    use process_fm, only: process_arg_type, process_filter_proc, process_sentinel_proc, make_process, start_process, &
+                          delete_process, free_process, processp, process_live_p, get_process, get_buffer_process, &
+                          process_list, process_status, process_exit_status, process_id, process_name, &
+                          process_command, process_buffer, set_process_buffer, process_mark, set_process_filter, &
+                          set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
+                          process_query_on_exit_flag, interrupt_process, kill_process, quit_process, signal_process, &
+                          process_send_string, process_send_region, process_send_eof, accept_process_output, &
+                          internal_default_process_filter, internal_default_process_sentinel, &
+                          process_connection_type, delete_exited_processes, PROCESS_CONNECTION_DEFAULT, &
+                          PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, num_processors
+    use compile_fm, only: compile, recompile, compilation_start, compilation_mode, kill_compilation, &
+                          compile_command, compilation_read_command, compilation_ask_about_save, &
+                          compilation_always_kill, compilation_disable_input, compilation_scroll_output, &
+                          COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
+                          compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
+                          compilation_mode_map, compilation_directory, comint_inhibit_carriage_motion
+    use callproc_fm, only: shell_file_name
+    use simple_fm, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
+                         shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
+                         shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
+                         DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
     implicit none(type, external)
     private
 
     public :: int64
+    public :: process_arg_type, process_filter_proc, process_sentinel_proc, make_process, start_process, &
+              delete_process, free_process, processp, process_live_p, get_process, get_buffer_process, process_list, &
+              process_status, process_exit_status, process_id, process_name, process_command, process_buffer, &
+              set_process_buffer, process_mark, set_process_filter, set_process_sentinel, process_tty_name, &
+              set_process_query_on_exit_flag, process_query_on_exit_flag, interrupt_process, kill_process, &
+              quit_process, signal_process, process_send_string, process_send_region, process_send_eof, &
+              accept_process_output, internal_default_process_filter, internal_default_process_sentinel, &
+              process_connection_type, delete_exited_processes, PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, &
+              PROCESS_CONNECTION_PTY, shell_file_name, shell_command, shell_command_on_region, read_shell_command, &
+              display_message_or_buffer, shell_command_switch, shell_command_default_error_buffer, &
+              shell_command_prompt_show_cwd, shell_command_dont_erase_buffer, shell_command_buffer_name, &
+              DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, &
+              num_processors, compile, recompile, compilation_start, compilation_mode, kill_compilation, compile_command, &
+              compilation_read_command, compilation_ask_about_save, compilation_always_kill, compilation_disable_input, &
+              compilation_scroll_output, COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
+              compilation_filter_hook, compilation_filter_start, compilation_mode_hook, compilation_mode_map, &
+              compilation_directory, comint_inhibit_carriage_motion
     public :: status_type, set_error, format_error, FM_GENERIC_ERROR
     public :: command_proc, command_type, commands, set_command_disabled
     public :: keymap_global_set, keymap_set, key_valid_p, current_global_map, global_set_key

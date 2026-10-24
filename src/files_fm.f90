@@ -66,6 +66,7 @@ module files_fm
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
+    public :: file_relative_name
     public :: set_visited_file_name, write_file
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
@@ -144,6 +145,19 @@ module files_fm
             character(len=*), intent(in) :: text
             character(len=:), allocatable :: mode
         end function auto_mode_spec
+        !> Convert FILENAME to be relative to DIRECTORY (default:
+        !> `default_directory').
+        !> This function returns a relative file name that is equivalent to
+        !> FILENAME when used with that default directory as the default.
+        !> If FILENAME is a relative file name, it will be interpreted as
+        !> existing in `default_directory'.  Port of
+        !> files.el:file-relative-name.  (In files_read_fm.)
+        module function file_relative_name(filename, directory) result(rel)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=*), intent(in), optional :: directory
+            character(len=:), allocatable :: rel
+        end function file_relative_name
     end interface
 
     !> Non-nil means make a backup of a file the first time it is saved.
