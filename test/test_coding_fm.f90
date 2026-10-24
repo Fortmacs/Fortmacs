@@ -29,6 +29,7 @@
 module test_coding_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
+    use test_support, only: show_alone
     use error_fm, only: status_type, format_error, FM_CODING_SYSTEM_ERROR, condition_matches
     use handle_fm, only: handle_type
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, buffers, cur, current_buffer, &
@@ -733,5 +734,8 @@ contains
                    "Type: utf-8 (UTF-8: Emacs internal multibyte form)"//LF//"EOL type: Automatic selection from:"//LF// &
                    achar(9)//"[utf-8-unix utf-8-dos utf-8-mac]"//LF// &
                    "This coding system encodes the following charsets:"//LF//"  unicode"//LF)
+        ! The help window goes, for the suites after this one.
+        call kill_buffer(help, st)
+        call show_alone()
     end subroutine test_describe
 end module test_coding_fm
