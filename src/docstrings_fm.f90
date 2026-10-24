@@ -32,13 +32,23 @@ module docstrings_fm
     use callproc_fm, only: shell_file_name
     use casefiddle_fm, only: case_symbols_as_words
     use cmds_fm, only: auto_fill_chars
+    use comint_fm, only: comint_buffer_maximum_size, comint_delimiter_argument_list, &
+                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_inhibit_carriage_motion, &
+                         comint_input_filter_functions, comint_input_history_ignore, comint_input_ignoredups, &
+                         comint_input_ring_file_name, comint_input_ring_file_prefix, comint_input_ring_separator, &
+                         comint_input_ring_size, comint_input_sender_no_newline, comint_mode_hook, comint_mode_map, &
+                         comint_move_point_for_matching_input, COMINT_MATCHING_AFTER_INPUT, &
+                         COMINT_MATCHING_END_OF_LINE, comint_move_point_for_output, COMINT_MOVE_NIL, COMINT_MOVE_T, &
+                         COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, comint_output_filter_functions, &
+                         comint_pager, comint_preoutput_filter_functions, comint_process_echoes, &
+                         comint_prompt_read_only, comint_prompt_regexp, comint_scroll_show_maximum_output, &
+                         comint_terminfo_terminal, comint_use_prompt_regexp
     use commands_fm, only: commands
-    use compile_fm, only: comint_inhibit_carriage_motion, compilation_always_kill, &
-                          compilation_ask_about_save, compilation_directory, compilation_disable_input, &
-                          compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
-                          compilation_mode_map, compilation_read_command, compilation_scroll_output, &
-                          COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
-                          compile_command
+    use compile_fm, only: compilation_always_kill, compilation_ask_about_save, compilation_directory, &
+                          compilation_disable_input, compilation_filter_hook, compilation_filter_start, &
+                          compilation_mode_hook, compilation_mode_map, compilation_read_command, &
+                          compilation_scroll_output, COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, &
+                          COMPILATION_SCROLL_FIRST_ERROR, compile_command
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use edmacro_fm, only: edmacro_eight_bits
@@ -97,15 +107,27 @@ module docstrings_fm
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
     use search_fm, only: case_fold_search, search_spaces_regexp
-    use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
+    use shell_fm, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
+                        list_buffers_directory, shell_cd_regexp, shell_command_regexp, &
+                        shell_command_separator_regexp, shell_delimiter_argument_list, shell_dirstack_query, &
+                        shell_dirtrack_verbose, shell_dumb_shell_regexp, &
+                        shell_get_old_input_include_continuation_lines, shell_has_auto_cd, shell_history_file_name, &
+                        shell_kill_buffer_on_exit, shell_mode_hook, shell_mode_map, shell_popd_regexp, &
+                        shell_prompt_pattern, shell_pushd_dextract, shell_pushd_dunique, shell_pushd_regexp, &
+                        shell_pushd_tohome
+    use simple_fm, only: async_shell_command_buffer, ASYNC_CONFIRM_KILL_PROCESS, &
+                         ASYNC_CONFIRM_NEW_BUFFER, ASYNC_NEW_BUFFER, ASYNC_CONFIRM_RENAME_BUFFER, ASYNC_RENAME_BUFFER, &
+                         async_shell_command_display_buffer, async_shell_command_mode, async_shell_command_width, &
+                         auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
                          cycle_spacing_actions, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
                          inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
                          kill_whole_line_option, line_move_visual, mark_ring_max, minibuffer_local_shell_command_map, &
-                         pending_undo_list, read_quoted_char_radix, shell_command_default_error_buffer, &
-                         shell_command_dont_erase_buffer, DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, &
-                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
-                         shell_command_switch, special_mode_hook, special_mode_map, suggest_key_bindings, &
-                         transient_mark_mode_hook, undo_in_progress, undo_no_redo
+                         next_error_hook, next_error_last_buffer, next_error_verbose, pending_undo_list, &
+                         read_quoted_char_radix, shell_command_default_error_buffer, shell_command_dont_erase_buffer, &
+                         DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, &
+                         DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, shell_command_switch, &
+                         special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
+                         undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
@@ -142,13 +164,14 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=38), parameter, public :: function_names(443) = [character(len=38) :: &
+    character(len=41), parameter, public :: function_names(493) = [character(len=41) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "accept_process_output", &
                                                                    "add_auto_mode", &
                                                                    "append_to_register", &
                                                                    "apply_on_rectangle", &
+                                                                   "async_shell_command", &
                                                                    "auto_fill_mode", &
                                                                    "back_to_indentation", &
                                                                    "backward_char", &
@@ -178,6 +201,43 @@ module docstrings_fm
                                                                    "capitalize_word", &
                                                                    "char_syntax", &
                                                                    "clear_rectangle", &
+                                                                   "comint_accumulate", &
+                                                                   "comint_append_output_to_file", &
+                                                                   "comint_backward_matching_input", &
+                                                                   "comint_bol", &
+                                                                   "comint_bol_or_process_mark", &
+                                                                   "comint_clear_buffer", &
+                                                                   "comint_copy_old_input", &
+                                                                   "comint_delchar_or_maybe_eof", &
+                                                                   "comint_delete_output", &
+                                                                   "comint_forward_matching_input", &
+                                                                   "comint_get_next_from_history", &
+                                                                   "comint_goto_process_mark", &
+                                                                   "comint_interrupt_subjob", &
+                                                                   "comint_kill_input", &
+                                                                   "comint_kill_region", &
+                                                                   "comint_kill_subjob", &
+                                                                   "comint_kill_whole_line", &
+                                                                   "comint_mode", &
+                                                                   "comint_next_input", &
+                                                                   "comint_next_matching_input", &
+                                                                   "comint_next_matching_input_from_input", &
+                                                                   "comint_next_prompt", &
+                                                                   "comint_previous_input", &
+                                                                   "comint_previous_matching_input", &
+                                                                   "comint_previous_matching_input_from_input", &
+                                                                   "comint_previous_prompt", &
+                                                                   "comint_quit_subjob", &
+                                                                   "comint_restore_input", &
+                                                                   "comint_run", &
+                                                                   "comint_send_eof", &
+                                                                   "comint_send_input", &
+                                                                   "comint_set_process_mark", &
+                                                                   "comint_show_maximum_output", &
+                                                                   "comint_show_output", &
+                                                                   "comint_strip_ctrl_m", &
+                                                                   "comint_truncate_buffer", &
+                                                                   "comint_write_output", &
                                                                    "compilation_mode", &
                                                                    "compilation_start", &
                                                                    "compile", &
@@ -245,6 +305,7 @@ module docstrings_fm
                                                                    "fill_single_char_nobreak_p", &
                                                                    "fill_single_word_nobreak_p", &
                                                                    "find_file", &
+                                                                   "first_error", &
                                                                    "fixup_whitespace", &
                                                                    "font_lock_add_keywords", &
                                                                    "font_lock_anchored", &
@@ -419,6 +480,8 @@ module docstrings_fm
                                                                    "negative_argument", &
                                                                    "newline", &
                                                                    "next_buffer", &
+                                                                   "next_error", &
+                                                                   "next_error_no_select", &
                                                                    "next_history_element", &
                                                                    "next_line", &
                                                                    "next_line_or_history_element", &
@@ -441,6 +504,8 @@ module docstrings_fm
                                                                    "posix_string_match", &
                                                                    "prepend_to_register", &
                                                                    "previous_buffer", &
+                                                                   "previous_error", &
+                                                                   "previous_error_no_select", &
                                                                    "previous_history_element", &
                                                                    "previous_line", &
                                                                    "previous_line_or_history_element", &
@@ -526,8 +591,15 @@ module docstrings_fm
                                                                    "set_process_sentinel", &
                                                                    "set_register", &
                                                                    "set_syntax_table", &
+                                                                   "shell", &
+                                                                   "shell_backward_command", &
                                                                    "shell_command", &
+                                                                   "shell_command_mode", &
                                                                    "shell_command_on_region", &
+                                                                   "shell_dirtrack_mode", &
+                                                                   "shell_forward_command", &
+                                                                   "shell_mode", &
+                                                                   "shell_narrow_to_prompt", &
                                                                    "skip_chars_backward", &
                                                                    "skip_chars_forward", &
                                                                    "skip_syntax_backward", &
@@ -588,13 +660,17 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(194) = [character(len=44) :: &
+    character(len=46), parameter, public :: variable_names(250) = [character(len=46) :: &
                                                                    "adaptive_fill_first_line_regexp", &
                                                                    "adaptive_fill_mode", &
                                                                    "adaptive_fill_regexp", &
                                                                    "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
+                                                                   "async_shell_command_buffer", &
+                                                                   "async_shell_command_display_buffer", &
+                                                                   "async_shell_command_mode", &
+                                                                   "async_shell_command_width", &
                                                                    "auto_fill_chars", &
                                                                    "auto_fill_function", &
                                                                    "auto_fill_inhibit_regexp", &
@@ -607,7 +683,33 @@ module docstrings_fm
                                                                    "change_major_mode_hook", &
                                                                    "change_major_mode_with_file_name", &
                                                                    "colon_double_space", &
+                                                                   "comint_buffer_maximum_size", &
+                                                                   "comint_delimiter_argument_list", &
+                                                                   "comint_eol_on_send", &
+                                                                   "comint_exec_hook", &
+                                                                   "comint_highlight_input", &
                                                                    "comint_inhibit_carriage_motion", &
+                                                                   "comint_input_filter_functions", &
+                                                                   "comint_input_history_ignore", &
+                                                                   "comint_input_ignoredups", &
+                                                                   "comint_input_ring_file_name", &
+                                                                   "comint_input_ring_file_prefix", &
+                                                                   "comint_input_ring_separator", &
+                                                                   "comint_input_ring_size", &
+                                                                   "comint_input_sender_no_newline", &
+                                                                   "comint_mode_hook", &
+                                                                   "comint_mode_map", &
+                                                                   "comint_move_point_for_matching_input", &
+                                                                   "comint_move_point_for_output", &
+                                                                   "comint_output_filter_functions", &
+                                                                   "comint_pager", &
+                                                                   "comint_preoutput_filter_functions", &
+                                                                   "comint_process_echoes", &
+                                                                   "comint_prompt_read_only", &
+                                                                   "comint_prompt_regexp", &
+                                                                   "comint_scroll_show_maximum_output", &
+                                                                   "comint_terminfo_terminal", &
+                                                                   "comint_use_prompt_regexp", &
                                                                    "commands", &
                                                                    "comment_end_can_be_escaped", &
                                                                    "comment_use_syntax_ppss", &
@@ -640,6 +742,9 @@ module docstrings_fm
                                                                    "edmacro_eight_bits", &
                                                                    "enable_recursive_minibuffers", &
                                                                    "even_window_sizes", &
+                                                                   "explicit_bash_args", &
+                                                                   "explicit_csh_args", &
+                                                                   "explicit_shell_file_name", &
                                                                    "fill_column", &
                                                                    "fill_indent_according_to_mode", &
                                                                    "fill_nobreak_predicate", &
@@ -698,6 +803,7 @@ module docstrings_fm
                                                                    "last_kbd_macro", &
                                                                    "left_margin", &
                                                                    "line_move_visual", &
+                                                                   "list_buffers_directory", &
                                                                    "make_backup_files", &
                                                                    "mark_even_if_inactive", &
                                                                    "mark_ring_max", &
@@ -707,6 +813,9 @@ module docstrings_fm
                                                                    "minibuffer_scroll_window", &
                                                                    "mode_require_final_newline", &
                                                                    "multibyte_syntax_as_symbol", &
+                                                                   "next_error_hook", &
+                                                                   "next_error_last_buffer", &
+                                                                   "next_error_verbose", &
                                                                    "next_screen_context_lines", &
                                                                    "open_paren_in_column_0_is_defun_start", &
                                                                    "page_delimiter", &
@@ -749,11 +858,30 @@ module docstrings_fm
                                                                    "sentence_end_double_space", &
                                                                    "sentence_end_without_period", &
                                                                    "sentence_end_without_space", &
+                                                                   "shell_cd_regexp", &
                                                                    "shell_command_default_error_buffer", &
                                                                    "shell_command_dont_erase_buffer", &
                                                                    "shell_command_prompt_show_cwd", &
+                                                                   "shell_command_regexp", &
+                                                                   "shell_command_separator_regexp", &
                                                                    "shell_command_switch", &
+                                                                   "shell_delimiter_argument_list", &
+                                                                   "shell_dirstack_query", &
+                                                                   "shell_dirtrack_verbose", &
+                                                                   "shell_dumb_shell_regexp", &
                                                                    "shell_file_name", &
+                                                                   "shell_get_old_input_include_continuation_lines", &
+                                                                   "shell_has_auto_cd", &
+                                                                   "shell_history_file_name", &
+                                                                   "shell_kill_buffer_on_exit", &
+                                                                   "shell_mode_hook", &
+                                                                   "shell_mode_map", &
+                                                                   "shell_popd_regexp", &
+                                                                   "shell_prompt_pattern", &
+                                                                   "shell_pushd_dextract", &
+                                                                   "shell_pushd_dunique", &
+                                                                   "shell_pushd_regexp", &
+                                                                   "shell_pushd_tohome", &
                                                                    "special_mode_hook", &
                                                                    "special_mode_map", &
                                                                    "split_height_threshold", &
@@ -853,6 +981,13 @@ contains
                         "Point is at the beginning of line when it is called."//LF// &
                         "The final point after the last operation is returned in"//LF// &
                         "FINAL_POINT.  Point is restored afterwards, also on an error."
+        case ("async_shell_command")
+            entry%file = "simple_shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: read COMMAND (with the visited file as default).  The"//LF// &
+                        "interactive form of simple.el:async-shell-command."//LF// &
+                        ""//LF// &
+                        "Execute string COMMAND asynchronously in background."
         case ("auto_fill_mode")
             entry%file = "simple_fill_fm.f90"
             entry%interactive = .true.
@@ -1126,6 +1261,209 @@ contains
                         "When called from a program the rectangle's corners are START and END."//LF// &
                         "With a prefix (or a FILL) argument, also fill with blanks the parts of the"//LF// &
                         "rectangle which were empty."
+        case ("comint_accumulate")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Accumulate a line to send as input along with more lines."//LF// &
+                        "This inserts a newline so that you can enter more text to be sent"//LF// &
+                        "along with this line.  Use \[comint_send_input] to send all the"//LF// &
+                        "accumulated input, at once.  The entire accumulated text becomes one"//LF// &
+                        "item in the input history when you send it."
+        case ("comint_append_output_to_file")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Append output from interpreter since last input to FILENAME."
+        case ("comint_backward_matching_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search backward through buffer for input fields that match REGEXP."
+        case ("comint_bol")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the beginning of line, then skip past the prompt, if any."
+        case ("comint_bol_or_process_mark")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to beginning of line (after prompt) or to the process"//LF// &
+                        "mark.  The first time you use this command, it moves to the"//LF// &
+                        "beginning of the line (but after the prompt, if any).  If you repeat"//LF// &
+                        "it again immediately, it moves point to the process mark."//LF// &
+                        ""//LF// &
+                        "The process mark separates the process output, along with input"//LF// &
+                        "already sent, from input that has not yet been sent.  Ordinarily,"//LF// &
+                        "the process mark is at the beginning of the current input line; but"//LF// &
+                        "if you have used \[comint_accumulate] to send multiple lines at once,"//LF// &
+                        "the process mark is at the beginning of the accumulated input."
+        case ("comint_clear_buffer")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Clear the comint buffer."
+        case ("comint_copy_old_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert after prompt old input at point as new input to be edited."//LF// &
+                        "Calls `comint_get_old_input' to get old input."
+        case ("comint_delchar_or_maybe_eof")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Behave like the global binding or send an EOF to subprocess."//LF// &
+                        "Sends an EOF only if point is at the end of the buffer and there is"//LF// &
+                        "no input."
+        case ("comint_delete_output")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: with a prefix argument, kill the output."//LF// &
+                        ""//LF// &
+                        "Delete all output from interpreter since last input."
+        case ("comint_forward_matching_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search forward through buffer for input fields that match REGEXP."
+        case ("comint_get_next_from_history")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "After fetching a line from input history, this fetches the following"//LF// &
+                        "line.  In other words, this recalls the input line after the line"//LF// &
+                        "you recalled last.  You can use this to repeat a sequence of input"//LF// &
+                        "lines."
+        case ("comint_goto_process_mark")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command.  Move point to the process mark."
+        case ("comint_interrupt_subjob")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Interrupt the current subjob."
+        case ("comint_kill_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill all text from last stuff output by interpreter to point."
+        case ("comint_kill_region")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `kill_region', but ignore read-only properties, if safe."
+        case ("comint_kill_subjob")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Send kill signal to the current subjob."
+        case ("comint_kill_whole_line")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill current line, ignoring read-only and field properties."
+        case ("comint_mode")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for interacting with an inferior interpreter."//LF// &
+                        "Interpreter name is same as buffer name, sans the asterisks."//LF// &
+                        "Return at end of buffer sends line as input."//LF// &
+                        "Return not at end copies rest of line to end and sends it."//LF// &
+                        "Setting variable `comint_eol_on_send' means jump to the end of the"//LF// &
+                        "line before submitting new input."//LF// &
+                        ""//LF// &
+                        "This mode is customized to create major modes such as Inferior Lisp"//LF// &
+                        "mode, Shell mode, etc.  This can be done by setting the hooks"//LF// &
+                        "`comint_input_filter_functions', `comint_input_filter',"//LF// &
+                        "`comint_input_sender' and `comint_get_old_input' to appropriate"//LF// &
+                        "functions, and the variable `comint_prompt_regexp' to the"//LF// &
+                        "appropriate regular expression."//LF// &
+                        ""//LF// &
+                        "The mode maintains an input history of size `comint_input_ring_size'."//LF// &
+                        "You can access this with the commands \[comint_next_input] and"//LF// &
+                        "\[comint_previous_input]."//LF// &
+                        "Addition is controlled by the variable `comint_input_ignoredups'."//LF// &
+                        ""//LF// &
+                        "Input to, and output from, the subprocess can cause the window to"//LF// &
+                        "scroll to the end of the buffer.  See variables"//LF// &
+                        "`comint_output_filter_functions', `comint_preoutput_filter_functions'"//LF// &
+                        "and `comint_move_point_for_output'."//LF// &
+                        ""//LF// &
+                        "Entry to this mode runs the hooks on `comint_mode_hook'."
+        case ("comint_next_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cycle forwards through input history."
+        case ("comint_next_matching_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search forwards through input history for match for REGEXP."
+        case ("comint_next_matching_input_from_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search forwards through input history for match for current input."
+        case ("comint_next_prompt")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to end of Nth next prompt in the buffer."
+        case ("comint_previous_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cycle backwards through input history, saving input."
+        case ("comint_previous_matching_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search backwards through input history for match for REGEXP."
+        case ("comint_previous_matching_input_from_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search backwards through input history for match for current input."
+        case ("comint_previous_prompt")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to end of Nth previous prompt in the buffer."
+        case ("comint_quit_subjob")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Send quit signal to the current subjob."
+        case ("comint_restore_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Restore unfinished input."
+        case ("comint_run")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: read PROGRAM and run it.  The interactive form of"//LF// &
+                        "comint.el:comint-run."//LF// &
+                        ""//LF// &
+                        "Run PROGRAM in a Comint buffer and switch to that buffer."
+        case ("comint_send_eof")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Send an EOF to the current buffer's process."
+        case ("comint_send_input")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: send input to process.  The interactive form of"//LF// &
+                        "comint.el:comint-send-input."//LF// &
+                        ""//LF// &
+                        "Send input to process."
+        case ("comint_set_process_mark")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the process mark at point."
+        case ("comint_show_maximum_output")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Put the end of the buffer at the bottom of the window."
+        case ("comint_show_output")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display start of this batch of interpreter output at top of window."//LF// &
+                        "Sets mark to the value of point when this command is run."
+        case ("comint_strip_ctrl_m")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command.  Strip trailing `^M' characters from the current"//LF// &
+                        "output group."
+        case ("comint_truncate_buffer")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command.  Truncate the buffer to `comint_buffer_maximum_size'."
+        case ("comint_write_output")
+            entry%file = "comint_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: read the file name."//LF// &
+                        ""//LF// &
+                        "Write output from interpreter since last input to FILENAME."
         case ("compilation_mode")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compilation_mode(status)"
@@ -1717,6 +2055,14 @@ contains
                         "Interactively, the default if you just type RET is the current directory,"//LF// &
                         "but the visited file name is available through the minibuffer history:"//LF// &
                         "type \[next_history_element] to pull it into the minibuffer."
+        case ("first_error")
+            entry%file = "simple_next_error_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Restart at the first error."//LF// &
+                        "Visit corresponding source code."//LF// &
+                        "With prefix arg N, visit the source code of the Nth error."//LF// &
+                        "This operates on the output from the \[compile] command, for"//LF// &
+                        "instance."
         case ("fixup_whitespace")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fixup_whitespace(status)"
@@ -3284,6 +3630,21 @@ contains
             entry%doc = "In selected window switch to ARGth next buffer."//LF// &
                         "Call `switch_to_next_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
+        case ("next_error")
+            entry%file = "simple_next_error_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: with C-u, start at the first error.  The interactive"//LF// &
+                        "form of simple.el:next-error."//LF// &
+                        ""//LF// &
+                        "Visit next `next_error' message and corresponding source code."
+        case ("next_error_no_select")
+            entry%file = "simple_next_error_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the next error in the `next_error' buffer and"//LF// &
+                        "highlight match.  Prefix arg N says how many error messages to move"//LF// &
+                        "forwards (or backwards, if negative).  Finds and highlights the"//LF// &
+                        "source line like \[next_error], but does not select the source"//LF// &
+                        "buffer."
         case ("next_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -3503,6 +3864,26 @@ contains
             entry%doc = "In selected window switch to ARGth previous buffer."//LF// &
                         "Call `switch_to_prev_buffer' unless the selected window is the"//LF// &
                         "minibuffer window or is dedicated to its buffer."
+        case ("previous_error")
+            entry%file = "simple_next_error_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit previous `next_error' message and corresponding source code."//LF// &
+                        ""//LF// &
+                        "Prefix arg N says how many error messages to move backwards (or"//LF// &
+                        "forwards, if negative)."//LF// &
+                        ""//LF// &
+                        "This operates on the output from the \[compile] and \[grep]"//LF// &
+                        "commands."//LF// &
+                        ""//LF// &
+                        "See `next_error' for the details."
+        case ("previous_error_no_select")
+            entry%file = "simple_next_error_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the previous error in the `next_error' buffer and"//LF// &
+                        "highlight match.  Prefix arg N says how many error messages to move"//LF// &
+                        "backwards (or forwards, if negative).  Finds and highlights the"//LF// &
+                        "source line like \[previous_error], but does not select the source"//LF// &
+                        "buffer."
         case ("previous_history_element")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -4510,6 +4891,18 @@ contains
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
+        case ("shell")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: with a prefix argument, read the buffer name.  The"//LF// &
+                        "interactive form of shell.el:shell."//LF// &
+                        ""//LF// &
+                        "Run an inferior shell, with I/O through BUFFER (which defaults to"//LF// &
+                        "`*shell*')."
+        case ("shell_backward_command")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward across ARG shell command(s)."
         case ("shell_command")
             entry%file = "simple_fm.f90"
             entry%fortran = "call shell_command(command, status, output_buffer, output_buffer_name, insert_here, error_"// &
@@ -4521,6 +4914,10 @@ contains
                         ""//LF// &
                         "Execute string COMMAND in inferior shell; display output, if any."//LF// &
                         "With prefix argument, insert the COMMAND's output at point."
+        case ("shell_command_mode")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for the output of asynchronous `shell_command'."
         case ("shell_command_on_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "call shell_command_on_region(start, end, command, status, output_buffer, output_buffer_nam"// &
@@ -4535,6 +4932,64 @@ contains
                         "Normally display output (if any) in temp buffer specified by"//LF// &
                         "`shell_command_buffer_name'; prefix arg means replace the region"//LF// &
                         "with it."
+        case ("shell_dirtrack_mode")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle directory tracking in this shell buffer (Shell Dirtrack mode)."//LF// &
+                        "This assigns a buffer-local true value to `shell_dirtrack_mode'."
+        case ("shell_forward_command")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward across ARG shell command(s)."
+        case ("shell_mode")
+            entry%file = "shell_fm.f90"
+            entry%doc = "Major mode for interacting with an inferior shell."//LF// &
+                        "\<shell_mode_map>"//LF// &
+                        "\[comint_send_input] after the end of the process' output sends the"//LF// &
+                        "    text from the end of process to the end of the current line."//LF// &
+                        "\[comint_send_input] before end of process output copies the current"//LF// &
+                        "    line minus the prompt to the end of the buffer and sends it"//LF// &
+                        "    (\[comint_copy_old_input] just copies the current line)."//LF// &
+                        ""//LF// &
+                        "If you want to make multiple shell buffers, rename the ""*shell*"""//LF// &
+                        "buffer using \[rename_buffer] and start a new shell."//LF// &
+                        ""//LF// &
+                        "If you want to make shell buffers limited in length, add the"//LF// &
+                        "function `comint_truncate_buffer' to `comint_output_filter_functions'."//LF// &
+                        ""//LF// &
+                        "`cd', `pushd' and `popd' commands given to the shell are watched by"//LF// &
+                        "Emacs to keep this buffer's default directory the same as the"//LF// &
+                        "shell's working directory."//LF// &
+                        "\[shell_dirtrack_mode] turns directory tracking on and off."//LF// &
+                        ""//LF// &
+                        "Customization: Entry to this mode runs the hooks on"//LF// &
+                        "`comint_mode_hook' and `shell_mode_hook' (in that order).  Before"//LF// &
+                        "each input, the hooks on `comint_input_filter_functions' are run."//LF// &
+                        "After each shell output, the hooks on"//LF// &
+                        "`comint_output_filter_functions' are run."//LF// &
+                        ""//LF// &
+                        "Variables `shell_cd_regexp', `shell_pushd_regexp' and"//LF// &
+                        "`shell_popd_regexp' are used to match their respective commands,"//LF// &
+                        "while `shell_pushd_tohome', `shell_pushd_dextract' and"//LF// &
+                        "`shell_pushd_dunique' control the behavior of the relevant command."//LF// &
+                        ""//LF// &
+                        "Variables `comint_input_ring_file_name' and `comint_input_ring_size'"//LF// &
+                        "control the initialization of the input ring history."//LF// &
+                        ""//LF// &
+                        "Variables `comint_output_filter_functions', a hook, and"//LF// &
+                        "`comint_move_point_for_output' control whether input and output"//LF// &
+                        "cause the window to scroll to the end of the buffer."//LF// &
+                        ""//LF// &
+                        "By default, shell mode does nothing special when it receives a"//LF// &
+                        """bell"" character (C-g or ^G).  If you add the function"//LF// &
+                        "`shell_filter_ring_bell' to `comint_output_filter_functions' locally"//LF// &
+                        "from `shell_mode_hook', Emacs will call the `ding' function whenever"//LF// &
+                        "it receives the bell character in output from a command."
+        case ("shell_narrow_to_prompt")
+            entry%file = "shell_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Narrow buffer to the command line (and any following command output)"//LF// &
+                        "at point."
         case ("skip_chars_backward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_chars_backward(string, status, lim)"
@@ -5169,6 +5624,65 @@ contains
             entry%doc = "The maximum number of changes to possibly amalgamate when undoing"//LF// &
                         "changes.  The `undo' command will normally consider ""similar"""//LF// &
                         "changes (like inserting characters) to be part of the same change."
+        case ("async_shell_command_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "async_shell_command_buffer"
+            entry%original = "ASYNC_CONFIRM_NEW_BUFFER"
+            select case (async_shell_command_buffer%value)
+            case (ASYNC_CONFIRM_KILL_PROCESS)
+                entry%value = "ASYNC_CONFIRM_KILL_PROCESS"
+            case (ASYNC_CONFIRM_NEW_BUFFER)
+                entry%value = "ASYNC_CONFIRM_NEW_BUFFER"
+            case (ASYNC_NEW_BUFFER)
+                entry%value = "ASYNC_NEW_BUFFER"
+            case (ASYNC_CONFIRM_RENAME_BUFFER)
+                entry%value = "ASYNC_CONFIRM_RENAME_BUFFER"
+            case (ASYNC_RENAME_BUFFER)
+                entry%value = "ASYNC_RENAME_BUFFER"
+            case default
+                entry%value = repr(async_shell_command_buffer%value)
+            end select
+            entry%doc = "What to do when the output buffer is used by another shell command."//LF// &
+                        "This option specifies how to resolve the conflict where a new"//LF// &
+                        "command wants to direct its output to the buffer whose name is"//LF// &
+                        "stored in `shell_command_buffer_name_async', but that buffer is"//LF// &
+                        "already taken by another running shell command."//LF// &
+                        ""//LF// &
+                        "The value ASYNC_CONFIRM_KILL_PROCESS is used to ask for"//LF// &
+                        "confirmation before killing the already running process and running"//LF// &
+                        "a new process in the same buffer, ASYNC_CONFIRM_NEW_BUFFER for"//LF// &
+                        "confirmation before running the command in a new buffer with a name"//LF// &
+                        "other than the default buffer name, ASYNC_NEW_BUFFER for doing the"//LF// &
+                        "same without confirmation, ASYNC_CONFIRM_RENAME_BUFFER for"//LF// &
+                        "confirmation before renaming the existing output buffer and running"//LF// &
+                        "a new command in the default buffer, ASYNC_RENAME_BUFFER for doing"//LF// &
+                        "the same without confirmation."
+        case ("async_shell_command_display_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "async_shell_command_display_buffer"
+            entry%original = ".true."
+            entry%value = repr(async_shell_command_display_buffer%value)
+            entry%doc = "Whether to display the command buffer immediately."//LF// &
+                        "If true, display the buffer immediately; if false, wait until there"//LF// &
+                        "is output."
+        case ("async_shell_command_mode")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "async_shell_command_mode"
+            if (associated(async_shell_command_mode%value)) then
+                entry%value = command_name_of(async_shell_command_mode%value)
+            else
+                entry%value = "null()"
+            end if
+            entry%doc = "Major mode to use for the output of asynchronous `shell_command'."
+        case ("async_shell_command_width")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "async_shell_command_width"
+            entry%original = "-1"
+            entry%value = repr(async_shell_command_width%value)
+            entry%doc = "Number of display columns available for asynchronous shell command"//LF// &
+                        "output.  If negative, use the shell default number (usually 80"//LF// &
+                        "columns).  If a natural number, tell the shell to use that number"//LF// &
+                        "of columns for command output."
         case ("auto_fill_chars")
             entry%file = "cmds_fm.f90"
             entry%fortran = "auto_fill_chars"
@@ -5270,13 +5784,346 @@ contains
             entry%original = ".false."
             entry%value = repr(colon_double_space)
             entry%doc = "True means put two spaces after a colon when filling."
+        case ("comint_buffer_maximum_size")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_buffer_maximum_size"
+            entry%original = "1024"
+            entry%value = repr(comint_buffer_maximum_size%value)
+            entry%doc = "The maximum size in lines for Comint buffers."//LF// &
+                        "Comint buffers are truncated from the top to be no greater than this"//LF// &
+                        "number, if the function `comint_truncate_buffer' is on"//LF// &
+                        "`comint_output_filter_functions'."
+        case ("comint_delimiter_argument_list")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_delimiter_argument_list"
+            if (allocated(comint_delimiter_argument_list%value)) then
+                entry%value = repr(comint_delimiter_argument_list%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The characters to recognize as separate arguments in input."//LF// &
+                        "Strings comprising a character in this list will separate the"//LF// &
+                        "arguments surrounding them, and also be regarded as arguments in"//LF// &
+                        "their own right (unlike whitespace).  See `comint_arguments'."//LF// &
+                        "Defaults to the empty string."//LF// &
+                        ""//LF// &
+                        "For shells, a good value is ""|&<>();""."//LF// &
+                        ""//LF// &
+                        "This is a good thing to set in mode hooks."
+        case ("comint_eol_on_send")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_eol_on_send"
+            entry%original = ".true."
+            entry%value = repr(comint_eol_on_send%value)
+            entry%doc = "True means go to the end of the line before sending input."//LF// &
+                        "See `comint_send_input'."
+        case ("comint_exec_hook")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_exec_hook"
+            entry%doc = "Hook run each time a process is exec'd by `comint_exec'."//LF// &
+                        "This is called after the process is cranked up.  It is useful for"//LF// &
+                        "things that must be done each time a process is executed in a"//LF// &
+                        "Comint mode buffer (e.g., `set_process_query_on_exit_flag').  In"//LF// &
+                        "contrast, `comint_mode_hook' is only executed once, when the buffer"//LF// &
+                        "is created."
+        case ("comint_highlight_input")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_highlight_input"
+            entry%original = ".true."
+            entry%value = repr(comint_highlight_input%value)
+            entry%doc = "If true, highlight input with `comint_highlight_input' face."//LF// &
+                        "Otherwise keep the original highlighting untouched."
         case ("comint_inhibit_carriage_motion")
-            entry%file = "compile_fm.f90"
+            entry%file = "comint_fm.f90"
             entry%fortran = "comint_inhibit_carriage_motion"
             entry%original = ".false."
             entry%value = repr(comint_inhibit_carriage_motion%value)
             entry%doc = "If false, Comint will interpret `carriage control' characters in"//LF// &
                         "output.  See `comint_carriage_motion' for details."
+        case ("comint_input_filter_functions")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_filter_functions"
+            entry%doc = "Abnormal hook run before input is sent to the process."//LF// &
+                        "These functions get one argument, a string containing the text to"//LF// &
+                        "send."
+        case ("comint_input_history_ignore")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_history_ignore"
+            if (allocated(comint_input_history_ignore%value)) then
+                entry%value = repr(comint_input_history_ignore%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp for history entries that should be ignored when Comint"//LF// &
+                        "initializes."
+        case ("comint_input_ignoredups")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_ignoredups"
+            entry%original = ".false."
+            entry%value = repr(comint_input_ignoredups%value)
+            entry%doc = "If true, don't add input matching the last on the input ring."//LF// &
+                        "This mirrors the optional behavior of bash."//LF// &
+                        ""//LF// &
+                        "This variable is buffer-local."
+        case ("comint_input_ring_file_name")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_ring_file_name"
+            if (allocated(comint_input_ring_file_name%value)) then
+                entry%value = repr(comint_input_ring_file_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, name of the file to read/write input history."//LF// &
+                        "See also `comint_read_input_ring' and `comint_write_input_ring'."//LF// &
+                        "`comint_mode' makes this a buffer-local variable.  You probably want"//LF// &
+                        "to set this in a mode hook, rather than customize the default"//LF// &
+                        "value."
+        case ("comint_input_ring_file_prefix")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_ring_file_prefix"
+            if (allocated(comint_input_ring_file_prefix%value)) then
+                entry%value = repr(comint_input_ring_file_prefix%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The prefix to skip when parsing the input ring file."//LF// &
+                        "This is useful in Zsh when the extended_history option is on."
+        case ("comint_input_ring_separator")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_ring_separator"
+            if (allocated(comint_input_ring_separator%value)) then
+                entry%value = repr(comint_input_ring_separator%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Separator between commands in the history file."
+        case ("comint_input_ring_size")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_ring_size"
+            entry%original = "500"
+            entry%value = repr(comint_input_ring_size%value)
+            entry%doc = "Size of the input history ring in `comint_mode'."
+        case ("comint_input_sender_no_newline")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_input_sender_no_newline"
+            entry%original = ".false."
+            entry%value = repr(comint_input_sender_no_newline)
+            entry%doc = "True directs the `comint_input_sender' function not to send a"//LF// &
+                        "newline."
+        case ("comint_mode_hook")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_mode_hook"
+            entry%doc = "Hook run upon entry to `comint_mode'."//LF// &
+                        "This is run before the process is cranked up."
+        case ("comint_mode_map")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_mode_map"
+            entry%doc = "Keymap for Comint mode."
+        case ("comint_move_point_for_matching_input")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_move_point_for_matching_input"
+            entry%original = "COMINT_MATCHING_AFTER_INPUT"
+            select case (comint_move_point_for_matching_input%value)
+            case (COMINT_MATCHING_AFTER_INPUT)
+                entry%value = "COMINT_MATCHING_AFTER_INPUT"
+            case (COMINT_MATCHING_END_OF_LINE)
+                entry%value = "COMINT_MATCHING_END_OF_LINE"
+            case default
+                entry%value = repr(comint_move_point_for_matching_input%value)
+            end select
+            entry%doc = "Controls where to place point after matching input."//LF// &
+                        "\<comint_mode_map>This influences the commands"//LF// &
+                        "\[comint_previous_matching_input_from_input] and"//LF// &
+                        "\[comint_next_matching_input_from_input]."//LF// &
+                        "If COMINT_MATCHING_AFTER_INPUT, point will be positioned after the"//LF// &
+                        "input typed by the user, but before the rest of the history entry"//LF// &
+                        "that has been inserted.  If COMINT_MATCHING_END_OF_LINE, point will"//LF// &
+                        "be positioned at the end of the current logical (not visual) line"//LF// &
+                        "after insertion."
+        case ("comint_move_point_for_output")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_move_point_for_output"
+            entry%original = "COMINT_MOVE_NIL"
+            select case (comint_move_point_for_output%value)
+            case (COMINT_MOVE_NIL)
+                entry%value = "COMINT_MOVE_NIL"
+            case (COMINT_MOVE_T)
+                entry%value = "COMINT_MOVE_T"
+            case (COMINT_MOVE_ALL)
+                entry%value = "COMINT_MOVE_ALL"
+            case (COMINT_MOVE_THIS)
+                entry%value = "COMINT_MOVE_THIS"
+            case (COMINT_MOVE_OTHERS)
+                entry%value = "COMINT_MOVE_OTHERS"
+            case default
+                entry%value = repr(comint_move_point_for_output%value)
+            end select
+            entry%doc = "Controls whether interpreter output moves point to the end of the"//LF// &
+                        "output."//LF// &
+                        "If COMINT_MOVE_NIL, then output never moves point to the output."//LF// &
+                        " (If the output occurs at point, it is inserted before point.)"//LF// &
+                        "If COMINT_MOVE_T or COMINT_MOVE_ALL, move point in all windows"//LF// &
+                        "showing the buffer."//LF// &
+                        "If COMINT_MOVE_THIS, move point only the selected window."//LF// &
+                        "If COMINT_MOVE_OTHERS, move point only in other windows, not in the"//LF// &
+                        "selected window."//LF// &
+                        ""//LF// &
+                        "The default is COMINT_MOVE_NIL."//LF// &
+                        ""//LF// &
+                        "See the variable `comint_scroll_show_maximum_output' and the"//LF// &
+                        "function `comint_postoutput_scroll_to_bottom'."//LF// &
+                        "This variable is buffer-local in all Comint buffers."
+        case ("comint_output_filter_functions")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_output_filter_functions"
+            entry%doc = "Functions to call after output is inserted into the buffer."//LF// &
+                        "One possible function is `comint_postoutput_scroll_to_bottom'."//LF// &
+                        "These functions get one argument, a string containing the text as"//LF// &
+                        "originally inserted.  Note that this might not be the same as the"//LF// &
+                        "buffer contents between `comint_last_output_start' and the buffer's"//LF// &
+                        "`process_mark', if other filter functions have already modified the"//LF// &
+                        "buffer."//LF// &
+                        ""//LF// &
+                        "See also `comint_preoutput_filter_functions'."//LF// &
+                        ""//LF// &
+                        "You can use `add' to add functions to this hook either globally or"//LF// &
+                        "locally."
+        case ("comint_pager")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_pager"
+            if (allocated(comint_pager%value)) then
+                entry%value = repr(comint_pager%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, the program to use for pagination of program output."//LF// &
+                        "If unallocated, use the default pager."//LF// &
+                        ""//LF// &
+                        "Some programs produce large amounts of output, and have provision"//LF// &
+                        "for pagination of their output through a filter program, commonly"//LF// &
+                        "known as a ""pager"".  The pager limits the amount of output produced"//LF// &
+                        "and allows the user to interactively browse the output one page at"//LF// &
+                        "a time.  Some programs paginate their output by default, by always"//LF// &
+                        "starting a pager.  The program they use as the pager is specified"//LF// &
+                        "by the environment variable PAGER; if that variable is not defined,"//LF// &
+                        "they use some fixed default, such as ""less""."//LF// &
+                        ""//LF// &
+                        "The interactive browsing aspects of pagination are not needed, and"//LF// &
+                        "get in the way, when the output of the program is directed to an"//LF// &
+                        "Emacs buffer, so in those cases pagination might need to be"//LF// &
+                        "disabled.  Disabling pagination means that some programs will"//LF// &
+                        "produce large amounts of output, but most such programs have other"//LF// &
+                        "ways to limit their output, such as additional arguments or Emacs"//LF// &
+                        "interfaces.  To disable pagination, this variable's value should be"//LF// &
+                        "a string that names a program, such as ""cat"", which passes through"//LF// &
+                        "all of the output without any filtering or delays.  Comint will then"//LF// &
+                        "set the PAGER variable to name that program, when it invokes"//LF// &
+                        "external programs."
+        case ("comint_preoutput_filter_functions")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_preoutput_filter_functions"
+            entry%doc = "Hook of functions to call before inserting Comint output into the"//LF// &
+                        "buffer.  Each function gets one argument, a string containing the"//LF// &
+                        "text received from the subprocess.  It should return the string to"//LF// &
+                        "insert, perhaps the same string that was received, or perhaps a"//LF// &
+                        "modified or transformed string."//LF// &
+                        ""//LF// &
+                        "The functions are called sequentially, and each one is given the"//LF// &
+                        "string returned by the previous one.  The string returned by the"//LF// &
+                        "last function is the text that is actually inserted in the"//LF// &
+                        "redirection buffer."//LF// &
+                        ""//LF// &
+                        "You can use `add' to add functions to this hook either globally or"//LF// &
+                        "locally."
+        case ("comint_process_echoes")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_process_echoes"
+            entry%original = ".false."
+            entry%value = repr(comint_process_echoes%value)
+            entry%doc = "If true, assume that the subprocess echoes any input."//LF// &
+                        "If so, delete one copy of the input so that only one copy eventually"//LF// &
+                        "appears in the buffer."//LF// &
+                        ""//LF// &
+                        "This variable is buffer-local."
+        case ("comint_prompt_read_only")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_prompt_read_only"
+            entry%original = ".false."
+            entry%value = repr(comint_prompt_read_only%value)
+            entry%doc = "If true, the comint prompt is read only."//LF// &
+                        "The read only region includes the newline before the prompt."//LF// &
+                        "This does not affect existing prompts."//LF// &
+                        "Certain derived modes may override this option."//LF// &
+                        ""//LF// &
+                        "If you set this option to true, then the safe way to temporarily"//LF// &
+                        "override the read-only-ness of comint prompts is to call"//LF// &
+                        "`comint_kill_whole_line' or `comint_kill_region' with no"//LF// &
+                        "narrowing in effect.  This way you will be certain that none of"//LF// &
+                        "the remaining prompts will be accidentally messed up."
+        case ("comint_prompt_regexp")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_prompt_regexp"
+            if (allocated(comint_prompt_regexp%value)) then
+                entry%value = repr(comint_prompt_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to recognize prompts in the inferior process."//LF// &
+                        "Defaults to ""^"", the null string at BOL."//LF// &
+                        ""//LF// &
+                        "This variable is only used if the variable"//LF// &
+                        "`comint_use_prompt_regexp' is true."//LF// &
+                        ""//LF// &
+                        "Good choices:"//LF// &
+                        "  Canonical Lisp: ""^[^> \n]*>+:? *"" (Lucid, franz, kcl, T, cscheme, oaklisp)"//LF// &
+                        "  Lucid Common Lisp: ""^\\(>\\|\\(->\\)+\\) *"""//LF// &
+                        "  franz: ""^\\(->\\|<[0-9]*>:\\) *"""//LF// &
+                        "  kcl: ""^>+ *"""//LF// &
+                        "  shell: ""^[^#$%>\n]*[#$%>] *"""//LF// &
+                        "  T: ""^>+ *"""//LF// &
+                        ""//LF// &
+                        "This is a good thing to set in mode hooks."
+        case ("comint_scroll_show_maximum_output")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_scroll_show_maximum_output"
+            entry%original = ".true."
+            entry%value = repr(comint_scroll_show_maximum_output%value)
+            entry%doc = "Controls how to scroll due to interpreter output."//LF// &
+                        "This variable applies when point is at the end of the buffer"//LF// &
+                        "(either because it was originally there, or because"//LF// &
+                        "`comint_move_point_for_output' said to move it there)"//LF// &
+                        "and output from the subprocess is inserted."//LF// &
+                        ""//LF// &
+                        "True means scroll so that the window is full of text"//LF// &
+                        "and point is on the last line.  A value of false"//LF// &
+                        "means don't do anything special--scroll normally."//LF// &
+                        ""//LF// &
+                        "See also the variable `comint_move_point_for_output' and the function"//LF// &
+                        "`comint_postoutput_scroll_to_bottom'."//LF// &
+                        "This variable is buffer-local in all Comint buffers."
+        case ("comint_terminfo_terminal")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_terminfo_terminal"
+            if (allocated(comint_terminfo_terminal%value)) then
+                entry%value = repr(comint_terminfo_terminal%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Value to use for TERM when the system uses terminfo."//LF// &
+                        "If the system's terminfo database contains a definition for the"//LF// &
+                        """dumb-emacs-ansi"" terminal (as all recent versions of terminfo do),"//LF// &
+                        "set this to ""dumb-emacs-ansi"" and then some terminfo-aware programs"//LF// &
+                        "will send colorized output when run under Comint."
+        case ("comint_use_prompt_regexp")
+            entry%file = "comint_fm.f90"
+            entry%fortran = "comint_use_prompt_regexp"
+            entry%original = ".false."
+            entry%value = repr(comint_use_prompt_regexp%value)
+            entry%doc = "If true, use `comint_prompt_regexp' to recognize prompts."//LF// &
+                        "If false, then program output and user-input are given different"//LF// &
+                        "`field' properties, which Emacs commands can use to distinguish them"//LF// &
+                        "(in particular, common movement commands such as"//LF// &
+                        "`beginning_of_line' respect field boundaries in a natural way)."
         case ("commands")
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
@@ -5607,6 +6454,28 @@ contains
             entry%doc = "If true `display_buffer' will try to even window sizes."//LF// &
                         "Otherwise `display_buffer' will leave the window configuration"//LF// &
                         "alone."
+        case ("explicit_bash_args")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "explicit_bash_args"
+            entry%doc = "Args passed to inferior shell by \[shell], if the shell is bash."//LF// &
+                        "Value is an array of strings, which may be empty."
+        case ("explicit_csh_args")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "explicit_csh_args"
+            entry%doc = "Args passed to inferior shell by \[shell], if the shell is csh."//LF// &
+                        "Value is an array of strings, which may be empty."
+        case ("explicit_shell_file_name")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "explicit_shell_file_name"
+            if (allocated(explicit_shell_file_name%value)) then
+                entry%value = repr(explicit_shell_file_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, the file name to use for explicitly requested inferior"//LF// &
+                        "shells.  When unallocated, such interactive shell sessions fall back"//LF// &
+                        "to using the shell specified in either the environment variable"//LF// &
+                        """ESHELL"" or `shell_file_name'."
         case ("fill_column")
             entry%file = "buffer_fm.f90"
             entry%fortran = "fill_column"
@@ -6087,6 +6956,16 @@ contains
                         "and forces movement by logical lines."//LF// &
                         "A window that is horizontally scrolled also forces movement by logical"//LF// &
                         "lines."
+        case ("list_buffers_directory")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "list_buffers_directory"
+            if (allocated(list_buffers_directory%value)) then
+                entry%value = repr(list_buffers_directory%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The directory a buffer's list shows for it (its shell's directory"//LF// &
+                        "for a shell buffer)."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -6182,6 +7061,25 @@ contains
             entry%original = ".false."
             entry%value = repr(multibyte_syntax_as_symbol)
             entry%doc = "True means `scan_sexps' treats all multibyte characters as symbol."
+        case ("next_error_hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "next_error_hook"
+            entry%doc = "List of hook functions run by `next_error' after visiting source"//LF// &
+                        "file."
+        case ("next_error_last_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "next_error_last_buffer"
+            entry%doc = "The most recent `next_error' buffer."//LF// &
+                        "A buffer becomes most recent when its compilation, grep, or similar"//LF// &
+                        "mode is started, or when it is used with \[next_error] or"//LF// &
+                        "\[compile_goto_error]."
+        case ("next_error_verbose")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "next_error_verbose"
+            entry%original = ".true."
+            entry%value = repr(next_error_verbose%value)
+            entry%doc = "If true, `next_error' always outputs the current error buffer."//LF// &
+                        "If false, the message is output only when the error buffer changes."
         case ("next_screen_context_lines")
             entry%file = "window_fm.f90"
             entry%fortran = "next_screen_context_lines"
@@ -6604,6 +7502,15 @@ contains
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence_end' is unallocated."
+        case ("shell_cd_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_cd_regexp"
+            if (allocated(shell_cd_regexp%value)) then
+                entry%value = repr(shell_cd_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match subshell commands equivalent to cd."
         case ("shell_command_default_error_buffer")
             entry%file = "simple_fm.f90"
             entry%fortran = "shell_command_default_error_buffer"
@@ -6658,6 +7565,26 @@ contains
             entry%value = repr(shell_command_prompt_show_cwd%value)
             entry%doc = "If true, show current directory when prompting for a shell command."//LF// &
                         "This affects `shell_command' and `async_shell_command'."
+        case ("shell_command_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_command_regexp"
+            if (allocated(shell_command_regexp%value)) then
+                entry%value = repr(shell_command_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match a single command within a pipeline."//LF// &
+                        "This is used for directory tracking and does not do a perfect job."
+        case ("shell_command_separator_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_command_separator_regexp"
+            if (allocated(shell_command_separator_regexp%value)) then
+                entry%value = repr(shell_command_separator_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match a single command within a pipeline."//LF// &
+                        "This is used for directory tracking and does not do a perfect job."
         case ("shell_command_switch")
             entry%file = "simple_fm.f90"
             entry%fortran = "shell_command_switch"
@@ -6667,6 +7594,47 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Switch used to have the shell execute its command line argument."
+        case ("shell_delimiter_argument_list")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_delimiter_argument_list"
+            if (allocated(shell_delimiter_argument_list%value)) then
+                entry%value = repr(shell_delimiter_argument_list%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The characters to recognize as separate arguments in input."//LF// &
+                        "This variable is used to initialize `comint_delimiter_argument_list'"//LF// &
+                        "in the shell buffer.  The value may depend on the operating system"//LF// &
+                        "or shell."
+        case ("shell_dirstack_query")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_dirstack_query"
+            if (allocated(shell_dirstack_query)) then
+                entry%value = repr(shell_dirstack_query)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Command used by `shell_resync_dirs' to query the shell."
+        case ("shell_dirtrack_verbose")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_dirtrack_verbose"
+            entry%original = ".true."
+            entry%value = repr(shell_dirtrack_verbose%value)
+            entry%doc = "If true, show the directory stack following directory change."//LF// &
+                        "This is effective only if directory tracking is enabled."
+        case ("shell_dumb_shell_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_dumb_shell_regexp"
+            if (allocated(shell_dumb_shell_regexp%value)) then
+                entry%value = repr(shell_dumb_shell_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match shells that don't save their command history, and"//LF// &
+                        "don't handle the backslash as a quote character.  For shells that"//LF// &
+                        "match this regexp, Emacs will write out the command history when the"//LF// &
+                        "shell finishes, and won't remove backslashes when it unquotes shell"//LF// &
+                        "arguments."
         case ("shell_file_name")
             entry%file = "callproc_fm.f90"
             entry%fortran = "shell_file_name"
@@ -6678,6 +7646,109 @@ contains
             entry%doc = "File name to load inferior shells from."//LF// &
                         "Initialized from the SHELL environment variable, or to a system-dependent"//LF// &
                         "default if SHELL is unset.  See Info node `(elisp)Security Considerations'."
+        case ("shell_get_old_input_include_continuation_lines")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_get_old_input_include_continuation_lines"
+            entry%original = ".false."
+            entry%value = repr(shell_get_old_input_include_continuation_lines%value)
+            entry%doc = "Whether `shell_get_old_input' includes ""\"" lines."
+        case ("shell_has_auto_cd")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_has_auto_cd"
+            entry%original = ".false."
+            entry%value = repr(shell_has_auto_cd%value)
+            entry%doc = "If true, `shell_mode' handles implicit ""cd"" commands."//LF// &
+                        "Implicit ""cd"" is changing the directory if the command is a"//LF// &
+                        "directory.  You can make this variable buffer-local to change it,"//LF// &
+                        "per shell-mode instance.  Useful for shells like zsh that has this"//LF// &
+                        "feature."
+        case ("shell_history_file_name")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_history_file_name"
+            if (allocated(shell_history_file_name%value)) then
+                entry%value = repr(shell_history_file_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The history file name used in `shell_mode'."//LF// &
+                        "When it is a string, this file name will be used."//LF// &
+                        "When it is unallocated, the environment variable HISTFILE is used."//LF// &
+                        ""//LF// &
+                        "If no history file name can be determined, a default according to"//LF// &
+                        "the shell type is used."
+        case ("shell_kill_buffer_on_exit")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_kill_buffer_on_exit"
+            entry%original = ".false."
+            entry%value = repr(shell_kill_buffer_on_exit%value)
+            entry%doc = "Kill a shell buffer after the shell process terminates."
+        case ("shell_mode_hook")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_mode_hook"
+            entry%doc = "Hook for customizing Shell mode."
+        case ("shell_mode_map")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_mode_map"
+            entry%doc = "Keymap for `shell_mode'."
+        case ("shell_popd_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_popd_regexp"
+            if (allocated(shell_popd_regexp%value)) then
+                entry%value = repr(shell_popd_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match subshell commands equivalent to popd."
+        case ("shell_prompt_pattern")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_prompt_pattern"
+            if (allocated(shell_prompt_pattern%value)) then
+                entry%value = repr(shell_prompt_pattern%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match prompts in the inferior shell."//LF// &
+                        "Defaults to ""^[^#$%>\n]*[#$%>] *"", which works pretty well."//LF// &
+                        "This variable is used to initialize `comint_prompt_regexp' in the"//LF// &
+                        "shell buffer."//LF// &
+                        ""//LF// &
+                        "If `comint_use_prompt_regexp' is false, then this variable is only"//LF// &
+                        "used to determine paragraph boundaries.  See Info node `Shell"//LF// &
+                        "Prompts' for how Shell mode treats paragraphs."//LF// &
+                        ""//LF// &
+                        "The pattern should probably not match more than one line.  If it"//LF// &
+                        "does, Shell mode may become confused trying to distinguish prompt"//LF// &
+                        "from input on lines which don't start with a prompt."
+        case ("shell_pushd_dextract")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_pushd_dextract"
+            entry%original = ".false."
+            entry%value = repr(shell_pushd_dextract%value)
+            entry%doc = "If true, make ""pushd +n"" pop the nth dir to the stack top."//LF// &
+                        "This mirrors the optional behavior of tcsh."
+        case ("shell_pushd_dunique")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_pushd_dunique"
+            entry%original = ".false."
+            entry%value = repr(shell_pushd_dunique%value)
+            entry%doc = "If true, make pushd only add unique directories to the stack."//LF// &
+                        "This mirrors the optional behavior of tcsh."
+        case ("shell_pushd_regexp")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_pushd_regexp"
+            if (allocated(shell_pushd_regexp%value)) then
+                entry%value = repr(shell_pushd_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match subshell commands equivalent to pushd."
+        case ("shell_pushd_tohome")
+            entry%file = "shell_fm.f90"
+            entry%fortran = "shell_pushd_tohome"
+            entry%original = ".false."
+            entry%value = repr(shell_pushd_tohome%value)
+            entry%doc = "If true, make pushd with no arg behave as ""pushd ~"" (like cd)."//LF// &
+                        "This mirrors the optional behavior of tcsh."
         case ("special_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_hook"

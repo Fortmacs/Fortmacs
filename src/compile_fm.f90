@@ -90,11 +90,12 @@ module compile_fm
                           process_send_eof, num_processors
     use sysdep_fm, only: emacs_time, emacs_localtime_wday
     use version_fm, only: upstream_version
+    use comint_fm, only: comint_carriage_motion, comint_inhibit_carriage_motion
     implicit none(type, external)
     private
 
     public :: compile, recompile, compilation_start, compilation_mode, kill_compilation, compilation_filter, &
-              compilation_sentinel, compilation_handle_exit, comint_carriage_motion, syms_of_compile
+              compilation_sentinel, compilation_handle_exit, comint_carriage_motion, syms_of_compile, cd
 
     !> Last shell command used to do a compilation; default for next
     !> compilation.
@@ -182,12 +183,6 @@ module compile_fm
     !> compilation-directory (this is its default value; a compilation
     !> buffer has a value of its own, the directory it was started in).
     type(string_setting), public :: compilation_directory = string_setting(name="compilation_directory")
-
-    !> If false, Comint will interpret `carriage control' characters in
-    !> output.  See `comint_carriage_motion' for details.  Port of
-    !> comint.el comint-inhibit-carriage-motion.
-    type(logical_setting), public :: comint_inhibit_carriage_motion = &
-                                     logical_setting(name="comint_inhibit_carriage_motion", value=.false.)
 
     !> What a compilation buffer keeps (its buffer-local variables
     !> compilation-locs, compilation-arguments and compilation--start-time):
@@ -875,91 +870,6 @@ contains
         call free_marker(max, st)
         call set(sym("inhibit_read_only"), inhibit, st)
     end subroutine compilation_filter
-
-    !> Interpret carriage control characters in the region from START to
-    !> END.  Translate carriage return/linefeed sequences to linefeeds.
-    !> Make single carriage returns delete to the beginning of the line.
-    !> Make backspaces delete the previous character.  Port of
-    !> comint.el:comint-carriage-motion.
-    recursive subroutine comint_carriage_motion(start, end)
-        integer(int64), intent(in) :: start, end
-        type(value_type) :: v, inhibit
-        type(handle_type) :: delete_end, saved_point
-        type(status_type) :: st
-        integer(int64) :: opoint, lbeg, de, moved
-        logical :: changed
-        integer(int32) :: ch
-        logical :: have_delete_end
-        call copy_marker_at(point(), saved_point, .false., st)
-        call goto_char(start)
-        call symbol_value(sym("inhibit_read_only"), inhibit, st)
-        call set(sym("inhibit_read_only"), t_value(), st)
-        lbeg = line_beginning_position()
-        have_delete_end = .false.
-        ! If the preceding text is marked as "must-overwrite", record it in
-        ! delete-end.
-        if (start > point_min()) then
-            call get_text_property(start - 1, sym("comint_must_overwrite"), v, st)
-            if (.not. nilp(v)) then
-                call copy_marker_at(point(), delete_end, .false., st)
-                have_delete_end = .true.
-                call remove_text_properties(lbeg, start, list(sym("comint_must_overwrite"), nil()), changed, st)
-            end if
-        end if
-        call narrow_to_region(lbeg, end, st)
-        ! Handle BS, LF, and CR specially.
-        do
-            moved = skip_chars_forward("^"//achar(8)//new_line("a")//achar(13), st)
-            if (eobp()) exit
-            ch = following_char()
-            if (ch == 8) then
-                ! CH = BS
-                call delete_char(1_int64, st)
-                if (point() > lbeg) call delete_char(-1_int64, st)
-            else if (ch == 10) then
-                ! CH = LF
-                if (have_delete_end) then
-                    call marker_position(delete_end, de, st)
-                    if (de < point()) call delete_region(lbeg, de, st)
-                    call free_marker(delete_end, st)
-                    have_delete_end = .false.
-                end if
-                call forward_char(st, 1_int64)
-                lbeg = point()
-            else
-                ! CH = CR
-                call delete_char(1_int64, st)
-                if (have_delete_end) then
-                    call marker_position(delete_end, de, st)
-                    if (de < point()) then
-                        call set_marker(delete_end, point(), st)
-                    end if
-                else
-                    call copy_marker_at(point(), delete_end, .false., st)
-                    have_delete_end = .true.
-                end if
-            end if
-        end do
-        if (have_delete_end) then
-            call marker_position(delete_end, de, st)
-            if (de < point()) then
-                ! As there's a text after the last CR, make the current
-                ! line contain only that text.
-                call delete_region(lbeg, de, st)
-            else
-                ! Remember that the process output ends with CR, and thus
-                ! the next output should overwrite the current line.
-                call put_text_property(lbeg, point(), sym("comint_must_overwrite"), t_value(), st)
-            end if
-            call free_marker(delete_end, st)
-        end if
-        ! (The region stays narrowed, as upstream; save-excursion restores
-        ! point.)
-        call marker_position(saved_point, opoint, st)
-        call goto_char(opoint)
-        call free_marker(saved_point, st)
-        call set(sym("inhibit_read_only"), inhibit, st)
-    end subroutine comint_carriage_motion
 
     !> Sentinel for compilation buffers.  Port of
     !> compile.el:compilation-sentinel.

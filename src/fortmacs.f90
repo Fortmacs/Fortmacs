@@ -256,7 +256,8 @@ module fortmacs
                           compilation_always_kill, compilation_disable_input, compilation_scroll_output, &
                           COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
                           compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
-                          compilation_mode_map, compilation_directory, comint_inhibit_carriage_motion
+                          compilation_mode_map, compilation_directory
+    use comint_fm, only: comint_inhibit_carriage_motion
     use callproc_fm, only: shell_file_name
     use simple_fm, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &

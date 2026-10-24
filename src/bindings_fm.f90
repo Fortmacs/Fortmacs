@@ -71,6 +71,8 @@ module bindings_fm
     use jit_lock_fm, only: syms_of_jit_lock
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
+    use comint_fm, only: syms_of_comint, comint_mode_map
+    use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
     use register_fm, only: syms_of_register
     implicit none(type, external)
@@ -86,6 +88,8 @@ module bindings_fm
     !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
                                  function_key_map, ctl_x_x_map, ctl_x_r_map
+    !> bindings.el:goto-map, keymap for navigation commands (M-g).
+    type(handle_type), public :: goto_map
 
 contains
 
@@ -193,6 +197,7 @@ contains
         if (keymap_live_p(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
         if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
+        if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
@@ -215,6 +220,8 @@ contains
         call syms_of_font_core()
         call syms_of_font_lock()
         call syms_of_process()
+        call syms_of_comint()
+        call syms_of_shell()
         call syms_of_compile()
         call syms_of_rect()
         call syms_of_register()
@@ -417,6 +424,16 @@ contains
         call bind(esc_map, "C-%", "query_replace_regexp")
         call bind(esc_map, "!", "shell_command")
         call bind(esc_map, "|", "shell_command_on_region")
+        call bind(esc_map, "&", "async_shell_command")
+        call bind(ctl_x_map, "`", "next_error")
+        ! bindings.el: goto-map (the keys of ported commands).
+        call make_sparse_keymap(goto_map)
+        call bind(goto_map, "n", "next_error")
+        call bind(goto_map, "M-n", "next_error")
+        call bind(goto_map, "p", "previous_error")
+        call bind(goto_map, "M-p", "previous_error")
+        key(1) = make_fixnum(int(iachar("g"), int64))
+        call define_key(esc_map, key, make_keymap_ref(goto_map), status)
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
         call bind(ctl_x_map, "C-t", "transpose_lines")
@@ -476,6 +493,9 @@ contains
         call register_keymap_name("prog_mode_map", prog_mode_map)
         call register_keymap_name("special_mode_map", special_mode_map)
         call register_keymap_name("compilation_mode_map", compilation_mode_map)
+        call register_keymap_name("comint_mode_map", comint_mode_map)
+        call register_keymap_name("shell_mode_map", shell_mode_map)
+        call register_keymap_name("goto_map", goto_map)
         call register_keymap_name("minibuffer_local_completion_map", minibuffer_local_completion_map)
         call register_keymap_name("minibuffer_local_must_match_map", minibuffer_local_must_match_map)
         call register_keymap_name("minibuffer_local_filename_completion_map", minibuffer_local_filename_completion_map)

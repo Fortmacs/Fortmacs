@@ -91,6 +91,7 @@ module process_fm
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
               set_process_filter, set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
+              process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, kill_process, quit_process, signal_process, &
               process_send_string, process_send_region, process_send_eof, accept_process_output, &
               internal_default_process_filter, internal_default_process_sentinel, kill_buffer_processes, &
@@ -572,6 +573,32 @@ contains
             procs(i)%filter => null()
         end if
     end subroutine set_process_filter
+
+    !> FILTER is the filter function of PROCESS (null for the default,
+    !> `internal_default_process_filter').  Port of
+    !> process.c:Fprocess_filter.
+    subroutine process_filter(process, filter)
+        type(handle_type), intent(in) :: process
+        procedure(process_filter_proc), pointer, intent(out) :: filter
+        type(status_type) :: st
+        integer(int64) :: i
+        filter => null()
+        call resolve(process, i, st)
+        if (st%ok()) filter => procs(i)%filter
+    end subroutine process_filter
+
+    !> SENTINEL is the sentinel of PROCESS (null for the default,
+    !> `internal_default_process_sentinel').  Port of
+    !> process.c:Fprocess_sentinel.
+    subroutine process_sentinel(process, sentinel)
+        type(handle_type), intent(in) :: process
+        procedure(process_sentinel_proc), pointer, intent(out) :: sentinel
+        type(status_type) :: st
+        integer(int64) :: i
+        sentinel => null()
+        call resolve(process, i, st)
+        if (st%ok()) sentinel => procs(i)%sentinel
+    end subroutine process_sentinel
 
     !> Give PROCESS the sentinel SENTINEL; absent for default.
     !> The sentinel is called as a function when the process changes state.
