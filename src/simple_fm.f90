@@ -44,7 +44,7 @@ module simple_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
     use lread_fm, only: sym
-    use data_fm, only: value_eq, string_setting
+    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
     use casetab_fm, only: downcase
     use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE
@@ -106,8 +106,10 @@ module simple_fm
     public :: execute_extended_command, read_extended_command
     public :: fundamental_mode, special_mode, syms_of_simple_modes
     public :: read_only_mode, what_line
+    public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
+              syms_of_simple_shell
 
-    !> Non-nil means show the equivalent keybinding when M-x has one.
+    !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
     !> shows at once if the echo area is empty, until the next command.)  Port of simple.el suggest-key-bindings.
     logical, public :: suggest_key_bindings = .true.
@@ -118,19 +120,19 @@ module simple_fm
               syms_of_simple, goto_history_element, line_move, next_line, previous_line
     public :: undo, undo_only, undo_redo, undo_more, undo_start, primitive_undo
 
-    !> Within a run of consecutive undo commands, list remaining to be
-    !> undone (a list position); -1 (t) if we undid all the way to the end
-    !> of it.  Port of simple.el pending-undo-list.
+    !> Within a run of consecutive undo commands, the position in the
+    !> undo list of the changes remaining to be undone; -1 if we undid all
+    !> the way to the end of it.  Port of simple.el pending-undo-list.
     integer(int64), public :: pending_undo_list = 0
     !> Radix for \[quoted_insert] and other uses of `read_quoted_char'.
     !> Supported radix values are 8, 10 and 16.  Port of simple.el
     !> read-quoted-char-radix.
     integer(int64), public :: read_quoted_char_radix = 8
 
-    !> If t, `undo' doesn't go through redo entries.  Port of simple.el
+    !> If true, `undo' doesn't go through redo entries.  Port of simple.el
     !> undo-no-redo.
     logical, public :: undo_no_redo = .false.
-    !> Non-nil while performing an undo.  Port of simple.el
+    !> True while performing an undo.  Port of simple.el
     !> undo-in-progress.
     logical, public :: undo_in_progress = .false.
     ! Values of undo-equiv-table besides list positions: nil, t, `empty`.
@@ -152,8 +154,8 @@ module simple_fm
               transpose_lines, transpose_subr, transpose_subr_1, transpose_mover, back_to_indentation, &
               beginning_of_buffer, end_of_buffer
 
-    !> String for filling to insert at front of new line, or nil for none.
-    !> Unallocated is nil.  Port of simple.el fill-prefix.
+    !> String for filling to insert at front of new line, or unallocated
+    !> for none.  Port of simple.el fill-prefix.
     type(string_setting), public :: fill_prefix = string_setting(name="fill_prefix")
 
     !> The actions of `cycle_spacing' (the symbols of
@@ -172,40 +174,41 @@ module simple_fm
         integer(int64) :: arg = 0
     end type cycle_spacing_action_type
 
-    !> List of actions cycled through by `cycle_spacing'.
-    !> Supported values are:
-    !> - `just_one_space'      Delete all but N (prefix arg) spaces.
-    !>                         See that command's docstring for details.
-    !> - `delete_space_after'  Delete spaces after point keeping only N.
-    !> - `delete_space_before' Delete spaces before point keeping only N.
-    !> - `delete_all_space'    Delete all spaces around point.
-    !> - `restore'             Restore the original spacing.
+    !> Array of actions cycled through by `cycle_spacing'.
+    !> Supported values (the `action' component) are:
+    !> - CYCLE_JUST_ONE_SPACE      Delete all but N (prefix arg) spaces.
+    !>                             See `just_one_space''s docstring for details.
+    !> - CYCLE_DELETE_SPACE_AFTER  Delete spaces after point keeping only N.
+    !> - CYCLE_DELETE_SPACE_BEFORE Delete spaces before point keeping only N.
+    !> - CYCLE_DELETE_ALL_SPACE    Delete all spaces around point.
+    !> - CYCLE_RESTORE             Restore the original spacing.
     !>
     !> All actions make use of the prefix arg given to `cycle_spacing'
-    !> in the initial invocation, i.e., `just_one_space' keeps this
-    !> amount of spaces deleting surplus ones.  `just_one_space' and all
+    !> in the initial invocation, i.e., CYCLE_JUST_ONE_SPACE keeps this
+    !> amount of spaces deleting surplus ones.  CYCLE_JUST_ONE_SPACE and all
     !> other actions have the contract that a positive prefix arg (or
     !> zero) only deletes tabs and spaces whereas a negative prefix arg
     !> also deletes newlines.
     !>
-    !> The `delete_space_before' and `delete_space_after' actions handle
-    !> the prefix arg M-- without a number provided
+    !> The CYCLE_DELETE_SPACE_BEFORE and CYCLE_DELETE_SPACE_AFTER actions
+    !> handle the prefix arg M-- without a number provided
     !> specially: all spaces before/after point are deleted (as if N was
     !> 0) including newlines (as if N was negative).
     !>
-    !> In addition, an action may take the form (ACTION ARG) where
-    !> ACTION is one of the predefined actions (except for `restore')
-    !> and ARG is either
-    !> - an integer with the meaning that ACTION should always use this
-    !>   fixed integer instead of the actual prefix arg or
-    !> - the symbol `inverted_arg' with the meaning that ACTION should
+    !> In addition, an action may take an argument (its `arg_kind') where
+    !> the action is one of the predefined actions (except for
+    !> CYCLE_RESTORE) and the argument is either
+    !> - CYCLE_ARG_FIXED, with the integer `arg', with the meaning that
+    !>   the action should always use this fixed integer instead of the
+    !>   actual prefix arg or
+    !> - CYCLE_ARG_INVERTED with the meaning that the action should
     !>   be performed with the inverted actual prefix arg.
-    !> - the symbol `-' with the meaning that ACTION should include
-    !>   newlines but it's up to the ACTION to decide how to interpret
-    !>   it as a number, e.g., `delete_space_before' and
-    !>   `delete_space_after' treat it like 0 whereas `just_one_space'
-    !>   treats it like -1 as is usual.  Port of simple.el
-    !>   cycle-spacing-actions (no function actions).
+    !> - CYCLE_ARG_MINUS (`-') with the meaning that the action should
+    !>   include newlines but it's up to the action to decide how to
+    !>   interpret it as a number, e.g., CYCLE_DELETE_SPACE_BEFORE and
+    !>   CYCLE_DELETE_SPACE_AFTER treat it like 0 whereas
+    !>   CYCLE_JUST_ONE_SPACE treats it like -1 as is usual.  Port of
+    !>   simple.el cycle-spacing-actions (no function actions).
     type(cycle_spacing_action_type), allocatable, public :: cycle_spacing_actions(:)
 
     ! cycle-spacing--context: :orig-pos, :whitespace-string, :n and
@@ -225,11 +228,11 @@ module simple_fm
     !> simple.el auto-fill-inhibit-regexp (unallocated is nil).
     type(string_setting), public :: auto_fill_inhibit_regexp = string_setting(name="auto_fill_inhibit_regexp")
 
-    !> Non-nil means to do as if `auto_fill_mode' was disabled.  Port of
+    !> True means to do as if `auto_fill_mode' was disabled.  Port of
     !> simple.el inhibit-auto-fill.
     logical, public :: inhibit_auto_fill = .false.
 
-    !> The value of the last call of `auto_fill_function' (the Lisp return
+    !> The value of the last call of `auto_fill_function' (upstream's return
     !> value): true when it really did any work.  An auto-fill function
     !> sets it, as `do_auto_fill' does; `internal_auto_fill' clears it
     !> before the call.
@@ -261,7 +264,7 @@ module simple_fm
     interface
         !> The default value for `normal_auto_fill_function'.
         !> This is the default auto-fill function, some major modes use a different one.
-        !> Returns t if it really did any work.  Port of simple.el:do-auto-fill
+        !> Sets `auto_fill_result' to true if it really did any work.  Port of simple.el:do-auto-fill
         !> (no comments).  (In simple_fill_fm.)
         module subroutine do_auto_fill(status)
             implicit none(type, external)
@@ -272,7 +275,7 @@ module simple_fm
         !> If a comment syntax is defined, call `comment_line_break_function'.
         !>
         !> The inserted newline is marked hard if variable `use_hard_newlines' is true,
-        !> unless optional argument SOFT is non-nil.  Port of
+        !> unless optional argument SOFT is true.  Port of
         !> simple.el:default-indent-new-line (no comments or hard
         !> newlines).  (In simple_fill_fm.)
         module subroutine default_indent_new_line(status, soft)
@@ -298,13 +301,13 @@ module simple_fm
         !> previous space.
         !>
         !> When `auto_fill_mode' is on, the `auto_fill_function' variable is
-        !> non-nil.
+        !> not null.
         !>
         !> The value of `normal_auto_fill_function' specifies the function to use
-        !> for `auto_fill_function' when turning Auto Fill mode on.  ARG is
-        !> the raw argument of a minor mode: nil or omitted toggles when
-        !> TOGGLE, else enables; a positive number enables, zero or a
-        !> negative number disables.  Port of simple.el:auto-fill-mode.
+        !> for `auto_fill_function' when turning Auto Fill mode on.  With no
+        !> prefix argument the command toggles the mode; a positive prefix
+        !> argument enables it, and zero or a negative one disables it.  Port
+        !> of simple.el:auto-fill-mode.
         !> (In simple_fill_fm.)
         module subroutine auto_fill_mode(status)
             implicit none(type, external)
@@ -339,9 +342,9 @@ module simple_fm
         !> With prefix argument ARG, insert that many newlines.
         !>
         !> If `auto_fill_mode' is enabled, this may cause automatic line
-        !> breaking of the preceding line.  A non-nil ARG inhibits this.
+        !> breaking of the preceding line.  A present ARG inhibits this.
         !>
-        !> ARG absent is nil (one newline).  Port of simple.el:newline
+        !> ARG absent means one newline.  Port of simple.el:newline
         !> (electric indentation, `use_hard_newlines' and
         !> `post_self_insert_hook' are not ported).  (In simple_fill_fm,
         !> for `page_delimiter'.)
@@ -441,7 +444,150 @@ module simple_fm
         module subroutine syms_of_simple_view()
             implicit none(type, external)
         end subroutine syms_of_simple_view
+        !> Read a shell command from the minibuffer, and return it as a
+        !> string.  The arguments are the same as the ones of
+        !> `read_from_minibuffer', except READ and KEYMAP are missing and
+        !> HISTORY defaults to `shell_command_history'.  Port of
+        !> simple.el:read-shell-command.  (In simple_shell_fm.)
+        module subroutine read_shell_command(prompt, result, status, initial, history, default, history_position)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prompt
+            character(len=:), allocatable, intent(out) :: result
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: initial, history, default
+            !> The initial position in the history (HIST of the form
+            !> (SYMBOL . POSITION)).
+            integer, intent(in), optional :: history_position
+        end subroutine read_shell_command
+
+        !> Execute string COMMAND in inferior shell; display output, if any.
+        !>
+        !> If COMMAND ends in `&', execute it asynchronously (not ported
+        !> yet: an error).  Otherwise, COMMAND is executed synchronously.
+        !> The output appears in the buffer named by
+        !> `shell_command_buffer_name'.  If the output is short enough to
+        !> display in the echo area, it is shown there, but it is
+        !> nonetheless available in buffer named by
+        !> `shell_command_buffer_name' even though that buffer is not
+        !> automatically displayed.
+        !>
+        !> OUTPUT_BUFFER (a buffer) or OUTPUT_BUFFER_NAME says to put the
+        !> output in some other buffer, erased first unless
+        !> `shell_command_dont_erase_buffer' says otherwise; a true INSERT_HERE
+        !> means to insert it in the current buffer after point, leaving
+        !> mark after it.  ERROR_BUFFER names a buffer for the standard
+        !> error output; without it, error output is mingled with regular
+        !> output.  Port of simple.el:shell-command.  (In simple_shell_fm.)
+        module subroutine shell_command(command, status, output_buffer, output_buffer_name, insert_here, error_buffer)
+            implicit none(type, external)
+            character(len=*), intent(in) :: command
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: output_buffer
+            character(len=*), intent(in), optional :: output_buffer_name, error_buffer
+            logical, intent(in), optional :: insert_here
+        end subroutine shell_command
+
+        !> Execute string COMMAND in inferior shell with region as input.
+        !> Normally display output (if any) in temp buffer specified by
+        !> `shell_command_buffer_name'; prefix arg means replace the
+        !> region with it.
+        !>
+        !> OUTPUT_BUFFER, OUTPUT_BUFFER_NAME and INSERT_HERE are as for
+        !> `shell_command' (INSERT_HERE inserts the output after START).
+        !> REPLACE true means to insert the output in place of text from
+        !> START to END, putting point and mark around it (NO_MARK: don't
+        !> set the mark).  ERROR_BUFFER names a buffer for the standard
+        !> error output, displayed if there were errors when
+        !> DISPLAY_ERROR_BUFFER is true.  EXIT_STATUS is the command's exit
+        !> code, or -1 if it was killed by a signal described by
+        !> SIGNAL_DESCRIPTION.  Port of simple.el:shell-command-on-region.
+        !> (In simple_shell_fm.)
+        module subroutine shell_command_on_region(start, end, command, status, output_buffer, output_buffer_name, &
+                                                  insert_here, replace, no_mark, error_buffer, display_error_buffer, &
+                                                  exit_status, signal_description)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            character(len=*), intent(in) :: command
+            type(status_type), intent(out) :: status
+            type(handle_type), intent(in), optional :: output_buffer
+            character(len=*), intent(in), optional :: output_buffer_name, error_buffer
+            logical, intent(in), optional :: insert_here, replace, no_mark, display_error_buffer
+            integer, intent(out), optional :: exit_status
+            character(len=:), allocatable, intent(out), optional :: signal_description
+        end subroutine shell_command_on_region
+
+        !> Display the contents of BUFFER in the echo area if possible,
+        !> otherwise in a pop-up window.  Port of
+        !> simple.el:display-message-or-buffer (a buffer MESSAGE).  (In
+        !> simple_shell_fm.)
+        module subroutine display_message_or_buffer(buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine display_message_or_buffer
+
+        !> Register the shell commands.  (In simple_shell_fm.)
+        module subroutine syms_of_simple_shell()
+            implicit none(type, external)
+        end subroutine syms_of_simple_shell
     end interface
+
+    !> Name of the output buffer for shell commands.  Port of simple.el
+    !> shell-command-buffer-name.
+    character(len=*), parameter, public :: shell_command_buffer_name = "*Shell Command Output*"
+
+    !> Name of the output buffer for asynchronous shell commands.  Port of
+    !> simple.el shell-command-buffer-name-async.
+    character(len=*), parameter, public :: shell_command_buffer_name_async = "*Async Shell Command*"
+
+    !> Switch used to have the shell execute its command line argument.
+    !> Port of simple.el shell-command-switch.
+    type(string_setting), public :: shell_command_switch = string_setting(name="shell_command_switch")
+
+    !> Buffer name for `shell_command' and `shell_command_on_region' error
+    !> output.  This buffer is used when `shell_command' or
+    !> `shell_command_on_region' is run interactively.  Unallocated
+    !> means that output to stderr and stdout will be intermixed in the
+    !> output stream.  Port of simple.el shell-command-default-error-buffer.
+    type(string_setting), public :: shell_command_default_error_buffer = &
+                                    string_setting(name="shell_command_default_error_buffer")
+
+    !> If true, show current directory when prompting for a shell command.
+    !> This affects `shell_command' and `async_shell_command'.  Port of
+    !> simple.el shell-command-prompt-show-cwd.
+    type(logical_setting), public :: shell_command_prompt_show_cwd = &
+                                     logical_setting(name="shell_command_prompt_show_cwd", value=.false.)
+
+    !> Values of `shell_command_dont_erase_buffer' (see there).
+    integer, parameter, public :: DONT_ERASE_NIL = 0, DONT_ERASE_ERASE = 1, DONT_ERASE_BEG_LAST_OUT = 2, &
+                                  DONT_ERASE_END_LAST_OUT = 3, DONT_ERASE_SAVE_POINT = 4
+
+    !> Whether to erase the output buffer before executing shell command.
+    !>
+    !> DONT_ERASE_NIL erases the output buffer before execution of the
+    !> shell command, except when the output buffer is the current one.
+    !>
+    !> DONT_ERASE_ERASE ensures the output buffer is erased before
+    !> execution of the shell command even if it is the current buffer.
+    !>
+    !> Other values prevent the output buffer from being erased; they
+    !> also reposition point in the shell output buffer after execution of the
+    !> shell command, except when the output buffer is the current buffer.
+    !>
+    !> DONT_ERASE_BEG_LAST_OUT sets point at the beginning of the last
+    !> output, DONT_ERASE_END_LAST_OUT sets point at the end of the last
+    !> output, and DONT_ERASE_SAVE_POINT restores the buffer position as it
+    !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
+    !> (DONT_ERASE_NIL is nil, DONT_ERASE_ERASE `erase',
+    !> DONT_ERASE_BEG_LAST_OUT `beg-last-out', DONT_ERASE_END_LAST_OUT
+    !> `end-last-out', DONT_ERASE_SAVE_POINT `save-point').
+    type(integer_setting), public :: shell_command_dont_erase_buffer = &
+                                     integer_setting(name="shell_command_dont_erase_buffer", value=DONT_ERASE_NIL)
+
+    !> Keymap used for completing shell commands in minibuffer.  Port of
+    !> simple.el minibuffer-local-shell-command-map (without its
+    !> completion keys).
+    type(handle_type), public :: minibuffer_local_shell_command_map
 
     abstract interface
         !> A motion for `transpose_subr': move over N objects.
@@ -477,14 +623,14 @@ module simple_fm
     !> Maximum length of kill ring before oldest elements are thrown away.
     !> Port of simple.el kill-ring-max.
     integer(int64), public :: kill_ring_max = 120
-    !> The tail of the kill ring whose car is the last thing yanked, as an
+    !> The place in the kill ring of the last thing yanked, as an
     !> index into `kill_ring' (1 for its first element).  Port of simple.el
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
     !> Maximum size of mark ring.  Start discarding off end if gets this
     !> big.  Port of simple.el mark-ring-max.
     integer, public :: mark_ring_max = 16
-    !> Non-nil means don't signal an error for killing read-only text.
+    !> True means don't signal an error for killing read-only text.
     !> Port of simple.el kill-read-only-ok.
     logical, public :: kill_read_only_ok = .false.
     !> If true, `kill_line' with no arg at start of line kills the whole
@@ -496,8 +642,8 @@ module simple_fm
     !> simple.el delete-active-region (t; `kill' not yet).
     logical, public :: delete_active_region = .true.
 
-    !> Semipermanent goal column for vertical motion, or -1 for none (nil
-    !> upstream).  A setting other than -1 overrides the variable
+    !> Semipermanent goal column for vertical motion, or -1 for none.
+    !> A setting other than -1 overrides the variable
     !> `line_move_visual', which see.  Port of simple.el goal-column.
     integer(int64), public :: goal_column = -1
     !> When true, `line_move' moves point by visual lines.
@@ -596,7 +742,7 @@ contains
     !> With prefix argument ARG, insert that many newlines.
     !>
     !> If `auto_fill_mode' is enabled, this may cause automatic line
-    !> breaking of the preceding line.  A non-nil ARG inhibits this.
+    !> breaking of the preceding line.  A present ARG inhibits this.
     !> Port of simple.el:newline (the command, "*P"; electric indentation
     !> and hard newlines are not ported).
     subroutine cmd_newline(status)
@@ -624,7 +770,7 @@ contains
     !> Delete the previous N characters (following if N is negative).
     !> If Transient Mark mode is enabled, the mark is active, and N is 1,
     !> delete the text in the region and deactivate the mark instead.
-    !> To disable this, set option `delete_active_region' to nil.
+    !> To disable this, set option `delete_active_region' to false.
     !>
     !> A numeric prefix argument specifies N, and if a prefix argument is
     !> used, the characters are killed (saved in the kill ring) instead of
@@ -653,7 +799,7 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> If Transient Mark mode is enabled, the mark is active, and N is 1,
     !> delete the text in the region and deactivate the mark instead.
-    !> To disable this, set variable `delete_active_region' to nil.
+    !> To disable this, set variable `delete_active_region' to false.
     !>
     !> A numeric prefix argument specifies N, and if a prefix argument is
     !> used, the characters are killed (saved in the kill ring) instead of
@@ -1145,7 +1291,7 @@ contains
     !> If there is no line in the buffer after this one, the cursor moves to
     !> the end of the buffer.
     !>
-    !> If the variable `line_move_visual' is non-nil, this command moves
+    !> If the variable `line_move_visual' is true, this command moves
     !> by display lines.  Otherwise, it moves by buffer lines, without
     !> taking variable-width characters or continued lines into account.
     !>
@@ -1167,7 +1313,7 @@ contains
     !> the cursor is positioned after the character in that line that spans this
     !> column, or at the end of the line if it is not long enough.
     !>
-    !> If the variable `line_move_visual' is non-nil, this command moves
+    !> If the variable `line_move_visual' is true, this command moves
     !> by display lines.  Otherwise, it moves by buffer lines, without
     !> taking variable-width characters or continued lines into account.
     !>
@@ -1183,11 +1329,11 @@ contains
     end subroutine cmd_previous_line
 
     !> Move point to end of current line as displayed.
-    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> With argument ARG not 1, move forward ARG - 1 lines first.
     !> If point reaches the beginning or end of buffer, it stops there.
     !>
     !> To ignore the effects of the `intangible' text or overlay
-    !> property, bind `inhibit_point_motion_hooks' to t.
+    !> property, set `inhibit_point_motion_hooks' to true.
     !> If there is an image in the current line, this function
     !> disregards newlines that are part of the text on which the image
     !> rests.  Port of simple.el:move-end-of-line (invisible text is
@@ -1247,17 +1393,17 @@ contains
     !> This disregards any invisible newline characters.
     !>
     !> When moving from position that has no `field' property, this
-    !> command doesn't enter text which has non-nil `field' property.
+    !> command doesn't enter text which has a `field' property.
     !> In particular, when invoked in the minibuffer, the command will
     !> stop short of entering the text of the minibuffer prompt.
     !> See `inhibit_field_text_motion' for how to inhibit this.
     !>
-    !> With argument ARG not nil or 1, move forward ARG - 1 lines first.
+    !> With argument ARG not 1, move forward ARG - 1 lines first.
     !> If point reaches the beginning or end of buffer, it stops there.
     !> (But if the buffer doesn't end in a newline, it stops at the
     !> beginning of the last line.)
     !>
-    !> To ignore intangibility, bind `inhibit_point_motion_hooks' to t.
+    !> To ignore intangibility, set `inhibit_point_motion_hooks' to true.
     !> For motion by visual lines, see `beginning_of_visual_line'.  Port
     !> of simple.el:move-beginning-of-line (invisible text is deferred
     !> with the rest of invisibility).
@@ -1750,6 +1896,7 @@ contains
         call syms_of_simple_fill()
         call syms_of_simple_modes()
         call syms_of_simple_view()
+        call syms_of_simple_shell()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
@@ -2066,7 +2213,7 @@ contains
     ! The mark and the region
     ! ------------------------------------------------------------------
 
-    !> Return this buffer's mark value as integer, or 0 (nil) if never set.
+    !> Return this buffer's mark value as integer, or 0 if never set.
     !>
     !> In Transient Mark mode, this function signals an error if
     !> the mark is not active.  However, if `mark_even_if_inactive' is true,
@@ -2088,13 +2235,13 @@ contains
         end if
     end subroutine mark
 
-    !> Return t if Transient Mark mode is enabled and the mark is active.
+    !> Return true if Transient Mark mode is enabled and the mark is active.
     !> Port of simple.el:region-active-p.
     logical function region_active_p()
         region_active_p = transient_mark_mode%value .and. buffers(cur)%mark_active .and. mark_position() /= 0
     end function region_active_p
 
-    !> Return t if the region is active and it is appropriate to act on it:
+    !> Return true if the region is active and it is appropriate to act on it:
     !> Transient Mark mode is enabled, the mark is active and the region is
     !> not empty.  Port of simple.el:use-region-p (use-empty-active-region
     !> nil).
@@ -2342,7 +2489,7 @@ contains
     !> Make STRING the latest kill in the kill ring.
     !> Set `kill_ring_yank_pointer' to point to it.
     !> REPLACE true means that STRING will replace the front of the kill
-    !> ring, rather than being added to the list.  Port of simple.el:kill-new
+    !> ring, rather than being added to the ring.  Port of simple.el:kill-new
     !> (no interprogram cut and paste yet).
     subroutine kill_new(string, replace)
         character(len=*), intent(in) :: string
@@ -2882,7 +3029,7 @@ contains
 
     !> Move backward until encountering the beginning of a word.
     !> With argument ARG, do this that many times.
-    !> If ARG is omitted or nil, move point backward one word.
+    !> If ARG is omitted, move point backward one word.
     !>
     !> The word boundaries are normally determined by the buffer's
     !> syntax table and character script (according to
@@ -2914,8 +3061,8 @@ contains
     end subroutine backward_kill_word
 
     !> Set mark ARG words from point or move mark one word.
-    !> With ALLOW-EXTEND false, mark is set ARG words from point.
-    !> With ARG given (`have_arg') and ALLOW-EXTEND (interactively, with
+    !> With ALLOW_EXTEND false, mark is set ARG words from point.
+    !> With ARG given (`have_arg') and ALLOW_EXTEND (interactively, with
     !> prefix argument), the place to which mark goes is the same place
     !> \[forward_word] would move to with the same argument; if the mark
     !> is active, it moves ARG words from its current position, otherwise
@@ -2958,7 +3105,7 @@ contains
 
     !> Move backward until encountering the beginning of a word.
     !> With argument ARG, do this that many times.
-    !> If ARG is omitted or nil, move point backward one word.
+    !> If ARG is omitted, move point backward one word.
     !>
     !> The word boundaries are normally determined by the buffer's
     !> syntax table and character script (according to
@@ -2993,9 +3140,9 @@ contains
     !> If there is a fill prefix, delete it from the beginning of this
     !> line.
     !> With prefix ARG, join the current line to the following line.
-    !> When BEG and END are non-nil, join all lines in the region they
+    !> When BEG and END are present, join all lines in the region they
     !> define.  Interactively, BEG and END are, respectively, the start
-    !> and end of the region if it is active, else nil.  (The region is
+    !> and end of the region if it is active, else absent.  (The region is
     !> ignored if prefix ARG is given.)  Port of
     !> simple.el:delete-indentation.
     subroutine delete_indentation(arg, status, beg, end)
@@ -3145,7 +3292,7 @@ contains
     end subroutine fixup_whitespace
 
     !> Delete all spaces and tabs around point.
-    !> If BACKWARD-ONLY is non-nil (interactively, the prefix argument), delete
+    !> If BACKWARD_ONLY is true (interactively, the prefix argument), delete
     !> them only before point.  Port of simple.el:delete-horizontal-space.
     subroutine delete_horizontal_space(backward_only, status)
         logical, intent(in) :: backward_only
@@ -3154,7 +3301,7 @@ contains
     end subroutine delete_horizontal_space
 
     !> Delete all spaces, tabs, and newlines around point.
-    !> If BACKWARD-ONLY is non-nil, delete them only before point.  Port of
+    !> If BACKWARD_ONLY is true, delete them only before point.  Port of
     !> simple.el:delete-all-space.
     subroutine delete_all_space(backward_only, status)
         logical, intent(in) :: backward_only
@@ -3163,7 +3310,7 @@ contains
     end subroutine delete_all_space
 
     !> Delete CHARS around point.
-    !> If BACKWARD-ONLY is non-nil, delete them only before point.  Port of
+    !> If BACKWARD_ONLY is true, delete them only before point.  Port of
     !> simple.el:delete-space--internal.
     subroutine delete_space_internal(chars, backward_only, status)
         character(len=*), intent(in) :: chars

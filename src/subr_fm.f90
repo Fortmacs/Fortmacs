@@ -103,8 +103,8 @@ module subr_fm
     !> variable overrides this default.  Port of minibuf.c history-length
     !> (the value t, no truncation, is not ported: Deferred).
     integer, public :: history_length = 100
-    !> Non-nil means to delete duplicates in history.
-    !> If set to t when adding a new history element, all previous identical
+    !> True means to delete duplicates in history.
+    !> If set to true when adding a new history element, all previous identical
     !> elements are deleted from the history list.  Port of minibuf.c
     !> history-delete-duplicates.
     logical, public :: history_delete_duplicates = .false.
@@ -158,8 +158,8 @@ module subr_fm
     !> confusing to some users.  Port of subr.el y-or-n-p-use-read-key.
     logical, public :: y_or_n_p_use_read_key = .false.
 
-    !> History list symbol to add `y_or_n_p' answers to (unallocated for
-    !> nil: no history).  Port of subr.el y-or-n-p-history-variable.
+    !> Name of the history list to add `y_or_n_p' answers to (unallocated for
+    !> no history).  Port of subr.el y-or-n-p-history-variable.
     character(len=:), allocatable, public :: y_or_n_p_history_variable
 
     !> What `silent_modifications_begin' changed, for
@@ -184,7 +184,7 @@ module subr_fm
 
     interface
         !> Ask user a "y or n" question.
-        !> Return t if answer is "y" and nil if it is "n".
+        !> Return true (in ANSWER) if answer is "y" and false if it is "n".
         !>
         !> PROMPT is the string to display to ask the question; `y_or_n_p'
         !> adds "(y or n) " to it.  If PROMPT is a non-empty string, and
@@ -206,7 +206,7 @@ module subr_fm
         !> and ask again.
         !>
         !> By default, this function uses the minibuffer to read the key.
-        !> If `y_or_n_p_use_read_key' is non-nil, `read_key' is used
+        !> If `y_or_n_p_use_read_key' is true, `read_key' is used
         !> instead (which means that the user can't change buffers (and the
         !> like) while `y_or_n_p' is running).  Port of subr.el:y-or-n-p
         !> (no help-form or dialog boxes).  (In subr_read_fm.)
@@ -277,12 +277,10 @@ module subr_fm
         !> to generate PROMPT.  HIST specifies a history list variable.  See
         !> `read_from_minibuffer' for details of the HIST argument.
         !>
-        !> DEFAULTS, in place of DEFAULT, is a list of defaults: the first
-        !> is the default, all are offered by M-n.
-        !>
-        !> This function is used by the `interactive' code letter "n".  Port
-        !> of subr.el:read-number (the answer is read as the Lisp reader
-        !> reads an integer; floats are not ported).  (In subr_read_fm.)
+        !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
+        !> is the default, all are offered by M-n.  Port of
+        !> subr.el:read-number (the answer is read as upstream's reader reads
+        !> an integer; floats are not ported).  (In subr_read_fm.)
         module subroutine read_number(prompt, n, status, default, hist, defaults)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
@@ -295,14 +293,14 @@ module subr_fm
 
         !> Run mode hooks `delayed_mode_hooks' and HOOK, or delay HOOK.
         !>
-        !> If the variable `delay_mode_hooks' is non-nil, does not do anything,
-        !> just adds HOOK to the list `delayed_mode_hooks'.
+        !> If the variable `delay_mode_hooks' is true, does not do anything,
+        !> just adds HOOK to `delayed_mode_hooks'.
         !> Otherwise, runs hooks in the sequence: `change_major_mode_after_body_hook',
         !> `delayed_mode_hooks' (in reverse order), HOOK, then
         !> runs the hook `after_change_major_mode_hook'.
         !>
         !> Major mode functions should use this instead of `run_hooks' when
-        !> running their FOO-mode-hook.  Port of subr.el:run-mode-hooks
+        !> running their FOO_mode_hook.  Port of subr.el:run-mode-hooks
         !> (no file-local variables yet).  (In subr_hooks_fm.)
         recursive module subroutine run_mode_hooks(status, hook)
             implicit none(type, external)
@@ -647,11 +645,11 @@ contains
     !> sub-expression in the last regexp whose match to return.  Zero
     !> means the entire text matched by the whole regexp or whole string.
     !>
-    !> The return value is nil (`matched' false, an empty string) if NUMth
+    !> The return value is an empty string (and `matched' false) if NUMth
     !> pair didn't match, or there were less than NUM pairs.
     !>
     !> STRING should be given if the last search was by `string_match' on
-    !> STRING.  If STRING is nil, the current buffer should be the same
+    !> STRING.  If STRING is absent, the current buffer should be the same
     !> buffer as the one in which the search/match was performed.  Port of
     !> subr.el:match-string.
     function match_string(num, string, matched) result(text)
@@ -676,10 +674,10 @@ contains
 
     !> Return string of text matched by last search, without text
     !> properties.  NUM specifies which parenthesized expression in the
-    !> last regexp.  Value is nil if NUMth pair didn't match, or there
+    !> last regexp.  Value is an empty string if NUMth pair didn't match, or there
     !> were less than NUM pairs.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
-    !> last search was by `string_match' on STRING.  If STRING is nil, the
+    !> last search was by `string_match' on STRING.  If STRING is absent, the
     !> current buffer should be the same buffer as the one in which the
     !> search/match was performed.  Port of
     !> subr.el:match-string-no-properties.
@@ -734,13 +732,13 @@ contains
         looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
     end function looking_at_p
 
-    !> Return non-nil if text before point matches regular expression
+    !> Return true if text before point matches regular expression
     !> REGEXP.  Like `looking_at' except matches before point, and is
-    !> slower.  LIMIT if non-nil speeds up the search by specifying a
+    !> slower.  LIMIT if true speeds up the search by specifying a
     !> minimum starting position, to avoid checking matches that would
     !> start before LIMIT.
     !>
-    !> If GREEDY is non-nil, extend the match backwards as far as possible,
+    !> If GREEDY is true, extend the match backwards as far as possible,
     !> stopping when a single additional previous character cannot be part
     !> of a match for REGEXP.  When the match is extended, its starting
     !> position is allowed to occur before LIMIT.

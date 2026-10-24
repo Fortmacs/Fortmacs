@@ -21,14 +21,14 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `insert_directory' (running `insert_directory_program' through
-!> `call_process'), `file_truename', `file_relative_name',
+!> `call_process'), `file_truename',
 !> `delete_file', `delete_directory', file size strings and
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
     use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value
     use lread_fm, only: read_string_literal
-    use callproc_fm, only: call_process
+    use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
     use search_fm, only: string_match, match_beginning, match_end, looking_at, string_index_to_offset
     use subr_fm, only: match_string
@@ -80,19 +80,13 @@ contains
         call close_fd(fd)
     end subroutine make_temp_file
 
-    !> The shell `insert_directory' runs a wildcard listing with: $SHELL,
-    !> else "/bin/sh" (callproc.c:init_callproc's `shell_file_name').
-    function shell_file_name() result(sh)
+    !> The shell `insert_directory' runs a wildcard listing with:
+    !> `shell_file_name' (callproc.c).
+    function shell_name() result(sh)
         character(len=:), allocatable :: sh
-        integer :: length, stat
-        call get_environment_variable("SHELL", length=length, status=stat)
-        if (stat == 0 .and. length > 0) then
-            allocate (character(len=length) :: sh)
-            call get_environment_variable("SHELL", sh)
-        else
-            sh = "/bin/sh"
-        end if
-    end function shell_file_name
+        if (.not. allocated(shell_file_name%value)) call init_callproc()
+        sh = shell_file_name%value
+    end function shell_name
 
     recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory_p)
         character(len=*), intent(in) :: file, switches
@@ -150,7 +144,7 @@ contains
             argv(1) = make_string("-c")
             argv(2) = make_string(command)
             args = make_list(argv)
-            call call_process(shell_file_name(), result, status, destination=t_value(), args=args, error_file=errfile)
+            call call_process(shell_name(), result, status, destination=t_value(), args=args, error_file=errfile)
             if (had_dir) then
                 buffers(cur)%directory = saved_dir
             else
@@ -556,52 +550,6 @@ contains
             end if
         end do
     end subroutine truename_1
-
-    module function file_relative_name(filename, directory) result(relative)
-        character(len=*), intent(in) :: filename
-        character(len=*), intent(in), optional :: directory
-        character(len=:), allocatable :: relative
-        character(len=:), allocatable :: dir, file, ancestor, filename_dir, rest, default
-        type(status_type) :: st
-        logical :: fold_case
-        if (present(directory)) then
-            call expand_file_name(directory, dir, st)
-        else
-            default = "./"
-            if (cur /= 0) then
-                if (allocated(buffers(cur)%directory)) default = buffers(cur)%directory
-            end if
-            call expand_file_name(default, dir, st)
-        end if
-        dir = file_name_as_directory(dir)
-        call expand_file_name(filename, file, st)
-        fold_case = read_file_name_completion_ignore_case
-        ancestor = "."
-        filename_dir = file_name_as_directory(file)
-        do while (.not. (string_prefix_p(dir, filename_dir, fold_case) .or. string_prefix_p(dir, file, fold_case)))
-            dir = file_name_directory(dir(1:len(dir) - 1))
-            if (ancestor == ".") then
-                ancestor = ".."
-            else
-                ancestor = "../"//ancestor
-            end if
-        end do
-        ! Now ancestor is empty, or .., or ../.., etc.
-        if (string_prefix_p(dir, file, fold_case)) then
-            ! We matched within FILENAME's directory part.
-            ! Add the rest of FILENAME onto ANCESTOR.
-            rest = file(len(dir) + 1:)
-            if (ancestor == "." .and. len(rest) > 0) then
-                ! But don't bother with ANCESTOR if it would give us `./'.
-                relative = rest
-            else
-                relative = file_name_as_directory(ancestor)//rest
-            end if
-        else
-            ! We matched FILENAME's directory equivalent.
-            relative = ancestor
-        end if
-    end function file_relative_name
 
     module subroutine file_name_extension(filename, extension, found, period)
         character(len=*), intent(in) :: filename

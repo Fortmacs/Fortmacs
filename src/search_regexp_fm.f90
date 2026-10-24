@@ -197,7 +197,7 @@ contains
         else if (pos < 1 .or. pos > nchars + 1) then
             ! args_out_of_range (string, start).
             write (buf, "(i0)") start
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_string(string)//", "//trim(buf))
+            call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//trim(buf))
             return
         end if
     end if
@@ -481,10 +481,10 @@ contains
     subroutine missing()
         if (sub_start < 0) then
             if (present(subexp)) then
-                call set_error(status, FM_GENERIC_ERROR, "replace-match subexpression does not exist: "// &
+                call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: "// &
                                int_text(int(subexp, int64)))
             else
-                call set_error(status, FM_GENERIC_ERROR, "replace-match subexpression does not exist: nil")
+                call set_error(status, FM_GENERIC_ERROR, "replace_match subexpression does not exist: .false.")
             end if
         else
             call set_error(status, FM_ARGS_OUT_OF_RANGE, int_text(sub_start)//", "//int_text(sub_end))

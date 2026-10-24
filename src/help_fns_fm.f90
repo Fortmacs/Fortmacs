@@ -23,12 +23,16 @@
 !> docstrings_fm collects.  The functions are the commands and the
 !> procedures of the config API (module `fortmacs'), the variables its
 !> settings.  A function's report names the Fortran file defining it and
-!> shows how Fortran calls it where the Lisp version shows its argument
-!> list; a variable's shows its Fortran name and its value as Fortran.
+!> shows how Fortran calls it where upstream shows its argument list; a
+!> variable's shows its Fortran name and its value as Fortran
+!> (.true./.false., integers, string literals, named constants,
+!> procedure names or null(), "unallocated").
 !>
 !> Deferred: the default from the symbol at point, cross-reference
 !> buttons, "Probably introduced at" lines, obsolescence, aliases,
-!> buffer-local values, `describe_symbol', `describe_command'.
+!> buffer-local values, `describe_symbol', `describe_command', the
+!> values of hooks, keymaps, syntax tables and other derived-type
+!> variables (the value line is left out).
 module help_fns_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
@@ -263,7 +267,7 @@ contains
         text = text//substitute_command_keys(doc)//LF
     end subroutine describe_function_1
 
-    !> Display the full documentation of FUNCTION (a symbol).  Port of
+    !> Display the full documentation of FUNCTION (a name).  Port of
     !> help-fns.el:describe-function (FUNCTION is a name).
     subroutine describe_function(function, status)
         character(len=*), intent(in) :: function
@@ -288,18 +292,24 @@ contains
             return
         end if
         text = name//" is a variable defined in "//LQUOTE//entry%file//RQUOTE//"."//LF//LF
-        ! A value too long for the line starts on the next.
-        if (len(entry%value) + len("Its value is") < 68) then
-            text = text//"Its value is "//entry%value//LF
-        else
-            text = text//"Its value is"//LF//entry%value//LF
-        end if
-        if (len(entry%original) > 0 .and. entry%original /= entry%value) then
-            ! A short value stays on the line.
-            if (len(entry%original) < 20) then
-                text = text//"Original value was "//entry%original//LF
-            else
-                text = text//"Original value was "//LF//entry%original//LF
+        ! No value line for a value without a printed form (unallocated
+        ! here, or empty for a procedure without a name).
+        if (allocated(entry%value)) then
+            if (len(entry%value) > 0) then
+                ! A value too long for the line starts on the next.
+                if (len(entry%value) + len("Its value is") < 68) then
+                    text = text//"Its value is "//entry%value//LF
+                else
+                    text = text//"Its value is"//LF//entry%value//LF
+                end if
+                if (len(entry%original) > 0 .and. entry%original /= entry%value) then
+                    ! A short value stays on the line.
+                    if (len(entry%original) < 20) then
+                        text = text//"Original value was "//entry%original//LF
+                    else
+                        text = text//"Original value was "//LF//entry%original//LF
+                    end if
+                end if
             end if
         end if
         text = text//"Its Fortran name is "//LQUOTE//entry%fortran//RQUOTE//"."//LF//LF
@@ -308,7 +318,7 @@ contains
         text = text//substitute_command_keys(doc)//LF
     end subroutine describe_variable_text
 
-    !> Display the full documentation of VARIABLE (a symbol).  Port of
+    !> Display the full documentation of VARIABLE (a name).  Port of
     !> help-fns.el:describe-variable (VARIABLE is a name; global values
     !> only).
     subroutine describe_variable(variable, status)
@@ -320,7 +330,7 @@ contains
         call with_help_window(text, status)
     end subroutine describe_variable
 
-    !> Display the full documentation of FUNCTION (a symbol).
+    !> Display the full documentation of FUNCTION (a name).
     !> Port of help-fns.el:describe-function (the command; no default).
     recursive subroutine cmd_describe_function(status)
         type(status_type), intent(out) :: status
@@ -337,7 +347,7 @@ contains
         call describe_function(name, status)
     end subroutine cmd_describe_function
 
-    !> Display the full documentation of VARIABLE (a symbol).
+    !> Display the full documentation of VARIABLE (a name).
     !> Port of help-fns.el:describe-variable (the command; no default).
     recursive subroutine cmd_describe_variable(status)
         type(status_type), intent(out) :: status

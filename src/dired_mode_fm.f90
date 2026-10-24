@@ -41,7 +41,7 @@
 !> dired-aux.el (`C', `R', `H', `S', `Y', `M', `G', `O', `T', `Z', `c',
 !> `P', `!', `&', `X', `=', `A', `Q', `k', `y', `w' with a prefix of 1
 !> (project.el), `% u', `% l', `% r'...), the query of
-!> `dired_unmark_all_files' with a prefix argument (dired-query),
+!> `dired_unmark_all_files' with a prefix argument (`dired_query'),
 !> `dired_auto_revert_buffer' as a function, `dired_movement_style' t,
 !> mouse, drag-and-drop and click-to-select, `dired_make_directory_clickable'
 !> (keymaps in text properties), the warning about file names with
@@ -95,7 +95,7 @@ module dired_mode_fm
                         revert_buffer_function, find_directory_functions, find_file_run_dired, &
                         temporary_file_directory, dired_ls_error_buffer, dired_ls_error_file, make_directory, &
                         directory_listing_before_filename_regexp
-    use callproc_fm, only: call_process
+    use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files, completion_ignored_extensions
     use window_fm, only: windows, window_leaves, window_live_p, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, display_buffer, fit_window_to_buffer, select_window, &
@@ -1965,18 +1965,11 @@ contains
         end function header_present
     end subroutine dired_insert_directory
 
-    !> The shell for wildcard listings: $SHELL, else "sh" (callproc.c's
-    !> `shell_file_name', or executable-find "sh").
+    !> The shell for wildcard listings: `shell_file_name' (callproc.c).
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
-        integer :: length, stat
-        call get_environment_variable("SHELL", length=length, status=stat)
-        if (stat == 0 .and. length > 0) then
-            allocate (character(len=length) :: sh)
-            call get_environment_variable("SHELL", sh)
-        else
-            sh = "/bin/sh"
-        end if
+        if (.not. allocated(shell_file_name%value)) call init_callproc()
+        sh = shell_file_name%value
     end function shell_name
 
     !> Insert the amount of free space after the listing that starts at
@@ -2478,7 +2471,7 @@ contains
         k = local_index(.false.)
         if (k == 0 .or. alist_size() == 0) then
             ! probably because called in a non-dired buffer
-            call set_error(status, FM_GENERIC_ERROR, "No subdir-alist in #<buffer "//buffers(cur)%name//">")
+            call set_error(status, FM_GENERIC_ERROR, "No subdir_alist in #<buffer "//buffers(cur)%name//">")
             return
         end if
         here = point()
@@ -5343,7 +5336,7 @@ contains
         call read_char("Remove marks (RET means all): ", mark, status)
         if (.not. status%ok()) return
         if (.not. nilp(current_prefix_arg)) then
-            call set_error(status, FM_GENERIC_ERROR, "Querying each marked file (dired-query) is not supported yet")
+            call set_error(status, FM_GENERIC_ERROR, "Querying each marked file (dired_query) is not supported yet")
             return
         end if
         if (mark > 127) then
@@ -6593,7 +6586,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Build `dired_subdir_alist' by parsing the buffer.
-    !> Returns the new value of the alist.
+    !> Returns the new value of `dired_subdir_alist'.
     !> Port of dired.el:dired-build-subdir-alist (interactive).
     recursive subroutine cmd_dired_build_subdir_alist(status)
         type(status_type), intent(out) :: status

@@ -49,6 +49,7 @@ module emacs_fm
     use faces_fm, only: init_faces
     use modes_fm, only: minor_modes
     use keyboard_fm, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook
+    use process_fm, only: kill_buffer_processes
     use bindings_fm, only: init_bindings
     use term_xterm_fm, only: terminal_init_xterm
     use tty_colors_fm, only: tty_register_colors
@@ -279,7 +280,7 @@ contains
             ! process-file-arg
             dir = file_name_as_directory(emacs_wd)
             if (len(emacs_wd) == 0 .and. .not. file_name_absolute_p(argi)) then
-                call message("Ignoring relative file name ("//argi//") due to nil default-directory")
+                call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
             call visit(argi, dir, line, column, status)
@@ -399,6 +400,8 @@ contains
         call delete_tty(selected_frame%tty, status)
         call tty_flush(selected_frame%tty, st)
         call set_input_fd(-1_int32)
+        ! shut_down_emacs: hang up the subprocesses.
+        call kill_buffer_processes(null_handle())
     end subroutine emacs_main
 
     !> Run the init file's `configure'.  An error is shown in the echo area

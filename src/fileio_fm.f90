@@ -486,7 +486,7 @@ contains
         if (file_exists_p) file_exists_p = sys_access(absname, F_OK) == 0
     end function file_exists_p
 
-    !> Return t if FILENAME can be executed by you.
+    !> Return true if FILENAME can be executed by you.
     !> For a directory, this means you can access files in that directory.
     !> (It is generally better to use `file_accessible_directory_p' for that
     !> purpose, though.)  Port of fileio.c:Ffile_executable_p.
@@ -498,9 +498,9 @@ contains
         if (file_executable_p) file_executable_p = sys_access(absname, X_OK) == 0
     end function file_executable_p
 
-    !> Return t if file FILE1 is newer than file FILE2.
-    !> If FILE1 does not exist, the return value is nil;
-    !> if FILE2 does not exist, the return value is t.
+    !> Return true if file FILE1 is newer than file FILE2.
+    !> If FILE1 does not exist, the return value is false;
+    !> if FILE2 does not exist, the return value is true.
     !> For existing files, this compares their last-modified times.
     !> Port of fileio.c:Ffile_newer_than_file_p.
     logical function file_newer_than_file_p(file1, file2)

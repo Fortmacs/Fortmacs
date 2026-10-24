@@ -50,7 +50,7 @@ module map_ynp_fm
     !> Values of `read_answer_short' (upstream nil, t and `auto').
     integer, parameter, public :: READ_ANSWER_SHORT_NIL = 0, READ_ANSWER_SHORT_T = 1, READ_ANSWER_SHORT_AUTO = 2
 
-    !> If true, the `read_answer' function accepts single-character answers.
+    !> Whether the `read_answer' function accepts single-character answers.
     !> If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the
     !> question.  If READ_ANSWER_SHORT_NIL, require long answers.  If
     !> READ_ANSWER_SHORT_AUTO, accept short answers if

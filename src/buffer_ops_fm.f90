@@ -30,8 +30,8 @@ contains
 
     !> If it was current, the most recent other live, non-hidden buffer
     !> becomes current, creating *scratch* if there is none (as
-    !> buffer.c:other_buffer_safely).  Hooks, processes, windows, overlays
-    !> and indirect buffers are not handled yet.
+    !> buffer.c:other_buffer_safely).  Its processes get SIGHUP.  Hooks,
+    !> overlays and indirect buffers are not handled yet.
     module subroutine kill_buffer(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
@@ -43,6 +43,8 @@ contains
         if (.not. status%ok()) return
         ! Make this buffer not be displayed.
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
+        ! Kill the processes of this buffer.
+        if (associated(kill_buffer_processes_hook)) call kill_buffer_processes_hook(h)
         was_current = i == cur
         ! Its local variables go with it: make it not current first.
         if (was_current) call set_buffer_internal(0_int64)

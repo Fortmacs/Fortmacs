@@ -506,7 +506,7 @@ contains
     !> `font_lock_add_keywords'.
     !>
     !> To fontify a buffer, without turning on Font Lock mode and
-    !> regardless of buffer size, you can use \[font-lock-fontify-buffer].
+    !> regardless of buffer size, you can use \[font_lock_fontify_buffer].
     !>
     !> You can set your own default settings for some mode, by setting a
     !> buffer local value for `font_lock_defaults', via its mode hook.

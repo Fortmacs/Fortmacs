@@ -58,7 +58,7 @@ module rmc_fm
 
     public :: read_multiple_choice, rmc_add_key_description, generated_help
 
-    !> If non-nil, use `read_key' when reading a character by
+    !> If true, use `read_key' when reading a character by
     !> `read_multiple_choice' (read-char-choice).  Otherwise, use the
     !> minibuffer (this is the default).  Port of subr.el
     !> read-char-choice-use-read-key.
@@ -112,30 +112,30 @@ contains
     end function upcase_ascii
 
     !> Ask user to select an entry from CHOICES, prompting with PROMPT.
-    !> This function lets a user select an option from a list of options
+    !> This function lets a user select an option from an array of options
     !> by typing a single character, and returns the index of the choice
     !> (`answer'; 0 for none).
     !>
-    !> CHOICES is a list of (KEY NAME [DESCRIPTION]).  KEY is a character
+    !> CHOICES is an array of `rmc_choice_type' (KEY, NAME, DESCRIPTION).  KEY is a character
     !> to be entered.  NAME is a short name for the entry to be displayed
     !> while prompting (if there's no room, it might be shortened).
     !> DESCRIPTION is an optional longer explanation for the entry that
     !> will be displayed in a help buffer if the user requests more help.
     !>
-    !> HELP-STRING argument is a string that contains overall
+    !> HELP_STRING argument is a string that contains overall
     !> information about the choices.  If this argument is given, it is
     !> displayed in the help buffer instead of the generated help.
     !>
-    !> SHOW-HELP, if present, means show the help buffer from the start
-    !> (named SHOW-HELP when it is a non-empty string).
+    !> SHOW_HELP, if present, means show the help buffer from the start
+    !> (named SHOW_HELP when it is a non-empty string).
     !>
-    !> If optional argument LONG-FORM is non-nil, the user will have to
+    !> If optional argument LONG_FORM is true, the user will have to
     !> type in long-form answers (using `completing_read') instead of
     !> hitting a single key.
     !>
     !> If the user types the `?' key, the help is displayed.  The answer
     !> is read in the minibuffer, or with `read_key' if
-    !> `read_char_choice_use_read_key' is non-nil.  Port of
+    !> `read_char_choice_use_read_key' is true.  Port of
     !> rmc.el:read-multiple-choice (no dialog boxes or touch-screen
     !> events).
     recursive subroutine read_multiple_choice(prompt, choices, answer, status, help_string, show_help, long_form)
