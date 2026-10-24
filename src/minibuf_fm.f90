@@ -32,6 +32,10 @@
 !> reading (`read_minibuffer'), `minibuffer_setup_hook', the
 !> minibuffer-prompt face, and restoring window configurations.
 module minibuf_fm
+    use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_function, &
+                                completion_list_table, completion_obarray_table, completion_function_table, &
+                                COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETE_BOUNDARIES, TABLE_LIST, &
+                                TABLE_OBARRAY, TABLE_FUNCTION
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
@@ -60,61 +64,16 @@ module minibuf_fm
               innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
-              completion_function
-
-    !> Actions passed to a completion function (programmed completion): as
-    !> `try_completion' (nil), `all_completions' (t), `test_completion'
-    !> (lambda), and `(boundaries . SUFFIX)'.
-    integer, parameter, public :: COMPLETE_TRY = 0, COMPLETE_ALL = 1, COMPLETE_TEST = 2, &
-                                  COMPLETE_BOUNDARIES = 3
-
-    !> Kinds of completion table: a list (of strings, symbols, or lists
-    !> whose first element is one: an alist), the obarray, or a function.
-    integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2
+              completion_function, completion_table_type, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
+              COMPLETE_BOUNDARIES, TABLE_LIST, TABLE_OBARRAY, TABLE_FUNCTION
 
     abstract interface
-        !> A completion predicate: whether the element `elt' (the list
-        !> element or the symbol) is an acceptable completion.
-        logical function completion_predicate(elt)
-            import :: value_type
-            implicit none(type, external)
-            type(value_type), intent(in) :: elt
-        end function completion_predicate
-
-        !> A function completion table.  ACTION says what to compute for
-        !> STRING: COMPLETE_TRY (the `try_completion' value: nil, t or a
-        !> string), COMPLETE_ALL (a list of strings), COMPLETE_TEST (t or
-        !> nil) or COMPLETE_BOUNDARIES (a list (START END) for STRING and
-        !> SUFFIX, or nil for the default).
-        recursive subroutine completion_function(string, action, result, status, pred, suffix)
-            import :: value_type, status_type, completion_predicate
-            implicit none(type, external)
-            character(len=*), intent(in) :: string
-            integer, intent(in) :: action
-            type(value_type), intent(out) :: result
-            type(status_type), intent(out) :: status
-            procedure(completion_predicate), optional :: pred
-            character(len=*), intent(in), optional :: suffix
-        end subroutine completion_function
-
         !> A function run once the minibuffer is set up (see
         !> `minibuffer_setup_function').
         subroutine minibuffer_setup_proc()
             implicit none(type, external)
         end subroutine minibuffer_setup_proc
     end interface
-
-    !> A completion table (COLLECTION).
-    type, public :: completion_table_type
-        integer :: kind = TABLE_LIST
-        !> TABLE_LIST: the list.
-        type(value_type) :: list
-        !> TABLE_FUNCTION: the function.
-        procedure(completion_function), pointer, nopass :: fn => null()
-        !> The completion category (the `category' entry of the table's
-        !> metadata), empty for none.
-        character(len=:), allocatable :: category
-    end type completion_table_type
 
     !> True means don't consider case significant in completion.
     !> For file-name completion, `read_file_name_completion_ignore_case'
@@ -589,38 +548,6 @@ contains
     ! ------------------------------------------------------------------
     ! Completion primitives
     ! ------------------------------------------------------------------
-
-    !> A completion table holding the list `list' (strings, symbols, or
-    !> lists whose first element is the completion), in completion
-    !> category `category'.
-    function completion_list_table(list, category) result(table)
-        type(value_type), intent(in) :: list
-        character(len=*), intent(in), optional :: category
-        type(completion_table_type) :: table
-        table%kind = TABLE_LIST
-        table%list = list
-        if (present(category)) table%category = category
-    end function completion_list_table
-
-    !> A completion table holding the names of all interned symbols, in
-    !> completion category `category'.
-    function completion_obarray_table(category) result(table)
-        character(len=*), intent(in), optional :: category
-        type(completion_table_type) :: table
-        table%kind = TABLE_OBARRAY
-        if (present(category)) table%category = category
-    end function completion_obarray_table
-
-    !> A completion table computed by `fn' (programmed completion), in
-    !> completion category `category' (the table's metadata).
-    function completion_function_table(fn, category) result(table)
-        procedure(completion_function) :: fn
-        character(len=*), intent(in), optional :: category
-        type(completion_table_type) :: table
-        table%kind = TABLE_FUNCTION
-        table%fn => fn
-        if (present(category)) table%category = category
-    end function completion_function_table
 
     !> The elements of a non-function table: `elts' (the list elements or
     !> symbols, given to the predicate) and the string each one completes

@@ -74,11 +74,22 @@ module minibuffer_fm
                          file_name_nondirectory, file_exists_p, file_name_as_directory
     use subr_fm, only: add_to_history, history_delete_duplicates
     use files_fm, only: abbreviate_file_name
+    use minibuf_table_fm, only: capf_data_type
+    use eval_fm, only: capf_hook_type, capf_function, capf_entry_type
+    use marker_fm, only: copy_marker_at, copy_marker, free_marker, marker_buffer, marker_position
+    use keymap_fm, only: push_minor_mode_overriding_map, remove_minor_mode_overriding_map
+    use keyboard_fm, only: post_command_hook, unread_command_events_p, this_command_keys
+    use window_fm, only: same_handle
+    use editfns_fm, only: line_end_position
+    use window_fm, only: set_window_point
+    use modes_fm, only: minor_modes
     implicit none(type, external)
     private
 
     public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer, read_buffer
     public :: completion_insert_strings
+    public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
+              cir_predicate_proc, completion_in_region_proc
     public :: internal_complete_buffer, minibuffer_maybe_quote_filename
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               minibuffer_complete, minibuffer_complete_word, minibuffer_complete_and_exit, &
@@ -251,6 +262,88 @@ module minibuffer_fm
     !> The flex pattern and the costs of the last flex completions.
     character(len=:), allocatable :: flex_pattern_str
     type(flex_cost_type), allocatable :: flex_costs(:)
+
+    abstract interface
+        !> A completion-in-region-mode-predicate: whether
+        !> `completion_in_region_mode' should stay on.
+        recursive logical function cir_predicate_proc()
+            implicit none(type, external)
+        end function cir_predicate_proc
+
+        !> A `completion_in_region_function'.
+        recursive logical function completion_in_region_proc(start, end, collection, predicate)
+            import :: int64, completion_table_type, completion_predicate
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(completion_table_type), intent(in) :: collection
+            procedure(completion_predicate), optional :: predicate
+        end function completion_in_region_proc
+    end interface
+
+    !> Special hook to find the completion table for the entity at point.
+    !> Each function on this hook is called in turn and should return
+    !> either nothing, meaning it is not applicable at point, or the
+    !> completion data (START END COLLECTION . PROPS), where:
+    !>  START and END delimit the entity to complete and should include point,
+    !>  COLLECTION is the completion table to use to complete the entity, and
+    !>  PROPS is a property list for additional information.
+    !> Currently supported properties are:
+    !>  `predicate'        a predicate that completion candidates need to satisfy.
+    !>  `exclusive'        false means that if the completion table fails to
+    !>    match the text at point, then instead of reporting a completion
+    !>    failure, the completion should try the next completion function.
+    !> As is the case with most hooks, the functions are responsible for
+    !> preserving things like point and current buffer.
+    !>
+    !> NOTE: These functions should be cheap to run since they're sometimes
+    !> run from `post_command_hook'; and they should ideally only choose
+    !> which kind of completion table to use, and not pre-filter it based
+    !> on the current text between START and END (e.g., they should not
+    !> obey `completion_styles').  Port of minibuffer.el
+    !> completion-at-point-functions (its default,
+    !> tags-completion-at-point-function, is deferred with etags; it finds
+    !> nothing without a tags table).
+    type(capf_hook_type), target, public :: completion_at_point_functions = &
+                                            capf_hook_type(name="completion_at_point_functions")
+
+    !> Function to perform the job of `completion_in_region'.
+    !> The function is called with 4 arguments: START END COLLECTION
+    !> PREDICATE.  The arguments and expected return value are as
+    !> specified for `completion_in_region'; null for the default,
+    !> `completion_in_region_default'.  Port of minibuffer.el
+    !> completion-in-region-function.
+    procedure(completion_in_region_proc), pointer, public :: completion_in_region_function => null()
+
+    !> Predicate to tell `completion_in_region_mode' when to exit.
+    !> It is called with no argument and should return false when
+    !> `completion_in_region_mode' should exit (and hence pop down
+    !> the *Completions* buffer).  Port of minibuffer.el
+    !> completion-in-region-mode-predicate.
+    procedure(cir_predicate_proc), pointer, public :: completion_in_region_mode_predicate => null()
+
+    !> Copy of the value of `completion_in_region_mode_predicate'.
+    !> This holds the value `completion_in_region_mode_predicate' had when
+    !> we entered `completion_in_region_mode'.  Port of minibuffer.el
+    !> completion-in-region-mode--predicate.
+    procedure(cir_predicate_proc), pointer :: cir_mode_predicate => null()
+
+    !> completion-in-region--data: the start and end markers, the table
+    !> and the predicate (`cir_data' false for nil).
+    logical :: cir_data = .false.
+    type(handle_type) :: cir_start, cir_end
+    type(completion_table_type) :: cir_table
+    procedure(completion_predicate), pointer :: cir_pred => null()
+
+    !> The closure of completion-at-point's predicate `capf_same_field':
+    !> the hook function and the start marker, while completing; and the
+    !> copy kept while `completion_in_region_mode' is on.
+    procedure(capf_function), pointer :: capf_field_fun => null(), cir_mode_capf_fun => null()
+    type(handle_type) :: capf_field_start, cir_mode_capf_start
+
+    !> Keymap activated during `completion_in_region'.  Port of
+    !> minibuffer.el completion-in-region-mode-map (RET, M-<up>, M-<down>
+    !> and M-RET, which choose from *Completions*, are deferred).
+    type(handle_type), public :: completion_in_region_mode_map
 
     interface
         !> Try to complete STRING using completion table TABLE.
@@ -586,6 +679,13 @@ contains
         call abort_minibuffers(status, yes_or_no_p)
     end subroutine cmd_abort_minibuffers
 
+    !> Transient minor mode used during `completion_in_region'.  Port of
+    !> minibuffer.el:completion-in-region-mode.
+    subroutine cmd_completion_in_region_mode(status)
+        type(status_type), intent(out) :: status
+        call minor_modes%completion_in_region_mode%command(status)
+    end subroutine cmd_completion_in_region_mode
+
     subroutine cmd_minibuffer_complete(status)
         type(status_type), intent(out) :: status
         call minibuffer_complete(status)
@@ -682,6 +782,15 @@ contains
         commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
         commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
         call completion_settings_defaults()
+        commands%completion_at_point%run => completion_at_point
+        commands%completion_help_at_point%run => completion_help_at_point
+        commands%completion_in_region_mode%run => cmd_completion_in_region_mode
+        call minor_modes%completion_in_region_mode%define("completion_in_region_mode", global=.true., &
+                                                          body=completion_in_region_mode_body)
+        if (keymap_live_p(completion_in_region_mode_map)) call free_keymap(completion_in_region_mode_map, status)
+        call make_sparse_keymap(completion_in_region_mode_map)
+        call bind(completion_in_region_mode_map, "M-?", "completion_help_at_point")
+        call bind(completion_in_region_mode_map, "TAB", "completion_at_point")
         call bind(minibuffer_local_map, "C-g", "abort_minibuffers")
         call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
         call bind(minibuffer_local_map, "RET", "exit_minibuffer")
@@ -1131,9 +1240,75 @@ contains
     subroutine minibuffer_complete(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg
-        integer :: bits
+        logical :: res
         beg = completion_prompt_end(status)
         if (.not. status%ok()) return
+        if (associated(minibuffer_completion_predicate)) then
+            res = completion_in_region(beg, point_max(), minibuffer_completion_table, minibuffer_completion_predicate)
+        else
+            res = completion_in_region(beg, point_max(), minibuffer_completion_table)
+        end if
+    end subroutine minibuffer_complete
+
+    !> Complete the text between START and END using COLLECTION.
+    !> Point needs to be somewhere between START and END.
+    !> PREDICATE says which candidates to accept (upstream's argument is a
+    !> predicate on candidates, documented as one that says when to exit).
+    !> This calls the function that `completion_in_region_function'
+    !> specifies (passing the same four arguments that it received) to do
+    !> the work, and returns whatever it does.  The return value should be
+    !> false if there was no valid completion, else true.  Port of
+    !> minibuffer.el:completion-in-region.
+    recursive logical function completion_in_region(start, end, collection, predicate) result(res)
+        integer(int64), intent(in) :: start, end
+        type(completion_table_type), intent(in) :: collection
+        procedure(completion_predicate), optional :: predicate
+        if (associated(completion_in_region_function)) then
+            res = completion_in_region_function(start, end, collection, predicate)
+        else
+            res = completion_in_region_default(start, end, collection, predicate)
+        end if
+    end function completion_in_region
+
+    !> Default function to use for `completion_in_region_function'.
+    !> Its arguments and return value are as specified for
+    !> `completion_in_region'.  Port of minibuffer.el:completion--in-region
+    !> (no `completion_in_region_functions', which is obsolete).
+    recursive logical function completion_in_region_default(start, end, collection, predicate) result(res)
+        integer(int64), intent(in) :: start, end
+        type(completion_table_type), intent(in) :: collection
+        procedure(completion_predicate), optional :: predicate
+        type(completion_table_type) :: saved_table
+        procedure(completion_predicate), pointer :: saved_pred
+        type(status_type) :: st
+        saved_table = minibuffer_completion_table
+        saved_pred => minibuffer_completion_predicate
+        minibuffer_completion_table = collection
+        minibuffer_completion_predicate => null()
+        if (present(predicate)) minibuffer_completion_predicate => predicate
+        if (associated(completion_in_region_mode_predicate)) then
+            call free_cir_data()
+            call copy_marker_at(start, cir_start, .false., st)
+            call copy_marker_at(end, cir_end, .true., st)
+            cir_table = collection
+            cir_pred => null()
+            if (present(predicate)) cir_pred => predicate
+            cir_data = .true.
+            call minor_modes%completion_in_region_mode%enable(st)
+        end if
+        res = completion_in_region_1(start, end)
+        minibuffer_completion_table = saved_table
+        minibuffer_completion_predicate => saved_pred
+    end function completion_in_region_default
+
+    !> Port of minibuffer.el:completion--in-region-1 (no cycling and no
+    !> `completion_auto_select').
+    recursive logical function completion_in_region_1(beg, end) result(res)
+        integer(int64), intent(in) :: beg, end
+        type(handle_type) :: window
+        type(status_type) :: st
+        integer :: bits
+        res = .false.
         ! If the previous command was not this, mark the completion buffer
         ! obsolete.
         this_command = sym("completion_at_point")
@@ -1141,11 +1316,254 @@ contains
         ! If there's a fresh completion window with a live buffer, and this
         ! command is repeated, scroll that window.
         if (window_live_p(minibuffer_scroll_window)) then
-            call scroll_completions(minibuffer_scroll_window)
+            window = minibuffer_scroll_window
+            if (backtab_p()) then
+                call reverse_scroll_completions(window)
+            else
+                call scroll_completions(window)
+            end if
             return
         end if
-        bits = completion_do_completion(beg, point_max(), .false., .false.)
-    end subroutine minibuffer_complete
+        bits = completion_do_completion(beg, end, .false., .false.)
+        res = bits /= 0
+        if (.not. window_live_p(minibuffer_scroll_window)) call minor_modes%completion_in_region_mode%disable(st)
+    contains
+
+        !> Whether the keys of this command are [backtab].
+        logical function backtab_p()
+            backtab_p = .false.
+            if (.not. allocated(this_command_keys)) return
+            if (size(this_command_keys) /= 1) return
+            backtab_p = value_eq(this_command_keys(1), sym("backtab"))
+        end function backtab_p
+    end function completion_in_region_1
+
+    !> Reverse tab in the completion list WINDOW: if its beginning is in
+    !> view, scroll up to the end, else scroll down one screen.
+    subroutine reverse_scroll_completions(window)
+        type(handle_type), intent(in) :: window
+        type(status_type) :: status
+        type(handle_type) :: old
+        integer(int64) :: zv, begv
+        old = current_buffer()
+        call set_buffer(windows(window%index)%buffer, status)
+        if (.not. status%ok()) return
+        zv = buffers(cur)%zv
+        begv = buffers(cur)%begv
+        call set_buffer(old, status)
+        if (pos_visible_in_window_p(begv, window)) then
+            call set_window_point(windows(window%index), zv, status)
+        else
+            call scroll_window(window, -1, status)
+        end if
+    end subroutine reverse_scroll_completions
+
+    !> Forget completion-in-region--data, freeing its markers.
+    subroutine free_cir_data()
+        type(status_type) :: st
+        if (cir_start%index /= 0) call free_marker(cir_start, st)
+        if (cir_end%index /= 0) call free_marker(cir_end, st)
+        cir_start = null_handle()
+        cir_end = null_handle()
+        cir_pred => null()
+        cir_data = .false.
+    end subroutine free_cir_data
+
+    !> completion-in-region-mode's post-command-hook function: leave the
+    !> mode once point leaves the completed text (up to the end of its
+    !> line) or the mode's predicate says so.  Port of
+    !> minibuffer.el:completion-in-region--postch.
+    recursive subroutine completion_in_region_postch(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: b
+        integer(int64) :: start, end, saved
+        logical :: stay
+        status = status_type()
+        ! Don't pop down the completions in the middle of
+        ! mouse-drag-region/mouse-set-point.
+        if (unread_command_events_p()) return
+        stay = .false.
+        if (cir_data) then
+            call marker_buffer(cir_start, b, status)
+            if (status%ok() .and. same_handle(b, current_buffer())) then
+                call marker_position(cir_start, start, status)
+                call marker_position(cir_end, end, status)
+                if (point() >= start) then
+                    saved = point()
+                    call goto_char(end)
+                    end = line_end_position(1_int64)
+                    call goto_char(saved)
+                    if (point() <= end) then
+                        if (associated(cir_mode_predicate)) stay = cir_mode_predicate()
+                    end if
+                end if
+            end if
+        end if
+        status = status_type()
+        if (.not. stay) call minor_modes%completion_in_region_mode%disable(status)
+    end subroutine completion_in_region_postch
+
+    !> The body of `completion_in_region_mode'.  Port of
+    !> minibuffer.el:completion-in-region-mode.
+    recursive subroutine completion_in_region_mode_body(enable, status)
+        logical, intent(in) :: enable
+        type(status_type), intent(out) :: status
+        type(window_type), pointer :: w
+        status = status_type()
+        call post_command_hook%remove(completion_in_region_postch)
+        call remove_minor_mode_overriding_map("completion_in_region_mode")
+        if (.not. enable) then
+            call free_cir_data()
+            call free_capf_field(cir_mode_capf_start)
+            cir_mode_capf_fun => null()
+            w => frame_selected_window_ref()
+            if (buffers(w%buffer%index)%name /= "*Completions*") call minibuffer_hide_completions()
+        else
+            cir_mode_predicate => completion_in_region_mode_predicate
+            ! The closure of `capf_same_field'.
+            call free_capf_field(cir_mode_capf_start)
+            cir_mode_capf_fun => capf_field_fun
+            if (capf_field_start%index /= 0) call copy_marker(capf_field_start, cir_mode_capf_start, .false., status)
+            status = status_type()
+            call post_command_hook%add(completion_in_region_postch)
+            call push_minor_mode_overriding_map("completion_in_region_mode", completion_in_region_mode_map)
+        end if
+    end subroutine completion_in_region_mode_body
+
+    subroutine free_capf_field(m)
+        type(handle_type), intent(inout) :: m
+        type(status_type) :: st
+        if (m%index /= 0) call free_marker(m, st)
+        m = null_handle()
+    end subroutine free_capf_field
+
+    !> The completion data of the first function of
+    !> `completion_at_point_functions' that applies at point (with a
+    !> non-exclusive table, only if prefix completion of the text before
+    !> point finds something).  Port of minibuffer.el:completion--capf-wrapper
+    !> run through run-hook-wrapped.
+    recursive subroutine run_capfs(data, fn)
+        type(capf_data_type), intent(out) :: data
+        procedure(capf_function), pointer, intent(out) :: fn
+        type(capf_entry_type), allocatable :: fns(:)
+        type(value_type) :: v
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        integer :: k
+        fn => null()
+        fns = completion_at_point_functions%functions()
+        do k = 1, size(fns)
+            call fns(k)%fn(data, st)
+            if (.not. st%ok() .or. .not. data%found) cycle
+            if (.not. data%exclusive) then
+                call buffer_substring(data%start, point(), text, st)
+                if (associated(data%predicate)) then
+                    call try_completion(text, data%table, v, st, data%predicate)
+                else
+                    call try_completion(text, data%table, v, st)
+                end if
+                if (nilp(v)) then
+                    data%found = .false.
+                    cycle
+                end if
+            end if
+            fn => fns(k)%fn
+            return
+        end do
+        data = capf_data_type()
+    end subroutine run_capfs
+
+    !> completion-at-point's completion-in-region-mode-predicate: we're
+    !> still in the same completion field.
+    recursive logical function capf_same_field() result(same)
+        type(capf_data_type) :: data
+        type(status_type) :: st
+        integer(int64) :: start
+        same = .false.
+        if (.not. associated(cir_mode_capf_fun)) return
+        call cir_mode_capf_fun(data, st)
+        if (.not. st%ok() .or. .not. data%found) return
+        call marker_position(cir_mode_capf_start, start, st)
+        same = data%start == start
+    end function capf_same_field
+
+    !> Perform completion on the text around point.
+    !> The completion method is determined by
+    !> `completion_at_point_functions'.  Port of
+    !> minibuffer.el:completion-at-point.
+    recursive subroutine completion_at_point(status)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+        procedure(capf_function), pointer :: fn, saved_fun
+        procedure(cir_predicate_proc), pointer :: saved_pred
+        type(handle_type) :: saved_start
+        logical :: res
+        status = status_type()
+        call run_capfs(data, fn)
+        if (.not. data%found) return
+        saved_fun => capf_field_fun
+        saved_start = capf_field_start
+        saved_pred => completion_in_region_mode_predicate
+        capf_field_fun => fn
+        call copy_marker_at(data%start, capf_field_start, .false., status)
+        completion_in_region_mode_predicate => capf_same_field
+        if (associated(data%predicate)) then
+            res = completion_in_region(data%start, data%end, data%table, data%predicate)
+        else
+            res = completion_in_region(data%start, data%end, data%table)
+        end if
+        call free_capf_field(capf_field_start)
+        capf_field_fun => saved_fun
+        capf_field_start = saved_start
+        completion_in_region_mode_predicate => saved_pred
+        status = status_type()
+    end subroutine completion_at_point
+
+    !> Display the completions on the text around point.
+    !> The completion method is determined by
+    !> `completion_at_point_functions'.  Port of
+    !> minibuffer.el:completion-help-at-point (ONLY-IF-EAGER, for the
+    !> deferred eager display, is left out).
+    recursive subroutine completion_help_at_point(status)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+        procedure(capf_function), pointer :: fn, saved_fun
+        procedure(cir_predicate_proc), pointer :: saved_pred
+        type(completion_table_type) :: saved_table
+        procedure(completion_predicate), pointer :: saved_mb_pred
+        type(handle_type) :: saved_start
+        status = status_type()
+        call run_capfs(data, fn)
+        if (.not. data%found) then
+            call message("Nothing to complete at point")
+            return
+        end if
+        saved_table = minibuffer_completion_table
+        saved_mb_pred => minibuffer_completion_predicate
+        saved_fun => capf_field_fun
+        saved_start = capf_field_start
+        saved_pred => completion_in_region_mode_predicate
+        minibuffer_completion_table = data%table
+        minibuffer_completion_predicate => data%predicate
+        capf_field_fun => fn
+        call copy_marker_at(data%start, capf_field_start, .false., status)
+        completion_in_region_mode_predicate => capf_same_field
+        call free_cir_data()
+        call copy_marker_at(data%start, cir_start, .false., status)
+        call copy_marker_at(data%end, cir_end, .true., status)
+        cir_table = data%table
+        cir_pred => data%predicate
+        cir_data = .true.
+        call minor_modes%completion_in_region_mode%enable(status)
+        call minibuffer_completion_help(data%start, data%end)
+        call free_capf_field(capf_field_start)
+        capf_field_fun => saved_fun
+        capf_field_start = saved_start
+        completion_in_region_mode_predicate => saved_pred
+        minibuffer_completion_table = saved_table
+        minibuffer_completion_predicate => saved_mb_pred
+        status = status_type()
+    end subroutine completion_help_at_point
 
     !> Complete the minibuffer contents at most a single word.
     !> After one word is completed as much as possible, a space or hyphen

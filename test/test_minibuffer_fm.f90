@@ -36,7 +36,18 @@ module test_minibuffer_fm
     use minibuf_fm, only: completion_table_type, completion_list_table, completion_function_table, &
                           completion_ignore_case
     use minibuffer_fm, only: completion_try_completion, completion_all_completions, try_result_type, TRY_STRING, &
-                             TRY_NONE, completion_styles, internal_complete_buffer
+                             TRY_NONE, completion_styles, internal_complete_buffer, completion_at_point_functions
+    use minibuf_table_fm, only: capf_data_type
+    use test_support, only: show_alone
+    use keymap_fm, only: key_parse
+    use keyboard_fm, only: unread_command_events, discard_input, command_loop
+    use bindings_fm, only: init_bindings
+    use buffer_fm, only: set_buffer, buffers, cur
+    use insdel_fm, only: insert
+    use editfns_fm, only: buffer_string, point, goto_char
+    use modes_fm, only: minor_modes
+    use window_fm, only: get_buffer_window, window_live_p
+    use buffer_fm, only: get_buffer
     implicit none(type, external)
     private
 
@@ -65,7 +76,9 @@ contains
                     new_unittest("completion-flex-test-3", test_flex_3), &
                     new_unittest("flex-non-ascii", test_flex_non_ascii), &
                     new_unittest("default-styles-pcm", test_default_styles), &
-                    new_unittest("buffer-category-substring", test_buffer_category) &
+                    new_unittest("buffer-category-substring", test_buffer_category), &
+                    new_unittest("completion-at-point", test_completion_at_point), &
+                    new_unittest("completion-at-point-non-exclusive", test_capf_non_exclusive) &
                     ]
     end subroutine collect_minibuffer_fm
 
@@ -356,4 +369,113 @@ contains
         call check(error, list_length(all) == 1, "substring match")
         call kill_buffer(buf, st)
     end subroutine test_buffer_category
+
+    !> A completion-at-point function completing the letters and digits
+    !> before point from foo1, foo2 and bar.
+    recursive subroutine test_capf(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer(int64) :: start
+        status = status_type()
+        text = buffer_string()
+        start = point()
+        do while (start > 1)
+            if (index("abcdefghijklmnopqrstuvwxyz0123456789", text(start - 1:start - 1)) == 0) exit
+            start = start - 1
+        end do
+        data%found = .true.
+        data%start = start
+        data%end = point()
+        data%table = table_of([character(len=4) :: "foo1", "foo2", "bar"])
+    end subroutine test_capf
+
+    !> A non-exclusive completion-at-point function offering zzz.
+    recursive subroutine test_capf_zzz(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call test_capf(data, status)
+        data%table = table_of([character(len=3) :: "zzz"])
+        data%exclusive = .false.
+    end subroutine test_capf_zzz
+
+    subroutine type_keys(keys)
+        character(len=*), intent(in) :: keys
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        call key_parse(keys, evs, st)
+        call unread_command_events(evs)
+    end subroutine type_keys
+
+    subroutine capf_buffer(buf, text)
+        type(handle_type), intent(out) :: buf
+        character(len=*), intent(in) :: text
+        type(status_type) :: st
+        call init_bindings()
+        call discard_input()
+        call get_buffer_create("capf-test", buf, st)
+        call set_buffer(buf, st)
+        call show_alone()
+        call insert(text, st)
+    end subroutine capf_buffer
+
+    !> C-M-i completes the text before point, then shows *Completions*
+    !> in completion-in-region-mode, which ends once point leaves the
+    !> field.
+    subroutine test_completion_at_point(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf, comp
+        type(status_type) :: st
+        call capf_buffer(buf, "x fo")
+        call completion_at_point_functions%add(test_capf, local=.true.)
+        call type_keys("C-M-i")
+        call command_loop(st)
+        call check(error, buffer_string() == "x foo", buffer_string())
+        if (allocated(error)) return
+        call check(error,.not. minor_modes%completion_in_region_mode%enabled(), "mode off")
+        if (allocated(error)) return
+        call type_keys("C-M-i")
+        call command_loop(st)
+        call check(error, minor_modes%completion_in_region_mode%enabled(), "mode on")
+        if (allocated(error)) return
+        comp = get_buffer("*Completions*")
+        call check(error, window_live_p(get_buffer_window(comp)), "*Completions* shown")
+        if (allocated(error)) return
+        call type_keys("C-a")
+        call command_loop(st)
+        call check(error,.not. minor_modes%completion_in_region_mode%enabled(), "mode off after C-a")
+        if (allocated(error)) return
+        call check(error,.not. window_live_p(get_buffer_window(comp)), "*Completions* hidden")
+        call kill_buffer(buf, st)
+        call show_alone()
+    end subroutine test_completion_at_point
+
+    !> A non-exclusive function whose table does not match lets the next
+    !> one complete.
+    subroutine test_capf_non_exclusive(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buf
+        type(status_type) :: st
+        call capf_buffer(buf, "x b")
+        call completion_at_point_functions%add(test_capf, local=.true.)
+        call completion_at_point_functions%add(test_capf_zzz, local=.true.)
+        call type_keys("C-M-i")
+        call command_loop(st)
+        call check(error, buffer_string() == "x bar", buffer_string())
+        if (allocated(error)) return
+        call erase_all()
+        call insert("x z", st)
+        call type_keys("C-M-i")
+        call command_loop(st)
+        call check(error, buffer_string() == "x zzz", buffer_string())
+        call kill_buffer(buf, st)
+        call show_alone()
+    contains
+        subroutine erase_all()
+            use buffer_fm, only: erase_buffer
+            type(status_type) :: st2
+            call erase_buffer(st2)
+        end subroutine erase_all
+    end subroutine test_capf_non_exclusive
 end module test_minibuffer_fm

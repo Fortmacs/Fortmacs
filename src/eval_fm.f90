@@ -50,12 +50,13 @@ module eval_fm
     use lisp_fm, only: value_type, nil, command_proc
     use callint_fm, only: funcall, current_prefix_arg
     use buffer_fm, only: buffers, cur
+    use minibuf_table_fm, only: capf_data_type
     implicit none(type, external)
     private
 
     public :: funcall_noargs, kill_local_hooks
     public :: change_function, after_change_function, position_function, region_function, region_entry_type
-    public :: string_function, string_filter_function
+    public :: string_function, string_filter_function, capf_function, capf_entry_type
 
     !> The value `current_prefix_arg' had where the normal hook whose
     !> function is running was run.  The functions of a normal hook run
@@ -127,7 +128,23 @@ module eval_fm
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
         end subroutine string_filter_function
+
+        !> A function of a `capf_hook_type' hook such as
+        !> `completion_at_point_functions': the completion data for the
+        !> entity at point, if it applies there.
+        recursive subroutine capf_function(data, status)
+            import :: capf_data_type, status_type
+            implicit none(type, external)
+            type(capf_data_type), intent(out) :: data
+            type(status_type), intent(out) :: status
+        end subroutine capf_function
     end interface
+
+    !> A function of a `capf_hook_type' hook, as `capf_hook_functions'
+    !> lists them.
+    type :: capf_entry_type
+        procedure(capf_function), pointer, nopass :: fn => null()
+    end type capf_entry_type
 
     !> A function of a `region_hook_type' hook, as `region_hook_functions'
     !> lists them.
@@ -147,6 +164,7 @@ module eval_fm
         procedure(region_function), pointer, nopass :: region_fn => null()
         procedure(string_function), pointer, nopass :: string_fn => null()
         procedure(string_filter_function), pointer, nopass :: string_filter_fn => null()
+        procedure(capf_function), pointer, nopass :: capf_fn => null()
         integer :: depth = 0
         logical :: is_t = .false.
     end type hook_entry_type
@@ -305,6 +323,21 @@ module eval_fm
         procedure :: member => string_filter_hook_member
     end type string_filter_hook_type
 
+    !> A hook of functions giving the completion data at point
+    !> (`capf_function'), like `completion_at_point_functions'.
+    type, extends(hook_base_type), public :: capf_hook_type
+    contains
+        !> Add a function to the hook (subr.el's add-hook).
+        procedure :: add => capf_hook_add
+        !> Remove a function from the hook (subr.el's remove-hook).
+        procedure :: remove => capf_hook_remove
+        !> The functions run in the current buffer, in order (for
+        !> run-hook-wrapped).
+        procedure :: functions => capf_hook_functions
+        !> Whether FN is one of the functions run in the current buffer.
+        procedure :: member => capf_hook_member
+    end type capf_hook_type
+
     !> Normal hook run before changing the major mode of a buffer.
     !> The function `kill_all_local_variables' runs this before doing
     !> anything else.  Port of buffer.c change-major-mode-hook.
@@ -347,6 +380,8 @@ contains
             if (associated(b%string_fn)) same = associated(a%string_fn, b%string_fn)
         else if (associated(a%string_filter_fn)) then
             if (associated(b%string_filter_fn)) same = associated(a%string_filter_fn, b%string_filter_fn)
+        else if (associated(a%capf_fn)) then
+            if (associated(b%capf_fn)) same = associated(a%capf_fn, b%capf_fn)
         end if
     end function same_function
 
@@ -1074,6 +1109,76 @@ contains
             n = n + 1
         end subroutine push
     end function region_hook_functions
+
+    !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
+    subroutine capf_hook_add(self, fn, depth, local)
+        class(capf_hook_type), intent(inout), target :: self
+        procedure(capf_function) :: fn
+        integer, intent(in), optional :: depth
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%capf_fn => fn
+        call self%add_entry(e, depth, local)
+    end subroutine capf_hook_add
+
+    !> Remove FN from the hook, as `hook_remove' does.
+    !> Port of subr.el:remove-hook.
+    subroutine capf_hook_remove(self, fn, local)
+        class(capf_hook_type), intent(inout) :: self
+        procedure(capf_function) :: fn
+        logical, intent(in), optional :: local
+        type(hook_entry_type) :: e
+        e%capf_fn => fn
+        call self%remove_entry(e, local)
+    end subroutine capf_hook_remove
+
+    logical function capf_hook_member(self, fn) result(found)
+        class(capf_hook_type), intent(in) :: self
+        procedure(capf_function) :: fn
+        type(hook_entry_type) :: e
+        e%capf_fn => fn
+        found = self%member_entry(e)
+    end function capf_hook_member
+
+    !> The functions of the hook run in the current buffer, in order: the
+    !> buffer's own, with the global ones in place of `t'.
+    function capf_hook_functions(self) result(fns)
+        class(capf_hook_type), intent(in) :: self
+        type(capf_entry_type), allocatable :: fns(:)
+        type(hook_entry_type), allocatable :: entries(:)
+        integer :: i, j, k, n
+        allocate (fns(0))
+        k = local_index(self)
+        if (k > 0) then
+            entries = self%locals(k)%entries
+        else if (allocated(self%entries)) then
+            entries = self%entries
+        else
+            return
+        end if
+        n = 0
+        do i = 1, size(entries)
+            if (entries(i)%is_t) then
+                if (.not. allocated(self%entries)) cycle
+                do j = 1, size(self%entries)
+                    if (self%entries(j)%is_t) cycle
+                    call push(self%entries(j))
+                end do
+            else
+                call push(entries(i))
+            end if
+        end do
+    contains
+        subroutine push(e)
+            type(hook_entry_type), intent(in) :: e
+            type(capf_entry_type), allocatable :: grown(:)
+            allocate (grown(size(fns) + 1))
+            grown(1:size(fns)) = fns
+            grown(size(fns) + 1)%fn => e%capf_fn
+            call move_alloc(grown, fns)
+            n = n + 1
+        end subroutine push
+    end function capf_hook_functions
 
     !> The entries run in the current buffer, in order: the buffer's own,
     !> with the global ones in place of `t' (copies, in case a function

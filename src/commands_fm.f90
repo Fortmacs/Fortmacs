@@ -122,6 +122,10 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: complete_symbol
+        type(command_type) :: completion_at_point
+        type(command_type) :: completion_help_at_point
+        type(command_type) :: completion_in_region_mode
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -547,7 +551,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(509) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(513) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -638,6 +642,10 @@ module commands_fm
                                                                  "compilation_shell_minor_mode", &
                                                                  "compile", &
                                                                  "compile_goto_error", &
+                                                                 "complete_symbol", &
+                                                                 "completion_at_point", &
+                                                                 "completion_help_at_point", &
+                                                                 "completion_in_region_mode", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -1247,6 +1255,14 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("complete_symbol")
+            p => commands%complete_symbol
+        case ("completion_at_point")
+            p => commands%completion_at_point
+        case ("completion_help_at_point")
+            p => commands%completion_help_at_point
+        case ("completion_in_region_mode")
+            p => commands%completion_in_region_mode
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
