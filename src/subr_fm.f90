@@ -23,7 +23,7 @@
 !> `add_to_history', and the match data helpers (`match_string',
 !> `string_match_p', `looking_at_p', `looking_back').
 module subr_fm
-    use error_fm, only: status_type, set_error, FM_QUIT
+    use error_fm, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use lisp_fm, only: value_type, fixnump, xfixnum, nil, nilp, listp, make_string, cons, list_length, list_elt, &
                        make_keymap_ref, symbolp, xsymbol, symbols, &
@@ -86,7 +86,7 @@ module subr_fm
     !> subr.el after-change-major-mode-hook.
     type(hook_type), public, target :: after_change_major_mode_hook = hook_type(name="after_change_major_mode_hook")
     public :: match_string, match_string_no_properties, string_match_p, looking_at_p, looking_back, &
-              match_substitute_replacement
+              match_substitute_replacement, subregexp_context_p
 
     !> Give KEY a global binding as COMMAND (a command name or any key
     !> definition).
@@ -714,6 +714,32 @@ contains
         call replace_match(replacement, status, fixedcase, literal, match, subexp, text)
         call set_match_data(saved)
     end function match_substitute_replacement
+
+    !> Return true if POS is in a normal subregexp context in REGEXP.
+    !> A subregexp context is one where a sub-regexp can appear.
+    !> A non-subregexp context is for example within brackets, or within a
+    !> repetition bounds operator `\{...\}', or right after a `\'.
+    !> If START is present, it should be a position in REGEXP, smaller
+    !> than POS, and known to be in a subregexp context.  (POS and START are
+    !> 1-based character indices: the text before the character at POS
+    !> is examined.)  Port of subr.el:subregexp-context-p.
+    recursive logical function subregexp_context_p(regexp, pos, status, start) result(context)
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(in) :: pos
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start
+        integer(int64) :: b, e, idx
+        b = 0
+        if (present(start)) b = string_index_to_offset(regexp, start)
+        e = string_index_to_offset(regexp, pos)
+        idx = string_match(regexp(b + 1:e), "", status, inhibit_modify=.true.)
+        context = .true.
+        if (status%code /= FM_INVALID_REGEXP) return
+        context = .not. (status%detail == """Unmatched [ or [^""" .or. status%detail == """Unmatched \{""" .or. &
+                         status%detail == """Trailing backslash""")
+        status = status_type()
+        if (idx < 0) continue
+    end function subregexp_context_p
 
     !> Same as `string_match' except this function does not change the
     !> match data.  Port of subr.el:string-match-p.
