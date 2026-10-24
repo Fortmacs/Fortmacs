@@ -232,7 +232,7 @@ module syntax_fm
         !> Comments are ignored if `parse_sexp_ignore_comments' is true.
         !>
         !> If we reach the beginning or end of the accessible part of the buffer
-        !> before we have scanned over COUNT lists, return 0 (nil) if the depth at
+        !> before we have scanned over COUNT lists, return 0 if the depth at
         !> that point is zero, and signal an error if the depth is nonzero.
         !> Port of syntax.c:Fscan_lists (the error is `scan_error').
         module integer(int64) function scan_lists(from, count, depth, status) result(pos)
@@ -250,7 +250,7 @@ module syntax_fm
         !> If the beginning or end of (the accessible part of) the buffer is reached
         !> in the middle of a parenthetical grouping, an error is signaled.
         !> If the beginning or end is reached between groupings
-        !> but before count is used up, 0 (nil) is returned.  Port of
+        !> but before count is used up, 0 is returned.  Port of
         !> syntax.c:Fscan_sexps.
         module integer(int64) function scan_sexps(from, count, status) result(pos)
             implicit none(type, external)
@@ -258,7 +258,7 @@ module syntax_fm
             type(status_type), intent(out) :: status
         end function scan_sexps
 
-        !> Parse Lisp syntax starting at FROM until TO; return status of parse at TO.
+        !> Parse syntax starting at FROM until TO; return status of parse at TO.
         !> Parsing stops at TO or when certain criteria are met;
         !>  point is set to where parsing stops.
         !>
@@ -458,7 +458,7 @@ contains
     end subroutine copy_syntax_table
 
     !> Return a new syntax table.
-    !> Create a syntax table that inherits from OLDTABLE (if non-nil) or
+    !> Create a syntax table that inherits from OLDTABLE (if present) or
     !> from `standard_syntax_table' otherwise.  Port of
     !> subr.el:make-syntax-table.
     subroutine make_syntax_table(h, status, oldtable)
@@ -905,11 +905,11 @@ contains
     end function scan_words
 
     !> Move point forward ARG words (backward if ARG is negative).
-    !> If ARG is omitted or nil, move point forward one word.
-    !> Normally returns t.
+    !> If ARG is omitted, move point forward one word.
+    !> Normally returns true (in OK).
     !> If an edge of the buffer or a field boundary is reached, point is
-    !> left there and the function returns nil.  Field boundaries are not
-    !> noticed if `inhibit_field_text_motion' is non-nil.
+    !> left there and the function returns false.  Field boundaries are not
+    !> noticed if `inhibit_field_text_motion' is true.
     !>
     !> The word boundaries are normally determined by the buffer's syntax
     !> table and character script (according to `char_script_table').
@@ -935,7 +935,7 @@ contains
     end subroutine forward_word
 
     !> Move point forward ARG words (backward if ARG is negative).
-    !> If ARG is omitted or nil, move point forward one word.
+    !> If ARG is omitted, move point forward one word.
     !> If an edge of the buffer or a field boundary is reached, point is
     !> left there.
     !>

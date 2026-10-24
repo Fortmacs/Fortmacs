@@ -70,7 +70,7 @@ module fns_fm
 
     interface
         !> Ask user a yes-or-no question.
-        !> Return t if answer is yes, and nil if the answer is no.
+        !> Return true if answer is yes, and false if the answer is no.
         !>
         !> PROMPT is the string to display to ask the question; `yes_or_no_p'
         !> appends `yes_or_no_prompt' (default "(yes or no) ") to it.  If
@@ -80,7 +80,7 @@ module fns_fm
         !> The user must confirm the answer with RET, and can edit it until it
         !> has been confirmed.
         !>
-        !> If the `use_short_answers' variable is non-nil, instead of asking for
+        !> If the `use_short_answers' variable is true, instead of asking for
         !> "yes" or "no", this function will ask for "y" or "n" (and
         !> ignore the value of `yes_or_no_prompt').  Port of
         !> fns.c:Fyes_or_no_p (no dialog boxes).  (In submodule fns_ask_fm,

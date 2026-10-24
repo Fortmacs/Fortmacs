@@ -804,7 +804,7 @@ contains
             if (.not. status%ok()) return
             if (tolen /= nlen) then
                 call set_error(status, FM_GENERIC_ERROR, &
-                               format_message("Characters in `subst-char-in-region' have different byte-lengths"))
+                               format_message("Characters in `subst_char_in_region' have different byte-lengths"))
                 return
             end if
         else

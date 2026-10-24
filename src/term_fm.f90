@@ -65,8 +65,10 @@ module term_fm
               tty_insert_glyphs, tty_delete_glyphs, tty_ins_del_lines, &
               turn_on_face, turn_off_face, encode_terminal_code, tty_capable_p
 
-    !> term.c's Lisp variables visible-bell, inverse-video and
-    !> visible-cursor.
+    !> True means try to flash the frame to represent a bell.
+    !>
+    !> See also `ring_bell_function'.  Port of dispnew.c visible-bell (with
+    !> dispnew.c inverse-video and term.c visible-cursor, declared with it).
     logical, public :: visible_bell = .false., inverse_video = .false., &
                        visible_cursor = .true.
 

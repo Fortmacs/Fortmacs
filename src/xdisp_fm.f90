@@ -107,21 +107,22 @@ module xdisp_fm
     !> (one value for all buffers until buffer-local variables exist).
     type(integer_setting), public :: tab_width = integer_setting(name="tab_width", value=8)
 
-    !> Non-nil means truncate lines in windows narrower than the frame.
-    !> For an integer value, truncate lines in each window narrower than the
+    !> A nonzero value means truncate lines in windows narrower than the frame.
+    !> For a value other than huge(0), truncate lines in each window narrower than the
     !> full frame width, provided the total window width in column units is less
     !> than that integer; otherwise, respect the value of `truncate_lines'.
     !> The total width of the window is as returned by `window_total_width', it
     !> includes the fringes, the continuation and truncation glyphs, the
     !> display margins (if any), and the scroll bar
     !>
-    !> For any other non-nil value, truncate lines in all windows that do
+    !> For huge(0), truncate lines in all windows that do
     !> not span the full frame width.
     !>
-    !> A value of nil means to respect the value of `truncate_lines'.
+    !> A value of 0 means to respect the value of `truncate_lines'.
     !>
-    !> In Fortran: 0 is nil, `huge(0)' any other non-nil value.  Port of
-    !> xdisp.c truncate-partial-width-windows; the truncation itself is
+    !> Port of
+    !> xdisp.c truncate-partial-width-windows (0 for nil, huge(0) for any
+    !> other non-nil value); the truncation itself is
     !> not ported yet (Deferred), only commands that test the variable.
     integer, public :: truncate_partial_width_windows = 50
 

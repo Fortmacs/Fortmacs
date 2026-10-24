@@ -52,15 +52,15 @@ module derived_fm
 
     public :: major_mode_named, derived_mode_p, provided_mode_derived_p
 
-    !> Return non-nil if the current major mode is derived from one of
+    !> Return true if the current major mode is derived from one of
     !> MODES (mode objects, or names).  MODES can also be a single mode
-    !> instead of a list.  Port of subr.el:derived-mode-p.
+    !> instead of an array.  Port of subr.el:derived-mode-p.
     interface derived_mode_p
         module procedure derived_mode_p_object, derived_mode_p_names, derived_mode_p_name
     end interface derived_mode_p
 
-    !> Non-nil if MODE is derived from a mode that is a member of the list
-    !> MODES.  MODES can also be a single mode instead of a list.  Port of
+    !> True if MODE is derived from a mode that is a member of the array
+    !> MODES.  MODES can also be a single mode instead of an array.  Port of
     !> subr.el:provided-mode-derived-p.
     interface provided_mode_derived_p
         module procedure provided_mode_derived_p_names, provided_mode_derived_p_name

@@ -143,7 +143,7 @@ contains
                     discard = .false.
                     buffer = current_buffer()
                 else if (.not. nilp(destination)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call-process")
+                    call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
                     return
                 end if
             else if (bufferp(destination)) then
@@ -158,7 +158,7 @@ contains
                 call get_buffer_create(xstring(destination), buffer, status)
                 if (.not. status%ok()) return
             else
-                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call-process")
+                call set_error(status, FM_GENERIC_ERROR, "Invalid destination for call_process")
                 return
             end if
         end if

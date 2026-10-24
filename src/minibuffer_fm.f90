@@ -142,8 +142,8 @@ module minibuffer_fm
     !> command, unlike the display), for programs and tests.
     character(len=:), allocatable, public :: last_minibuffer_message
 
-    !> Maximum height for *Completions* buffer window (0 for no maximum:
-    !> nil).  Port of minibuffer.el completions-max-height.
+    !> Maximum height for *Completions* buffer window (0 for no maximum).
+    !> Port of minibuffer.el completions-max-height.
     integer, public :: completions_max_height = 0
 
     !> True means when reading a filename start with default dir in minibuffer.
@@ -235,7 +235,7 @@ contains
     !>
     !> If the user exits with an empty minibuffer, return an empty
     !> string.  (This happens only if the user erases the pre-inserted
-    !> contents, or if `insert_default_directory' is nil.)
+    !> contents, or if `insert_default_directory' is false.)
     !>
     !> Fourth arg MUSTMATCH can take the following values:
     !> - REQUIRE_MATCH_NIL means that the user can exit with any input.
@@ -1152,7 +1152,7 @@ contains
     end function completion_prompt_end
 
     !> Complete the minibuffer contents as far as possible.
-    !> Return nil if there is no valid completion, else t.  If no
+    !> Return false if there is no valid completion, else true.  If no
     !> characters can be completed, display a list of possible
     !> completions.  If you repeat this command after it displayed such a
     !> list, scroll the window of possible completions.  Port of
@@ -1180,7 +1180,7 @@ contains
     !> Complete the minibuffer contents at most a single word.
     !> After one word is completed as much as possible, a space or hyphen
     !> is added, provided that matches some possible completion.  Return
-    !> nil if there is no valid completion, else t.  Port of
+    !> false if there is no valid completion, else true.  Port of
     !> minibuffer.el:minibuffer-complete-word.
     subroutine minibuffer_complete_word(status)
         type(status_type), intent(out) :: status
@@ -1509,11 +1509,11 @@ contains
     !>  instead of that empty string; the prompt shows it.
     !> Optional third arg REQUIRE_MATCH has the same meaning as the
     !>  REQUIRE_MATCH argument of `completing_read'.
-    !> If `read_buffer_completion_ignore_case' is non-nil, completion ignores
+    !> If `read_buffer_completion_ignore_case' is true, completion ignores
     !> case while reading the buffer name.
-    !> The buffer `except' (if given) is left out of the completions, as
-    !> internal-complete-buffer-except does (read-buffer-to-switch puts that
-    !> table in the minibuffer).  Port of minibuf.c:Fread_buffer (no
+    !> The buffer `except' (if given) is left out of the completions.  Port
+    !> of minibuf.c:Fread_buffer (`except' as internal-complete-buffer-except;
+    !> read-buffer-to-switch puts that table in the minibuffer; no
     !> PREDICATE or read-buffer-function).
     recursive subroutine read_buffer(prompt, result, status, def, require_match, except)
         character(len=*), intent(in) :: prompt

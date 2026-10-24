@@ -87,11 +87,11 @@ module isearch_fm
     !> Values of `search_upper_case': nil, t and `not_yanks'.
     integer, parameter, public :: UPPER_CASE_NIL = 0, UPPER_CASE_T = 1, UPPER_CASE_NOT_YANKS = 2
 
-    !> If non-nil, upper case chars disable case fold searching.
+    !> If not UPPER_CASE_NIL, upper case chars disable case fold searching.
     !> That is, upper and lower case chars must match exactly.
     !> This applies no matter where the chars come from, but does not
     !> apply to chars in regexps that are prefixed with `\'.
-    !> If this value is `not_yanks', text yanked into the search string
+    !> If this value is UPPER_CASE_NOT_YANKS, text yanked into the search string
     !> in Isearch mode is always downcased.  Port of isearch.el
     !> search-upper-case.
     integer, public :: search_upper_case = UPPER_CASE_NOT_YANKS
@@ -683,7 +683,7 @@ contains
 
     !> Exit search normally.
     !> However, if this is the first command after starting incremental
-    !> search and `search_nonincremental_instead' is non-nil, do a
+    !> search and `search_nonincremental_instead' is true, do a
     !> nonincremental search instead via `isearch_edit_string'.  Port of
     !> isearch.el:isearch-exit.
     subroutine isearch_exit(status)
@@ -1441,7 +1441,7 @@ contains
     end subroutine isearch_yank_internal
 
     !> Pull next character from buffer into search string.
-    !> If optional ARG is non-nil, pull in the next ARG characters.  Port
+    !> If optional ARG is given, pull in the next ARG characters.  Port
     !> of isearch.el:isearch-yank-char.
     subroutine isearch_yank_char(arg)
         integer(int64), intent(in) :: arg
@@ -1449,7 +1449,7 @@ contains
     end subroutine isearch_yank_char
 
     !> Pull next character or word from buffer into search string.
-    !> If optional ARG is non-nil, pull in the next ARG characters/words.
+    !> If optional ARG is given, pull in the next ARG characters/words.
     !> Port of isearch.el:isearch-yank-word-or-char.
     subroutine isearch_yank_word_or_char(arg)
         integer(int64), intent(in) :: arg
@@ -1467,7 +1467,7 @@ contains
     end function char_after
 
     !> Pull rest of line from buffer into search string.
-    !> If optional ARG is non-nil, yank the next ARG lines.  Port of
+    !> If optional ARG is given, yank the next ARG lines.  Port of
     !> isearch.el:isearch-yank-line.
     subroutine isearch_yank_line(arg)
         integer(int64), intent(in) :: arg

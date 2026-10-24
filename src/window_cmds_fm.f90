@@ -212,11 +212,11 @@ contains
     end subroutine split_window
 
     !> Split WINDOW_TO_SPLIT into two windows, one above the other.
-    !> WINDOW_TO_SPLIT defaults to the selected window if omitted or nil.
+    !> WINDOW_TO_SPLIT defaults to the selected window if omitted.
     !> The newly created window will be below WINDOW_TO_SPLIT and will show
     !> the same buffer as WINDOW_TO_SPLIT.
     !>
-    !> If optional argument SIZE is omitted or nil, both windows get the
+    !> If optional argument SIZE is omitted, both windows get the
     !> same height, or close to it.  If SIZE is positive, the upper
     !> (selected) window gets SIZE lines.  If SIZE is negative, the
     !> lower (new) window gets -SIZE lines.  Interactively, SIZE is
@@ -234,11 +234,11 @@ contains
     end subroutine cmd_split_window_below
 
     !> Split WINDOW_TO_SPLIT into two side-by-side windows.
-    !> WINDOW_TO_SPLIT defaults to the selected window if omitted or nil.
+    !> WINDOW_TO_SPLIT defaults to the selected window if omitted.
     !> The newly created window will be to the right of WINDOW_TO_SPLIT and
     !> will show the same buffer as WINDOW_TO_SPLIT.
     !>
-    !> If optional argument SIZE is omitted or nil, both windows get the
+    !> If optional argument SIZE is omitted, both windows get the
     !> same width, or close to it.  If SIZE is positive, the left-hand
     !> (selected) window gets SIZE columns.  If SIZE is negative, the
     !> right-hand (new) window gets -SIZE columns.  Here, SIZE includes
@@ -611,7 +611,7 @@ contains
 
     !> Kill the buffer specified by BUFFER_OR_NAME.
     !> The argument may be a buffer or the name of an existing buffer.
-    !> Argument nil or omitted means kill the current buffer.
+    !> Argument omitted means kill the current buffer.
     !>
     !> A modified buffer visiting a file is killed only after asking (and
     !> perhaps saving it).  Port of buffer.c:Fkill_buffer (the command:

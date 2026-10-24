@@ -197,7 +197,7 @@ contains
     end function indent
 
     !> Allow COMMAND to be executed without special confirmation from now on.
-    !> COMMAND must be a symbol.
+    !> COMMAND is a command name.
     !> This command alters the user's init file so that this will apply
     !> to future sessions.  Port of novice.el:enable-command.
     subroutine enable_command(command, status)
@@ -207,7 +207,7 @@ contains
     end subroutine enable_command
 
     !> Require special confirmation to execute COMMAND from now on.
-    !> COMMAND must be a symbol.
+    !> COMMAND is a command name.
     !> This command alters your init file so that this choice applies to
     !> future sessions.  Port of novice.el:disable-command.
     subroutine disable_command(command, status)

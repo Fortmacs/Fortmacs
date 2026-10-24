@@ -25,8 +25,13 @@ module test_help_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nil
-    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p
+    use lisp_fm, only: value_type, nil, t_value, make_fixnum, make_string, make_list
+    use lread_fm, only: sym
+    use print_fm, only: fortran_repr
+    use callint_fm, only: current_prefix_arg
+    use files_fm, only: require_final_newline, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_NEVER
+    use buffer_fm, only: buffers, cur, get_buffer_create, get_buffer, set_buffer, current_buffer, buffer_modified_p, &
+                         auto_fill_function
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, window_leaves, delete_other_windows, switch_to_buffer, resize_window_tree
     use editfns_fm, only: buffer_string
@@ -36,7 +41,7 @@ module test_help_fm
     use bindings_fm, only: init_bindings
     use xdisp_fm, only: tab_width
     use isearch_fm, only: search_upper_case, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
-    use simple_fm, only: fill_prefix
+    use simple_fm, only: fill_prefix, do_auto_fill
     use help_fm, only: substitute_command_keys, with_help_window
     use help_fns_fm, only: describe_function_1, describe_variable_text
     implicit none(type, external)
@@ -64,6 +69,9 @@ contains
                     new_unittest("describe-function-command", test_describe_command), &
                     new_unittest("describe-function-api", test_describe_api), &
                     new_unittest("describe-variable", test_describe_variable), &
+                    new_unittest("describe-variable-fortran-values", test_variable_values), &
+                    new_unittest("describe-function-fortran-file", test_function_file), &
+                    new_unittest("fortran-repr", test_fortran_repr), &
                     new_unittest("help-empty-input", test_empty_input), &
                     new_unittest("help-window-and-quit", test_help_window), &
                     new_unittest("describe-key", test_describe_key), &
@@ -313,7 +321,7 @@ contains
         call check(error, index(text, "Its value is"//LF//"["".o"", ""~"", ") > 0, text)
         if (allocated(error)) return
         call describe_variable_text("current_prefix_arg", text, found)
-        call check(error, index(text, "Its value is nil"//LF) > 0, text)
+        call check(error, index(text, "Its value is .false."//LF) > 0, text)
         if (allocated(error)) return
         call describe_variable_text("no-such-variable", text, found)
         call check(error,.not. found)
@@ -328,7 +336,7 @@ contains
         if (allocated(error)) return
         ! A value fits on the "Its value is" line when it is shorter than
         ! 56 characters.
-        ! (fill_prefix is nil: unallocated.)
+        ! (fill_prefix is unset: unallocated.)
         fill_prefix = repeat("x", 53)
         call describe_variable_text("fill_prefix", text, found)
         call check(error, index(text, "Its value is """//repeat("x", 53)//""""//LF) > 0, text)
@@ -338,6 +346,97 @@ contains
         deallocate (fill_prefix%value)
         call check(error, index(text, "Its value is"//LF//""""//repeat("x", 54)//""""//LF) > 0, text)
     end subroutine test_describe_variable
+
+    !> C-h v shows every kind of setting as Fortran: logicals, named
+    !> constants of enumerated integer settings, unallocated strings,
+    !> procedure settings by name or null(), and no value line for a
+    !> hook (no printed form yet).
+    subroutine test_variable_values(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: text
+        logical :: found
+        type(value_type) :: elems(1)
+        call fresh_scratch()
+        call describe_variable_text("case_fold_search", text, found)
+        call check(error, index(text, "Its value is .true."//LF) > 0, text)
+        if (allocated(error)) return
+        call describe_variable_text("kill_read_only_ok", text, found)
+        call check(error, index(text, "Its value is .false."//LF) > 0, text)
+        if (allocated(error)) return
+        ! An enumerated integer setting: its named constant, and the one
+        ! it started with.
+        require_final_newline = FINAL_NEWLINE_VISIT
+        call describe_variable_text("require_final_newline", text, found)
+        require_final_newline = FINAL_NEWLINE_NEVER
+        call check(error, index(text, "Its value is FINAL_NEWLINE_VISIT"//LF// &
+                                "Original value was FINAL_NEWLINE_NEVER"//LF) > 0, text)
+        if (allocated(error)) return
+        call describe_variable_text("fill_prefix", text, found)
+        call check(error, index(text, "Its value is unallocated"//LF) > 0, text)
+        if (allocated(error)) return
+        auto_fill_function%value => null()
+        call describe_variable_text("auto_fill_function", text, found)
+        call check(error, index(text, "Its value is null()"//LF) > 0, text)
+        if (allocated(error)) return
+        auto_fill_function%value => do_auto_fill
+        call describe_variable_text("auto_fill_function", text, found)
+        auto_fill_function%value => null()
+        call check(error, index(text, "Its value is do_auto_fill"//LF) > 0, text)
+        if (allocated(error)) return
+        call describe_variable_text("indent_line_function", text, found)
+        call check(error, index(text, "Its value is indent_relative"//LF) > 0, text)
+        if (allocated(error)) return
+        ! A C-u prefix argument.
+        elems(1) = make_fixnum(4_int64)
+        current_prefix_arg = make_list(elems)
+        call describe_variable_text("current_prefix_arg", text, found)
+        current_prefix_arg = nil()
+        call check(error, index(text, "Its value is [4]"//LF) > 0, text)
+        if (allocated(error)) return
+        ! A hook has no printed form yet: the documentation follows the
+        ! Fortran name.
+        call describe_variable_text("text_mode_hook", text, found)
+        call check(error, found .and. index(text, "Its value") == 0 .and. index(text, "Original value") == 0 .and. &
+                   index(text, "Its Fortran name is "//LQ//"text_mode_hook"//RQ//"."//LF//LF//"Normal hook run") > 0, text)
+    end subroutine test_variable_values
+
+    !> C-h f names the Fortran source file, as upstream names the Lisp
+    !> or C one ("kill-line is an interactive byte-compiled Lisp function
+    !> in `simple.el'.").
+    subroutine test_function_file(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: text
+        call fresh_scratch()
+        call describe_function_1("kill_line", text, "kill_line is ")
+        call check(error, index(text, "kill_line is an interactive Fortran subroutine in "//LQ//"simple_fm.f90"//RQ// &
+                                "."//LF//LF) == 1, text)
+        if (allocated(error)) return
+        call describe_function_1("fill_paragraph", text, "fill_paragraph is ")
+        call check(error, index(text, "fill_paragraph is an interactive Fortran subroutine in "//LQ//"fill_fm.f90"// &
+                                RQ//".") == 1, text)
+        if (allocated(error)) return
+        ! A function (not a subroutine) of the config API.
+        call describe_function_1("looking_at", text, "looking_at is ")
+        call check(error, index(text, "looking_at is a Fortran function in "//LQ//"search_fm.f90"//RQ//".") == 1, text)
+    end subroutine test_function_file
+
+    !> Values written as Fortran.
+    subroutine test_fortran_repr(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: elems(3)
+        call check(error, fortran_repr(nil()) == ".false." .and. fortran_repr(t_value()) == ".true.")
+        if (allocated(error)) return
+        call check(error, fortran_repr(make_fixnum(-12_int64)) == "-12", fortran_repr(make_fixnum(-12_int64)))
+        if (allocated(error)) return
+        call check(error, fortran_repr(make_string('say "hi"')) == '"say ""hi"""', fortran_repr(make_string('say "hi"')))
+        if (allocated(error)) return
+        call check(error, fortran_repr(sym("UPPER_CASE_T")) == "UPPER_CASE_T")
+        if (allocated(error)) return
+        elems(1) = make_fixnum(1_int64)
+        elems(2) = make_string("a")
+        elems(3) = nil()
+        call check(error, fortran_repr(make_list(elems)) == '[1, "a", .false.]', fortran_repr(make_list(elems)))
+    end subroutine test_fortran_repr
 
     !> Empty input to C-h f, C-h v and C-h w is an error.
     subroutine test_empty_input(error)

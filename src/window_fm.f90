@@ -135,8 +135,8 @@ module window_fm
     !> none).  Port of window.c minibuffer-scroll-window.
     type(handle_type), public :: minibuffer_scroll_window
 
-    !> If non-nil, `display_buffer' marks the windows it creates as
-    !> dedicated.  The actual non-nil value of this variable will be copied
+    !> If not DEDICATED_NONE, `display_buffer' marks the windows it creates as
+    !> dedicated.  The actual value of this variable will be copied
     !> to the `window_dedicated_p' flag.  Port of window.el
     !> display-buffer-mark-dedicated (DEDICATED_NONE, DEDICATED_WEAK for a
     !> non-nil value other than t, DEDICATED_STRONG for t).
@@ -292,11 +292,11 @@ module window_fm
     ! move by screen lines (indent_fm), which depends on this module.
     interface
         !> Scroll text of selected window upward ARG lines.
-        !> If ARG is omitted or nil, scroll upward by a near full screen.
+        !> If ARG is .false. (no prefix argument), scroll upward by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll downward.  If ARG is the
-        !> atom `-', scroll downward by nearly full screen.  When calling
-        !> from a program, supply as argument a number, nil, or `-'.
+        !> full screen.  Negative ARG means scroll downward.  If ARG is
+        !> `-', scroll downward by nearly full screen.  When calling
+        !> from a program, supply as argument an integer, .false., or `-'.
         !> Port of window.c:Fscroll_up.
         module subroutine scroll_up(arg, status)
             implicit none(type, external)
@@ -305,11 +305,11 @@ module window_fm
         end subroutine scroll_up
 
         !> Scroll text of selected window down ARG lines.
-        !> If ARG is omitted or nil, scroll down by a near full screen.
+        !> If ARG is .false. (no prefix argument), scroll down by a near full screen.
         !> A near full screen is `next_screen_context_lines' less than a
-        !> full screen.  Negative ARG means scroll upward.  If ARG is the
-        !> atom `-', scroll upward by nearly full screen.  When calling
-        !> from a program, supply as argument a number, nil, or `-'.
+        !> full screen.  Negative ARG means scroll upward.  If ARG is
+        !> `-', scroll upward by nearly full screen.  When calling
+        !> from a program, supply as argument an integer, .false., or `-'.
         !> Port of window.c:Fscroll_down.
         module subroutine scroll_down(arg, status)
             implicit none(type, external)
@@ -323,7 +323,7 @@ module window_fm
         !> negative, it counts up from the bottom of the window.  (ARG
         !> should be less than the height of the window.)
         !>
-        !> If ARG is omitted or nil, then recenter with point on the middle
+        !> If ARG is .false., then recenter with point on the middle
         !> line of the selected window; if REDISPLAY is true, also erase the
         !> entire frame and redraw it.  Interactively, REDISPLAY is always
         !> true.
@@ -339,7 +339,7 @@ module window_fm
         end subroutine recenter
 
         !> Position point relative to window.
-        !> ARG nil means position point at center of window.
+        !> ARG .false. means position point at center of window.
         !> Else, ARG specifies vertical position within the window;
         !> zero means top of window, negative means relative to bottom
         !> of window, -1 meaning the last fully visible display line
@@ -361,13 +361,13 @@ module window_fm
         !> a full screen.  If given a `C-u -' prefix, scroll a full page
         !> down instead.
         !>
-        !> If `scroll_error_top_bottom' is non-nil and `scroll_up' cannot
+        !> If `scroll_error_top_bottom' is true and `scroll_up' cannot
         !> scroll window further, move cursor to the bottom line.
         !> When point is already on that position, then signal an error.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll downward.
         !>
-        !> If ARG is the atom `-', scroll downward by nearly full screen.
+        !> If ARG is `-', scroll downward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of
@@ -385,13 +385,13 @@ module window_fm
         !> by a full screen.  If given a `C-u -' prefix, scroll a full page
         !> up instead.
         !>
-        !> If `scroll_error_top_bottom' is non-nil and `scroll_down' cannot
+        !> If `scroll_error_top_bottom' is true and `scroll_down' cannot
         !> scroll window further, move cursor to the top line.
         !> When point is already on that position, then signal an error.
         !> A near full screen is `next_screen_context_lines' less than a
         !> full screen.  Negative ARG means scroll upward.
         !>
-        !> If ARG is the atom `-', scroll upward by nearly full screen.
+        !> If ARG is `-', scroll upward by nearly full screen.
         !>
         !> The command \[set_goal_column] can be used to create a
         !> semipermanent goal column for this command.  Port of

@@ -131,7 +131,7 @@ module register_fm
 
     !> The registers, one element for each Emacs register, the most
     !> recently made first.  NAME is a character (a number).  The value
-    !> is text, a number, a buffer position, a rectangle (a list of
+    !> is text, a number, a buffer position, a rectangle (an array of
     !> strings), a file name, a position in a file to visit again (a
     !> file-query reference), a buffer, or a window configuration with
     !> a saved value of point.  Set it with `set_register' and the register

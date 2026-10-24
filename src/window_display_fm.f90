@@ -937,7 +937,7 @@ contains
 
     !> Quit WINDOW and bury its buffer.
     !> WINDOW must be a live window and defaults to the selected one.
-    !> With prefix argument KILL non-nil, kill the buffer instead of
+    !> With prefix argument KILL true, kill the buffer instead of
     !> burying it.
     !>
     !> This calls the function `quit_restore_window' to delete WINDOW or
@@ -958,14 +958,13 @@ contains
 
     !> Quit WINDOW and bury its buffer.
     !> WINDOW must be a live window and defaults to the selected one.
-    !> With prefix argument KILL non-nil, kill the buffer instead of
-    !> burying it.  If `quit_window_kill_buffer' is non-nil, perhaps
-    !> kill the buffer even if KILL is nil; see the doc string of
+    !> With prefix argument KILL true, kill the buffer instead of
+    !> burying it.  If `quit_window_kill_buffer' is true, perhaps
+    !> kill the buffer even if KILL is false; see the doc string of
     !> that variable for the details.
     !>
     !> This calls the function `quit_restore_window' to delete WINDOW or
-    !> show some other buffer in it.  See Info node `(elisp) Quitting
-    !> Windows' for more details.
+    !> show some other buffer in it.
     !>
     !> The functions in `quit_window_hook' will be run before doing
     !> anything else.  Port of window.el:quit-window (the command).
@@ -1013,11 +1012,11 @@ contains
 
     !> Put BUFFER_OR_NAME at the end of the list of all buffers.
     !> There it is the least likely candidate for `other_buffer' to
-    !> return; thus, the least likely buffer for \[switch-to-buffer] to
+    !> return; thus, the least likely buffer for \[switch_to_buffer] to
     !> select by default.
     !>
-    !> If BUFFER_OR_NAME is nil or omitted, bury the current buffer.
-    !> Also, if BUFFER_OR_NAME is nil or omitted, remove the current
+    !> If BUFFER_OR_NAME is omitted, bury the current buffer.
+    !> Also, if BUFFER_OR_NAME is omitted, remove the current
     !> buffer from the selected window if it is displayed there.  Port of
     !> window.el:bury-buffer.
     module subroutine bury_buffer(status, buffer)
@@ -1048,12 +1047,12 @@ contains
 
     !> Put BUFFER_OR_NAME at the end of the list of all buffers.
     !> There it is the least likely candidate for `other_buffer' to
-    !> return; thus, the least likely buffer for \[switch-to-buffer] to
+    !> return; thus, the least likely buffer for \[switch_to_buffer] to
     !> select by default.
     !>
     !> You can specify a buffer name as BUFFER_OR_NAME, or an actual
-    !> buffer object.  If BUFFER_OR_NAME is nil or omitted, bury the
-    !> current buffer.  Also, if BUFFER_OR_NAME is nil or omitted,
+    !> buffer object.  If BUFFER_OR_NAME is omitted, bury the
+    !> current buffer.  Also, if BUFFER_OR_NAME is omitted,
     !> remove the current buffer from the selected window if it is
     !> displayed there.  Port of window.el:bury-buffer (the command).
     subroutine cmd_bury_buffer(status)

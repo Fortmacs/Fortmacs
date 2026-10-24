@@ -1290,7 +1290,7 @@ contains
                     call goto_char(opoint)
                     replaced = .true.
                 case (ANSWER_DIFF)
-                    call message("The diff answer needs diff-mode, which is not ported yet")
+                    call message("The diff answer needs diff_mode, which is not ported yet")
                     call ding()
                     call sit_for(1000)
                 case (ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN)

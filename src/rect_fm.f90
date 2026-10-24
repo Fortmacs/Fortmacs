@@ -194,7 +194,7 @@ contains
     !> columns of the rectangle (the extra ARGS are ACTION's components).
     !> Point is at the beginning of line when it is called.
     !> The final point after the last operation is returned in
-    !> FINAL_POINT.  Point is kept (save-excursion), also on an error.
+    !> FINAL_POINT.  Point is restored afterwards, also on an error.
     !> Port of rect.el:apply-on-rectangle.
     recursive subroutine apply_on_rectangle(action, start, end, status, final_point)
         class(rectangle_line_action), intent(inout) :: action
