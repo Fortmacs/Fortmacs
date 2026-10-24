@@ -550,7 +550,7 @@ END {
             if (vtype[i] ~ /(integer|logical)_setting\)/) print "            entry%value = repr(" vfort[i] "%value)"
             else if (vtype[i] ~ /string_setting\)/)
                 print "            if (allocated(" vfort[i] "%value)) entry%value = repr(" vfort[i] "%value)"
-            else if (vtype[i] ~ /value_type/) print "            entry%value = prin1_to_string(" vfort[i] ")"
+            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = prin1_to_string(" vfort[i] ")"
             else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/)
                 print "            if (allocated(" vfort[i] ")) entry%value = repr(" vfort[i] ")"
             else if (vtype[i] !~ /^type/) print "            entry%value = repr(" vfort[i] ")"

@@ -34,10 +34,18 @@
 !> Keyboard macros run as upstream (macros.c:Fexecute_kbd_macro): a
 !> command loop reads the macro's events until they run out, and an
 !> error ends the macro and reaches the command loop's error handler.
+!> They are recorded as upstream: every event `read_event' returns while
+!> no macro is executing goes into the macro being defined
+!> (keyboard.c:record_char), the events of a command become part of it
+!> once the command has finished without leaving a prefix argument
+!> (`finalize_kbd_macro_chars' in command_loop_1), and `discard_input'
+!> (so any command error) drops the events of the current command and
+!> ends the definition.  macros.c is the submodule macros_fm.
 !>
 !> Not ported yet: echoing, the echo area and `message' (the last message
 !> is kept in `last_message'), timers, idle hooks and redisplay, mouse and
-!> switch-frame events, keyboard macro recording, `help_char', case
+!> switch-frame events, the (t . EVENT) and (no-record . EVENT) forms of
+!> `unread_command_events', `help_char', case
 !> tables (upper-case fallback is ASCII only), quit while computing (C-g
 !> is an ordinary key), `ring_bell_function', the `minibuffer_quit'
 !> condition (a quit in the minibuffer is handled as any quit) and
@@ -64,6 +72,7 @@ module keyboard_fm
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending
+    use eval_fm, only: hook_type
     implicit none(type, external)
     private
 
@@ -75,7 +84,10 @@ module keyboard_fm
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for, &
               run_at_time, cancel_timer
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
-    public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc
+    public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
+              finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, defining_kbd_macro_p, &
+              syms_of_macros
+    public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
     integer, parameter :: READ_KEY_ELTS = 30
@@ -140,6 +152,12 @@ module keyboard_fm
             implicit none(type, external)
         end subroutine transient_exit_proc
 
+        !> A keyboard macro's LOOPFUNC: called before each iteration of the
+        !> macro, which stops when it returns false.
+        logical function kbd_macro_loop_proc()
+            implicit none(type, external)
+        end function kbd_macro_loop_proc
+
         !> Run a disabled command's handler instead of the command, if
         !> CMD is disabled: `handled' says it was.
         subroutine disabled_command_proc(cmd, handled, status)
@@ -188,6 +206,37 @@ module keyboard_fm
     logical :: macro_started = .false.
     !> macros.c:executing_kbd_macro_iterations.
     integer(int64), public, protected :: executing_kbd_macro_iterations = 0
+    !> Values of `defining_kbd_macro': nil, t and `append'.
+    integer, parameter, public :: DEFINING_KBD_MACRO_NIL = 0, DEFINING_KBD_MACRO_T = 1, DEFINING_KBD_MACRO_APPEND = 2
+
+    !> Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined.
+    !> Don't set this!
+    !> The value is `DEFINING_KBD_MACRO_APPEND' while appending to the
+    !> definition of an existing macro.  Port of macros.c defining-kbd-macro
+    !> (DEFINING_KBD_MACRO_NIL for nil, DEFINING_KBD_MACRO_T for t).
+    integer, public :: defining_kbd_macro = DEFINING_KBD_MACRO_NIL
+
+    !> Last kbd macro defined, as an array of events; not allocated if none
+    !> defined.  Port of macros.c last-kbd-macro (a vector: no string
+    !> macros).
+    type(value_type), allocatable, public :: last_kbd_macro(:)
+
+    !> Normal hook run whenever a keyboard macro terminates.
+    !> This is run whether the macro ends normally or prematurely due to
+    !> an error.  Port of macros.c kbd-macro-termination-hook.
+    type(hook_type), target, public :: kbd_macro_termination_hook = hook_type(name="kbd_macro_termination_hook")
+
+    !> The last input event received.
+    !> This is the last event read by any means, also from a keyboard
+    !> macro.  Port of keyboard.c last-input-event.
+    type(value_type), public :: last_input_event
+
+    !> The keyboard macro being defined (struct kboard's kbd_macro_buffer):
+    !> `kbd_macro_ptr' events stored, of which the first `kbd_macro_end'
+    !> belong to it (the rest are the current command's).
+    type(value_type), allocatable :: kbd_macro_buffer(:)
+    integer(int64) :: kbd_macro_ptr = 0, kbd_macro_end = 0
+
     !> Whether errors of the innermost command loop are handled there
     !> (command_loop_2 with handlers `error'): false in a keyboard macro's
     !> loop, where they end the macro.
@@ -232,7 +281,129 @@ module keyboard_fm
         integer :: start = 0, end = 0
     end type keyremap_type
 
+    !> Execute MACRO as a sequence of events.
+    !> If MACRO is a string or vector, then the events in it are executed
+    !> exactly as if they had been input by the user.
+    !>
+    !> COUNT is a repeat count, or nil for once, or 0 for infinite loop.
+    !>
+    !> Optional third arg LOOPFUNC may be a function that is called prior to
+    !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
+    !> false.
+    !>
+    !> The buffer shown in the currently selected window will be made the current
+    !> buffer before the macro is executed.  Port of
+    !> macros.c:Fexecute_kbd_macro (MACRO is a string, a list of events or
+    !> an array of events; no symbols' function definitions).
+    interface execute_kbd_macro
+        recursive module subroutine execute_kbd_macro_value(macro, count, status, loopfunc)
+            implicit none(type, external)
+            type(value_type), intent(in) :: macro, count
+            type(status_type), intent(out) :: status
+            procedure(kbd_macro_loop_proc), optional :: loopfunc
+        end subroutine execute_kbd_macro_value
+
+        recursive module subroutine execute_kbd_macro_vector(macro, count, status, loopfunc)
+            implicit none(type, external)
+            type(value_type), intent(in) :: macro(:), count
+            type(status_type), intent(out) :: status
+            procedure(kbd_macro_loop_proc), optional :: loopfunc
+        end subroutine execute_kbd_macro_vector
+    end interface execute_kbd_macro
+
+    interface
+        !> Record subsequent keyboard input, defining a keyboard macro.
+        !> The commands are recorded even as they are executed.
+        !> Use \[end_kbd_macro] to finish recording and make the macro available.
+        !> True APPEND (prefix arg) means append to last macro defined;
+        !> this begins by re-executing that macro as if you typed it again.
+        !> If optional second arg, NO_EXEC, is true, do not re-execute last
+        !> macro before appending to it.  Port of macros.c:Fstart_kbd_macro.
+        recursive module subroutine start_kbd_macro(append, no_exec, status)
+            implicit none(type, external)
+            logical, intent(in) :: append, no_exec
+            type(status_type), intent(out) :: status
+        end subroutine start_kbd_macro
+
+        !> Finish defining a keyboard macro.
+        !> The definition was started by \[start_kbd_macro].
+        !> The macro is now available for use via \[call_last_kbd_macro].
+        !>
+        !> With numeric arg, repeat macro now that many times,
+        !> counting the definition just completed as the first repetition.
+        !> An argument of zero means repeat until error.
+        !>
+        !> Optional second arg LOOPFUNC may be a function that is called prior to
+        !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
+        !> false.  Port of macros.c:Fend_kbd_macro (REPEAT is nil or a
+        !> fixnum).
+        recursive module subroutine end_kbd_macro(repeat, status, loopfunc)
+            implicit none(type, external)
+            type(value_type), intent(in) :: repeat
+            type(status_type), intent(out) :: status
+            procedure(kbd_macro_loop_proc), optional :: loopfunc
+        end subroutine end_kbd_macro
+
+        !> Call the last keyboard macro that you defined with \[start_kbd_macro].
+        !>
+        !> A prefix argument serves as a repeat count.  Zero means repeat until error.
+        !>
+        !> Optional second arg LOOPFUNC may be a function that is called prior to
+        !> each iteration of the macro.  Iteration stops if LOOPFUNC returns
+        !> false.  Port of macros.c:Fcall_last_kbd_macro.
+        recursive module subroutine call_last_kbd_macro(prefix, status, loopfunc)
+            implicit none(type, external)
+            type(value_type), intent(in) :: prefix
+            type(status_type), intent(out) :: status
+            procedure(kbd_macro_loop_proc), optional :: loopfunc
+        end subroutine call_last_kbd_macro
+
+        !> Store character C into kbd macro being defined.  Port of
+        !> macros.c:store_kbd_macro_char.
+        module subroutine store_kbd_macro_char(c)
+            implicit none(type, external)
+            type(value_type), intent(in) :: c
+        end subroutine store_kbd_macro_char
+
+        !> Store EVENT into the keyboard macro being defined.  Port of
+        !> macros.c:Fstore_kbd_macro_event.
+        module subroutine store_kbd_macro_event(event)
+            implicit none(type, external)
+            type(value_type), intent(in) :: event
+        end subroutine store_kbd_macro_event
+
+        !> Declare that all chars stored so far in the kbd macro being defined
+        !> really belong to it.  This is done in between editor commands.
+        !> Port of macros.c:finalize_kbd_macro_chars.
+        module subroutine finalize_kbd_macro_chars()
+            implicit none(type, external)
+        end subroutine finalize_kbd_macro_chars
+
+        !> Cancel the events added to a keyboard macro for this command.
+        !> Port of macros.c:Fcancel_kbd_macro_events.
+        module subroutine cancel_kbd_macro_events()
+            implicit none(type, external)
+        end subroutine cancel_kbd_macro_events
+
+        !> Finish defining the current keyboard macro.  Port of
+        !> macros.c:end_kbd_macro.
+        module subroutine finish_kbd_macro()
+            implicit none(type, external)
+        end subroutine finish_kbd_macro
+
+        !> Register the commands of macros.c (syms_of_macros).
+        module subroutine syms_of_macros()
+            implicit none(type, external)
+        end subroutine syms_of_macros
+    end interface
+
 contains
+
+    !> Whether a keyboard macro is being defined (`defining_kbd_macro' is
+    !> not nil).
+    logical function defining_kbd_macro_p()
+        defining_kbd_macro_p = defining_kbd_macro /= DEFINING_KBD_MACRO_NIL
+    end function defining_kbd_macro_p
 
     ! ------------------------------------------------------------------
     ! Input
@@ -378,8 +549,15 @@ contains
         nunread = nunread + n
     end subroutine unread_command_events
 
-    !> Drop all pending input.  Port of keyboard.c:Fdiscard_input.
+    !> Discard the contents of the terminal input buffer.
+    !> Also end any kbd macro being defined.  Port of
+    !> keyboard.c:Fdiscard_input.
     subroutine discard_input()
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL) then
+            ! Discard the last command from the macro.
+            call cancel_kbd_macro_events()
+            call finish_kbd_macro()
+        end if
         nunread = 0
         if (allocated(unread)) deallocate (unread)
         head = 1
@@ -397,8 +575,22 @@ contains
 
     !> The next input event.  Waits for terminal input if there is a
     !> terminal; otherwise `have' is false when the queue is empty (end of
-    !> input).  The core of keyboard.c:read_char.
+    !> input).  The event becomes `last_input_event' and, unless it comes
+    !> from a keyboard macro being executed, goes into the keyboard macro
+    !> being defined.  The core of keyboard.c:read_char, with the macro
+    !> part of record_char.
     subroutine read_event(ev, have, status)
+        type(value_type), intent(out) :: ev
+        logical, intent(out) :: have
+        type(status_type), intent(out) :: status
+        call read_event_1(ev, have, status)
+        if (.not. have) return
+        last_input_event = ev
+        if (.not. macro_active) call store_kbd_macro_char(ev)
+    end subroutine read_event
+
+    !> The next input event (read_event without recording it).
+    subroutine read_event_1(ev, have, status)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
@@ -462,7 +654,7 @@ contains
             ! End of file: the terminal went away.
             if (nread == 0) return
         end do
-    end subroutine read_event
+    end subroutine read_event_1
 
     ! ------------------------------------------------------------------
     ! Key sequences
@@ -908,77 +1100,6 @@ contains
         executing_kbd_macro_p = macro_active
     end function executing_kbd_macro_p
 
-    !> Execute MACRO as a sequence of events.
-    !> If MACRO is a symbol, its function definition is used.  If that is
-    !> another symbol, this process repeats.  Eventually the result should be
-    !> a string or vector.  If the result is not a symbol, string, or vector,
-    !> an error is signaled.
-    !>
-    !> COUNT is a repeat count, or nil for once, or 0 for infinite loop.
-    !>
-    !> The buffer shown in the currently selected window will be made the current
-    !> buffer before the macro is executed.  Port of
-    !> macros.c:Fexecute_kbd_macro (MACRO is a string or a list of events;
-    !> no LOOPFUNC or `kbd_macro_termination_hook').
-    recursive subroutine execute_kbd_macro(macro, count, status)
-        type(value_type), intent(in) :: macro, count
-        type(status_type), intent(out) :: status
-        type(value_type), allocatable :: final(:), saved_events(:)
-        type(value_type) :: saved_real_this_command
-        integer(int64) :: repeat, success_count, saved_index
-        logical :: saved_active, saved_string, saved_forced, saved_handles, done
-        repeat = 1
-        success_count = 0
-        executing_kbd_macro_iterations = 0
-        if (.not. nilp(count)) repeat = prefix_numeric_value(count)
-        if (.not. (stringp(macro) .or. vtag(macro) == V_LIST)) then
-            call set_error(status, FM_GENERIC_ERROR, "Keyboard macros must be strings or vectors")
-            return
-        end if
-        call sequence_events(macro, final)
-        ! record_unwind_protect (pop_kbd_macro, ...)
-        saved_active = macro_active
-        saved_string = macro_string
-        saved_forced = macro_forced_end
-        saved_index = executing_kbd_macro_index
-        if (allocated(macro_events)) call move_alloc(macro_events, saved_events)
-        saved_real_this_command = real_this_command
-        saved_handles = loop_handles_errors
-        do
-            macro_events = final
-            macro_active = .true.
-            macro_string = stringp(macro)
-            macro_forced_end = .false.
-            macro_started = .true.
-            executing_kbd_macro_index = 0
-            prefix_arg = nil()
-            ! command_loop_2 (list1 (Qminibuffer_quit)): run the macro's
-            ! commands until read_key_sequence finds its end; an error
-            ! ends it.
-            loop_handles_errors = .false.
-            do
-                call command_loop_step(done, status)
-                if (.not. status%ok()) exit
-                if (done .or. exit_requested) exit
-            end do
-            if (.not. status%ok()) exit
-            success_count = success_count + 1
-            executing_kbd_macro_iterations = success_count
-            repeat = repeat - 1
-            if (repeat == 0 .or. .not. macro_active) exit
-        end do
-        if (status%ok()) macro_started = .false.
-        ! pop_kbd_macro
-        loop_handles_errors = saved_handles
-        macro_active = saved_active
-        macro_string = saved_string
-        macro_forced_end = saved_forced
-        executing_kbd_macro_index = saved_index
-        if (allocated(macro_events)) deallocate (macro_events)
-        if (allocated(saved_events)) call move_alloc(saved_events, macro_events)
-        real_this_command = saved_real_this_command
-    end subroutine execute_kbd_macro
-
     !> Make the selected window's buffer current (set_buffer_internal
     !> (XBUFFER (XWINDOW (selected_window)->contents)) in
     !> keyboard.c:command_loop_1).
@@ -1066,12 +1187,17 @@ contains
             done = .true.
             return
         end if
-        ! A new command clears the echo area.
-        if (allocated(last_message)) last_message = ""
+        ! A new command clears the echo area (read_char wipes it, except
+        ! for events from a keyboard macro).
+        if (.not. macro_active) then
+            if (allocated(last_message)) last_message = ""
+        end if
         ! minibuffer--delete-message-overlay runs from pre-command-hook.
         if (allocated(minibuffer_message_text)) deallocate (minibuffer_message_text)
         ! read_char's clear_message runs clear-message-function.
-        if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
+        if (.not. macro_active) then
+            if (allocated(set_minibuffer_message_text)) deallocate (set_minibuffer_message_text)
+        end if
         ! Input ended in the middle of a key sequence: it is unbound.
         if (eof) cmd = nil()
         ! Remap command through active keymaps (read_key_sequence_remapped).
@@ -1139,6 +1265,8 @@ contains
                 buffers(cur)%mark_active = .false.
             end if
         end if
+        ! Install chars successfully executed in kbd macro.
+        if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
 

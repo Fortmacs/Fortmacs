@@ -53,6 +53,7 @@ module commands_fm
         type(command_type) :: beginning_of_line_text
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
+        type(command_type) :: call_last_kbd_macro
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: clear_rectangle
@@ -84,6 +85,7 @@ module commands_fm
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: enable_command
+        type(command_type) :: end_kbd_macro
         type(command_type) :: end_of_buffer
         type(command_type) :: end_of_line
         type(command_type) :: exchange_point_and_mark
@@ -171,6 +173,36 @@ module commands_fm
         type(command_type) :: kill_sexp
         type(command_type) :: kill_whole_line
         type(command_type) :: kill_word
+        type(command_type) :: kmacro_add_counter
+        type(command_type) :: kmacro_call_macro
+        type(command_type) :: kmacro_call_macro_repeat
+        type(command_type) :: kmacro_call_ring_2nd
+        type(command_type) :: kmacro_call_ring_2nd_repeat
+        type(command_type) :: kmacro_cycle_ring_next
+        type(command_type) :: kmacro_cycle_ring_previous
+        type(command_type) :: kmacro_delete_ring_head
+        type(command_type) :: kmacro_end_and_call_macro
+        type(command_type) :: kmacro_end_macro
+        type(command_type) :: kmacro_end_or_call_macro
+        type(command_type) :: kmacro_end_or_call_macro_repeat
+        type(command_type) :: kmacro_insert_counter
+        type(command_type) :: kmacro_quit_counter_equal
+        type(command_type) :: kmacro_quit_counter_greater
+        type(command_type) :: kmacro_quit_counter_less
+        type(command_type) :: kmacro_redisplay
+        type(command_type) :: kmacro_reg_add_counter_equal
+        type(command_type) :: kmacro_reg_add_counter_greater
+        type(command_type) :: kmacro_reg_add_counter_less
+        type(command_type) :: kmacro_reg_load_counter
+        type(command_type) :: kmacro_reg_save_counter
+        type(command_type) :: kmacro_set_counter
+        type(command_type) :: kmacro_set_format
+        type(command_type) :: kmacro_start_macro
+        type(command_type) :: kmacro_start_macro_or_insert_counter
+        type(command_type) :: kmacro_swap_ring
+        type(command_type) :: kmacro_view_macro
+        type(command_type) :: kmacro_view_macro_repeat
+        type(command_type) :: kmacro_view_ring_2nd
         type(command_type) :: left_char
         type(command_type) :: left_word
         type(command_type) :: list_registers
@@ -247,6 +279,7 @@ module commands_fm
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
+        type(command_type) :: start_kbd_macro
         type(command_type) :: string_insert_rectangle
         type(command_type) :: string_rectangle
         type(command_type) :: switch_to_buffer
@@ -290,7 +323,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(252) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(285) = [character(len=38) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "append_to_register", &
@@ -312,6 +345,7 @@ module commands_fm
                                                                  "beginning_of_line_text", &
                                                                  "buffer_to_register", &
                                                                  "bury_buffer", &
+                                                                 "call_last_kbd_macro", &
                                                                  "capitalize_region", &
                                                                  "capitalize_word", &
                                                                  "clear_rectangle", &
@@ -343,6 +377,7 @@ module commands_fm
                                                                  "downcase_region", &
                                                                  "downcase_word", &
                                                                  "enable_command", &
+                                                                 "end_kbd_macro", &
                                                                  "end_of_buffer", &
                                                                  "end_of_line", &
                                                                  "exchange_point_and_mark", &
@@ -430,6 +465,36 @@ module commands_fm
                                                                  "kill_sexp", &
                                                                  "kill_whole_line", &
                                                                  "kill_word", &
+                                                                 "kmacro_add_counter", &
+                                                                 "kmacro_call_macro", &
+                                                                 "kmacro_call_macro_repeat", &
+                                                                 "kmacro_call_ring_2nd", &
+                                                                 "kmacro_call_ring_2nd_repeat", &
+                                                                 "kmacro_cycle_ring_next", &
+                                                                 "kmacro_cycle_ring_previous", &
+                                                                 "kmacro_delete_ring_head", &
+                                                                 "kmacro_end_and_call_macro", &
+                                                                 "kmacro_end_macro", &
+                                                                 "kmacro_end_or_call_macro", &
+                                                                 "kmacro_end_or_call_macro_repeat", &
+                                                                 "kmacro_insert_counter", &
+                                                                 "kmacro_quit_counter_equal", &
+                                                                 "kmacro_quit_counter_greater", &
+                                                                 "kmacro_quit_counter_less", &
+                                                                 "kmacro_redisplay", &
+                                                                 "kmacro_reg_add_counter_equal", &
+                                                                 "kmacro_reg_add_counter_greater", &
+                                                                 "kmacro_reg_add_counter_less", &
+                                                                 "kmacro_reg_load_counter", &
+                                                                 "kmacro_reg_save_counter", &
+                                                                 "kmacro_set_counter", &
+                                                                 "kmacro_set_format", &
+                                                                 "kmacro_start_macro", &
+                                                                 "kmacro_start_macro_or_insert_counter", &
+                                                                 "kmacro_swap_ring", &
+                                                                 "kmacro_view_macro", &
+                                                                 "kmacro_view_macro_repeat", &
+                                                                 "kmacro_view_ring_2nd", &
                                                                  "left_char", &
                                                                  "left_word", &
                                                                  "list_registers", &
@@ -506,6 +571,7 @@ module commands_fm
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
+                                                                 "start_kbd_macro", &
                                                                  "string_insert_rectangle", &
                                                                  "string_rectangle", &
                                                                  "switch_to_buffer", &
@@ -595,6 +661,8 @@ contains
             p => commands%buffer_to_register
         case ("bury_buffer")
             p => commands%bury_buffer
+        case ("call_last_kbd_macro")
+            p => commands%call_last_kbd_macro
         case ("capitalize_region")
             p => commands%capitalize_region
         case ("capitalize_word")
@@ -657,6 +725,8 @@ contains
             p => commands%downcase_word
         case ("enable_command")
             p => commands%enable_command
+        case ("end_kbd_macro")
+            p => commands%end_kbd_macro
         case ("end_of_buffer")
             p => commands%end_of_buffer
         case ("end_of_line")
@@ -831,6 +901,66 @@ contains
             p => commands%kill_whole_line
         case ("kill_word")
             p => commands%kill_word
+        case ("kmacro_add_counter")
+            p => commands%kmacro_add_counter
+        case ("kmacro_call_macro")
+            p => commands%kmacro_call_macro
+        case ("kmacro_call_macro_repeat")
+            p => commands%kmacro_call_macro_repeat
+        case ("kmacro_call_ring_2nd")
+            p => commands%kmacro_call_ring_2nd
+        case ("kmacro_call_ring_2nd_repeat")
+            p => commands%kmacro_call_ring_2nd_repeat
+        case ("kmacro_cycle_ring_next")
+            p => commands%kmacro_cycle_ring_next
+        case ("kmacro_cycle_ring_previous")
+            p => commands%kmacro_cycle_ring_previous
+        case ("kmacro_delete_ring_head")
+            p => commands%kmacro_delete_ring_head
+        case ("kmacro_end_and_call_macro")
+            p => commands%kmacro_end_and_call_macro
+        case ("kmacro_end_macro")
+            p => commands%kmacro_end_macro
+        case ("kmacro_end_or_call_macro")
+            p => commands%kmacro_end_or_call_macro
+        case ("kmacro_end_or_call_macro_repeat")
+            p => commands%kmacro_end_or_call_macro_repeat
+        case ("kmacro_insert_counter")
+            p => commands%kmacro_insert_counter
+        case ("kmacro_quit_counter_equal")
+            p => commands%kmacro_quit_counter_equal
+        case ("kmacro_quit_counter_greater")
+            p => commands%kmacro_quit_counter_greater
+        case ("kmacro_quit_counter_less")
+            p => commands%kmacro_quit_counter_less
+        case ("kmacro_redisplay")
+            p => commands%kmacro_redisplay
+        case ("kmacro_reg_add_counter_equal")
+            p => commands%kmacro_reg_add_counter_equal
+        case ("kmacro_reg_add_counter_greater")
+            p => commands%kmacro_reg_add_counter_greater
+        case ("kmacro_reg_add_counter_less")
+            p => commands%kmacro_reg_add_counter_less
+        case ("kmacro_reg_load_counter")
+            p => commands%kmacro_reg_load_counter
+        case ("kmacro_reg_save_counter")
+            p => commands%kmacro_reg_save_counter
+        case ("kmacro_set_counter")
+            p => commands%kmacro_set_counter
+        case ("kmacro_set_format")
+            p => commands%kmacro_set_format
+        case ("kmacro_start_macro")
+            p => commands%kmacro_start_macro
+        case ("kmacro_start_macro_or_insert_counter")
+            p => commands%kmacro_start_macro_or_insert_counter
+        case ("kmacro_swap_ring")
+            p => commands%kmacro_swap_ring
+        case ("kmacro_view_macro")
+            p => commands%kmacro_view_macro
+        case ("kmacro_view_macro_repeat")
+            p => commands%kmacro_view_macro_repeat
+        case ("kmacro_view_ring_2nd")
+            p => commands%kmacro_view_ring_2nd
         case ("left_char")
             p => commands%left_char
         case ("left_word")
@@ -983,6 +1113,8 @@ contains
             p => commands%split_window_below
         case ("split_window_right")
             p => commands%split_window_right
+        case ("start_kbd_macro")
+            p => commands%start_kbd_macro
         case ("string_insert_rectangle")
             p => commands%string_insert_rectangle
         case ("string_rectangle")

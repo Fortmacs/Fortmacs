@@ -37,7 +37,8 @@ module bindings_fm
                          define_key_range, use_global_map, set_keymap_parent, &
                          key_parse, keymap_live_p, free_keymap
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
-    use keyboard_fm, only: local_function_key_map
+    use keyboard_fm, only: local_function_key_map, syms_of_macros
+    use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
@@ -213,6 +214,8 @@ contains
         call syms_of_font_lock()
         call syms_of_rect()
         call syms_of_register()
+        call syms_of_macros()
+        call syms_of_kmacro()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -325,6 +328,14 @@ contains
         call bind(ctl_x_r_map, "B", "buffer_to_register")
         key(1) = make_fixnum(int(iachar("r"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_r_map), status)
+        ! kmacro.el (autoloads): keyboard macros.
+        call bind(ctl_x_map, "(", "kmacro_start_macro")
+        call bind(ctl_x_map, ")", "kmacro_end_macro")
+        call bind(ctl_x_map, "e", "kmacro_end_and_call_macro")
+        call bind(global_map, "<f3>", "kmacro_start_macro_or_insert_counter")
+        call bind(global_map, "<f4>", "kmacro_end_or_call_macro")
+        key(1) = make_fixnum(11_int64)
+        call define_key(ctl_x_map, key, make_keymap_ref(kmacro_keymap), status)
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
@@ -453,6 +464,7 @@ contains
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
         call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
+        call register_keymap_name("kmacro_keymap", kmacro_keymap)
         call register_keymap_name("isearch_mode_map", isearch_mode_map)
         call register_keymap_name("text_mode_map", text_mode_map)
         call register_keymap_name("prog_mode_map", prog_mode_map)

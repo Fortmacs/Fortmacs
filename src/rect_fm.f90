@@ -74,7 +74,7 @@ module rect_fm
               delete_rectangle, delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, &
               kill_rectangle, copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, &
               delete_whitespace_rectangle, string_rectangle, string_insert_rectangle, clear_rectangle, &
-              rectangle_number_lines, spaces_string, syms_of_rect
+              rectangle_number_lines, spaces_string, syms_of_rect, format_integer
 
     !> One line of a rectangle (a string of upstream's list of strings).
     type, public :: rectangle_line_type
