@@ -68,6 +68,9 @@ program tester
     use test_process_fm, only: collect_process_fm
     use test_simple_shell_fm, only: collect_simple_shell_fm
     use test_compile_fm, only: collect_compile_fm
+    use test_ring_fm, only: collect_ring_fm
+    use test_comint_fm, only: collect_comint_fm
+    use test_shell_fm, only: collect_shell_fm
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
     use test_casetab_fm, only: collect_casetab_fm
@@ -123,6 +126,9 @@ program tester
                  new_testsuite("process_fm", collect_process_fm), &
                  new_testsuite("simple_shell_fm", collect_simple_shell_fm), &
                  new_testsuite("compile_fm", collect_compile_fm), &
+                 new_testsuite("ring_fm", collect_ring_fm), &
+                 new_testsuite("comint_fm", collect_comint_fm), &
+                 new_testsuite("shell_fm", collect_shell_fm), &
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &

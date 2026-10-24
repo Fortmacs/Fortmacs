@@ -30,7 +30,8 @@
 !> Upstream's rings hold any objects; the items here are strings (an
 !> unallocated item stands for nil).  Not ported (Deferred): `ring_p' on
 !> arbitrary objects, `ring_copy' (assignment copies a ring),
-!> `ring_next', `ring_previous', `ring_convert_sequence_to_ring'.
+!> `ring_next', `ring_previous', `ring_elements', `ring_insert+extend',
+!> `ring_remove+insert+extend', `ring_convert_sequence_to_ring'.
 module ring_fm
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     implicit none(type, external)

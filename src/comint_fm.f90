@@ -967,14 +967,17 @@ contains
     !> This function blasts any old process running in the buffer, and
     !> does not set the buffer mode.  You can use this to cheaply run a
     !> series of processes in the same Comint buffer.  The hook
-    !> `comint_exec_hook' is run after each exec.  Port of
-    !> comint.el:comint-exec (COMMAND a program).
-    recursive subroutine comint_exec(buffer, name, command, switches, status, startfile)
+    !> `comint_exec_hook' is run after each exec.  ENVIRONMENT, if
+    !> present, are "NAME=VALUE" entries put after Comint's own in the
+    !> process's environment (as binding `process_environment' around the
+    !> call).  Port of comint.el:comint-exec (COMMAND a program).
+    recursive subroutine comint_exec(buffer, name, command, switches, status, startfile, environment)
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: name, command
         type(process_arg_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: startfile
+        type(process_arg_type), intent(in), optional :: environment(:)
         type(handle_type) :: old, proc
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -986,7 +989,7 @@ contains
         proc = get_buffer_process(buffer)
         if (proc%index /= 0) call delete_process(proc, st)
         ! Crank up a new process.
-        call comint_exec_1(name, buffer, command, switches, proc, status)
+        call comint_exec_1(name, buffer, command, switches, proc, status, environment)
         if (.not. status%ok()) then
             if (buffer_live_p(old)) call set_buffer(old, st)
             return
@@ -1033,12 +1036,13 @@ contains
 
     !> Crank up the process for comint-exec in the appropriate environment.
     !> Port of comint.el:comint-exec-1.
-    recursive subroutine comint_exec_1(name, buffer, command, switches, proc, status)
+    recursive subroutine comint_exec_1(name, buffer, command, switches, proc, status, environment)
         character(len=*), intent(in) :: name, command
         type(handle_type), intent(in) :: buffer
         type(process_arg_type), intent(in) :: switches(:)
         type(handle_type), intent(out) :: proc
         type(status_type), intent(out) :: status
+        type(process_arg_type), intent(in), optional :: environment(:)
         type(process_arg_type), allocatable :: env(:), argv(:)
         character(len=:), allocatable :: saved_dir
         logical :: had_dir
@@ -1046,6 +1050,11 @@ contains
         call comint_term_environment(env)
         call append_arg(env, "INSIDE_EMACS="//upstream_version//",comint")
         if (allocated(comint_pager%value)) call append_arg(env, "PAGER="//comint_pager%value)
+        if (present(environment)) then
+            do k = 1, size(environment)
+                call append_arg(env, environment(k)%s)
+            end do
+        end if
         had_dir = allocated(buffers(cur)%directory)
         if (had_dir) saved_dir = buffers(cur)%directory
         if (had_dir) then
@@ -2138,12 +2147,12 @@ contains
             else
                 ! Remember that the process output ends with CR, and thus
                 ! the next output should overwrite the current line.
-                call put_text_property(lbeg, point(), sym("comint_must_overwrite"), t_value(), st)
+                call put_text_property(lbeg, de, sym("comint_must_overwrite"), t_value(), st)
             end if
             call free_marker(delete_end, st)
         end if
-        ! (The region stays narrowed, as upstream; save-excursion restores
-        ! point.)
+        call widen()
+        ! (save-excursion restores point.)
         call marker_position(saved_point, opoint, st)
         call goto_char(opoint)
         call free_marker(saved_point, st)
@@ -2209,6 +2218,7 @@ contains
             ! Run these hooks with point where the user had it.
             call goto_char(marker_pos(saved_point))
             call comint_output_filter_functions%run(text, status)
+
             call set_marker(saved_point, point(), st)
             ! In case a filter moved it.
             call goto_char(marker_pos(pmark))

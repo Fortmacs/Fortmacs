@@ -58,11 +58,13 @@ module files_fm
     use derived_fm, only: major_mode_type, major_mode_named
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     use window_fm, only: pop_to_buffer_same_window
+    use sysdep_fm, only: emacs_readlink
     implicit none(type, external)
     private
 
     public :: syms_of_files
     public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name
+    public :: file_truename
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
@@ -257,6 +259,103 @@ contains
             abbrev = "~"//filename(n + 1:)
         end if
     end function abbreviate_file_name
+
+    !> Return the truename of FILENAME.
+    !> If FILENAME is not absolute, first expands it against
+    !> `default_directory'.  The truename of a file name is found by
+    !> chasing symbolic links both at the level of the file and at the
+    !> level of the directories containing it, until no links are left at
+    !> any level.  Port of files.el:file-truename (no file name handlers).
+    recursive subroutine file_truename(filename_in, truename, status, counter)
+        character(len=*), intent(in) :: filename_in
+        character(len=:), allocatable, intent(out) :: truename
+        type(status_type), intent(out) :: status
+        integer, intent(inout), optional :: counter
+        character(len=:), allocatable :: filename, dir, dirfile, nodir, target, first, rest, base
+        integer :: count, slash
+        logical :: done
+        integer(int32) :: err
+        status = status_type()
+        base = ""
+        if (cur /= 0) then
+            if (allocated(buffers(cur)%directory)) base = buffers(cur)%directory
+        end if
+        filename = filename_in
+        if (len(filename) == 0 .or. filename == "~") then
+            call expand_file_name(filename, filename, status, base)
+            if (.not. status%ok()) return
+            if (len(filename) == 0) filename = "/"
+        else if (filename(1:1) == "~") then
+            ! (string-match "~[^/]*/?" filename)
+            slash = index(filename, "/")
+            if (slash == 0) slash = len(filename)
+            first = filename(1:slash)
+            rest = filename(slash + 1:)
+            call expand_file_name(first, first, status, base)
+            if (.not. status%ok()) return
+            filename = first//rest
+        end if
+        count = 100
+        if (present(counter)) count = counter
+        done = .false.
+        do while (.not. done)
+            count = count - 1
+            if (count < 0) then
+                call set_error(status, FM_GENERIC_ERROR, "Apparent cycle of symbolic links for "//filename)
+                if (present(counter)) counter = count
+                return
+            end if
+            dir = file_name_directory(filename)
+            if (len(dir) == 0) dir = file_name_as_directory(base)
+            ! Get the truename of the directory.
+            dirfile = directory_file_name(dir)
+            ! If these are equal, we have the (or a) root directory.
+            if (dir /= dirfile .or. len(dir) /= len(dirfile)) then
+                call file_truename(dirfile, dir, status, count)
+                if (.not. status%ok()) then
+                    if (present(counter)) counter = count
+                    return
+                end if
+                dir = file_name_as_directory(dir)
+            end if
+            nodir = file_name_nondirectory(filename)
+            if (nodir == "..") then
+                filename = directory_file_name(file_name_directory(directory_file_name(dir)))
+                done = .true.
+            else if (nodir == ".") then
+                filename = directory_file_name(dir)
+                done = .true.
+            else
+                ! Put it back on the file name.
+                filename = dir//nodir
+                ! Is the file name the name of a link?
+                if (file_symlink_p(filename)) then
+                    err = emacs_readlink(filename, target)
+                    if (err /= 0) then
+                        done = .true.
+                    else
+                        ! Yes => chase that link, then start all over since
+                        ! the link may point to a directory name that uses
+                        ! links (files--splice-dirname-file).
+                        if (len(target) > 0) then
+                            if (target(1:1) == "/") then
+                                filename = target
+                            else
+                                filename = dir//target
+                            end if
+                        else
+                            filename = dir
+                        end if
+                    end if
+                else
+                    ! No, we are done!
+                    done = .true.
+                end if
+            end if
+        end do
+        if (present(counter)) counter = count
+        truename = filename
+    end subroutine file_truename
 
     !> A new buffer named after `filename' (sans directory), made unique
     !> with "<N>"; a leading space gets a "|" before it.

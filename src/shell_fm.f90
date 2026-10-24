@@ -566,7 +566,7 @@ contains
         ! really edit this directory.  But it is useful in the buffer list
         ! and menus.
         call expand_file_name(default_directory(), expanded, st)
-        list_buffers_directory = expanded
+        call list_buffers_directory%set_local(expanded)
         ! shell-dependent assignments.
         if (comint_input_ring_length() == 0) then
             k = current_entry()
@@ -665,7 +665,7 @@ contains
         call shell_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call expand_file_name(default_directory(), expanded, st)
-        list_buffers_directory = expanded
+        call list_buffers_directory%set_local(expanded)
         call major_modes%shell_command_mode%finish(saved, status)
     end subroutine shell_command_mode
 
@@ -1003,9 +1003,10 @@ contains
         type(status_type), intent(out) :: status
         status = status_type()
         if (enable) then
-            list_buffers_directory = default_directory()
+            call list_buffers_directory%set_local(default_directory())
             call comint_input_filter_functions%add(shell_directory_tracker, local=.true.)
         else
+            call list_buffers_directory%make_local()
             call list_buffers_directory%clear()
             call comint_input_filter_functions%remove(shell_directory_tracker, local=.true.)
         end if
@@ -1252,7 +1253,7 @@ contains
         type(status_type), intent(out) :: status
         call cd(dir, status)
         if (.not. status%ok()) return
-        if (minor_modes%shell_dirtrack_mode%enabled()) list_buffers_directory = default_directory()
+        if (minor_modes%shell_dirtrack_mode%enabled()) call list_buffers_directory%set_local(default_directory())
     end subroutine shell_cd
 
     !> Show the current dirstack on the message line.

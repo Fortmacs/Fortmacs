@@ -95,8 +95,18 @@ module commands_fm
         type(command_type) :: comint_strip_ctrl_m
         type(command_type) :: comint_truncate_buffer
         type(command_type) :: comint_write_output
+        type(command_type) :: compilation_display_error
+        type(command_type) :: compilation_minor_mode
         type(command_type) :: compilation_mode
+        type(command_type) :: compilation_next_error
+        type(command_type) :: compilation_next_error_function
+        type(command_type) :: compilation_next_file
+        type(command_type) :: compilation_previous_error
+        type(command_type) :: compilation_previous_file
+        type(command_type) :: compilation_set_skip_threshold
+        type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
+        type(command_type) :: compile_goto_error
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -380,7 +390,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(342) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(352) = [character(len=41) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "append_to_register", &
@@ -444,8 +454,18 @@ module commands_fm
                                                                  "comint_strip_ctrl_m", &
                                                                  "comint_truncate_buffer", &
                                                                  "comint_write_output", &
+                                                                 "compilation_display_error", &
+                                                                 "compilation_minor_mode", &
                                                                  "compilation_mode", &
+                                                                 "compilation_next_error", &
+                                                                 "compilation_next_error_function", &
+                                                                 "compilation_next_file", &
+                                                                 "compilation_previous_error", &
+                                                                 "compilation_previous_file", &
+                                                                 "compilation_set_skip_threshold", &
+                                                                 "compilation_shell_minor_mode", &
                                                                  "compile", &
+                                                                 "compile_goto_error", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -859,10 +879,30 @@ contains
             p => commands%comint_truncate_buffer
         case ("comint_write_output")
             p => commands%comint_write_output
+        case ("compilation_display_error")
+            p => commands%compilation_display_error
+        case ("compilation_minor_mode")
+            p => commands%compilation_minor_mode
         case ("compilation_mode")
             p => commands%compilation_mode
+        case ("compilation_next_error")
+            p => commands%compilation_next_error
+        case ("compilation_next_error_function")
+            p => commands%compilation_next_error_function
+        case ("compilation_next_file")
+            p => commands%compilation_next_file
+        case ("compilation_previous_error")
+            p => commands%compilation_previous_error
+        case ("compilation_previous_file")
+            p => commands%compilation_previous_file
+        case ("compilation_set_skip_threshold")
+            p => commands%compilation_set_skip_threshold
+        case ("compilation_shell_minor_mode")
+            p => commands%compilation_shell_minor_mode
         case ("compile")
             p => commands%compile
+        case ("compile_goto_error")
+            p => commands%compile_goto_error
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
