@@ -146,6 +146,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `before-string` and `after-string` on overlays and text.
    30. Major modes: Outline mode, f90-mode, sh-script, conf-mode.
    31. diff.el, Diff mode and VC with vc-git (Dired's `=`, VC renames).
+       About 20,000 lines upstream, so three PRs: 31a diff.el and
+       diff-mode.el (`diff`, `diff-buffer-with-file`, Diff mode's hunk and
+       file motion, `diff-apply-hunk`, `diff-goto-source`, Dired's `=`);
+       31b vc-hooks.el, vc-dispatcher.el, vc.el and vc-git.el (the mode
+       line, `vc-next-action` C-x v v, `vc-diff`, `vc-revert`,
+       `vc-rename-file`, `vc-print-log`'s output, `vc-annotate`);
+       31c log-view.el, log-edit.el and vc-dir.el.
    32. Auto-revert, with file notifications through inotify in src/sys.
    33. Small everyday packages: bookmarks, recentf, savehist, saveplace,
        `repeat-mode`, `rectangle-mark-mode`.
