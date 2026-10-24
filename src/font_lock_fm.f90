@@ -311,14 +311,23 @@ contains
     !> FACE (or the face FACE_FUNCTION names), combined with existing
     !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
     !> LAXMATCH if SUBEXP need not match.
-    function font_lock_highlight(subexp, face, override, laxmatch, face_function) result(h)
+    function font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties) result(h)
         integer, intent(in) :: subexp
         character(len=*), intent(in), optional :: face
         integer, intent(in), optional :: override
         logical, intent(in), optional :: laxmatch
         procedure(font_lock_face_proc), optional :: face_function
+        !> Text properties to set to true along with the face.
+        character(len=*), intent(in), optional :: true_properties(:)
         type(font_lock_highlight_type) :: h
+        integer :: k
         h%match%subexp = subexp
+        if (present(true_properties)) then
+            allocate (h%match%true_properties(size(true_properties)))
+            do k = 1, size(true_properties)
+                h%match%true_properties(k) = true_properties(k)
+            end do
+        end if
         if (present(face)) h%match%face = face
         if (present(override)) h%match%override = override
         if (present(laxmatch)) h%match%laxmatch = laxmatch
@@ -1358,7 +1367,7 @@ contains
         character(len=:), allocatable :: face
         face = ""
         if (associated(h%face_function)) then
-            face = h%face_function()
+            call h%face_function(face)
         else if (allocated(h%face)) then
             face = h%face
         end if
@@ -1374,6 +1383,7 @@ contains
         character(len=:), allocatable :: face
         character(len=12) :: buf
         integer(int64) :: start, end, pos
+        integer :: k
         logical :: found
         status = status_type()
         start = match_beginning(highlight%subexp, st)
@@ -1385,6 +1395,13 @@ contains
                 call set_error(status, FM_GENERIC_ERROR, "No match "//trim(buf)//" in highlight")
             end if
             return
+        end if
+        ! (face FACE PROP VAL ...): add the properties.
+        if (allocated(highlight%true_properties)) then
+            do k = 1, size(highlight%true_properties)
+                call put_text_property(start, end, sym(trim(highlight%true_properties(k))), t_value(), status)
+                if (.not. status%ok()) return
+            end do
         end if
         face = highlight_face(highlight)
         val = nil()

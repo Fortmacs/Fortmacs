@@ -73,6 +73,7 @@ program tester
     use test_shell_fm, only: collect_shell_fm
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
+    use test_dired_mode_fm, only: collect_dired_mode_fm
     use test_casetab_fm, only: collect_casetab_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
@@ -131,6 +132,7 @@ program tester
                  new_testsuite("shell_fm", collect_shell_fm), &
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
+                 new_testsuite("dired_mode_fm", collect_dired_mode_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &

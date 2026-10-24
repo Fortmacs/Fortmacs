@@ -31,6 +31,8 @@
 !> - struct statx: linux/stat.h (the same on every architecture, which is
 !>   why it is used instead of struct stat, whose layout differs)
 !> - struct passwd: glibc pwd.h (pointers and 32-bit ids, the same on both)
+!> - struct statvfs: glibc bits/statvfs.h (the 64-bit layout, the same on
+!>   both)
 !> - access modes: unistd.h;  AT_FDCWD: linux/fcntl.h
 !> - wait status bits: glibc bits/waitstatus.h
 !> - struct dirent: glibc bits/dirent.h (d_name at byte 19 on both);  struct
@@ -203,6 +205,14 @@ module sys_linux_fm
         integer(c_int64_t) :: spare2(14) = 0
     end type statx_type
 
+    !> struct statvfs (glibc bits/statvfs.h on a 64-bit target: eleven
+    !> unsigned longs, then the spare ints; 112 bytes).
+    type, bind(C), public :: statvfs_type
+        integer(c_int64_t) :: f_bsize = 0, f_frsize = 0, f_blocks = 0, f_bfree = 0, f_bavail = 0, &
+                              f_files = 0, f_ffree = 0, f_favail = 0, f_fsid = 0, f_flag = 0, f_namemax = 0
+        integer(c_int32_t) :: spare(6) = 0
+    end type statvfs_type
+
     !> struct tm (56 bytes).
     type, bind(C), public :: tm_type
         integer(c_int) :: tm_sec = 0, tm_min = 0, tm_hour = 0, tm_mday = 0, tm_mon = 0, &
@@ -227,6 +237,7 @@ module sys_linux_fm
               c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
               c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
+    public :: c_statvfs
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
               c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_environ
@@ -490,6 +501,13 @@ module sys_linux_fm
             integer(c_int64_t), intent(in) :: time
             type(tm_type), intent(out) :: result
         end function c_localtime_r
+
+        integer(c_int) function c_statvfs(path, buf) bind(C, name="statvfs")
+            import :: c_int, c_char, statvfs_type
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            type(statvfs_type), intent(out) :: buf
+        end function c_statvfs
 
         integer(c_int32_t) function c_fork() bind(C, name="fork")
             import :: c_int32_t

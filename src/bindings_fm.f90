@@ -69,6 +69,7 @@ module bindings_fm
     use font_core_fm, only: syms_of_font_core
     use font_lock_fm, only: syms_of_font_lock
     use jit_lock_fm, only: syms_of_jit_lock
+    use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
     use comint_fm, only: syms_of_comint, comint_mode_map
@@ -85,9 +86,10 @@ module bindings_fm
 
     !> subr.el:global-map, esc-map, ctl-x-map; keymap.c:Vfunction_key_map;
     !> bindings.el:ctl-x-x-map (keymap for subcommands of `C-x x');
-    !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r').
+    !> bindings.el:ctl-x-r-map (keymap for subcommands of `C-x r');
+    !> subr.el:ctl-x-4-map (keymap for subcommands of `C-x 4').
     type(handle_type), public :: global_map, esc_map, ctl_x_map, &
-                                 function_key_map, ctl_x_x_map, ctl_x_r_map
+                                 function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
 
@@ -195,6 +197,7 @@ contains
         if (keymap_live_p(esc_map)) call free_keymap(esc_map, status)
         if (keymap_live_p(ctl_x_map)) call free_keymap(ctl_x_map, status)
         if (keymap_live_p(ctl_x_x_map)) call free_keymap(ctl_x_x_map, status)
+        if (keymap_live_p(ctl_x_4_map)) call free_keymap(ctl_x_4_map, status)
         if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
@@ -461,7 +464,12 @@ contains
         call bind(global_map, "C-<home>", "beginning_of_buffer")
         call bind(global_map, "C-<end>", "end_of_buffer")
         call use_global_map(global_map, status)
-        call syms_of_files(ctl_x_map)
+        ! subr.el: (define-key ctl-x-map "4" 'ctl-x-4-prefix)
+        call make_sparse_keymap(ctl_x_4_map)
+        key(1) = make_fixnum(int(iachar("4"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
+        call syms_of_files(ctl_x_map, ctl_x_4_map)
+        call syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
@@ -486,6 +494,8 @@ contains
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
+        call register_keymap_name("ctl_x_4_map", ctl_x_4_map)
+        call register_keymap_name("dired_mode_map", dired_mode_map)
         call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
         call register_keymap_name("kmacro_keymap", kmacro_keymap)
         call register_keymap_name("isearch_mode_map", isearch_mode_map)

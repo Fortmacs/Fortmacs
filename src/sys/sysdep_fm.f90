@@ -43,7 +43,7 @@ module sysdep_fm
                             vtime, vwerase, winsize_type, c_creat, c_access, c_rename, c_unlink, &
                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, &
                             c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
-                            c_rmdir, c_setenv, c_unsetenv, &
+                            c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
                             c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
                             at_statx_sync_as_stat, statx_basic_stats, ENOENT, EACCES, EEXIST, &
                             ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
@@ -81,7 +81,7 @@ module sysdep_fm
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
-              emacs_localtime
+              emacs_localtime, emacs_statvfs
     public :: emacs_get_tty_pgrp, emacs_tty_signal_char
     public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
               set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
@@ -1408,4 +1408,23 @@ contains
         p = c_localtime_r(seconds, tm)
         parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
     end function emacs_localtime
+
+    !> The file system holding `path': its total, free and available
+    !> space in bytes (statvfs(3): blocks times the fragment size).
+    integer(int32) function emacs_statvfs(path, total, free, avail) result(err)
+        character(len=*), intent(in) :: path
+        integer(int64), intent(out) :: total, free, avail
+        type(statvfs_type) :: buf
+        err = 0
+        total = 0
+        free = 0
+        avail = 0
+        if (c_statvfs(c_path(path), buf) /= 0) then
+            err = errno()
+            return
+        end if
+        total = buf%f_blocks*buf%f_frsize
+        free = buf%f_bfree*buf%f_frsize
+        avail = buf%f_bavail*buf%f_frsize
+    end function emacs_statvfs
 end module sysdep_fm
