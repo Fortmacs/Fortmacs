@@ -21,17 +21,20 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Faces.  A face is a `named_face_type' object named after the Emacs
-!> face (`region', `mode_line', `font_lock_comment_face').  Its
-!> components are the face's attributes as the configuration sets them
-!> (upstream's set-face-attribute on all frames): an attribute left
-!> alone is unspecified, and the face's spec (its defface) decides it.
-!> For example:
+!> face (`region', `mode_line', `font_lock_comment_face'); the
+!> configuration reaches every face through `faces' (face_table_fm,
+!> generated).  Its components are the face's attributes as the
+!> configuration sets them (upstream's set-face-attribute on all
+!> frames): an attribute left alone is unspecified, and the face's spec
+!> (its defface) decides it.  For example:
 !>
-!>     region%background = "dark slate gray"
-!>     bold%weight = "extra-bold"
-!>     mode_line%inverse_video = .true.
-!>     link%underline = .false.
-!>     help_key_binding%inherit = "fixed_pitch"
+!>     faces%region%background = "dark slate gray"
+!>     faces%bold%weight = "extra-bold"
+!>     faces%mode_line%inverse_video = .true.
+!>     faces%link%underline = .false.
+!>     faces%error%underline = face_underline(color="red", style=FACE_STYLE_WAVE)
+!>     faces%mode_line%box = face_box(line_width=-1, style=FACE_BOX_RELEASED_BUTTON)
+!>     faces%help_key_binding%inherit = "fixed_pitch"
 !>
 !> `face_spec_recalc' works out the attributes a face has on the frame
 !> (its `lface'): the spec alternative that matches the display, then
@@ -49,7 +52,7 @@ module faces_fm
 
     public :: face_flag_type, face_line_type, face_box_type, face_height_type, face_inherit_type
     public :: face_attributes_type, named_face_type, face_display_type
-    public :: face_attrs, display_when, face_named, face_count, face_at, face_spec_recalc_all
+    public :: face_attrs, face_underline, face_box, display_when, face_named, face_count, face_at, face_spec_recalc_all
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
     public :: init_faces
 
@@ -61,6 +64,10 @@ module faces_fm
     !> Underline styles (`:style' in an underline property list).
     integer, parameter, public :: FACE_STYLE_LINE = 1, FACE_STYLE_DOUBLE_LINE = 2, FACE_STYLE_WAVE = 3, &
                                   FACE_STYLE_DOTS = 4, FACE_STYLE_DASHES = 5
+
+    !> Box styles (`:style' in a box property list): 3D buttons, and a
+    !> flat button (a plain box in the background color).
+    integer, parameter, public :: FACE_BOX_RELEASED_BUTTON = 1, FACE_BOX_PRESSED_BUTTON = 2, FACE_BOX_FLAT_BUTTON = 3
 
     !> Display classes and background modes of a frame (the
     !> `display_type' and `background_mode' frame parameters).
@@ -80,8 +87,9 @@ module faces_fm
 
     !> `:underline', `:overline' or `:strike_through': unspecified, nil, t,
     !> a color, or (for underlines) a color and a style.  Assign a
-    !> logical (nil or t) or a color name.  `color' empty with `style'
-    !> set means the foreground color (`:color foreground-color').
+    !> logical (nil or t) or a color name, or for an underline a property
+    !> list made by `face_underline'.  `color' empty with `style' set
+    !> means the foreground color (`:color foreground-color').
     type :: face_line_type
         integer :: state = FACE_UNSPECIFIED
         character(len=:), allocatable :: color
@@ -94,15 +102,16 @@ module faces_fm
         procedure :: unspecify => line_unspecify
     end type face_line_type
 
-    !> `:box': unspecified, nil, or a box (a terminal draws none).
+    !> `:box': unspecified, nil, or a box (a terminal draws none).  Assign
+    !> a logical, a color name, or a property list made by `face_box'.
     type :: face_box_type
         integer :: state = FACE_UNSPECIFIED
         integer :: line_width = 1, line_height = 1
         character(len=:), allocatable :: color
         character(len=:), allocatable :: style
     contains
-        procedure, private :: box_from_logical
-        generic :: assignment(=) => box_from_logical
+        procedure, private :: box_from_logical, box_from_color
+        generic :: assignment(=) => box_from_logical, box_from_color
         procedure :: unspecify => box_unspecify
     end type face_box_type
 
@@ -525,6 +534,16 @@ contains
         end if
     end subroutine box_from_logical
 
+    subroutine box_from_color(self, color)
+        class(face_box_type), intent(inout) :: self
+        character(len=*), intent(in) :: color
+        if (allocated(self%style)) deallocate (self%style)
+        self%state = FACE_COLOR
+        self%color = color
+        self%line_width = 1
+        self%line_height = 1
+    end subroutine box_from_color
+
     subroutine box_unspecify(self)
         class(face_box_type), intent(inout) :: self
         self%state = FACE_UNSPECIFIED
@@ -629,6 +648,72 @@ contains
         if (present(inherits)) a%inherit = inherits
         if (present(extend)) a%extend = extend
     end function face_attrs
+
+    !> An underline given as upstream's
+    !> property list (:color COLOR :style STYLE :position POSITION), for
+    !> `faces%NAME%underline = face_underline(...)'.  An absent COLOR is
+    !> the face's foreground color (`foreground-color'); STYLE is one of
+    !> FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,
+    !> FACE_STYLE_WAVE, FACE_STYLE_DOTS and FACE_STYLE_DASHES; POSITION
+    !> true draws the line at the descent of the text instead of the
+    !> baseline (a number of pixels above the descent is Deferred with
+    !> the GUI).  On a terminal, the styles other than a line are drawn
+    !> where the terminal supports them (the Smulx or Su capability) and
+    !> as a line otherwise.  The property-list form of xfaces.c's
+    !> `:underline' attribute.
+    function face_underline(color, style, position) result(line)
+        character(len=*), intent(in), optional :: color
+        integer, intent(in), optional :: style
+        logical, intent(in), optional :: position
+        type(face_line_type) :: line
+        line%state = FACE_PLIST
+        if (present(color)) then
+            line%color = color
+        else
+            line%color = ""
+        end if
+        if (present(style)) line%style = style
+        if (present(position)) line%position = position
+    end function face_underline
+
+    !> A box given as upstream's property list (:line-width WIDTH :color
+    !> COLOR :style STYLE), for `faces%NAME%box = face_box(...)'.
+    !> LINE_WIDTH N is upstream's single number: vertical lines of width
+    !> |N| and horizontal lines of width N; VERTICAL_WIDTH and
+    !> HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default
+    !> to 1.  A negative width draws the line over the text instead of
+    !> beside it.  An absent COLOR is the face's background color for 3D
+    !> boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;
+    !> STYLE is FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON (3D
+    !> buttons) or FACE_BOX_FLAT_BUTTON, and absent for a plain box.  A
+    !> terminal draws no box.  The property-list form of xfaces.c's `:box'
+    !> attribute.
+    function face_box(line_width, vertical_width, horizontal_width, color, style) result(box)
+        integer, intent(in), optional :: line_width, vertical_width, horizontal_width
+        character(len=*), intent(in), optional :: color
+        integer, intent(in), optional :: style
+        type(face_box_type) :: box
+        box%state = FACE_PLIST
+        if (present(line_width)) then
+            box%line_width = abs(line_width)
+            box%line_height = line_width
+        end if
+        if (present(vertical_width)) box%line_width = vertical_width
+        if (present(horizontal_width)) box%line_height = horizontal_width
+        if (present(color)) box%color = color
+        if (present(style)) then
+            select case (style)
+            case (FACE_BOX_RELEASED_BUTTON)
+                box%style = "released-button"
+            case (FACE_BOX_PRESSED_BUTTON)
+                box%style = "pressed-button"
+            case (FACE_BOX_FLAT_BUTTON)
+                box%style = "flat-button"
+            case default
+                continue
+            end select
+        end if
+    end function face_box
 
     !> A display condition for a spec alternative (see
     !> `face_display_type'); no argument at all means t.  A `supports'
