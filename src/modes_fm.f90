@@ -36,6 +36,7 @@ module modes_fm
     type :: major_mode_table_type
         type(major_mode_type) :: apropos_mode
         type(major_mode_type) :: compilation_mode
+        type(major_mode_type) :: dired_mode
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: messages_buffer_mode

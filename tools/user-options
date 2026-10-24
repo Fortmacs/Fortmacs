@@ -34,6 +34,23 @@ cycle_spacing_actions
 default_justification
 delete_active_region
 delete_exited_processes
+dired_after_readin_hook
+dired_always_read_filesystem
+dired_auto_revert_buffer
+dired_before_readin_hook
+dired_check_symlinks
+dired_free_space
+dired_garbage_files_regexp
+dired_initial_position_hook
+dired_listing_switches
+dired_mark_region
+dired_mode_hook
+dired_movement_style
+dired_no_confirm
+dired_recursive_deletes
+dired_switches_in_mode_line
+dired_trivial_filenames
+dired_use_ls_dired
 edmacro_eight_bits
 enable_recursive_minibuffers
 even_window_sizes
@@ -41,6 +58,7 @@ fill_column
 fill_nobreak_predicate
 fill_prefix
 fill_separate_heterogeneous_words_with_space
+find_file_run_dired
 font_lock_global_modes
 font_lock_maximum_decoration
 font_lock_verbose
@@ -50,6 +68,7 @@ history_delete_duplicates
 history_length
 indent_tabs_mode
 insert_default_directory
+insert_directory_program
 isearch_lax_whitespace
 jit_lock_chunk_size
 kill_read_only_ok
@@ -81,6 +100,7 @@ query_replace_from_to_separator
 query_replace_show_replacement
 query_replace_skip_read_only
 query_replace_to_history_variable
+read_answer_short
 read_buffer_completion_ignore_case
 read_file_name_completion_ignore_case
 read_minibuffer_restore_windows
