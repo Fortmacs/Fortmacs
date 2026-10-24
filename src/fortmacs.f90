@@ -328,6 +328,11 @@ module fortmacs
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
                          shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
+    use help_fns_fm, only: describe_mode, describe_symbol
+    use help_fm, only: describe_bindings, view_lossage, view_echo_area_messages
+    use xdisp_fm, only: message_log_max, MESSAGE_LOG_DISABLED, MESSAGE_LOG_UNLIMITED
+    use simple_fm, only: messages_buffer_mode_hook, messages_buffer_mode_map
+    use apropos_fm, only: apropos_mode_hook, apropos_mode_map
     use cmds_fm, only: post_self_insert_hook
     use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, timerp, &
                         timer_max_repeats
@@ -487,6 +492,9 @@ module fortmacs
     public :: kbd_macro_termination_hook, kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, &
               kmacro_call_repeat_key, kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, &
               KMACRO_CALL_REPEAT_LAST_KEY, edmacro_eight_bits
+    public :: describe_mode, describe_symbol, describe_bindings, view_lossage, view_echo_area_messages, &
+              message_log_max, MESSAGE_LOG_DISABLED, MESSAGE_LOG_UNLIMITED, messages_buffer_mode_hook, &
+              messages_buffer_mode_map, apropos_mode_hook, apropos_mode_map
     public :: abbrev_table_type, abbrev_type, abbrev_ref_type, abbrev_table_ref_type, abbrev_hook_proc, abbrev_enable_proc, &
               abbrev_expand_proc, global_abbrev_table, fundamental_mode_abbrev_table, abbrev_table_name_list, abbrev_mode, &
               only_global_abbrevs, abbrev_all_caps, abbrev_file_name, abbrevs_changed, abbrev_start_location, last_abbrev, &
