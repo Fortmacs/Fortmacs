@@ -689,8 +689,11 @@ module sys_linux_fm
 
 contains
 
-    !> Current value of errno.
-    integer(c_int) function errno()
+    !> Current value of errno (the calling thread's).  `recursive', as
+    !> worker threads call it too: gfortran's -fcheck=recursion guard of a
+    !> non-recursive procedure is a static flag, which two threads in it at
+    !> once would trip.
+    recursive integer(c_int) function errno()
         integer(c_int), pointer :: p
         call c_f_pointer(c_errno_location(), p)
         errno = p

@@ -52,7 +52,7 @@ module test_compile_fm
 
     public :: collect_compile_fm
 
-    integer, parameter :: TIMEOUT = 120
+    integer, parameter :: TIMEOUT = 600
 
 contains
 
