@@ -102,7 +102,8 @@ module xdisp_fm
     use lisp_fm, only: value_type, nilp, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer
-    use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic
+    use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
+                         buffer_file_coding_system
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, temp_set_point_both, BEG, BEG_BYTE
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
@@ -1331,9 +1332,15 @@ contains
         type(status_type) :: st
         s = ""
         if (.not. graphic) s = "UU"
+        call syms_of_coding()
         cs = ""
         call buffer_local_value(sym("buffer_file_coding_system"), bi, v, st)
-        if (st%ok() .and. stringp(v)) cs = xstring(v)
+        if (st%ok() .and. stringp(v)) then
+            cs = xstring(v)
+        else if (allocated(buffer_file_coding_system%value)) then
+            ! Not forwarded yet (mule_fm not set up): the default.
+            cs = buffer_file_coding_system%value
+        end if
         if (.not. buffers(bi)%multibyte) then
             s = s//" "
         else if (.not. coding_system_p(cs) .or. len(cs) == 0) then

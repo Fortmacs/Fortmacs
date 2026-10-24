@@ -347,7 +347,7 @@ contains
     !> coding.c:syms_of_coding (no-conversion, undecided), the coding
     !> systems mule-conf.el defines, and reset-language-environment's
     !> priorities.
-    subroutine syms_of_coding()
+    recursive subroutine syms_of_coding()
         integer :: id
         if (ncodings > 0) return
         allocate (codings(64), aliases(160))
@@ -449,7 +449,7 @@ contains
     !> subsidiaries; return its id.  The first coding system of a
     !> category becomes the category's.  Port of
     !> coding.c:Fdefine_coding_system_internal.
-    integer function define(name, ctype, mnemonic, category, eol, ascii_compatible, for_unibyte, prefer_utf_8, &
+    recursive integer function define(name, ctype, mnemonic, category, eol, ascii_compatible, for_unibyte, prefer_utf_8, &
                             default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: ctype, mnemonic, category
@@ -523,7 +523,7 @@ contains
     !> Define ALIAS as an alias for coding system CODING_SYSTEM.  Port of
     !> coding.c:Fdefine_coding_system_alias (the subsidiaries get aliases
     !> too: ALIAS-unix and so on).
-    subroutine define_coding_system_alias(alias, coding_system)
+    recursive subroutine define_coding_system_alias(alias, coding_system)
         character(len=*), intent(in) :: alias, coding_system
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: id, i
@@ -542,7 +542,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The id of the coding system called NAME (an alias included), or 0.
-    integer function coding_system_id(name) result(id)
+    recursive integer function coding_system_id(name) result(id)
         character(len=*), intent(in) :: name
         integer :: k
         id = 0
