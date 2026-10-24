@@ -42,6 +42,7 @@ module commands_fm
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
+        type(command_type) :: backward_delete_char_untabify
         type(command_type) :: backward_kill_paragraph
         type(command_type) :: backward_kill_sentence
         type(command_type) :: backward_kill_sexp
@@ -55,6 +56,7 @@ module commands_fm
         type(command_type) :: beginning_of_buffer
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
+        type(command_type) :: blink_matching_open
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
         type(command_type) :: call_last_kbd_macro
@@ -94,10 +96,29 @@ module commands_fm
         type(command_type) :: dired_change_marks
         type(command_type) :: dired_copy_filename_as_kill
         type(command_type) :: dired_create_directory
+        type(command_type) :: dired_create_empty_file
         type(command_type) :: dired_display_file
+        type(command_type) :: dired_do_chgrp
+        type(command_type) :: dired_do_chmod
+        type(command_type) :: dired_do_chown
+        type(command_type) :: dired_do_compress
+        type(command_type) :: dired_do_compress_to
+        type(command_type) :: dired_do_copy
+        type(command_type) :: dired_do_copy_regexp
         type(command_type) :: dired_do_delete
         type(command_type) :: dired_do_flagged_delete
+        type(command_type) :: dired_do_hardlink
+        type(command_type) :: dired_do_hardlink_regexp
+        type(command_type) :: dired_do_kill_lines
         type(command_type) :: dired_do_redisplay
+        type(command_type) :: dired_do_relsymlink
+        type(command_type) :: dired_do_relsymlink_regexp
+        type(command_type) :: dired_do_rename
+        type(command_type) :: dired_do_rename_regexp
+        type(command_type) :: dired_do_symlink
+        type(command_type) :: dired_do_symlink_regexp
+        type(command_type) :: dired_do_touch
+        type(command_type) :: dired_downcase
         type(command_type) :: dired_find_file
         type(command_type) :: dired_find_file_other_window
         type(command_type) :: dired_flag_auto_save_files
@@ -106,6 +127,7 @@ module commands_fm
         type(command_type) :: dired_flag_files_regexp
         type(command_type) :: dired_flag_garbage_files
         type(command_type) :: dired_goto_file
+        type(command_type) :: dired_kill_line
         type(command_type) :: dired_kill_subdir
         type(command_type) :: dired_mark
         type(command_type) :: dired_mark_directories
@@ -125,6 +147,7 @@ module commands_fm
         type(command_type) :: dired_prev_marked_file
         type(command_type) :: dired_prev_subdir
         type(command_type) :: dired_previous_line
+        type(command_type) :: dired_show_file_type
         type(command_type) :: dired_sort_toggle_or_edit
         type(command_type) :: dired_summary
         type(command_type) :: dired_toggle_marks
@@ -134,6 +157,8 @@ module commands_fm
         type(command_type) :: dired_unmark_all_marks
         type(command_type) :: dired_unmark_backward
         type(command_type) :: dired_up_directory
+        type(command_type) :: dired_upcase
+        type(command_type) :: dired_view_file
         type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: do_auto_fill
@@ -141,6 +166,13 @@ module commands_fm
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: edit_abbrevs
+        type(command_type) :: electric_indent_just_newline
+        type(command_type) :: electric_indent_local_mode
+        type(command_type) :: electric_indent_mode
+        type(command_type) :: electric_newline_and_maybe_indent
+        type(command_type) :: electric_pair_delete_pair
+        type(command_type) :: electric_pair_local_mode
+        type(command_type) :: electric_pair_mode
         type(command_type) :: enable_command
         type(command_type) :: end_kbd_macro
         type(command_type) :: end_of_buffer
@@ -156,6 +188,8 @@ module commands_fm
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
         type(command_type) :: find_file_other_window
+        type(command_type) :: find_file_read_only
+        type(command_type) :: find_file_read_only_other_window
         type(command_type) :: fixup_whitespace
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
@@ -176,6 +210,7 @@ module commands_fm
         type(command_type) :: fundamental_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: help_form_show
         type(command_type) :: help_mode
         type(command_type) :: help_quit
         type(command_type) :: increment_register
@@ -294,6 +329,7 @@ module commands_fm
         type(command_type) :: move_to_window_line_top_bottom
         type(command_type) :: negative_argument
         type(command_type) :: newline
+        type(command_type) :: newline_and_indent
         type(command_type) :: next_buffer
         type(command_type) :: next_history_element
         type(command_type) :: next_line
@@ -319,6 +355,9 @@ module commands_fm
         type(command_type) :: quoted_insert
         type(command_type) :: re_search_backward
         type(command_type) :: re_search_forward
+        type(command_type) :: read_char_from_minibuffer_insert_char
+        type(command_type) :: read_char_from_minibuffer_insert_other
+        type(command_type) :: read_only_mode
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recompile
@@ -346,6 +385,8 @@ module commands_fm
         type(command_type) :: set_mark_command
         type(command_type) :: shell_command
         type(command_type) :: shell_command_on_region
+        type(command_type) :: show_paren_local_mode
+        type(command_type) :: show_paren_mode
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -378,7 +419,35 @@ module commands_fm
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: view_back_to_mark
+        type(command_type) :: view_buffer
+        type(command_type) :: view_buffer_other_window
+        type(command_type) :: view_exit
+        type(command_type) :: view_exit_and_edit
+        type(command_type) :: view_file
+        type(command_type) :: view_file_other_window
+        type(command_type) :: view_goto_line
+        type(command_type) :: view_goto_percent
+        type(command_type) :: view_kill_and_leave
+        type(command_type) :: view_leave
+        type(command_type) :: view_mode
+        type(command_type) :: view_quit
+        type(command_type) :: view_quit_all
         type(command_type) :: view_register
+        type(command_type) :: view_scroll_half_page_backward
+        type(command_type) :: view_scroll_half_page_forward
+        type(command_type) :: view_scroll_line_backward
+        type(command_type) :: view_scroll_line_forward
+        type(command_type) :: view_scroll_page_backward
+        type(command_type) :: view_scroll_page_backward_set_page_size
+        type(command_type) :: view_scroll_page_forward
+        type(command_type) :: view_scroll_page_forward_set_page_size
+        type(command_type) :: view_scroll_to_buffer_end
+        type(command_type) :: view_search_last_regexp_backward
+        type(command_type) :: view_search_last_regexp_forward
+        type(command_type) :: view_search_regexp_backward
+        type(command_type) :: view_search_regexp_forward
+        type(command_type) :: what_line
         type(command_type) :: where_is
         type(command_type) :: window_configuration_to_register
         type(command_type) :: write_abbrev_file
@@ -395,7 +464,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(357) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(426) = [character(len=39) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -406,6 +475,7 @@ module commands_fm
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
+                                                                 "backward_delete_char_untabify", &
                                                                  "backward_kill_paragraph", &
                                                                  "backward_kill_sentence", &
                                                                  "backward_kill_sexp", &
@@ -419,6 +489,7 @@ module commands_fm
                                                                  "beginning_of_buffer", &
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
+                                                                 "blink_matching_open", &
                                                                  "buffer_to_register", &
                                                                  "bury_buffer", &
                                                                  "call_last_kbd_macro", &
@@ -458,10 +529,29 @@ module commands_fm
                                                                  "dired_change_marks", &
                                                                  "dired_copy_filename_as_kill", &
                                                                  "dired_create_directory", &
+                                                                 "dired_create_empty_file", &
                                                                  "dired_display_file", &
+                                                                 "dired_do_chgrp", &
+                                                                 "dired_do_chmod", &
+                                                                 "dired_do_chown", &
+                                                                 "dired_do_compress", &
+                                                                 "dired_do_compress_to", &
+                                                                 "dired_do_copy", &
+                                                                 "dired_do_copy_regexp", &
                                                                  "dired_do_delete", &
                                                                  "dired_do_flagged_delete", &
+                                                                 "dired_do_hardlink", &
+                                                                 "dired_do_hardlink_regexp", &
+                                                                 "dired_do_kill_lines", &
                                                                  "dired_do_redisplay", &
+                                                                 "dired_do_relsymlink", &
+                                                                 "dired_do_relsymlink_regexp", &
+                                                                 "dired_do_rename", &
+                                                                 "dired_do_rename_regexp", &
+                                                                 "dired_do_symlink", &
+                                                                 "dired_do_symlink_regexp", &
+                                                                 "dired_do_touch", &
+                                                                 "dired_downcase", &
                                                                  "dired_find_file", &
                                                                  "dired_find_file_other_window", &
                                                                  "dired_flag_auto_save_files", &
@@ -470,6 +560,7 @@ module commands_fm
                                                                  "dired_flag_files_regexp", &
                                                                  "dired_flag_garbage_files", &
                                                                  "dired_goto_file", &
+                                                                 "dired_kill_line", &
                                                                  "dired_kill_subdir", &
                                                                  "dired_mark", &
                                                                  "dired_mark_directories", &
@@ -489,6 +580,7 @@ module commands_fm
                                                                  "dired_prev_marked_file", &
                                                                  "dired_prev_subdir", &
                                                                  "dired_previous_line", &
+                                                                 "dired_show_file_type", &
                                                                  "dired_sort_toggle_or_edit", &
                                                                  "dired_summary", &
                                                                  "dired_toggle_marks", &
@@ -498,6 +590,8 @@ module commands_fm
                                                                  "dired_unmark_all_marks", &
                                                                  "dired_unmark_backward", &
                                                                  "dired_up_directory", &
+                                                                 "dired_upcase", &
+                                                                 "dired_view_file", &
                                                                  "dired_why", &
                                                                  "disable_command", &
                                                                  "do_auto_fill", &
@@ -505,6 +599,13 @@ module commands_fm
                                                                  "downcase_region", &
                                                                  "downcase_word", &
                                                                  "edit_abbrevs", &
+                                                                 "electric_indent_just_newline", &
+                                                                 "electric_indent_local_mode", &
+                                                                 "electric_indent_mode", &
+                                                                 "electric_newline_and_maybe_indent", &
+                                                                 "electric_pair_delete_pair", &
+                                                                 "electric_pair_local_mode", &
+                                                                 "electric_pair_mode", &
                                                                  "enable_command", &
                                                                  "end_kbd_macro", &
                                                                  "end_of_buffer", &
@@ -520,6 +621,8 @@ module commands_fm
                                                                  "fill_region_as_paragraph", &
                                                                  "find_file", &
                                                                  "find_file_other_window", &
+                                                                 "find_file_read_only", &
+                                                                 "find_file_read_only_other_window", &
                                                                  "fixup_whitespace", &
                                                                  "font_lock_change_mode", &
                                                                  "font_lock_debug_fontify", &
@@ -540,6 +643,7 @@ module commands_fm
                                                                  "fundamental_mode", &
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
+                                                                 "help_form_show", &
                                                                  "help_mode", &
                                                                  "help_quit", &
                                                                  "increment_register", &
@@ -658,6 +762,7 @@ module commands_fm
                                                                  "move_to_window_line_top_bottom", &
                                                                  "negative_argument", &
                                                                  "newline", &
+                                                                 "newline_and_indent", &
                                                                  "next_buffer", &
                                                                  "next_history_element", &
                                                                  "next_line", &
@@ -683,6 +788,9 @@ module commands_fm
                                                                  "quoted_insert", &
                                                                  "re_search_backward", &
                                                                  "re_search_forward", &
+                                                                 "read_char_from_minibuffer_insert_char", &
+                                                                 "read_char_from_minibuffer_insert_other", &
+                                                                 "read_only_mode", &
                                                                  "recenter", &
                                                                  "recenter_top_bottom", &
                                                                  "recompile", &
@@ -710,6 +818,8 @@ module commands_fm
                                                                  "set_mark_command", &
                                                                  "shell_command", &
                                                                  "shell_command_on_region", &
+                                                                 "show_paren_local_mode", &
+                                                                 "show_paren_mode", &
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
@@ -742,7 +852,35 @@ module commands_fm
                                                                  "upcase_initials_region", &
                                                                  "upcase_region", &
                                                                  "upcase_word", &
+                                                                 "view_back_to_mark", &
+                                                                 "view_buffer", &
+                                                                 "view_buffer_other_window", &
+                                                                 "view_exit", &
+                                                                 "view_exit_and_edit", &
+                                                                 "view_file", &
+                                                                 "view_file_other_window", &
+                                                                 "view_goto_line", &
+                                                                 "view_goto_percent", &
+                                                                 "view_kill_and_leave", &
+                                                                 "view_leave", &
+                                                                 "view_mode", &
+                                                                 "view_quit", &
+                                                                 "view_quit_all", &
                                                                  "view_register", &
+                                                                 "view_scroll_half_page_backward", &
+                                                                 "view_scroll_half_page_forward", &
+                                                                 "view_scroll_line_backward", &
+                                                                 "view_scroll_line_forward", &
+                                                                 "view_scroll_page_backward", &
+                                                                 "view_scroll_page_backward_set_page_size", &
+                                                                 "view_scroll_page_forward", &
+                                                                 "view_scroll_page_forward_set_page_size", &
+                                                                 "view_scroll_to_buffer_end", &
+                                                                 "view_search_last_regexp_backward", &
+                                                                 "view_search_last_regexp_forward", &
+                                                                 "view_search_regexp_backward", &
+                                                                 "view_search_regexp_forward", &
+                                                                 "what_line", &
                                                                  "where_is", &
                                                                  "window_configuration_to_register", &
                                                                  "write_abbrev_file", &
@@ -783,6 +921,8 @@ contains
             p => commands%back_to_indentation
         case ("backward_char")
             p => commands%backward_char
+        case ("backward_delete_char_untabify")
+            p => commands%backward_delete_char_untabify
         case ("backward_kill_paragraph")
             p => commands%backward_kill_paragraph
         case ("backward_kill_sentence")
@@ -809,6 +949,8 @@ contains
             p => commands%beginning_of_line
         case ("beginning_of_line_text")
             p => commands%beginning_of_line_text
+        case ("blink_matching_open")
+            p => commands%blink_matching_open
         case ("buffer_to_register")
             p => commands%buffer_to_register
         case ("bury_buffer")
@@ -887,14 +1029,52 @@ contains
             p => commands%dired_copy_filename_as_kill
         case ("dired_create_directory")
             p => commands%dired_create_directory
+        case ("dired_create_empty_file")
+            p => commands%dired_create_empty_file
         case ("dired_display_file")
             p => commands%dired_display_file
+        case ("dired_do_chgrp")
+            p => commands%dired_do_chgrp
+        case ("dired_do_chmod")
+            p => commands%dired_do_chmod
+        case ("dired_do_chown")
+            p => commands%dired_do_chown
+        case ("dired_do_compress")
+            p => commands%dired_do_compress
+        case ("dired_do_compress_to")
+            p => commands%dired_do_compress_to
+        case ("dired_do_copy")
+            p => commands%dired_do_copy
+        case ("dired_do_copy_regexp")
+            p => commands%dired_do_copy_regexp
         case ("dired_do_delete")
             p => commands%dired_do_delete
         case ("dired_do_flagged_delete")
             p => commands%dired_do_flagged_delete
+        case ("dired_do_hardlink")
+            p => commands%dired_do_hardlink
+        case ("dired_do_hardlink_regexp")
+            p => commands%dired_do_hardlink_regexp
+        case ("dired_do_kill_lines")
+            p => commands%dired_do_kill_lines
         case ("dired_do_redisplay")
             p => commands%dired_do_redisplay
+        case ("dired_do_relsymlink")
+            p => commands%dired_do_relsymlink
+        case ("dired_do_relsymlink_regexp")
+            p => commands%dired_do_relsymlink_regexp
+        case ("dired_do_rename")
+            p => commands%dired_do_rename
+        case ("dired_do_rename_regexp")
+            p => commands%dired_do_rename_regexp
+        case ("dired_do_symlink")
+            p => commands%dired_do_symlink
+        case ("dired_do_symlink_regexp")
+            p => commands%dired_do_symlink_regexp
+        case ("dired_do_touch")
+            p => commands%dired_do_touch
+        case ("dired_downcase")
+            p => commands%dired_downcase
         case ("dired_find_file")
             p => commands%dired_find_file
         case ("dired_find_file_other_window")
@@ -911,6 +1091,8 @@ contains
             p => commands%dired_flag_garbage_files
         case ("dired_goto_file")
             p => commands%dired_goto_file
+        case ("dired_kill_line")
+            p => commands%dired_kill_line
         case ("dired_kill_subdir")
             p => commands%dired_kill_subdir
         case ("dired_mark")
@@ -949,6 +1131,8 @@ contains
             p => commands%dired_prev_subdir
         case ("dired_previous_line")
             p => commands%dired_previous_line
+        case ("dired_show_file_type")
+            p => commands%dired_show_file_type
         case ("dired_sort_toggle_or_edit")
             p => commands%dired_sort_toggle_or_edit
         case ("dired_summary")
@@ -967,6 +1151,10 @@ contains
             p => commands%dired_unmark_backward
         case ("dired_up_directory")
             p => commands%dired_up_directory
+        case ("dired_upcase")
+            p => commands%dired_upcase
+        case ("dired_view_file")
+            p => commands%dired_view_file
         case ("dired_why")
             p => commands%dired_why
         case ("disable_command")
@@ -981,6 +1169,20 @@ contains
             p => commands%downcase_word
         case ("edit_abbrevs")
             p => commands%edit_abbrevs
+        case ("electric_indent_just_newline")
+            p => commands%electric_indent_just_newline
+        case ("electric_indent_local_mode")
+            p => commands%electric_indent_local_mode
+        case ("electric_indent_mode")
+            p => commands%electric_indent_mode
+        case ("electric_newline_and_maybe_indent")
+            p => commands%electric_newline_and_maybe_indent
+        case ("electric_pair_delete_pair")
+            p => commands%electric_pair_delete_pair
+        case ("electric_pair_local_mode")
+            p => commands%electric_pair_local_mode
+        case ("electric_pair_mode")
+            p => commands%electric_pair_mode
         case ("enable_command")
             p => commands%enable_command
         case ("end_kbd_macro")
@@ -1011,6 +1213,10 @@ contains
             p => commands%find_file
         case ("find_file_other_window")
             p => commands%find_file_other_window
+        case ("find_file_read_only")
+            p => commands%find_file_read_only
+        case ("find_file_read_only_other_window")
+            p => commands%find_file_read_only_other_window
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
         case ("font_lock_change_mode")
@@ -1051,6 +1257,8 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("help_form_show")
+            p => commands%help_form_show
         case ("help_mode")
             p => commands%help_mode
         case ("help_quit")
@@ -1287,6 +1495,8 @@ contains
             p => commands%negative_argument
         case ("newline")
             p => commands%newline
+        case ("newline_and_indent")
+            p => commands%newline_and_indent
         case ("next_buffer")
             p => commands%next_buffer
         case ("next_history_element")
@@ -1337,6 +1547,12 @@ contains
             p => commands%re_search_backward
         case ("re_search_forward")
             p => commands%re_search_forward
+        case ("read_char_from_minibuffer_insert_char")
+            p => commands%read_char_from_minibuffer_insert_char
+        case ("read_char_from_minibuffer_insert_other")
+            p => commands%read_char_from_minibuffer_insert_other
+        case ("read_only_mode")
+            p => commands%read_only_mode
         case ("recenter")
             p => commands%recenter
         case ("recenter_top_bottom")
@@ -1391,6 +1607,10 @@ contains
             p => commands%shell_command
         case ("shell_command_on_region")
             p => commands%shell_command_on_region
+        case ("show_paren_local_mode")
+            p => commands%show_paren_local_mode
+        case ("show_paren_mode")
+            p => commands%show_paren_mode
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")
@@ -1455,8 +1675,64 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("view_back_to_mark")
+            p => commands%view_back_to_mark
+        case ("view_buffer")
+            p => commands%view_buffer
+        case ("view_buffer_other_window")
+            p => commands%view_buffer_other_window
+        case ("view_exit")
+            p => commands%view_exit
+        case ("view_exit_and_edit")
+            p => commands%view_exit_and_edit
+        case ("view_file")
+            p => commands%view_file
+        case ("view_file_other_window")
+            p => commands%view_file_other_window
+        case ("view_goto_line")
+            p => commands%view_goto_line
+        case ("view_goto_percent")
+            p => commands%view_goto_percent
+        case ("view_kill_and_leave")
+            p => commands%view_kill_and_leave
+        case ("view_leave")
+            p => commands%view_leave
+        case ("view_mode")
+            p => commands%view_mode
+        case ("view_quit")
+            p => commands%view_quit
+        case ("view_quit_all")
+            p => commands%view_quit_all
         case ("view_register")
             p => commands%view_register
+        case ("view_scroll_half_page_backward")
+            p => commands%view_scroll_half_page_backward
+        case ("view_scroll_half_page_forward")
+            p => commands%view_scroll_half_page_forward
+        case ("view_scroll_line_backward")
+            p => commands%view_scroll_line_backward
+        case ("view_scroll_line_forward")
+            p => commands%view_scroll_line_forward
+        case ("view_scroll_page_backward")
+            p => commands%view_scroll_page_backward
+        case ("view_scroll_page_backward_set_page_size")
+            p => commands%view_scroll_page_backward_set_page_size
+        case ("view_scroll_page_forward")
+            p => commands%view_scroll_page_forward
+        case ("view_scroll_page_forward_set_page_size")
+            p => commands%view_scroll_page_forward_set_page_size
+        case ("view_scroll_to_buffer_end")
+            p => commands%view_scroll_to_buffer_end
+        case ("view_search_last_regexp_backward")
+            p => commands%view_search_last_regexp_backward
+        case ("view_search_last_regexp_forward")
+            p => commands%view_search_last_regexp_forward
+        case ("view_search_regexp_backward")
+            p => commands%view_search_regexp_backward
+        case ("view_search_regexp_forward")
+            p => commands%view_search_regexp_forward
+        case ("what_line")
+            p => commands%what_line
         case ("where_is")
             p => commands%where_is
         case ("window_configuration_to_register")

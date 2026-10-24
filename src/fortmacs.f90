@@ -258,6 +258,26 @@ module fortmacs
                              dired_warning_face, dired_perm_write_face, dired_directory_face, dired_symlink_face, &
                              dired_ignored_face
     use files_fm, only: insert_directory_program, find_file_run_dired, find_file_other_window, revert_buffer
+    ! Dired file operations (dired-aux.el) and View mode.
+    use dired_mode_fm, only: dired_chown_program, dired_touch_program, DIRED_KEEP_MARKER, dired_keep_marker_rename, &
+                             dired_keep_marker_copy, dired_keep_marker_hardlink, dired_keep_marker_symlink, &
+                             dired_keep_marker_relsymlink, dired_copy_preserve_time, dired_copy_dereference, &
+                             dired_recursive_copies, dired_dwim_target, DIRED_DWIM_TARGET_NIL, DIRED_DWIM_TARGET_NEXT, &
+                             DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, dired_create_destination_dirs, &
+                             DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+                             DIRED_CREATE_DESTINATION_DIRS_ASK, dired_create_destination_dirs_on_trailing_dirsep, &
+                             dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
+                             dired_compress_file_default_suffix, dired_compress_directory_default_suffix, &
+                             dired_compress_suffix_type, dired_compress_rule_type, dired_compress_file_suffixes, &
+                             dired_compress_file_alist, dired_compress_files_alist
+    use files_fm, only: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
+                        find_file_read_only_other_window, make_empty_file, file_modes_symbolic_to_number, &
+                        file_modes_number_to_symbolic
+    use fileio_fm, only: copy_file, rename_file, add_name_to_file, make_symbolic_link, set_file_modes, set_file_times
+    use simple_fm, only: read_only_mode, read_only_mode_hook, what_line
+    use view_fm, only: view_mode, view_mode_map, view_mode_hook, view_file, view_file_other_window, view_buffer, &
+                       view_buffer_other_window, view_scroll_auto_exit, view_exits_all_viewing_windows, &
+                       view_inhibit_help_message, view_no_disable_on_exit
     ! Processes and shell commands.
     use process_fm, only: process_arg_type, process_filter_proc, process_sentinel_proc, make_process, start_process, &
                           delete_process, free_process, processp, process_live_p, get_process, get_buffer_process, &
@@ -308,6 +328,39 @@ module fortmacs
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
                          shell_command_dont_erase_buffer, shell_command_buffer_name, DONT_ERASE_NIL, DONT_ERASE_ERASE, &
                          DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT
+    use cmds_fm, only: post_self_insert_hook
+    use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, timerp, &
+                        timer_max_repeats
+    use paren_fm, only: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, &
+                        SHOW_PAREN_EXPRESSION, SHOW_PAREN_MIXED, show_paren_delay, show_paren_priority, &
+                        show_paren_ring_bell_on_mismatch, show_paren_when_point_inside_paren, &
+                        show_paren_when_point_in_periphery, show_paren_highlight_openparen, &
+                        show_paren_context_when_offscreen, show_paren_not_in_comments_or_strings, &
+                        SHOW_PAREN_COMMENTS_STRINGS_ALWAYS, SHOW_PAREN_COMMENTS_STRINGS_ALL, &
+                        SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
+                        show_paren_data_proc, show_paren_default, show_paren_predicate, show_paren_predicate_proc, &
+                        show_paren_default_predicate, show_paren_mode_hook, show_paren_local_mode_hook
+    use simple_fm, only: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, &
+                         BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, &
+                         blink_matching_paren_distance, blink_matching_delay, blink_matching_paren_dont_ignore_comments, &
+                         blink_matching_check_function, blink_matching_check_proc, blink_matching_check_mismatch, &
+                         blink_paren_function, blink_matching_open, newline_and_indent, backward_delete_char_untabify, &
+                         backward_delete_char_untabify_method, UNTABIFY_METHOD_NIL, UNTABIFY_METHOD_UNTABIFY, &
+                         UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_ALL
+    use electric_fm, only: electric_indent_mode, electric_indent_local_mode, electric_indent_chars, &
+                           electric_indent_inhibit, electric_indent_functions_without_reindent, &
+                           electric_indent_mode_hook, electric_indent_local_mode_hook, electric_indent_just_newline, &
+                           electric_newline_and_maybe_indent
+    use elec_pair_fm, only: electric_pair_mode, electric_pair_local_mode, electric_pair_type, electric_pair_pairs, &
+                            electric_pair_text_pairs, electric_pair_skip_self, electric_pair_inhibit_predicate, &
+                            electric_pair_char_proc, electric_pair_default_skip_self, electric_pair_default_inhibit, &
+                            electric_pair_conservative_inhibit, electric_pair_preserve_balance, &
+                            electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
+                            ELECTRIC_PAIR_SKIP_WHITESPACE_NIL, ELECTRIC_PAIR_SKIP_WHITESPACE_T, &
+                            ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, electric_pair_skip_whitespace_chars, &
+                            electric_pair_skip_whitespace_function, electric_pair_text_syntax_table, &
+                            electric_pair_string_bound_function, electric_pair_position_proc, electric_pair_mode_hook, &
+                            electric_pair_local_mode_hook, electric_pair_delete_pair
     implicit none(type, external)
     private
 
@@ -454,6 +507,33 @@ module fortmacs
               dabbrev_check_other_buffers, dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
               dabbrev_search_these_buffers_only, DABBREV_OFF, DABBREV_ON, DABBREV_LIKE_CASE_FOLD_SEARCH, &
               DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
+    public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
+              timerp, timer_max_repeats
+    public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, &
+              SHOW_PAREN_MIXED, show_paren_delay, show_paren_priority, show_paren_ring_bell_on_mismatch, &
+              show_paren_when_point_inside_paren, show_paren_when_point_in_periphery, show_paren_highlight_openparen, &
+              show_paren_context_when_offscreen, show_paren_not_in_comments_or_strings, &
+              SHOW_PAREN_COMMENTS_STRINGS_ALWAYS, SHOW_PAREN_COMMENTS_STRINGS_ALL, &
+              SHOW_PAREN_COMMENTS_STRINGS_ON_MISMATCH, show_paren_data_function, show_paren_data_type, &
+              show_paren_data_proc, show_paren_default, show_paren_predicate, show_paren_predicate_proc, &
+              show_paren_default_predicate, show_paren_mode_hook, show_paren_local_mode_hook
+    public :: blink_matching_paren, BLINK_MATCHING_PAREN_NIL, BLINK_MATCHING_PAREN_T, BLINK_MATCHING_PAREN_JUMP, &
+              BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, blink_matching_paren_on_screen, blink_matching_paren_distance, &
+              blink_matching_delay, blink_matching_paren_dont_ignore_comments, blink_matching_check_function, &
+              blink_matching_check_proc, blink_matching_check_mismatch, blink_paren_function, blink_matching_open, &
+              newline_and_indent, backward_delete_char_untabify, backward_delete_char_untabify_method, &
+              UNTABIFY_METHOD_NIL, UNTABIFY_METHOD_UNTABIFY, UNTABIFY_METHOD_HUNGRY, UNTABIFY_METHOD_ALL
+    public :: electric_indent_mode, electric_indent_local_mode, electric_indent_chars, electric_indent_inhibit, &
+              electric_indent_functions_without_reindent, electric_indent_mode_hook, electric_indent_local_mode_hook, &
+              electric_indent_just_newline, electric_newline_and_maybe_indent, electric_pair_mode, &
+              electric_pair_local_mode, electric_pair_type, electric_pair_pairs, electric_pair_text_pairs, &
+              electric_pair_skip_self, electric_pair_inhibit_predicate, electric_pair_char_proc, &
+              electric_pair_default_skip_self, electric_pair_default_inhibit, electric_pair_conservative_inhibit, &
+              electric_pair_preserve_balance, electric_pair_open_newline_between_pairs, electric_pair_skip_whitespace, &
+              ELECTRIC_PAIR_SKIP_WHITESPACE_NIL, ELECTRIC_PAIR_SKIP_WHITESPACE_T, ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP, &
+              electric_pair_skip_whitespace_chars, electric_pair_skip_whitespace_function, &
+              electric_pair_text_syntax_table, electric_pair_string_bound_function, electric_pair_position_proc, &
+              electric_pair_mode_hook, electric_pair_local_mode_hook, electric_pair_delete_pair
     public :: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
               dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, dired_listing_switches, &
               dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, DIRED_USE_LS_DIRED_UNSPECIFIED, &
@@ -469,4 +549,20 @@ module fortmacs
               dired_marked_face, dired_flagged_face, dired_warning_face, dired_perm_write_face, &
               dired_directory_face, dired_symlink_face, dired_ignored_face, insert_directory_program, &
               find_file_run_dired, find_file_other_window, revert_buffer
+    public :: dired_chown_program, dired_touch_program, DIRED_KEEP_MARKER, dired_keep_marker_rename, &
+              dired_keep_marker_copy, dired_keep_marker_hardlink, dired_keep_marker_symlink, dired_keep_marker_relsymlink, &
+              dired_copy_preserve_time, dired_copy_dereference, dired_recursive_copies, dired_dwim_target, &
+              DIRED_DWIM_TARGET_NIL, DIRED_DWIM_TARGET_NEXT, DIRED_DWIM_TARGET_NEXT_VISIBLE, DIRED_DWIM_TARGET_RECENT, &
+              dired_create_destination_dirs, DIRED_CREATE_DESTINATION_DIRS_NIL, DIRED_CREATE_DESTINATION_DIRS_ALWAYS, &
+              DIRED_CREATE_DESTINATION_DIRS_ASK, dired_create_destination_dirs_on_trailing_dirsep, &
+              dired_do_revert_buffer, dired_create_empty_file_in_current_directory, &
+              dired_compress_file_default_suffix, dired_compress_directory_default_suffix, dired_compress_suffix_type, &
+              dired_compress_rule_type, dired_compress_file_suffixes, dired_compress_file_alist, &
+              dired_compress_files_alist
+    public :: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
+              find_file_read_only_other_window, make_empty_file, file_modes_symbolic_to_number, &
+              file_modes_number_to_symbolic, copy_file, rename_file, add_name_to_file, make_symbolic_link, &
+              set_file_modes, set_file_times, read_only_mode, read_only_mode_hook, what_line, view_mode, view_mode_map, &
+              view_mode_hook, view_file, view_file_other_window, view_buffer, view_buffer_other_window, &
+              view_scroll_auto_exit, view_exits_all_viewing_windows, view_inhibit_help_message, view_no_disable_on_exit
 end module fortmacs

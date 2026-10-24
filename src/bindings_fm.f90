@@ -70,12 +70,17 @@ module bindings_fm
     use font_lock_fm, only: syms_of_font_lock
     use jit_lock_fm, only: syms_of_jit_lock
     use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
+    use view_fm, only: syms_of_view
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
     use rect_fm, only: syms_of_rect
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
+    use paren_fm, only: syms_of_paren
+    use electric_fm, only: syms_of_electric
+    use elec_pair_fm, only: syms_of_elec_pair
+    use modes_fm, only: minor_modes
     implicit none(type, external)
     private
 
@@ -478,6 +483,7 @@ contains
         key(1) = make_fixnum(int(iachar("4"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
+        call syms_of_view()
         call syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
@@ -528,5 +534,13 @@ contains
             call make_sparse_keymap(local_function_key_map)
         end if
         call set_keymap_parent(local_function_key_map, function_key_map, status)
+        ! paren.el, electric.el and elec-pair.el; Show Paren mode and
+        ! Electric Indent mode are on (their :init-value, set after the
+        ! files load at startup).
+        call syms_of_paren()
+        call syms_of_electric(global_map)
+        call syms_of_elec_pair()
+        call minor_modes%show_paren_mode%enable(status)
+        call minor_modes%electric_indent_mode%enable(status)
     end subroutine init_bindings
 end module bindings_fm

@@ -22,9 +22,8 @@
 !> Motion, deletion and insertion commands on the current buffer, and
 !> their registration as commands (`syms_of_cmds').
 !>
-!> Deferred: overwrite mode and `post_self_insert_hook' in
-!> `self_insert_command', `translation_table_for_input', and
-!> intangible/invisible text.
+!> Deferred: overwrite mode in `self_insert_command',
+!> `translation_table_for_input', and intangible/invisible text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -41,6 +40,8 @@ module cmds_fm
     use character_fm, only: MAX_CHAR
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command_event, this_command, last_command
+    use lisp_fm, only: make_fixnum
+    use eval_fm, only: hook_type
     use data_fm, only: value_eq
     use undo_fm, only: undo_auto_amalgamate, this_command_amalgamating
     use dispnew_fm, only: ding
@@ -93,6 +94,12 @@ module cmds_fm
     !> simple.el:kill-forward-chars, which `delete_char' calls with
     !> KILLFLAG; set by simple_fm (null: KILLFLAG deletes).
     procedure(kill_chars_proc), pointer, public :: kill_forward_chars_hook => null()
+
+    !> Hook run at the end of `self_insert_command'.
+    !> This is run after inserting a character.
+    !> The hook can access the inserted character via `last_command_event'.
+    !> Port of cmds.c post-self-insert-hook.
+    type(hook_type), target, public :: post_self_insert_hook = hook_type(name="post_self_insert_hook")
 
 contains
 
@@ -221,16 +228,20 @@ contains
         end if
     end subroutine delete_char
 
-    !> Insert character `c' `n' times.  Port of cmds.c:Fself_insert_command
-    !> with internal_self_insert reduced to abbrev expansion, the insertion
-    !> and auto-fill (no overwrite or hooks).  A non-character `c' rings the
-    !> bell.
+    !> Insert character `c' `n' times, then run `post_self_insert_hook';
+    !> `c' becomes `last_command_event'.  Port of
+    !> cmds.c:Fself_insert_command with internal_self_insert reduced to
+    !> abbrev expansion, the insertion, auto-fill and the hook (no
+    !> overwrite).  A non-character `c' (-1: `last_command_event' is not a
+    !> character) rings the bell.
     recursive subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
         type(status_type), intent(out) :: status
         character(len=24) :: buf
         integer :: hairy
         status = status_type()
+        ! Backward compatibility.
+        if (c >= 0) last_command_event = make_fixnum(c)
         if (n < 0) then
             write (buf, "(i0)") n
             call set_error(status, FM_GENERIC_ERROR, &
@@ -247,12 +258,12 @@ contains
         if (hairy == 2) this_command_amalgamating = .false.
     end subroutine self_insert_command
 
-    !> Expand an abbrev before point, insert character `c' `n' times
-    !> and auto-fill; `hairy' is 1 when an abbrev's hook said not to
-    !> insert, 2 when an abbrev expanded or auto-filling did something
-    !> (the undo amalgamation is then reset).
-    !> Port of cmds.c:internal_self_insert (no overwrite mode, change
-    !> functions or `post_self_insert_hook').
+    !> Expand an abbrev before point, insert character `c' `n' times,
+    !> auto-fill and run `post_self_insert_hook'; `hairy' is 1 when an
+    !> abbrev's hook said not to insert, 2 when an abbrev expanded or
+    !> auto-filling did something (the undo amalgamation is then reset).
+    !> Port of cmds.c:internal_self_insert (no overwrite mode or change
+    !> functions).
     recursive subroutine internal_self_insert(c, n, hairy, status)
         integer(int32), intent(in) :: c
         integer(int64), intent(in) :: n
@@ -293,6 +304,9 @@ contains
             if (c == 10 .and. buffers(cur)%pt < buffers(cur)%zv) call goto_char(buffers(cur)%pt + 1)
             if (filled) hairy = 2
         end if
+        ! Run hooks for electric keys.
+        if (.not. status%ok()) return
+        call post_self_insert_hook%run(status)
     end subroutine internal_self_insert
 
     !> Whether `auto_fill_chars' contains `c' (space and
@@ -424,9 +438,9 @@ contains
     !> not have word syntax and the previous character in the buffer does.
     !> After insertion, `internal_auto_fill' is called if
     !> `auto_fill_function' is true and if the `auto_fill_chars' table has
-    !> a true value for the inserted character.
-    !> Port of cmds.c:Fself_insert_command (the command;
-    !> post-self-insert-hook is not ported).
+    !> a true value for the inserted character.  At the end, it runs
+    !> `post_self_insert_hook'.  Port of cmds.c:Fself_insert_command (the
+    !> command).
     recursive subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
         status = status_type()
