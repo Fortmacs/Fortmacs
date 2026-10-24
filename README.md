@@ -1,4 +1,4 @@
-# Fortmacs
+<h1 align="center"><img src="docs/logo/logo.svg" alt="Fortmacs" width="408"></h1>
 
 > **Not usable yet.** This is an early, experimental port; it builds and
 > runs, but most of Emacs is missing.
