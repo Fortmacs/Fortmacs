@@ -247,8 +247,11 @@ contains
         call command_loop(st)
         text = apropos_text()
         call check(error, index(text, "Type RET on an entry to view its full documentation."//LF//LF// &
-                                "kill_line"//TAB//TAB//"      C-k, <deleteline>"//LF// &
-                                "  Kill the rest of the current line;") == 1, text)
+                                "dired_do_kill_lines"//TAB//"      M-x ... RET"//LF// &
+                                "  Remove all marked lines, or the next ARG lines.") == 1, text)
+        if (allocated(error)) return
+        call check(error, index(text, LF//"kill_line"//TAB//TAB//"      C-k, <deleteline>"//LF// &
+                                "  Kill the rest of the current line;") > 0, text)
         if (allocated(error)) return
         call check(error, index(text, LF//"kill_whole_line"//TAB//TAB//"      C-S-<backspace>"//LF// &
                                 "  Kill current line."//LF) > 0 .and. index(text, "forward_line") == 0, text)
