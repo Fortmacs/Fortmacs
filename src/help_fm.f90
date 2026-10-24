@@ -39,8 +39,9 @@
 !> Deferred: the help-map commands that are not ported (Info and the
 !> manuals, the NEWS, FAQ, tutorial and other files, describe-syntax,
 !> describe-coding-system and the input methods, display-local-help,
-!> help-quick, finder, describe-package, help-find-source), which
-!> `help_for_help' leaves out of its screen; `three_step_help'; the
+!> help-quick, finder, describe-package, help-find-source), whose
+!> keys in the help map stay unbound (the help-for-help screen lists
+!> them as upstream does); `three_step_help'; the
 !> `help_key_binding' and `separator_line' faces; Outline minor mode in
 !> *Help* (`describe_bindings_outline'); `describe_bindings''s PREFIX and
 !> BUFFER, keyboard-translate-table, text property keymaps, menus and
@@ -1102,8 +1103,10 @@ contains
     ! Help for help
     ! ------------------------------------------------------------------
 
-    !> The text of the help-for-help screen: the lines of the ported
-    !> commands, as help.el:help--for-help-make-sections makes them.
+    !> The text of the help-for-help screen, as help.el's help-for-help
+    !> makes it.  A command that is not ported yet is listed under the
+    !> key upstream's `help_map' gives it (help.el:help-map), which stays
+    !> unbound here.
     function help_for_help_text() result(text)
         character(len=:), allocatable :: text
         text = "(Type "//"<PageDown>"//" or "//"<PageUp>"//" to scroll, "//"C-s"// &
@@ -1113,6 +1116,7 @@ contains
                       "describe_key_briefly", "where_is", "", "apropos_command", "apropos_documentation", &
                       "describe_command", "describe_function", "help_find_source", "describe_variable", &
                       "describe_symbol"], &
+                     [character(len=4) :: "m", "b", "k", "c", "w", "", "a", "d", "x", "f", "4 s", "v", "o"], &
                      [character(len=72) :: "Show help for current major and minor modes and their commands", &
                       "Show all key bindings", "Show help for key", "Show help for key briefly", &
                       "Show which key runs a specific command", "", &
@@ -1124,6 +1128,7 @@ contains
         call section("Manuals", &
                      [character(len=40) :: "info_emacs_manual", "Info_goto_emacs_command_node", &
                       "Info_goto_emacs_key_command_node", "info", "info_display_manual", "info_lookup_symbol"], &
+                     [character(len=4) :: "r", "F", "K", "i", "R", "S"], &
                      [character(len=72) :: "Show Emacs manual", "Show Emacs manual section for command", &
                       "Show Emacs manual section for a key sequence", "Show all installed manuals", &
                       "Show a specific manual", "Show description of symbol in pertinent manual"])
@@ -1131,16 +1136,18 @@ contains
                      [character(len=40) :: "view_external_packages", "finder_by_keyword", "describe_package", "", &
                       "help_with_tutorial", "help_quick_toggle", "view_echo_area_messages", "view_lossage", &
                       "display_local_help"], &
+                     [character(len=4) :: "C-e", "p", "P", "", "t", "C-q", "e", "l", "."], &
                      [character(len=72) :: "Extending Emacs with external packages", &
                       "Search for Emacs packages (see also \[list_packages])", "Describe a specific Emacs package", &
                       "", "Start the Emacs tutorial", "Display the quick help buffer.", &
                       "Show recent messages (from echo area)", "Show last "//int_text(lossage_size())// &
                       " input keystrokes (lossage)", "Show local help at point"])
         call section("Miscellaneous", &
-                     [character(len=40) :: "about_emacs", "view_emacs_FAQ", "view_emacs_news", &
+                     [character(len=40) :: "about_emacs", "view_emacs_FAQ", "C-n", &
                       "view_emacs_problems", "view_emacs_debugging", "", "describe_gnu_project", &
-                      "describe_copying", "describe_distribution", "view_order_manuals", "view_emacs_todo", &
+                      "describe_copying", "describe_distribution", "C-m", "view_emacs_todo", &
                       "describe_no_warranty"], &
+                     [character(len=4) :: "C-a", "C-f", "", "C-p", "C-d", "", "g", "C-c", "C-o", "", "C-t", "C-w"], &
                      [character(len=72) :: "About Emacs", "Emacs FAQ", "News of recent changes", "Known problems", &
                       "Debugging Emacs", "", "About the GNU project", &
                       "Emacs copying permission (GNU General Public License)", &
@@ -1149,37 +1156,39 @@ contains
         call section("Internationalization and Coding Systems", &
                      [character(len=40) :: "describe_input_method", "describe_coding_system", &
                       "describe_language_environment", "describe_syntax", "view_hello_file"], &
+                     [character(len=4) :: "I", "C", "L", "s", "h"], &
                      [character(len=72) :: "Describe input method", "Describe coding system", &
                       "Describe language environment", "Show current syntax table", &
                       "Display the HELLO file illustrating various scripts"])
         text = text//LF
     contains
 
-        !> Append a section: its title, then a line per ported command;
-        !> an empty name separates groups.  Port of
+        !> Append a section: its title, then a line per command (an empty
+        !> name gives an empty line).  A name such as C-n is shown as it
+        !> is; a ported command by its key (\[NAME]), one not ported yet
+        !> by its key in upstream's help map, `key'.  Port of
         !> help.el:help--for-help-make-sections and
-        !> help--for-help-make-commands (the commands that are not ported
-        !> are left out, with a section that has none).
-        subroutine section(title, names, descs)
-            character(len=*), intent(in) :: title, names(:), descs(:)
-            character(len=:), allocatable :: body
+        !> help--for-help-make-commands.
+        subroutine section(title, names, keys, descs)
+            character(len=*), intent(in) :: title, names(:), keys(:), descs(:)
+            character(len=:), allocatable :: name
             integer :: k
-            logical :: pending_blank
-            body = ""
-            pending_blank = .false.
+            text = text//LF//LF//title//LF//LF
             do k = 1, size(names)
-                if (len_trim(names(k)) == 0) then
-                    if (len(body) > 0) pending_blank = .true.
-                    cycle
+                if (k > 1) text = text//LF
+                name = trim(names(k))
+                if (len(name) == 0) cycle
+                text = text//"   "
+                if (len_trim(keys(k)) == 0) then
+                    ! (string-match "\`C-\w\'" name)
+                    text = text//name
+                else if (command_defined_p(sym(name))) then
+                    text = text//"\["//name//"]"
+                else
+                    text = text//trim(keys(k))
                 end if
-                if (.not. command_defined_p(sym(trim(names(k))))) cycle
-                if (len(body) > 0) body = body//LF
-                if (pending_blank) body = body//LF
-                pending_blank = .false.
-                body = body//"   \["//trim(names(k))//"] "//TAB//trim(descs(k))
+                text = text//" "//TAB//trim(descs(k))
             end do
-            if (len(body) == 0) return
-            text = text//LF//LF//title//LF//LF//body
         end subroutine section
     end function help_for_help_text
 
