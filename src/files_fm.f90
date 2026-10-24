@@ -499,7 +499,7 @@ module files_fm
     !> function.  This should not be relied upon.  Port of files.el
     !> revert-buffer-function (permanently buffer-local; set with
     !> `set_local', null for the default).
-    type, public :: revert_buffer_function_setting
+    type, public :: revert_buffer_function_type
         character(len=48) :: name = "revert_buffer_function"
         type(revert_entry_type), allocatable :: entries(:)
     contains
@@ -507,11 +507,11 @@ module files_fm
         procedure :: set_local => revert_set_local
         !> The current buffer's revert function (null for the default).
         procedure :: get => revert_get
-    end type revert_buffer_function_setting
+    end type revert_buffer_function_type
 
     !> Function to use to revert this buffer (see the type).  Port of
     !> files.el revert-buffer-function.
-    type(revert_buffer_function_setting), public :: revert_buffer_function
+    type(revert_buffer_function_type), public :: revert_buffer_function
 
     !> True within a `revert_buffer'.  Port of files.el
     !> revert-buffer-in-progress.
@@ -1359,7 +1359,7 @@ contains
     end function serial_live
 
     subroutine revert_set_local(self, fn)
-        class(revert_buffer_function_setting), intent(inout) :: self
+        class(revert_buffer_function_type), intent(inout) :: self
         procedure(revert_function_proc) :: fn
         type(revert_entry_type), allocatable :: grown(:)
         integer :: i, n
@@ -1388,7 +1388,7 @@ contains
     end subroutine revert_set_local
 
     function revert_get(self) result(fn)
-        class(revert_buffer_function_setting), intent(in) :: self
+        class(revert_buffer_function_type), intent(in) :: self
         procedure(revert_function_proc), pointer :: fn
         integer :: i
         fn => null()

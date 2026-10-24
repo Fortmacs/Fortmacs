@@ -1458,7 +1458,7 @@ contains
             entry%file = "dired_mode_fm.f90"
             entry%interactive = .true.
             entry%doc = "Build `dired_subdir_alist' by parsing the buffer."//LF// &
-                        "Returns the new value of the alist."
+                        "Returns the new value of `dired_subdir_alist'."
         case ("dired_change_marks")
             entry%file = "dired_mode_fm.f90"
             entry%interactive = .true.
@@ -6777,7 +6777,7 @@ contains
             case default
                 entry%value = repr(read_answer_short)
             end select
-            entry%doc = "If true, the `read_answer' function accepts single-character answers."//LF// &
+            entry%doc = "Whether the `read_answer' function accepts single-character answers."//LF// &
                         "If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the"//LF// &
                         "question.  If READ_ANSWER_SHORT_NIL, require long answers.  If"//LF// &
                         "READ_ANSWER_SHORT_AUTO, accept short answers if"//LF// &
@@ -6915,11 +6915,6 @@ contains
         case ("revert_buffer_function")
             entry%file = "files_fm.f90"
             entry%fortran = "revert_buffer_function"
-            if (associated(revert_buffer_function%value)) then
-                entry%value = command_name_of(revert_buffer_function%value)
-            else
-                entry%value = "null()"
-            end if
             entry%doc = "Function to use to revert this buffer (see the type)."
         case ("revert_buffer_in_progress")
             entry%file = "files_fm.f90"

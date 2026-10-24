@@ -268,7 +268,7 @@ contains
         type(status_type) :: st
         status = status_type()
         if (test_for_subdir .and. len(dired_get_subdir()) > 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Redisplaying a subdirectory (dired-insert-subdir) is not "// &
+            call set_error(status, FM_GENERIC_ERROR, "Redisplaying a subdirectory (dired_insert_subdir) is not "// &
                            "supported yet")
             return
         end if
