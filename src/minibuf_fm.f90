@@ -111,6 +111,9 @@ module minibuf_fm
         type(value_type) :: list
         !> TABLE_FUNCTION: the function.
         procedure(completion_function), pointer, nopass :: fn => null()
+        !> The completion category (the `category' entry of the table's
+        !> metadata), empty for none.
+        character(len=:), allocatable :: category
     end type completion_table_type
 
     !> True means don't consider case significant in completion.
@@ -588,26 +591,35 @@ contains
     ! ------------------------------------------------------------------
 
     !> A completion table holding the list `list' (strings, symbols, or
-    !> lists whose first element is the completion).
-    function completion_list_table(list) result(table)
+    !> lists whose first element is the completion), in completion
+    !> category `category'.
+    function completion_list_table(list, category) result(table)
         type(value_type), intent(in) :: list
+        character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
         table%kind = TABLE_LIST
         table%list = list
+        if (present(category)) table%category = category
     end function completion_list_table
 
-    !> A completion table holding the names of all interned symbols.
-    function completion_obarray_table() result(table)
+    !> A completion table holding the names of all interned symbols, in
+    !> completion category `category'.
+    function completion_obarray_table(category) result(table)
+        character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
         table%kind = TABLE_OBARRAY
+        if (present(category)) table%category = category
     end function completion_obarray_table
 
-    !> A completion table computed by `fn' (programmed completion).
-    function completion_function_table(fn) result(table)
+    !> A completion table computed by `fn' (programmed completion), in
+    !> completion category `category' (the table's metadata).
+    function completion_function_table(fn, category) result(table)
         procedure(completion_function) :: fn
+        character(len=*), intent(in), optional :: category
         type(completion_table_type) :: table
         table%kind = TABLE_FUNCTION
         table%fn => fn
+        if (present(category)) table%category = category
     end function completion_function_table
 
     !> The elements of a non-function table: `elts' (the list elements or

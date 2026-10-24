@@ -191,6 +191,107 @@ module minibuffer_fm
     logical :: crd_ignore_case = .false.
     procedure(minibuffer_setup_proc), pointer :: crd_outer_setup => null()
 
+    !> A completion category's settings: the styles to use for it.
+    type, public :: completion_category_type
+        character(len=24) :: category = ""
+        character(len=24), allocatable :: styles(:)
+    end type completion_category_type
+
+    !> List of completion styles to use.
+    !> The available styles are basic, partial-completion, emacs22,
+    !> emacs21, initials, substring and flex (shorthand never matches, as
+    !> there are no symbol shorthands).
+    !>
+    !> Note that `completion_category_overrides' may override these
+    !> styles for specific categories, such as files, buffers, etc.
+    !> Port of minibuffer.el completion-styles.
+    character(len=24), allocatable, public :: completion_styles(:)
+
+    !> Default settings for specific completion categories.
+    !> Each entry gives the styles to use for that category.  Port of
+    !> minibuffer.el completion-category-defaults.
+    type(completion_category_type), allocatable, public :: completion_category_defaults(:)
+
+    !> List of category-specific user overrides for completion styles.
+    !> Each entry gives the styles to use for that category; these take
+    !> precedence over `completion_category_defaults'.  Port of
+    !> minibuffer.el completion-category-overrides.
+    type(completion_category_type), allocatable, public :: completion_category_overrides(:)
+
+    !> A string of characters treated as word delimiters for completion.
+    !> Some arcane rules:
+    !> If `]' is in this string, it must come first.
+    !> If `^' is in this string, it must not come first.
+    !> If `-' is in this string, it must come first or right after `]'.
+    !> In other words, if S is this string, then `[S]' must be a valid Emacs
+    !> regular expression (not containing character ranges like `a-z').
+    !> Port of minibuffer.el completion-pcm-word-delimiters.
+    character(len=:), allocatable, public :: completion_pcm_word_delimiters
+
+    !> If true, partial-completion behaves as if each word is preceded by
+    !> wildcard.  If false, only the first word is not preceded by
+    !> wildcard.  Port of minibuffer.el completion-pcm-leading-wildcard.
+    logical, public :: completion_pcm_leading_wildcard = .false.
+
+    !> True if `flex' completion rejects spaces in search pattern.  Port
+    !> of minibuffer.el completion-flex-nospace.
+    logical, public :: completion_flex_nospace = .false.
+
+    !> Whether the last `completion_all_completions' used the flex style
+    !> with a pattern, so *Completions* sorts by `flex_costs'
+    !> (completion--flex-adjust-metadata).
+    logical :: completion_flex_sorting = .false.
+
+    !> A completion and its flex score (lower is better).
+    type :: flex_cost_type
+        character(len=:), allocatable :: s
+        integer :: cost = 0
+    end type flex_cost_type
+
+    !> The flex pattern and the costs of the last flex completions.
+    character(len=:), allocatable :: flex_pattern_str
+    type(flex_cost_type), allocatable :: flex_costs(:)
+
+    interface
+        !> Try to complete STRING using completion table TABLE.
+        !> Only the elements of table that satisfy predicate PRED are
+        !> considered.  POINT is the position of point within STRING.  The
+        !> result is nil to indicate that there is no completion, t to
+        !> indicate that STRING is the only possible completion, or a pair
+        !> (NEWSTRING . NEWPOINT) of the completed result string together
+        !> with a new position for point.  Port of
+        !> minibuffer.el:completion-try-completion.
+        module subroutine completion_try_completion(string, table, point, res, pred)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            type(completion_table_type), intent(in) :: table
+            integer(int64), intent(in) :: point
+            type(try_result_type), intent(out) :: res
+            procedure(completion_predicate), optional :: pred
+        end subroutine completion_try_completion
+
+        !> List the possible completions of STRING in completion table
+        !> TABLE.  Only the elements of table that satisfy predicate PRED
+        !> are considered.  POINT is the position of point within STRING.
+        !> The completions go to `all' and the base-size to `base_size'.
+        !> Port of minibuffer.el:completion-all-completions.
+        module subroutine completion_all_completions(string, table, point, all, base_size, pred)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            type(completion_table_type), intent(in) :: table
+            integer(int64), intent(in) :: point
+            type(value_type), intent(out) :: all
+            integer(int64), intent(out) :: base_size
+            procedure(completion_predicate), optional :: pred
+        end subroutine completion_all_completions
+
+        !> Set the completion style settings not set yet to their
+        !> defaults.
+        module subroutine completion_settings_defaults()
+            implicit none(type, external)
+        end subroutine completion_settings_defaults
+    end interface
+
 contains
 
     !> Terminate this minibuffer argument.  Port of
@@ -334,19 +435,19 @@ contains
         saved_completing = minibuffer_completing_file_name
         minibuffer_completing_file_name = .true.
         if (have_insdef .and. have_default) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
                                  require_match=match, initial=insdef, history="file_name_history", &
                                  default=default, used_default=used_default)
         else if (have_insdef) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
                                  require_match=match, initial=insdef, history="file_name_history", &
                                  used_default=used_default)
         else if (have_default) then
-            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
                                  require_match=match, history="file_name_history", default=default, &
                                  used_default=used_default)
         else
-            call completing_read(prompt, completion_function_table(read_file_name_internal), val, status, &
+            call completing_read(prompt, completion_function_table(read_file_name_internal, "file"), val, status, &
                                  require_match=match, history="file_name_history", used_default=used_default)
         end if
         minibuffer_completing_file_name = saved_completing
@@ -580,6 +681,7 @@ contains
         commands%minibuffer_recenter_top_bottom%run => cmd_minibuffer_recenter_top_bottom
         commands%minibuffer_scroll_up_command%run => cmd_minibuffer_scroll_up_command
         commands%minibuffer_scroll_down_command%run => cmd_minibuffer_scroll_down_command
+        call completion_settings_defaults()
         call bind(minibuffer_local_map, "C-g", "abort_minibuffers")
         call bind(minibuffer_local_map, "C-j", "exit_minibuffer")
         call bind(minibuffer_local_map, "RET", "exit_minibuffer")
@@ -663,153 +765,6 @@ contains
         if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
         if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
     end subroutine completion_boundaries
-
-    !> Merge end of COMPLETION with beginning of SUFFIX.
-    !> Simple generalization of the "merge trailing /" done in Emacs-22.
-    !> Return the new suffix.  Port of minibuffer.el:completion--merge-suffix.
-    function merge_suffix(completion, point, suffix) result(r)
-        character(len=*), intent(in) :: completion, suffix
-        integer(int64), intent(in) :: point
-        character(len=:), allocatable :: r, tail
-        integer(int64) :: i, n
-        r = suffix
-        if (len(suffix) == 0) return
-        n = schars(completion)
-        ! The leftmost end of COMPLETION (from POINT on) that SUFFIX starts
-        ! with; it must not be empty.
-        do i = point, n - 1
-            tail = substring(completion, i)
-            if (len(tail) <= len(suffix)) then
-                if (suffix(1:len(tail)) == tail) then
-                    r = suffix(len(tail) + 1:)
-                    return
-                end if
-            end if
-        end do
-    end function merge_suffix
-
-    !> Port of minibuffer.el:completion-basic-try-completion (text after
-    !> point that is part of the completion field needs
-    !> partial-completion's matching: it gives nil here, so the next style
-    !> runs).
-    subroutine basic_try_completion(string, table, point, res, pred)
-        character(len=*), intent(in) :: string
-        type(completion_table_type), intent(in) :: table
-        integer(int64), intent(in) :: point
-        type(try_result_type), intent(out) :: res
-        procedure(completion_predicate), optional :: pred
-        character(len=:), allocatable :: beforepoint, afterpoint
-        type(value_type) :: completion
-        type(status_type) :: status
-        integer(int64) :: bstart, bend
-        beforepoint = substring(string, 0_int64, point)
-        afterpoint = substring(string, point)
-        call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, pred)
-        if (bend /= 0) return
-        ! `try_completion' may return a subtly different result than
-        ! `all+merge', so try to use it whenever possible.
-        call try_completion(beforepoint, table, completion, status, pred)
-        call set_try_result(completion, res)
-        if (res%kind == TRY_STRING) then
-            res%point = schars(res%string)
-            res%string = res%string//merge_suffix(res%string, point, afterpoint)
-        end if
-    end subroutine basic_try_completion
-
-    !> Port of minibuffer.el:completion-emacs22-try-completion.
-    subroutine emacs22_try_completion(string, table, point, res, pred)
-        character(len=*), intent(in) :: string
-        type(completion_table_type), intent(in) :: table
-        integer(int64), intent(in) :: point
-        type(try_result_type), intent(out) :: res
-        procedure(completion_predicate), optional :: pred
-        character(len=:), allocatable :: suffix
-        type(value_type) :: completion
-        type(status_type) :: status
-        suffix = substring(string, point)
-        call try_completion(substring(string, 0_int64, point), table, completion, status, pred)
-        call set_try_result(completion, res)
-        select case (res%kind)
-        case (TRY_EXACT)
-            if (len(suffix) > 0) then
-                res%kind = TRY_STRING
-                res%string = string
-                res%point = point
-            end if
-        case (TRY_STRING)
-            ! Merge a trailing / in completion with a / after point.
-            if (len(res%string) > 0 .and. len(suffix) > 0) then
-                if (res%string(len(res%string):) == "/" .and. suffix(1:1) == "/") suffix = suffix(2:)
-            end if
-            res%point = schars(res%string)
-            res%string = res%string//suffix
-        case default
-            ! nil: no completion.
-        end select
-    end subroutine emacs22_try_completion
-
-    !> The `try_completion' value `v' as a try result.
-    subroutine set_try_result(v, res)
-        type(value_type), intent(in) :: v
-        type(try_result_type), intent(out) :: res
-        if (stringp(v)) then
-            res%kind = TRY_STRING
-            res%string = xstring(v)
-        else if (nilp(v)) then
-            res%kind = TRY_NONE
-        else
-            res%kind = TRY_EXACT
-        end if
-    end subroutine set_try_result
-
-    !> Try to complete STRING using completion table TABLE.
-    !> Only the elements of table that satisfy predicate PRED are
-    !> considered.  POINT is the position of point within STRING.  The
-    !> result is nil to indicate that there is no completion, t to
-    !> indicate that STRING is the only possible completion, or a pair
-    !> (NEWSTRING . NEWPOINT) of the completed result string together
-    !> with a new position for point.  Port of
-    !> minibuffer.el:completion-try-completion (completion-styles basic
-    !> and emacs22; partial-completion is not ported).
-    subroutine completion_try_completion(string, table, point, res, pred)
-        character(len=*), intent(in) :: string
-        type(completion_table_type), intent(in) :: table
-        integer(int64), intent(in) :: point
-        type(try_result_type), intent(out) :: res
-        procedure(completion_predicate), optional :: pred
-        call basic_try_completion(string, table, point, res, pred)
-        if (res%kind == TRY_NONE) call emacs22_try_completion(string, table, point, res, pred)
-    end subroutine completion_try_completion
-
-    !> List the possible completions of STRING in completion table TABLE.
-    !> Only the elements of table that satisfy predicate PRED are
-    !> considered.  POINT is the position of point within STRING.  The
-    !> completions go to `all' and the base-size to `base_size'.  Port of
-    !> minibuffer.el:completion-all-completions (styles basic, then
-    !> emacs22, as in completion-try-completion).
-    subroutine completion_all_completions(string, table, point, all, base_size, pred)
-        character(len=*), intent(in) :: string
-        type(completion_table_type), intent(in) :: table
-        integer(int64), intent(in) :: point
-        type(value_type), intent(out) :: all
-        integer(int64), intent(out) :: base_size
-        procedure(completion_predicate), optional :: pred
-        character(len=:), allocatable :: beforepoint, afterpoint
-        type(status_type) :: status
-        integer(int64) :: bstart, bend
-        beforepoint = substring(string, 0_int64, point)
-        afterpoint = substring(string, point)
-        call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, pred)
-        base_size = bstart
-        all = nil()
-        ! completion-basic-all-completions: with nothing of the field
-        ! after point, the pattern is trivial: all-completions of the
-        ! text before point.
-        if (bend == 0) call all_completions(beforepoint, table, all, status, pred)
-        if (list_length(all) > 0) return
-        ! completion-emacs22-all-completions.
-        call all_completions(beforepoint, table, all, status, pred)
-    end subroutine completion_all_completions
 
     ! The minibuffer's table and predicate (a null predicate pointer is
     ! passed as an absent argument).
@@ -1371,8 +1326,13 @@ contains
         do k = 1, size(elts)
             strings(k)%s = xstring(elts(k))
         end do
-        ! minibuffer-sort-alphabetically.
-        call sort_strings(strings)
+        if (completion_flex_sorting) then
+            ! The display-sort-function of completion--flex-adjust-metadata.
+            call sort_by_flex_cost(strings)
+        else
+            ! minibuffer-sort-alphabetically.
+            call sort_strings(strings)
+        end if
         mini = current_buffer()
         call get_buffer_create("*Completions*", buf, status)
         if (.not. status%ok()) return
@@ -1429,6 +1389,38 @@ contains
             strings(j + 1)%s = tmp
         end do
     end subroutine sort_strings
+
+    !> Sort `strings' by their flex cost in `flex_costs' (lower first,
+    !> keeping the order of equal costs).
+    subroutine sort_by_flex_cost(strings)
+        type(string_box), intent(inout) :: strings(:)
+        character(len=:), allocatable :: tmp
+        integer, allocatable :: costs(:)
+        integer :: i, j, c
+        allocate (costs(size(strings)))
+        do i = 1, size(strings)
+            costs(i) = 0
+            do j = 1, size(flex_costs)
+                if (flex_costs(j)%s == strings(i)%s .and. len(flex_costs(j)%s) == len(strings(i)%s)) then
+                    costs(i) = flex_costs(j)%cost
+                    exit
+                end if
+            end do
+        end do
+        do i = 2, size(strings)
+            tmp = strings(i)%s
+            c = costs(i)
+            j = i - 1
+            do while (j >= 1)
+                if (costs(j) <= c) exit
+                strings(j + 1)%s = strings(j)%s
+                costs(j + 1) = costs(j)
+                j = j - 1
+            end do
+            strings(j + 1)%s = tmp
+            costs(j + 1) = c
+        end do
+    end subroutine sort_by_flex_cost
 
     !> Display the list of completions, STRINGS, in the current buffer:
     !> the heading line, then the candidates in columns.  Port of
@@ -1578,10 +1570,10 @@ contains
         if (present(require_match)) match = require_match
         had_except = allocated(rbts_except)
         if (had_except) call move_alloc(rbts_except, saved_except)
-        table = completion_function_table(internal_complete_buffer)
+        table = completion_function_table(internal_complete_buffer, "buffer")
         if (present(except)) then
             rbts_except = buffers(except%index)%name
-            table = completion_function_table(internal_complete_buffer_except)
+            table = completion_function_table(internal_complete_buffer_except, "buffer")
         end if
         saved_ignore_case = completion_ignore_case%value
         completion_ignore_case = read_buffer_completion_ignore_case

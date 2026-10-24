@@ -167,8 +167,10 @@ module docstrings_fm
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
-    use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
-                             completion_show_inline_help, completions_max_height, insert_default_directory, &
+    use minibuffer_fm, only: completion_auto_help, completion_category_defaults, &
+                             completion_category_overrides, completion_fail_discreetly, completion_flex_nospace, &
+                             completion_pcm_leading_wildcard, completion_pcm_word_delimiters, completion_show_inline_help, &
+                             completion_styles, completions_max_height, insert_default_directory, &
                              minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
                              read_file_name_completion_ignore_case
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
@@ -478,7 +480,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(460) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(466) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -522,10 +524,12 @@ module docstrings_fm
                                                                  "compilation_shell_minor_mode_map", "compilation_skip_threshold", &
                                                                   "compilation_skip_to_next_location", "compilation_skip_visited", &
                                           "compilation_transform_file_match_alist", "compilation_warning_face", "compile_command", &
-                                                   "completion_auto_help", "completion_fail_discreetly", "completion_ignore_case", &
-                                         "completion_ignored_extensions", "completion_show_inline_help", "completions_max_height", &
-                                                 "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
-                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                          "completion_auto_help", "completion_category_defaults", "completion_category_overrides", &
+                                                "completion_fail_discreetly", "completion_flex_nospace", "completion_ignore_case", &
+                                                               "completion_ignored_extensions", "completion_pcm_leading_wildcard", &
+                                             "completion_pcm_word_delimiters", "completion_show_inline_help", "completion_styles", &
+                                             "completions_max_height", "copy_directory_create_symlink", "copy_region_blink_delay", &
+                                                      "current_prefix_arg", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
                                          "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
@@ -8939,12 +8943,29 @@ contains
             entry%doc = "True means automatically provide help for invalid completion"//LF// &
                         "input.  (Only true and false: `lazy', `always' and `visible' are not"//LF// &
                         "ported.)"
+        case ("completion_category_defaults")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_category_defaults"
+            entry%doc = "Default settings for specific completion categories."//LF// &
+                        "Each entry gives the styles to use for that category."
+        case ("completion_category_overrides")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_category_overrides"
+            entry%doc = "List of category-specific user overrides for completion styles."//LF// &
+                        "Each entry gives the styles to use for that category; these take"//LF// &
+                        "precedence over `completion_category_defaults'."
         case ("completion_fail_discreetly")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_fail_discreetly"
             entry%original = ".false."
             entry%value = repr(completion_fail_discreetly)
             entry%doc = "If true, stay quiet when there is no match."
+        case ("completion_flex_nospace")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_flex_nospace"
+            entry%original = ".false."
+            entry%value = repr(completion_flex_nospace)
+            entry%doc = "True if `flex' completion rejects spaces in search pattern."
         case ("completion_ignore_case")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "completion_ignore_case"
@@ -8964,12 +8985,50 @@ contains
                         "these strings or when displaying a list of completions.  It ignores"//LF// &
                         "directory names if they match any string in this array which ends in"//LF// &
                         "a slash."
+        case ("completion_pcm_leading_wildcard")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_pcm_leading_wildcard"
+            entry%original = ".false."
+            entry%value = repr(completion_pcm_leading_wildcard)
+            entry%doc = "If true, partial-completion behaves as if each word is preceded by"//LF// &
+                        "wildcard.  If false, only the first word is not preceded by"//LF// &
+                        "wildcard."
+        case ("completion_pcm_word_delimiters")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_pcm_word_delimiters"
+            if (allocated(completion_pcm_word_delimiters)) then
+                entry%value = repr(completion_pcm_word_delimiters)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "A string of characters treated as word delimiters for completion."//LF// &
+                        "Some arcane rules:"//LF// &
+                        "If `]' is in this string, it must come first."//LF// &
+                        "If `^' is in this string, it must not come first."//LF// &
+                        "If `-' is in this string, it must come first or right after `]'."//LF// &
+                        "In other words, if S is this string, then `[S]' must be a valid Emacs"//LF// &
+                        "regular expression (not containing character ranges like `a-z')."
         case ("completion_show_inline_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_show_inline_help"
             entry%original = ".true."
             entry%value = repr(completion_show_inline_help)
             entry%doc = "If true, print helpful inline messages during completion."
+        case ("completion_styles")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_styles"
+            if (allocated(completion_styles)) then
+                entry%value = repr(completion_styles)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of completion styles to use."//LF// &
+                        "The available styles are basic, partial-completion, emacs22,"//LF// &
+                        "emacs21, initials, substring and flex (shorthand never matches, as"//LF// &
+                        "there are no symbol shorthands)."//LF// &
+                        ""//LF// &
+                        "Note that `completion_category_overrides' may override these"//LF// &
+                        "styles for specific categories, such as files, buffers, etc."
         case ("completions_max_height")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completions_max_height"
