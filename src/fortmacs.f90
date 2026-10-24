@@ -233,6 +233,11 @@ module fortmacs
                          ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
     use lisp_cmds_fm, only: forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
                             backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp
+    ! Keyboard macros.
+    use keyboard_fm, only: kbd_macro_termination_hook
+    use kmacro_fm, only: kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, kmacro_call_repeat_key, &
+                         kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, KMACRO_CALL_REPEAT_LAST_KEY
+    use edmacro_fm, only: edmacro_eight_bits
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
     implicit none(type, external)
@@ -341,4 +346,7 @@ module fortmacs
               font_lock_highlight, font_lock_anchored, font_lock_add_keywords, FONT_LOCK_ADD_BEGINNING, &
               FONT_LOCK_ADD_END, FONT_LOCK_ADD_SET, jit_lock_chunk_size, fontification_functions, &
               position_hook_type, position_function
+    public :: kbd_macro_termination_hook, kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, &
+              kmacro_call_repeat_key, kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, &
+              KMACRO_CALL_REPEAT_LAST_KEY, edmacro_eight_bits
 end module fortmacs

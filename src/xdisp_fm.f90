@@ -81,7 +81,7 @@ module xdisp_fm
     implicit none(type, external)
     private
 
-    public :: add_minor_mode_lighter, mode_line_modes
+    public :: add_minor_mode_lighter, mode_line_modes, mode_line_modes_faces
     public :: redisplay, init_frame_windows, glyph_width, &
               mode_line_text, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent
@@ -126,10 +126,30 @@ module xdisp_fm
     !> not ported yet (Deferred), only commands that test the variable.
     integer, public :: truncate_partial_width_windows = 50
 
-    !> An entry of minor-mode-alist.
+    abstract interface
+        !> Whether a minor-mode-alist entry's variable is true, for a
+        !> variable kept in Fortran (such as `defining_kbd_macro').
+        logical function lighter_active_proc()
+            implicit none(type, external)
+        end function lighter_active_proc
+    end interface
+
+    public :: lighter_active_proc
+
+    !> An entry of minor-mode-alist: VARIABLE and its LIGHTER, shown in
+    !> FACE (none if empty); ACTIVE, if associated, tells whether the
+    !> variable is true.
     type :: lighter_type
-        character(len=:), allocatable :: variable, lighter
+        character(len=:), allocatable :: variable, lighter, face
+        procedure(lighter_active_proc), pointer, nopass :: active => null()
     end type lighter_type
+
+    !> A part of a mode line shown in another face: characters FIRST to
+    !> LAST in face FACE_ID.
+    type, public :: face_span_type
+        integer :: first = 0, last = 0
+        integer(int32) :: face_id = 0
+    end type face_span_type
 
     type(lighter_type), allocatable :: lighters(:)
     integer :: n_lighters = 0
@@ -890,18 +910,20 @@ contains
     !> truncated at the right edge (a TAB or wide character cut there
     !> shows as -), filled with spaces, in face `face_id' (default
     !> mode_line_active), characters `span_first' to `span_last' in face
-    !> `span_face' (a propertized part of the mode line).  The terminal
-    !> part of xdisp.c:display_string for mode lines, with pad_mode_line.
-    subroutine mode_line_row(text, width, row, face_id, span_first, span_last, span_face)
+    !> `span_face' (a propertized part of the mode line), and those of
+    !> each of `spans' in its face.  The terminal part of
+    !> xdisp.c:display_string for mode lines, with pad_mode_line.
+    subroutine mode_line_row(text, width, row, face_id, span_first, span_last, span_face, spans)
         character(len=*), intent(in) :: text
         integer, intent(in) :: width
         type(glyph_type), intent(out) :: row(:)
         integer(int32), intent(in), optional :: face_id, span_face
         integer, intent(in), optional :: span_first, span_last
+        type(face_span_type), intent(in), optional :: spans(:)
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
         integer(int32), allocatable :: chars(:)
         integer(int32) :: base
-        integer :: nchars, i, x, n
+        integer :: nchars, i, x, n, k
         base = MODE_LINE_ACTIVE_FACE_ID
         if (present(face_id)) base = face_id
         row = glyph_type()
@@ -914,6 +936,11 @@ contains
             cells(1:n)%face_id = base
             if (present(span_first) .and. present(span_last) .and. present(span_face)) then
                 if (i >= span_first .and. i <= span_last) cells(1:n)%face_id = span_face
+            end if
+            if (present(spans)) then
+                do k = 1, size(spans)
+                    if (i >= spans(k)%first .and. i <= spans(k)%last) cells(1:n)%face_id = spans(k)%face_id
+                end do
             end if
             if (chars(i) == 9 .or. n == 1 .or. (n == 2 .and. cells(min(n, 2))%padding)) then
                 ! One display element.
@@ -935,27 +962,39 @@ contains
     end subroutine mode_line_row
 
     !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
-    !> VARIABLE's earlier lighter).  Port of the mode-line part of
+    !> VARIABLE's earlier lighter), in FACE if present (a propertized
+    !> lighter).  ACTIVE, if present, tells whether VARIABLE is true (a
+    !> variable kept in Fortran).  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
-    subroutine add_minor_mode_lighter(variable, lighter)
+    subroutine add_minor_mode_lighter(variable, lighter, face, active)
         character(len=*), intent(in) :: variable, lighter
+        character(len=*), intent(in), optional :: face
+        procedure(lighter_active_proc), optional :: active
         type(lighter_type), allocatable :: grown(:)
-        integer :: i
+        integer :: i, k
+        k = 0
         do i = 1, n_lighters
             if (lighters(i)%variable == variable) then
-                lighters(i)%lighter = lighter
-                return
+                k = i
+                exit
             end if
         end do
-        if (.not. allocated(lighters)) allocate (lighters(8))
-        if (n_lighters == size(lighters)) then
-            allocate (grown(2*n_lighters))
-            grown(1:n_lighters) = lighters
-            call move_alloc(grown, lighters)
+        if (k == 0) then
+            if (.not. allocated(lighters)) allocate (lighters(8))
+            if (n_lighters == size(lighters)) then
+                allocate (grown(2*n_lighters))
+                grown(1:n_lighters) = lighters
+                call move_alloc(grown, lighters)
+            end if
+            n_lighters = n_lighters + 1
+            k = n_lighters
+            lighters(k)%variable = variable
         end if
-        n_lighters = n_lighters + 1
-        lighters(n_lighters)%variable = variable
-        lighters(n_lighters)%lighter = lighter
+        lighters(k)%lighter = lighter
+        lighters(k)%face = ""
+        if (present(face)) lighters(k)%face = face
+        lighters(k)%active => null()
+        if (present(active)) lighters(k)%active => active
     end subroutine add_minor_mode_lighter
 
     !> The modes part of buffer BI's mode line: `mode_name', " Narrow"
@@ -964,21 +1003,56 @@ contains
     function mode_line_modes(bi) result(s)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable :: s
+        type(face_span_type), allocatable :: spans(:)
+        character(len=64), allocatable :: faces(:)
+        call mode_line_modes_faces(bi, s, spans, faces)
+    end function mode_line_modes
+
+    !> MODES, the modes part of buffer BI's mode line (mode_line_modes),
+    !> with the characters SPANS(K)%FIRST to SPANS(K)%LAST of the
+    !> lighters that have a face in face FACES(K).
+    subroutine mode_line_modes_faces(bi, modes, spans, faces)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable, intent(out) :: modes
+        type(face_span_type), allocatable, intent(out) :: spans(:)
+        character(len=64), allocatable, intent(out) :: faces(:)
+        type(face_span_type), allocatable :: all_spans(:)
+        character(len=64), allocatable :: all_faces(:)
+        integer(int32), allocatable :: chars(:)
         type(value_type) :: v
         type(status_type) :: st
-        integer :: i
+        integer :: i, n, nchars, before
+        logical :: on
         if (allocated(buffers(bi)%mode_name)) then
-            s = buffers(bi)%mode_name
+            modes = buffers(bi)%mode_name
         else
-            s = "Fundamental"
+            modes = "Fundamental"
         end if
-        if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) s = s//" Narrow"
+        if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) modes = modes//" Narrow"
+        allocate (all_spans(max(1, n_lighters)), all_faces(max(1, n_lighters)))
+        n = 0
         do i = 1, n_lighters
-            call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
-            if (.not. st%ok()) cycle
-            if (.not. nilp(v)) s = s//lighters(i)%lighter
+            if (associated(lighters(i)%active)) then
+                on = lighters(i)%active()
+            else
+                call buffer_local_value(sym(lighters(i)%variable), bi, v, st)
+                if (.not. st%ok()) cycle
+                on = .not. nilp(v)
+            end if
+            if (.not. on) cycle
+            call decode_string(modes, chars, before)
+            modes = modes//lighters(i)%lighter
+            if (len(lighters(i)%face) > 0) then
+                call decode_string(modes, chars, nchars)
+                n = n + 1
+                all_spans(n) = face_span_type(first=before + 1, last=nchars)
+                all_faces(n) = lighters(i)%face
+            end if
         end do
-    end function mode_line_modes
+        spans = all_spans(1:n)
+        allocate (faces(n))
+        if (n > 0) faces = all_faces(1:n)
+    end subroutine mode_line_modes_faces
 
     !> Draw the mode line of window `w' (showing buffer slot `bi' from
     !> `start', point `pt'): mode_line_text cut to the window, less the
@@ -995,25 +1069,38 @@ contains
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
         logical, intent(in) :: selected
-        character(len=:), allocatable :: text
+        character(len=:), allocatable :: text, modes
         type(glyph_type), allocatable :: row(:)
         integer(int32), allocatable :: chars(:)
+        type(face_span_type), allocatable :: spans(:)
+        character(len=64), allocatable :: faces(:)
         type(status_type) :: status
         logical :: modified
-        integer :: width, nname
+        integer :: width, nname, nmodes, ntext, k, offset
         integer(int32) :: face_id, id_face
         call buffer_modified_p(w%buffer, modified, status)
         width = window_text_cols(w)
+        call mode_line_modes_faces(bi, modes, spans, faces)
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
-                              mode_line_line(bi, start, pt, w%total_lines), width, mode_line_modes(bi))
+                              mode_line_line(bi, start, pt, w%total_lines), width, modes)
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
         id_face = merge_faces(f, "mode_line_buffer_id", 0_int32, face_id)
+        ! The lighters with faces: the text ends with MODES, ") " and the
+        ! dashes of %-.
+        call decode_string(modes, chars, nmodes)
+        call decode_string(text, chars, ntext)
+        offset = ntext - max(0, width) - 2 - nmodes
+        do k = 1, size(spans)
+            spans(k)%first = spans(k)%first + offset
+            spans(k)%last = spans(k)%last + offset
+            spans(k)%face_id = merge_faces(f, trim(faces(k)), 0_int32, face_id)
+        end do
         ! The buffer name, padded to 12, after "-UUU:**- F1  ".
         call decode_string(buffers(bi)%name, chars, nname)
         allocate (row(w%total_cols))
-        call mode_line_row(text, width, row, face_id, 14, 13 + max(12, nname), id_face)
+        call mode_line_row(text, width, row, face_id, 14, 13 + max(12, nname), id_face, spans)
         if (width < w%total_cols) then
             row(width + 1:) = glyph_type(face_id=VERTICAL_BORDER_FACE_ID)
             row(w%total_cols)%ch = iachar("|")

@@ -621,7 +621,7 @@ END {
                 print "            end if"
             } else if (vtype[i] ~ /indent_line_setting\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
-            else if (vtype[i] ~ /value_type/) print "            entry%value = fortran_repr(" vfort[i] ")"
+            else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_repr(" vfort[i] ")"
             else if (vtype[i] ~ /allocatable/ && vtype[i] !~ /^type/) {
                 print "            if (allocated(" vfort[i] ")) then"
                 print "                entry%value = repr(" vfort[i] ")"

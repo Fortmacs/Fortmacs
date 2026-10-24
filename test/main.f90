@@ -78,6 +78,7 @@ program tester
     use test_xfaces_fm, only: collect_xfaces_fm
     use test_rect_fm, only: collect_rect_fm
     use test_register_fm, only: collect_register_fm
+    use test_kmacro_fm, only: collect_kmacro_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -139,7 +140,8 @@ program tester
                  new_testsuite("xfaces_fm", collect_xfaces_fm), &
                  new_testsuite("font_lock_fm", collect_font_lock_fm), &
                  new_testsuite("rect_fm", collect_rect_fm), &
-                 new_testsuite("register_fm", collect_register_fm) &
+                 new_testsuite("register_fm", collect_register_fm), &
+                 new_testsuite("kmacro_fm", collect_kmacro_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

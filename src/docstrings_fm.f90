@@ -34,6 +34,7 @@ module docstrings_fm
     use commands_fm, only: commands
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
+    use edmacro_fm, only: edmacro_eight_bits
     use eval_fm, only: change_major_mode_hook
     use files_fm, only: change_major_mode_with_file_name, make_backup_files, &
                         mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, &
@@ -60,7 +61,14 @@ module docstrings_fm
                           search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
                           search_whitespace_regexp
     use jit_lock_fm, only: jit_lock_chunk_size
-    use keyboard_fm, only: minibuffer_message_timeout
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T, &
+                           DEFINING_KBD_MACRO_APPEND, kbd_macro_termination_hook, last_input_event, last_kbd_macro, &
+                           minibuffer_message_timeout
+    use kmacro_fm, only: kmacro_call_repeat_key, KMACRO_CALL_REPEAT_DISABLED, &
+                         KMACRO_CALL_REPEAT_LAST_KEY, kmacro_call_repeat_with_arg, kmacro_counter, &
+                         kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
+                         kmacro_default_counter_format, kmacro_execute_before_append, kmacro_initial_counter_value, &
+                         kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
     use lread_fm, only: user_init_file
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
@@ -123,7 +131,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=38), parameter, public :: function_names(368) = [character(len=38) :: &
+    character(len=38), parameter, public :: function_names(401) = [character(len=38) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
                                                                    "add_auto_mode", &
@@ -151,6 +159,7 @@ module docstrings_fm
                                                                    "buffer_substring", &
                                                                    "buffer_to_register", &
                                                                    "bury_buffer", &
+                                                                   "call_last_kbd_macro", &
                                                                    "canonically_space_region", &
                                                                    "capitalize", &
                                                                    "capitalize_region", &
@@ -198,6 +207,7 @@ module docstrings_fm
                                                                    "downcase_region", &
                                                                    "downcase_word", &
                                                                    "enable_command", &
+                                                                   "end_kbd_macro", &
                                                                    "end_of_buffer", &
                                                                    "end_of_line", &
                                                                    "eobp", &
@@ -311,6 +321,36 @@ module docstrings_fm
                                                                    "kill_sexp", &
                                                                    "kill_whole_line", &
                                                                    "kill_word", &
+                                                                   "kmacro_add_counter", &
+                                                                   "kmacro_call_macro", &
+                                                                   "kmacro_call_macro_repeat", &
+                                                                   "kmacro_call_ring_2nd", &
+                                                                   "kmacro_call_ring_2nd_repeat", &
+                                                                   "kmacro_cycle_ring_next", &
+                                                                   "kmacro_cycle_ring_previous", &
+                                                                   "kmacro_delete_ring_head", &
+                                                                   "kmacro_end_and_call_macro", &
+                                                                   "kmacro_end_macro", &
+                                                                   "kmacro_end_or_call_macro", &
+                                                                   "kmacro_end_or_call_macro_repeat", &
+                                                                   "kmacro_insert_counter", &
+                                                                   "kmacro_quit_counter_equal", &
+                                                                   "kmacro_quit_counter_greater", &
+                                                                   "kmacro_quit_counter_less", &
+                                                                   "kmacro_redisplay", &
+                                                                   "kmacro_reg_add_counter_equal", &
+                                                                   "kmacro_reg_add_counter_greater", &
+                                                                   "kmacro_reg_add_counter_less", &
+                                                                   "kmacro_reg_load_counter", &
+                                                                   "kmacro_reg_save_counter", &
+                                                                   "kmacro_set_counter", &
+                                                                   "kmacro_set_format", &
+                                                                   "kmacro_start_macro", &
+                                                                   "kmacro_start_macro_or_insert_counter", &
+                                                                   "kmacro_swap_ring", &
+                                                                   "kmacro_view_macro", &
+                                                                   "kmacro_view_macro_repeat", &
+                                                                   "kmacro_view_ring_2nd", &
                                                                    "left_char", &
                                                                    "left_word", &
                                                                    "line_number_at_pos", &
@@ -446,6 +486,7 @@ module docstrings_fm
                                                                    "split_window_below", &
                                                                    "split_window_right", &
                                                                    "standard_syntax_table", &
+                                                                   "start_kbd_macro", &
                                                                    "string_insert_rectangle", &
                                                                    "string_match", &
                                                                    "string_match_p", &
@@ -494,7 +535,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(155) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(174) = [character(len=44) :: &
                                                                    "adaptive_fill_first_line_regexp", &
                                                                    "adaptive_fill_mode", &
                                                                    "adaptive_fill_regexp", &
@@ -526,9 +567,11 @@ module docstrings_fm
                                                                    "current_prefix_arg", &
                                                                    "cycle_spacing_actions", &
                                                                    "default_justification", &
+                                                                   "defining_kbd_macro", &
                                                                    "delete_active_region", &
                                                                    "disabled_command_function", &
                                                                    "display_buffer_mark_dedicated", &
+                                                                   "edmacro_eight_bits", &
                                                                    "enable_recursive_minibuffers", &
                                                                    "even_window_sizes", &
                                                                    "fill_column", &
@@ -565,11 +608,28 @@ module docstrings_fm
                                                                    "isearch_mode_map", &
                                                                    "isearch_regexp_lax_whitespace", &
                                                                    "jit_lock_chunk_size", &
+                                                                   "kbd_macro_termination_hook", &
                                                                    "kill_read_only_ok", &
                                                                    "kill_ring_max", &
                                                                    "kill_ring_yank_pointer", &
                                                                    "kill_whole_line", &
                                                                    "killed_rectangle", &
+                                                                   "kmacro_call_repeat_key", &
+                                                                   "kmacro_call_repeat_with_arg", &
+                                                                   "kmacro_counter", &
+                                                                   "kmacro_counter_format", &
+                                                                   "kmacro_counter_format_start", &
+                                                                   "kmacro_counter_value_start", &
+                                                                   "kmacro_default_counter_format", &
+                                                                   "kmacro_execute_before_append", &
+                                                                   "kmacro_initial_counter_value", &
+                                                                   "kmacro_keymap", &
+                                                                   "kmacro_last_counter", &
+                                                                   "kmacro_repeat_no_prefix", &
+                                                                   "kmacro_ring", &
+                                                                   "kmacro_ring_max", &
+                                                                   "last_input_event", &
+                                                                   "last_kbd_macro", &
                                                                    "left_margin", &
                                                                    "line_move_visual", &
                                                                    "make_backup_files", &
@@ -919,6 +979,13 @@ contains
                         "current buffer.  Also, if BUFFER_OR_NAME is omitted,"//LF// &
                         "remove the current buffer from the selected window if it is"//LF// &
                         "displayed there."
+        case ("call_last_kbd_macro")
+            entry%file = "macros_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call the last keyboard macro that you defined with \[start_kbd_macro]."//LF// &
+                        ""//LF// &
+                        "A prefix argument serves as a repeat count.  Zero means repeat until"//LF// &
+                        "error."
         case ("canonically_space_region")
             entry%file = "fill_fm.f90"
             entry%fortran = "call canonically_space_region(beg, end, status)"
@@ -1303,6 +1370,16 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
                         "to future sessions."
+        case ("end_kbd_macro")
+            entry%file = "macros_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Finish defining a keyboard macro."//LF// &
+                        "The definition was started by \[start_kbd_macro]."//LF// &
+                        "The macro is now available for use via \[call_last_kbd_macro]."//LF// &
+                        ""//LF// &
+                        "With numeric arg, repeat macro now that many times,"//LF// &
+                        "counting the definition just completed as the first repetition."//LF// &
+                        "An argument of zero means repeat until error."
         case ("end_of_buffer")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2334,6 +2411,244 @@ contains
             entry%interactive = .true.
             entry%doc = "Kill characters forward until encountering the end of a word."//LF// &
                         "With argument ARG, do this that many times."
+        case ("kmacro_add_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'."//LF// &
+                        "With \[universal_argument], restore previous counter value."//LF// &
+                        ""//LF// &
+                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "information."
+        case ("kmacro_call_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call the keyboard MACRO that you defined with \[kmacro_start_macro]."//LF// &
+                        "A prefix argument serves as a repeat count.  Zero means repeat until error."//LF// &
+                        "MACRO defaults to `last_kbd_macro'."//LF// &
+                        ""//LF// &
+                        "When you call the macro, you can call the macro again by repeating"//LF// &
+                        "just the last key in the key sequence that you used to call this"//LF// &
+                        "command.  See `kmacro_call_repeat_key' and `kmacro_call_repeat_with_arg'"//LF// &
+                        "for details on how to adjust or disable this behavior."
+        case ("kmacro_call_macro_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call the keyboard macro again, with the argument and macro of the"//LF// &
+                        "call it repeats (the command of the repeat key after"//LF// &
+                        "\[kmacro_end_and_call_macro]).  Upstream an anonymous command made"//LF// &
+                        "by kmacro.el:kmacro-call-macro."
+        case ("kmacro_call_ring_2nd")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
+                        "With numeric argument ARG, execute the macro that many times."
+        case ("kmacro_call_ring_2nd_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Execute second keyboard macro in macro ring."//LF// &
+                        "This is like `kmacro_call_ring_2nd', but allows repeating macro commands"//LF// &
+                        "without repeating the prefix."
+        case ("kmacro_cycle_ring_next")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to next keyboard macro in keyboard macro ring."//LF// &
+                        "Displays the selected macro in the echo area."//LF// &
+                        "The ARG parameter is unused."
+        case ("kmacro_cycle_ring_previous")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to previous keyboard macro in keyboard macro ring."//LF// &
+                        "Displays the selected macro in the echo area."//LF// &
+                        "The ARG parameter is unused."
+        case ("kmacro_delete_ring_head")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete current macro from keyboard macro ring."//LF// &
+                        "The ARG parameter is unused."
+        case ("kmacro_end_and_call_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call last keyboard macro, ending it first if currently being defined."//LF// &
+                        "With numeric prefix ARG, repeat macro that many times."//LF// &
+                        "Zero argument means repeat until there is an error."//LF// &
+                        ""//LF// &
+                        "To give a macro a name, so you can call it even after defining other"//LF// &
+                        "macros, use \[kmacro_name_last_macro]."
+        case ("kmacro_end_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Finish defining a keyboard macro."//LF// &
+                        "The definition was started by \[kmacro_start_macro]."//LF// &
+                        "The macro is now available for use via \[kmacro_call_macro]."//LF// &
+                        ""//LF// &
+                        "With numeric ARG, repeat the macro that many times,"//LF// &
+                        "counting the definition just completed as the first repetition."//LF// &
+                        "An argument of zero means repeat until error."
+        case ("kmacro_end_or_call_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "End kbd macro if currently being defined; else call last kbd macro."//LF// &
+                        "With numeric prefix ARG, repeat macro that many times."//LF// &
+                        "With \[universal_argument], call second macro in macro ring."
+        case ("kmacro_end_or_call_macro_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "As `kmacro_end_or_call_macro' but allow repeat without repeating prefix."
+        case ("kmacro_insert_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert current value of `kmacro_counter', then increment it by ARG."//LF// &
+                        "Interactively, ARG defaults to 1.  With \[universal_argument], insert"//LF// &
+                        "the previous value of `kmacro_counter', and do not increment the"//LF// &
+                        "current value."//LF// &
+                        ""//LF// &
+                        "The previous value of the counter is the one it had before"//LF// &
+                        "the last increment."//LF// &
+                        ""//LF// &
+                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "information."
+        case ("kmacro_quit_counter_equal")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Quit the keyboard macro if the counter is equal to ARG."//LF// &
+                        "ARG defaults to zero if omitted (no prefix argument)."
+        case ("kmacro_quit_counter_greater")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Quit the keyboard macro if the counter is greater than ARG."//LF// &
+                        "ARG defaults to zero if omitted (no prefix argument)."
+        case ("kmacro_quit_counter_less")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Quit the keyboard macro if the counter is less than ARGS."//LF// &
+                        "ARG defaults to zero if omitted (no prefix argument)."
+        case ("kmacro_redisplay")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Force redisplay during keyboard macro execution."
+        case ("kmacro_reg_add_counter_equal")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Increment counter by one if it is equal to register value."//LF// &
+                        "Prompt for the register to compare."//LF// &
+                        "Optional ARG (the prefix argument) specifies the increment."
+        case ("kmacro_reg_add_counter_greater")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Increment counter by one if it is greater than register value."//LF// &
+                        "Prompt for the register to compare."//LF// &
+                        "Optional ARG (the prefix argument) specifies increment."
+        case ("kmacro_reg_add_counter_less")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Increment counter by one if it is less than register value."//LF// &
+                        "Prompt for the register to compare."//LF// &
+                        "Optional ARG (the prefix argument) specifies increment."
+        case ("kmacro_reg_load_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Load the value of a REGISTER into `kmacro_counter'."
+        case ("kmacro_reg_save_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save the value of `kmacro_counter' to a REGISTER."
+        case ("kmacro_set_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the value of `kmacro_counter' to ARG, or prompt for value if no argument."//LF// &
+                        "With \[universal_argument] prefix, reset counter to its value prior to this iteration of t"// &
+                        "he"//LF// &
+                        "macro."//LF// &
+                        ""//LF// &
+                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "information."
+        case ("kmacro_set_format")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the format of `kmacro_counter' to FORMAT."//LF// &
+                        ""//LF// &
+                        "The default format is ""%d"", which means to insert the number in"//LF// &
+                        "decimal without any padding.  You can specify any format string"//LF// &
+                        "that the `format' function accepts and that makes sense with a"//LF// &
+                        "single integer extra argument."//LF// &
+                        ""//LF// &
+                        "If you run this command while no keyboard macro is being defined,"//LF// &
+                        "the new format affects all subsequent macro definitions."//LF// &
+                        ""//LF// &
+                        "If you run this command while defining a keyboard macro, it"//LF// &
+                        "affects only that macro, from that point on."//LF// &
+                        ""//LF// &
+                        "Do not put the format string inside double quotes when you insert"//LF// &
+                        "it in the minibuffer."//LF// &
+                        ""//LF// &
+                        "See Info node `(emacs) Keyboard Macro Counter' for more"//LF// &
+                        "information."
+        case ("kmacro_start_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
+                        "The commands are recorded even as they are executed."//LF// &
+                        "Use \[kmacro_end_macro] to finish recording and make the macro available."//LF// &
+                        "Use \[kmacro_end_and_call_macro] to execute the macro."//LF// &
+                        ""//LF// &
+                        "A true arg (prefix arg) means append to last macro defined."//LF// &
+                        ""//LF// &
+                        "With \[universal_argument] prefix, append to last keyboard macro"//LF// &
+                        "defined.  Depending on `kmacro_execute_before_append', this may begin"//LF// &
+                        "by re-executing the last macro as if you typed it again."//LF// &
+                        ""//LF// &
+                        "Otherwise, it sets `kmacro_counter' to ARG or 0 if missing before"//LF// &
+                        "defining the macro."//LF// &
+                        ""//LF// &
+                        "Use \[kmacro_insert_counter] to insert (and increment) the macro counter."//LF// &
+                        "The counter value can be set or modified via \[kmacro_set_counter] and \[kmacro_add_counte"// &
+                        "r]."//LF// &
+                        "The format of the counter can be modified via \[kmacro_set_format]."
+        case ("kmacro_start_macro_or_insert_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
+                        "The commands are recorded even as they are executed."//LF// &
+                        ""//LF// &
+                        "Initializes the macro's `kmacro_counter' to ARG (or 0 if no prefix arg)"//LF// &
+                        "before defining the macro."//LF// &
+                        ""//LF// &
+                        "With \[universal_argument], appends to current keyboard macro (keeping"//LF// &
+                        "the current value of `kmacro_counter')."//LF// &
+                        ""//LF// &
+                        "When used during defining/executing a macro, inserts the current value"//LF// &
+                        "of `kmacro_counter' and increments the counter value by ARG (or by 1 if no"//LF// &
+                        "prefix argument).  With just \[universal_argument], inserts the previous"//LF// &
+                        "value of `kmacro_counter', and does not modify the counter; this is"//LF// &
+                        "different from incrementing the counter by zero.  (The previous value"//LF// &
+                        "of the counter is the one it had before the last increment.)"//LF// &
+                        ""//LF// &
+                        "The macro counter can be set directly via \[kmacro_set_counter] and \[kmacro_add_counter]."//LF// &
+                        "The format of the inserted value of the counter can be controlled"//LF// &
+                        "via \[kmacro_set_format]."
+        case ("kmacro_swap_ring")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Swap first two elements on keyboard macro ring."
+        case ("kmacro_view_macro")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the last keyboard macro."//LF// &
+                        "If repeated, it shows previous elements in the macro ring."//LF// &
+                        "The ARG parameter is unused."
+        case ("kmacro_view_macro_repeat")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the last keyboard macro."//LF// &
+                        "If repeated, it shows previous elements in the macro ring."//LF// &
+                        "To execute the displayed macro ring item without changing the macro ring,"//LF// &
+                        "just enter \`C-k'."//LF// &
+                        "This is like `kmacro_view_macro', but allows repeating macro commands"//LF// &
+                        "without repeating the prefix."
+        case ("kmacro_view_ring_2nd")
+            entry%file = "kmacro_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the second macro in the keyboard macro ring."
         case ("left_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -3926,6 +4241,14 @@ contains
             entry%fortran = "standard_syntax_table()"
             entry%doc = "Return the standard syntax table."//LF// &
                         "This is the one used for new buffers."
+        case ("start_kbd_macro")
+            entry%file = "macros_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Record subsequent keyboard input, defining a keyboard macro."//LF// &
+                        "The commands are recorded even as they are executed."//LF// &
+                        "Use \[end_kbd_macro] to finish recording and make the macro available."//LF// &
+                        "A prefix argument means append to last macro defined;"//LF// &
+                        "this begins by re-executing that macro as if you typed it again."
         case ("string_insert_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call string_insert_rectangle(start, end, string, status)"
@@ -4684,6 +5007,24 @@ contains
                         "line is centered.  JUSTIFY_NONE means no justification or centering."//LF// &
                         "The requested kind of justification is done whenever lines are filled."//LF// &
                         "The `justification' text-property can locally override this variable."
+        case ("defining_kbd_macro")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "defining_kbd_macro"
+            entry%original = "DEFINING_KBD_MACRO_NIL"
+            select case (defining_kbd_macro)
+            case (DEFINING_KBD_MACRO_NIL)
+                entry%value = "DEFINING_KBD_MACRO_NIL"
+            case (DEFINING_KBD_MACRO_T)
+                entry%value = "DEFINING_KBD_MACRO_T"
+            case (DEFINING_KBD_MACRO_APPEND)
+                entry%value = "DEFINING_KBD_MACRO_APPEND"
+            case default
+                entry%value = repr(defining_kbd_macro)
+            end select
+            entry%doc = "Not `DEFINING_KBD_MACRO_NIL' while a keyboard macro is being defined."//LF// &
+                        "Don't set this!"//LF// &
+                        "The value is `DEFINING_KBD_MACRO_APPEND' while appending to the"//LF// &
+                        "definition of an existing macro."
         case ("delete_active_region")
             entry%file = "simple_fm.f90"
             entry%fortran = "delete_active_region"
@@ -4716,6 +5057,14 @@ contains
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
                         "dedicated.  The actual value of this variable will be copied"//LF// &
                         "to the `window_dedicated_p' flag."
+        case ("edmacro_eight_bits")
+            entry%file = "edmacro_fm.f90"
+            entry%fortran = "edmacro_eight_bits"
+            entry%original = ".false."
+            entry%value = repr(edmacro_eight_bits)
+            entry%doc = "True if `edit_kbd_macro' should leave 8-bit characters intact."//LF// &
+                        "Default false means to write characters above \177 in octal"//LF// &
+                        "notation."
         case ("enable_recursive_minibuffers")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "enable_recursive_minibuffers"
@@ -5022,6 +5371,12 @@ contains
                         ""//LF// &
                         "The optimum value is a little over the typical number of buffer"//LF// &
                         "characters which fit in a typical window."
+        case ("kbd_macro_termination_hook")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "kbd_macro_termination_hook"
+            entry%doc = "Normal hook run whenever a keyboard macro terminates."//LF// &
+                        "This is run whether the macro ends normally or prematurely due to"//LF// &
+                        "an error."
         case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
@@ -5053,6 +5408,137 @@ contains
             entry%fortran = "killed_rectangle"
             entry%doc = "Rectangle for `yank_rectangle' to insert.  Unallocated (or empty)"//LF// &
                         "for none."
+        case ("kmacro_call_repeat_key")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_call_repeat_key"
+            entry%original = "KMACRO_CALL_REPEAT_LAST_KEY"
+            select case (kmacro_call_repeat_key)
+            case (KMACRO_CALL_REPEAT_DISABLED)
+                entry%value = "KMACRO_CALL_REPEAT_DISABLED"
+            case (KMACRO_CALL_REPEAT_LAST_KEY)
+                entry%value = "KMACRO_CALL_REPEAT_LAST_KEY"
+            case default
+                entry%value = repr(kmacro_call_repeat_key)
+            end select
+            entry%doc = "Allow repeating macro call using last key or a specific key."//LF// &
+                        "In Fortran: KMACRO_CALL_REPEAT_DISABLED (none),"//LF// &
+                        "KMACRO_CALL_REPEAT_LAST_KEY (the last key) or a character."
+        case ("kmacro_call_repeat_with_arg")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_call_repeat_with_arg"
+            entry%original = ".false."
+            entry%value = repr(kmacro_call_repeat_with_arg)
+            entry%doc = "Repeat macro call with original arg when true; repeat once if false."
+        case ("kmacro_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_counter"
+            entry%original = "0"
+            entry%value = repr(kmacro_counter)
+            entry%doc = "Current keyboard macro counter."//LF// &
+                        ""//LF// &
+                        "This is normally initialized to zero when the macro is defined,"//LF// &
+                        "and incremented each time the value of the counter is inserted"//LF// &
+                        "into a buffer.  See `kmacro_start_macro_or_insert_counter' for"//LF// &
+                        "more details."
+        case ("kmacro_counter_format")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_counter_format"
+            if (allocated(kmacro_counter_format)) then
+                entry%value = repr(kmacro_counter_format)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Current keyboard macro counter format."//LF// &
+                        ""//LF// &
+                        "Can be set directly via `kmacro_set_format', which see."
+        case ("kmacro_counter_format_start")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_counter_format_start"
+            if (allocated(kmacro_counter_format_start)) then
+                entry%value = repr(kmacro_counter_format_start)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Macro format at start of macro execution."
+        case ("kmacro_counter_value_start")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_counter_value_start"
+            entry%original = "0"
+            entry%value = repr(kmacro_counter_value_start)
+            entry%doc = "Macro counter at start of macro execution."
+        case ("kmacro_default_counter_format")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_default_counter_format"
+            if (allocated(kmacro_default_counter_format)) then
+                entry%value = repr(kmacro_default_counter_format)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The counter format of the macros defined from now on."
+        case ("kmacro_execute_before_append")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_execute_before_append"
+            entry%original = ".true."
+            entry%value = repr(kmacro_execute_before_append)
+            entry%doc = "Controls whether appending to a macro starts by executing the macro."//LF// &
+                        "If true, using a single \[universal_argument] prefix executes the macro"//LF// &
+                        "before appending, while more than one \[universal_argument] prefix does not"//LF// &
+                        "execute the macro."//LF// &
+                        "Otherwise, a single \[universal_argument] prefix does not execute the"//LF// &
+                        "macro, while more than one \[universal_argument] prefix causes the"//LF// &
+                        "macro to be executed before appending to it."
+        case ("kmacro_initial_counter_value")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_initial_counter_value"
+            if (allocated(kmacro_initial_counter_value)) then
+                entry%value = repr(kmacro_initial_counter_value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Initial counter value for the next keyboard macro to be defined."//LF// &
+                        "Not allocated for none."
+        case ("kmacro_keymap")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_keymap"
+            entry%doc = "Keymap for keyboard macro commands."
+        case ("kmacro_last_counter")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_last_counter"
+            entry%original = "0"
+            entry%value = repr(kmacro_last_counter)
+            entry%doc = "Last counter inserted by key macro."
+        case ("kmacro_repeat_no_prefix")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_repeat_no_prefix"
+            entry%original = ".true."
+            entry%value = repr(kmacro_repeat_no_prefix)
+            entry%doc = "Allow repeating certain macro commands without entering the \[kmacro_keymap] prefix."
+        case ("kmacro_ring")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_ring"
+            entry%doc = "The keyboard macro ring."//LF// &
+                        "Each element is a `kmacro_type'.  Actually, the head of"//LF// &
+                        "the macro ring (when defining or executing) is not stored in the ring;"//LF// &
+                        "instead it is available in the variables `last_kbd_macro', `kmacro_counter',"//LF// &
+                        "and `kmacro_counter_format'."
+        case ("kmacro_ring_max")
+            entry%file = "kmacro_fm.f90"
+            entry%fortran = "kmacro_ring_max"
+            entry%original = "8"
+            entry%value = repr(kmacro_ring_max)
+            entry%doc = "Maximum number of keyboard macros to save in macro ring."
+        case ("last_input_event")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "last_input_event"
+            entry%value = fortran_repr(last_input_event)
+            entry%doc = "The last input event received."//LF// &
+                        "This is the last event read by any means, also from a keyboard"//LF// &
+                        "macro."
+        case ("last_kbd_macro")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "last_kbd_macro"
+            entry%doc = "Last kbd macro defined, as an array of events; not allocated if none"//LF// &
+                        "defined."
         case ("left_margin")
             entry%file = "buffer_fm.f90"
             entry%fortran = "left_margin"
