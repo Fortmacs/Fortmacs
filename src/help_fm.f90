@@ -596,7 +596,7 @@ contains
         if (.not. binding_undefined_p .and. symbolp(defn)) binding_undefined_p = value_eq(defn, sym("undefined"))
     end function binding_undefined_p
 
-    !> Display documentation of the function invoked by KEY-LIST.
+    !> Display documentation of the function invoked by KEY_LIST.
     !> Interactively, this command can't describe prefix commands, but
     !> will always wait for the user to type the complete key sequence.
     !> Port of help.el:describe-key (one key sequence, no translations;
@@ -627,7 +627,7 @@ contains
         call with_help_window(text, status)
     end subroutine describe_key
 
-    !> Print the name of the functions KEY-LIST invokes.
+    !> Print the name of the functions KEY_LIST invokes.
     !> Port of help.el:describe-key-briefly (no INSERT; a keyboard macro
     !> binding is deferred, as in `describe_key').
     subroutine describe_key_briefly(status)

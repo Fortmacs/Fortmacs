@@ -99,7 +99,7 @@ contains
         if (allocated(error)) return
         ! The data print as with prin1.
         call search_forward('q"\', pos, st)
-        call check(error, format_error(st) == 'Search failed: "q\"\\"', format_error(st))
+        call check(error, format_error(st) == 'Search failed: "q""\"', format_error(st))
         if (allocated(error)) return
         ! COUNT; the empty string matches at point.
         call goto_char(1_int64)
@@ -344,7 +344,7 @@ contains
         if (allocated(error)) return
         call replace_match("x", st, string="abc", subexp=5, result=r)
         call check(error, st%code == FM_GENERIC_ERROR .and. &
-                   format_error(st) == "replace-match subexpression does not exist: 5", format_error(st))
+                   format_error(st) == "replace_match subexpression does not exist: 5", format_error(st))
         if (allocated(error)) return
         call replace_match("x", st, string="abc", subexp=10000, result=r)
         call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. index(format_error(st), "Args out of range: 10000, 0, ") == 1, &
@@ -353,7 +353,7 @@ contains
         ! set-match-data with fewer elements keeps the registers.
         call set_match_data([1_int64, 3_int64])
         call replace_match("x", st, string="abc", subexp=9, result=r)
-        call check(error, format_error(st) == "replace-match subexpression does not exist: 9", format_error(st))
+        call check(error, format_error(st) == "replace_match subexpression does not exist: 9", format_error(st))
     end subroutine test_replace_match_registers
 
     !> A backslash at the end of the replacement is invalid, in a string as

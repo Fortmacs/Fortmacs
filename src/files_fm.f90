@@ -105,7 +105,7 @@ module files_fm
         !> then compares the file name against the entries in `auto_mode_alist'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
-        !> If the optional argument KEEP-MODE-IF-SAME is non-nil, then we
+        !> If the optional argument KEEP_MODE_IF_SAME is true, then we
         !> set the major mode only if that would change it.  Port of
         !> files.el:set-auto-mode (only the first mode of a -*- line; no
         !> interpreter-mode-alist or magic-mode-alist yet).  (In
@@ -116,9 +116,8 @@ module files_fm
             logical, intent(in), optional :: keep_mode_if_same
         end subroutine set_auto_mode
 
-        !> Add (REGEXP . MODE) to the front of `auto_mode_alist', so files
-        !> whose names match REGEXP get major mode MODE.  The counterpart
-        !> of (add-to-list 'auto-mode-alist '(REGEXP . MODE)).  (In
+        !> Add REGEXP and MODE to the front of `auto_mode_alist', so files
+        !> whose names match REGEXP get major mode MODE.  (In
         !> files_mode_fm.)
         module subroutine add_auto_mode(regexp, mode)
             implicit none(type, external)
@@ -146,7 +145,7 @@ module files_fm
         end function auto_mode_spec
     end interface
 
-    !> Non-nil means make a backup of a file the first time it is saved.
+    !> True means make a backup of a file the first time it is saved.
     !> This can be done by renaming the file or by copying.
     !>
     !> Renaming means that Emacs renames the existing file so that it is a
@@ -168,11 +167,11 @@ module files_fm
 
     !> Whether to add a newline automatically at the end of the file.
     !>
-    !> A value of t means do this only when the file is about to be saved.
-    !> A value of `visit' means do this right after the file is visited.
-    !> A value of `visit_save' means do it at both of those times.
-    !> Any other non-nil value means ask user whether to add a newline, when saving.
-    !> A value of nil means don't add newlines.
+    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
+    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
+    !> A value of FINAL_NEWLINE_NEVER means don't add newlines.
     !>
     !> Certain major modes set this locally to the value obtained
     !> from `mode_require_final_newline'.
@@ -192,21 +191,21 @@ module files_fm
     !> They do so because they are often used for files that are supposed
     !> to end in newlines, and the question is how to arrange that.
     !>
-    !> A value of t means do this only when the file is about to be saved.
-    !> A value of `visit' means do this right after the file is visited.
-    !> A value of `visit_save' means do it at both of those times.
-    !> Any other non-nil value means ask user whether to add a newline, when saving.
+    !> A value of FINAL_NEWLINE_SAVE means do this only when the file is about to be saved.
+    !> A value of FINAL_NEWLINE_VISIT means do this right after the file is visited.
+    !> A value of FINAL_NEWLINE_VISIT_SAVE means do it at both of those times.
+    !> A value of FINAL_NEWLINE_ASK means ask user whether to add a newline, when saving.
     !>
-    !> A value of nil means do not add newlines.  That is a risky choice in this
+    !> A value of FINAL_NEWLINE_NEVER means do not add newlines.  That is a risky choice in this
     !> variable since this value is used for modes for files that ought to have
-    !> final newlines.  So if you set this to nil, you must explicitly check and
+    !> final newlines.  So if you set this to FINAL_NEWLINE_NEVER, you must explicitly check and
     !> add a final newline, whenever you save a file that really needs one.
     !> Port of files.el mode-require-final-newline (values as for
     !> `require_final_newline').
     type(integer_setting), public :: mode_require_final_newline = &
                                      integer_setting(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
 
-    !> Non-nil means \[write_file] should set the major mode from the file name.
+    !> True means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
     !> (1) a local variables list or the `-*-' line specifies a major mode, or
     !> (2) the current major mode is a "special" mode,
@@ -990,17 +989,20 @@ contains
     !>
     !> If a file's name is FOO, its backup file is called FOO~.
     !> Port of files.el:save-buffer (the command; no numbered backups).
-    !> Choose the major mode for this buffer automatically.  Port of
+    subroutine cmd_save_buffer(status)
+        type(status_type), intent(out) :: status
+        call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
+    end subroutine cmd_save_buffer
+
+    !> Choose the major mode for this buffer automatically.
+    !> Uses the visited file name and the -*- line.
+    !>
+    !> This function is called automatically from `find_file'.  Port of
     !> files.el:normal-mode as a command.
     recursive subroutine cmd_normal_mode(status)
         type(status_type), intent(out) :: status
         call normal_mode(status)
     end subroutine cmd_normal_mode
-
-    subroutine cmd_save_buffer(status)
-        type(status_type), intent(out) :: status
-        call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
-    end subroutine cmd_save_buffer
 
     !> Save some modified file-visiting buffers.  Asks user about each one.
     !> You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,

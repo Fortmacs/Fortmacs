@@ -22,13 +22,15 @@
 module test_emacs_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use buffer_fm, only: erase_buffer
+    use buffer_fm, only: erase_buffer, buffers, cur
     use editfns_fm, only: buffer_string
     use sysdep_fm, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
     use keyboard_fm, only: last_message
-    use lread_fm, only: user_init_file
+    use lisp_fm, only: value_type, xstring
+    use data_fm, only: symbol_value, value_eq
+    use lread_fm, only: user_init_file, sym
     use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
     use error_fm, only: format_error, format_message
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
@@ -50,7 +52,8 @@ contains
                     new_unittest("sort-args", test_sort_args), &
                     new_unittest("init-file-configure", test_configure), &
                     new_unittest("init-file-skipped-with-q", test_no_init_file), &
-                    new_unittest("init-file-error", test_init_error) &
+                    new_unittest("init-file-error", test_init_error), &
+                    new_unittest("scratch-fundamental-mode", test_scratch) &
                     ]
     end subroutine collect_emacs_fm
 
@@ -233,4 +236,28 @@ contains
         ! Leave no init file name behind for other suites.
         if (allocated(user_init_file)) deallocate (user_init_file)
     end subroutine test_init_error
+
+    !> *scratch* starts empty (no initial-scratch-message: there is no
+    !> Lisp to evaluate) and in Fundamental mode (initial-major-mode is
+    !> not lisp-interaction-mode), as the project's design decisions say.
+    subroutine test_scratch(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(value_type) :: mode, name
+        type(status_type) :: vst
+        call run_on_pty(achar(24)//achar(3), st)
+        call check(error, st%ok(), "emacs_main")
+        if (allocated(error)) return
+        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        if (allocated(error)) return
+        call check(error, buffer_string() == "", "no initial message: "//buffer_string())
+        if (allocated(error)) return
+        ! The mode as `major_mode' and `mode_name' read (unallocated slots
+        ! mean Fundamental mode, as in a fresh buffer).
+        call symbol_value(sym("major_mode"), mode, vst)
+        call symbol_value(sym("mode_name"), name, vst)
+        call check(error, value_eq(mode, sym("fundamental_mode")), "major_mode")
+        if (allocated(error)) return
+        call check(error, xstring(name) == "Fundamental", xstring(name))
+    end subroutine test_scratch
 end module test_emacs_fm

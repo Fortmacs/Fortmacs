@@ -25,7 +25,7 @@
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
-    use print_fm, only: prin1_string
+    use print_fm, only: fortran_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
@@ -56,8 +56,8 @@ module fns_fm
     public :: plist_get, plist_put, plist_member, get, put
     public :: yes_or_no_p
 
-    !> Non-nil means `yes_or_no_p' accepts single-key answers "y" or "n".
-    !> When non-nil, `yes_or_no_p' will use `y_or_n_p' to read the answer.
+    !> True means `yes_or_no_p' accepts single-key answers "y" or "n".
+    !> When true, `yes_or_no_p' will use `y_or_n_p' to read the answer.
     !> This means the user will be able to press just one key to answer, whereas
     !> by default the user needs to type the full "yes" or "no" response
     !> and then press RET.  Port of fns.c use-short-answers.
@@ -70,7 +70,7 @@ module fns_fm
 
     interface
         !> Ask user a yes-or-no question.
-        !> Return t if answer is yes, and nil if the answer is no.
+        !> Return true if answer is yes, and false if the answer is no.
         !>
         !> PROMPT is the string to display to ask the question; `yes_or_no_p'
         !> appends `yes_or_no_prompt' (default "(yes or no) ") to it.  If
@@ -80,7 +80,7 @@ module fns_fm
         !> The user must confirm the answer with RET, and can edit it until it
         !> has been confirmed.
         !>
-        !> If the `use_short_answers' variable is non-nil, instead of asking for
+        !> If the `use_short_answers' variable is true, instead of asking for
         !> "yes" or "no", this function will ask for "y" or "n" (and
         !> ignore the value of `yes_or_no_prompt').  Port of
         !> fns.c:Fyes_or_no_p (no dialog boxes).  (In submodule fns_ask_fm,
@@ -379,7 +379,7 @@ contains
         logical :: has_to
         character(len=:), allocatable :: from_text, to_text
         f = 0
-        from_text = "nil"
+        from_text = ".false."
         if (present(from)) then
             f = from
             from_text = int_text(from)
@@ -388,7 +388,7 @@ contains
         has_to = present(to)
         if (present(to_given)) has_to = has_to .and. to_given
         t = n
-        to_text = "nil"
+        to_text = ".false."
         if (has_to) then
             t = to
             to_text = int_text(to)
@@ -397,7 +397,7 @@ contains
         ok = 0 <= f .and. f <= t .and. t <= n
         ifrom = f
         ito = t
-        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_string(string)//", "//from_text//", "//to_text)
+        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//from_text//", "//to_text)
     end subroutine validate_subarray
 
     !> The decimal text of N.

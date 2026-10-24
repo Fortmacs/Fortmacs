@@ -34,7 +34,7 @@ module test_bindings_fm
     use keymap_fm, only: key_binding, key_parse
     use keyboard_fm, only: kbd_store_bytes, command_loop, command_loop_step, &
                            discard_input, last_message, last_command, ring_bell_hook
-    use callint_fm, only: prefix_arg
+    use callint_fm, only: prefix_arg, command_defined_p
     use bindings_fm, only: init_bindings
     implicit none(type, external)
     private
@@ -57,7 +57,8 @@ contains
                     new_unittest("quoted-insert-and-quit", test_quoted_insert), &
                     new_unittest("function-key-bindings", test_function_keys), &
                     new_unittest("move-beginning-and-end-of-line", test_move_line), &
-                    new_unittest("undefined-rings-the-bell", test_undefined) &
+                    new_unittest("undefined-rings-the-bell", test_undefined), &
+                    new_unittest("no-lisp-evaluation-keys", test_no_eval_keys) &
                     ]
     end subroutine collect_bindings_fm
 
@@ -285,4 +286,24 @@ contains
         call check(error, last_message == "End of buffer" .and. bells == 2 .and. buffer_string() == "a", last_message)
         call done_with(buf)
     end subroutine test_undefined
+
+    !> The keys of upstream's run-time Lisp evaluation commands are
+    !> unbound (not applicable: the configuration is Fortran compiled in),
+    !> and no such command exists.
+    subroutine test_no_eval_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=10), parameter :: keys(4) = [character(len=10) :: "M-:", "C-x C-e", "C-M-x", "ESC :"]
+        character(len=20), parameter :: names(6) = [character(len=20) :: "eval_expression", "eval_last_sexp", &
+                                                                                 "eval_buffer", "eval_region", "eval_defun", "ielm"]
+        integer :: k
+        call init_bindings()
+        do k = 1, size(keys)
+            call check(error, value_eq(binding_of(trim(keys(k))), nil()), trim(keys(k))//" is bound")
+            if (allocated(error)) return
+        end do
+        do k = 1, size(names)
+            call check(error,.not. command_defined_p(sym(trim(names(k)))), trim(names(k))//" is a command")
+            if (allocated(error)) return
+        end do
+    end subroutine test_no_eval_keys
 end module test_bindings_fm

@@ -81,21 +81,21 @@ module fill_fm
     integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
                                   JUSTIFY_CENTER = 4, JUSTIFY_T = 5
 
-    !> Non-nil means put two spaces after a colon when filling.  Port of
+    !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
     logical, public :: colon_double_space = .false.
 
-    !> Non-nil means to use a space to separate words of a different kind.
+    !> True means to use a space to separate words of a different kind.
     !> For example, when an English word at the end of a line and a CJK word
     !> at the beginning of the next line are joined into a single line, they
-    !> will be separated by a space if this variable is non-nil.
+    !> will be separated by a space if this variable is true.
     !> Whether to use a space to separate such words also depends on the entry
     !> in `fill_nospace_between_words_table' for the characters before and
     !> after the newline.  Port of fill.el
     !> fill-separate-heterogeneous-words-with-space.
     logical, public :: fill_separate_heterogeneous_words_with_space = .false.
 
-    !> Non-nil means determine a paragraph's fill prefix from its text.
+    !> True means determine a paragraph's fill prefix from its text.
     !> Port of fill.el adaptive-fill-mode.
     type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive_fill_mode", value=.true.)
 
@@ -126,11 +126,12 @@ module fill_fm
     logical, public :: fill_indent_according_to_mode = .false.
 
     !> Method of justifying text not otherwise specified.
-    !> Possible values are `left', `right', `full', `center', or `none'.
-    !> The values `left' and `right' mean lines are lined up at,
+    !> Possible values are JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL,
+    !> JUSTIFY_CENTER, or JUSTIFY_NONE.
+    !> The values JUSTIFY_LEFT and JUSTIFY_RIGHT mean lines are lined up at,
     !> respectively, left or right margin, and ragged at the other margin.
-    !> `full' means lines are lined up at both margins.  `center' means each
-    !> line is centered.  `none' means no justification or centering.
+    !> JUSTIFY_FULL means lines are lined up at both margins.  JUSTIFY_CENTER means each
+    !> line is centered.  JUSTIFY_NONE means no justification or centering.
     !> The requested kind of justification is done whenever lines are filled.
     !> The `justification' text-property can locally override this variable.
     !> Port of fill.el default-justification (a JUSTIFY_ constant).
@@ -149,9 +150,9 @@ module fill_fm
         procedure(fill_nobreak_predicate_proc), pointer, nopass :: fn => null()
     end type fill_nobreak_predicate_type
 
-    !> List of predicates for recognizing places not to break a line.
+    !> Array of predicates for recognizing places not to break a line.
     !> The predicates are called with no arguments, with point at the place to
-    !> be tested.  If it returns a non-nil value, fill commands do not break
+    !> be tested.  If it returns true, fill commands do not break
     !> the line there.  Port of fill.el fill-nobreak-predicate.
     type(fill_nobreak_predicate_type), allocatable, public :: fill_nobreak_predicate(:)
 
@@ -209,9 +210,9 @@ contains
             end if
         end if
         if (allocated(fill_prefix%value)) then
-            call message("fill-prefix: """//fill_prefix%value//"""")
+            call message("fill_prefix: """//fill_prefix%value//"""")
         else
-            call message("fill-prefix cancelled")
+            call message("fill_prefix cancelled")
         end if
     end subroutine set_fill_prefix
 
@@ -466,7 +467,7 @@ contains
         call goto_char(opoint)
     end function fill_single_word_nobreak_p
 
-    !> Return nil if French style allows breaking the line at point.
+    !> Return false if French style allows breaking the line at point.
     !> This is used in `fill_nobreak_predicate' to prevent breaking lines just
     !> after an opening paren or just before a closing paren or a punctuation
     !> mark such as `?' or `:'.  It is common in French writing to put a space
@@ -494,7 +495,7 @@ contains
         call goto_char(opoint)
     end function fill_french_nobreak_p
 
-    !> Return nil if Polish style allows breaking the line at point.
+    !> Return false if Polish style allows breaking the line at point.
     !> This function may be used in the `fill_nobreak_predicate' hook.
     !> It is almost the same as `fill_single_char_nobreak_p', with the
     !> exception that it does not require the one-letter word to be
@@ -504,7 +505,7 @@ contains
         nobreak = two_back_looking_at("[^[:alpha:]]\cl")
     end function fill_polish_nobreak_p
 
-    !> Return non-nil if a one-letter word is before point.
+    !> Return true if a one-letter word is before point.
     !> This function is suitable for adding to the hook `fill_nobreak_predicate',
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.  Port
@@ -530,7 +531,7 @@ contains
         call goto_char(opoint)
     end function two_back_looking_at
 
-    !> Return nil if breaking the line at point is allowed.
+    !> Return false if breaking the line at point is allowed.
     !> Can be customized with the variables `fill_nobreak_predicate'
     !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
     logical function fill_nobreak_p() result(nobreak)
@@ -652,7 +653,7 @@ contains
     !> at the end of a line get an extra space, delete newlines between
     !> words that are not separated by spaces (CJK), change the other
     !> newlines to spaces and, unless NOSQUEEZE, make the spacing
-    !> canonical (from SQUEEZE-AFTER if positive).  Port of
+    !> canonical (from SQUEEZE_AFTER if positive).  Port of
     !> fill.el:fill-delete-newlines.
     subroutine fill_delete_newlines(from, to, justify, nosqueeze, squeeze_after, status)
         integer(int64), intent(in) :: from, to
@@ -895,17 +896,17 @@ contains
     !> JUSTIFY (a JUSTIFY_ constant; JUSTIFY_T for `current_justification')
     !> can specify any type of justification; see `default_justification'
     !> for the possible values.
-    !> Optional fourth arg NOSQUEEZE non-nil means not to make spaces
+    !> Optional fourth arg NOSQUEEZE true means not to make spaces
     !> between words canonical before filling.
-    !> Fifth arg SQUEEZE-AFTER, if non-nil, should be a buffer position; it
+    !> Fifth arg SQUEEZE_AFTER, if present, should be a buffer position; it
     !> means canonicalize spaces only starting from that position.
     !> See `canonically_space_region' for the meaning of canonicalization
     !> of spaces.
     !>
     !> Return the `fill_prefix' used for filling (`used', with
-    !> `have_used' false for nil).
+    !> `have_used' false for none).
     !>
-    !> If `sentence_end_double_space' is non-nil, then period followed by one
+    !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region-as-paragraph-default (with
     !> fill-region-as-paragraph; JUSTIFY nil is JUSTIFY_T, as the
@@ -1076,14 +1077,14 @@ contains
 
     !> Fill paragraph at or after point.
     !>
-    !> If JUSTIFY is non-nil (interactively, with prefix argument), justify as well.
-    !> If `sentence_end_double_space' is non-nil, then period followed by one
+    !> If JUSTIFY is present (interactively, with prefix argument), justify as well.
+    !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.
     !> The variable `fill_column' controls the width for filling.
     !>
     !> Return the `fill_prefix' used for filling (`used').
     !>
-    !> The REGION argument is non-nil if called interactively; in that
+    !> The REGION argument is true if called interactively; in that
     !> case, if Transient Mark mode is enabled and the mark is active,
     !> call `fill_region' to fill each of the paragraphs in the active
     !> region, instead of just filling the current paragraph.  Port of
@@ -1216,8 +1217,8 @@ contains
     !> only joins lines within paragraphs, preserving the paragraphs
     !> themselves.
     !>
-    !> When called from Lisp, ARG is the number of following paragraphs to join
-    !> lines within, or if ARG is nil, optional arguments BEG and END non-nil
+    !> When called from Fortran, ARG is the number of following paragraphs to join
+    !> lines within, or if ARG is 0, optional arguments BEG and END present
     !> means to join the lines of each paragraph in the region delimited by BEG
     !> and END.  Port of fill.el:unfill-paragraph (ARG 0 for nil).
     recursive subroutine unfill_paragraph(arg, status, beg, end)
@@ -1253,18 +1254,18 @@ contains
     !> The `fill_column' variable controls the width.
     !>
     !> Noninteractively, the third argument JUSTIFY specifies which
-    !> kind of justification to do: `full', `left', `right', `center',
-    !> or `none' (equivalent to nil).  A value of t means handle each
+    !> kind of justification to do: JUSTIFY_FULL, JUSTIFY_LEFT, JUSTIFY_RIGHT,
+    !> JUSTIFY_CENTER, or JUSTIFY_NONE.  A value of JUSTIFY_T (or absent) means handle each
     !> paragraph as specified by its text properties.
     !>
-    !> The fourth arg NOSQUEEZE non-nil means to leave whitespace other
-    !> than line breaks untouched, and fifth arg TO-EOP non-nil means
+    !> The fourth arg NOSQUEEZE true means to leave whitespace other
+    !> than line breaks untouched, and fifth arg TO_EOP true means
     !> to keep filling to the end of the paragraph (or next hard newline,
     !> if variable `use_hard_newlines' is on).
     !>
     !> Return the `fill_prefix' used for filling the last paragraph.
     !>
-    !> If `sentence_end_double_space' is non-nil, then period followed by one
+    !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region (JUSTIFY_T for nil).
     recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
@@ -1322,7 +1323,7 @@ contains
     !> How should we justify this line?
     !> This returns the value of the text-property `justification',
     !> or the variable `default_justification' if there is no text-property.
-    !> However, it returns nil rather than `none' to mean "don't justify".
+    !> However, it returns JUSTIFY_NONE to mean "don't justify".
     !> Port of fill.el:current-justification (JUSTIFY_NONE for nil).
     integer function current_justification() result(j)
         type(value_type) :: v
@@ -1358,13 +1359,13 @@ contains
     !> Normally does full justification: adds spaces to the line to make it end at
     !> the column given by `current_fill_column'.
     !> Optional first argument HOW specifies alternate type of justification:
-    !> it can be `left', `right', `full', `center', or `none'; for their
+    !> it can be JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, or JUSTIFY_NONE; for their
     !> meaning, see `default_justification'.
-    !> If HOW is t, will justify however the `current_justification' function says to.
-    !> If HOW is nil or missing, full justification is done by default.
-    !> Second arg EOP non-nil means that this is the last line of the paragraph, so
+    !> If HOW is JUSTIFY_T, will justify however the `current_justification' function says to.
+    !> If HOW is absent, full justification is done by default.
+    !> Second arg EOP true means that this is the last line of the paragraph, so
     !> it will not be stretched by full justification.
-    !> Third arg NOSQUEEZE non-nil means to leave interior whitespace unchanged,
+    !> Third arg NOSQUEEZE true means to leave interior whitespace unchanged,
     !> otherwise it is made canonical.  Port of fill.el:justify-current-line.
     subroutine justify_current_line(status, how_in, eop, nosqueeze)
         type(status_type), intent(out) :: status
@@ -1624,6 +1625,26 @@ contains
         call fill_region(b, e, status, prefix_justify())
     end subroutine cmd_fill_region
 
+    !> Fill the region as if it were a single paragraph.
+    !> The implementation is `fill_region_as_paragraph_default'.
+    !>
+    !> The arguments FROM and TO define the boundaries of the region.
+    !>
+    !> The optional third argument JUSTIFY, when called interactively with a
+    !> prefix arg, is assigned the value JUSTIFY_FULL.
+    !> When called from Fortran, JUSTIFY can specify any type of justification;
+    !> see `default_justification' for the possible values.
+    !> Optional fourth arg NOSQUEEZE true means not to make spaces between
+    !> words canonical before filling.
+    !> Fifth arg SQUEEZE_AFTER, if present, should be a buffer position; it
+    !> means canonicalize spaces only starting from that position.
+    !> See `canonically_space_region' for the meaning of canonicalization of
+    !> spaces.
+    !>
+    !> It returns the `fill_prefix' used for filling.  Port of
+    !> fill.el:fill-region-as-paragraph (the command;
+    !> `fill_region_as_paragraph_function' is not ported, so it is always
+    !> `fill_region_as_paragraph_default').
     recursive subroutine cmd_fill_region_as_paragraph(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e

@@ -43,7 +43,7 @@ submodule(syntax_fm) syntax_scan_fm
     use buffer_fm, only: temp_set_point_both
     use editfns_fm, only: validate_region
     use search_fm, only: scan_newline
-    use print_fm, only: prin1_string
+    use print_fm, only: fortran_string
     implicit none(type, external)
 
     !> struct lisp_parse_state: the internal form of the parse state.
@@ -245,7 +245,7 @@ contains
         character(len=24) :: sa, sb
         write (sa, "(i0)") a
         write (sb, "(i0)") b
-        call set_error(status, FM_SCAN_ERROR, prin1_string(message)//", "//trim(sa)//", "//trim(sb))
+        call set_error(status, FM_SCAN_ERROR, fortran_string(message)//", "//trim(sa)//", "//trim(sb))
     end subroutine scan_error
 
     ! ------------------------------------------------------------------

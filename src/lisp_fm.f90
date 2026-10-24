@@ -86,7 +86,7 @@ module lisp_fm
         !> Whether it is a command (has an interactive spec), so M-x and
         !> keys can run it.
         logical :: interactive = .true.
-        !> Non-nil means running it interactively asks for confirmation
+        !> True means running it interactively asks for confirmation
         !> first (novice.el; the `disabled' property).
         logical :: disabled = .false.
         !> A message to show instead of the standard one when `disabled'
