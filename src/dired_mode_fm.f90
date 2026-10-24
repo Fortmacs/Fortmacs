@@ -941,7 +941,6 @@ module dired_mode_fm
             integer(int64) :: pos
         end function dired_prev_subdir
 
-
         !> Change the mode of the marked (or next ARG) files.
         !> Both octal numeric modes like `644' and symbolic modes like `g+w'
         !> are supported.  Port of dired-aux.el:dired-do-chmod.  (In
@@ -5356,7 +5355,7 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Non-ASCII mark character")
             return
         end if
-        call dired_unmark_all_files(achar(mark), status, .not. nilp(current_prefix_arg))
+        call dired_unmark_all_files(achar(mark), status,.not. nilp(current_prefix_arg))
     end subroutine cmd_dired_unmark_all_files
 
     !> Remove all marks from all files in the Dired buffer.  Port of

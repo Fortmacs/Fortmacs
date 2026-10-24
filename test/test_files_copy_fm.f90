@@ -99,9 +99,9 @@ contains
     subroutine test_symbolic_to_number(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=16), parameter :: modes(17) = [character(len=16) :: "a=rwx", "o=t", "o=xt", "o=tx", &
-                                                     "u=rwx,g=rx,o=rx", "u=rwx,g=,o=", "u=rwx", "u=rw,g=r,o=r", &
-                                                     "u=rw,g=r,o=t", "u=rw,g=r,o=xt", "u=rwxs,g=rs,o=xt", &
-                                                     "u=rws,g=rs,o=t", "u=rws,g=rs,o=r", "a=r", "u=S", "u=T", "u=Z"]
+                                                                        "u=rwx,g=rx,o=rx", "u=rwx,g=,o=", "u=rwx", "u=rw,g=r,o=r", &
+                                                                              "u=rw,g=r,o=t", "u=rw,g=r,o=xt", "u=rwxs,g=rs,o=xt", &
+                                                                     "u=rws,g=rs,o=t", "u=rws,g=rs,o=r", "a=r", "u=S", "u=T", "u=Z"]
         integer, parameter :: expected(17) = [int(o'777'), int(o'1000'), int(o'1001'), int(o'1001'), int(o'755'), &
                                               int(o'700'), int(o'700'), int(o'644'), int(o'1640'), int(o'1641'), &
                                               int(o'7741'), int(o'7640'), int(o'6644'), int(o'444'), -1, -1, -1]
@@ -132,8 +132,8 @@ contains
         integer, parameter :: modes(9) = [int(o'755'), int(o'700'), int(o'644'), int(o'1640'), int(o'1641'), &
                                           int(o'7741'), int(o'7640'), int(o'6644'), int(o'444')]
         character(len=10), parameter :: expected(9) = [character(len=10) :: "-rwxr-xr-x", "-rwx------", "-rw-r--r--", &
-                                                       "-rw-r----T", "-rw-r----t", "-rwsr-S--t", "-rwSr-S--T", &
-                                                       "-rwSr-Sr--", "-r--r--r--"]
+                                                                           "-rw-r----T", "-rw-r----t", "-rwsr-S--t", "-rwSr-S--T", &
+                                                                                                         "-rwSr-Sr--", "-r--r--r--"]
         integer :: k
         do k = 1, size(modes)
             call check(error, file_modes_number_to_symbolic(int(modes(k), int32)), expected(k))

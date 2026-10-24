@@ -1094,17 +1094,17 @@ contains
         if (.not. status%ok()) return
     end do
     call dired_do_redisplay(arg_kind, arg_n, .false., status)
-    contains
+contains
 
-        function strip_dashes(s) result(t)
-            character(len=*), intent(in) :: s
-            character(len=:), allocatable :: t
-            integer :: j
-            t = ""
-            do j = 1, len(s)
-                if (s(j:j) /= "-") t = t//s(j:j)
-            end do
-        end function strip_dashes
+    function strip_dashes(s) result(t)
+        character(len=*), intent(in) :: s
+        character(len=:), allocatable :: t
+        integer :: j
+        t = ""
+        do j = 1, len(s)
+            if (s(j:j) /= "-") t = t//s(j:j)
+        end do
+    end function strip_dashes
     end procedure dired_do_chmod
 
     !> (string-to-number S 8): the octal number at the start of S (after
@@ -1287,26 +1287,26 @@ contains
         end if
     end if
     if (present(count)) count = n
-    contains
+contains
 
-        !> FMT with its "%d" replaced by N and its "%s" by the plural s.
-        function format_d(fmt, n) result(s)
-            character(len=*), intent(in) :: fmt
-            integer(int64), intent(in) :: n
-            character(len=:), allocatable :: s
-            integer :: k
-            s = fmt
-            k = index(s, "%d")
-            if (k > 0) s = s(1:k - 1)//aux_itoa(n)//s(k + 2:)
-            k = index(s, "%s")
-            if (k > 0) then
-                if (n == 1) then
-                    s = s(1:k - 1)//s(k + 2:)
-                else
-                    s = s(1:k - 1)//"s"//s(k + 2:)
-                end if
+    !> FMT with its "%d" replaced by N and its "%s" by the plural s.
+    function format_d(fmt, n) result(s)
+        character(len=*), intent(in) :: fmt
+        integer(int64), intent(in) :: n
+        character(len=:), allocatable :: s
+        integer :: k
+        s = fmt
+        k = index(s, "%d")
+        if (k > 0) s = s(1:k - 1)//aux_itoa(n)//s(k + 2:)
+        k = index(s, "%s")
+        if (k > 0) then
+            if (n == 1) then
+                s = s(1:k - 1)//s(k + 2:)
+            else
+                s = s(1:k - 1)//"s"//s(k + 2:)
             end if
-        end function format_d
+        end if
+    end function format_d
     end procedure dired_do_kill_lines
 
     !> Remove all marked lines, or the next ARG lines.
@@ -1473,7 +1473,7 @@ contains
         k = rule_for(dired_compress_files_alist, suffix)
         if (k == 0) then
             call set_error(status, FM_USER_ERROR, format_message("No compression rule found for "// &
-                           "`dired_compress_directory_default_suffix' ")//suffix// &
+                                                                 "`dired_compress_directory_default_suffix' ")//suffix// &
                            format_message(", see `dired_compress_files_alist' for the supported suffixes list"))
             return
         end if
@@ -1526,38 +1526,38 @@ contains
         newname = out_name
     end if
     found = .true.
-    contains
+contains
 
-        !> The `file_error' handler: try compress.  Don't use NEWNAME with
-        !> `compress'.
-        recursive subroutine compress_with_compress()
-            type(dired_string_type) :: cargs(2)
-            logical :: cfailed
-            status = status_type()
-            cargs(1)%s = "-f"
-            cargs(2)%s = file
-            call dired_check_process("Compressing "//file, "compress", cargs, cfailed, status)
-            if (.not. status%ok()) return
-            if (.not. cfailed) then
-                newname = file//".Z"
-                found = .true.
+    !> The `file_error' handler: try compress.  Don't use NEWNAME with
+    !> `compress'.
+    recursive subroutine compress_with_compress()
+        type(dired_string_type) :: cargs(2)
+        logical :: cfailed
+        status = status_type()
+        cargs(1)%s = "-f"
+        cargs(2)%s = file
+        call dired_check_process("Compressing "//file, "compress", cargs, cfailed, status)
+        if (.not. status%ok()) return
+        if (.not. cfailed) then
+            newname = file//".Z"
+            found = .true.
+        end if
+    end subroutine compress_with_compress
+
+    !> The first rule of ALIST whose regexp matches SUFFIX (0 if none).
+    integer function rule_for(alist, suffix) result(r)
+        type(dired_compress_rule_type), intent(in) :: alist(:)
+        character(len=*), intent(in) :: suffix
+        type(status_type) :: s
+        integer :: j
+        r = 0
+        do j = 1, size(alist)
+            if (string_match(alist(j)%regexp, suffix, s, inhibit_modify=.true.) > 0) then
+                r = j
+                return
             end if
-        end subroutine compress_with_compress
-
-        !> The first rule of ALIST whose regexp matches SUFFIX (0 if none).
-        integer function rule_for(alist, suffix) result(r)
-            type(dired_compress_rule_type), intent(in) :: alist(:)
-            character(len=*), intent(in) :: suffix
-            type(status_type) :: s
-            integer :: j
-            r = 0
-            do j = 1, size(alist)
-                if (string_match(alist(j)%regexp, suffix, s, inhibit_modify=.true.) > 0) then
-                    r = j
-                    return
-                end if
-            end do
-        end function rule_for
+        end do
+    end function rule_for
     end procedure dired_compress_file
 
     !> Compress or uncompress the current file.  FAILURE is the offending
@@ -2330,126 +2330,126 @@ contains
         procedure(dired_name_constructor_proc) :: name_constructor
         character, intent(in) :: marker_char
         type(status_type), intent(out) :: status
-    type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
-    type(dired_string_type), allocatable :: grown(:)
-    character(len=:), allocatable :: from, to, destname, help, lower_op
-    type(file_stat_type) :: dattrs
-    type(status_type) :: st
-    integer(int64) :: success_count, total, p, nf
-    integer :: k, overwrite_query
-    character :: actual_marker_char
-    logical :: skip, overwrite, overwrite_confirmed, has_marker, found, ok
-    status = status_type()
-    if (allocated(create_files_failures)) deallocate (create_files_failures)
-    allocate (create_files_failures(0), failures(0), skipped(0))
-    success_count = 0
-    total = size(fn_list)
-    overwrite_query = 0
-    lower_op = downcase_string(operation)
-    do k = 1, size(fn_list)
-        from = fn_list(k)%s
-        ! Position point on the current file -- this is useful if
-        ! handling a number of files to show where we're working at.
-        p = dired_goto_file(from, st)
-        call name_constructor(from, to, skip, status)
-        if (.not. status%ok()) return
-        if (.not. skip) then
-            if (to == from .and. len(to) == len(from)) then
-                skip = .true.
-                call dired_log("Cannot "//lower_op//" to same file: "//from//LF)
-            end if
-        end if
-        if (skip) then
-            allocate (grown(size(skipped) + 1))
-            grown(1)%s = dired_make_relative(from)
-            grown(2:) = skipped
-            call move_alloc(grown, skipped)
-            cycle
-        end if
-        overwrite = file_exists_p(to)
-        overwrite_confirmed = .false.
-        if (overwrite) then
-            help = substitute_command_keys("Type \`SPC' or \`y' to overwrite file `")//to// &
-                                  substitute_command_keys("',"//LF//"\`DEL' or \`n' to skip to next,"//LF// &
-                                                          "\`ESC' or \`q' to not overwrite any of the remaining "// &
-                                                          "files,"//LF//"\`!' to overwrite all remaining files "// &
-                                                          "with no more questions.")
-            call dired_query(overwrite_query, format_message("Overwrite `")//to//format_message("'?"), &
-                             overwrite_confirmed, status, help_form=help)
+        type(dired_string_type), allocatable :: failures(:), skipped(:), all(:)
+        type(dired_string_type), allocatable :: grown(:)
+        character(len=:), allocatable :: from, to, destname, help, lower_op
+        type(file_stat_type) :: dattrs
+        type(status_type) :: st
+        integer(int64) :: success_count, total, p, nf
+        integer :: k, overwrite_query
+        character :: actual_marker_char
+        logical :: skip, overwrite, overwrite_confirmed, has_marker, found, ok
+        status = status_type()
+        if (allocated(create_files_failures)) deallocate (create_files_failures)
+        allocate (create_files_failures(0), failures(0), skipped(0))
+        success_count = 0
+        total = size(fn_list)
+        overwrite_query = 0
+        lower_op = downcase_string(operation)
+        do k = 1, size(fn_list)
+            from = fn_list(k)%s
+            ! Position point on the current file -- this is useful if
+            ! handling a number of files to show where we're working at.
+            p = dired_goto_file(from, st)
+            call name_constructor(from, to, skip, status)
             if (.not. status%ok()) return
-        end if
-        ! must determine if FROM is marked before file-creator gets a
-        ! chance to delete it (in case of a move).
-        has_marker = .false.
-        if (marker_char == DIRED_KEEP_MARKER) then
-            call dired_file_marker(from, actual_marker_char, has_marker)
-        else if (marker_char /= " ") then
-            actual_marker_char = marker_char
-            has_marker = .true.
-        end if
-        ! Handle the `dired_copy_file' file-creator specially When copying
-        ! a directory to another directory or possibly to itself or one of
-        ! its subdirectories.
-        destname = file_name_directory(to)
-        if (file_directory_p(from) .and. file_directory_p(to) .and. creator_kind == DIRED_CREATOR_COPY) to = destname
-        ! If DESTNAME is a subdirectory of FROM, not a symlink, and the
-        ! method in use is copying, signal an error.
-        call file_attributes(destname, dattrs, found, nofollow=.true.)
-        if (found .and. creator_kind == DIRED_CREATOR_COPY) then
-            if (iand(dattrs%mode, S_IFMT) == S_IFDIR) then
-                if (file_in_directory_p(destname, from)) then
-                    call set_error(status, FM_GENERIC_ERROR, format_message("Cannot copy `")//from// &
-                                   format_message("' into its subdirectory `")//to//format_message("'"))
-                    return
+            if (.not. skip) then
+                if (to == from .and. len(to) == len(from)) then
+                    skip = .true.
+                    call dired_log("Cannot "//lower_op//" to same file: "//from//LF)
                 end if
             end if
-        end if
-        call file_creator(from, to, overwrite_confirmed, st)
-        ok = st%ok()
-        if (ok) then
-            ! If we get here, file-creator hasn't been aborted and the old
-            ! entry (if any) has to be deleted before adding the new entry.
-            if (overwrite) call dired_remove_file(to)
-            success_count = success_count + 1
-            call message(operation//": "//aux_itoa(success_count)//" of "//aux_itoa(total))
-            if (has_marker) then
-                call dired_add_file(to, status, actual_marker_char)
-            else
-                call dired_add_file(to, status)
+            if (skip) then
+                allocate (grown(size(skipped) + 1))
+                grown(1)%s = dired_make_relative(from)
+                grown(2:) = skipped
+                call move_alloc(grown, skipped)
+                cycle
             end if
-            if (.not. status%ok()) return
-        else if (condition_matches(st%code, FM_FILE_ERROR)) then
-            ! FILE-CREATOR aborted
-            allocate (grown(size(failures) + 1))
-            grown(1)%s = dired_make_relative(from)
-            grown(2:) = failures
-            call move_alloc(grown, failures)
-            call dired_log(operation//format_message(": `")//from//format_message("' to `")//to// &
-                           format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
+            overwrite = file_exists_p(to)
+            overwrite_confirmed = .false.
+            if (overwrite) then
+                help = substitute_command_keys("Type \`SPC' or \`y' to overwrite file `")//to// &
+                       substitute_command_keys("',"//LF//"\`DEL' or \`n' to skip to next,"//LF// &
+                                               "\`ESC' or \`q' to not overwrite any of the remaining "// &
+                                               "files,"//LF//"\`!' to overwrite all remaining files "// &
+                                               "with no more questions.")
+                call dired_query(overwrite_query, format_message("Overwrite `")//to//format_message("'?"), &
+                                 overwrite_confirmed, status, help_form=help)
+                if (.not. status%ok()) return
+            end if
+            ! must determine if FROM is marked before file-creator gets a
+            ! chance to delete it (in case of a move).
+            has_marker = .false.
+            if (marker_char == DIRED_KEEP_MARKER) then
+                call dired_file_marker(from, actual_marker_char, has_marker)
+            else if (marker_char /= " ") then
+                actual_marker_char = marker_char
+                has_marker = .true.
+            end if
+            ! Handle the `dired_copy_file' file-creator specially When copying
+            ! a directory to another directory or possibly to itself or one of
+            ! its subdirectories.
+            destname = file_name_directory(to)
+            if (file_directory_p(from) .and. file_directory_p(to) .and. creator_kind == DIRED_CREATOR_COPY) to = destname
+            ! If DESTNAME is a subdirectory of FROM, not a symlink, and the
+            ! method in use is copying, signal an error.
+            call file_attributes(destname, dattrs, found, nofollow=.true.)
+            if (found .and. creator_kind == DIRED_CREATOR_COPY) then
+                if (iand(dattrs%mode, S_IFMT) == S_IFDIR) then
+                    if (file_in_directory_p(destname, from)) then
+                        call set_error(status, FM_GENERIC_ERROR, format_message("Cannot copy `")//from// &
+                                       format_message("' into its subdirectory `")//to//format_message("'"))
+                        return
+                    end if
+                end if
+            end if
+            call file_creator(from, to, overwrite_confirmed, st)
+            ok = st%ok()
+            if (ok) then
+                ! If we get here, file-creator hasn't been aborted and the old
+                ! entry (if any) has to be deleted before adding the new entry.
+                if (overwrite) call dired_remove_file(to)
+                success_count = success_count + 1
+                call message(operation//": "//aux_itoa(success_count)//" of "//aux_itoa(total))
+                if (has_marker) then
+                    call dired_add_file(to, status, actual_marker_char)
+                else
+                    call dired_add_file(to, status)
+                end if
+                if (.not. status%ok()) return
+            else if (condition_matches(st%code, FM_FILE_ERROR)) then
+                ! FILE-CREATOR aborted
+                allocate (grown(size(failures) + 1))
+                grown(1)%s = dired_make_relative(from)
+                grown(2:) = failures
+                call move_alloc(grown, failures)
+                call dired_log(operation//format_message(": `")//from//format_message("' to `")//to// &
+                               format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
+            else
+                status = st
+                return
+            end if
+        end do
+        if (size(create_files_failures) > 0) then
+            allocate (all(size(failures) + size(create_files_failures)))
+            all(1:size(failures)) = failures
+            all(size(failures) + 1:) = create_files_failures
+            nf = size(all)
+            call dired_log_summary(operation//" failed for "//aux_itoa(nf)//ngettext(" file", " files", nf)//" in "// &
+                                   aux_itoa(total)//" requests", all)
+        else if (size(failures) > 0) then
+            nf = size(failures)
+            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
+                                   " failed", failures)
+        else if (size(skipped) > 0) then
+            nf = size(skipped)
+            call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
+                                   " skipped", skipped)
         else
-            status = st
-            return
+            call message(operation//": "//aux_itoa(success_count)//ngettext(" file done", " files done", success_count))
         end if
-    end do
-    if (size(create_files_failures) > 0) then
-        allocate (all(size(failures) + size(create_files_failures)))
-        all(1:size(failures)) = failures
-        all(size(failures) + 1:) = create_files_failures
-        nf = size(all)
-        call dired_log_summary(operation//" failed for "//aux_itoa(nf)//ngettext(" file", " files", nf)//" in "// &
-                               aux_itoa(total)//" requests", all)
-    else if (size(failures) > 0) then
-        nf = size(failures)
-        call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                               " failed", failures)
-    else if (size(skipped) > 0) then
-        nf = size(skipped)
-        call dired_log_summary(operation//": "//aux_itoa(nf)//" of "//aux_itoa(total)//ngettext(" file", " files", total)// &
-                               " skipped", skipped)
-    else
-        call message(operation//": "//aux_itoa(success_count)//ngettext(" file done", " files done", success_count))
-    end if
-    p = dired_move_to_filename(st)
+        p = dired_move_to_filename(st)
     end subroutine dired_create_files
 
     !> The name constructor of a target directory: FROM's name in
@@ -2566,74 +2566,74 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: op1
         logical, intent(in), optional :: how_to_plain
-    type(dired_string_type), allocatable :: fn_list(:), rfn_list(:)
-    character(len=:), allocatable :: target_dir, default, target, input, op, prompt
-    type(handle_type), allocatable :: bufs(:)
-    type(handle_type) :: old
-    type(status_type) :: st
-    logical :: one_file, into_dir
-    integer :: k
-    call dired_get_marked_files(fn_list, status, arg_kind=arg_kind, arg_n=arg_n, error="")
-    if (.not. status%ok()) return
-    allocate (rfn_list(size(fn_list)))
-    do k = 1, size(fn_list)
-        rfn_list(k)%s = dired_make_relative(fn_list(k)%s)
-    end do
-    one_file = size(fn_list) == 1
-    target_dir = dired_dwim_target_directory()
-    ! The first of dired-dwim-target-defaults: TARGET-DIR, else the
-    ! current directory (the other defaults, for M-n, are deferred:
-    ! `read_file_name' takes one default).
-    default = target_dir
-    if (len(default) == 0) default = dired_current_directory(st)
-    op = operation
-    if (one_file .and. present(op1)) op = op1
-    if (op_symbol == "symlink" .or. op_symbol == "hardlink") then
-        ! Linking operations create links from the prompted file name;
-        ! the other operations copy (etc) to the prompted file name.
-        prompt = op//" %s from: "
-    else
-        prompt = op//" %s to: "
-    end if
-    call dired_mark_read_file_name(prompt, target_dir, op_symbol, arg_kind, arg_n, rfn_list, input, status, default)
-    if (.not. status%ok()) return
-    target = aux_expand(input)
-    if (.not. one_file .or. (dired_create_destination_dirs_on_trailing_dirsep .and. directory_name_p(target))) then
-        call dired_maybe_create_dirs(target, status)
+        type(dired_string_type), allocatable :: fn_list(:), rfn_list(:)
+        character(len=:), allocatable :: target_dir, default, target, input, op, prompt
+        type(handle_type), allocatable :: bufs(:)
+        type(handle_type) :: old
+        type(status_type) :: st
+        logical :: one_file, into_dir
+        integer :: k
+        call dired_get_marked_files(fn_list, status, arg_kind=arg_kind, arg_n=arg_n, error="")
         if (.not. status%ok()) return
-    end if
-    if (present(how_to_plain)) then
-        into_dir = .not. how_to_plain .and. file_directory_p(target)
-    else
-        into_dir = file_directory_p(target)
-    end if
-    if (.not. (one_file .or. into_dir)) then
-        call set_error(status, FM_GENERIC_ERROR, "Marked "//operation//": target must be a directory: "//target)
-        return
-    end if
-    if (.not. file_directory_p(fn_list(1)%s) .and. .not. file_directory_p(target) .and. directory_name_p(target)) then
-        call set_error(status, FM_GENERIC_ERROR, operation//": Target directory does not exist: "//target)
-        return
-    end if
-    ! rename-file bombs when moving directories unless we do this:
-    if (.not. into_dir) target = directory_file_name(target)
-    create_target = target
-    if (into_dir) then
-        call dired_create_files(file_creator, creator_kind, operation, fn_list, into_dir_constructor, marker_char, status)
-    else
-        call dired_create_files(file_creator, creator_kind, operation, fn_list, target_constructor, marker_char, status)
-    end if
-    if (.not. status%ok()) return
-    if (dired_do_revert_buffer) then
-        bufs = dired_buffers_for_dir(file_name_directory(target))
-        old = current_buffer()
-        do k = 1, size(bufs)
-            call set_buffer(bufs(k), st)
-            call revert_buffer(status)
-            if (.not. status%ok()) exit
+        allocate (rfn_list(size(fn_list)))
+        do k = 1, size(fn_list)
+            rfn_list(k)%s = dired_make_relative(fn_list(k)%s)
         end do
-        call set_buffer(old, st)
-    end if
+        one_file = size(fn_list) == 1
+        target_dir = dired_dwim_target_directory()
+        ! The first of dired-dwim-target-defaults: TARGET-DIR, else the
+        ! current directory (the other defaults, for M-n, are deferred:
+        ! `read_file_name' takes one default).
+        default = target_dir
+        if (len(default) == 0) default = dired_current_directory(st)
+        op = operation
+        if (one_file .and. present(op1)) op = op1
+        if (op_symbol == "symlink" .or. op_symbol == "hardlink") then
+            ! Linking operations create links from the prompted file name;
+            ! the other operations copy (etc) to the prompted file name.
+            prompt = op//" %s from: "
+        else
+            prompt = op//" %s to: "
+        end if
+        call dired_mark_read_file_name(prompt, target_dir, op_symbol, arg_kind, arg_n, rfn_list, input, status, default)
+        if (.not. status%ok()) return
+        target = aux_expand(input)
+        if (.not. one_file .or. (dired_create_destination_dirs_on_trailing_dirsep .and. directory_name_p(target))) then
+            call dired_maybe_create_dirs(target, status)
+            if (.not. status%ok()) return
+        end if
+        if (present(how_to_plain)) then
+            into_dir = .not. how_to_plain .and. file_directory_p(target)
+        else
+            into_dir = file_directory_p(target)
+        end if
+        if (.not. (one_file .or. into_dir)) then
+            call set_error(status, FM_GENERIC_ERROR, "Marked "//operation//": target must be a directory: "//target)
+            return
+        end if
+        if (.not. file_directory_p(fn_list(1)%s) .and. .not. file_directory_p(target) .and. directory_name_p(target)) then
+            call set_error(status, FM_GENERIC_ERROR, operation//": Target directory does not exist: "//target)
+            return
+        end if
+        ! rename-file bombs when moving directories unless we do this:
+        if (.not. into_dir) target = directory_file_name(target)
+        create_target = target
+        if (into_dir) then
+            call dired_create_files(file_creator, creator_kind, operation, fn_list, into_dir_constructor, marker_char, status)
+        else
+            call dired_create_files(file_creator, creator_kind, operation, fn_list, target_constructor, marker_char, status)
+        end if
+        if (.not. status%ok()) return
+        if (dired_do_revert_buffer) then
+            bufs = dired_buffers_for_dir(file_name_directory(target))
+            old = current_buffer()
+            do k = 1, size(bufs)
+                call set_buffer(bufs(k), st)
+                call revert_buffer(status)
+                if (.not. status%ok()) exit
+            end do
+            call set_buffer(old, st)
+        end if
     end subroutine dired_do_create_files
 
     !> `dired_copy_file' as a file creator.
@@ -3267,7 +3267,7 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "No file on this line")
             return
         end if
-        call dired_show_file_type(file, .not. nilp(current_prefix_arg), status)
+        call dired_show_file_type(file,.not. nilp(current_prefix_arg), status)
     end subroutine cmd_dired_show_file_type
 
     !> The first program named NAME on PATH (as executable-find finds it
@@ -3552,7 +3552,6 @@ contains
             arg_n = prefix_numeric_value(current_prefix_arg)
         end if
     end subroutine aux_prefix_kind
-
 
     !> Bind KEYS to COMMAND in `dired_mode_map'.
     subroutine aux_bind(keys, command)

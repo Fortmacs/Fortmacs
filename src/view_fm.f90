@@ -498,53 +498,55 @@ contains
     !> which initially is half a window full.  Search commands default
     !> to a repeat count of one.
     !>
-    !> H, h, ?	 This message.
-    !> Digits	provide prefix arguments.
-    !> \[negative_argument]	negative prefix argument.
-    !> \[beginning_of_buffer]	move to the beginning of buffer.
-    !> >	move to the end of buffer.
-    !> \[view_scroll_to_buffer_end]	scroll so that buffer end is at last line of window.
-    !> SPC	scroll forward "page size" lines.
-    !> 	  With prefix scroll forward prefix lines.
+    !> H, h, ?         This message.
+    !> Digits        provide prefix arguments.
+    !> \[negative_argument]        negative prefix argument.
+    !> \[beginning_of_buffer]        move to the beginning of buffer.
+    !> >        move to the end of buffer.
+    !> \[view_scroll_to_buffer_end]        scroll so that buffer end is at last line of window.
+    !> SPC        scroll forward "page size" lines.
+    !>           With prefix scroll forward prefix lines.
     !> DEL, S-SPC  scroll backward "page size" lines.
-    !> 	      With prefix scroll backward prefix lines.
-    !> \[view_scroll_page_forward_set_page_size]	like  \[view_scroll_page_forward]  but with prefix sets "page size" to prefix.
-    !> \[view_scroll_page_backward_set_page_size]	like  \[view_scroll_page_backward]  but with prefix sets "page size" to prefix.
-    !> \[view_scroll_half_page_forward]	scroll forward "half page size" lines.  With prefix, sets
-    !> 	  "half page size" to prefix lines and scrolls forward that much.
-    !> \[view_scroll_half_page_backward]	scroll backward "half page size" lines.  With prefix, sets
-    !> 	  "half page size" to prefix lines and scrolls backward that much.
+    !>               With prefix scroll backward prefix lines.
+    !> \[view_scroll_page_forward_set_page_size]        like  \[view_scroll_page_forward]
+    !>           but with prefix sets "page size" to prefix.
+    !> \[view_scroll_page_backward_set_page_size]        like  \[view_scroll_page_backward]
+    !>           but with prefix sets "page size" to prefix.
+    !> \[view_scroll_half_page_forward]        scroll forward "half page size" lines.  With prefix, sets
+    !>           "half page size" to prefix lines and scrolls forward that much.
+    !> \[view_scroll_half_page_backward]        scroll backward "half page size" lines.  With prefix, sets
+    !>           "half page size" to prefix lines and scrolls backward that much.
     !> RET, LFD  scroll forward one line.  With prefix scroll forward prefix line(s).
-    !> y	scroll backward one line.  With prefix scroll backward prefix line(s).
-    !> \[what_line]	prints the current line number.
-    !> \[view_goto_percent]	goes prefix argument (default 100) percent into buffer.
-    !> \[view_goto_line]	goes to line given by prefix argument (default first line).
-    !> .	set the mark.
-    !> x	exchanges point and mark.
-    !> \[view_back_to_mark]	return to mark and pops mark ring.
-    !> 	  Mark ring is pushed at start of every successful search and when
-    !> 	  jump to line occurs.  The mark is set on jump to buffer start or end.
-    !> \[point_to_register]	save current position in character register.
-    !> '	go to position saved in character register.
-    !> s	do forward incremental search.
-    !> r	do reverse incremental search.
-    !> \[view_search_regexp_forward]	searches forward for regular expression, starting after current page.
-    !> 	  ! and @ have a special meaning at the beginning of the regexp.
-    !> 	  ! means search for a line with no match for regexp.  @ means start
-    !> 	  search at beginning (end for backward search) of buffer.
-    !> \	searches backward for regular expression, starting before current page.
-    !> \[view_search_last_regexp_forward]	searches forward for last regular expression.
-    !> p	searches backward for last regular expression.
-    !> \[view_quit]	quit View mode, restoring this window and buffer to previous state.
-    !> 	  \[view_quit] is the normal way to leave view mode.
-    !> \[view_exit]	exit View mode but stay in current buffer.  Use this if you started
-    !> 	  viewing a buffer (file) and find out you want to edit it.
-    !> 	  This command restores the previous read-only status of the buffer.
-    !> \[view_exit_and_edit]	exit View mode, and make the current buffer editable
-    !> 	  even if it was not editable before entry to View mode.
-    !> \[view_quit_all]	quit View mode, restoring all windows to previous state.
-    !> \[view_leave]	quit View mode and maybe switch buffers, but don't kill this buffer.
-    !> \[view_kill_and_leave]	quit View mode, kill current buffer and go back to other buffer.
+    !> y        scroll backward one line.  With prefix scroll backward prefix line(s).
+    !> \[what_line]        prints the current line number.
+    !> \[view_goto_percent]        goes prefix argument (default 100) percent into buffer.
+    !> \[view_goto_line]        goes to line given by prefix argument (default first line).
+    !> .        set the mark.
+    !> x        exchanges point and mark.
+    !> \[view_back_to_mark]        return to mark and pops mark ring.
+    !>           Mark ring is pushed at start of every successful search and when
+    !>           jump to line occurs.  The mark is set on jump to buffer start or end.
+    !> \[point_to_register]        save current position in character register.
+    !> '        go to position saved in character register.
+    !> s        do forward incremental search.
+    !> r        do reverse incremental search.
+    !> \[view_search_regexp_forward]        searches forward for regular expression, starting after current page.
+    !>           ! and @ have a special meaning at the beginning of the regexp.
+    !>           ! means search for a line with no match for regexp.  @ means start
+    !>           search at beginning (end for backward search) of buffer.
+    !> \        searches backward for regular expression, starting before current page.
+    !> \[view_search_last_regexp_forward]        searches forward for last regular expression.
+    !> p        searches backward for last regular expression.
+    !> \[view_quit]        quit View mode, restoring this window and buffer to previous state.
+    !>           \[view_quit] is the normal way to leave view mode.
+    !> \[view_exit]        exit View mode but stay in current buffer.  Use this if you started
+    !>           viewing a buffer (file) and find out you want to edit it.
+    !>           This command restores the previous read-only status of the buffer.
+    !> \[view_exit_and_edit]        exit View mode, and make the current buffer editable
+    !>           even if it was not editable before entry to View mode.
+    !> \[view_quit_all]        quit View mode, restoring all windows to previous state.
+    !> \[view_leave]        quit View mode and maybe switch buffers, but don't kill this buffer.
+    !> \[view_kill_and_leave]        quit View mode, kill current buffer and go back to other buffer.
     !>
     !> The effect of \[view_leave], \[view_quit] and \[view_kill_and_leave] depends on how view_mode was entered.  If it was
     !> entered by view_file, view_file_other_window, or the Dired mode v command,
