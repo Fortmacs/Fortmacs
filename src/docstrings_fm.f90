@@ -68,6 +68,14 @@ module docstrings_fm
                           compilation_shell_minor_mode_hook, compilation_shell_minor_mode_map, &
                           compilation_skip_threshold, compilation_skip_to_next_location, compilation_skip_visited, &
                           compilation_transform_file_match_alist, compilation_warning_face, compile_command
+    use conf_mode_fm, only: conf_assignment_column, conf_assignment_regexp, conf_assignment_sign, &
+                            conf_assignment_space, conf_colon_assignment_column, conf_colon_assignment_space, &
+                            conf_colon_font_lock_keywords, conf_desktop_font_lock_keywords, conf_font_lock_keywords, &
+                            conf_javaprop_assignment_column, conf_javaprop_font_lock_keywords, &
+                            conf_javaprop_mode_syntax_table, conf_mode_map, conf_mode_syntax_table, &
+                            conf_npmrc_mode_syntax_table, conf_ppd_mode_syntax_table, conf_space_font_lock_keywords, &
+                            conf_space_keywords, conf_space_keywords_alist, conf_toml_font_lock_keywords, &
+                            conf_toml_mode_syntax_table, conf_unix_mode_syntax_table, conf_xdefaults_mode_syntax_table
     use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
@@ -135,9 +143,10 @@ module docstrings_fm
     use fns_fm, only: use_short_answers, yes_or_no_prompt
     use font_core_fm, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
                             global_font_lock_mode_hook
-    use font_lock_fm, only: font_lock_dont_widen, font_lock_extra_managed_props, &
-                            font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_support_mode, &
-                            FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
+    use font_lock_fm, only: font_lock_comment_end_skip, font_lock_comment_start_skip, &
+                            font_lock_dont_widen, font_lock_extra_managed_props, font_lock_maximum_decoration, &
+                            FONT_LOCK_DECORATION_MAX, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, &
+                            FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_tabs_mode, &
@@ -273,7 +282,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(708) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(723) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -310,7 +319,11 @@ module docstrings_fm
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                    "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                              "compile", "compile_goto_error", "copy_abbrev_table", "copy_directory", "copy_file", &
+                                                     "compile", "compile_goto_error", "conf_align_assignments", "conf_colon_mode", &
+                                                        "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", "conf_mode_maybe", &
+                                                   "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", "conf_space_keywords", &
+                                                       "conf_space_mode", "conf_toml_mode", "conf_unix_mode", "conf_windows_mode", &
+                                                        "conf_xdefaults_mode", "copy_abbrev_table", "copy_directory", "copy_file", &
                                                     "copy_rectangle_as_kill", "copy_rectangle_to_register", "copy_region_as_kill", &
                                                          "copy_syntax_table", "copy_to_register", "count_lines", "current_buffer", &
                                                                "current_fill_column", "current_global_map", "current_indentation", &
@@ -475,7 +488,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(460) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(485) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -524,23 +537,33 @@ module docstrings_fm
                                                              "compilation_skip_visited", "compilation_transform_file_match_alist", &
                                                             "compilation_warning_face", "compile_command", "completion_auto_help", &
                                           "completion_fail_discreetly", "completion_ignore_case", "completion_ignored_extensions", &
-                                         "completion_show_inline_help", "completions_max_height", "copy_directory_create_symlink", &
-                                                         "copy_region_blink_delay", "current_prefix_arg", "cycle_spacing_actions", &
-                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
-                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
-                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
-                                                                   "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
-                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
-                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
-                                                            "default_justification", "defining_kbd_macro", "delete_active_region", &
-                                                            "delete_exited_processes", "directory_listing_before_filename_regexp", &
-                                                      "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
-                                           "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
-                                                            "dired_broken_symlink", "dired_check_symlinks", "dired_chown_program", &
-                                                           "dired_compress_directory_default_suffix", "dired_compress_file_alist", &
-                                                             "dired_compress_file_default_suffix", "dired_compress_file_suffixes", &
-                                               "dired_compress_files_alist", "dired_copy_dereference", "dired_copy_preserve_time", &
-                                              "dired_create_destination_dirs", "dired_create_destination_dirs_on_trailing_dirsep", &
+                                                "completion_show_inline_help", "completions_max_height", "conf_assignment_column", &
+                                                        "conf_assignment_regexp", "conf_assignment_sign", "conf_assignment_space", &
+                                                                   "conf_colon_assignment_column", "conf_colon_assignment_space", &
+                                                               "conf_colon_font_lock_keywords", "conf_desktop_font_lock_keywords", &
+                                                                   "conf_font_lock_keywords", "conf_javaprop_assignment_column", &
+                                           "conf_javaprop_font_lock_keywords", "conf_javaprop_mode_syntax_table", "conf_mode_map", &
+                                           "conf_mode_syntax_table", "conf_npmrc_mode_syntax_table", "conf_ppd_mode_syntax_table", &
+                                              "conf_space_font_lock_keywords", "conf_space_keywords", "conf_space_keywords_alist", &
+                                                                   "conf_toml_font_lock_keywords", "conf_toml_mode_syntax_table", &
+                                                                "conf_unix_mode_syntax_table", "conf_xdefaults_mode_syntax_table", &
+                                                 "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
+                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                   "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
+                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
+                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
+                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
+                                                "dabbrev_upcase_means_case_search", "default_justification", "defining_kbd_macro", &
+                                                                   "delete_active_region", "delete_exited_processes", &
+                                                             "directory_listing_before_filename_regexp", "dired__ls_error_buffer", &
+                                                "dired__ls_error_file", "dired_after_readin_hook", "dired_always_read_filesystem", &
+                                                   "dired_auto_revert_buffer", "dired_before_readin_hook", "dired_broken_symlink", &
+                                         "dired_check_symlinks", "dired_chown_program", "dired_compress_directory_default_suffix", &
+                                                                "dired_compress_file_alist", "dired_compress_file_default_suffix", &
+                                           "dired_compress_file_suffixes", "dired_compress_files_alist", "dired_copy_dereference", &
+                                                                   "dired_copy_preserve_time", "dired_create_destination_dirs", &
+                                                                   "dired_create_destination_dirs_on_trailing_dirsep", &
                                             "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
                                            "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
                                            "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
@@ -567,14 +590,14 @@ module docstrings_fm
                                                    "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", "faces", &
                                           "fill_column", "fill_indent_according_to_mode", "fill_nobreak_predicate", "fill_prefix", &
                                                             "fill_separate_heterogeneous_words_with_space", "find_file_run_dired", &
-                                                                "first_change_hook", "font_lock_defaults", "font_lock_dont_widen", &
-                                                                   "font_lock_extra_managed_props", "font_lock_global_modes", &
-                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
-                                                  "font_lock_verbose", "fontification_functions", "fundamental_mode_abbrev_table", &
-                                                   "global_abbrev_table", "global_font_lock_mode_hook", "goal_column", "help_map", &
-                                             "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_add_new_input", &
-                                                            "history_delete_duplicates", "history_length", "indent_line_function", &
-                                                                 "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
+                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
+                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
+                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
+                                                         "font_lock_support_mode", "font_lock_verbose", "fontification_functions", &
+                                             "fundamental_mode_abbrev_table", "global_abbrev_table", "global_font_lock_mode_hook", &
+                                           "goal_column", "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
+                                                           "history_add_new_input", "history_delete_duplicates", "history_length", &
+                                         "indent_line_function", "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
                                             "inhibit_field_text_motion", "inhibit_modification_hooks", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
@@ -1854,6 +1877,176 @@ contains
             entry%interactive = .true.
             entry%doc = "Visit the source for the error message at point."//LF// &
                         "Use this command in a compilation log buffer."
+        case ("conf_align_assignments")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Align the assignments in the buffer or active region."//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the"//LF// &
+                        "contents of the region.  Otherwise, operate on the whole buffer."
+        case ("conf_colon_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Colon files."//LF// &
+                        """Assignments"" are with `:'."//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "# Conf mode font-locks this right with \[conf_colon_mode] (colon)"//LF// &
+                        ""//LF// &
+                        "<Multi_key> <exclam> <exclam>           : ""\241""        exclamdown"//LF// &
+                        "<Multi_key> <c> <slash>                 : ""\242""        cent"
+        case ("conf_desktop_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode started for freedesktop.org Desktop files."//LF// &
+                        "Comments start with `#' and ""assignments"" are with `='."//LF// &
+                        "For details see `conf_mode'."//LF// &
+                        ""//LF// &
+                        "# Conf mode font-locks this correctly with \[conf_desktop_mode]"//LF// &
+                        "        [Desktop Entry]"//LF// &
+                        "        Name=GNU Image Manipulation Program"//LF// &
+                        "        Name[oc]=Editor d'imatge GIMP"//LF// &
+                        "        Exec=gimp-2.8 %U"//LF// &
+                        "        Terminal=false"
+        case ("conf_javaprop_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Java properties files."//LF// &
+                        "Comments start with `#'.  Example:"//LF// &
+                        ""//LF// &
+                        "# Conf mode font-locks this right with \[conf_javaprop_mode] (Java properties)"//LF// &
+                        ""//LF// &
+                        "name:value"//LF// &
+                        "name=value"//LF// &
+                        "name value"//LF// &
+                        "x.1 ="//LF// &
+                        "x.2.y.1.z.1 ="//LF// &
+                        "x.2.y.1.z.2.zz ="
+        case ("conf_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mode for Unix and Windows Conf files and Java properties."//LF// &
+                        "Most conf files know only three kinds of constructs: parameter"//LF// &
+                        "assignments optionally grouped into sections and comments.  Yet"//LF// &
+                        "there is a great range of variation in the exact syntax of conf"//LF// &
+                        "files.  See below for various wrapper commands that set up the"//LF// &
+                        "details for some of the most widespread variants."//LF// &
+                        ""//LF// &
+                        "This mode sets up font locking, outline, imenu and it provides"//LF// &
+                        "alignment support through `conf_align_assignments'.  If strings"//LF// &
+                        "come out wrong, try `conf_quote_normal'."//LF// &
+                        ""//LF// &
+                        "Some files allow continuation lines, either with a backslash at"//LF// &
+                        "the end of line, or by indenting the next line (further).  These"//LF// &
+                        "constructs cannot currently be recognized."//LF// &
+                        ""//LF// &
+                        "Because of this great variety of nuances, which are often not"//LF// &
+                        "even clearly specified, please don't expect it to get every file"//LF// &
+                        "quite right.  Patches that clearly identify some special case,"//LF// &
+                        "without breaking the general ones, are welcome."//LF// &
+                        ""//LF// &
+                        "If instead you start this mode with the generic `conf_mode'"//LF// &
+                        "command, it will parse the buffer.  It will generally well"//LF// &
+                        "identify the first four cases listed below.  If the buffer"//LF// &
+                        "doesn't have enough contents to decide, this is identical to"//LF// &
+                        "`conf_windows_mode' on Windows, elsewhere to `conf_unix_mode'."//LF// &
+                        "See also `conf_space_mode', `conf_colon_mode', `conf_javaprop_mode',"//LF// &
+                        "`conf_ppd_mode' and `conf_xdefaults_mode'."//LF// &
+                        ""//LF// &
+                        "\{conf_mode_map}"
+        case ("conf_mode_maybe")
+            entry%file = "conf_mode_fm.f90"
+            entry%doc = "Select Conf mode or XML mode according to start of file."
+        case ("conf_npmrc_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for .npmrc files."//LF// &
+                        "Comments start with `#' and `;'. For details see `conf_mode'."
+        case ("conf_ppd_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Adobe/CUPS PPD files."//LF// &
+                        "Comments start with `*%' and ""assignments"" are with `:'."//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "*% Conf mode font-locks this right with \[conf_ppd_mode] (PPD)"//LF// &
+                        ""//LF// &
+                        "*DefaultTransfer: Null"//LF// &
+                        "*Transfer Null.Inverse: ""{ 1 exch sub }"""
+        case ("conf_quote_normal")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the syntax of \=' and "" to punctuation (the command)."
+        case ("conf_space_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Enter Conf Space mode using regexp KEYWORDS to match the keywords"//LF// &
+                        "(the command `conf_space_keywords')."
+        case ("conf_space_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for space separated conf files."//LF// &
+                        """Assignments"" are with ` '.  Keywords before the parameters are"//LF// &
+                        "recognized according to the variable `conf_space_keywords_alist'."//LF// &
+                        "Alternatively, you can specify a value for the file local variable"//LF// &
+                        "`conf_space_keywords'."//LF// &
+                        "Use the function `conf_space_keywords' if you want to specify keywords"//LF// &
+                        "in an interactive fashion instead."//LF// &
+                        ""//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "# Conf mode font-locks this right with \[conf_space_mode] (space separated)"//LF// &
+                        ""//LF// &
+                        "image/jpeg                      jpeg jpg jpe"//LF// &
+                        "image/png                       png"//LF// &
+                        "image/tiff                      tiff tif"//LF// &
+                        ""//LF// &
+                        "# Or with keywords (from a recognized file name):"//LF// &
+                        "class desktop"//LF// &
+                        "# Standard multimedia devices"//LF// &
+                        "add /dev/audio          desktop"//LF// &
+                        "add /dev/mixer          desktop"
+        case ("conf_toml_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for TOML files."//LF// &
+                        "Comments start with `#' and ""assignments"" are with `='."//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "# Conf mode font-locks this right with \[conf_toml_mode]"//LF// &
+                        ""//LF// &
+                        "[entry]"//LF// &
+                        "value = ""some string"""
+        case ("conf_unix_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Unix style Conf files."//LF// &
+                        "Comments start with `#'.  For details see `conf_mode'."
+        case ("conf_windows_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Windows style Conf files."//LF// &
+                        "Comments start with `;'."//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "; Conf mode font-locks this right on Windows and with \[conf_windows_mode]"//LF// &
+                        ""//LF// &
+                        "[ExtShellFolderViews]"//LF// &
+                        "Default={5984FFE0-28D4-11CF-AE66-08002B2E1262}"//LF// &
+                        "{5984FFE0-28D4-11CF-AE66-08002B2E1262}={5984FFE0-28D4-11CF-AE66-08002B2E1262}"//LF// &
+                        ""//LF// &
+                        "[{5984FFE0-28D4-11CF-AE66-08002B2E1262}]"//LF// &
+                        "PersistMoniker=file://Folder.htt"
+        case ("conf_xdefaults_mode")
+            entry%file = "conf_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Conf Mode starter for Xdefaults files."//LF// &
+                        "Comments start with `!' and ""assignments"" are with `:'."//LF// &
+                        "For details see `conf_mode'.  Example:"//LF// &
+                        ""//LF// &
+                        "! Conf mode font-locks this right with \[conf_xdefaults_mode] (.Xdefaults)"//LF// &
+                        ""//LF// &
+                        "*background:                    gray99"//LF// &
+                        "*foreground:                    black"
         case ("copy_abbrev_table")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call copy_abbrev_table(table, new)"
@@ -9004,6 +9197,133 @@ contains
             entry%original = "0"
             entry%value = repr(completions_max_height)
             entry%doc = "Maximum height for *Completions* buffer window (0 for no maximum)."
+        case ("conf_assignment_column")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_assignment_column"
+            entry%original = "24"
+            entry%value = repr(conf_assignment_column%value)
+            entry%doc = "Align assignments to this column by default with \[conf_align_assignments]."//LF// &
+                        "If this number is negative, the `=' comes before the whitespace.  Use 0 to"//LF// &
+                        "not align (only setting space according to `conf_assignment_space')."
+        case ("conf_assignment_regexp")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_assignment_regexp"
+            if (allocated(conf_assignment_regexp%value)) then
+                entry%value = repr(conf_assignment_regexp%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to recognize assignments."//LF// &
+                        "It is anchored after the first sexp on a line.  There must be a"//LF// &
+                        "grouping for the assignment sign, including leading and trailing"//LF// &
+                        "whitespace."
+        case ("conf_assignment_sign")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_assignment_sign"
+            if (allocated(conf_assignment_sign%value)) then
+                entry%value = repr(conf_assignment_sign%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Sign used for assignments (char or string)."
+        case ("conf_assignment_space")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_assignment_space"
+            entry%original = ".true."
+            entry%value = repr(conf_assignment_space%value)
+            entry%doc = "Put at least one space around assignments when aligning."
+        case ("conf_colon_assignment_column")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_colon_assignment_column"
+            entry%original = "-24"
+            entry%value = repr(conf_colon_assignment_column%value)
+            entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
+        case ("conf_colon_assignment_space")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_colon_assignment_space"
+            entry%original = ".false."
+            entry%value = repr(conf_colon_assignment_space%value)
+            entry%doc = "Value for `conf_assignment_space' in colon style Conf mode buffers."
+        case ("conf_colon_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_colon_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf Colon mode."
+        case ("conf_desktop_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_desktop_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf Desktop mode."
+        case ("conf_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf mode."
+        case ("conf_javaprop_assignment_column")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_javaprop_assignment_column"
+            entry%original = "32"
+            entry%value = repr(conf_javaprop_assignment_column%value)
+            entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
+        case ("conf_javaprop_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_javaprop_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf Java Properties mode."
+        case ("conf_javaprop_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_javaprop_mode_syntax_table"
+            entry%doc = "Syntax table in use in Java properties buffers."
+        case ("conf_mode_map")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_mode_map"
+            entry%doc = "Local keymap for `conf_mode' buffers."
+        case ("conf_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_mode_syntax_table"
+            entry%doc = "Syntax table in use in Windows style `conf_mode' buffers."
+        case ("conf_npmrc_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_npmrc_mode_syntax_table"
+            entry%doc = "Syntax table in use in npmrc `conf_mode' buffers."
+        case ("conf_ppd_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_ppd_mode_syntax_table"
+            entry%doc = "Syntax table in use in PPD `conf_mode' buffers."
+        case ("conf_space_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_space_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf Space mode, before the one made from"//LF// &
+                        "`conf_space_keywords' (var val)."
+        case ("conf_space_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_space_keywords"
+            if (allocated(conf_space_keywords%value)) then
+                entry%value = repr(conf_space_keywords%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexps for functions that may come before a space assignment."//LF// &
+                        "This allows constructs such as"//LF// &
+                        "keyword var value"//LF// &
+                        "This variable is best set in the file local variables, or through"//LF// &
+                        "`conf_space_keywords_alist'."
+        case ("conf_space_keywords_alist")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_space_keywords_alist"
+            entry%doc = "File-name-based settings for the variable `conf_space_keywords'."
+        case ("conf_toml_font_lock_keywords")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_toml_font_lock_keywords"
+            entry%doc = "Keywords to highlight in Conf TOML mode."
+        case ("conf_toml_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_toml_mode_syntax_table"
+            entry%doc = "Syntax table in use in TOML style `conf_mode' buffers."
+        case ("conf_unix_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_unix_mode_syntax_table"
+            entry%doc = "Syntax table in use in Unix style `conf_mode' buffers."
+        case ("conf_xdefaults_mode_syntax_table")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_xdefaults_mode_syntax_table"
+            entry%doc = "Syntax table in use in Xdefaults style `conf_mode' buffers."
         case ("copy_directory_create_symlink")
             entry%file = "files_fm.f90"
             entry%fortran = "copy_directory_create_symlink"
@@ -10434,6 +10754,24 @@ contains
             entry%fortran = "first_change_hook"
             entry%doc = "Functions to call before changing a buffer which is unmodified."//LF// &
                         "The functions are run using the `run_hooks' function."
+        case ("font_lock_comment_end_skip")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_comment_end_skip"
+            if (allocated(font_lock_comment_end_skip%value)) then
+                entry%value = repr(font_lock_comment_end_skip%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If set, Font Lock mode uses this instead of `comment_end_skip'."
+        case ("font_lock_comment_start_skip")
+            entry%file = "font_lock_fm.f90"
+            entry%fortran = "font_lock_comment_start_skip"
+            if (allocated(font_lock_comment_start_skip%value)) then
+                entry%value = repr(font_lock_comment_start_skip%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If set, Font Lock mode uses this instead of `comment_start_skip'."
         case ("font_lock_defaults")
             entry%file = "font_core_fm.f90"
             entry%fortran = "font_lock_defaults"

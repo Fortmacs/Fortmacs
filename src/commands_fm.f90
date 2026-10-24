@@ -131,6 +131,21 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: conf_align_assignments
+        type(command_type) :: conf_colon_mode
+        type(command_type) :: conf_desktop_mode
+        type(command_type) :: conf_javaprop_mode
+        type(command_type) :: conf_mode
+        type(command_type) :: conf_mode_maybe
+        type(command_type) :: conf_npmrc_mode
+        type(command_type) :: conf_ppd_mode
+        type(command_type) :: conf_quote_normal
+        type(command_type) :: conf_space_keywords
+        type(command_type) :: conf_space_mode
+        type(command_type) :: conf_toml_mode
+        type(command_type) :: conf_unix_mode
+        type(command_type) :: conf_windows_mode
+        type(command_type) :: conf_xdefaults_mode
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -552,7 +567,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(514) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(529) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -652,6 +667,21 @@ module commands_fm
                                                                  "compilation_shell_minor_mode", &
                                                                  "compile", &
                                                                  "compile_goto_error", &
+                                                                 "conf_align_assignments", &
+                                                                 "conf_colon_mode", &
+                                                                 "conf_desktop_mode", &
+                                                                 "conf_javaprop_mode", &
+                                                                 "conf_mode", &
+                                                                 "conf_mode_maybe", &
+                                                                 "conf_npmrc_mode", &
+                                                                 "conf_ppd_mode", &
+                                                                 "conf_quote_normal", &
+                                                                 "conf_space_keywords", &
+                                                                 "conf_space_mode", &
+                                                                 "conf_toml_mode", &
+                                                                 "conf_unix_mode", &
+                                                                 "conf_windows_mode", &
+                                                                 "conf_xdefaults_mode", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -1275,6 +1305,36 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("conf_align_assignments")
+            p => commands%conf_align_assignments
+        case ("conf_colon_mode")
+            p => commands%conf_colon_mode
+        case ("conf_desktop_mode")
+            p => commands%conf_desktop_mode
+        case ("conf_javaprop_mode")
+            p => commands%conf_javaprop_mode
+        case ("conf_mode")
+            p => commands%conf_mode
+        case ("conf_mode_maybe")
+            p => commands%conf_mode_maybe
+        case ("conf_npmrc_mode")
+            p => commands%conf_npmrc_mode
+        case ("conf_ppd_mode")
+            p => commands%conf_ppd_mode
+        case ("conf_quote_normal")
+            p => commands%conf_quote_normal
+        case ("conf_space_keywords")
+            p => commands%conf_space_keywords
+        case ("conf_space_mode")
+            p => commands%conf_space_mode
+        case ("conf_toml_mode")
+            p => commands%conf_toml_mode
+        case ("conf_unix_mode")
+            p => commands%conf_unix_mode
+        case ("conf_windows_mode")
+            p => commands%conf_windows_mode
+        case ("conf_xdefaults_mode")
+            p => commands%conf_xdefaults_mode
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")

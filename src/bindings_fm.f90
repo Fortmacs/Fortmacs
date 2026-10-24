@@ -66,6 +66,7 @@ module bindings_fm
     use minibuffer_fm, only: syms_of_minibuffer
     use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
+    use conf_mode_fm, only: syms_of_conf_mode
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
     use font_lock_fm, only: syms_of_font_lock
@@ -234,6 +235,7 @@ contains
         call syms_of_newcomment()
         call syms_of_novice()
         call syms_of_text_mode()
+        call syms_of_conf_mode()
         call syms_of_prog_mode()
         call syms_of_jit_lock()
         call syms_of_font_core()
