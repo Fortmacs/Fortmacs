@@ -29,8 +29,7 @@
 !> Deferred: `show_paren_context_when_offscreen' shown in an overlay or a
 !> child frame (needs the `display' overlay property and child frames;
 !> the echo area is ported), the `shadow' face of "Matches " in the echo
-!> area (messages carry no text properties), `syntax_propertize'
-!> (syntax_fm has no `syntax_table' properties), and buffer predicates
+!> area (messages carry no text properties), and buffer predicates
 !> other than a procedure (buffer-match-p's conditions).
 module paren_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -39,10 +38,10 @@ module paren_fm
     use lisp_fm, only: value_type, nil, nilp, make_fixnum, fixnump, xfixnum
     use lread_fm, only: sym
     use data_fm, only: local_variable_p, kill_local_variable, default_value, set_default, make_local_variable, &
-                       symbol_value, set
+                       symbol_value, set, add_local_variables_killer
     use commands_fm, only: commands
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur
+    use buffer_fm, only: buffers, cur, buffer_serial_live
     use editfns_fm, only: point, point_min, point_max, goto_char, narrow_to_region, widen, char_after, char_before, &
                           line_end_position
     use syntax_fm, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_ppss, scan_sexps, &
@@ -56,9 +55,12 @@ module paren_fm
     use window_fm, only: pos_visible_in_window_p
     use frame_fm, only: selected_window
     use dispnew_fm, only: ding
+    use syntax_propertize_fm, only: syntax_propertize
     implicit none(type, external)
     private
 
+    public :: set_local_show_paren_data_function, current_show_paren_data_function, show_paren_data_function_local_p, &
+              kill_local_show_paren_data_function
     public :: syms_of_paren, show_paren_mode, show_paren_local_mode, show_paren_function, show_paren_default, &
               show_paren_unescaped_p, show_paren_categorize_paren, show_paren_locate_near_paren, &
               show_paren_enabled_p, show_paren_default_predicate, show_paren_data_proc, show_paren_predicate_proc
@@ -162,6 +164,15 @@ module paren_fm
     !> paren.el show-paren-data-function.
     procedure(show_paren_data_proc), pointer, public :: show_paren_data_function => null()
 
+    ! A buffer's own `show_paren_data_function' (FN null is nil).
+    type :: data_entry_type
+        integer(int64) :: serial = 0
+        procedure(show_paren_data_proc), pointer, nopass :: fn => null()
+    end type data_entry_type
+
+    ! Buffers' own values of `show_paren_data_function'.
+    type(data_entry_type), allocatable :: data_locals(:)
+
     !> Whether to use `show_paren_mode' in a buffer.
     !> The default is to enable the mode in all buffers that don't
     !> derive from `special_mode', which means that it's on (by default)
@@ -185,6 +196,76 @@ module paren_fm
 
 contains
 
+    ! The index in `data_locals' of the current buffer's entry, 0 if none.
+    integer function data_local_index() result(i)
+        i = 0
+        if (cur == 0 .or. .not. allocated(data_locals)) return
+        do i = 1, size(data_locals)
+            if (data_locals(i)%serial == buffers(cur)%serial) return
+        end do
+        i = 0
+    end function data_local_index
+
+    !> Give the current buffer its own `show_paren_data_function'
+    !> FN (setq-local); absent is nil.
+    subroutine set_local_show_paren_data_function(fn)
+        procedure(show_paren_data_proc), optional :: fn
+        type(data_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(data_locals)) allocate (data_locals(0))
+        i = data_local_index()
+        if (i == 0) then
+            do i = 1, size(data_locals)
+                if (.not. buffer_serial_live(data_locals(i)%serial)) exit
+            end do
+            if (i > size(data_locals)) then
+                n = size(data_locals)
+                allocate (grown(n + 1))
+                do i = 1, n
+                    grown(i)%serial = data_locals(i)%serial
+                    grown(i)%fn => data_locals(i)%fn
+                end do
+                call move_alloc(grown, data_locals)
+                i = n + 1
+            end if
+            data_locals(i)%serial = buffers(cur)%serial
+        end if
+        if (present(fn)) then
+            data_locals(i)%fn => fn
+        else
+            data_locals(i)%fn => null()
+        end if
+    end subroutine set_local_show_paren_data_function
+
+    !> The value of `show_paren_data_function' in the current buffer
+    !> (null for nil).
+    function current_show_paren_data_function() result(fn)
+        procedure(show_paren_data_proc), pointer :: fn
+        integer :: i
+        i = data_local_index()
+        if (i > 0) then
+            fn => data_locals(i)%fn
+        else
+            fn => show_paren_data_function
+        end if
+    end function current_show_paren_data_function
+
+    !> Whether the current buffer has its own `show_paren_data_function'.
+    logical function show_paren_data_function_local_p()
+        show_paren_data_function_local_p = data_local_index() > 0
+    end function show_paren_data_function_local_p
+
+    !> Make the current buffer use the default `show_paren_data_function'
+    !> (also what `kill_all_local_variables' does to it).
+    subroutine kill_local_show_paren_data_function()
+        integer :: i
+        i = data_local_index()
+        if (i == 0) return
+        data_locals(i)%serial = 0
+        data_locals(i)%fn => null()
+    end subroutine kill_local_show_paren_data_function
+
     !> Define Show Paren mode and Show Paren Local mode (as loading
     !> paren.el does).
     subroutine syms_of_paren()
@@ -195,6 +276,7 @@ contains
                                                       hook=show_paren_local_mode_hook, getter=show_paren_enabled_p)
         commands%show_paren_local_mode%run => show_paren_local_mode
         if (.not. associated(show_paren_data_function)) show_paren_data_function => show_paren_default
+        call add_local_variables_killer(kill_local_show_paren_data_function)
         if (.not. associated(show_paren_predicate)) show_paren_predicate => show_paren_default_predicate
     end subroutine syms_of_paren
 
@@ -414,6 +496,9 @@ contains
             ! Determine the range within which to look for a match.
             if (blink_matching_paren_distance >= 0) then
                 beg = max(point_min(), point() - blink_matching_paren_distance)
+                ! `syntax_propertize' can't widen so make sure it won't
+                ! need to (bug#81035).
+                call syntax_propertize(beg, st)
                 call narrow_to_region(beg, min(point_max(), point() + blink_matching_paren_distance), st)
             end if
             ! Scan across one sexp within that range.  Errors or nil mean
@@ -553,12 +638,16 @@ contains
         character(len=:), allocatable :: face, context
         integer(int64) :: closest, openparen
         logical :: found, highlight_expression
+        procedure(show_paren_data_proc), pointer :: data_fn
         type(status_type) :: st
         status = status_type()
         if (cur == 0) return
         call ensure_overlays()
         found = .false.
-        if (show_paren_enabled_p() .and. associated(show_paren_data_function)) call show_paren_data_function(found, data)
+        if (show_paren_enabled_p()) then
+            data_fn => current_show_paren_data_function()
+            if (associated(data_fn)) call data_fn(found, data)
+        end if
         if (.not. found) then
             ! If show-paren-mode is nil in this buffer or if not at a paren
             ! that has a match, turn off any previous paren highlighting.

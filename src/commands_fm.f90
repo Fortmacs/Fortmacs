@@ -521,6 +521,7 @@ module commands_fm
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recompile
         type(command_type) :: rectangle_number_lines
+        type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
@@ -556,6 +557,11 @@ module commands_fm
         type(command_type) :: shell_narrow_to_prompt
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: smie__next_indent_change
+        type(command_type) :: smie_backward_sexp_command
+        type(command_type) :: smie_close_block
+        type(command_type) :: smie_down_list
+        type(command_type) :: smie_forward_sexp_command
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -636,7 +642,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(598) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(604) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1126,6 +1132,7 @@ module commands_fm
                                                                  "recenter_top_bottom", &
                                                                  "recompile", &
                                                                  "rectangle_number_lines", &
+                                                                 "reindent_then_newline_and_indent", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "revert_buffer", &
@@ -1161,6 +1168,11 @@ module commands_fm
                                                                  "shell_narrow_to_prompt", &
                                                                  "show_paren_local_mode", &
                                                                  "show_paren_mode", &
+                                                                 "smie__next_indent_change", &
+                                                                 "smie_backward_sexp_command", &
+                                                                 "smie_close_block", &
+                                                                 "smie_down_list", &
+                                                                 "smie_forward_sexp_command", &
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
@@ -2223,6 +2235,8 @@ contains
             p => commands%recompile
         case ("rectangle_number_lines")
             p => commands%rectangle_number_lines
+        case ("reindent_then_newline_and_indent")
+            p => commands%reindent_then_newline_and_indent
         case ("replace_regexp")
             p => commands%replace_regexp
         case ("replace_string")
@@ -2293,6 +2307,16 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("smie__next_indent_change")
+            p => commands%smie__next_indent_change
+        case ("smie_backward_sexp_command")
+            p => commands%smie_backward_sexp_command
+        case ("smie_close_block")
+            p => commands%smie_close_block
+        case ("smie_down_list")
+            p => commands%smie_down_list
+        case ("smie_forward_sexp_command")
+            p => commands%smie_forward_sexp_command
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")

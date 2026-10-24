@@ -192,6 +192,7 @@ module docstrings_fm
                          kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
                          kmacro_default_counter_format, kmacro_execute_before_append, kmacro_initial_counter_value, &
                          kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
+    use lisp_cmds_fm, only: forward_sexp_function
     use lread_fm, only: user_init_file
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
                           READ_ANSWER_SHORT_AUTO
@@ -227,7 +228,8 @@ module docstrings_fm
                         SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, SHOW_PAREN_MIXED, &
                         show_paren_when_point_in_periphery, show_paren_when_point_inside_paren
     use process_fm, only: delete_exited_processes, process_connection_type
-    use prog_mode_fm, only: prog_mode_abbrev_table, prog_mode_hook, prog_mode_map
+    use prog_mode_fm, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
+                            prog_mode_map
     use rect_fm, only: killed_rectangle
     use register_fm, only: register_alist, register_separator
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_from_history_variable, &
@@ -263,6 +265,8 @@ module docstrings_fm
                          DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
                          shell_command_switch, special_mode_abbrev_table, special_mode_hook, special_mode_map, &
                          suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
+    use smie_fm, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
+                       smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
@@ -316,7 +320,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(811) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(817) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -503,14 +507,14 @@ module docstrings_fm
                                             "read_string", "recenter", "recenter_top_bottom", "recompile", "rectangle_dimensions", &
                                            "rectangle_intersect_p", "rectangle_number_lines", "rectangle_position_as_coordinates", &
                                                               "regexp_quote", "region_active_p", "region_beginning", "region_end", &
-                                                   "register_read_with_preview", "rename_file", "replace_match", "replace_regexp", &
-                                              "replace_string", "revert_buffer", "revert_buffer_with_coding_system", "right_char", &
-                                                             "right_word", "rotate_yank_pointer", "run_at_time", "run_mode_hooks", &
-                                             "run_with_idle_timer", "run_with_timer", "save_buffer", "save_buffers_kill_terminal", &
-                                            "save_some_buffers", "scan_lists", "scan_sexps", "scroll_down", "scroll_down_command", &
-                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
-                                                          "search_backward", "search_forward", "select_window", "selected_window", &
-                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
+                                                  "register_read_with_preview", "reindent_then_newline_and_indent", "rename_file", &
+                                                             "replace_match", "replace_regexp", "replace_string", "revert_buffer", &
+                                            "revert_buffer_with_coding_system", "right_char", "right_word", "rotate_yank_pointer", &
+                                          "run_at_time", "run_mode_hooks", "run_with_idle_timer", "run_with_timer", "save_buffer", &
+                                                    "save_buffers_kill_terminal", "save_some_buffers", "scan_lists", "scan_sexps", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                           "scroll_up", "scroll_up_command", "search_backward", "search_forward", "select_window", &
+                                          "selected_window", "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
                                             "set_buffer_file_coding_system", "set_coding_system_priority", "set_command_disabled", &
                                                     "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
                                                        "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
@@ -521,17 +525,18 @@ module docstrings_fm
                                            "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", "show_paren__default", &
                                                        "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
                                                               "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
-                                                           "skip_syntax_forward", "spaces_string", "special_mode", "split_window", &
-                                           "split_window_below", "split_window_right", "standard_syntax_table", "start_kbd_macro", &
-                                                     "start_process", "string_insert_rectangle", "string_match", "string_match_p", &
-                                                "string_rectangle", "substitute_command_keys", "switch_to_buffer", "syntax_table", &
-                                               "tab_to_tab_stop", "text_mode", "timerp", "transient_mark_mode", "transpose_chars", &
-                                              "transpose_lines", "transpose_paragraphs", "transpose_sentences", "transpose_words", &
-                                                                   "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_font_lock", &
-                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
-                                                       "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
-                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                  "skip_syntax_forward", "smie__next_indent_change", "smie_backward_sexp_command", &
+                                               "smie_close_block", "smie_down_list", "smie_forward_sexp_command", "spaces_string", &
+                                                       "special_mode", "split_window", "split_window_below", "split_window_right", &
+                                           "standard_syntax_table", "start_kbd_macro", "start_process", "string_insert_rectangle", &
+                                                  "string_match", "string_match_p", "string_rectangle", "substitute_command_keys", &
+                                                     "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "text_mode", "timerp", &
+                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
+                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
+                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
+                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
+                                           "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
+                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                                    "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
                                                         "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
                                            "view_file_other_window", "view_goto_line", "view_goto_percent", "view_kill_and_leave", &
@@ -547,7 +552,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(585) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(593) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -677,7 +682,7 @@ module docstrings_fm
                                                     "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
                                                   "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
                                                          "font_lock_support_mode", "font_lock_verbose", "fontification_functions", &
-                                                                   "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                  "forward_sexp_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                    "global_disable_point_adjustment", "global_font_lock_mode_hook", "goal_column", &
                                                           "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
                                                            "history_add_new_input", "history_delete_duplicates", "history_length", &
@@ -707,10 +712,11 @@ module docstrings_fm
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                                 "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", "pending_undo_list", &
                                                                    "pop_up_windows", "post_command_hook", "post_self_insert_hook", &
-                                           "process_connection_type", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
-                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
-                                                              "query_replace_from_to_separator", "query_replace_show_replacement", &
-                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
+                                                  "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
+                                                                   "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
+                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
+                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
+                                                                   "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
                                                         "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
@@ -737,6 +743,8 @@ module docstrings_fm
                                                                    "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                                    "show_paren_ring_bell_on_mismatch", "show_paren_style", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
+                                                     "smie_blink_matching_inners", "smie_blink_matching_triggers", "smie_grammar", &
+                                                      "smie_indent_basic", "smie_indent_functions", "smie_rule_separator_outdent", &
                                                              "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
                                             "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
                                            "standard_indent", "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
@@ -754,7 +762,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(298) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(300) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1029,6 +1037,8 @@ module docstrings_fm
                                                                       "show_paren_style", &
                                                                       "show_paren_when_point_in_periphery", &
                                                                       "show_paren_when_point_inside_paren", &
+                                                                      "smie_blink_matching_inners", &
+                                                                      "smie_indent_basic", &
                                                                       "split_height_threshold", &
                                                                       "split_width_threshold", &
                                                                       "split_window_preferred_direction", &
@@ -4471,7 +4481,8 @@ contains
             entry%doc = "Move forward across one balanced expression (sexp)."//LF// &
                         "With ARG, do it that many times.  Negative arg -N means move"//LF// &
                         "backward across N balanced expressions.  This command assumes"//LF// &
-                        "point is not in a string or comment."//LF// &
+                        "point is not in a string or comment.  Calls"//LF// &
+                        "`forward_sexp_function' to do the work, if that is set."//LF// &
                         "If unable to move over a sexp, signal `scan_error' with three"//LF// &
                         "arguments: a message, the start of the obstacle (usually a"//LF// &
                         "parenthesis or list marker of some kind), and end of the"//LF// &
@@ -6794,6 +6805,10 @@ contains
                         "register value, and should return true if and only if that register"//LF// &
                         "value can be used.  The register value of kind `REGISTER_EMPTY'"//LF// &
                         "represents an empty register."
+        case ("reindent_then_newline_and_indent")
+            entry%file = "simple_electric_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Reindent current line, insert newline, then indent the new line."
         case ("rename_file")
             entry%file = "fileio_fm.f90"
             entry%fortran = "call rename_file(file, newname, status, ok_if_already_exists)"
@@ -7591,6 +7606,30 @@ contains
                         "Stop before a char whose syntax is not in SYNTAX, or at position LIM."//LF// &
                         "If SYNTAX starts with ^, skip characters whose syntax is NOT in SYNTAX."//LF// &
                         "This function returns the distance traveled, either zero or positive."
+        case ("smie__next_indent_change")
+            entry%file = "smie_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next line that needs to be reindented (and reindent it)."
+        case ("smie_backward_sexp_command")
+            entry%file = "smie_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward through N logical elements."
+        case ("smie_close_block")
+            entry%file = "smie_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Close the closest surrounding block."
+        case ("smie_down_list")
+            entry%file = "smie_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward down one level paren-like blocks.  Like `down_list'."//LF// &
+                        "With argument ARG, do this that many times."//LF// &
+                        "A negative argument means move backward but still go down a level."//LF// &
+                        "This command assumes point is not in a string or comment."
+        case ("smie_forward_sexp_command")
+            entry%file = "smie_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward through N logical elements (the `forward_sexp_function'"//LF// &
+                        "of SMIE modes)."
         case ("spaces_string")
             entry%file = "rect_fm.f90"
             entry%fortran = "spaces_string(n)"
@@ -12370,6 +12409,11 @@ contains
                         "Each function is called with one argument POS.  Functions must"//LF// &
                         "fontify a region starting at POS in the current buffer, and give"//LF// &
                         "fontified regions the property `fontified' with a true value."
+        case ("forward_sexp_function")
+            entry%file = "lisp_cmds_fm.f90"
+            entry%fortran = "forward_sexp_function"
+            entry%doc = "If true, `forward_sexp' delegates to this function."//LF// &
+                        "Should take the same arguments and behave similarly to `forward_sexp'."
         case ("fundamental_mode_abbrev_table")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "fundamental_mode_abbrev_table"
@@ -13194,6 +13238,24 @@ contains
             entry%doc = "Control type of device used to communicate with subprocesses."//LF// &
                         "Values are false to use a pipe, or true to use a pty."//LF// &
                         "The value takes effect when `start_process' is called."
+        case ("prog_indentation_context")
+            entry%file = "prog_mode_fm.f90"
+            entry%fortran = "prog_indentation_context"
+            entry%doc = "When true (`active'), provides context for indenting embedded code chunks."//LF// &
+                        ""//LF// &
+                        "There are languages where part of the code is actually written in"//LF// &
+                        "a sub language, e.g., a Yacc/Bison or ANTLR grammar can also include"//LF// &
+                        "JS or Python code.  This variable enables the primary mode of the"//LF// &
+                        "main language to use the indentation engine of the sub-mode for"//LF// &
+                        "lines in code chunks written in the sub-mode's language."//LF// &
+                        ""//LF// &
+                        "When a major mode of such a main language decides to delegate the"//LF// &
+                        "indentation of a line/region to the indentation engine of the sub"//LF// &
+                        "mode, it should bind this variable to true around the call."//LF// &
+                        ""//LF// &
+                        "`first_column' is the column the indentation engine of the sub-mode"//LF// &
+                        "should use for top-level language constructs inside the code"//LF// &
+                        "chunk (instead of 0)."
         case ("prog_mode_abbrev_table")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_abbrev_table"
@@ -14028,6 +14090,58 @@ contains
             entry%value = repr(show_paren_when_point_inside_paren)
             entry%doc = "If true, show parens when point is just inside one."//LF// &
                         "This will only be done when point isn't also just outside a paren."
+        case ("smie_blink_matching_inners")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_blink_matching_inners"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(smie_blink_matching_inners)
+            entry%doc = "Whether SMIE should blink to matching opener for inner keywords."//LF// &
+                        "If true, it will blink not only for ""begin..end"" but also for ""if...else""."
+        case ("smie_blink_matching_triggers")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_blink_matching_triggers"
+            if (allocated(smie_blink_matching_triggers)) then
+                entry%value = repr(smie_blink_matching_triggers)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Chars which might trigger `blink_matching_open'."//LF// &
+                        "These can include the final chars of end-tokens, or chars that are"//LF// &
+                        "typically inserted right after an end token."
+        case ("smie_grammar")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_grammar"
+            entry%doc = "List of token parsing info."//LF// &
+                        "This list is normally built by `smie_prec2_to_grammar'."//LF// &
+                        "Each element is of the form (TOKEN LEFT-LEVEL RIGHT-LEVEL)."//LF// &
+                        "Parsing is done using an operator precedence parser."//LF// &
+                        "LEFT-LEVEL and RIGHT-LEVEL can be either numbers or a list, where a list"//LF// &
+                        "means that this operator does not bind on the corresponding side,"//LF// &
+                        "e.g. a LEFT-LEVEL of nil means this is a token that behaves somewhat like"//LF// &
+                        "an open-paren, whereas a RIGHT-LEVEL of nil would correspond to something"//LF// &
+                        "like a close-paren."
+        case ("smie_indent_basic")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_indent_basic"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(smie_indent_basic)
+            entry%doc = "Basic amount of indentation."
+        case ("smie_indent_functions")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_indent_functions"
+            entry%doc = "Functions to compute the indentation."//LF// &
+                        "Each function is called with no argument, shouldn't move point, and should"//LF// &
+                        "return either nil if it has no opinion, or an integer representing the column"//LF// &
+                        "to which that point should be aligned, if we were to reindent it."
+        case ("smie_rule_separator_outdent")
+            entry%file = "smie_fm.f90"
+            entry%fortran = "smie_rule_separator_outdent"
+            entry%original = "2"
+            entry%value = repr(smie_rule_separator_outdent)
+            entry%doc = "How far a separator is outdented when nothing follows it on its"//LF// &
+                        "line."
         case ("special_mode_abbrev_table")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_abbrev_table"
@@ -15047,6 +15161,10 @@ contains
             kind = OPTION_LOGICAL
         case ("show_paren_when_point_inside_paren")
             kind = OPTION_LOGICAL
+        case ("smie_blink_matching_inners")
+            kind = OPTION_LOGICAL
+        case ("smie_indent_basic")
+            kind = OPTION_INTEGER
         case ("split_height_threshold")
             kind = OPTION_INTEGER
         case ("split_width_threshold")
@@ -15482,6 +15600,8 @@ contains
             show_paren_when_point_in_periphery = v
         case ("show_paren_when_point_inside_paren")
             show_paren_when_point_inside_paren = v
+        case ("smie_blink_matching_inners")
+            smie_blink_matching_inners = v
         case ("suggest_key_bindings")
             suggest_key_bindings = v
         case ("tab_always_indent")
@@ -15696,6 +15816,12 @@ contains
                 return
             end if
             show_paren_priority = int(v)
+        case ("smie_indent_basic")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            smie_indent_basic = int(v)
         case ("split_height_threshold")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
