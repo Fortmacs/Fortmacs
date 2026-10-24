@@ -33,7 +33,7 @@ submodule(map_ynp_fm) map_ynp_ask_fm
     use keyboard_fm, only: this_command, real_this_command, this_command_keys, last_message, sit_for
     use callint_fm, only: commandp, call_interactively
     use character_fm, only: MAX_CHAR
-    use xdisp_fm, only: message
+    use xdisp_fm, only: message, message_nolog
     use dispnew_fm, only: ding
     use minibuf_fm, only: read_from_minibuffer, minibuffer_local_map, enable_recursive_minibuffers
     use minibuffer_fm, only: exit_minibuffer
@@ -196,7 +196,7 @@ contains
         ! Clear the last prompt from the minibuffer, and restore the
         ! previous echo-area message, if any.
         if (had_msg) then
-            call message(msg)
+            call message_nolog(msg)
         else
             call message("")
         end if

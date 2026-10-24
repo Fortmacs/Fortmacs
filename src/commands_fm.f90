@@ -35,6 +35,15 @@ module commands_fm
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
         type(command_type) :: append_to_register
+        type(command_type) :: apropos_command
+        type(command_type) :: apropos_documentation
+        type(command_type) :: apropos_follow
+        type(command_type) :: apropos_function
+        type(command_type) :: apropos_mode
+        type(command_type) :: apropos_next_symbol
+        type(command_type) :: apropos_previous_symbol
+        type(command_type) :: apropos_user_option
+        type(command_type) :: apropos_variable
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
@@ -77,9 +86,13 @@ module commands_fm
         type(command_type) :: delete_rectangle
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
+        type(command_type) :: describe_bindings
+        type(command_type) :: describe_command
         type(command_type) :: describe_function
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
+        type(command_type) :: describe_mode
+        type(command_type) :: describe_symbol
         type(command_type) :: describe_variable
         type(command_type) :: digit_argument
         type(command_type) :: disable_command
@@ -119,6 +132,7 @@ module commands_fm
         type(command_type) :: fundamental_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: help_for_help
         type(command_type) :: help_mode
         type(command_type) :: help_quit
         type(command_type) :: increment_register
@@ -216,6 +230,7 @@ module commands_fm
         type(command_type) :: mark_sexp
         type(command_type) :: mark_whole_buffer
         type(command_type) :: mark_word
+        type(command_type) :: messages_buffer_mode
         type(command_type) :: minibuffer_complete
         type(command_type) :: minibuffer_complete_and_exit
         type(command_type) :: minibuffer_complete_word
@@ -281,6 +296,7 @@ module commands_fm
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
+        type(command_type) :: set_variable
         type(command_type) :: shell_command
         type(command_type) :: shell_command_on_region
         type(command_type) :: special_mode
@@ -314,6 +330,8 @@ module commands_fm
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: view_echo_area_messages
+        type(command_type) :: view_lossage
         type(command_type) :: view_register
         type(command_type) :: where_is
         type(command_type) :: window_configuration_to_register
@@ -330,10 +348,19 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(292) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(310) = [character(len=38) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "append_to_register", &
+                                                                 "apropos_command", &
+                                                                 "apropos_documentation", &
+                                                                 "apropos_follow", &
+                                                                 "apropos_function", &
+                                                                 "apropos_mode", &
+                                                                 "apropos_next_symbol", &
+                                                                 "apropos_previous_symbol", &
+                                                                 "apropos_user_option", &
+                                                                 "apropos_variable", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
@@ -376,9 +403,13 @@ module commands_fm
                                                                  "delete_rectangle", &
                                                                  "delete_whitespace_rectangle", &
                                                                  "delete_window", &
+                                                                 "describe_bindings", &
+                                                                 "describe_command", &
                                                                  "describe_function", &
                                                                  "describe_key", &
                                                                  "describe_key_briefly", &
+                                                                 "describe_mode", &
+                                                                 "describe_symbol", &
                                                                  "describe_variable", &
                                                                  "digit_argument", &
                                                                  "disable_command", &
@@ -418,6 +449,7 @@ module commands_fm
                                                                  "fundamental_mode", &
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
+                                                                 "help_for_help", &
                                                                  "help_mode", &
                                                                  "help_quit", &
                                                                  "increment_register", &
@@ -515,6 +547,7 @@ module commands_fm
                                                                  "mark_sexp", &
                                                                  "mark_whole_buffer", &
                                                                  "mark_word", &
+                                                                 "messages_buffer_mode", &
                                                                  "minibuffer_complete", &
                                                                  "minibuffer_complete_and_exit", &
                                                                  "minibuffer_complete_word", &
@@ -580,6 +613,7 @@ module commands_fm
                                                                  "set_fill_column", &
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
+                                                                 "set_variable", &
                                                                  "shell_command", &
                                                                  "shell_command_on_region", &
                                                                  "special_mode", &
@@ -613,6 +647,8 @@ module commands_fm
                                                                  "upcase_initials_region", &
                                                                  "upcase_region", &
                                                                  "upcase_word", &
+                                                                 "view_echo_area_messages", &
+                                                                 "view_lossage", &
                                                                  "view_register", &
                                                                  "where_is", &
                                                                  "window_configuration_to_register", &
@@ -639,6 +675,24 @@ contains
             p => commands%abort_recursive_edit
         case ("append_to_register")
             p => commands%append_to_register
+        case ("apropos_command")
+            p => commands%apropos_command
+        case ("apropos_documentation")
+            p => commands%apropos_documentation
+        case ("apropos_follow")
+            p => commands%apropos_follow
+        case ("apropos_function")
+            p => commands%apropos_function
+        case ("apropos_mode")
+            p => commands%apropos_mode
+        case ("apropos_next_symbol")
+            p => commands%apropos_next_symbol
+        case ("apropos_previous_symbol")
+            p => commands%apropos_previous_symbol
+        case ("apropos_user_option")
+            p => commands%apropos_user_option
+        case ("apropos_variable")
+            p => commands%apropos_variable
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("back_to_indentation")
@@ -723,12 +777,20 @@ contains
             p => commands%delete_whitespace_rectangle
         case ("delete_window")
             p => commands%delete_window
+        case ("describe_bindings")
+            p => commands%describe_bindings
+        case ("describe_command")
+            p => commands%describe_command
         case ("describe_function")
             p => commands%describe_function
         case ("describe_key")
             p => commands%describe_key
         case ("describe_key_briefly")
             p => commands%describe_key_briefly
+        case ("describe_mode")
+            p => commands%describe_mode
+        case ("describe_symbol")
+            p => commands%describe_symbol
         case ("describe_variable")
             p => commands%describe_variable
         case ("digit_argument")
@@ -807,6 +869,8 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("help_for_help")
+            p => commands%help_for_help
         case ("help_mode")
             p => commands%help_mode
         case ("help_quit")
@@ -1001,6 +1065,8 @@ contains
             p => commands%mark_whole_buffer
         case ("mark_word")
             p => commands%mark_word
+        case ("messages_buffer_mode")
+            p => commands%messages_buffer_mode
         case ("minibuffer_complete")
             p => commands%minibuffer_complete
         case ("minibuffer_complete_and_exit")
@@ -1131,6 +1197,8 @@ contains
             p => commands%set_fill_prefix
         case ("set_mark_command")
             p => commands%set_mark_command
+        case ("set_variable")
+            p => commands%set_variable
         case ("shell_command")
             p => commands%shell_command
         case ("shell_command_on_region")
@@ -1197,6 +1265,10 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("view_echo_area_messages")
+            p => commands%view_echo_area_messages
+        case ("view_lossage")
+            p => commands%view_lossage
         case ("view_register")
             p => commands%view_register
         case ("where_is")
