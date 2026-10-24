@@ -131,6 +131,7 @@ module commands_fm
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
         type(command_type) :: cycle_spacing
+        type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
         type(command_type) :: define_global_abbrev
@@ -551,7 +552,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(513) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(514) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -651,6 +652,7 @@ module commands_fm
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
                                                                  "cycle_spacing", &
+                                                                 "dabbrev_completion", &
                                                                  "dabbrev_expand", &
                                                                  "default_indent_new_line", &
                                                                  "define_global_abbrev", &
@@ -1273,6 +1275,8 @@ contains
             p => commands%copy_to_register
         case ("cycle_spacing")
             p => commands%cycle_spacing
+        case ("dabbrev_completion")
+            p => commands%dabbrev_completion
         case ("dabbrev_expand")
             p => commands%dabbrev_expand
         case ("default_indent_new_line")

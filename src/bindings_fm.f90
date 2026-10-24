@@ -399,8 +399,9 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(abbrev_map), status)
         call bind(esc_map, "'", "abbrev_prefix_mark")
         call bind(ctl_x_map, "'", "expand_abbrev")
-        ! dabbrev.el (autoloads; dabbrev_completion is not ported).
+        ! dabbrev.el (autoloads).
         call bind(esc_map, "/", "dabbrev_expand")
+        call bind(global_map, "C-M-/", "dabbrev_completion")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).

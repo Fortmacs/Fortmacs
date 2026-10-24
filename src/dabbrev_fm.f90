@@ -30,9 +30,10 @@
 !> DABBREV_LIKE_CASE_REPLACE (`case-replace') and DABBREV_ASK (another
 !> value of `dabbrev_check_other_buffers').
 !>
-!> Deferred: `dabbrev_completion' (C-M-/, `dabbrev_capf' and
-!> `dabbrev__find_all_expansions': completion-at-point in buffers is not
-!> ported yet) and Picture mode's `picture_replace_match'.
+!> `dabbrev_completion' (C-M-/) completes through
+!> `completion_at_point' with `dabbrev_capf'.
+!>
+!> Deferred: Picture mode's `picture_replace_match'.
 module dabbrev_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -50,7 +51,7 @@ module dabbrev_fm
     use search_fm, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
                          string_match, match_beginning, match_end, regexp_quote, replace_match, case_fold_search, &
                          SEARCH_NOERROR
-    use casefiddle_fm, only: upcase_string, downcase_string
+    use casefiddle_fm, only: upcase_string, downcase_string, capitalize_string
     use replace_fm, only: case_replace
     use undo_fm, only: push_undo_entry
     use subr_fm, only: y_or_n_p, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
@@ -62,9 +63,16 @@ module dabbrev_fm
     use window_fm, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_fm, only: provided_mode_derived_p
     use xdisp_fm, only: message
+    use lisp_fm, only: value_type, nil, t_value, make_string, make_list, xstring
+    use minibuf_table_fm, only: capf_data_type, completion_predicate, completion_table_type, completion_list_table, &
+                                completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+    use minibuf_fm, only: try_completion, all_completions, test_completion
+    use eval_fm, only: capf_entry_type
+    use minibuffer_fm, only: completion_at_point_run
     implicit none(type, external)
     private
 
+    public :: dabbrev_completion, dabbrev_capf
     public :: dabbrev_expand, dabbrev_reset_global_variables, dabbrev_same_major_mode_p, dabbrev_select_buffers, &
               dabbrev_friend_buffer_proc, dabbrev_select_buffers_proc, syms_of_dabbrev
 
@@ -256,6 +264,13 @@ module dabbrev_fm
 
     ! Location last abbreviation began: a marker, the null handle for nil.
     type(handle_type) :: last_abbrev_location
+
+    ! The closure of `dabbrev_capf''s completion table: the abbreviation,
+    ! whether case is ignored, and its expansions once computed
+    ! (`capf_list_set').
+    character(len=:), allocatable :: capf_abbrev
+    logical :: capf_ignore_case = .false., capf_list_set = .false.
+    type(value_type) :: capf_list
 
     ! Direction of last dabbrevs search (nil when `last_direction_set' is
     ! false).
@@ -1433,6 +1448,170 @@ contains
         end if
     end subroutine dabbrev_search
 
+    !> Completion on current word.
+    !> Like \[dabbrev_expand] but finds all expansions in the current buffer
+    !> and presents suggestions for completion.
+    !>
+    !> With a prefix argument ARG, it searches all buffers accepted by the
+    !> function pointed out by `dabbrev_friend_buffer_function' to find the
+    !> completions.
+    !>
+    !> If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]),
+    !> then it searches *all* buffers.  Port of dabbrev.el:dabbrev-completion
+    !> (ARG absent is nil, else its numeric value).
+    recursive subroutine dabbrev_completion(status, arg)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: arg
+        type(capf_entry_type) :: fns(1)
+        character(len=:), allocatable :: abbrev, where
+        logical :: res
+        call dabbrev_reset_global_variables()
+        check_other_buffers = DABBREV_OFF
+        if (present(arg)) check_other_buffers = DABBREV_ON
+        check_all_buffers = .false.
+        if (present(arg)) check_all_buffers = arg == 16
+        ! Set it so `dabbrev_capf' won't reset the vars.
+        call copy_marker_at(point(), last_abbrev_location, .false., status)
+        fns(1)%fn => dabbrev_capf
+        call completion_at_point_run(res, status, fns)
+        if (.not. status%ok()) return
+        if (.not. res) then
+            call abbrev_at_point(abbrev, status)
+            if (.not. status%ok()) return
+            where = " in this-buffer"
+            if (check_other_buffers /= DABBREV_OFF) where = ""
+            call set_error(status, FM_USER_ERROR, "No dynamic expansion for """//abbrev//""" found"//where)
+        end if
+    end subroutine dabbrev_completion
+
+    !> Dabbrev completion function for `completion_at_point_functions'.
+    !> Port of dabbrev.el:dabbrev-capf.
+    recursive subroutine dabbrev_capf(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        type(handle_type) :: b
+        integer(int64) :: pos, found
+        logical :: same
+        ! Don't reset the vars if we're in the "same" completion,
+        ! especially since they may have been set to different values,
+        ! e.g. if the user passes a non-nil ARG to `dabbrev_completion'.
+        same = .false.
+        if (last_abbrev_location%index /= 0) then
+            call marker_buffer(last_abbrev_location, b, status)
+            if (status%ok() .and. same_handle(b, current_buffer())) then
+                call marker_position(last_abbrev_location, pos, status)
+                same = status%ok() .and. point() == pos
+            end if
+        end if
+        if (.not. same) then
+            call dabbrev_reset_global_variables()
+            ! Contrary to `dabbrev_completion', the CAPF protocol doesn't
+            ! have a way to control the scope of the search.  We just
+            ! default to confine it to the current buffer.
+            check_other_buffers = DABBREV_OFF
+            check_all_buffers = .false.
+            call copy_marker_at(point(), last_abbrev_location, .false., status)
+        end if
+        call abbrev_at_point(capf_abbrev, status)
+        if (.not. status%ok()) return
+        call search_backward(capf_abbrev, found, status)
+        if (.not. status%ok()) return
+        data%start = point()
+        call search_forward(capf_abbrev, found, status)
+        if (.not. status%ok()) return
+        data%end = point()
+        capf_ignore_case = ignore_case_p(capf_abbrev)
+        capf_list_set = .false.
+        data%found = .true.
+        data%table = completion_function_table(dabbrev_capf_table, "dabbrev")
+    end subroutine dabbrev_capf
+
+    !> The completion table of `dabbrev_capf': the expansions of the
+    !> abbreviation, found the first time it is used.
+    recursive subroutine dabbrev_capf_table(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        type(excursion_type) :: ex
+        type(completion_table_type) :: table
+        status = status_type()
+        result = nil()
+        if (.not. capf_list_set) then
+            call save_excursion(ex)
+            ! New abbreviation to expand.
+            last_abbreviation = capf_abbrev
+            ! Find all expansion
+            call find_all_expansions(capf_abbrev, capf_ignore_case, capf_list, status)
+            call restore_excursion(ex)
+            if (.not. status%ok()) return
+            capf_list_set = .true.
+        end if
+        table = completion_list_table(capf_list)
+        select case (action)
+        case (COMPLETE_TRY)
+            call try_completion(string, table, result, status, pred)
+        case (COMPLETE_ALL)
+            call all_completions(string, table, result, status, pred)
+        case (COMPLETE_TEST)
+            if (test_completion(string, table, pred)) result = t_value()
+        case default
+            if (present(suffix)) continue
+        end select
+    end subroutine dabbrev_capf_table
+
+    !> The expansions of ABBREV in LIST, case-converted as
+    !> `dabbrev_capf' does.  Port of dabbrev.el:dabbrev--find-all-expansions
+    !> with dabbrev-capf's case conversion.
+    recursive subroutine find_all_expansions(abbrev, ignore_case, list, status)
+        character(len=*), intent(in) :: abbrev
+        logical, intent(in) :: ignore_case
+        type(value_type), intent(out) :: list
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: all(:), grown(:)
+        character(len=:), allocatable :: expansion, first
+        integer :: n
+        allocate (all(0))
+        call goto_char(point_min())
+        do
+            call find_expansion(abbrev, -1_int64, ignore_case, expansion, status)
+            if (.not. status%ok()) return
+            if (.not. allocated(expansion)) exit
+            n = size(all)
+            allocate (grown(n + 1))
+            grown(1) = make_string(expansion)
+            grown(2:) = all
+            call move_alloc(grown, all)
+        end do
+        first = char_substring(abbrev, 0_int64, 1_int64)
+        if (ignore_case .and. dabbrev_case_replace /= DABBREV_OFF) then
+            do n = 1, size(all)
+                if (same_string(abbrev, upcase_string(abbrev))) then
+                    all(n) = make_string(upcase_string(xstring(all(n))))
+                else if (same_string(first, upcase_string(first))) then
+                    all(n) = make_string(capitalize_string(xstring(all(n))))
+                else
+                    all(n) = make_string(downcase_string(xstring(all(n))))
+                end if
+            end do
+        end if
+        list = make_list(all)
+    end subroutine find_all_expansions
+
+    recursive subroutine cmd_dabbrev_completion(status)
+        type(status_type), intent(out) :: status
+        ! Interactive "*P".
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        if (nilp(current_prefix_arg)) then
+            call dabbrev_completion(status)
+        else
+            call dabbrev_completion(status, prefix_numeric_value(current_prefix_arg))
+        end if
+    end subroutine cmd_dabbrev_completion
+
     recursive subroutine cmd_dabbrev_expand(status)
         type(status_type), intent(out) :: status
         ! Interactive "*P".
@@ -1449,6 +1628,7 @@ contains
     !> defaults.
     subroutine syms_of_dabbrev()
         commands%dabbrev_expand%run => cmd_dabbrev_expand
+        commands%dabbrev_completion%run => cmd_dabbrev_completion
         if (.not. allocated(dabbrev_ignored_buffer_names)) then
             dabbrev_ignored_buffer_names = [character(len=13) :: "*Messages*", "*Buffer List*"]
         end if

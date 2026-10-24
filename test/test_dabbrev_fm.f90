@@ -60,6 +60,8 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
                     new_unittest("dabbrev-expand-test", test_expand), &
+                    new_unittest("dabbrev-completion-test", test_completion), &
+                    new_unittest("dabbrev-completion-test-with-argument", test_completion_with_argument), &
                     new_unittest("dabbrev-expand-test-same-buffer-1", test_same_buffer_1), &
                     new_unittest("dabbrev-expand-test-same-buffer-2", test_same_buffer_2), &
                     new_unittest("dabbrev-expand-test-same-buffer-3", test_same_buffer_3), &
@@ -110,6 +112,50 @@ contains
         call show_alone()
         last_message = ""
     end subroutine fresh
+
+    !> Test for bug#17899.
+    !> dabbrev-completion should not look for expansions in other
+    !> buffers unless a prefix argument is used.
+    subroutine test_completion(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: other, h
+        type(status_type) :: st
+        call fresh("dabbrev-other", other)
+        call insert("axy", st)
+        call get_buffer_create("dabbrev-test", h, st)
+        call set_buffer(h, st)
+        call erase_buffer(st)
+        call insert("abc"//achar(10)//"a", st)
+        call goto_char(6_int64)
+        call switch_to_buffer("dabbrev-test", st)
+        call run("C-M-/")
+        call check(error, buffer_string() == "abc"//achar(10)//"abc", buffer_string())
+        call kill_buffer(h, st)
+        call kill_buffer(other, st)
+        call show_alone()
+    end subroutine test_completion
+
+    !> Test for bug#17899.
+    !> dabbrev-completion should not complete because it has found
+    !> multiple expansions.
+    subroutine test_completion_with_argument(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: other, h
+        type(status_type) :: st
+        call fresh("dabbrev-other", other)
+        call insert("axy", st)
+        call get_buffer_create("dabbrev-test", h, st)
+        call set_buffer(h, st)
+        call erase_buffer(st)
+        call insert("abc"//achar(10)//"a", st)
+        call goto_char(6_int64)
+        call switch_to_buffer("dabbrev-test", st)
+        call run("C-u C-u C-M-/")
+        call check(error, buffer_string() == "abc"//achar(10)//"a", buffer_string())
+        call kill_buffer(h, st)
+        call kill_buffer(other, st)
+        call show_alone()
+    end subroutine test_completion_with_argument
 
     !> Type KEYS (kbd syntax) to the command loop.
     subroutine run(keys)

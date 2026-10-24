@@ -272,7 +272,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(726) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(727) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -316,17 +316,18 @@ module docstrings_fm
                                                          "copy_syntax_table", "copy_to_register", "count_lines", "current_buffer", &
                                                                "current_fill_column", "current_global_map", "current_indentation", &
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
-                                           "dabbrev__select_buffers", "dabbrev_expand", "deactivate_mark", "decode_coding_region", &
-                                                  "decode_coding_string", "default_indent_new_line", "define_coding_system_alias", &
-                                         "define_global_abbrev", "define_mode_abbrev", "delete_all_space", "delete_backward_char", &
-                                           "delete_blank_lines", "delete_char", "delete_extract_rectangle", "delete_forward_char", &
-                                                          "delete_horizontal_space", "delete_indentation", "delete_other_windows", &
-                                             "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
-                                                 "delete_window", "derived_mode_p", "describe_bindings", "describe_coding_system", &
-                                                        "describe_command", "describe_current_coding_system", "describe_function", &
-                                                       "describe_key", "describe_key_briefly", "describe_mode", "describe_symbol", &
-                                            "describe_variable", "detect_coding_region", "detect_coding_string", "digit_argument", &
-                                         "dired", "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
+                                             "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
+                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
+                                                       "define_coding_system_alias", "define_global_abbrev", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                               "delete_indentation", "delete_other_windows", "delete_process", "delete_rectangle", &
+                                                "delete_region", "delete_whitespace_rectangle", "delete_window", "derived_mode_p", &
+                                                                "describe_bindings", "describe_coding_system", "describe_command", &
+                                                            "describe_current_coding_system", "describe_function", "describe_key", &
+                                                  "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
+                                                        "detect_coding_region", "detect_coding_string", "digit_argument", "dired", &
+                                                  "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
                                                         "dired_create_directory", "dired_create_empty_file", "dired_display_file", &
                                                         "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", "dired_do_compress", &
                                                "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", "dired_do_delete", &
@@ -2076,6 +2077,20 @@ contains
                         "which `dabbrev_friend_buffer_function' returns"//LF// &
                         "false when called with the buffer as argument.  It returns the list"//LF// &
                         "of the buffers that are not discarded."
+        case ("dabbrev_completion")
+            entry%file = "dabbrev_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Completion on current word."//LF// &
+                        "Like \[dabbrev_expand] but finds all expansions in the current buffer"//LF// &
+                        "and presents suggestions for completion."//LF// &
+                        ""//LF// &
+                        "With a prefix argument ARG, it searches all buffers accepted by the"//LF// &
+                        "function pointed out by `dabbrev_friend_buffer_function' to find the"//LF// &
+                        "completions."//LF// &
+                        ""//LF// &
+                        "If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]"// &
+                        "),"//LF// &
+                        "then it searches *all* buffers."
         case ("dabbrev_expand")
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "call dabbrev_expand(status, arg)"

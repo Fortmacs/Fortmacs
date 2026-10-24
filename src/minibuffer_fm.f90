@@ -89,6 +89,7 @@ module minibuffer_fm
     public :: exit_minibuffer, delete_minibuffer_contents, read_file_name, syms_of_minibuffer, read_buffer
     public :: completion_insert_strings
     public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
+              completion_at_point_run, &
               cir_predicate_proc, completion_in_region_proc
     public :: internal_complete_buffer, minibuffer_maybe_quote_filename
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
@@ -1442,19 +1443,26 @@ contains
     !> non-exclusive table, only if prefix completion of the text before
     !> point finds something).  Port of minibuffer.el:completion--capf-wrapper
     !> run through run-hook-wrapped.
-    recursive subroutine run_capfs(data, fn)
+    recursive subroutine run_capfs(data, fn, status, functions)
         type(capf_data_type), intent(out) :: data
         procedure(capf_function), pointer, intent(out) :: fn
+        type(status_type), intent(out) :: status
+        type(capf_entry_type), intent(in), optional :: functions(:)
         type(capf_entry_type), allocatable :: fns(:)
         type(value_type) :: v
         type(status_type) :: st
         character(len=:), allocatable :: text
         integer :: k
         fn => null()
-        fns = completion_at_point_functions%functions()
+        if (present(functions)) then
+            fns = functions
+        else
+            fns = completion_at_point_functions%functions()
+        end if
         do k = 1, size(fns)
-            call fns(k)%fn(data, st)
-            if (.not. st%ok() .or. .not. data%found) cycle
+            call fns(k)%fn(data, status)
+            if (.not. status%ok()) return
+            if (.not. data%found) cycle
             if (.not. data%exclusive) then
                 call buffer_substring(data%start, point(), text, st)
                 if (associated(data%predicate)) then
@@ -1493,13 +1501,26 @@ contains
     !> minibuffer.el:completion-at-point.
     recursive subroutine completion_at_point(status)
         type(status_type), intent(out) :: status
+        logical :: res
+        call completion_at_point_run(res, status)
+    end subroutine completion_at_point
+
+    !> `completion_at_point' giving in RES whether there was a valid
+    !> completion; with FUNCTIONS, those instead of
+    !> `completion_at_point_functions' (upstream let-binds the hook).
+    !> Port of minibuffer.el:completion-at-point.
+    recursive subroutine completion_at_point_run(res, status, functions)
+        logical, intent(out) :: res
+        type(status_type), intent(out) :: status
+        type(capf_entry_type), intent(in), optional :: functions(:)
         type(capf_data_type) :: data
         procedure(capf_function), pointer :: fn, saved_fun
         procedure(cir_predicate_proc), pointer :: saved_pred
         type(handle_type) :: saved_start
-        logical :: res
         status = status_type()
-        call run_capfs(data, fn)
+        res = .false.
+        call run_capfs(data, fn, status, functions)
+        if (.not. status%ok()) return
         if (.not. data%found) return
         saved_fun => capf_field_fun
         saved_start = capf_field_start
@@ -1517,7 +1538,7 @@ contains
         capf_field_start = saved_start
         completion_in_region_mode_predicate => saved_pred
         status = status_type()
-    end subroutine completion_at_point
+    end subroutine completion_at_point_run
 
     !> Display the completions on the text around point.
     !> The completion method is determined by
@@ -1532,8 +1553,8 @@ contains
         type(completion_table_type) :: saved_table
         procedure(completion_predicate), pointer :: saved_mb_pred
         type(handle_type) :: saved_start
-        status = status_type()
-        call run_capfs(data, fn)
+        call run_capfs(data, fn, status)
+        if (.not. status%ok()) return
         if (.not. data%found) then
             call message("Nothing to complete at point")
             return
