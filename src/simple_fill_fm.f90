@@ -40,6 +40,7 @@ submodule(simple_fm) simple_fill_fm
     use search_fm, only: string_match
     use insdel_fm, only: insert_before_markers
     use modes_fm, only: minor_modes
+    use abbrev_fm, only: abbrev_mode
     implicit none(type, external)
 
     ! The state newline_postproc works from: where point was before the
@@ -290,7 +291,7 @@ contains
     end subroutine newline_postproc
 
     module procedure open_line
-    logical :: do_fill_prefix, do_left_margin
+    logical :: do_fill_prefix, do_left_margin, saved_abbrev_mode
     integer(int64) :: k, pos, col
     type(handle_type) :: loc
     type(status_type) :: st
@@ -298,7 +299,14 @@ contains
     do_left_margin = bolp()
     if (do_left_margin) do_left_margin = current_left_margin() > 0
     call point_marker(loc)
+    ! Don't expand an abbrev before point.
+    saved_abbrev_mode = .false.
+    if (associated(abbrev_mode)) then
+        saved_abbrev_mode = abbrev_mode%value
+        abbrev_mode%value = .false.
+    end if
     call newline(status, n)
+    if (associated(abbrev_mode)) abbrev_mode%value = saved_abbrev_mode
     if (status%ok()) then
         call marker_position(loc, pos, st)
         call goto_char(pos)

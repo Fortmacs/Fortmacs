@@ -27,6 +27,12 @@
 module docstrings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use print_fm, only: fortran_repr
+    use abbrev_fm, only: abbrev_all_caps, abbrev_file_name, abbrev_mode, abbrev_start_location, &
+                         abbrev_start_location_buffer, abbrev_table_name_list, abbrevs_changed, &
+                         edit_abbrevs_mode_abbrev_table, edit_abbrevs_mode_hook, edit_abbrevs_mode_map, &
+                         fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
+                         last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NEVER, SAVE_ABBREVS_ASK, &
+                         SAVE_ABBREVS_SILENTLY
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_prefix_arg, mark_even_if_inactive
     use callproc_fm, only: shell_file_name
@@ -39,6 +45,17 @@ module docstrings_fm
                           compilation_mode_map, compilation_read_command, compilation_scroll_output, &
                           COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
                           compile_command
+    use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
+                          dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
+                          DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
+                          dabbrev_case_fold_search, DABBREV_OFF, DABBREV_ON, DABBREV_LIKE_CASE_FOLD_SEARCH, &
+                          DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, dabbrev_case_replace, DABBREV_OFF, DABBREV_ON, &
+                          DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
+                          dabbrev_check_all_buffers, dabbrev_check_other_buffers, DABBREV_OFF, DABBREV_ON, &
+                          DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
+                          dabbrev_eliminate_newlines, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
+                          dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
+                          dabbrev_upcase_means_case_search
     use dired_fm, only: completion_ignored_extensions
     use dired_mode_fm, only: dired_after_readin_hook, dired_always_read_filesystem, &
                              dired_auto_revert_buffer, dired_before_readin_hook, dired_broken_symlink, &
@@ -85,7 +102,8 @@ module docstrings_fm
                         FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
                         FINAL_NEWLINE_ASK, require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
-                        revert_buffer_in_progress, revert_buffer_preserve_modes, view_read_only
+                        revert_buffer_in_progress, revert_buffer_preserve_modes, save_some_buffers_functions, &
+                        view_read_only
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
@@ -97,7 +115,7 @@ module docstrings_fm
                             font_lock_maximum_decoration, FONT_LOCK_DECORATION_MAX, font_lock_support_mode, &
                             FONT_LOCK_SUPPORT_NONE, FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
     use help_fm, only: help_map
-    use help_mode_fm, only: help_mode_hook, help_mode_map
+    use help_mode_fm, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_tabs_mode, &
                          standard_indent, tab_always_indent, tab_stop_list
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
@@ -136,7 +154,7 @@ module docstrings_fm
                         SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, SHOW_PAREN_MIXED, &
                         show_paren_when_point_in_periphery, show_paren_when_point_inside_paren
     use process_fm, only: delete_exited_processes, process_connection_type
-    use prog_mode_fm, only: prog_mode_hook, prog_mode_map
+    use prog_mode_fm, only: prog_mode_abbrev_table, prog_mode_hook, prog_mode_map
     use rect_fm, only: killed_rectangle
     use register_fm, only: register_alist, register_separator
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_from_history_variable, &
@@ -158,15 +176,16 @@ module docstrings_fm
                          read_quoted_char_radix, shell_command_default_error_buffer, shell_command_dont_erase_buffer, &
                          DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, &
                          DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, shell_command_switch, &
-                         special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
-                         undo_in_progress, undo_no_redo
+                         special_mode_abbrev_table, special_mode_hook, special_mode_map, suggest_key_bindings, &
+                         transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
                          multibyte_syntax_as_symbol, open_paren_in_column_0_is_defun_start, &
                          parse_sexp_ignore_comments, words_include_escapes
     use term_fm, only: visible_bell
-    use text_mode_fm, only: text_mode_hook, text_mode_map, text_mode_syntax_table, text_mode_variant
+    use text_mode_fm, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
+                            text_mode_syntax_table, text_mode_variant
     use timer_fm, only: timer_max_repeats
     use undo_fm, only: amalgamating_undo_limit, this_command_amalgamating
     use view_fm, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
@@ -199,57 +218,63 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=39), parameter, public :: function_names(583) = [character(len=39) :: &
-                                            "abort_minibuffers", "abort_recursive_edit", "accept_process_output", "add_auto_mode", &
-                                                 "add_name_to_file", "append_to_register", "apply_on_rectangle", "auto_fill_mode", &
-                                                          "back_to_indentation", "backward_char", "backward_delete_char_untabify", &
-                                                        "backward_kill_paragraph", "backward_kill_sentence", "backward_kill_sexp", &
-                                                 "backward_kill_word", "backward_list", "backward_paragraph", "backward_sentence", &
-                                                      "backward_sexp", "backward_up_list", "backward_word", "beginning_of_buffer", &
-                                                   "beginning_of_line", "beginning_of_line_text", "blink_matching_check_mismatch", &
-                                                         "blink_matching_open", "bobp", "bolp", "buffer_name", "buffer_substring", &
-                                                       "buffer_to_register", "bury_buffer", "call_last_kbd_macro", "cancel_timer", &
-                                                 "canonically_space_region", "capitalize", "capitalize_region", "capitalize_word", &
-                                             "char_syntax", "clear_rectangle", "compilation_mode", "compilation_start", "compile", &
-                                            "copy_directory", "copy_file", "copy_rectangle_as_kill", "copy_rectangle_to_register", &
-                                                    "copy_region_as_kill", "copy_syntax_table", "copy_to_register", "count_lines", &
-                                             "current_buffer", "current_fill_column", "current_global_map", "current_indentation", &
-                                                      "current_justification", "current_kill", "cycle_spacing", "deactivate_mark", &
-                                                            "default_indent_new_line", "delete_all_space", "delete_backward_char", &
-                                           "delete_blank_lines", "delete_char", "delete_extract_rectangle", "delete_forward_char", &
-                                                          "delete_horizontal_space", "delete_indentation", "delete_other_windows", &
-                                             "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
-                                                           "delete_window", "derived_mode_p", "describe_function", "describe_key", &
-                                                           "describe_key_briefly", "describe_variable", "digit_argument", "dired", &
-                                                  "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
-                                                        "dired_create_directory", "dired_create_empty_file", "dired_display_file", &
-                                                        "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", "dired_do_compress", &
-                                               "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", "dired_do_delete", &
-                                                       "dired_do_flagged_delete", "dired_do_hardlink", "dired_do_hardlink_regexp", &
-                                                               "dired_do_kill_lines", "dired_do_redisplay", "dired_do_relsymlink", &
-                                                        "dired_do_relsymlink_regexp", "dired_do_rename", "dired_do_rename_regexp", &
-                                                "dired_do_symlink", "dired_do_symlink_regexp", "dired_do_touch", "dired_downcase", &
-                                                  "dired_find_file", "dired_find_file_other_window", "dired_flag_auto_save_files", &
-                                                 "dired_flag_backup_files", "dired_flag_file_deletion", "dired_flag_files_regexp", &
-                                            "dired_flag_garbage_files", "dired_goto_file", "dired_kill_line", "dired_kill_subdir", &
-                                                                 "dired_mark", "dired_mark_directories", "dired_mark_executables", &
-                                                                  "dired_mark_files_containing_regexp", "dired_mark_files_regexp", &
-                                             "dired_mark_subdir_files", "dired_mark_symlinks", "dired_mode", "dired_next_dirline", &
-                                               "dired_next_line", "dired_next_marked_file", "dired_next_subdir", "dired_noselect", &
-                                                       "dired_number_of_marked_files", "dired_other_window", "dired_prev_dirline", &
-                                                             "dired_prev_marked_file", "dired_prev_subdir", "dired_previous_line", &
-                                                             "dired_show_file_type", "dired_sort_toggle_or_edit", "dired_summary", &
-                                                     "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
-                                          "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
-                                                   "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
-                                                      "do_auto_fill", "down_list", "downcase", "downcase_region", "downcase_word", &
+    character(len=39), parameter, public :: function_names(613) = [character(len=39) :: &
+                                                     "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
+                                                  "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
+                                            "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
+                                                          "add_mode_abbrev", "add_name_to_file", "add_save_some_buffers_function", &
+                                              "append_to_register", "apply_on_rectangle", "auto_fill_mode", "back_to_indentation", &
+                                                      "backward_char", "backward_delete_char_untabify", "backward_kill_paragraph", &
+                                            "backward_kill_sentence", "backward_kill_sexp", "backward_kill_word", "backward_list", &
+                                                   "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
+                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
+                                            "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", "buffer_name", &
+                                                   "buffer_substring", "buffer_to_register", "bury_buffer", "call_last_kbd_macro", &
+                                                    "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
+                                                          "capitalize_word", "char_syntax", "clear_rectangle", "compilation_mode", &
+                                               "compilation_start", "compile", "copy_abbrev_table", "copy_directory", "copy_file", &
+                                                    "copy_rectangle_as_kill", "copy_rectangle_to_register", "copy_region_as_kill", &
+                                                         "copy_syntax_table", "copy_to_register", "count_lines", "current_buffer", &
+                                                               "current_fill_column", "current_global_map", "current_indentation", &
+                                           "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
+                                                                   "dabbrev__select_buffers", "dabbrev_expand", "deactivate_mark", &
+                                                          "default_indent_new_line", "define_global_abbrev", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                               "delete_indentation", "delete_other_windows", "delete_process", "delete_rectangle", &
+                                                "delete_region", "delete_whitespace_rectangle", "delete_window", "derived_mode_p", &
+                                                 "describe_function", "describe_key", "describe_key_briefly", "describe_variable", &
+                                                      "digit_argument", "dired", "dired_build_subdir_alist", "dired_change_marks", &
+                                               "dired_copy_filename_as_kill", "dired_create_directory", "dired_create_empty_file", &
+                                                       "dired_display_file", "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", &
+                                             "dired_do_compress", "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", &
+                                                                "dired_do_delete", "dired_do_flagged_delete", "dired_do_hardlink", &
+                                                          "dired_do_hardlink_regexp", "dired_do_kill_lines", "dired_do_redisplay", &
+                                                           "dired_do_relsymlink", "dired_do_relsymlink_regexp", "dired_do_rename", &
+                                                          "dired_do_rename_regexp", "dired_do_symlink", "dired_do_symlink_regexp", &
+                                            "dired_do_touch", "dired_downcase", "dired_find_file", "dired_find_file_other_window", &
+                                              "dired_flag_auto_save_files", "dired_flag_backup_files", "dired_flag_file_deletion", &
+                                                         "dired_flag_files_regexp", "dired_flag_garbage_files", "dired_goto_file", &
+                                                   "dired_kill_line", "dired_kill_subdir", "dired_mark", "dired_mark_directories", &
+                                                                   "dired_mark_executables", "dired_mark_files_containing_regexp", &
+                                                      "dired_mark_files_regexp", "dired_mark_subdir_files", "dired_mark_symlinks", &
+                                                  "dired_mode", "dired_next_dirline", "dired_next_line", "dired_next_marked_file", &
+                                                            "dired_next_subdir", "dired_noselect", "dired_number_of_marked_files", &
+                                                             "dired_other_window", "dired_prev_dirline", "dired_prev_marked_file", &
+                                                               "dired_prev_subdir", "dired_previous_line", "dired_show_file_type", &
+                                                 "dired_sort_toggle_or_edit", "dired_summary", "dired_toggle_marks", "dired_undo", &
+                                                               "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
+                                                 "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
+                                         "dired_why", "disable_command", "display_message_or_buffer", "do_auto_fill", "down_list", &
+                                                                   "downcase", "downcase_region", "downcase_word", "edit_abbrevs", &
                                              "electric_indent_just_newline", "electric_indent_local_mode", "electric_indent_mode", &
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
                                                 "enable_command", "end_kbd_macro", "end_of_buffer", "end_of_line", "eobp", "eolp", &
                                                          "exchange_point_and_mark", "execute_extended_command", "exit_minibuffer", &
-                                                 "extract_rectangle", "extract_rectangle_bounds", "file_modes_number_to_symbolic", &
+                                                                   "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
+                                                                   "extract_rectangle_bounds", "file_modes_number_to_symbolic", &
                                                    "file_modes_symbolic_to_number", "file_name_sans_versions", "file_to_register", &
                                                 "fill_french_nobreak_p", "fill_paragraph", "fill_polish_nobreak_p", "fill_region", &
                                                                    "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
@@ -269,11 +294,13 @@ module docstrings_fm
                                                          "indent_region", "indent_relative", "indent_relative_first_indent_point", &
                                                        "indent_rigidly", "indent_rigidly_left", "indent_rigidly_left_to_tab_stop", &
                                                    "indent_rigidly_right", "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", &
-                                                                   "indent_to", "insert", "insert_rectangle", "insert_register", &
-                                                           "internal_default_process_filter", "internal_default_process_sentinel", &
-                                                          "internal_default_signal_process", "interrupt_process", "isearch_abort", &
-                                                     "isearch_backward", "isearch_backward_regexp", "isearch_beginning_of_buffer", &
-                                               "isearch_cancel", "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
+                                                       "indent_to", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
+                                                         "insert_rectangle", "insert_register", "internal_default_process_filter", &
+                                                           "internal_default_process_sentinel", "internal_default_signal_process", &
+                                                           "interrupt_process", "inverse_add_abbrev", "inverse_add_global_abbrev", &
+                                                                   "inverse_add_mode_abbrev", "isearch_abort", "isearch_backward", &
+                                                       "isearch_backward_regexp", "isearch_beginning_of_buffer", "isearch_cancel", &
+                                                                 "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
                                              "isearch_end_of_buffer", "isearch_exit", "isearch_forward", "isearch_forward_regexp", &
                                                          "isearch_printing_char", "isearch_quote_char", "isearch_repeat_backward", &
                                                          "isearch_repeat_forward", "isearch_ring_advance", "isearch_ring_retreat", &
@@ -281,20 +308,21 @@ module docstrings_fm
                                            "isearch_yank_char", "isearch_yank_kill", "isearch_yank_line", "isearch_yank_pop_only", &
                                                    "isearch_yank_word_or_char", "join_line", "jump_to_register", "just_one_space", &
                                                       "justify_current_line", "key_valid_p", "keyboard_quit", "keymap_global_set", &
-                                                         "keymap_set", "kill_buffer", "kill_compilation", "kill_line", "kill_new", &
-                                              "kill_paragraph", "kill_process", "kill_rectangle", "kill_region", "kill_ring_save", &
-                                               "kill_sentence", "kill_sexp", "kill_whole_line", "kill_word", "kmacro_add_counter", &
-                                                          "kmacro_call_macro", "kmacro_call_macro_repeat", "kmacro_call_ring_2nd", &
-                                            "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
-                                                       "kmacro_delete_ring_head", "kmacro_end_and_call_macro", "kmacro_end_macro", &
-                                           "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", "kmacro_insert_counter", &
-                                           "kmacro_quit_counter_equal", "kmacro_quit_counter_greater", "kmacro_quit_counter_less", &
-                                             "kmacro_redisplay", "kmacro_reg_add_counter_equal", "kmacro_reg_add_counter_greater", &
-                                              "kmacro_reg_add_counter_less", "kmacro_reg_load_counter", "kmacro_reg_save_counter", &
-                                                                  "kmacro_set_counter", "kmacro_set_format", "kmacro_start_macro", &
-                                                  "kmacro_start_macro_or_insert_counter", "kmacro_swap_ring", "kmacro_view_macro", &
-                                                     "kmacro_view_macro_repeat", "kmacro_view_ring_2nd", "left_char", "left_word", &
-                                             "line_number_at_pos", "list_registers", "looking_at", "looking_at_p", "looking_back", &
+                                                 "keymap_set", "kill_all_abbrevs", "kill_buffer", "kill_compilation", "kill_line", &
+                                                    "kill_new", "kill_paragraph", "kill_process", "kill_rectangle", "kill_region", &
+                                                   "kill_ring_save", "kill_sentence", "kill_sexp", "kill_whole_line", "kill_word", &
+                                                            "kmacro_add_counter", "kmacro_call_macro", "kmacro_call_macro_repeat", &
+                                                  "kmacro_call_ring_2nd", "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", &
+                                             "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", "kmacro_end_and_call_macro", &
+                                                "kmacro_end_macro", "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", &
+                                              "kmacro_insert_counter", "kmacro_quit_counter_equal", "kmacro_quit_counter_greater", &
+                                                   "kmacro_quit_counter_less", "kmacro_redisplay", "kmacro_reg_add_counter_equal", &
+                                                                  "kmacro_reg_add_counter_greater", "kmacro_reg_add_counter_less", &
+                                                       "kmacro_reg_load_counter", "kmacro_reg_save_counter", "kmacro_set_counter", &
+                                                "kmacro_set_format", "kmacro_start_macro", "kmacro_start_macro_or_insert_counter", &
+                                                              "kmacro_swap_ring", "kmacro_view_macro", "kmacro_view_macro_repeat", &
+                                           "kmacro_view_ring_2nd", "left_char", "left_word", "line_number_at_pos", "list_abbrevs", &
+                                             "list_registers", "local_abbrev_table", "looking_at", "looking_at_p", "looking_back", &
                                                       "major_mode_named", "make_empty_file", "make_process", "make_symbolic_link", &
                                                   "make_syntax_table", "map_query_replace_regexp", "mark", "mark_end_of_sentence", &
                                                "mark_paragraph", "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", &
@@ -332,37 +360,41 @@ module docstrings_fm
                                                           "search_backward", "search_forward", "select_window", "selected_window", &
                                                              "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
                                                           "set_command_disabled", "set_error", "set_file_modes", "set_file_times", &
-                                           "set_fill_column", "set_fill_prefix", "set_mark", "set_mark_command", "set_match_data", &
-                                                     "set_process_buffer", "set_process_filter", "set_process_query_on_exit_flag", &
-                                                      "set_process_sentinel", "set_register", "set_syntax_table", "shell_command", &
-                                                 "shell_command_on_region", "show_paren__default", "show_paren_default_predicate", &
-                                          "show_paren_local_mode", "show_paren_mode", "skip_chars_backward", "skip_chars_forward", &
-                                                   "skip_syntax_backward", "skip_syntax_forward", "spaces_string", "special_mode", &
-                                              "split_window", "split_window_below", "split_window_right", "standard_syntax_table", &
-                                                    "start_kbd_macro", "start_process", "string_insert_rectangle", "string_match", &
-                                              "string_match_p", "string_rectangle", "substitute_command_keys", "switch_to_buffer", &
-                                                  "syntax_table", "tab_to_tab_stop", "text_mode", "timerp", "transient_mark_mode", &
-                                              "transpose_chars", "transpose_lines", "transpose_paragraphs", "transpose_sentences", &
-                                                "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_font_lock", &
+                                                       "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
+                                                 "set_mark_command", "set_match_data", "set_process_buffer", "set_process_filter", &
+                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
+                                            "set_syntax_table", "shell_command", "shell_command_on_region", "show_paren__default", &
+                                                       "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
+                                                              "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
+                                                           "skip_syntax_forward", "spaces_string", "special_mode", "split_window", &
+                                           "split_window_below", "split_window_right", "standard_syntax_table", "start_kbd_macro", &
+                                                     "start_process", "string_insert_rectangle", "string_match", "string_match_p", &
+                                                "string_rectangle", "substitute_command_keys", "switch_to_buffer", "syntax_table", &
+                                               "tab_to_tab_stop", "text_mode", "timerp", "transient_mark_mode", "transpose_chars", &
+                                              "transpose_lines", "transpose_paragraphs", "transpose_sentences", "transpose_words", &
+                                                                   "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_font_lock", &
                                                 "turn_on_font_lock_if_desired", "undefined", "undo", "undo_boundary", "undo_only", &
-                                                "undo_redo", "unfill_paragraph", "universal_argument", "universal_argument_minus", &
-                                                                "universal_argument_more", "up_list", "upcase", "upcase_initials", &
-                                                    "upcase_initials_region", "upcase_region", "upcase_word", "view_back_to_mark", &
-                                                     "view_buffer", "view_buffer_other_window", "view_exit", "view_exit_and_edit", &
-                                                     "view_file", "view_file_other_window", "view_goto_line", "view_goto_percent", &
-                                                   "view_kill_and_leave", "view_leave", "view_mode", "view_quit", "view_quit_all", &
-                                               "view_register", "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
-                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
-                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
-                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
-                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
-                                             "view_search_regexp_backward", "view_search_regexp_forward", "what_line", "where_is", &
-                                                "window_configuration_to_register", "write_file", "y_or_n_p", "y_or_n_p_insert_n", &
-                                               "y_or_n_p_insert_other", "y_or_n_p_insert_y", "yank", "yank_pop", "yank_rectangle", &
-                                                                   "yes_or_no_p"]
+                                                         "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
+                                                       "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
+                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                      "view_back_to_mark", "view_buffer", "view_buffer_other_window", "view_exit", &
+                                                    "view_exit_and_edit", "view_file", "view_file_other_window", "view_goto_line", &
+                                               "view_goto_percent", "view_kill_and_leave", "view_leave", "view_mode", "view_quit", &
+                                                               "view_quit_all", "view_register", "view_scroll_half_page_backward", &
+                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
+                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
+                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
+                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
+                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
+                                                                   "view_search_regexp_forward", "what_line", "where_is", &
+                                                "window_configuration_to_register", "write_abbrev_file", "write_file", "y_or_n_p", &
+                                            "y_or_n_p_insert_n", "y_or_n_p_insert_other", "y_or_n_p_insert_y", "yank", "yank_pop", &
+                                                                   "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(308) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(345) = [character(len=48) :: &
+                                                    "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
+                                                      "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
                                               "after_change_functions", "after_change_major_mode_hook", "amalgamating_undo_limit", &
                                                               "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
@@ -380,7 +412,13 @@ module docstrings_fm
                                                    "completion_auto_help", "completion_fail_discreetly", "completion_ignore_case", &
                                          "completion_ignored_extensions", "completion_show_inline_help", "completions_max_height", &
                                                  "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
-                                                           "cycle_spacing_actions", "default_justification", "defining_kbd_macro", &
+                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                   "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
+                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
+                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
+                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
+                                                "dabbrev_upcase_means_case_search", "default_justification", "defining_kbd_macro", &
                                                                    "delete_active_region", "delete_exited_processes", &
                                                              "directory_listing_before_filename_regexp", "dired__ls_error_buffer", &
                                                 "dired__ls_error_file", "dired_after_readin_hook", "dired_always_read_filesystem", &
@@ -404,6 +442,7 @@ module docstrings_fm
                                                              "dired_switches_in_mode_line", "dired_symlink", "dired_symlink_face", &
                                           "dired_touch_program", "dired_trivial_filenames", "dired_use_ls_dired", "dired_warning", &
                                                "dired_warning_face", "disabled_command_function", "display_buffer_mark_dedicated", &
+                                              "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", &
                                                                    "edmacro_eight_bits", "electric_indent_chars", &
                                                           "electric_indent_functions_without_reindent", "electric_indent_inhibit", &
                                                                    "electric_indent_local_mode_hook", "electric_indent_mode_hook", &
@@ -417,8 +456,9 @@ module docstrings_fm
                                                                 "first_change_hook", "font_lock_defaults", "font_lock_dont_widen", &
                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
                                                   "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
-                                                     "font_lock_verbose", "fontification_functions", "global_font_lock_mode_hook", &
-                                            "goal_column", "help_map", "help_mode_hook", "help_mode_map", "history_add_new_input", &
+                                                  "font_lock_verbose", "fontification_functions", "fundamental_mode_abbrev_table", &
+                                                   "global_abbrev_table", "global_font_lock_mode_hook", "goal_column", "help_map", &
+                                             "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_add_new_input", &
                                                             "history_delete_duplicates", "history_length", "indent_line_function", &
                                                                  "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
                                             "inhibit_field_text_motion", "inhibit_modification_hooks", "insert_default_directory", &
@@ -430,44 +470,48 @@ module docstrings_fm
                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
                                                   "kmacro_execute_before_append", "kmacro_initial_counter_value", "kmacro_keymap", &
                                                "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
-                                                          "last_input_event", "last_kbd_macro", "left_margin", "line_move_visual", &
-                                                                   "make_backup_files", "mark_even_if_inactive", "mark_ring_max", &
-                                                          "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
-                                           "minibuffer_message_timeout", "minibuffer_scroll_window", "mode_require_final_newline", &
-                                                                   "multibyte_syntax_as_symbol", "next_screen_context_lines", &
+                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", "last_input_event", &
+                                                         "last_kbd_macro", "left_margin", "line_move_visual", "make_backup_files", &
+                                                      "mark_even_if_inactive", "mark_ring_max", "minibuffer_completing_file_name", &
+                                                               "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
+                                           "minibuffer_scroll_window", "mode_require_final_newline", "multibyte_syntax_as_symbol", &
+                                                                   "next_screen_context_lines", "only_global_abbrevs", &
                                                                    "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                                               "parse_sexp_ignore_comments", "pending_undo_list", "pop_up_windows", &
-                                            "post_self_insert_hook", "process_connection_type", "prog_mode_hook", "prog_mode_map", &
-                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
-                                                              "query_replace_from_to_separator", "query_replace_show_replacement", &
-                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
+                                                     "post_self_insert_hook", "process_connection_type", "prog_mode_abbrev_table", &
+                                                                   "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
+                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
+                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
+                                                                   "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
                                                         "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
                                                 "register_alist", "register_separator", "replace_count", "replace_lax_whitespace", &
                                                "replace_regexp_lax_whitespace", "require_final_newline", "revert_buffer_function", &
-                                           "revert_buffer_in_progress", "revert_buffer_preserve_modes", "scroll_error_top_bottom", &
-                                                         "search_exit_option", "search_nonincremental_instead", "search_ring_max", &
-                                          "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", "sentence_end", &
-                                                  "sentence_end_base", "sentence_end_double_space", "sentence_end_without_period", &
-                                                               "sentence_end_without_space", "shell_command_default_error_buffer", &
-                                                               "shell_command_dont_erase_buffer", "shell_command_prompt_show_cwd", &
-                                                   "shell_command_switch", "shell_file_name", "show_paren_context_when_offscreen", &
-                                               "show_paren_delay", "show_paren_highlight_openparen", "show_paren_local_mode_hook", &
-                                           "show_paren_mode_hook", "show_paren_not_in_comments_or_strings", "show_paren_priority", &
+                                                      "revert_buffer_in_progress", "revert_buffer_preserve_modes", "save_abbrevs", &
+                                                   "save_some_buffers_functions", "scroll_error_top_bottom", "search_exit_option", &
+                                                       "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
+                                             "search_upper_case", "search_whitespace_regexp", "sentence_end", "sentence_end_base", &
+                                         "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
+                                                          "shell_command_default_error_buffer", "shell_command_dont_erase_buffer", &
+                                                       "shell_command_prompt_show_cwd", "shell_command_switch", "shell_file_name", &
+                                                                   "show_paren_context_when_offscreen", "show_paren_delay", &
+                                           "show_paren_highlight_openparen", "show_paren_local_mode_hook", "show_paren_mode_hook", &
+                                                                   "show_paren_not_in_comments_or_strings", "show_paren_priority", &
                                                                    "show_paren_ring_bell_on_mismatch", "show_paren_style", &
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
-                                                                "special_mode_hook", "special_mode_map", "split_height_threshold", &
-                                                   "split_width_threshold", "split_window_preferred_direction", "standard_indent", &
-                                                        "suggest_key_bindings", "tab_always_indent", "tab_stop_list", "tab_width", &
-                                                 "text_mode_hook", "text_mode_map", "text_mode_syntax_table", "text_mode_variant", &
-                                                           "timer_max_repeats", "transient_mark_mode", "transient_mark_mode_hook", &
-                                                         "truncate_partial_width_windows", "undo_auto__this_command_amalgamating", &
-                                                        "undo_in_progress", "undo_no_redo", "use_short_answers", "user_init_file", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                 "visible_bell", "window_min_height", "window_min_width", "words_include_escapes", &
+                                                             "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
+                                            "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
+                                                  "standard_indent", "suggest_key_bindings", "tab_always_indent", "tab_stop_list", &
+                                                         "tab_width", "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", &
+                                                               "text_mode_syntax_table", "text_mode_variant", "timer_max_repeats", &
+                                              "transient_mark_mode", "transient_mark_mode_hook", "truncate_partial_width_windows", &
+                                                       "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
+                                                          "use_short_answers", "user_init_file", "view_exits_all_viewing_windows", &
+                                                                   "view_inhibit_help_message", "view_mode_hook", "view_mode_map", &
+                                             "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", "visible_bell", &
+                                                                 "window_min_height", "window_min_width", "words_include_escapes", &
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     character(len=*), parameter :: LF = achar(10)
@@ -487,6 +531,64 @@ contains
         found = .true.
         entry%fortran = ""
         select case (name)
+        case ("abbrev__default_expand")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_default_expand(abbrev, status)"
+            entry%doc = "Default function to use for `abbrev_expand_function'."//LF// &
+                        "Calls `abbrev_insert' to insert any expansion, and returns what it does."
+        case ("abbrev_expansion")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_expansion(abbrev, expansion, table)"
+            entry%doc = "Return the string that ABBREV expands into in the current buffer,"//LF// &
+                        "in EXPANSION (unallocated if none)."//LF// &
+                        "Optionally specify an abbrev TABLE as second arg;"//LF// &
+                        "then ABBREV is looked up in that table only."
+        case ("abbrev_insert")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_insert(abbrev, result, status, name, wordstart, wordend)"
+            entry%doc = "Insert abbrev ABBREV at point."//LF// &
+                        "If present, NAME is the name by which this abbrev was found."//LF// &
+                        "If present, WORDSTART is the buffer position where to insert the abbrev."//LF// &
+                        "If WORDEND is present, it is a buffer position; the abbrev replaces the"//LF// &
+                        "previous text between WORDSTART and WORDEND."//LF// &
+                        "RESULT is ABBREV if the expansion should be considered as having taken place."//LF// &
+                        "The result can be influenced by a `no_self_insert' property;"//LF// &
+                        "see `define_abbrev' for details."
+        case ("abbrev_mode")
+            entry%file = "abbrev_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle Abbrev mode in the current buffer."//LF// &
+                        ""//LF// &
+                        "In Abbrev mode, inserting an abbreviation causes it to expand and"//LF// &
+                        "be replaced by its expansion."
+        case ("abbrev_prefix_mark")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_prefix_mark(status, arg)"
+            entry%interactive = .true.
+            entry%doc = "Mark point as the beginning of an abbreviation."//LF// &
+                        "The abbrev to be expanded starts at point rather than at the"//LF// &
+                        "beginning of a word.  This way, you can expand an abbrev with"//LF// &
+                        "a prefix: insert the prefix, use this command, then insert the"//LF// &
+                        "abbrev."//LF// &
+                        ""//LF// &
+                        "This command inserts a hyphen after the prefix, and if the abbrev"//LF// &
+                        "is subsequently expanded, this hyphen will be removed."//LF// &
+                        ""//LF// &
+                        "If the prefix is itself an abbrev, this command expands it,"//LF// &
+                        "unless ARG is true.  Interactively, ARG is the prefix"//LF// &
+                        "argument."
+        case ("abbrev_symbol")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call abbrev_symbol(abbrev, result, table)"
+            entry%doc = "Return the abbrev named ABBREV in TABLE, in RESULT (no table if"//LF// &
+                        "such an abbrev is not defined)."//LF// &
+                        "Optional second arg TABLE is the abbrev table to look it up in."//LF// &
+                        "The default is to try buffer's mode-specific abbrev table, then global table."
+        case ("abbrev_table_name")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_table_name(table)"
+            entry%doc = "Return the name of the specified abbrev TABLE ("""" if it has"//LF// &
+                        "none)."
         case ("abort_minibuffers")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
@@ -518,6 +620,42 @@ contains
             entry%doc = "Add REGEXP and MODE to the front of `auto_mode_alist', so files"//LF// &
                         "whose names match REGEXP get major mode MODE.  (In"//LF// &
                         "files_mode_fm.)"
+        case ("add_global_abbrev")
+            entry%file = "abbrev_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Define a global (all modes) abbrev whose expansion is last word before point."//LF// &
+                        "If there's an active region, use that as the expansion."//LF// &
+                        ""//LF// &
+                        "Prefix argument ARG says how many words before point to use for the expansion;"//LF// &
+                        "zero means the entire region is the expansion."//LF// &
+                        ""//LF// &
+                        "A negative ARG means to undefine the specified abbrev."//LF// &
+                        ""//LF// &
+                        "This command reads the abbreviation from the minibuffer."//LF// &
+                        ""//LF// &
+                        "See also `inverse_add_global_abbrev', which performs the opposite task:"//LF// &
+                        "if the abbreviation is already in the buffer, use that command to define"//LF// &
+                        "a global abbrev by specifying its expansion in the minibuffer."//LF// &
+                        ""//LF// &
+                        "Don't use this function in a program; use `define_abbrev' instead."
+        case ("add_mode_abbrev")
+            entry%file = "abbrev_cmds_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Define a mode-specific abbrev whose expansion is the last word before point."//LF// &
+                        "If there's an active region, use that as the expansion."//LF// &
+                        ""//LF// &
+                        "Prefix argument ARG says how many words before point to use for the expansion;"//LF// &
+                        "zero means the entire region is the expansion."//LF// &
+                        ""//LF// &
+                        "A negative ARG means to undefine the specified abbrev."//LF// &
+                        ""//LF// &
+                        "This command reads the abbreviation from the minibuffer."//LF// &
+                        ""//LF// &
+                        "See also `inverse_add_mode_abbrev', which performs the opposite task:"//LF// &
+                        "if the abbreviation is already in the buffer, use that command to define"//LF// &
+                        "a mode-specific abbrev by specifying its expansion in the minibuffer."//LF// &
+                        ""//LF// &
+                        "Don't use this function in a program; use `define_abbrev' instead."
         case ("add_name_to_file")
             entry%file = "fileio_fm.f90"
             entry%fortran = "call add_name_to_file(file, newname, status, ok_if_already_exists)"
@@ -527,6 +665,11 @@ contains
                         ""//LF// &
                         "Signal a `file_already_exists' error if a file NEWNAME already exists"//LF// &
                         "unless optional third argument OK_IF_ALREADY_EXISTS is true."
+        case ("add_save_some_buffers_function")
+            entry%file = "files_fm.f90"
+            entry%fortran = "call add_save_some_buffers_function(fn)"
+            entry%doc = "Add FN to the front of `save_some_buffers_functions', unless it is"//LF// &
+                        "there (add-hook)."
         case ("append_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call append_to_register(register, start, end, status, delete_flag)"
@@ -880,6 +1023,12 @@ contains
                         ""//LF// &
                         "Compile the program including the current buffer.  Default: run"//LF// &
                         "`make'."
+        case ("copy_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call copy_abbrev_table(table, new)"
+            entry%doc = "Make a new abbrev-table NEW with the same abbrevs as TABLE."//LF// &
+                        "This function does not copy property lists of the abbrevs."//LF// &
+                        "See `define_abbrev' for the documentation of abbrev properties."
         case ("copy_directory")
             entry%file = "files_fm.f90"
             entry%fortran = "call copy_directory(directory, newname, status, keep_time, parents, copy_contents)"
@@ -1038,6 +1187,50 @@ contains
                         "than provided at the initial invocation (except for 1), or by"//LF// &
                         "doing any other command before the next M-SPC.  N is the raw"//LF// &
                         "prefix argument."
+        case ("dabbrev__same_major_mode_p")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_same_major_mode_p(other_buffer)"
+            entry%doc = "Check if OTHER_BUFFER has the same major mode as current buffer."
+        case ("dabbrev__select_buffers")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "call dabbrev_select_buffers(list)"
+            entry%doc = "Return a list of other buffers to search for a possible abbrev."//LF// &
+                        "The current buffer is not included in the list."//LF// &
+                        ""//LF// &
+                        "This function makes a list of all the buffers returned by"//LF// &
+                        "`buffer_list', then discards buffers whose names match"//LF// &
+                        "`dabbrev_ignored_buffer_names' or"//LF// &
+                        "`dabbrev_ignored_buffer_regexps', and major modes that match"//LF// &
+                        "`dabbrev_ignored_buffer_modes'.  It also discards buffers for"//LF// &
+                        "which `dabbrev_friend_buffer_function' returns"//LF// &
+                        "false when called with the buffer as argument.  It returns the list"//LF// &
+                        "of the buffers that are not discarded."
+        case ("dabbrev_expand")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "call dabbrev_expand(status, arg)"
+            entry%interactive = .true.
+            entry%doc = "Expand previous word ""dynamically""."//LF// &
+                        ""//LF// &
+                        "Expands to the most recent, preceding word for which this is a prefix."//LF// &
+                        "If no suitable preceding word is found, words following point are"//LF// &
+                        "considered.  If still no suitable word is found, then look in the"//LF// &
+                        "buffers accepted by the function pointed out by variable"//LF// &
+                        "`dabbrev_friend_buffer_function', if `dabbrev_check_other_buffers'"//LF// &
+                        "says so.  Then, if `dabbrev_check_all_buffers' is true, look in"//LF// &
+                        "all the other buffers, subject to constraints specified"//LF// &
+                        "by `dabbrev_ignored_buffer_names' and `dabbrev_ignored_buffer_regexps'."//LF// &
+                        ""//LF// &
+                        "A positive prefix argument, N, says to take the Nth backward *distinct*"//LF// &
+                        "possibility.  A negative argument says search forward."//LF// &
+                        ""//LF// &
+                        "If the cursor has not moved from the end of the previous expansion and"//LF// &
+                        "no argument is given, replace the previously-made expansion"//LF// &
+                        "with the next possible expansion not yet tried."//LF// &
+                        ""//LF// &
+                        "The variable `dabbrev_backward_only' may be used to limit the"//LF// &
+                        "direction of search to backward if set true."//LF// &
+                        ""//LF// &
+                        "See also `dabbrev_abbrev_char_regexp'."
         case ("deactivate_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call deactivate_mark(force)"
@@ -1053,6 +1246,19 @@ contains
                         ""//LF// &
                         "The inserted newline is marked hard if variable `use_hard_newlines' is true,"//LF// &
                         "unless optional argument SOFT is true."
+        case ("define_global_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call define_global_abbrev(abbrev, expansion, status)"
+            entry%interactive = .true.
+            entry%doc = "Define ABBREV as a global abbreviation that expands into EXPANSION."//LF// &
+                        "The characters in ABBREV must all be word constituents in the standard"//LF// &
+                        "syntax table."
+        case ("define_mode_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call define_mode_abbrev(abbrev, expansion, status)"
+            entry%interactive = .true.
+            entry%doc = "Define ABBREV as a mode-specific abbreviation that expands into EXPANSION."//LF// &
+                        "The characters in ABBREV must all be word-constituents in the current mode."
         case ("delete_all_space")
             entry%file = "simple_fm.f90"
             entry%fortran = "call delete_all_space(backward_only, status)"
@@ -1827,6 +2033,25 @@ contains
                         "point is ignored when moving forward."//LF// &
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."
+        case ("edit_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call edit_abbrevs(status)"
+            entry%interactive = .true.
+            entry%doc = "Alter abbrev definitions by editing the list of abbrevs."//LF// &
+                        "This selects a buffer containing the list of abbrev definitions"//LF// &
+                        "with point located in the abbrev table for the current buffer, and"//LF// &
+                        "turns on `edit_abbrevs_mode' in the buffer with the list of abbrevs."//LF// &
+                        ""//LF// &
+                        "The abbrevs editing buffer contains a header line for each"//LF// &
+                        "abbrev table, which is the abbrev table name in parentheses."//LF// &
+                        ""//LF// &
+                        "The header line is followed by one line per abbrev in that table:"//LF// &
+                        ""//LF// &
+                        "    NAME   USECOUNT   EXPANSION   HOOK"//LF// &
+                        ""//LF// &
+                        "where NAME and EXPANSION are strings with quotes,"//LF// &
+                        "USECOUNT is an integer, and HOOK is any valid function"//LF// &
+                        "that may be omitted (it is usually omitted)."
         case ("electric_indent_just_newline")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_indent_just_newline(status)"
@@ -1974,6 +2199,22 @@ contains
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Terminate this minibuffer argument."
+        case ("expand_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call expand_abbrev(status, expanded)"
+            entry%interactive = .true.
+            entry%doc = "Expand the abbrev before point, if there is an abbrev there."//LF// &
+                        "Effective when explicitly called even when `abbrev_mode' is false."//LF// &
+                        "Calls the value of `abbrev_expand_function' with no argument to do"//LF// &
+                        "the work, and returns whatever it does in EXPANDED.  (That value should"//LF// &
+                        "be the abbrev if expansion occurred, else none.)"
+        case ("expand_region_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call expand_region_abbrevs(start, end, status, noquery)"
+            entry%interactive = .true.
+            entry%doc = "For each abbrev occurrence in the region, offer to expand it."//LF// &
+                        "Ask the user to type `y' or `n' for each occurrence."//LF// &
+                        "A prefix argument means don't query; expand all abbrevs."
         case ("extract_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call extract_rectangle(start, end, rectangle, status)"
@@ -2657,6 +2898,23 @@ contains
             entry%file = "insdel_fm.f90"
             entry%fortran = "call insert(string, status)"
             entry%doc = "Insert `string' (in the buffer's representation) before point."
+        case ("insert_abbrev_table_description")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call insert_abbrev_table_description(table, status, readable)"
+            entry%doc = "Insert before point a full description of abbrev table TABLE."//LF// &
+                        "If optional 2nd arg READABLE is true, insert a human-readable"//LF// &
+                        "description."//LF// &
+                        ""//LF// &
+                        "If READABLE is false, insert Fortran: the `define' calls that,"//LF// &
+                        "in `configure', define the abbrevs of the table exactly as they"//LF// &
+                        "are currently defined."//LF// &
+                        "Abbrevs marked as ""system abbrevs"" are ignored."
+        case ("insert_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call insert_abbrevs(status)"
+            entry%interactive = .true.
+            entry%doc = "Insert the description of all defined abbrevs after point."//LF// &
+                        "Set mark after the inserted text."
         case ("insert_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call insert_rectangle(rectangle, status)"
@@ -2701,6 +2959,53 @@ contains
             entry%doc = "Interrupt process PROCESS."//LF// &
                         "PROCESS may be a process, or absent for the current buffer's"//LF// &
                         "process."
+        case ("inverse_add_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call inverse_add_abbrev(table, type, arg, status)"
+            entry%doc = "Define the word before point as an abbrev in TABLE."//LF// &
+                        "Read the expansion from the minibuffer, using prompt TYPE, define"//LF// &
+                        "the abbrev, and then expand the abbreviation in the current"//LF// &
+                        "buffer."//LF// &
+                        ""//LF// &
+                        "ARG means use the ARG-th word before point as the abbreviation."//LF// &
+                        "Negative ARG means use the ARG-th word after point."//LF// &
+                        ""//LF// &
+                        "TYPE is an arbitrary string used to prompt user for the kind of"//LF// &
+                        "abbrev, such as ""Global"", ""Mode"".  (This has no influence on the"//LF// &
+                        "choice of the actual TABLE)."//LF// &
+                        ""//LF// &
+                        "See also `add_abbrev', which performs the opposite task."
+        case ("inverse_add_global_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call inverse_add_global_abbrev(n, status)"
+            entry%interactive = .true.
+            entry%doc = "Define the word before point as a global (mode-independent) abbreviation."//LF// &
+                        "With prefix argument N, define the Nth word before point as the"//LF// &
+                        "abbreviation.  Negative N means use the Nth word after point."//LF// &
+                        ""//LF// &
+                        "This command reads the expansion from the minibuffer, defines the"//LF// &
+                        "abbrev, and then expands the abbreviation in the current buffer."//LF// &
+                        ""//LF// &
+                        "See also `add_global_abbrev', which performs the opposite task:"//LF// &
+                        "if the expansion is already in the buffer, use that command"//LF// &
+                        "to define an abbrev by specifying the abbreviation in the minibuffer."
+        case ("inverse_add_mode_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call inverse_add_mode_abbrev(n, status)"
+            entry%interactive = .true.
+            entry%doc = "Define the word before point as a mode-specific abbreviation."//LF// &
+                        "With prefix argument N, define the Nth word before point as the"//LF// &
+                        "abbreviation.  Negative N means use the Nth word after point."//LF// &
+                        ""//LF// &
+                        "If `only_global_abbrevs' is true, this command defines a"//LF// &
+                        "global (mode-independent) abbrev instead of a mode-specific one."//LF// &
+                        ""//LF// &
+                        "This command reads the expansion from the minibuffer, defines the"//LF// &
+                        "abbrev, and then expands the abbreviation in the current buffer."//LF// &
+                        ""//LF// &
+                        "See also `add_mode_abbrev', which performs the opposite task:"//LF// &
+                        "if the expansion is already in the buffer, use that command"//LF// &
+                        "to define an abbrev by specifying the abbreviation in the minibuffer."
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -2953,6 +3258,11 @@ contains
             entry%fortran = "call keymap_set(keymap, key, definition, status)"
             entry%doc = "Bind a key given as a `key_valid_p' string.  A character `command'"//LF// &
                         "names a command; otherwise it is any key definition."
+        case ("kill_all_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call kill_all_abbrevs()"
+            entry%interactive = .true.
+            entry%doc = "Undefine all defined abbrevs."
         case ("kill_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call kill_buffer(h, status)"
@@ -3337,12 +3647,25 @@ contains
                         "from the beginning of the accessible portion of the buffer.  But if the"//LF// &
                         "second optional argument ABSOLUTE is true, the value counts the lines"//LF// &
                         "from the absolute start of the buffer, disregarding the narrowing."
+        case ("list_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call list_abbrevs(status, local)"
+            entry%interactive = .true.
+            entry%doc = "Display a list of the defined abbrevs."//LF// &
+                        "If LOCAL is true (interactively, when invoked with a"//LF// &
+                        "prefix arg), display only local, i.e. mode-specific, abbrevs."//LF// &
+                        "Otherwise display all the abbrevs."
         case ("list_registers")
             entry%file = "register_fm.f90"
             entry%fortran = "call list_registers(status)"
             entry%interactive = .true.
             entry%doc = "Display the list of nonempty registers with brief descriptions of"//LF// &
                         "contents."
+        case ("local_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "local_abbrev_table()"
+            entry%doc = "Local (mode-specific) abbrev table of current buffer (null for"//LF// &
+                        "none)."
         case ("looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "looking_at(regexp, status, inhibit_modify)"
@@ -4986,6 +5309,8 @@ contains
             entry%doc = "Insert the character you type."//LF// &
                         "Whichever character C you type to run this command is inserted."//LF// &
                         "The numeric prefix argument N says how many times to repeat the insertion."//LF// &
+                        "Before insertion, `expand_abbrev' is executed if the inserted character does"//LF// &
+                        "not have word syntax and the previous character in the buffer does."//LF// &
                         "After insertion, `internal_auto_fill' is called if"//LF// &
                         "`auto_fill_function' is true and if the `auto_fill_chars' table has"//LF// &
                         "a true value for the inserted character.  At the end, it runs"//LF// &
@@ -5057,6 +5382,11 @@ contains
                         "Filling expects lines to start with the fill prefix and"//LF// &
                         "reinserts the fill prefix in each resulting line."//LF// &
                         "With a prefix argument, cancel the fill prefix."
+        case ("set_local_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call set_local_abbrev_table(table)"
+            entry%doc = "Make TABLE the local abbrev table of the current buffer, as"//LF// &
+                        "`(setq local-abbrev-table TABLE)'."
         case ("set_mark")
             entry%file = "simple_fm.f90"
             entry%fortran = "call set_mark(pos)"
@@ -5511,6 +5841,13 @@ contains
             entry%fortran = "call undo_redo(arg, status)"
             entry%interactive = .true.
             entry%doc = "Undo the last ARG undos, i.e., redo the last ARG changes."
+        case ("unexpand_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call unexpand_abbrev(status)"
+            entry%interactive = .true.
+            entry%doc = "Undo the expansion of the last abbrev that expanded."//LF// &
+                        "This differs from ordinary undo in that other editing done since then"//LF// &
+                        "is not undone."
         case ("unfill_paragraph")
             entry%file = "fill_fm.f90"
             entry%fortran = "call unfill_paragraph(arg, status, beg, end)"
@@ -5931,6 +6268,21 @@ contains
                         "Argument is a character, the name of the register."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("write_abbrev_file")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "call write_abbrev_file(status, file, verbose)"
+            entry%interactive = .true.
+            entry%doc = "Write all user-level abbrev definitions to the init file, as"//LF// &
+                        "Fortran."//LF// &
+                        "This does not include system abbrevs; it includes only the abbrev tables"//LF// &
+                        "listed in `abbrev_table_name_list'."//LF// &
+                        "The file written defines the same abbrevs in the next session (after"//LF// &
+                        "\[fortmacs --recompile]): they replace the abbrevs it defined before, at the"//LF// &
+                        "end of `configure'."//LF// &
+                        "The argument FILE is the file name to write.  If omitted or empty, it defaults"//LF// &
+                        "to the value of `abbrev_file_name'."//LF// &
+                        "If VERBOSE is true, display a message indicating the file where the"//LF// &
+                        "abbrevs have been saved."
         case ("write_file")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
@@ -6055,6 +6407,55 @@ contains
         found = .true.
         entry%original = ""
         select case (name)
+        case ("abbrev_all_caps")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_all_caps"
+            entry%original = ".false."
+            entry%value = repr(abbrev_all_caps)
+            entry%doc = "True means expand multi-word abbrevs in all caps if the abbrev was so."
+        case ("abbrev_file_name")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_file_name"
+            if (allocated(abbrev_file_name)) then
+                entry%value = repr(abbrev_file_name)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Default name of file from which to read and where to save abbrevs."//LF// &
+                        "In Fortmacs it is the init file, whose `configure' gets the abbrevs"//LF// &
+                        "as `define' calls (unallocated: the init file)."
+        case ("abbrev_mode")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_mode"
+            entry%value = repr(abbrev_mode%value)
+            entry%doc = "True if Abbrev mode is enabled."//LF// &
+                        "Use the command `abbrev_mode' to change the value of this variable in"//LF// &
+                        "the current buffer.  Customize this variable to true to enable Abbrev"//LF// &
+                        "mode by default in all buffers."
+        case ("abbrev_start_location")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_start_location"
+            entry%doc = "Buffer position for `expand_abbrev' to use as the start of the abbrev"//LF// &
+                        "(a marker; the null handle for none)."//LF// &
+                        "When none, use the word before point as the abbrev."//LF// &
+                        "Calling `expand_abbrev' sets this to none."
+        case ("abbrev_start_location_buffer")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_start_location_buffer"
+            entry%doc = "Buffer that `abbrev_start_location' has been set for."//LF// &
+                        "Trying to expand an abbrev in any other buffer clears"//LF// &
+                        "`abbrev_start_location'."
+        case ("abbrev_table_name_list")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrev_table_name_list"
+            entry%doc = "List of the tables whose values are abbrev tables."
+        case ("abbrevs_changed")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "abbrevs_changed"
+            entry%original = ".false."
+            entry%value = repr(abbrevs_changed)
+            entry%doc = "True if any word abbrevs were defined or altered."//LF// &
+                        "This causes `save_some_buffers' to offer to save the abbrevs."
         case ("adaptive_fill_first_line_regexp")
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_first_line_regexp"
@@ -6556,6 +6957,247 @@ contains
                         "  interpret it as a number, e.g., CYCLE_DELETE_SPACE_BEFORE and"//LF// &
                         "  CYCLE_DELETE_SPACE_AFTER treat it like 0 whereas"//LF// &
                         "  CYCLE_JUST_ONE_SPACE treats it like -1 as is usual."
+        case ("dabbrev_abbrev_char_regexp")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_abbrev_char_regexp"
+            if (allocated(dabbrev_abbrev_char_regexp)) then
+                entry%value = repr(dabbrev_abbrev_char_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to recognize a character in an abbreviation or expansion."//LF// &
+                        "This regexp will be surrounded with \\( ... \\) when actually used."//LF// &
+                        ""//LF// &
+                        "Set this variable to ""\\sw"" if you want ordinary words or"//LF// &
+                        """\\sw\\|\\s_"" if you want symbols (including characters"//LF// &
+                        "whose syntax is ""symbol"" as well as those whose syntax is"//LF// &
+                        """word"").  The abbreviation is from point to the start of the"//LF// &
+                        "previous sequence of characters matching this variable."//LF// &
+                        ""//LF// &
+                        "The default value (unallocated) is equivalent to ""\\sw\\|\\s_""."//LF// &
+                        ""//LF// &
+                        "For instance, suppose the current buffer is in `c_mode'.  If this"//LF// &
+                        "variable is unallocated or ""\\sw\\|\\s_"", then expanding"//LF// &
+                        "`debug_print_in_' looks for a symbol starting with"//LF// &
+                        "`debug_print_in_'.  If you set this variable to ""\\sw"", that"//LF// &
+                        "expansion looks for a word prefixed with `in_' (e.g., it would"//LF// &
+                        "match `in_range', but not `in_close_range').  If expanding"//LF// &
+                        "`debug_print_in' it would look for a word starting with"//LF// &
+                        "`in' (e.g. `integer')."
+        case ("dabbrev_abbrev_skip_leading_regexp")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_abbrev_skip_leading_regexp"
+            if (allocated(dabbrev_abbrev_skip_leading_regexp)) then
+                entry%value = repr(dabbrev_abbrev_skip_leading_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp for skipping leading characters of an abbreviation."//LF// &
+                        ""//LF// &
+                        "Example: Set this to ""\\$"" for programming languages"//LF// &
+                        "in which variable names may appear with or without a leading `$'."//LF// &
+                        "(For example, in Makefiles.)"//LF// &
+                        ""//LF// &
+                        "Leave this unallocated if no characters should be skipped."
+        case ("dabbrev_backward_only")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_backward_only"
+            entry%original = ".false."
+            entry%value = repr(dabbrev_backward_only)
+            entry%doc = "If true, `dabbrev_expand' only looks backwards."
+        case ("dabbrev_case_distinction")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_case_distinction"
+            entry%original = "DABBREV_LIKE_CASE_REPLACE"
+            select case (dabbrev_case_distinction)
+            case (DABBREV_OFF)
+                entry%value = "DABBREV_OFF"
+            case (DABBREV_ON)
+                entry%value = "DABBREV_ON"
+            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
+                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+            case (DABBREV_LIKE_CASE_REPLACE)
+                entry%value = "DABBREV_LIKE_CASE_REPLACE"
+            case (DABBREV_ASK)
+                entry%value = "DABBREV_ASK"
+            case default
+                entry%value = repr(dabbrev_case_distinction)
+            end select
+            entry%doc = "Whether dabbrev treats expansions as the same if they differ in case."//LF// &
+                        ""//LF// &
+                        "A value of DABBREV_OFF means treat them as different."//LF// &
+                        "A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if"//LF// &
+                        "`case_replace' is false."//LF// &
+                        "Any other value means to treat them as the same."//LF// &
+                        ""//LF// &
+                        "This variable has an effect only when the value of"//LF// &
+                        "`dabbrev_case_fold_search' specifies to ignore case."
+        case ("dabbrev_case_fold_search")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_case_fold_search"
+            entry%original = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+            select case (dabbrev_case_fold_search)
+            case (DABBREV_OFF)
+                entry%value = "DABBREV_OFF"
+            case (DABBREV_ON)
+                entry%value = "DABBREV_ON"
+            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
+                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+            case (DABBREV_LIKE_CASE_REPLACE)
+                entry%value = "DABBREV_LIKE_CASE_REPLACE"
+            case (DABBREV_ASK)
+                entry%value = "DABBREV_ASK"
+            case default
+                entry%value = repr(dabbrev_case_fold_search)
+            end select
+            entry%doc = "Control whether dabbrev searches should ignore case."//LF// &
+                        "A value of DABBREV_OFF means case is significant."//LF// &
+                        "A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant"//LF// &
+                        " if `case_fold_search' is false."//LF// &
+                        "Any other value means case is not significant."
+        case ("dabbrev_case_replace")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_case_replace"
+            entry%original = "DABBREV_LIKE_CASE_REPLACE"
+            select case (dabbrev_case_replace)
+            case (DABBREV_OFF)
+                entry%value = "DABBREV_OFF"
+            case (DABBREV_ON)
+                entry%value = "DABBREV_ON"
+            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
+                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+            case (DABBREV_LIKE_CASE_REPLACE)
+                entry%value = "DABBREV_LIKE_CASE_REPLACE"
+            case (DABBREV_ASK)
+                entry%value = "DABBREV_ASK"
+            case default
+                entry%value = repr(dabbrev_case_replace)
+            end select
+            entry%doc = "Whether dabbrev applies the abbreviations's case pattern to the expansion."//LF// &
+                        ""//LF// &
+                        "A value of DABBREV_OFF means preserve the expansion's case pattern."//LF// &
+                        "A value of DABBREV_LIKE_CASE_REPLACE means preserve it if `case_replace'"//LF// &
+                        "is false."//LF// &
+                        "Any other value means modify the expansion"//LF// &
+                        "by applying the abbreviation's case pattern to it."//LF// &
+                        ""//LF// &
+                        "This variable has an effect only when the value of"//LF// &
+                        "`dabbrev_case_fold_search' specifies to ignore case."
+        case ("dabbrev_check_all_buffers")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_check_all_buffers"
+            entry%original = ".true."
+            entry%value = repr(dabbrev_check_all_buffers)
+            entry%doc = "True means dabbrev package should search *all* buffers."//LF// &
+                        ""//LF// &
+                        "Dabbrev always searches the current buffer first.  Then, if"//LF// &
+                        "`dabbrev_check_other_buffers' says so, it searches the buffers"//LF// &
+                        "designated by `dabbrev_select_buffers_function'."//LF// &
+                        ""//LF// &
+                        "Then, if `dabbrev_check_all_buffers' is true, dabbrev searches"//LF// &
+                        "all the other buffers, except those named in `dabbrev_ignored_buffer_names',"//LF// &
+                        "or matched by `dabbrev_ignored_buffer_regexps'."
+        case ("dabbrev_check_other_buffers")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_check_other_buffers"
+            entry%original = "DABBREV_ON"
+            select case (dabbrev_check_other_buffers)
+            case (DABBREV_OFF)
+                entry%value = "DABBREV_OFF"
+            case (DABBREV_ON)
+                entry%value = "DABBREV_ON"
+            case (DABBREV_LIKE_CASE_FOLD_SEARCH)
+                entry%value = "DABBREV_LIKE_CASE_FOLD_SEARCH"
+            case (DABBREV_LIKE_CASE_REPLACE)
+                entry%value = "DABBREV_LIKE_CASE_REPLACE"
+            case (DABBREV_ASK)
+                entry%value = "DABBREV_ASK"
+            case default
+                entry%value = repr(dabbrev_check_other_buffers)
+            end select
+            entry%doc = "Should \[dabbrev_expand] look in other buffers?"//LF// &
+                        "DABBREV_OFF: Don't look in other buffers."//LF// &
+                        "DABBREV_ON: Also look for expansions in the buffers pointed out by"//LF// &
+                        "   `dabbrev_select_buffers_function'."//LF// &
+                        "DABBREV_ASK: When we can't find any more expansions in"//LF// &
+                        "the current buffer, then ask the user whether to look in other"//LF// &
+                        "buffers too."//LF// &
+                        ""//LF// &
+                        "The default value is DABBREV_ON."
+        case ("dabbrev_eliminate_newlines")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_eliminate_newlines"
+            entry%original = ".true."
+            entry%value = repr(dabbrev_eliminate_newlines)
+            entry%doc = "True means dabbrev should not insert newlines."//LF// &
+                        "Instead it converts them to spaces."
+        case ("dabbrev_ignored_buffer_modes")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_ignored_buffer_modes"
+            if (allocated(dabbrev_ignored_buffer_modes)) then
+                entry%value = repr(dabbrev_ignored_buffer_modes)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Inhibit looking for abbreviations in buffers derived from these modes."//LF// &
+                        "See also `dabbrev_ignored_buffer_names' and"//LF// &
+                        "`dabbrev_ignored_buffer_regexps'."
+        case ("dabbrev_ignored_buffer_names")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_ignored_buffer_names"
+            if (allocated(dabbrev_ignored_buffer_names)) then
+                entry%value = repr(dabbrev_ignored_buffer_names)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of buffer names that dabbrev should not check."//LF// &
+                        "See also `dabbrev_ignored_buffer_regexps' and"//LF// &
+                        "`dabbrev_ignored_buffer_modes'."
+        case ("dabbrev_ignored_buffer_regexps")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_ignored_buffer_regexps"
+            if (allocated(dabbrev_ignored_buffer_regexps)) then
+                entry%value = repr(dabbrev_ignored_buffer_regexps)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of regexps matching names of buffers that dabbrev should not check."//LF// &
+                        "See also `dabbrev_ignored_buffer_names' and"//LF// &
+                        "`dabbrev_ignored_buffer_modes'."
+        case ("dabbrev_limit")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_limit"
+            if (allocated(dabbrev_limit)) then
+                entry%value = repr(dabbrev_limit)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Limits region searched by `dabbrev_expand' to this many chars away"//LF// &
+                        "(unallocated: off)."
+        case ("dabbrev_search_these_buffers_only")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_search_these_buffers_only"
+            if (allocated(dabbrev_search_these_buffers_only)) then
+                entry%value = repr(dabbrev_search_these_buffers_only)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, a list of buffers which dabbrev should search (their"//LF// &
+                        "names)."//LF// &
+                        "If this variable is allocated and not empty, dabbrev will only look in"//LF// &
+                        "these buffers.  It will not even look in the current buffer if it is not a"//LF// &
+                        "member of this list."
+        case ("dabbrev_upcase_means_case_search")
+            entry%file = "dabbrev_fm.f90"
+            entry%fortran = "dabbrev_upcase_means_case_search"
+            entry%original = ".false."
+            entry%value = repr(dabbrev_upcase_means_case_search)
+            entry%doc = "The significance of an uppercase character in an abbreviation."//LF// &
+                        "A false value means case fold search when searching for possible expansions;"//LF// &
+                        "true means case sensitive search."//LF// &
+                        ""//LF// &
+                        "This variable has an effect only when the value of"//LF// &
+                        "`dabbrev_case_fold_search' says to ignore case."
         case ("default_justification")
             entry%file = "fill_fm.f90"
             entry%fortran = "default_justification"
@@ -7337,6 +7979,18 @@ contains
             entry%doc = "If not DEDICATED_NONE, `display_buffer' marks the windows it creates as"//LF// &
                         "dedicated.  The actual value of this variable will be copied"//LF// &
                         "to the `window_dedicated_p' flag."
+        case ("edit_abbrevs_mode_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "edit_abbrevs_mode_abbrev_table"
+            entry%doc = "Abbrev table for `edit_abbrevs_mode'."
+        case ("edit_abbrevs_mode_hook")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "edit_abbrevs_mode_hook"
+            entry%doc = "Hook run after entering `edit_abbrevs_mode'."
+        case ("edit_abbrevs_mode_map")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "edit_abbrevs_mode_map"
+            entry%doc = "Keymap used in `edit_abbrevs'."
         case ("edmacro_eight_bits")
             entry%file = "edmacro_fm.f90"
             entry%fortran = "edmacro_eight_bits"
@@ -7651,6 +8305,17 @@ contains
                         "Each function is called with one argument POS.  Functions must"//LF// &
                         "fontify a region starting at POS in the current buffer, and give"//LF// &
                         "fontified regions the property `fontified' with a true value."
+        case ("fundamental_mode_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "fundamental_mode_abbrev_table"
+            entry%doc = "The abbrev table of mode-specific abbrevs for Fundamental Mode."
+        case ("global_abbrev_table")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "global_abbrev_table"
+            entry%doc = "The abbrev table whose abbrevs affect all buffers."//LF// &
+                        "Each buffer may also have a local abbrev table."//LF// &
+                        "If it does, the local table overrides the global one"//LF// &
+                        "for any particular abbrev defined in both."
         case ("global_font_lock_mode_hook")
             entry%file = "font_core_fm.f90"
             entry%fortran = "global_font_lock_mode_hook"
@@ -7667,6 +8332,10 @@ contains
             entry%file = "help_fm.f90"
             entry%fortran = "help_map"
             entry%doc = "Keymap for characters following the Help key."
+        case ("help_mode_abbrev_table")
+            entry%file = "help_mode_fm.f90"
+            entry%fortran = "help_mode_abbrev_table"
+            entry%doc = "Abbrev table for `help_mode'."
         case ("help_mode_hook")
             entry%file = "help_mode_fm.f90"
             entry%fortran = "help_mode_hook"
@@ -7985,6 +8654,26 @@ contains
             entry%original = "8"
             entry%value = repr(kmacro_ring_max)
             entry%doc = "Maximum number of keyboard macros to save in macro ring."
+        case ("last_abbrev")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "last_abbrev"
+            entry%doc = "The abbrev of the last abbrev expanded.  See `abbrev_symbol'."
+        case ("last_abbrev_location")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "last_abbrev_location"
+            entry%original = "0"
+            entry%value = repr(last_abbrev_location)
+            entry%doc = "The location of the start of the last abbrev that was expanded."
+        case ("last_abbrev_text")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "last_abbrev_text"
+            if (allocated(last_abbrev_text)) then
+                entry%value = repr(last_abbrev_text)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The exact text of the last abbrev that was expanded."//LF// &
+                        "It is unallocated if the abbrev has already been unexpanded."
         case ("last_input_event")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "last_input_event"
@@ -8119,6 +8808,14 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("only_global_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "only_global_abbrevs"
+            entry%original = ".false."
+            entry%value = repr(only_global_abbrevs)
+            entry%doc = "True means user plans to use only global abbrevs."//LF// &
+                        "This makes the commands that normally define mode-specific abbrevs"//LF// &
+                        "define global abbrevs instead."
         case ("open_paren_in_column_0_is_defun_start")
             entry%file = "syntax_fm.f90"
             entry%fortran = "open_paren_in_column_0_is_defun_start"
@@ -8213,6 +8910,10 @@ contains
             entry%doc = "Control type of device used to communicate with subprocesses."//LF// &
                         "Values are false to use a pipe, or true to use a pty."//LF// &
                         "The value takes effect when `start_process' is called."
+        case ("prog_mode_abbrev_table")
+            entry%file = "prog_mode_fm.f90"
+            entry%fortran = "prog_mode_abbrev_table"
+            entry%doc = "Abbrev table for `prog_mode'."
         case ("prog_mode_hook")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_hook"
@@ -8445,6 +9146,37 @@ contains
             entry%value = repr(revert_buffer_preserve_modes)
             entry%doc = "True means `revert_buffer' should not reinitialize the modes"//LF// &
                         "(the PRESERVE_MODES argument)."
+        case ("save_abbrevs")
+            entry%file = "abbrev_fm.f90"
+            entry%fortran = "save_abbrevs"
+            entry%original = "SAVE_ABBREVS_ASK"
+            select case (save_abbrevs)
+            case (SAVE_ABBREVS_NEVER)
+                entry%value = "SAVE_ABBREVS_NEVER"
+            case (SAVE_ABBREVS_ASK)
+                entry%value = "SAVE_ABBREVS_ASK"
+            case (SAVE_ABBREVS_SILENTLY)
+                entry%value = "SAVE_ABBREVS_SILENTLY"
+            case default
+                entry%value = repr(save_abbrevs)
+            end select
+            entry%doc = "True means save word abbrevs too when files are saved."//LF// &
+                        "If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving."
+        case ("save_some_buffers_functions")
+            entry%file = "files_fm.f90"
+            entry%fortran = "save_some_buffers_functions"
+            entry%doc = "Functions to be run by `save_some_buffers' after saving the buffers."//LF// &
+                        "These functions (`save_some_buffers_proc') can be called in two"//LF// &
+                        """modes"", depending on their first argument, QUERY.  If QUERY is true,"//LF// &
+                        "then the function should return true if there is something to be"//LF// &
+                        "saved (but it should not actually save anything)."//LF// &
+                        ""//LF// &
+                        "If QUERY is false, then the function should"//LF// &
+                        "save according to the value of the second argument, which is the"//LF// &
+                        "ARG argument with which `save_some_buffers' was called."//LF// &
+                        ""//LF// &
+                        "The main purpose of these functions is to save stuff that is kept"//LF// &
+                        "in variables (rather than in buffers)."
         case ("scroll_error_top_bottom")
             entry%file = "window_fm.f90"
             entry%fortran = "scroll_error_top_bottom"
@@ -8762,6 +9494,10 @@ contains
             entry%value = repr(show_paren_when_point_inside_paren)
             entry%doc = "If true, show parens when point is just inside one."//LF// &
                         "This will only be done when point isn't also just outside a paren."
+        case ("special_mode_abbrev_table")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "special_mode_abbrev_table"
+            entry%doc = "Abbrev table for `special_mode'."
         case ("special_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_hook"
@@ -8857,6 +9593,10 @@ contains
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
+        case ("text_mode_abbrev_table")
+            entry%file = "text_mode_fm.f90"
+            entry%fortran = "text_mode_abbrev_table"
+            entry%doc = "Abbrev table for `text_mode'."
         case ("text_mode_hook")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_hook"

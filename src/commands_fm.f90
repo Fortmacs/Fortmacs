@@ -32,8 +32,12 @@ module commands_fm
 
     !> One component per built-in command.
     type :: command_table_type
+        type(command_type) :: abbrev_mode
+        type(command_type) :: abbrev_prefix_mark
         type(command_type) :: abort_minibuffers
         type(command_type) :: abort_recursive_edit
+        type(command_type) :: add_global_abbrev
+        type(command_type) :: add_mode_abbrev
         type(command_type) :: append_to_register
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
@@ -66,7 +70,10 @@ module commands_fm
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
         type(command_type) :: cycle_spacing
+        type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
+        type(command_type) :: define_global_abbrev
+        type(command_type) :: define_mode_abbrev
         type(command_type) :: delete_all_space
         type(command_type) :: delete_backward_char
         type(command_type) :: delete_blank_lines
@@ -158,6 +165,7 @@ module commands_fm
         type(command_type) :: down_list
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
+        type(command_type) :: edit_abbrevs
         type(command_type) :: electric_indent_just_newline
         type(command_type) :: electric_indent_local_mode
         type(command_type) :: electric_indent_mode
@@ -172,6 +180,8 @@ module commands_fm
         type(command_type) :: exchange_point_and_mark
         type(command_type) :: execute_extended_command
         type(command_type) :: exit_minibuffer
+        type(command_type) :: expand_abbrev
+        type(command_type) :: expand_region_abbrevs
         type(command_type) :: file_to_register
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
@@ -216,7 +226,10 @@ module commands_fm
         type(command_type) :: indent_rigidly_right_to_tab_stop
         type(command_type) :: indent_tabs_mode
         type(command_type) :: indent_to
+        type(command_type) :: insert_abbrevs
         type(command_type) :: insert_register
+        type(command_type) :: inverse_add_global_abbrev
+        type(command_type) :: inverse_add_mode_abbrev
         type(command_type) :: isearch_abort
         type(command_type) :: isearch_backward
         type(command_type) :: isearch_backward_regexp
@@ -248,6 +261,7 @@ module commands_fm
         type(command_type) :: just_one_space
         type(command_type) :: justify_current_line
         type(command_type) :: keyboard_quit
+        type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
         type(command_type) :: kill_line
@@ -291,6 +305,7 @@ module commands_fm
         type(command_type) :: kmacro_view_ring_2nd
         type(command_type) :: left_char
         type(command_type) :: left_word
+        type(command_type) :: list_abbrevs
         type(command_type) :: list_registers
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
@@ -395,6 +410,7 @@ module commands_fm
         type(command_type) :: undo
         type(command_type) :: undo_only
         type(command_type) :: undo_redo
+        type(command_type) :: unexpand_abbrev
         type(command_type) :: unfill_paragraph
         type(command_type) :: universal_argument
         type(command_type) :: universal_argument_minus
@@ -434,6 +450,7 @@ module commands_fm
         type(command_type) :: what_line
         type(command_type) :: where_is
         type(command_type) :: window_configuration_to_register
+        type(command_type) :: write_abbrev_file
         type(command_type) :: write_file
         type(command_type) :: y_or_n_p_insert_n
         type(command_type) :: y_or_n_p_insert_other
@@ -447,9 +464,13 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(409) = [character(len=39) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(426) = [character(len=39) :: &
+                                                                 "abbrev_mode", &
+                                                                 "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
+                                                                 "add_global_abbrev", &
+                                                                 "add_mode_abbrev", &
                                                                  "append_to_register", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
@@ -482,7 +503,10 @@ module commands_fm
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
                                                                  "cycle_spacing", &
+                                                                 "dabbrev_expand", &
                                                                  "default_indent_new_line", &
+                                                                 "define_global_abbrev", &
+                                                                 "define_mode_abbrev", &
                                                                  "delete_all_space", &
                                                                  "delete_backward_char", &
                                                                  "delete_blank_lines", &
@@ -574,6 +598,7 @@ module commands_fm
                                                                  "down_list", &
                                                                  "downcase_region", &
                                                                  "downcase_word", &
+                                                                 "edit_abbrevs", &
                                                                  "electric_indent_just_newline", &
                                                                  "electric_indent_local_mode", &
                                                                  "electric_indent_mode", &
@@ -588,6 +613,8 @@ module commands_fm
                                                                  "exchange_point_and_mark", &
                                                                  "execute_extended_command", &
                                                                  "exit_minibuffer", &
+                                                                 "expand_abbrev", &
+                                                                 "expand_region_abbrevs", &
                                                                  "file_to_register", &
                                                                  "fill_paragraph", &
                                                                  "fill_region", &
@@ -632,7 +659,10 @@ module commands_fm
                                                                  "indent_rigidly_right_to_tab_stop", &
                                                                  "indent_tabs_mode", &
                                                                  "indent_to", &
+                                                                 "insert_abbrevs", &
                                                                  "insert_register", &
+                                                                 "inverse_add_global_abbrev", &
+                                                                 "inverse_add_mode_abbrev", &
                                                                  "isearch_abort", &
                                                                  "isearch_backward", &
                                                                  "isearch_backward_regexp", &
@@ -664,6 +694,7 @@ module commands_fm
                                                                  "just_one_space", &
                                                                  "justify_current_line", &
                                                                  "keyboard_quit", &
+                                                                 "kill_all_abbrevs", &
                                                                  "kill_buffer", &
                                                                  "kill_compilation", &
                                                                  "kill_line", &
@@ -707,6 +738,7 @@ module commands_fm
                                                                  "kmacro_view_ring_2nd", &
                                                                  "left_char", &
                                                                  "left_word", &
+                                                                 "list_abbrevs", &
                                                                  "list_registers", &
                                                                  "map_query_replace_regexp", &
                                                                  "mark_end_of_sentence", &
@@ -811,6 +843,7 @@ module commands_fm
                                                                  "undo", &
                                                                  "undo_only", &
                                                                  "undo_redo", &
+                                                                 "unexpand_abbrev", &
                                                                  "unfill_paragraph", &
                                                                  "universal_argument", &
                                                                  "universal_argument_minus", &
@@ -850,6 +883,7 @@ module commands_fm
                                                                  "what_line", &
                                                                  "where_is", &
                                                                  "window_configuration_to_register", &
+                                                                 "write_abbrev_file", &
                                                                  "write_file", &
                                                                  "y_or_n_p_insert_n", &
                                                                  "y_or_n_p_insert_other", &
@@ -867,10 +901,18 @@ contains
         type(command_type), pointer :: p
         p => null()
         select case (name)
+        case ("abbrev_mode")
+            p => commands%abbrev_mode
+        case ("abbrev_prefix_mark")
+            p => commands%abbrev_prefix_mark
         case ("abort_minibuffers")
             p => commands%abort_minibuffers
         case ("abort_recursive_edit")
             p => commands%abort_recursive_edit
+        case ("add_global_abbrev")
+            p => commands%add_global_abbrev
+        case ("add_mode_abbrev")
+            p => commands%add_mode_abbrev
         case ("append_to_register")
             p => commands%append_to_register
         case ("auto_fill_mode")
@@ -935,8 +977,14 @@ contains
             p => commands%copy_to_register
         case ("cycle_spacing")
             p => commands%cycle_spacing
+        case ("dabbrev_expand")
+            p => commands%dabbrev_expand
         case ("default_indent_new_line")
             p => commands%default_indent_new_line
+        case ("define_global_abbrev")
+            p => commands%define_global_abbrev
+        case ("define_mode_abbrev")
+            p => commands%define_mode_abbrev
         case ("delete_all_space")
             p => commands%delete_all_space
         case ("delete_backward_char")
@@ -1119,6 +1167,8 @@ contains
             p => commands%downcase_region
         case ("downcase_word")
             p => commands%downcase_word
+        case ("edit_abbrevs")
+            p => commands%edit_abbrevs
         case ("electric_indent_just_newline")
             p => commands%electric_indent_just_newline
         case ("electric_indent_local_mode")
@@ -1147,6 +1197,10 @@ contains
             p => commands%execute_extended_command
         case ("exit_minibuffer")
             p => commands%exit_minibuffer
+        case ("expand_abbrev")
+            p => commands%expand_abbrev
+        case ("expand_region_abbrevs")
+            p => commands%expand_region_abbrevs
         case ("file_to_register")
             p => commands%file_to_register
         case ("fill_paragraph")
@@ -1235,8 +1289,14 @@ contains
             p => commands%indent_tabs_mode
         case ("indent_to")
             p => commands%indent_to
+        case ("insert_abbrevs")
+            p => commands%insert_abbrevs
         case ("insert_register")
             p => commands%insert_register
+        case ("inverse_add_global_abbrev")
+            p => commands%inverse_add_global_abbrev
+        case ("inverse_add_mode_abbrev")
+            p => commands%inverse_add_mode_abbrev
         case ("isearch_abort")
             p => commands%isearch_abort
         case ("isearch_backward")
@@ -1299,6 +1359,8 @@ contains
             p => commands%justify_current_line
         case ("keyboard_quit")
             p => commands%keyboard_quit
+        case ("kill_all_abbrevs")
+            p => commands%kill_all_abbrevs
         case ("kill_buffer")
             p => commands%kill_buffer
         case ("kill_compilation")
@@ -1385,6 +1447,8 @@ contains
             p => commands%left_char
         case ("left_word")
             p => commands%left_word
+        case ("list_abbrevs")
+            p => commands%list_abbrevs
         case ("list_registers")
             p => commands%list_registers
         case ("map_query_replace_regexp")
@@ -1593,6 +1657,8 @@ contains
             p => commands%undo_only
         case ("undo_redo")
             p => commands%undo_redo
+        case ("unexpand_abbrev")
+            p => commands%unexpand_abbrev
         case ("unfill_paragraph")
             p => commands%unfill_paragraph
         case ("universal_argument")
@@ -1671,6 +1737,8 @@ contains
             p => commands%where_is
         case ("window_configuration_to_register")
             p => commands%window_configuration_to_register
+        case ("write_abbrev_file")
+            p => commands%write_abbrev_file
         case ("write_file")
             p => commands%write_file
         case ("y_or_n_p_insert_n")

@@ -22,7 +22,7 @@
 !> Motion, deletion and insertion commands on the current buffer, and
 !> their registration as commands (`syms_of_cmds').
 !>
-!> Deferred: overwrite mode and abbrevs in `self_insert_command',
+!> Deferred: overwrite mode in `self_insert_command',
 !> `translation_table_for_input', and intangible/invisible text.
 module cmds_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -45,6 +45,9 @@ module cmds_fm
     use data_fm, only: value_eq
     use undo_fm, only: undo_auto_amalgamate, this_command_amalgamating
     use dispnew_fm, only: ding
+    use syntax_fm, only: char_syntax_class, SWORD
+    use editfns_fm, only: preceding_char
+    use abbrev_fm, only: abbrev_mode_p, expand_abbrev, abbrev_ref_type, abbrev_no_self_insert
     implicit none(type, external)
     private
 
@@ -228,9 +231,9 @@ contains
     !> Insert character `c' `n' times, then run `post_self_insert_hook';
     !> `c' becomes `last_command_event'.  Port of
     !> cmds.c:Fself_insert_command with internal_self_insert reduced to
-    !> the insertion, auto-fill and the hook (no overwrite or abbrevs).  A
-    !> non-character `c' (-1: `last_command_event' is not a character)
-    !> rings the bell.
+    !> abbrev expansion, the insertion, auto-fill and the hook (no
+    !> overwrite).  A non-character `c' (-1: `last_command_event' is not a
+    !> character) rings the bell.
     recursive subroutine self_insert_command(n, c, status)
         integer(int64), intent(in) :: n, c
         type(status_type), intent(out) :: status
@@ -255,10 +258,11 @@ contains
         if (hairy == 2) this_command_amalgamating = .false.
     end subroutine self_insert_command
 
-    !> Insert character `c' `n' times, auto-fill and run
-    !> `post_self_insert_hook'; `hairy' is 2 when auto-filling did
-    !> something (the undo amalgamation is then reset).  Port of
-    !> cmds.c:internal_self_insert (no overwrite mode, abbrevs or change
+    !> Expand an abbrev before point, insert character `c' `n' times,
+    !> auto-fill and run `post_self_insert_hook'; `hairy' is 1 when an
+    !> abbrev's hook said not to insert, 2 when an abbrev expanded or
+    !> auto-filling did something (the undo amalgamation is then reset).
+    !> Port of cmds.c:internal_self_insert (no overwrite mode or change
     !> functions).
     recursive subroutine internal_self_insert(c, n, hairy, status)
         integer(int32), intent(in) :: c
@@ -266,7 +270,28 @@ contains
         integer, intent(out) :: hairy
         type(status_type), intent(out) :: status
         logical :: filled
+        integer(int64) :: modiff
+        type(abbrev_ref_type) :: sym
         hairy = 0
+        status = status_type()
+        if (abbrev_mode_p()) then
+            if (char_syntax_class(int(c)) /= SWORD .and. .not. buffers(cur)%read_only .and. &
+                buffers(cur)%pt > buffers(cur)%begv) then
+                if (char_syntax_class(int(preceding_char())) == SWORD) then
+                    modiff = buffers(cur)%text%modiff
+                    call expand_abbrev(status, sym)
+                    if (.not. status%ok()) return
+                    ! If we expanded an abbrev which has a hook,
+                    ! and the hook has a `no_self_insert' property,
+                    ! return right away--don't really self-insert.
+                    if (abbrev_no_self_insert(sym)) then
+                        hairy = 1
+                        return
+                    end if
+                    if (buffers(cur)%text%modiff /= modiff) hairy = 2
+                end if
+            end if
+        end if
         call insert_char_n(c, n, status)
         if (.not. status%ok()) return
         if (auto_fill_char_p(c) .and. associated(auto_fill_function%value) .and. associated(internal_auto_fill_hook)) then
@@ -409,11 +434,13 @@ contains
     !> Insert the character you type.
     !> Whichever character C you type to run this command is inserted.
     !> The numeric prefix argument N says how many times to repeat the insertion.
+    !> Before insertion, `expand_abbrev' is executed if the inserted character does
+    !> not have word syntax and the previous character in the buffer does.
     !> After insertion, `internal_auto_fill' is called if
     !> `auto_fill_function' is true and if the `auto_fill_chars' table has
     !> a true value for the inserted character.  At the end, it runs
     !> `post_self_insert_hook'.  Port of cmds.c:Fself_insert_command (the
-    !> command; abbrevs are not ported).
+    !> command).
     recursive subroutine cmd_self_insert_command(status)
         type(status_type), intent(out) :: status
         status = status_type()
