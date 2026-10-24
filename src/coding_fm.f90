@@ -2245,6 +2245,7 @@ contains
         eol = codings(id)%eol
         if (inhibit_eol_conversion%value .or. eol == EOL_UNDECIDED) eol = EOL_UNIX
         call consume_chars(text, mb, eol, chars, n)
+        deallocate (out)
         allocate (character(len=max(16_int64, 2*n)) :: out)
         q = 0
         select case (codings(id)%ctype)
