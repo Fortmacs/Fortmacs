@@ -37,6 +37,7 @@ module modes_fm
         type(major_mode_type) :: apropos_mode
         type(major_mode_type) :: compilation_mode
         type(major_mode_type) :: dired_mode
+        type(major_mode_type) :: edit_abbrevs_mode
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: messages_buffer_mode
@@ -47,11 +48,20 @@ module modes_fm
 
     !> One component per built-in minor mode.
     type :: minor_mode_table_type
+        type(minor_mode_type) :: abbrev_mode
         type(minor_mode_type) :: auto_fill_mode
+        type(minor_mode_type) :: electric_indent_local_mode
+        type(minor_mode_type) :: electric_indent_mode
+        type(minor_mode_type) :: electric_pair_local_mode
+        type(minor_mode_type) :: electric_pair_mode
         type(minor_mode_type) :: font_lock_mode
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
+        type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: show_paren_local_mode
+        type(minor_mode_type) :: show_paren_mode
         type(minor_mode_type) :: transient_mark_mode
+        type(minor_mode_type) :: view_mode
     end type minor_mode_table_type
 
     !> The built-in major modes.
