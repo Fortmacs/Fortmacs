@@ -30,7 +30,7 @@ module test_callproc_fm
                          current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, buffer_size, point
-    use fileio_fm, only: write_region, delete_file_internal
+    use fileio_fm, only: write_region, delete_file_internal, get_homedir, directory_file_name
     use files_fm, only: temporary_file_directory
     use callproc_fm, only: call_process, call_process_region
     implicit none(type, external)
@@ -209,6 +209,13 @@ contains
             call call_process("pwd", r, st)
             call check(error, format_error(st), &
                        "Setting current directory: No such file or directory, /fortmacs-no-such-directory/")
+        end if
+        if (.not. allocated(error)) then
+            ! A directory under ~ is expanded (callproc.c:get_current_directory).
+            call erase_buffer(st)
+            buffers(cur)%directory = "~/"
+            call call_process("pwd", r, st, destination=t_value())
+            call check(error, buffer_string(), directory_file_name(get_homedir())//new_line("a"))
         end if
         call done(h)
     end subroutine test_directory
