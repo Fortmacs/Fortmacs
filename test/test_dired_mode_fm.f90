@@ -43,7 +43,7 @@ module test_dired_mode_fm
     use keyboard_fm, only: unread_command_events, discard_input
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_exists_p, file_directory_p, &
                          write_region, make_directory_internal
-    use files_fm, only: find_file_noselect, delete_directory, insert_directory_wildcard_in_dir_p, &
+    use files_fm, only: find_file_noselect, delete_directory, abbreviate_file_name, insert_directory_wildcard_in_dir_p, &
                         file_relative_name
     use dired_mode_fm, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
                              dired_string_type, dired_toggle_marks, dired_mark_files_regexp, &
@@ -451,7 +451,7 @@ contains
             call kbd_store_bytes(achar(24)//"d"//achar(13))
             call command_loop(st)
             call check(error, buffers(cur)%major_mode == "dired_mode" .and. &
-                       buffers(cur)%directory == tdir(), "C-x d RET")
+                       buffers(cur)%directory == abbreviate_file_name(tdir()), "C-x d RET")
             if (allocated(error)) exit body
             call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
             call check(error, found .and. file == "a.txt", "on a.txt")
@@ -522,7 +522,7 @@ contains
             call make_file("test-subdir/test-file", "Test")
             ! Sanity check: point should now be on the subdirectory.
             call dired_file_name_at_point(name, found)
-            call check(error, found .and. name == tdir()//"test-subdir/", name)
+            call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
             if (allocated(error)) exit body
             call dired_find_file(st)
             call check(error, st%ok(), format_error(st))
@@ -556,7 +556,7 @@ contains
             pt1 = point()
             call make_file("test-subdir/test-file", "Test")
             call dired_file_name_at_point(name, found)
-            call check(error, found .and. name == tdir()//"test-subdir/", name)
+            call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
             if (allocated(error)) exit body
             call dired_find_file(st)
             call pop_to(buf)
@@ -564,7 +564,7 @@ contains
             if (allocated(error)) exit body
             call dired(tdir(), st)
             call dired_file_name_at_point(name, found)
-            call check(error, found .and. name == tdir()//"test-subdir/", name)
+            call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
         end block body
         call teardown()
     end subroutine test_bug27243_02

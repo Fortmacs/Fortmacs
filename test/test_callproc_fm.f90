@@ -21,7 +21,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_callproc_fm
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error, FM_FILE_MISSING
     use handle_fm, only: handle_type
@@ -30,9 +30,10 @@ module test_callproc_fm
                          current_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: buffer_string, buffer_size, point
-    use fileio_fm, only: write_region, delete_file_internal, get_homedir, directory_file_name
+    use fileio_fm, only: write_region, delete_file_internal
     use files_fm, only: temporary_file_directory
     use callproc_fm, only: call_process, call_process_region
+    use sysdep_fm, only: sys_setenv, sys_unsetenv
     implicit none(type, external)
     private
 
@@ -194,12 +195,15 @@ contains
         call done(h)
     end subroutine test_buffer_name
 
-    !> The program runs in the current buffer's default-directory.
+    !> The program runs in the current buffer's default-directory (expanded).
     subroutine test_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(value_type) :: r
         type(status_type) :: st
+        character(len=:), allocatable :: home
+        integer(int32) :: e
+        integer :: length, stat
         call fresh_buffer("*callproc-test*", "", h)
         buffers(cur)%directory = "/"
         call call_process("pwd", r, st, destination=t_value())
@@ -211,11 +215,20 @@ contains
                        "Setting current directory: No such file or directory, /fortmacs-no-such-directory/")
         end if
         if (.not. allocated(error)) then
-            ! A directory under ~ is expanded (callproc.c:get_current_directory).
+            ! A default-directory under `~' is expanded first.
+            call get_environment_variable("HOME", length=length, status=stat)
+            allocate (character(len=max(length, 0)) :: home)
+            if (stat == 0 .and. length > 0) call get_environment_variable("HOME", home)
+            e = sys_setenv("HOME", "/")
             call erase_buffer(st)
             buffers(cur)%directory = "~/"
             call call_process("pwd", r, st, destination=t_value())
-            call check(error, buffer_string(), directory_file_name(get_homedir())//new_line("a"))
+            if (stat == 0) then
+                e = sys_setenv("HOME", home)
+            else
+                e = sys_unsetenv("HOME")
+            end if
+            call check(error, buffer_string(), "/"//new_line("a"))
         end if
         call done(h)
     end subroutine test_directory
