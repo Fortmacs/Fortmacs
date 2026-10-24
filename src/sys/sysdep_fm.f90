@@ -30,7 +30,8 @@
 module sysdep_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use, intrinsic :: iso_c_binding, only: c_int, c_long, c_size_t, c_char, c_ptr, c_null_char, &
-                                          c_associated, c_f_pointer, c_signed_char, c_funloc, c_funptr, c_loc, c_null_ptr, c_int32_t
+                                                  c_associated, c_f_pointer, c_signed_char, c_funloc, c_funptr, c_loc, c_null_ptr, &
+                                                                              c_int32_t, c_null_funptr, c_intptr_t, c_int64_t
     use error_fm, only: status_type, set_error, FM_FILE_ERROR
     use sys_linux_fm, only: c_close, c_grantpt, c_ioctl_winsize, c_isatty, c_open, c_poll, c_posix_openpt, &
                             c_ptsname, c_read, c_signal, sigint, c_string_to_fortran, c_tcgetattr, &
@@ -49,7 +50,11 @@ module sysdep_fm
                             S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
                             c_waitpid, c_readlink, c_execv, c_strsignal, c_mkostemp, &
                             O_WRONLY, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r, &
-                            tm_type
+                            tm_type, c_setsid, c_kill, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
+                            TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
+                            TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
+                            VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
+                            c_environ
     implicit none(type, external)
     private
 
@@ -72,11 +77,14 @@ module sysdep_fm
               sys_unsetenv, emacs_get_current_dir_name, &
               passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
               emacs_geteuid, emacs_getegid, emacs_strerror
-    public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, F_OK, R_OK, W_OK, X_OK, &
+    public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
               emacs_localtime, emacs_statvfs
+    public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
+              set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
+              emacs_localtime_wday
 
     !> A string of any length, for argument vectors.
     type :: sys_string_type
@@ -713,20 +721,22 @@ contains
     !> arguments `args' (args(1) is its name), standard input from file
     !> `infile', standard output and error to `out_fd' (or /dev/null if it
     !> is negative), in directory `dir' (unless empty), with the editor's
-    !> environment.  With `err_fd', standard error goes there instead.
-    !> `pid' is the child.  The caller checks that `path', `infile' and
-    !> `dir' can be used first; if the child still fails to start, it exits
-    !> with status 127.  Port of callproc.c:emacs_spawn (the fork path,
-    !> without a pty).
-    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_fd) result(err)
+    !> environment.  With `err_file', standard error goes to that file
+    !> instead (created or truncated).  `pid' is the child, which starts a
+    !> new session with SIGINT, SIGQUIT and SIGPIPE at their defaults.
+    !> The caller checks that `path', `infile' and `dir' can be used first;
+    !> if the child still fails to start, it exits with status 127.  Port
+    !> of callproc.c:emacs_spawn (the fork path, without a pty).
+    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file) result(err)
         character(len=*), intent(in) :: path, infile, dir
         type(sys_string_type), intent(in) :: args(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
-        integer(int32), intent(in), optional :: err_fd
+        character(len=*), intent(in), optional :: err_file
         type(c_argv_type), target :: argv
-        character(len=:), allocatable :: c_file, c_infile, c_null, c_dir
+        character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
         integer(c_int) :: fd, r
+        logical :: separate_err
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
         call make_argv(args, argv)
@@ -734,6 +744,9 @@ contains
         c_infile = c_path(infile)
         c_null = c_path("/dev/null")
         c_dir = c_path(dir)
+        separate_err = present(err_file)
+        c_err = ""
+        if (separate_err) c_err = c_path(err_file)
         err = 0
         pid = c_fork()
         if (pid < 0) then
@@ -742,6 +755,7 @@ contains
         end if
         if (pid /= 0) return
         ! The child.
+        call child_signals()
         fd = c_open(c_infile, ior(O_RDONLY, O_CLOEXEC))
         if (fd < 0) call c_exit(127)
         r = c_dup2(fd, 0)
@@ -754,8 +768,10 @@ contains
             r = c_dup2(fd, 1)
             r = c_dup2(fd, 2)
         end if
-        if (present(err_fd)) then
-            if (err_fd >= 0) r = c_dup2(err_fd, 2)
+        if (separate_err) then
+            fd = c_creat(c_err, int(o'666', c_int))
+            if (fd < 0) call c_exit(127)
+            r = c_dup2(fd, 2)
         end if
         if (len(dir) > 0) then
             if (c_chdir(c_dir) /= 0) call c_exit(127)
@@ -763,6 +779,176 @@ contains
         r = c_execv(c_file, argv%ptrs)
         call c_exit(127)
     end function emacs_spawn
+
+    !> In a new child: start a new session (dissociating from the
+    !> editor's terminal) and put back the default handling of SIGINT,
+    !> SIGQUIT and SIGPIPE (which the editor ignores).  Cf.
+    !> process.c:dissociate_controlling_tty and the signal resets of
+    !> callproc.c:emacs_spawn.
+    subroutine child_signals()
+        type(c_funptr) :: old
+        integer(c_int32_t) :: sid
+        sid = c_setsid()
+        old = c_signal(SIGINT, c_null_funptr)
+        old = c_signal(SIGQUIT, c_null_funptr)
+        old = c_signal(SIGPIPE, c_null_funptr)
+    end subroutine child_signals
+
+    !> Start the program `path' with arguments `args' (args(1) is its
+    !> name) as an asynchronous subprocess in directory `dir' (unless
+    !> empty), with the editor's environment.  With `pty', its standard
+    !> input, output and error are the slave of a new pseudo-terminal
+    !> (its controlling terminal, set up by `child_setup_tty'), named
+    !> `tty_name', and `to_child' and `from_child' are both the master;
+    !> otherwise they are the editor's ends of a pipe to its standard input
+    !> and of a pipe from its standard output and error.  All are
+    !> close-on-exec; the caller closes them.  The child starts a new
+    !> session with SIGINT, SIGQUIT and SIGPIPE at their defaults.  If the
+    !> program cannot be run, nothing is left open and the result is the
+    !> errno of the failure.  Port of the part of process.c:create_process
+    !> and callproc.c:emacs_spawn that runs the child (fork, with
+    !> create_process's exec-monitor pipe carrying the exec error back).
+    integer(int32) function emacs_spawn_async(path, args, dir, pty, to_child, from_child, pid, tty_name, env) &
+        result(err)
+        character(len=*), intent(in) :: path, dir
+        type(sys_string_type), intent(in) :: args(:)
+        logical, intent(in) :: pty
+        integer(int32), intent(out) :: to_child, from_child, pid
+        character(len=:), allocatable, intent(out) :: tty_name
+        !> "NAME=VALUE" entries put first in the child's environment,
+        !> replacing the editor's values of those variables.
+        type(sys_string_type), intent(in), optional :: env(:)
+        type(c_argv_type), target :: argv, envv
+        character(len=:), allocatable :: c_file, c_dir
+        integer(c_int) :: inpipe(2), outpipe(2), monitor(2), master, slave, r, std_in, std_out
+        integer(c_int) :: code
+        character(kind=c_char) :: code_chars(4)
+        integer(c_long) :: n
+        integer(c_int32_t) :: w
+        type(termios_type) :: tty
+        type(status_type) :: st
+        call make_argv(args, argv)
+        if (present(env)) call make_argv(environment_with(env), envv)
+        c_file = c_path(path)
+        c_dir = c_path(dir)
+        to_child = -1
+        from_child = -1
+        pid = -1
+        tty_name = ""
+        inpipe = -1
+        outpipe = -1
+        master = -1
+        slave = -1
+        if (pty) then
+            call open_pty(master, slave, st)
+            if (.not. st%ok()) then
+                err = errno()
+                return
+            end if
+            r = c_fcntl_int(master, F_SETFD, FD_CLOEXEC)
+            r = c_fcntl_int(slave, F_SETFD, FD_CLOEXEC)
+            tty_name = c_string_to_fortran(c_ptsname(master))
+            std_in = slave
+            std_out = slave
+        else
+            if (c_pipe2(inpipe, O_CLOEXEC) /= 0) then
+                err = errno()
+                return
+            end if
+            if (c_pipe2(outpipe, O_CLOEXEC) /= 0) then
+                err = errno()
+                call close_all()
+                return
+            end if
+            std_in = inpipe(1)
+            std_out = outpipe(2)
+        end if
+        if (c_pipe2(monitor, O_CLOEXEC) /= 0) then
+            err = errno()
+            call close_all()
+            return
+        end if
+        err = 0
+        pid = c_fork()
+        if (pid < 0) then
+            err = errno()
+            call close_all()
+            r = c_close(monitor(1))
+            r = c_close(monitor(2))
+            return
+        end if
+        if (pid == 0) then
+            ! The child: only system calls from here on.
+            call child_signals()
+            if (pty) then
+                ! Make the pty's terminal the controlling terminal.
+                r = c_ioctl_int(slave, TIOCSCTTY, 0_c_int)
+                if (c_tcgetattr(slave, tty) == 0) then
+                    tty = child_setup_tty(tty)
+                    r = c_tcsetattr(slave, TCSANOW, tty)
+                end if
+            end if
+            r = c_dup2(std_in, 0)
+            r = c_dup2(std_out, 1)
+            r = c_dup2(std_out, 2)
+            if (len(dir) > 0) then
+                if (c_chdir(c_dir) /= 0) call child_failed()
+            end if
+            if (present(env)) then
+                r = c_execve(c_file, argv%ptrs, envv%ptrs)
+            else
+                r = c_execv(c_file, argv%ptrs)
+            end if
+            call child_failed()
+        end if
+        ! The parent: close the child's ends, then wait for the exec.
+        r = c_close(monitor(2))
+        if (pty) then
+            r = c_close(slave)
+            to_child = master
+            from_child = master
+        else
+            r = c_close(inpipe(1))
+            r = c_close(outpipe(2))
+            to_child = inpipe(2)
+            from_child = outpipe(1)
+        end if
+        do
+            n = c_read(monitor(1), code_chars, 4_c_size_t)
+            if (n >= 0) exit
+            if (errno() /= EINTR) exit
+        end do
+        r = c_close(monitor(1))
+        if (n == 4) then
+            ! The exec failed: reap the child and report why.
+            err = transfer(code_chars, 0_int32)
+            w = c_waitpid(pid, r, 0)
+            r = c_close(to_child)
+            if (from_child /= to_child) r = c_close(from_child)
+            to_child = -1
+            from_child = -1
+            pid = -1
+        end if
+    contains
+
+        !> In the child: send errno through the monitor pipe and exit.
+        subroutine child_failed()
+            integer(c_long) :: written
+            code = errno()
+            written = c_write(monitor(2), transfer(code, code_chars), 4_c_size_t)
+            call c_exit(127)
+        end subroutine child_failed
+
+        subroutine close_all()
+            integer(c_int) :: k, rc
+            do k = 1, 2
+                if (inpipe(k) >= 0) rc = c_close(inpipe(k))
+                if (outpipe(k) >= 0) rc = c_close(outpipe(k))
+            end do
+            if (master >= 0) rc = c_close(master)
+            if (slave >= 0) rc = c_close(slave)
+        end subroutine close_all
+    end function emacs_spawn_async
 
     !> Wait for child `pid' to exit.  `code' is its exit status, or -1 if
     !> it was killed by signal `sig' (0 otherwise).  Port of
@@ -803,6 +989,258 @@ contains
             fds = cfds
         end if
     end function emacs_pipe
+
+    !> The editor's environment with the "NAME=VALUE" entries `env' first,
+    !> replacing the variables they name (earlier entries win).  Cf.
+    !> callproc.c:make_environment_block.
+    function environment_with(env) result(all)
+        type(sys_string_type), intent(in) :: env(:)
+        type(sys_string_type), allocatable :: all(:), grown(:)
+        type(c_ptr), pointer :: entries(:)
+        character(len=:), allocatable :: entry
+        integer :: n, k, j, count
+        logical :: shadowed
+        allocate (all(size(env)))
+        n = 0
+        do k = 1, size(env)
+            if (.not. already(all(1:n), env(k)%s)) then
+                n = n + 1
+                all(n)%s = env(k)%s
+            end if
+        end do
+        if (c_associated(c_environ)) then
+            count = 0
+            call c_f_pointer(c_environ, entries, [huge(0)])
+            do while (c_associated(entries(count + 1)))
+                count = count + 1
+            end do
+            do j = 1, count
+                entry = c_string_to_fortran(entries(j))
+                shadowed = already(all(1:n), entry)
+                if (shadowed) cycle
+                if (n == size(all)) then
+                    allocate (grown(max(16, 2*n)))
+                    do k = 1, n
+                        call move_alloc(all(k)%s, grown(k)%s)
+                    end do
+                    call move_alloc(grown, all)
+                end if
+                n = n + 1
+                all(n)%s = entry
+            end do
+        end if
+        all = all(1:n)
+    contains
+
+        !> Whether a variable of `list' has the name of `entry'.
+        logical function already(list, entry)
+            type(sys_string_type), intent(in) :: list(:)
+            character(len=*), intent(in) :: entry
+            integer :: i, e
+            e = index(entry, "=")
+            if (e == 0) e = len(entry) + 1
+            already = .false.
+            do i = 1, size(list)
+                if (index(list(i)%s, entry(1:e - 1)//"=") == 1) then
+                    already = .true.
+                    return
+                end if
+            end do
+        end function already
+    end function environment_with
+
+    !> The number of processors the editor may run on (sched_getaffinity),
+    !> or with `overridable', the number OMP_NUM_THREADS gives (capped by
+    !> OMP_THREAD_LIMIT).  Port of gnulib nproc.c:num_processors
+    !> (NPROC_CURRENT and NPROC_CURRENT_OVERRIDABLE).
+    integer function emacs_num_processors(overridable) result(n)
+        logical, intent(in) :: overridable
+        integer(c_int64_t) :: mask(16)
+        integer :: limit, threads
+        n = 1
+        if (c_sched_getaffinity(0_c_int32_t, 128_c_size_t, mask) == 0) n = max(1, sum(popcnt(mask)))
+        if (.not. overridable) return
+        limit = omp_threads("OMP_THREAD_LIMIT")
+        threads = omp_threads("OMP_NUM_THREADS")
+        if (limit == 0) limit = huge(0)
+        if (threads /= 0) n = threads
+        n = min(n, limit)
+    contains
+
+        !> gnulib nproc.c:parse_omp_threads: the leading number of the
+        !> variable (blanks around it, a comma after it), or 0.
+        integer function omp_threads(name) result(value)
+            character(len=*), intent(in) :: name
+            character(len=:), allocatable :: s
+            integer :: length, stat, i, d, dmax
+            value = 0
+            dmax = huge(0) - 9
+            dmax = dmax/10
+            call get_environment_variable(name, length=length, status=stat)
+            if (stat /= 0 .or. length == 0) return
+            allocate (character(len=length) :: s)
+            call get_environment_variable(name, s, status=stat)
+            i = 1
+            do while (i <= len(s))
+                if (index(" "//achar(9)//achar(10)//achar(11)//achar(12)//achar(13), s(i:i)) == 0) exit
+                i = i + 1
+            end do
+            ! (strtoul saturates; so does this, at huge(0).)
+            d = 0
+            do while (i <= len(s))
+                if (s(i:i) < "0" .or. s(i:i) > "9") exit
+                if (d > dmax) then
+                    d = huge(0)
+                else
+                    d = 10*d + (iachar(s(i:i)) - iachar("0"))
+                end if
+                i = i + 1
+            end do
+            do while (i <= len(s))
+                if (index(" "//achar(9)//achar(10)//achar(11)//achar(12)//achar(13), s(i:i)) == 0) exit
+                i = i + 1
+            end do
+            if (i <= len(s)) then
+                if (s(i:i) /= ",") return
+            end if
+            value = d
+        end function omp_threads
+    end function emacs_num_processors
+
+    !> The current time in seconds since the epoch (time(2)).
+    integer(int64) function emacs_time()
+        emacs_time = c_time(c_null_ptr)
+    end function emacs_time
+
+    !> The local time of `seconds' since the epoch: year, month (1-12),
+    !> day, hour, minute, second and weekday (0 for Sunday).
+    function emacs_localtime_wday(seconds) result(parts)
+        integer(int64), intent(in) :: seconds
+        integer :: parts(7)
+        type(tm_type) :: tm
+        type(c_ptr) :: p
+        p = c_localtime_r(seconds, tm)
+        parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec, tm%tm_wday]
+    end function emacs_localtime_wday
+
+    !> The terminal modes `tty' with the changes child_setup_tty makes for
+    !> the terminal at the other end of a pseudo-terminal that the editor
+    !> controls an inferior through: no echo or line editing beyond
+    !> ICANON (done in the editor), signals on, no padding, no NL to CR-NL
+    !> mapping, 8-bit characters, ^D as EOF, ^C and ^\ as INTR and QUIT if
+    !> they are disabled.  Port of sysdep.c:child_setup_tty (as a pure
+    !> function; the caller reads and sets the modes).
+    pure function child_setup_tty(tty) result(s)
+        type(termios_type), intent(in) :: tty
+        type(termios_type) :: s
+        s = tty
+        ! Enable output postprocessing, without mapping NL to CR-NL.
+        s%c_oflag = ior(s%c_oflag, OPOST)
+        s%c_oflag = iand(s%c_oflag, not(ONLCR))
+        ! No output delays.
+        s%c_oflag = iand(s%c_oflag, not(ior(ior(ior(NLDLY, CRDLY), ior(TABDLY, BSDLY)), ior(VTDLY, FFDLY))))
+        ! Disable echo, enable signals.
+        s%c_lflag = iand(s%c_lflag, not(ECHO))
+        s%c_lflag = ior(s%c_lflag, ISIG)
+        ! No downcasing on input, don't strip the 8th bit, no upcasing on
+        ! output, no tab expansion.
+        s%c_iflag = iand(s%c_iflag, not(IUCLC))
+        s%c_iflag = iand(s%c_iflag, not(ISTRIP))
+        s%c_oflag = iand(s%c_oflag, not(OLCUC))
+        s%c_oflag = iand(s%c_oflag, not(TAB3))
+        s%c_cflag = ior(iand(s%c_cflag, not(CSIZE)), CS8)
+        ! Disable erase and kill processing.
+        s%c_cc(VERASE) = CDISABLE
+        s%c_cc(VKILL) = CDISABLE
+        ! The QUIT and INTR characters are used by process_send_signal.
+        if (s%c_cc(VQUIT) == CDISABLE) s%c_cc(VQUIT) = 28_c_signed_char
+        if (s%c_cc(VINTR) == CDISABLE) s%c_cc(VINTR) = 3_c_signed_char
+        ! Enable line editing and EOF processing, with C-d as EOF.
+        s%c_lflag = ior(s%c_lflag, ICANON)
+        s%c_cc(VEOF) = 4_c_signed_char
+    end function child_setup_tty
+
+    !> kill(2): send signal `sig' to process `pid' (a process group if
+    !> negative).  Returns 0 or errno.
+    integer(int32) function emacs_kill(pid, sig) result(err)
+        integer(int32), intent(in) :: pid, sig
+        err = 0
+        if (c_kill(pid, sig) /= 0) err = errno()
+    end function emacs_kill
+
+    !> Ignore SIGPIPE, so that writing to a subprocess that has exited is
+    !> an EPIPE error, not the editor's death (sysdep.c:init_signals; the
+    !> children get the default back).
+    subroutine ignore_sigpipe()
+        type(c_funptr) :: old
+        old = c_signal(SIGPIPE, transfer(1_c_intptr_t, c_null_funptr))
+    end subroutine ignore_sigpipe
+
+    !> Write `buf' to `fd' without waiting: `written' is how much was
+    !> written before the pipe or terminal was full (EAGAIN) or an error
+    !> (`err', errno; EAGAIN is not an error).
+    subroutine emacs_write_nonblock(fd, buf, written, err)
+        integer(int32), intent(in) :: fd
+        character(len=*), intent(in) :: buf
+        integer(int64), intent(out) :: written
+        integer(int32), intent(out) :: err
+        integer(c_long) :: r
+        integer(c_int) :: e
+        integer(int64) :: n
+        n = len(buf, kind=int64)
+        written = 0
+        err = 0
+        do while (written < n)
+            r = c_write(fd, buf(written + 1:), int(n - written, c_size_t))
+            if (r < 0) then
+                e = errno()
+                if (e == EINTR) cycle
+                if (e /= EAGAIN) err = e
+                return
+            end if
+            written = written + r
+        end do
+    end subroutine emacs_write_nonblock
+
+    !> A close-on-exec duplicate of `fd' (-1 on failure).
+    integer(int32) function emacs_dup_cloexec(fd)
+        integer(int32), intent(in) :: fd
+        emacs_dup_cloexec = c_fcntl_int(fd, F_DUPFD_CLOEXEC, 0_c_int)
+    end function emacs_dup_cloexec
+
+    !> Wait up to `timeout_ms' milliseconds (0: just check; negative: no
+    !> limit) until one of the descriptors `fds' has input; `ready' says
+    !> which have (negative descriptors are ignored).  Like
+    !> `input_available', for several descriptors.
+    subroutine inputs_available(fds, timeout_ms, ready)
+        integer(int32), intent(in) :: fds(:), timeout_ms
+        logical, intent(out) :: ready(:)
+        type(pollfd_type) :: pfd(size(fds))
+        integer(c_int) :: r
+        integer :: k
+        do k = 1, size(fds)
+            pfd(k)%fd = fds(k)
+            pfd(k)%events = POLLIN
+            pfd(k)%revents = 0
+        end do
+        do
+            r = c_poll(pfd, int(size(fds), c_long), timeout_ms)
+            if (r >= 0 .or. errno() /= EINTR) exit
+            ! A C-g (SIGINT) must reach the command loop.
+            if (sigint_flag /= 0) exit
+        end do
+        do k = 1, size(fds)
+            ready(k) = r > 0 .and. pfd(k)%revents /= 0
+        end do
+    end subroutine inputs_available
+
+    !> Make `fd' non-blocking (O_NONBLOCK).
+    subroutine set_nonblocking(fd)
+        integer(int32), intent(in) :: fd
+        integer(c_int) :: flags, r
+        flags = c_fcntl_int(fd, F_GETFL, 0_c_int)
+        if (flags >= 0) r = c_fcntl_int(fd, F_SETFL, ior(flags, O_NONBLOCK))
+    end subroutine set_nonblocking
 
     !> The description of signal `sig' ("Killed"), as strsignal gives it.
     function emacs_strsignal(sig) result(text)

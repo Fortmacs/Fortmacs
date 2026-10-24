@@ -57,6 +57,8 @@ module commands_fm
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: clear_rectangle
+        type(command_type) :: compilation_mode
+        type(command_type) :: compile
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -71,6 +73,7 @@ module commands_fm
         type(command_type) :: delete_horizontal_space
         type(command_type) :: delete_indentation
         type(command_type) :: delete_other_windows
+        type(command_type) :: delete_process
         type(command_type) :: delete_rectangle
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
@@ -211,6 +214,7 @@ module commands_fm
         type(command_type) :: justify_current_line
         type(command_type) :: keyboard_quit
         type(command_type) :: kill_buffer
+        type(command_type) :: kill_compilation
         type(command_type) :: kill_line
         type(command_type) :: kill_paragraph
         type(command_type) :: kill_rectangle
@@ -302,6 +306,7 @@ module commands_fm
         type(command_type) :: re_search_forward
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
+        type(command_type) :: recompile
         type(command_type) :: rectangle_number_lines
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
@@ -324,6 +329,8 @@ module commands_fm
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
+        type(command_type) :: shell_command
+        type(command_type) :: shell_command_on_region
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -371,7 +378,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(333) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(340) = [character(len=38) :: &
                                                                  "abort_minibuffers", &
                                                                  "abort_recursive_edit", &
                                                                  "append_to_register", &
@@ -397,6 +404,8 @@ module commands_fm
                                                                  "capitalize_region", &
                                                                  "capitalize_word", &
                                                                  "clear_rectangle", &
+                                                                 "compilation_mode", &
+                                                                 "compile", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -411,6 +420,7 @@ module commands_fm
                                                                  "delete_horizontal_space", &
                                                                  "delete_indentation", &
                                                                  "delete_other_windows", &
+                                                                 "delete_process", &
                                                                  "delete_rectangle", &
                                                                  "delete_whitespace_rectangle", &
                                                                  "delete_window", &
@@ -551,6 +561,7 @@ module commands_fm
                                                                  "justify_current_line", &
                                                                  "keyboard_quit", &
                                                                  "kill_buffer", &
+                                                                 "kill_compilation", &
                                                                  "kill_line", &
                                                                  "kill_paragraph", &
                                                                  "kill_rectangle", &
@@ -642,6 +653,7 @@ module commands_fm
                                                                  "re_search_forward", &
                                                                  "recenter", &
                                                                  "recenter_top_bottom", &
+                                                                 "recompile", &
                                                                  "rectangle_number_lines", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
@@ -664,6 +676,8 @@ module commands_fm
                                                                  "set_fill_column", &
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
+                                                                 "shell_command", &
+                                                                 "shell_command_on_region", &
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
@@ -765,6 +779,10 @@ contains
             p => commands%capitalize_word
         case ("clear_rectangle")
             p => commands%clear_rectangle
+        case ("compilation_mode")
+            p => commands%compilation_mode
+        case ("compile")
+            p => commands%compile
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
@@ -793,6 +811,8 @@ contains
             p => commands%delete_indentation
         case ("delete_other_windows")
             p => commands%delete_other_windows
+        case ("delete_process")
+            p => commands%delete_process
         case ("delete_rectangle")
             p => commands%delete_rectangle
         case ("delete_whitespace_rectangle")
@@ -1073,6 +1093,8 @@ contains
             p => commands%keyboard_quit
         case ("kill_buffer")
             p => commands%kill_buffer
+        case ("kill_compilation")
+            p => commands%kill_compilation
         case ("kill_line")
             p => commands%kill_line
         case ("kill_paragraph")
@@ -1255,6 +1277,8 @@ contains
             p => commands%recenter
         case ("recenter_top_bottom")
             p => commands%recenter_top_bottom
+        case ("recompile")
+            p => commands%recompile
         case ("rectangle_number_lines")
             p => commands%rectangle_number_lines
         case ("replace_regexp")
@@ -1299,6 +1323,10 @@ contains
             p => commands%set_fill_prefix
         case ("set_mark_command")
             p => commands%set_mark_command
+        case ("shell_command")
+            p => commands%shell_command
+        case ("shell_command_on_region")
+            p => commands%shell_command_on_region
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")

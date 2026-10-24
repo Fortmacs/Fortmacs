@@ -95,7 +95,7 @@ module dired_mode_fm
                         revert_buffer_function, find_directory_functions, find_file_run_dired, &
                         temporary_file_directory, dired_ls_error_buffer, dired_ls_error_file, make_directory, &
                         directory_listing_before_filename_regexp
-    use callproc_fm, only: call_process
+    use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files, completion_ignored_extensions
     use window_fm, only: windows, window_leaves, window_live_p, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, display_buffer, fit_window_to_buffer, select_window, &
@@ -1283,18 +1283,11 @@ contains
         end function header_present
     end subroutine dired_insert_directory
 
-    !> The shell for wildcard listings: $SHELL, else "sh" (callproc.c's
-    !> `shell_file_name', or executable-find "sh").
+    !> The shell for wildcard listings: `shell_file_name' (callproc.c).
     function shell_name() result(sh)
         character(len=:), allocatable :: sh
-        integer :: length, stat
-        call get_environment_variable("SHELL", length=length, status=stat)
-        if (stat == 0 .and. length > 0) then
-            allocate (character(len=length) :: sh)
-            call get_environment_variable("SHELL", sh)
-        else
-            sh = "/bin/sh"
-        end if
+        if (.not. allocated(shell_file_name%value)) call init_callproc()
+        sh = shell_file_name%value
     end function shell_name
 
     !> Insert the amount of free space after the listing that starts at

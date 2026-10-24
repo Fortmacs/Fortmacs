@@ -22,8 +22,8 @@
 !> Visiting files, saving buffers with backups, and leaving Emacs.
 !>
 !> Directory listings for Dired (`insert_directory', running `ls'),
-!> `file_truename', `file_relative_name', deleting files and directories
-!> and `revert_buffer' are in the submodule files_dir_fm.
+!> `file_truename', deleting files and directories and `revert_buffer'
+!> are in the submodule files_dir_fm.
 !>
 !> Not yet: wildcards in `find_file', auto-save, file locks, local
 !> variables, uniquify (buffer names get "<2>"), version-control backups
@@ -71,12 +71,13 @@ module files_fm
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
+    public :: file_relative_name
     public :: set_visited_file_name, write_file
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
     public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
-              file_relative_name, delete_file, delete_directory, file_name_extension, auto_save_file_name_p, &
+              delete_file, delete_directory, file_name_extension, auto_save_file_name_p, &
               file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
               shell_quote_wildcard_pattern, string_prefix_p
 
@@ -219,19 +220,6 @@ module files_fm
             character(len=:), allocatable, intent(out) :: truename
             type(status_type), intent(out) :: status
         end subroutine file_truename
-
-        !> Convert FILENAME to be relative to DIRECTORY (default: `default_directory').
-        !> This function returns a relative file name that is equivalent to FILENAME
-        !> when used with that default directory as the default.
-        !> If FILENAME is a relative file name, it will be interpreted as existing in
-        !> `default_directory'.  Port of files.el:file-relative-name.  (In
-        !> files_dir_fm.)
-        module function file_relative_name(filename, directory) result(relative)
-            implicit none(type, external)
-            character(len=*), intent(in) :: filename
-            character(len=*), intent(in), optional :: directory
-            character(len=:), allocatable :: relative
-        end function file_relative_name
 
         !> Delete file named FILENAME.  If it is a symlink, remove the symlink.
         !> If file has multiple names, it continues to exist with the other names.
@@ -387,6 +375,19 @@ module files_fm
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes
         end subroutine revert_buffer
+        !> Convert FILENAME to be relative to DIRECTORY (default:
+        !> `default_directory').
+        !> This function returns a relative file name that is equivalent to
+        !> FILENAME when used with that default directory as the default.
+        !> If FILENAME is a relative file name, it will be interpreted as
+        !> existing in `default_directory'.  Port of
+        !> files.el:file-relative-name.  (In files_read_fm.)
+        module function file_relative_name(filename, directory) result(rel)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=*), intent(in), optional :: directory
+            character(len=:), allocatable :: rel
+        end function file_relative_name
     end interface
 
     !> True means make a backup of a file the first time it is saved.

@@ -70,6 +70,8 @@ module bindings_fm
     use font_lock_fm, only: syms_of_font_lock
     use jit_lock_fm, only: syms_of_jit_lock
     use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
+    use process_fm, only: syms_of_process
+    use compile_fm, only: syms_of_compile, compilation_mode_map
     use rect_fm, only: syms_of_rect
     use register_fm, only: syms_of_register
     implicit none(type, external)
@@ -215,6 +217,8 @@ contains
         call syms_of_jit_lock()
         call syms_of_font_core()
         call syms_of_font_lock()
+        call syms_of_process()
+        call syms_of_compile()
         call syms_of_rect()
         call syms_of_register()
         call syms_of_macros()
@@ -414,6 +418,8 @@ contains
         call bind(esc_map, "C-p", "backward_list")
         call bind(esc_map, "%", "query_replace")
         call bind(esc_map, "C-%", "query_replace_regexp")
+        call bind(esc_map, "!", "shell_command")
+        call bind(esc_map, "|", "shell_command_on_region")
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
         call bind(ctl_x_map, "C-t", "transpose_lines")
@@ -479,6 +485,7 @@ contains
         call register_keymap_name("text_mode_map", text_mode_map)
         call register_keymap_name("prog_mode_map", prog_mode_map)
         call register_keymap_name("special_mode_map", special_mode_map)
+        call register_keymap_name("compilation_mode_map", compilation_mode_map)
         call register_keymap_name("minibuffer_local_completion_map", minibuffer_local_completion_map)
         call register_keymap_name("minibuffer_local_must_match_map", minibuffer_local_must_match_map)
         call register_keymap_name("minibuffer_local_filename_completion_map", minibuffer_local_filename_completion_map)

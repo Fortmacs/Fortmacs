@@ -37,6 +37,13 @@
 !> - wait status bits: glibc bits/waitstatus.h
 !> - struct dirent: glibc bits/dirent.h (d_name at byte 19 on both);  struct
 !>   tm: glibc bits/types/struct_tm.h (nine ints, then tm_gmtoff and tm_zone)
+!> - threads (glibc >= 2.34 has them in libc itself): pthread_t is an
+!>   unsigned long; pthread_mutex_t is 40 bytes on x86-64 and 48 on
+!>   aarch64, so mutexes are 64-byte arrays, and PTHREAD_MUTEX_INITIALIZER
+!>   is all zeros on both; sigset_t is 128 bytes (bits/types/__sigset_t.h);
+!>   SIG_BLOCK and SIG_SETMASK: asm-generic/signal-defs.h
+!> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY:
+!>   asm-generic/ioctls.h
 !>
 !> Variadic functions (`open', `ioctl') are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
@@ -89,6 +96,7 @@ module sys_linux_fm
     integer(c_int), parameter, public :: ISTRIP = int(o'0000040', c_int)
     integer(c_int), parameter, public :: INLCR = int(o'0000100', c_int)
     integer(c_int), parameter, public :: IGNCR = int(o'0000200', c_int)
+    integer(c_int), parameter, public :: IUCLC = int(o'0001000', c_int)
     integer(c_int), parameter, public :: ICRNL = int(o'0000400', c_int)
     integer(c_int), parameter, public :: IXON = int(o'0002000', c_int)
     integer(c_int), parameter, public :: IXANY = int(o'0004000', c_int)
@@ -96,6 +104,12 @@ module sys_linux_fm
     integer(c_int), parameter, public :: IUTF8 = int(o'0040000', c_int)
     ! c_oflag
     integer(c_int), parameter, public :: OPOST = int(o'0000001', c_int)
+    integer(c_int), parameter, public :: OLCUC = int(o'0000002', c_int)
+    integer(c_int), parameter, public :: NLDLY = int(o'0000400', c_int)
+    integer(c_int), parameter, public :: CRDLY = int(o'0003000', c_int)
+    integer(c_int), parameter, public :: BSDLY = int(o'0020000', c_int)
+    integer(c_int), parameter, public :: VTDLY = int(o'0040000', c_int)
+    integer(c_int), parameter, public :: FFDLY = int(o'0100000', c_int)
     integer(c_int), parameter, public :: ONLCR = int(o'0000004', c_int)
     integer(c_int), parameter, public :: TABDLY = int(o'0014000', c_int)
     integer(c_int), parameter, public :: TAB3 = int(o'0014000', c_int)
@@ -137,13 +151,25 @@ module sys_linux_fm
     integer(c_int), parameter, public :: STATX_BASIC_STATS = int(z'7FF', c_int)
     ! poll events
     integer(c_short), parameter, public :: POLLIN = 1_c_short
+    integer(c_short), parameter, public :: POLLHUP = 16_c_short, POLLERR = 8_c_short
     ! signals
     integer(c_int), parameter, public :: SIGINT = 2, SIGTERM = 15, SIGCONT = 18, &
                                          SIGTSTP = 20, SIGWINCH = 28
+    integer(c_int), parameter, public :: SIGHUP = 1, SIGQUIT = 3, SIGKILL = 9, SIGPIPE = 13
+    ! pthread_sigmask actions
+    integer(c_int), parameter, public :: SIG_BLOCK = 0, SIG_SETMASK = 2
+    ! waitpid options
+    integer(c_int), parameter, public :: WNOHANG = 1
+    ! ioctl request making a terminal the controlling terminal
+    integer(c_long), parameter, public :: TIOCSCTTY = int(z'540E', c_long)
+    ! fcntl commands (asm-generic/fcntl.h, linux/fcntl.h)
+    integer(c_int), parameter, public :: F_SETFD = 2, F_GETFL = 3, F_SETFL = 4, F_DUPFD_CLOEXEC = 1030, &
+                                         FD_CLOEXEC = 1
     ! errno
     integer(c_int), parameter, public :: ENOENT = 2, EINTR = 4, EAGAIN = 11, &
                                          EACCES = 13, EEXIST = 17, ENOTDIR = 20, &
                                          EISDIR = 21, ERANGE = 34
+    integer(c_int), parameter, public :: EIO = 5, ECHILD = 10, EPIPE = 32, ENOSYS = 38
     ! file type bits of st_mode (bits/stat.h)
     integer(c_int), parameter, public :: S_IFMT = int(o'170000', c_int)
     integer(c_int), parameter, public :: S_IFDIR = int(o'040000', c_int)
@@ -212,7 +238,13 @@ module sys_linux_fm
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
               c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
     public :: c_statvfs
+    public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
+              c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, &
+              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_environ
     public :: errno, c_string_to_fortran
+
+    !> The environment (char **environ).
+    type(c_ptr), bind(C, name="environ") :: c_environ
 
     interface
         integer(c_int) function c_tcgetattr(fd, t) bind(C, name="tcgetattr")
@@ -536,6 +568,111 @@ module sys_linux_fm
             character(kind=c_char), intent(inout) :: template(*)
             integer(c_int), value :: flags
         end function c_mkostemp
+
+        !> pthread_create(thread, NULL, start, arg).
+        integer(c_int) function c_pthread_create(thread, attr, start, arg) bind(C, name="pthread_create")
+            import :: c_int, c_long, c_ptr, c_funptr
+            implicit none(type, external)
+            integer(c_long), intent(out) :: thread
+            type(c_ptr), value :: attr
+            type(c_funptr), value :: start
+            type(c_ptr), value :: arg
+        end function c_pthread_create
+
+        !> pthread_join(thread, NULL).
+        integer(c_int) function c_pthread_join(thread, retval) bind(C, name="pthread_join")
+            import :: c_int, c_long, c_ptr
+            implicit none(type, external)
+            integer(c_long), value :: thread
+            type(c_ptr), value :: retval
+        end function c_pthread_join
+
+        integer(c_long) function c_pthread_self() bind(C, name="pthread_self")
+            import :: c_long
+            implicit none(type, external)
+        end function c_pthread_self
+
+        integer(c_int) function c_pthread_mutex_lock(mutex) bind(C, name="pthread_mutex_lock")
+            import :: c_int, c_int64_t
+            implicit none(type, external)
+            integer(c_int64_t), intent(inout) :: mutex(*)
+        end function c_pthread_mutex_lock
+
+        integer(c_int) function c_pthread_mutex_unlock(mutex) bind(C, name="pthread_mutex_unlock")
+            import :: c_int, c_int64_t
+            implicit none(type, external)
+            integer(c_int64_t), intent(inout) :: mutex(*)
+        end function c_pthread_mutex_unlock
+
+        !> pthread_sigmask(how, set, oldset) with 128-byte sigset_t arrays.
+        integer(c_int) function c_pthread_sigmask(how, set, oldset) bind(C, name="pthread_sigmask")
+            import :: c_int, c_int64_t
+            implicit none(type, external)
+            integer(c_int), value :: how
+            integer(c_int64_t), intent(in) :: set(16)
+            integer(c_int64_t), intent(out) :: oldset(16)
+        end function c_pthread_sigmask
+
+        integer(c_int) function c_kill(pid, sig) bind(C, name="kill")
+            import :: c_int, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid
+            integer(c_int), value :: sig
+        end function c_kill
+
+        integer(c_int32_t) function c_setsid() bind(C, name="setsid")
+            import :: c_int32_t
+            implicit none(type, external)
+        end function c_setsid
+
+        !> pidfd_open(pid, flags): a descriptor that becomes readable when
+        !> child `pid' terminates.
+        integer(c_int) function c_pidfd_open(pid, flags) bind(C, name="pidfd_open")
+            import :: c_int, c_int32_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid
+            integer(c_int), value :: flags
+        end function c_pidfd_open
+
+        !> ioctl(fd, request, int): see the module note.
+        integer(c_int) function c_ioctl_int(fd, request, arg) bind(C, name="ioctl")
+            import :: c_int, c_long
+            implicit none(type, external)
+            integer(c_int), value :: fd
+            integer(c_long), value :: request
+            integer(c_int), value :: arg
+        end function c_ioctl_int
+
+        integer(c_int) function c_execve(path, argv, envp) bind(C, name="execve")
+            import :: c_int, c_char, c_ptr
+            implicit none(type, external)
+            character(kind=c_char), intent(in) :: path(*)
+            type(c_ptr), intent(in) :: argv(*), envp(*)
+        end function c_execve
+
+        !> sched_getaffinity(pid, 128, mask): the CPUs the process may run
+        !> on, as a 1024-bit cpu_set_t.
+        integer(c_int) function c_sched_getaffinity(pid, size, mask) bind(C, name="sched_getaffinity")
+            import :: c_int, c_int32_t, c_size_t, c_int64_t
+            implicit none(type, external)
+            integer(c_int32_t), value :: pid
+            integer(c_size_t), value :: size
+            integer(c_int64_t), intent(out) :: mask(16)
+        end function c_sched_getaffinity
+
+        !> time(NULL).
+        integer(c_int64_t) function c_time(tloc) bind(C, name="time")
+            import :: c_int64_t, c_ptr
+            implicit none(type, external)
+            type(c_ptr), value :: tloc
+        end function c_time
+
+        !> fcntl(fd, cmd, int): variadic, bound like ioctl (module note).
+        integer(c_int) function c_fcntl_int(fd, cmd, arg) bind(C, name="fcntl")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: fd, cmd, arg
+        end function c_fcntl_int
 
         type(c_ptr) function c_errno_location() bind(C, name="__errno_location")
             import :: c_ptr
