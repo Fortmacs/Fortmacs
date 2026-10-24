@@ -3963,7 +3963,7 @@ contains
     subroutine cd(dir, status)
         character(len=*), intent(in) :: dir
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: cdpath, entry, candidate, absolute, base
+        character(len=:), allocatable :: cdpath, entry, candidate, absolute, base, cdir
         logical :: found
         integer :: b, e
         base = ""
@@ -3986,11 +3986,14 @@ contains
                 end if
                 entry = cdpath(b:e - 1)
                 if (len(entry) == 0) entry = "./"
-                call expand_file_name(entry, candidate, status, base)
-                call expand_file_name(dir, candidate, status, file_name_as_directory(candidate))
-                if (status%ok() .and. file_directory_p(candidate)) then
-                    absolute = candidate
-                    exit
+                call expand_file_name(entry, cdir, status, base)
+                if (.not. status%ok()) cdir = base
+                call expand_file_name(dir, candidate, status, file_name_as_directory(cdir))
+                if (status%ok()) then
+                    if (file_directory_p(candidate)) then
+                        absolute = candidate
+                        exit
+                    end if
                 end if
                 b = e + 1
             end do
