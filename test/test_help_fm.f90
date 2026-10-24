@@ -1004,10 +1004,12 @@ contains
     subroutine test_help_for_help(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
+        type(value_type) :: ev(1)
         character(len=:), allocatable :: text
         call fresh_scratch()
         call type_keys("C-h C-h SPC f")
-        call unread_command_events([sym("x")])
+        ev(1) = sym("x")
+        call unread_command_events(ev)
         call discard_input()
         call type_keys("C-h C-h k C-f")
         call command_loop(st)
