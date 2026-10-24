@@ -21,12 +21,17 @@
 
 !> Visiting files, saving buffers with backups, and leaving Emacs.
 !>
-!> Not yet: file name completion, wildcards and dired, auto-save, file
-!> locks, major modes and local variables, uniquify (buffer names get
-!> "<2>"), version-control backups and `backup_directory_alist', and
-!> `file_precious_flag'.
+!> Directory listings for Dired (`insert_directory', running `ls'),
+!> `file_truename', deleting files and directories and `revert_buffer'
+!> are in the submodule files_dir_fm.
+!>
+!> Not yet: wildcards in `find_file', auto-save, file locks, local
+!> variables, uniquify (buffer names get "<2>"), version-control backups
+!> and `backup_directory_alist', `file_precious_flag', reverting a
+!> file-visiting buffer (`revert_buffer__default'), `ls_lisp', file name
+!> handlers, trash (`delete_by_moving_to_trash').
 module files_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_fm, only: commands
     use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
@@ -37,7 +42,7 @@ module files_fm
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         rename_buffer, restore_buffer_modified_p
+                         rename_buffer, restore_buffer_modified_p, buffer_live_p, buffer_handle
     use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, directory_name_p, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
                          get_homedir, file_exists_p, file_readable_p, file_writable_p, &
@@ -57,7 +62,7 @@ module files_fm
     use fns_fm, only: yes_or_no_p
     use derived_fm, only: major_mode_type, major_mode_named
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
-    use window_fm, only: pop_to_buffer_same_window
+    use window_fm, only: pop_to_buffer_same_window, switch_to_buffer_other_window
     implicit none(type, external)
     private
 
@@ -71,6 +76,11 @@ module files_fm
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: save_some_buffers_proc, add_save_some_buffers_function
+    public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
+    public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
+              delete_file, delete_directory, file_name_extension, auto_save_file_name_p, &
+              file_size_human_readable, byte_count_to_string, get_free_disk_space, split_string_and_unquote, &
+              shell_quote_wildcard_pattern, string_prefix_p
 
     interface
         !> minibuffer.el:read-file-name.  With `confirm_nonexistent', a
@@ -145,6 +155,227 @@ module files_fm
             character(len=*), intent(in) :: text
             character(len=:), allocatable :: mode
         end function auto_mode_spec
+
+        !> Insert directory listing for FILE, formatted according to SWITCHES.
+        !> Leaves point after the inserted text.
+        !> SWITCHES is a string of options.
+        !> Optional third arg WILDCARD means treat FILE as shell wildcard.
+        !> Optional fourth arg FULL_DIRECTORY_P means file is a directory and
+        !> switches do not contain `d', so that a full listing is expected.
+        !>
+        !> This works by running a directory listing program
+        !> whose name is in the variable `insert_directory_program'
+        !> (and if WILDCARD, it also runs the shell `shell_file_name').
+        !>
+        !> When SWITCHES contains the long `--dired' option, this function
+        !> treats it specially, for the sake of dired.  However, the
+        !> normally equivalent short `-D' option is just passed on to
+        !> `insert_directory_program', as any other option.  Port of
+        !> files.el:insert-directory (no file name handlers or `ls_lisp';
+        !> SWITCHES a string; the output is decoded as UTF-8 by
+        !> `call_process'; the shell is $SHELL or /bin/sh, as callproc.c
+        !> sets `shell_file_name').  (In files_dir_fm.)
+        recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory_p)
+            implicit none(type, external)
+            character(len=*), intent(in) :: file, switches
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: wildcard, full_directory_p
+        end subroutine insert_directory
+
+        !> After `ls' output inserted from BEG to point, read the positions of
+        !> file names that `--dired' (if SWITCHES has it) put at the end,
+        !> mark them with the `dired_filename' property and delete those
+        !> lines.  Port of files.el:insert-directory-clean.  (In files_dir_fm.)
+        recursive module subroutine insert_directory_clean(beg, switches, status)
+            implicit none(type, external)
+            integer(int64), intent(in) :: beg
+            character(len=*), intent(in) :: switches
+            type(status_type), intent(out) :: status
+        end subroutine insert_directory_clean
+
+        !> Return true if DIR contains shell wildcards in its parent directory part.
+        !> DIRECTORY is the part of DIR up to and excluding the first
+        !> component that includes wildcard characters, and WILDCARD is the
+        !> rest of DIR's components.  The DIRECTORY part includes the
+        !> trailing slash, to indicate that it is a directory.
+        !>
+        !> Valid wildcards are `*', `?', `[abc]' and `[a-z]'.  Port of
+        !> files.el:insert-directory-wildcard-in-dir-p (the cons as
+        !> DIRECTORY and WILDCARD).  (In files_dir_fm.)
+        module function insert_directory_wildcard_in_dir_p(dir, directory, wildcard) result(found)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir
+            character(len=:), allocatable, intent(out), optional :: directory, wildcard
+            logical :: found
+        end function insert_directory_wildcard_in_dir_p
+
+        !> Return the truename of FILENAME.
+        !> If FILENAME is not absolute, first expands it against `default_directory'.
+        !> The truename of a file name is found by chasing symbolic links
+        !> both at the level of the file and at the level of the directories
+        !> containing it, until no links are left at any level.  Port of
+        !> files.el:file-truename.  (In files_dir_fm.)
+        recursive module subroutine file_truename(filename, truename, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=:), allocatable, intent(out) :: truename
+            type(status_type), intent(out) :: status
+        end subroutine file_truename
+
+        !> Delete file named FILENAME.  If it is a symlink, remove the symlink.
+        !> If file has multiple names, it continues to exist with the other names.
+        !> Port of files.el:delete-file (TRASH deferred).  (In files_dir_fm.)
+        module subroutine delete_file(filename, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(status_type), intent(out) :: status
+        end subroutine delete_file
+
+        !> Delete the directory named DIRECTORY.  Does not follow symlinks.
+        !> If RECURSIVE is true, delete files in DIRECTORY as well, with
+        !> no error if something else is simultaneously deleting them.  Port
+        !> of files.el:delete-directory (TRASH deferred).  (In files_dir_fm.)
+        recursive module subroutine delete_directory(directory, status, recursive)
+            implicit none(type, external)
+            character(len=*), intent(in) :: directory
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: recursive
+        end subroutine delete_directory
+
+        !> Return FILENAME's final "extension" sans any backup version strings.
+        !> The extension, in a file name, is the part that begins with the last `.',
+        !> except that a leading `.' of the file name, if there is one, doesn't count.
+        !> This function calls `file_name_sans_versions', which see, to remove from
+        !> the extension it returns any parts that indicate backup versions and
+        !> version strings.
+        !> Return no extension (FOUND false) for extensionless file names such as `foo'.
+        !> Return the empty string for file names such as `foo.' that end in a period.
+        !>
+        !> By default, the returned value excludes the period that starts the
+        !> extension, but if the optional argument PERIOD is true, the period
+        !> is included in the value, and in that case, if FILENAME has no
+        !> extension, the value is "".  Port of files.el:file-name-extension.
+        !> (In files_dir_fm.)
+        module subroutine file_name_extension(filename, extension, found, period)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=:), allocatable, intent(out) :: extension
+            logical, intent(out) :: found
+            logical, intent(in), optional :: period
+        end subroutine file_name_extension
+
+        !> Return true if FILENAME can be yielded by `make_auto_save_file_name'.
+        !> FILENAME should lack slashes.  Port of
+        !> files.el:auto-save-file-name-p.  (In files_dir_fm.)
+        module function auto_save_file_name_p(filename) result(p)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            logical :: p
+        end function auto_save_file_name_p
+
+        !> Produce a string showing FILE_SIZE in human-readable form.
+        !>
+        !> FLAVOR controls the units and the display format:
+        !>
+        !>  If FLAVOR is "" or absent, each kilobyte is 1024 bytes and the
+        !>     produced suffixes are "k", "M", "G", "T", etc.
+        !>  If FLAVOR is "si", each kilobyte is 1000 bytes and the produced suffixes
+        !>     are "k", "M", "G", "T", etc.
+        !>  If FLAVOR is "iec", each kilobyte is 1024 bytes and the produced suffixes
+        !>     are "KiB", "MiB", "GiB", "TiB", etc.
+        !>
+        !> SPACE is a string put between the number and unit.
+        !> It defaults to the empty string.
+        !>
+        !> UNIT is the unit to use.  It defaults to "B" when FLAVOR is "iec"
+        !> and the empty string otherwise.  Port of
+        !> files.el:file-size-human-readable.  (In files_dir_fm.)
+        module function file_size_human_readable(file_size, flavor, space, unit) result(text)
+            implicit none(type, external)
+            real(real64), intent(in) :: file_size
+            character(len=*), intent(in), optional :: flavor, space, unit
+            character(len=:), allocatable :: text
+        end function file_size_human_readable
+
+        !> Human-readable string for SIZE bytes, as `byte_count_to_string_function'
+        !> makes it (file-size-human-readable-iec: IEC prefixes).  Port of
+        !> files.el:file-size-human-readable-iec.  (In files_dir_fm.)
+        module function byte_count_to_string(size) result(text)
+            implicit none(type, external)
+            real(real64), intent(in) :: size
+            character(len=:), allocatable :: text
+        end function byte_count_to_string
+
+        !> String describing the amount of free space on DIR's file system.
+        !> If DIR's free space cannot be obtained, FOUND is false.  Port
+        !> of files.el:get-free-disk-space.  (In files_dir_fm.)
+        module subroutine get_free_disk_space(dir, text, found, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir
+            character(len=:), allocatable, intent(out) :: text
+            logical, intent(out) :: found
+            type(status_type), intent(out) :: status
+        end subroutine get_free_disk_space
+
+        !> Split the STRING at whitespace into a list of strings,
+        !> understanding Emacs Lisp quoting within STRING ("..." with
+        !> backslash escapes).  Port of subr.el:split-string-and-unquote
+        !> (SEPARATOR "\s-+").  (In files_dir_fm.)
+        module subroutine split_string_and_unquote(string, parts, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            type(value_type), intent(out) :: parts
+            type(status_type), intent(out) :: status
+        end subroutine split_string_and_unquote
+
+        !> Quote characters special to the shell in PATTERN, leave wildcards
+        !> alone: each character from the set [ \t\n;<>&|()`'"#$] is quoted
+        !> with a backslash.  Port of
+        !> files.el:shell-quote-wildcard-pattern (GNU/Linux).  (In
+        !> files_dir_fm.)
+        module function shell_quote_wildcard_pattern(pattern) result(quoted)
+            implicit none(type, external)
+            character(len=*), intent(in) :: pattern
+            character(len=:), allocatable :: quoted
+        end function shell_quote_wildcard_pattern
+
+        !> Return true if STRING begins with PREFIX (ignoring case with
+        !> IGNORE_CASE).  Port of subr.el:string-prefix-p.  (In
+        !> files_dir_fm.)
+        module function string_prefix_p(prefix, string, ignore_case) result(p)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prefix, string
+            logical, intent(in), optional :: ignore_case
+            logical :: p
+        end function string_prefix_p
+
+        !> Replace current buffer text with the text of the visited file on disk.
+        !> This undoes all changes since the file was visited or saved.
+        !>
+        !> This command also implements an interface for special buffers
+        !> that contain text that doesn't come from a file, but reflects
+        !> some other data instead (e.g. Dired buffers).  This is done via
+        !> the variable `revert_buffer_function'.  In these cases, it should
+        !> reconstruct the buffer contents from the appropriate data.
+        !>
+        !> IGNORE_AUTO: offer to revert from the auto-save file only when
+        !> this is false.
+        !>
+        !> NOCONFIRM means don't ask for confirmation at all.
+        !>
+        !> PRESERVE_MODES true means don't alter the files modes.
+        !>
+        !> This function calls the function that `revert_buffer_function'
+        !> specifies to do the work, with arguments IGNORE_AUTO and
+        !> NOCONFIRM.  Port of files.el:revert-buffer
+        !> (`revert_buffer_restore_functions' and the default function,
+        !> which reverts a file-visiting buffer, are deferred).  (In
+        !> files_dir_fm.)
+        recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes
+        end subroutine revert_buffer
         !> Convert FILENAME to be relative to DIRECTORY (default:
         !> `default_directory').
         !> This function returns a relative file name that is equivalent to
@@ -267,6 +498,104 @@ module files_fm
     !> Buffers save_some_buffers is asking about (its map-y-or-n-p list).
     type(handle_type), allocatable :: pending(:)
 
+    abstract interface
+        !> A `revert_buffer_function': revert the current buffer, with
+        !> the arguments IGNORE_AUTO and NOCONFIRM of `revert_buffer'.
+        recursive subroutine revert_function_proc(ignore_auto, noconfirm, status)
+            import :: status_type
+            implicit none(type, external)
+            logical, intent(in) :: ignore_auto, noconfirm
+            type(status_type), intent(out) :: status
+        end subroutine revert_function_proc
+
+        !> A function of `find_directory_functions': visit DIRNAME,
+        !> returning its buffer in BUF (the null handle for none).
+        recursive subroutine find_directory_proc(dirname, buf, status)
+            import :: handle_type, status_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dirname
+            type(handle_type), intent(out) :: buf
+            type(status_type), intent(out) :: status
+        end subroutine find_directory_proc
+    end interface
+
+    !> One buffer's `revert_buffer_function'.
+    type :: revert_entry_type
+        integer(int64) :: serial = 0
+        procedure(revert_function_proc), pointer, nopass :: fn => null()
+    end type revert_entry_type
+
+    !> Function to use to revert this buffer.
+    !> The function receives two arguments IGNORE_AUTO and NOCONFIRM,
+    !> which are the arguments that `revert_buffer' received.
+    !> It also has access to the `preserve_modes' argument of
+    !> `revert_buffer' via the `revert_buffer_preserve_modes' dynamic
+    !> variable.
+    !>
+    !> For historical reasons, a null value means to use the default
+    !> function.  This should not be relied upon.  Port of files.el
+    !> revert-buffer-function (permanently buffer-local; set with
+    !> `set_local', null for the default).
+    type, public :: revert_buffer_function_type
+        character(len=48) :: name = "revert_buffer_function"
+        type(revert_entry_type), allocatable :: entries(:)
+    contains
+        !> Make FN the current buffer's revert function (setq-local).
+        procedure :: set_local => revert_set_local
+        !> The current buffer's revert function (null for the default).
+        procedure :: get => revert_get
+    end type revert_buffer_function_type
+
+    !> Function to use to revert this buffer (see the type).  Port of
+    !> files.el revert-buffer-function.
+    type(revert_buffer_function_type), public :: revert_buffer_function
+
+    !> True within a `revert_buffer'.  Port of files.el
+    !> revert-buffer-in-progress.
+    logical, public :: revert_buffer_in_progress = .false.
+
+    !> True means `revert_buffer' should not reinitialize the modes
+    !> (the PRESERVE_MODES argument).  Port of files.el
+    !> revert-buffer-preserve-modes.
+    logical, public :: revert_buffer_preserve_modes = .false.
+
+    !> True means allow `find_file' to visit directories.
+    !> To visit the directory, `find_file' runs `find_directory_functions'.
+    !> Port of files.el find-file-run-dired.
+    logical, public :: find_file_run_dired = .true.
+
+    !> Function to try to visit a directory.
+    !> It is called with the directory name as the sole argument
+    !> and should return either a buffer or the null handle.  Port of files.el
+    !> find-directory-functions (one function: `dired_noselect', which
+    !> Dired installs; cvs-dired-noselect is not ported).
+    procedure(find_directory_proc), pointer, public :: find_directory_functions => null()
+
+    !> Absolute or relative name of the `ls'-like program.
+    !> This is used by `insert_directory' and `dired_insert_directory'
+    !> (thus, also by `dired').  For Dired, this should ideally point to
+    !> GNU ls, or another version of ls that supports the "--dired"
+    !> flag.  See `dired_use_ls_dired'.
+    !>
+    !> On GNU/Linux and other capable systems, the default is "ls".  Port
+    !> of files.el insert-directory-program.
+    character(len=:), allocatable, public :: insert_directory_program
+
+    !> Regular expression to match up to the file name in a directory listing.
+    !> The default value is designed to recognize dates and times
+    !> regardless of the language.  Port of files.el
+    !> directory-listing-before-filename-regexp.
+    character(len=:), allocatable, public :: directory_listing_before_filename_regexp
+
+    !> When allocated, name of temporary file an `ls' error is written to.
+    !> Port of dired.el dired--ls-error-file (set by `insert_directory').
+    character(len=:), allocatable, public :: dired_ls_error_file
+
+    !> Set if the current dired invocation yields an `ls' error: the
+    !> buffer containing the error message (else the null handle).  Port
+    !> of dired.el dired--ls-error-buffer (set by `insert_directory').
+    type(handle_type), public :: dired_ls_error_buffer
+
 contains
 
     ! ------------------------------------------------------------------
@@ -313,8 +642,8 @@ contains
     !> exist still gets a buffer, which will create it when saved.
     !> Port of files.el:find-file-noselect with find-file-noselect-1 (no
     !> wildcards, truenames, raw files, or checks that an already-visited
-    !> file changed on disk).
-    subroutine find_file_noselect(filename, buf, status)
+    !> file changed on disk; `find_file_visit_truename' nil).
+    recursive subroutine find_file_noselect(filename, buf, status)
         character(len=*), intent(in) :: filename
         type(handle_type), intent(out) :: buf
         type(status_type), intent(out) :: status
@@ -326,6 +655,11 @@ contains
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
         if (file_directory_p(absname)) then
+            ! find-directory-functions
+            if (find_file_run_dired .and. associated(find_directory_functions)) then
+                call find_directory_functions(abbreviate_file_name(absname), buf, status)
+                if (.not. status%ok() .or. buf%index /= 0) return
+            end if
             call set_error(status, FM_GENERIC_ERROR, abbreviate_file_name(absname)//" is a directory")
             return
         end if
@@ -413,7 +747,7 @@ contains
     !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
     !> its buffer in the selected window (`pop_to_buffer_same_window').  Port
     !> of files.el:find-file (one file; WILDCARDS deferred).
-    subroutine find_file(filename, status)
+    recursive subroutine find_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
@@ -422,12 +756,33 @@ contains
         call pop_to_buffer_same_window(buf, status)
     end subroutine find_file
 
+    !> Edit file FILENAME, in another window.
+    !>
+    !> Like \[find_file] (which see), but creates a new window or reuses
+    !> an existing one.  See the function `display_buffer'.
+    !>
+    !> If this command needs to split the current window, it by default obeys
+    !> the user options `split_height_threshold' and `split_width_threshold',
+    !> when it decides whether to split the window horizontally or vertically.
+    !> Port of files.el:find-file-other-window (one file; WILDCARDS
+    !> deferred).
+    recursive subroutine find_file_other_window(filename, status)
+        character(len=*), intent(in) :: filename
+        type(status_type), intent(out) :: status
+        type(handle_type) :: buf
+        call find_file_noselect(filename, buf, status)
+        if (.not. status%ok()) return
+        call switch_to_buffer_other_window(buf, status)
+    end subroutine find_file_other_window
+
     ! ------------------------------------------------------------------
     ! Backups
     ! ------------------------------------------------------------------
 
-    !> Whether `file' is a backup file name (ends in "~").  Port of
-    !> files.el:backup-file-name-p (without numbered versions).
+    !> Return true if FILE is a backup file name (numeric or not).
+    !> This is a separate function so you can redefine it for customization.
+    !> You may need to redefine `file_name_sans_versions' as well.  Port of
+    !> files.el:backup-file-name-p.
     pure logical function backup_file_name_p(file)
         character(len=*), intent(in) :: file
         backup_file_name_p = .false.
@@ -1007,7 +1362,7 @@ contains
     !> type \[next_history_element] to pull it into the minibuffer.
     !> Port of files.el:find-file (interactive), with find-file-read-args (no
     !> wildcards, remote files or `file_name_at_point_functions').
-    subroutine cmd_find_file(status)
+    recursive subroutine cmd_find_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: filename, dir
         dir = "~/"
@@ -1017,6 +1372,105 @@ contains
         if (.not. status%ok()) return
         call find_file(filename, status)
     end subroutine cmd_find_file
+
+    !> Edit file FILENAME, in another window.
+    !>
+    !> Like \[find_file] (which see), but creates a new window or reuses
+    !> an existing one.  See the function `display_buffer'.
+    !>
+    !> \<minibuffer_local_map>Interactively, the default if you just type RET is the current directory,
+    !> but the visited file name is available through the minibuffer history:
+    !> type \[next_history_element] to pull it into the minibuffer.
+    !>
+    !> If this command needs to split the current window, it by default obeys
+    !> the user options `split_height_threshold' and `split_width_threshold',
+    !> when it decides whether to split the window horizontally or vertically.
+    !> Port of files.el:find-file-other-window (interactive), with
+    !> find-file-read-args (no wildcards or `file_name_at_point_functions').
+    recursive subroutine cmd_find_file_other_window(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, dir
+        dir = "~/"
+        if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        call read_file_name_in_minibuffer("Find file in other window: ", filename, status, default_filename=dir, &
+                                          confirm_nonexistent=.true.)
+        if (.not. status%ok()) return
+        call find_file_other_window(filename, status)
+    end subroutine cmd_find_file_other_window
+
+    !> Replace current buffer text with the text of the visited file on disk.
+    !> This undoes all changes since the file was visited or saved.
+    !> With a prefix argument, offer to revert from latest auto-save file, if
+    !> that is more recent than the visited file.
+    !>
+    !> This command also implements an interface for special buffers
+    !> that contain text that doesn't come from a file, but reflects
+    !> some other data instead (e.g. Dired buffers, `buffer_list'
+    !> buffers).  This is done via the variable `revert_buffer_function'.
+    !> In these cases, it should reconstruct the buffer contents from the
+    !> appropriate data.  Port of files.el:revert-buffer (the command).
+    recursive subroutine cmd_revert_buffer(status)
+        type(status_type), intent(out) :: status
+        call revert_buffer(status, ignore_auto=nilp(current_prefix_arg))
+    end subroutine cmd_revert_buffer
+
+    ! ------------------------------------------------------------------
+    ! revert-buffer-function
+    ! ------------------------------------------------------------------
+
+    !> Whether a live buffer has serial number SERIAL.
+    logical function serial_live(serial)
+        integer(int64), intent(in) :: serial
+        integer(int64) :: k
+        serial_live = .false.
+        if (.not. allocated(buffers)) return
+        do k = 1, size(buffers, kind=int64)
+            if (buffers(k)%serial /= serial) cycle
+            serial_live = buffer_live_p(buffer_handle(k))
+            return
+        end do
+    end function serial_live
+
+    subroutine revert_set_local(self, fn)
+        class(revert_buffer_function_type), intent(inout) :: self
+        procedure(revert_function_proc) :: fn
+        type(revert_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        ! Reuse the entry of a dead buffer.
+        do i = 1, size(self%entries)
+            if (.not. serial_live(self%entries(i)%serial)) then
+                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        n = size(self%entries)
+        allocate (grown(n + 1))
+        grown(1:n) = self%entries
+        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, self%entries)
+    end subroutine revert_set_local
+
+    function revert_get(self) result(fn)
+        class(revert_buffer_function_type), intent(in) :: self
+        procedure(revert_function_proc), pointer :: fn
+        integer :: i
+        fn => null()
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
+        end do
+    end function revert_get
 
     !> Write current buffer into file FILENAME.
     !> This makes the buffer visit that file, and marks it as not modified.
@@ -1113,12 +1567,26 @@ contains
         call save_buffers_kill_emacs(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_save_buffers_kill_terminal
 
-    !> Register the commands and their keys in `ctl_x_map'.
-    subroutine syms_of_files(ctl_x_map)
+    !> Register the commands and their keys in `ctl_x_map' (and
+    !> `ctl_x_4_map').
+    subroutine syms_of_files(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in) :: ctl_x_map
+        type(handle_type), intent(in), optional :: ctl_x_4_map
         type(value_type) :: key(1)
         type(status_type) :: status
+        if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
+        if (.not. allocated(directory_listing_before_filename_regexp)) call init_directory_listing_regexp()
         commands%find_file%run => cmd_find_file
+        commands%find_file_other_window%run => cmd_find_file_other_window
+        commands%revert_buffer%run => cmd_revert_buffer
+        if (present(ctl_x_4_map)) then
+            ! files.el: (define-key ctl-x-4-map "f" 'find-file-other-window)
+            key(1) = make_fixnum(int(iachar("f"), int64))
+            call define_key(ctl_x_4_map, key, sym("find_file_other_window"), status)
+            ! files.el: (define-key ctl-x-4-map "\C-f" 'find-file-other-window)
+            key(1) = make_fixnum(6_int64)
+            call define_key(ctl_x_4_map, key, sym("find_file_other_window"), status)
+        end if
         commands%normal_mode%run => cmd_normal_mode
         commands%write_file%run => cmd_write_file
         commands%save_buffer%run => cmd_save_buffer
@@ -1140,6 +1608,47 @@ contains
         key(1) = make_fixnum(3_int64)
         call define_key(ctl_x_map, key, sym("save_buffers_kill_terminal"), status)
     end subroutine syms_of_files
+
+    !> Set `directory_listing_before_filename_regexp' to its standard value.
+    subroutine init_directory_listing_regexp()
+        character(len=:), allocatable :: l, l_or_quote, month, sp, yyyy, dd, hh_mm, seconds, zone, iso_mm_dd, &
+                                         iso_time, iso, western, western_comma, dd_mmm_yyyy, mm, east_asian
+        l = "\([A-Za-z]\|[^"//achar(0)//"-"//achar(127)//"]\)"
+        l_or_quote = "\([A-Za-z']\|[^"//achar(0)//"-"//achar(127)//"]\)"
+        ! In some locales, month abbreviations are as short as 2 letters,
+        ! and they can be followed by ".".
+        ! In Breton, a month name  can include a quote character.
+        month = l_or_quote//l_or_quote//"+\.?"
+        sp = " "
+        yyyy = "[0-9][0-9][0-9][0-9]"
+        dd = "[ 0-3][0-9]"
+        hh_mm = "[ 0-2][0-9][:.][0-5][0-9]"
+        seconds = "[0-6][0-9]\([.,][0-9]+\)?"
+        zone = "[-+][0-2][0-9][0-5][0-9]"
+        iso_mm_dd = "[01][0-9]-[0-3][0-9]"
+        iso_time = hh_mm//"\(:"//seconds//"\( ?"//zone//"\)?\)?"
+        iso = "\(\("//yyyy//"-\)?"//iso_mm_dd//"[ T]"//iso_time//"\|"//yyyy//"-"//iso_mm_dd//"\)"
+        western = "\("//month//sp//"+"//dd//"\|"//dd//"\.?"//sp//month//"\)"//sp//"+"//"\("//hh_mm// &
+                  "\|"//yyyy//"\)"
+        western_comma = month//sp//"+"//dd//","//sp//"+"//yyyy
+        ! This represents the date in strftime(3) format "%e-%b-%Y"
+        ! (aka "%v"), as it is the default for many ls incarnations.
+        dd_mmm_yyyy = dd//"-"//month//"-"//yyyy//sp//hh_mm
+        ! Japanese MS-Windows ls-lisp has one-digit months, and
+        ! omits the Kanji characters after month and day-of-month.
+        ! On Mac OS X 10.3, the date format in East Asian locales is
+        ! day-of-month digits followed by month digits.
+        mm = "[ 0-1]?[0-9]"
+        east_asian = "\("//mm//l//"?"//sp//dd//l//"?"//sp//"+"//"\|"//dd//sp//mm//sp//"+"//"\)"//"\("//hh_mm// &
+                     "\|"//yyyy//l//"?"//"\)"
+        ! The "[0-9]" below requires the previous column to end in a digit.
+        ! The "[BkKMGTPEZYRQ]?" below supports "ls -alh" output.
+        ! For non-iso date formats, we add the ".*" in order to find
+        ! the last possible match.
+        directory_listing_before_filename_regexp = "\([0-9][BkKMGTPEZYRQ]? "//iso//"\|.*[0-9][BkKMGTPEZYRQ]? "// &
+                                                   "\("//western//"\|"//western_comma//"\|"//dd_mmm_yyyy// &
+                                                   "\|"//east_asian//"\)"//"\) +"
+    end subroutine init_directory_listing_regexp
 
     !> Make directory DIR if it is not already a directory.
     !> `already' is true if DIR is already a directory.  Port of

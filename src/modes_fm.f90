@@ -35,6 +35,7 @@ module modes_fm
     !> One component per built-in major mode.
     type :: major_mode_table_type
         type(major_mode_type) :: compilation_mode
+        type(major_mode_type) :: dired_mode
         type(major_mode_type) :: edit_abbrevs_mode
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: help_mode

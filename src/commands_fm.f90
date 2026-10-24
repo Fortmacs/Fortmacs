@@ -89,6 +89,52 @@ module commands_fm
         type(command_type) :: describe_key_briefly
         type(command_type) :: describe_variable
         type(command_type) :: digit_argument
+        type(command_type) :: dired
+        type(command_type) :: dired_build_subdir_alist
+        type(command_type) :: dired_change_marks
+        type(command_type) :: dired_copy_filename_as_kill
+        type(command_type) :: dired_create_directory
+        type(command_type) :: dired_display_file
+        type(command_type) :: dired_do_delete
+        type(command_type) :: dired_do_flagged_delete
+        type(command_type) :: dired_do_redisplay
+        type(command_type) :: dired_find_file
+        type(command_type) :: dired_find_file_other_window
+        type(command_type) :: dired_flag_auto_save_files
+        type(command_type) :: dired_flag_backup_files
+        type(command_type) :: dired_flag_file_deletion
+        type(command_type) :: dired_flag_files_regexp
+        type(command_type) :: dired_flag_garbage_files
+        type(command_type) :: dired_goto_file
+        type(command_type) :: dired_kill_subdir
+        type(command_type) :: dired_mark
+        type(command_type) :: dired_mark_directories
+        type(command_type) :: dired_mark_executables
+        type(command_type) :: dired_mark_files_containing_regexp
+        type(command_type) :: dired_mark_files_regexp
+        type(command_type) :: dired_mark_subdir_files
+        type(command_type) :: dired_mark_symlinks
+        type(command_type) :: dired_mode
+        type(command_type) :: dired_next_dirline
+        type(command_type) :: dired_next_line
+        type(command_type) :: dired_next_marked_file
+        type(command_type) :: dired_next_subdir
+        type(command_type) :: dired_number_of_marked_files
+        type(command_type) :: dired_other_window
+        type(command_type) :: dired_prev_dirline
+        type(command_type) :: dired_prev_marked_file
+        type(command_type) :: dired_prev_subdir
+        type(command_type) :: dired_previous_line
+        type(command_type) :: dired_sort_toggle_or_edit
+        type(command_type) :: dired_summary
+        type(command_type) :: dired_toggle_marks
+        type(command_type) :: dired_undo
+        type(command_type) :: dired_unmark
+        type(command_type) :: dired_unmark_all_files
+        type(command_type) :: dired_unmark_all_marks
+        type(command_type) :: dired_unmark_backward
+        type(command_type) :: dired_up_directory
+        type(command_type) :: dired_why
         type(command_type) :: disable_command
         type(command_type) :: do_auto_fill
         type(command_type) :: down_list
@@ -109,6 +155,7 @@ module commands_fm
         type(command_type) :: fill_region
         type(command_type) :: fill_region_as_paragraph
         type(command_type) :: find_file
+        type(command_type) :: find_file_other_window
         type(command_type) :: fixup_whitespace
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
@@ -278,6 +325,7 @@ module commands_fm
         type(command_type) :: rectangle_number_lines
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
+        type(command_type) :: revert_buffer
         type(command_type) :: right_char
         type(command_type) :: right_word
         type(command_type) :: rotate_yank_pointer
@@ -347,7 +395,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(309) = [character(len=38) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(357) = [character(len=38) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -405,6 +453,52 @@ module commands_fm
                                                                  "describe_key_briefly", &
                                                                  "describe_variable", &
                                                                  "digit_argument", &
+                                                                 "dired", &
+                                                                 "dired_build_subdir_alist", &
+                                                                 "dired_change_marks", &
+                                                                 "dired_copy_filename_as_kill", &
+                                                                 "dired_create_directory", &
+                                                                 "dired_display_file", &
+                                                                 "dired_do_delete", &
+                                                                 "dired_do_flagged_delete", &
+                                                                 "dired_do_redisplay", &
+                                                                 "dired_find_file", &
+                                                                 "dired_find_file_other_window", &
+                                                                 "dired_flag_auto_save_files", &
+                                                                 "dired_flag_backup_files", &
+                                                                 "dired_flag_file_deletion", &
+                                                                 "dired_flag_files_regexp", &
+                                                                 "dired_flag_garbage_files", &
+                                                                 "dired_goto_file", &
+                                                                 "dired_kill_subdir", &
+                                                                 "dired_mark", &
+                                                                 "dired_mark_directories", &
+                                                                 "dired_mark_executables", &
+                                                                 "dired_mark_files_containing_regexp", &
+                                                                 "dired_mark_files_regexp", &
+                                                                 "dired_mark_subdir_files", &
+                                                                 "dired_mark_symlinks", &
+                                                                 "dired_mode", &
+                                                                 "dired_next_dirline", &
+                                                                 "dired_next_line", &
+                                                                 "dired_next_marked_file", &
+                                                                 "dired_next_subdir", &
+                                                                 "dired_number_of_marked_files", &
+                                                                 "dired_other_window", &
+                                                                 "dired_prev_dirline", &
+                                                                 "dired_prev_marked_file", &
+                                                                 "dired_prev_subdir", &
+                                                                 "dired_previous_line", &
+                                                                 "dired_sort_toggle_or_edit", &
+                                                                 "dired_summary", &
+                                                                 "dired_toggle_marks", &
+                                                                 "dired_undo", &
+                                                                 "dired_unmark", &
+                                                                 "dired_unmark_all_files", &
+                                                                 "dired_unmark_all_marks", &
+                                                                 "dired_unmark_backward", &
+                                                                 "dired_up_directory", &
+                                                                 "dired_why", &
                                                                  "disable_command", &
                                                                  "do_auto_fill", &
                                                                  "down_list", &
@@ -425,6 +519,7 @@ module commands_fm
                                                                  "fill_region", &
                                                                  "fill_region_as_paragraph", &
                                                                  "find_file", &
+                                                                 "find_file_other_window", &
                                                                  "fixup_whitespace", &
                                                                  "font_lock_change_mode", &
                                                                  "font_lock_debug_fontify", &
@@ -594,6 +689,7 @@ module commands_fm
                                                                  "rectangle_number_lines", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
+                                                                 "revert_buffer", &
                                                                  "right_char", &
                                                                  "right_word", &
                                                                  "rotate_yank_pointer", &
@@ -781,6 +877,98 @@ contains
             p => commands%describe_variable
         case ("digit_argument")
             p => commands%digit_argument
+        case ("dired")
+            p => commands%dired
+        case ("dired_build_subdir_alist")
+            p => commands%dired_build_subdir_alist
+        case ("dired_change_marks")
+            p => commands%dired_change_marks
+        case ("dired_copy_filename_as_kill")
+            p => commands%dired_copy_filename_as_kill
+        case ("dired_create_directory")
+            p => commands%dired_create_directory
+        case ("dired_display_file")
+            p => commands%dired_display_file
+        case ("dired_do_delete")
+            p => commands%dired_do_delete
+        case ("dired_do_flagged_delete")
+            p => commands%dired_do_flagged_delete
+        case ("dired_do_redisplay")
+            p => commands%dired_do_redisplay
+        case ("dired_find_file")
+            p => commands%dired_find_file
+        case ("dired_find_file_other_window")
+            p => commands%dired_find_file_other_window
+        case ("dired_flag_auto_save_files")
+            p => commands%dired_flag_auto_save_files
+        case ("dired_flag_backup_files")
+            p => commands%dired_flag_backup_files
+        case ("dired_flag_file_deletion")
+            p => commands%dired_flag_file_deletion
+        case ("dired_flag_files_regexp")
+            p => commands%dired_flag_files_regexp
+        case ("dired_flag_garbage_files")
+            p => commands%dired_flag_garbage_files
+        case ("dired_goto_file")
+            p => commands%dired_goto_file
+        case ("dired_kill_subdir")
+            p => commands%dired_kill_subdir
+        case ("dired_mark")
+            p => commands%dired_mark
+        case ("dired_mark_directories")
+            p => commands%dired_mark_directories
+        case ("dired_mark_executables")
+            p => commands%dired_mark_executables
+        case ("dired_mark_files_containing_regexp")
+            p => commands%dired_mark_files_containing_regexp
+        case ("dired_mark_files_regexp")
+            p => commands%dired_mark_files_regexp
+        case ("dired_mark_subdir_files")
+            p => commands%dired_mark_subdir_files
+        case ("dired_mark_symlinks")
+            p => commands%dired_mark_symlinks
+        case ("dired_mode")
+            p => commands%dired_mode
+        case ("dired_next_dirline")
+            p => commands%dired_next_dirline
+        case ("dired_next_line")
+            p => commands%dired_next_line
+        case ("dired_next_marked_file")
+            p => commands%dired_next_marked_file
+        case ("dired_next_subdir")
+            p => commands%dired_next_subdir
+        case ("dired_number_of_marked_files")
+            p => commands%dired_number_of_marked_files
+        case ("dired_other_window")
+            p => commands%dired_other_window
+        case ("dired_prev_dirline")
+            p => commands%dired_prev_dirline
+        case ("dired_prev_marked_file")
+            p => commands%dired_prev_marked_file
+        case ("dired_prev_subdir")
+            p => commands%dired_prev_subdir
+        case ("dired_previous_line")
+            p => commands%dired_previous_line
+        case ("dired_sort_toggle_or_edit")
+            p => commands%dired_sort_toggle_or_edit
+        case ("dired_summary")
+            p => commands%dired_summary
+        case ("dired_toggle_marks")
+            p => commands%dired_toggle_marks
+        case ("dired_undo")
+            p => commands%dired_undo
+        case ("dired_unmark")
+            p => commands%dired_unmark
+        case ("dired_unmark_all_files")
+            p => commands%dired_unmark_all_files
+        case ("dired_unmark_all_marks")
+            p => commands%dired_unmark_all_marks
+        case ("dired_unmark_backward")
+            p => commands%dired_unmark_backward
+        case ("dired_up_directory")
+            p => commands%dired_up_directory
+        case ("dired_why")
+            p => commands%dired_why
         case ("disable_command")
             p => commands%disable_command
         case ("do_auto_fill")
@@ -821,6 +1009,8 @@ contains
             p => commands%fill_region_as_paragraph
         case ("find_file")
             p => commands%find_file
+        case ("find_file_other_window")
+            p => commands%find_file_other_window
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
         case ("font_lock_change_mode")
@@ -1159,6 +1349,8 @@ contains
             p => commands%replace_regexp
         case ("replace_string")
             p => commands%replace_string
+        case ("revert_buffer")
+            p => commands%revert_buffer
         case ("right_char")
             p => commands%right_char
         case ("right_word")

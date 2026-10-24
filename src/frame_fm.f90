@@ -25,11 +25,21 @@
 !> The frame has a window tree (its root window), the selected window (a
 !> live window of the tree) and a minibuffer window on its last line, all
 !> windows of window_fm's registry; child frames are not ported.
+!>
+!> Sizes are in pixels where upstream has them: FRAME_COLUMN_WIDTH and
+!> FRAME_LINE_HEIGHT are 1 on a terminal frame, the default font's width
+!> and height on a window-system frame (one with a redisplay interface,
+!> `rif', and a font driver).  Windows are sized in columns and lines
+!> (frame-resize-pixelwise and window-resize-pixelwise nil), so their
+!> pixel edges are those times the frame's column width and line height.
+!> Window-system frames exist only in the tests (a fake device) until the
+!> GUI is ported.
 module frame_fm
     use termchar_fm, only: tty_display_info
-    use dispextern_fm, only: glyph_matrix_type, face_type
+    use dispextern_fm, only: glyph_matrix_type, face_type, redisplay_interface_type
+    use font_fm, only: font_driver_type
     use handle_fm, only: handle_type
-    use window_fm, only: window_type, window_ref, window_valid_p, make_window, windows
+    use window_fm, only: window_type, window_ref, window_valid_p, make_window, windows, window_text_cols
     implicit none(type, external)
     private
 
@@ -54,14 +64,103 @@ module frame_fm
         !> The screen contents are unknown and must be redrawn.
         logical :: garbaged = .true.
         logical :: glyphs_initialized_p = .false.
+        !> How redisplay draws on a window-system frame (FRAME_RIF); not
+        !> associated on a terminal frame.
+        class(redisplay_interface_type), pointer :: rif => null()
+        !> The fonts of a window-system frame's faces (f->font_driver_list).
+        class(font_driver_type), pointer :: font_driver => null()
+        !> FRAME_COLUMN_WIDTH and FRAME_LINE_HEIGHT: the canonical
+        !> character width and line height in pixels.
+        integer :: column_width = 1, line_height = 1
+        !> The narrowest glyph and the lowest font of the frame's display
+        !> (FRAME_SMALLEST_CHAR_WIDTH, FRAME_SMALLEST_FONT_HEIGHT), which
+        !> bound how many glyphs and rows a window can show.
+        integer :: smallest_char_width = 1, smallest_font_height = 1
+        !> The size of a window-system frame in columns and lines
+        !> (text_cols, text_lines); a terminal frame has its terminal's.
+        integer :: text_cols = 0, text_lines = 0
     end type frame_type
 
     !> The terminal frame (frame.c:selected_frame).
     type(frame_type), target, public :: selected_frame
 
     public :: ensure_frame_windows, selected_window, selected_window_ref, frame_selected_window_ref, minibuffer_window_ref
+    public :: frame_window_p, frame_lines, frame_cols, window_pixel_left, window_pixel_top, window_pixel_width, &
+              window_pixel_height, window_body_pixel_width
 
 contains
+
+    !> Whether `f' is a window-system frame.  frame.h:FRAME_WINDOW_P.
+    logical function frame_window_p(f)
+        type(frame_type), intent(in) :: f
+        frame_window_p = associated(f%rif)
+    end function frame_window_p
+
+    !> The frame's height in lines (frame.h:FRAME_LINES): its terminal's
+    !> on a terminal frame.
+    integer function frame_lines(f)
+        type(frame_type), intent(in) :: f
+        if (frame_window_p(f)) then
+            frame_lines = f%text_lines
+        else
+            frame_lines = f%tty%wcm%cm_rows
+        end if
+    end function frame_lines
+
+    !> The frame's width in columns (frame.h:FRAME_COLS).
+    integer function frame_cols(f)
+        type(frame_type), intent(in) :: f
+        if (frame_window_p(f)) then
+            frame_cols = f%text_cols
+        else
+            frame_cols = f%tty%wcm%cm_cols
+        end if
+    end function frame_cols
+
+    !> The left edge of window `w' on frame `f' in pixels
+    !> (window.h:WINDOW_LEFT_EDGE_X).
+    integer function window_pixel_left(f, w)
+        type(frame_type), intent(in) :: f
+        type(window_type), intent(in) :: w
+        window_pixel_left = w%left_col*f%column_width
+    end function window_pixel_left
+
+    !> The top edge of window `w' in pixels (window.h:WINDOW_TOP_EDGE_Y).
+    integer function window_pixel_top(f, w)
+        type(frame_type), intent(in) :: f
+        type(window_type), intent(in) :: w
+        window_pixel_top = w%top_line*f%line_height
+    end function window_pixel_top
+
+    !> The width of window `w' in pixels (window.h:WINDOW_PIXEL_WIDTH).
+    integer function window_pixel_width(f, w)
+        type(frame_type), intent(in) :: f
+        type(window_type), intent(in) :: w
+        window_pixel_width = w%total_cols*f%column_width
+    end function window_pixel_width
+
+    !> The height of window `w' in pixels, mode line included
+    !> (window.h:WINDOW_PIXEL_HEIGHT).
+    integer function window_pixel_height(f, w)
+        type(frame_type), intent(in) :: f
+        type(window_type), intent(in) :: w
+        window_pixel_height = w%total_lines*f%line_height
+    end function window_pixel_height
+
+    !> The width of the text area of window `w' in pixels: on a terminal,
+    !> less the column of the border with a window on its right; a
+    !> window-system frame draws that border over the window's last pixel
+    !> column (there are no fringes, margins, scroll bars or dividers).
+    !> Port of window.c:window_body_width (WINDOW_BODY_IN_PIXELS).
+    integer function window_body_pixel_width(f, w)
+        type(frame_type), intent(in) :: f
+        type(window_type), intent(in) :: w
+        if (frame_window_p(f)) then
+            window_body_pixel_width = window_pixel_width(f, w)
+        else
+            window_body_pixel_width = window_text_cols(w)
+        end if
+    end function window_body_pixel_width
 
     !> Make `selected_frame''s windows if they don't exist yet: one window
     !> (the root, selected) and the minibuffer window, sized later by

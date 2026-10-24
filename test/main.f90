@@ -59,6 +59,7 @@ program tester
     use test_term_fm, only: collect_term_fm
     use test_dispnew_fm, only: collect_dispnew_fm
     use test_xdisp_fm, only: collect_xdisp_fm
+    use test_fake_gui_fm, only: collect_fake_gui_fm
     use test_fileio_fm, only: collect_fileio_fm
     use test_files_fm, only: collect_files_fm
     use test_minibuf_fm, only: collect_minibuf_fm
@@ -70,6 +71,7 @@ program tester
     use test_compile_fm, only: collect_compile_fm
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
+    use test_dired_mode_fm, only: collect_dired_mode_fm
     use test_casetab_fm, only: collect_casetab_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
@@ -116,6 +118,7 @@ program tester
                  new_testsuite("term_fm", collect_term_fm), &
                  new_testsuite("dispnew_fm", collect_dispnew_fm), &
                  new_testsuite("xdisp_fm", collect_xdisp_fm), &
+                 new_testsuite("fake_gui_fm", collect_fake_gui_fm), &
                  new_testsuite("fileio_fm", collect_fileio_fm), &
                  new_testsuite("files_fm", collect_files_fm), &
                  new_testsuite("minibuf_fm", collect_minibuf_fm), &
@@ -127,6 +130,7 @@ program tester
                  new_testsuite("compile_fm", collect_compile_fm), &
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
+                 new_testsuite("dired_mode_fm", collect_dired_mode_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &

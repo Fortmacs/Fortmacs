@@ -57,14 +57,33 @@ module docstrings_fm
                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
                           dabbrev_upcase_means_case_search
     use dired_fm, only: completion_ignored_extensions
+    use dired_mode_fm, only: dired_after_readin_hook, dired_always_read_filesystem, &
+                             dired_auto_revert_buffer, dired_before_readin_hook, dired_broken_symlink, &
+                             dired_check_symlinks, dired_del_marker, dired_directory, dired_directory_face, dired_flagged, &
+                             dired_flagged_face, dired_free_space, DIRED_FREE_SPACE_NIL, DIRED_FREE_SPACE_SEPARATE, &
+                             DIRED_FREE_SPACE_FIRST, dired_garbage_files_regexp, dired_header, dired_header_face, &
+                             dired_ignored, dired_ignored_face, dired_initial_position_hook, dired_listing_switches, &
+                             dired_ls_f_marks_symlinks, dired_mark, dired_mark_face, dired_mark_region, &
+                             DIRED_MARK_REGION_NIL, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_marked, &
+                             dired_marked_face, dired_marker_char, dired_mode_hook, dired_mode_map, dired_movement_style, &
+                             DIRED_MOVEMENT_STYLE_NIL, DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, &
+                             DIRED_MOVEMENT_STYLE_CYCLE_FILES, DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_no_confirm, &
+                             dired_perm_write, dired_perm_write_face, dired_recursive_deletes, DIRED_RECURSIVE_NEVER, &
+                             DIRED_RECURSIVE_ALWAYS, DIRED_RECURSIVE_TOP, DIRED_RECURSIVE_ASK, dired_set_id, &
+                             dired_sort_inhibit, dired_special, dired_switches_in_mode_line, DIRED_SWITCHES_SORT_ORDER, &
+                             DIRED_SWITCHES_AS_IS, dired_symlink, dired_symlink_face, dired_trivial_filenames, &
+                             dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, &
+                             DIRED_USE_LS_DIRED_UNSPECIFIED, dired_warning, dired_warning_face
     use editfns_fm, only: inhibit_field_text_motion
     use edmacro_fm, only: edmacro_eight_bits
     use eval_fm, only: change_major_mode_hook
-    use files_fm, only: change_major_mode_with_file_name, make_backup_files, &
-                        mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, &
-                        FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, require_final_newline, FINAL_NEWLINE_NEVER, &
-                        FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, &
-                        save_some_buffers_functions
+    use files_fm, only: change_major_mode_with_file_name, directory_listing_before_filename_regexp, &
+                        dired_ls_error_buffer, dired_ls_error_file, find_file_run_dired, insert_directory_program, &
+                        make_backup_files, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
+                        FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, require_final_newline, &
+                        FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
+                        FINAL_NEWLINE_ASK, revert_buffer_function, revert_buffer_in_progress, &
+                        revert_buffer_preserve_modes, save_some_buffers_functions
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
@@ -95,6 +114,8 @@ module docstrings_fm
                          kmacro_default_counter_format, kmacro_execute_before_append, kmacro_initial_counter_value, &
                          kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
     use lread_fm, only: user_init_file
+    use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
+                          READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
@@ -161,7 +182,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=38), parameter, public :: function_names(473) = [character(len=38) :: &
+    character(len=38), parameter, public :: function_names(522) = [character(len=38) :: &
                                                                    "abbrev__default_expand", &
                                                                    "abbrev_expansion", &
                                                                    "abbrev_insert", &
@@ -251,6 +272,53 @@ module docstrings_fm
                                                                    "describe_key_briefly", &
                                                                    "describe_variable", &
                                                                    "digit_argument", &
+                                                                   "dired", &
+                                                                   "dired_build_subdir_alist", &
+                                                                   "dired_change_marks", &
+                                                                   "dired_copy_filename_as_kill", &
+                                                                   "dired_create_directory", &
+                                                                   "dired_display_file", &
+                                                                   "dired_do_delete", &
+                                                                   "dired_do_flagged_delete", &
+                                                                   "dired_do_redisplay", &
+                                                                   "dired_find_file", &
+                                                                   "dired_find_file_other_window", &
+                                                                   "dired_flag_auto_save_files", &
+                                                                   "dired_flag_backup_files", &
+                                                                   "dired_flag_file_deletion", &
+                                                                   "dired_flag_files_regexp", &
+                                                                   "dired_flag_garbage_files", &
+                                                                   "dired_goto_file", &
+                                                                   "dired_kill_subdir", &
+                                                                   "dired_mark", &
+                                                                   "dired_mark_directories", &
+                                                                   "dired_mark_executables", &
+                                                                   "dired_mark_files_containing_regexp", &
+                                                                   "dired_mark_files_regexp", &
+                                                                   "dired_mark_subdir_files", &
+                                                                   "dired_mark_symlinks", &
+                                                                   "dired_mode", &
+                                                                   "dired_next_dirline", &
+                                                                   "dired_next_line", &
+                                                                   "dired_next_marked_file", &
+                                                                   "dired_next_subdir", &
+                                                                   "dired_noselect", &
+                                                                   "dired_number_of_marked_files", &
+                                                                   "dired_other_window", &
+                                                                   "dired_prev_dirline", &
+                                                                   "dired_prev_marked_file", &
+                                                                   "dired_prev_subdir", &
+                                                                   "dired_previous_line", &
+                                                                   "dired_sort_toggle_or_edit", &
+                                                                   "dired_summary", &
+                                                                   "dired_toggle_marks", &
+                                                                   "dired_undo", &
+                                                                   "dired_unmark", &
+                                                                   "dired_unmark_all_files", &
+                                                                   "dired_unmark_all_marks", &
+                                                                   "dired_unmark_backward", &
+                                                                   "dired_up_directory", &
+                                                                   "dired_why", &
                                                                    "disable_command", &
                                                                    "display_message_or_buffer", &
                                                                    "do_auto_fill", &
@@ -283,6 +351,7 @@ module docstrings_fm
                                                                    "fill_single_char_nobreak_p", &
                                                                    "fill_single_word_nobreak_p", &
                                                                    "find_file", &
+                                                                   "find_file_other_window", &
                                                                    "fixup_whitespace", &
                                                                    "font_lock_add_keywords", &
                                                                    "font_lock_anchored", &
@@ -536,6 +605,7 @@ module docstrings_fm
                                                                    "replace_match", &
                                                                    "replace_regexp", &
                                                                    "replace_string", &
+                                                                   "revert_buffer", &
                                                                    "right_char", &
                                                                    "right_word", &
                                                                    "rotate_yank_pointer", &
@@ -637,7 +707,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(231) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(283) = [character(len=44) :: &
                                                                    "abbrev_all_caps", &
                                                                    "abbrev_file_name", &
                                                                    "abbrev_mode", &
@@ -706,6 +776,52 @@ module docstrings_fm
                                                                    "defining_kbd_macro", &
                                                                    "delete_active_region", &
                                                                    "delete_exited_processes", &
+                                                                   "directory_listing_before_filename_regexp", &
+                                                                   "dired__ls_error_buffer", &
+                                                                   "dired__ls_error_file", &
+                                                                   "dired_after_readin_hook", &
+                                                                   "dired_always_read_filesystem", &
+                                                                   "dired_auto_revert_buffer", &
+                                                                   "dired_before_readin_hook", &
+                                                                   "dired_broken_symlink", &
+                                                                   "dired_check_symlinks", &
+                                                                   "dired_del_marker", &
+                                                                   "dired_directory", &
+                                                                   "dired_directory_face", &
+                                                                   "dired_flagged", &
+                                                                   "dired_flagged_face", &
+                                                                   "dired_free_space", &
+                                                                   "dired_garbage_files_regexp", &
+                                                                   "dired_header", &
+                                                                   "dired_header_face", &
+                                                                   "dired_ignored", &
+                                                                   "dired_ignored_face", &
+                                                                   "dired_initial_position_hook", &
+                                                                   "dired_listing_switches", &
+                                                                   "dired_ls_f_marks_symlinks", &
+                                                                   "dired_mark", &
+                                                                   "dired_mark_face", &
+                                                                   "dired_mark_region", &
+                                                                   "dired_marked", &
+                                                                   "dired_marked_face", &
+                                                                   "dired_marker_char", &
+                                                                   "dired_mode_hook", &
+                                                                   "dired_mode_map", &
+                                                                   "dired_movement_style", &
+                                                                   "dired_no_confirm", &
+                                                                   "dired_perm_write", &
+                                                                   "dired_perm_write_face", &
+                                                                   "dired_recursive_deletes", &
+                                                                   "dired_set_id", &
+                                                                   "dired_sort_inhibit", &
+                                                                   "dired_special", &
+                                                                   "dired_switches_in_mode_line", &
+                                                                   "dired_symlink", &
+                                                                   "dired_symlink_face", &
+                                                                   "dired_trivial_filenames", &
+                                                                   "dired_use_ls_dired", &
+                                                                   "dired_warning", &
+                                                                   "dired_warning_face", &
                                                                    "disabled_command_function", &
                                                                    "display_buffer_mark_dedicated", &
                                                                    "edit_abbrevs_mode_abbrev_table", &
@@ -719,6 +835,7 @@ module docstrings_fm
                                                                    "fill_nobreak_predicate", &
                                                                    "fill_prefix", &
                                                                    "fill_separate_heterogeneous_words_with_space", &
+                                                                   "find_file_run_dired", &
                                                                    "first_change_hook", &
                                                                    "font_lock_defaults", &
                                                                    "font_lock_dont_widen", &
@@ -747,6 +864,7 @@ module docstrings_fm
                                                                    "inhibit_field_text_motion", &
                                                                    "inhibit_modification_hooks", &
                                                                    "insert_default_directory", &
+                                                                   "insert_directory_program", &
                                                                    "isearch_lax_whitespace", &
                                                                    "isearch_mode_map", &
                                                                    "isearch_regexp_lax_whitespace", &
@@ -807,6 +925,7 @@ module docstrings_fm
                                                                    "query_replace_show_replacement", &
                                                                    "query_replace_skip_read_only", &
                                                                    "query_replace_to_history_variable", &
+                                                                   "read_answer_short", &
                                                                    "read_buffer_completion_ignore_case", &
                                                                    "read_char_choice_use_read_key", &
                                                                    "read_file_name_completion_ignore_case", &
@@ -819,6 +938,9 @@ module docstrings_fm
                                                                    "replace_lax_whitespace", &
                                                                    "replace_regexp_lax_whitespace", &
                                                                    "require_final_newline", &
+                                                                   "revert_buffer_function", &
+                                                                   "revert_buffer_in_progress", &
+                                                                   "revert_buffer_preserve_modes", &
                                                                    "save_abbrevs", &
                                                                    "save_some_buffers_functions", &
                                                                    "scroll_error_top_bottom", &
@@ -1683,6 +1805,345 @@ contains
             entry%interactive = .true.
             entry%doc = "Part of the numeric argument for the next command."//LF// &
                         "\[universal_argument] following digits or minus sign ends the argument."
+        case ("dired")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "call dired(dirname, status, switches)"
+            entry%interactive = .true.
+            entry%doc = """Edit"" directory DIRNAME--delete, rename, print, etc. some files in it."//LF// &
+                        "Optional second argument SWITCHES specifies the options to be used"//LF// &
+                        "when invoking `insert_directory_program', usually `ls', which"//LF// &
+                        "produces the listing of the directory files and their attributes."//LF// &
+                        "Interactively, a prefix argument will cause the command to prompt"//LF// &
+                        "for SWITCHES."//LF// &
+                        ""//LF// &
+                        "\<dired_mode_map>You can flag files for deletion with \[dired_flag_file_deletion] and then"//LF// &
+                        "delete them by typing \[dired_do_flagged_delete]."//LF// &
+                        "Type \[describe_mode] after entering Dired for more info."//LF// &
+                        ""//LF// &
+                        "If DIRNAME is already in a Dired buffer, that buffer is used without"//LF// &
+                        "refresh."
+        case ("dired_build_subdir_alist")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Build `dired_subdir_alist' by parsing the buffer."//LF// &
+                        "Returns the new value of `dired_subdir_alist'."
+        case ("dired_change_marks")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change all OLD marks to NEW marks."//LF// &
+                        "OLD and NEW are both characters used to mark files."
+        case ("dired_copy_filename_as_kill")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Copy names of marked (or next ARG) files into the kill ring."//LF// &
+                        "If there are several names, they will be separated by a space,"//LF// &
+                        "and file names that have spaces or quote characters in them will"//LF// &
+                        "be quoted (with double quotes).  (When there's a single file, no"//LF// &
+                        "quoting is done.)"//LF// &
+                        ""//LF// &
+                        "With a zero prefix arg, use the absolute file name of each marked file."//LF// &
+                        "With \[universal_argument], use the file name relative to the Dired buffer's"//LF// &
+                        "`default_directory'.  (This still may contain slashes if in a subdirectory.)"//LF// &
+                        ""//LF// &
+                        "If on a subdir headerline, use absolute subdirname instead;"//LF// &
+                        "prefix arg and marked files are ignored in this case."//LF// &
+                        ""//LF// &
+                        "You can then feed the file name(s) to other commands with \[yank]."
+        case ("dired_create_directory")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Create a directory called DIRECTORY."//LF// &
+                        "Parent directories of DIRECTORY are created as needed."//LF// &
+                        "If DIRECTORY already exists, signal an error."
+        case ("dired_display_file")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, display this file or directory in another window."
+        case ("dired_do_delete")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete all marked (or next ARG) files."//LF// &
+                        "`dired_recursive_deletes' controls whether deletion of"//LF// &
+                        "non-empty directories is allowed."
+        case ("dired_do_flagged_delete")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, delete the files flagged for deletion."//LF// &
+                        "`dired_recursive_deletes' controls whether deletion of"//LF// &
+                        "non-empty directories is allowed."
+        case ("dired_do_redisplay")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Redisplay all marked (or next ARG) files."//LF// &
+                        "If on a subdir line, redisplay that subdirectory.  In that case,"//LF// &
+                        "a prefix arg lets you edit the `ls' switches used for the new listing."//LF// &
+                        ""//LF// &
+                        "Dired remembers switches specified with a prefix arg, so that reverting"//LF// &
+                        "the buffer will not reset them.  However, using `dired_undo' to re-insert"//LF// &
+                        "or delete subdirectories can bypass this machinery.  Hence, you sometimes"//LF// &
+                        "may have to reset some subdirectory switches after a `dired_undo'."
+        case ("dired_find_file")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, visit the file or directory named on this line."
+        case ("dired_find_file_other_window")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, visit this file or directory in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("dired_flag_auto_save_files")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Flag for deletion files whose names suggest they are auto save files."//LF// &
+                        "A prefix argument says to unmark or unflag those files instead."//LF// &
+                        "If the region is active in Transient Mark mode, flag files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."
+        case ("dired_flag_backup_files")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Flag all backup files (names ending with `~') for deletion."//LF// &
+                        "With prefix argument, unmark or unflag these files."//LF// &
+                        "If the region is active in Transient Mark mode, flag files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."
+        case ("dired_flag_file_deletion")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, flag the current line's file for deletion."//LF// &
+                        "If the region is active, flag all files in the region."//LF// &
+                        "Otherwise, with a prefix arg, flag files on the next ARG lines."//LF// &
+                        ""//LF// &
+                        "If on a subdir headerline, flag all its files except `.' and `..'."//LF// &
+                        "If the region is active in Transient Mark mode, flag all files"//LF// &
+                        "in the active region."
+        case ("dired_flag_files_regexp")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, flag all files containing the specified REGEXP for deletion."//LF// &
+                        "The match is against the non-directory part of the filename.  Use `^'"//LF// &
+                        "  and `$' to anchor matches.  Exclude subdirs by hiding them."//LF// &
+                        "`.' and `..' are never flagged."
+        case ("dired_flag_garbage_files")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Flag for deletion all files that match `dired_garbage_files_regexp'."
+        case ("dired_goto_file")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to line describing file FILE in this Dired buffer."
+        case ("dired_kill_subdir")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove all lines of current subdirectory."//LF// &
+                        "Lower levels are unaffected."
+        case ("dired_mark")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the file at point in the Dired buffer."//LF// &
+                        "If the region is active in Transient Mark mode, mark all files"//LF// &
+                        "in the region if `dired_mark_region' is true."//LF// &
+                        "Otherwise, with a prefix arg, mark files on the next ARG lines."//LF// &
+                        ""//LF// &
+                        "If on a subdir headerline, mark all its files except `.' and `..'."//LF// &
+                        ""//LF// &
+                        "Use \[dired_unmark_all_files] to remove all marks"//LF// &
+                        "and \[dired_unmark] on a subdir to remove the marks in"//LF// &
+                        "this subdir."
+        case ("dired_mark_directories")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all directory file lines except `.' and `..'."//LF// &
+                        "With prefix argument, unmark or unflag all those files."//LF// &
+                        "If the region is active in Transient Mark mode, mark files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."
+        case ("dired_mark_executables")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all executable files."//LF// &
+                        "With prefix argument, unmark or unflag all those files."//LF// &
+                        "If the region is active in Transient Mark mode, mark files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."
+        case ("dired_mark_files_containing_regexp")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all files with contents containing REGEXP for use in later commands."//LF// &
+                        "A prefix argument means to unmark them instead."//LF// &
+                        "`.' and `..' are never marked."
+        case ("dired_mark_files_regexp")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all files matching REGEXP for use in later commands."//LF// &
+                        "A prefix argument means to unmark them instead."//LF// &
+                        "`.' and `..' are never marked."//LF// &
+                        ""//LF// &
+                        "If the region is active in Transient Mark mode, mark files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."//LF// &
+                        ""//LF// &
+                        "REGEXP is an Emacs regexp, not a shell wildcard.  Thus, use `\.o$' for"//LF// &
+                        "object files--just `.o' will mark more than you might think."
+        case ("dired_mark_subdir_files")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all files except `.' and `..' in current subdirectory."//LF// &
+                        "If the Dired buffer shows multiple directories, this command"//LF// &
+                        "marks the files listed in the subdirectory that point is in."
+        case ("dired_mark_symlinks")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all symbolic links."//LF// &
+                        "With prefix argument, unmark or unflag all those files."//LF// &
+                        "If the region is active in Transient Mark mode, mark files"//LF// &
+                        "only in the active region if `dired_mark_region' is true."
+        case ("dired_mode")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "call dired_mode(status, dirname, switches)"
+            entry%doc = "`dired_mode' as a command procedure (not interactive)."
+        case ("dired_next_dirline")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Goto ARGth next directory file line."//LF// &
+                        ""//LF// &
+                        "Whether to skip empty lines and how to move from last line"//LF// &
+                        "is controlled by `dired_movement_style'."
+        case ("dired_next_line")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move down ARG lines, then position at filename."//LF// &
+                        "The argument ARG (interactively, prefix argument) says how many lines"//LF// &
+                        "to move; the default is one line."//LF// &
+                        ""//LF// &
+                        "Whether to skip empty lines and how to move from last line"//LF// &
+                        "is controlled by `dired_movement_style'."
+        case ("dired_next_marked_file")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to the ARGth next marked file."//LF// &
+                        "ARG is the numeric prefix argument and defaults to 1."//LF// &
+                        "Interactively, wrap around to the beginning of the buffer and"//LF// &
+                        "search from there, if no marked file is found after this line."
+        case ("dired_next_subdir")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to next subdirectory, regardless of level."
+        case ("dired_noselect")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "call dired_noselect(dir_or_list, buffer, status, switches)"
+            entry%doc = "Like `dired' but return the Dired buffer as value, do not select it."
+        case ("dired_number_of_marked_files")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the number and total size of the marked files."
+        case ("dired_other_window")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "call dired_other_window(dirname, status, switches)"
+            entry%interactive = .true.
+            entry%doc = """Edit"" directory DIRNAME.  Like `dired' but select in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("dired_prev_dirline")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Goto ARGth previous directory file line."//LF// &
+                        ""//LF// &
+                        "Whether to skip empty lines and how to move from last line"//LF// &
+                        "is controlled by `dired_movement_style'."
+        case ("dired_prev_marked_file")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to the ARGth previous marked file."//LF// &
+                        "ARG is the numeric prefix argument and defaults to 1."//LF// &
+                        "Interactively, wrap around to the end of the buffer and search"//LF// &
+                        "backwards from there, if no ARGth marked file is found before this"//LF// &
+                        "line."
+        case ("dired_prev_subdir")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to previous subdirectory, regardless of level."//LF// &
+                        "When called interactively and not on a subdir line, go to this"//LF// &
+                        "subdir's line."
+        case ("dired_previous_line")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move up ARG lines, then position at filename."//LF// &
+                        "The argument ARG (interactively, prefix argument) says how many lines"//LF// &
+                        "to move; the default is one line."//LF// &
+                        ""//LF// &
+                        "Whether to skip empty lines and how to move from first line"//LF// &
+                        "is controlled by `dired_movement_style'."
+        case ("dired_sort_toggle_or_edit")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle sorting by date, and refresh the Dired buffer."//LF// &
+                        "With a prefix argument, edit the current listing switches instead."
+        case ("dired_summary")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Summarize basic Dired commands and show recent Dired errors."
+        case ("dired_toggle_marks")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle marks: marked files become unmarked, and vice versa."//LF// &
+                        "Flagged files (indicated with flags such as `C' and `D', not"//LF// &
+                        "with `*') are not affected, and `.' and `..' are never toggled."//LF// &
+                        "As always, hidden subdirs are not affected."//LF// &
+                        ""//LF// &
+                        "In Transient Mark mode, if the mark is active, operate on the contents"//LF// &
+                        "of the region if `dired_mark_region' is true.  Otherwise, operate"//LF// &
+                        "on the whole buffer."
+        case ("dired_undo")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Undo in a Dired buffer."//LF// &
+                        "A numeric ARG serves as a repeat count."//LF// &
+                        "This doesn't recover lost files, it just undoes changes in the buffer itself."//LF// &
+                        "You can use it to recover marks, killed lines or subdirs."
+        case ("dired_unmark")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark the file at point in the Dired buffer."//LF// &
+                        "If the region is active, unmark all files in the region."//LF// &
+                        "Otherwise, with a prefix arg, unmark files on the next ARG lines."//LF// &
+                        ""//LF// &
+                        "If looking at a subdir, unmark all its files except `.' and `..'."//LF// &
+                        "If the region is active in Transient Mark mode, unmark all files"//LF// &
+                        "in the active region."
+        case ("dired_unmark_all_files")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove a specific mark (or any mark) from every file."//LF// &
+                        "After this command, type the mark character to remove,"//LF// &
+                        "or type RET to remove all marks."//LF// &
+                        "With prefix arg, query for each marked file."//LF// &
+                        "Type \[help_command] at that time for help."
+        case ("dired_unmark_all_marks")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove all marks from all files in the Dired buffer."
+        case ("dired_unmark_backward")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In Dired, move up lines and remove marks or deletion flags there."//LF// &
+                        "Optional prefix ARG says how many lines to unmark/unflag; default"//LF// &
+                        "is one line."//LF// &
+                        "If the region is active in Transient Mark mode, unmark all files"//LF// &
+                        "in the active region."
+        case ("dired_up_directory")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run Dired on parent directory of current directory."//LF// &
+                        "Find the parent directory either in this buffer or another buffer."//LF// &
+                        "Creates a buffer if necessary."//LF// &
+                        "If OTHER-WINDOW (the optional prefix arg), display the parent"//LF// &
+                        "directory in another window."
+        case ("dired_why")
+            entry%file = "dired_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Pop up a buffer with error log output from Dired."//LF// &
+                        "A group of errors from a single command ends with a formfeed."//LF// &
+                        "Thus, use \[backward_page] to find the beginning of a group of"//LF// &
+                        "errors."
         case ("disable_command")
             entry%file = "novice_fm.f90"
             entry%fortran = "call disable_command(command, status)"
@@ -2000,6 +2461,23 @@ contains
                         "Interactively, the default if you just type RET is the current directory,"//LF// &
                         "but the visited file name is available through the minibuffer history:"//LF// &
                         "type \[next_history_element] to pull it into the minibuffer."
+        case ("find_file_other_window")
+            entry%file = "files_fm.f90"
+            entry%fortran = "call find_file_other_window(filename, status)"
+            entry%interactive = .true.
+            entry%doc = "Edit file FILENAME, in another window."//LF// &
+                        ""//LF// &
+                        "Like \[find_file] (which see), but creates a new window or reuses"//LF// &
+                        "an existing one.  See the function `display_buffer'."//LF// &
+                        ""//LF// &
+                        "\<minibuffer_local_map>Interactively, the default if you just type RET is the current dire"// &
+                        "ctory,"//LF// &
+                        "but the visited file name is available through the minibuffer history:"//LF// &
+                        "type \[next_history_element] to pull it into the minibuffer."//LF// &
+                        ""//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
         case ("fixup_whitespace")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fixup_whitespace(status)"
@@ -2069,7 +2547,7 @@ contains
             entry%doc = "The interactive `font_lock_fontify_buffer'."
         case ("font_lock_highlight")
             entry%file = "font_lock_fm.f90"
-            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function)"
+            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties)"
             entry%doc = "A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face"//LF// &
                         "FACE (or the face FACE_FUNCTION names), combined with existing"//LF// &
                         "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),"//LF// &
@@ -4504,6 +4982,21 @@ contains
                         "which will run faster and will not set the mark or print anything."//LF// &
                         "(You may need a more complex loop if FROM_STRING can match the null string"//LF// &
                         "and TO_STRING is also null.)"
+        case ("revert_buffer")
+            entry%file = "files_fm.f90"
+            entry%fortran = "call revert_buffer(status, ignore_auto, noconfirm, preserve_modes)"
+            entry%interactive = .true.
+            entry%doc = "Replace current buffer text with the text of the visited file on disk."//LF// &
+                        "This undoes all changes since the file was visited or saved."//LF// &
+                        "With a prefix argument, offer to revert from latest auto-save file, if"//LF// &
+                        "that is more recent than the visited file."//LF// &
+                        ""//LF// &
+                        "This command also implements an interface for special buffers"//LF// &
+                        "that contain text that doesn't come from a file, but reflects"//LF// &
+                        "some other data instead (e.g. Dired buffers, `buffer_list'"//LF// &
+                        "buffers).  This is done via the variable `revert_buffer_function'."//LF// &
+                        "In these cases, it should reconstruct the buffer contents from the"//LF// &
+                        "appropriate data."
         case ("right_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -6240,6 +6733,454 @@ contains
             entry%value = repr(delete_exited_processes%value)
             entry%doc = "True means delete processes immediately when they exit."//LF// &
                         "False means don't delete them until `list_processes' is run."
+        case ("directory_listing_before_filename_regexp")
+            entry%file = "files_fm.f90"
+            entry%fortran = "directory_listing_before_filename_regexp"
+            if (allocated(directory_listing_before_filename_regexp)) then
+                entry%value = repr(directory_listing_before_filename_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regular expression to match up to the file name in a directory listing."//LF// &
+                        "The default value is designed to recognize dates and times"//LF// &
+                        "regardless of the language."
+        case ("dired__ls_error_buffer")
+            entry%file = "files_fm.f90"
+            entry%fortran = "dired_ls_error_buffer"
+            entry%doc = "Set if the current dired invocation yields an `ls' error: the"//LF// &
+                        "buffer containing the error message (else the null handle)."
+        case ("dired__ls_error_file")
+            entry%file = "files_fm.f90"
+            entry%fortran = "dired_ls_error_file"
+            if (allocated(dired_ls_error_file)) then
+                entry%value = repr(dired_ls_error_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "When allocated, name of temporary file an `ls' error is written to."
+        case ("dired_after_readin_hook")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_after_readin_hook"
+            entry%doc = "Hook run after each time a file or directory is read by Dired."//LF// &
+                        "After each listing of a file or directory, this hook is run"//LF// &
+                        "with the buffer narrowed to the listing."
+        case ("dired_always_read_filesystem")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_always_read_filesystem"
+            entry%original = ".false."
+            entry%value = repr(dired_always_read_filesystem)
+            entry%doc = "True means that Dired, when looking for files containing a"//LF// &
+                        "regexp, reads them from the file system even if a buffer visits"//LF// &
+                        "them."
+        case ("dired_auto_revert_buffer")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_auto_revert_buffer"
+            entry%original = ".false."
+            entry%value = repr(dired_auto_revert_buffer)
+            entry%doc = "Automatically revert Dired buffers on revisiting their directory."//LF// &
+                        "If true, revisiting an existing Dired buffer always reverts it."//LF// &
+                        "If false, revisiting a Dired buffer doesn't revert it, but displays"//LF// &
+                        "a message telling the user how to revert it if the directory has"//LF// &
+                        "changed on disk."
+        case ("dired_before_readin_hook")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_before_readin_hook"
+            entry%doc = "Event Hook run before reading in the directory."
+        case ("dired_broken_symlink")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_broken_symlink"
+            entry%doc = "Face used for broken symbolic links."
+        case ("dired_check_symlinks")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_check_symlinks"
+            entry%original = ".true."
+            entry%value = repr(dired_check_symlinks)
+            entry%doc = "Whether symlinks are checked for validity."//LF// &
+                        "Set it to false for remote directories, which suffer from a slow"//LF// &
+                        "connection."
+        case ("dired_del_marker")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_del_marker"
+            entry%original = """D"""
+            entry%value = repr(dired_del_marker)
+            entry%doc = "Character used to flag files for deletion."
+        case ("dired_directory")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_directory"
+            entry%doc = "Face used for subdirectories."
+        case ("dired_directory_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_directory_face"
+            if (allocated(dired_directory_face)) then
+                entry%value = repr(dired_directory_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for subdirectories."
+        case ("dired_flagged")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_flagged"
+            entry%doc = "Face used for files flagged for deletion."
+        case ("dired_flagged_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_flagged_face"
+            if (allocated(dired_flagged_face)) then
+                entry%value = repr(dired_flagged_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for files flagged for deletion."
+        case ("dired_free_space")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_free_space"
+            entry%original = "DIRED_FREE_SPACE_FIRST"
+            select case (dired_free_space)
+            case (DIRED_FREE_SPACE_NIL)
+                entry%value = "DIRED_FREE_SPACE_NIL"
+            case (DIRED_FREE_SPACE_SEPARATE)
+                entry%value = "DIRED_FREE_SPACE_SEPARATE"
+            case (DIRED_FREE_SPACE_FIRST)
+                entry%value = "DIRED_FREE_SPACE_FIRST"
+            case default
+                entry%value = repr(dired_free_space)
+            end select
+            entry%doc = "Whether and how to display the disk space usage info in Dired buffers."//LF// &
+                        "If DIRED_FREE_SPACE_NIL, don't display."//LF// &
+                        "If DIRED_FREE_SPACE_SEPARATE, display on a separate line, and include both the used"//LF// &
+                        "and the free disk space."//LF// &
+                        "If DIRED_FREE_SPACE_FIRST, the default, display only the free disk space on the first"//LF// &
+                        "line, following the directory name."
+        case ("dired_garbage_files_regexp")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_garbage_files_regexp"
+            if (allocated(dired_garbage_files_regexp)) then
+                entry%value = repr(dired_garbage_files_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regular expression to match ""garbage"" files for"//LF// &
+                        "`dired_flag_garbage_files'."
+        case ("dired_header")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_header"
+            entry%doc = "Face used for directory headers."
+        case ("dired_header_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_header_face"
+            if (allocated(dired_header_face)) then
+                entry%value = repr(dired_header_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for directory headers."
+        case ("dired_ignored")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_ignored"
+            entry%doc = "Face used for files suffixed with `completion_ignored_extensions'."
+        case ("dired_ignored_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_ignored_face"
+            if (allocated(dired_ignored_face)) then
+                entry%value = repr(dired_ignored_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for files suffixed with `completion_ignored_extensions'."
+        case ("dired_initial_position_hook")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_initial_position_hook"
+            entry%doc = "This hook is used to position the point."//LF// &
+                        "It is run by the function `dired_initial_position'."
+        case ("dired_listing_switches")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_listing_switches"
+            if (allocated(dired_listing_switches)) then
+                entry%value = repr(dired_listing_switches)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Switches passed to `ls' for Dired.  MUST contain the `l' option."//LF// &
+                        "May contain all other options that don't contradict `-l';"//LF// &
+                        "may contain even `F', `b', `i' and `s'.  See also the variable"//LF// &
+                        "`dired_ls_f_marks_symlinks' concerning the `F' switch."//LF// &
+                        ""//LF// &
+                        "If you have files with names with embedded newline characters, adding"//LF// &
+                        "`b' to the switches will allow Dired to handle those files better."//LF// &
+                        ""//LF// &
+                        "Options that include embedded whitespace must be quoted"//LF// &
+                        "like this: ""--option=value with spaces""."
+        case ("dired_ls_f_marks_symlinks")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_ls_f_marks_symlinks"
+            entry%original = ".false."
+            entry%value = repr(dired_ls_f_marks_symlinks)
+            entry%doc = "Informs Dired about how `ls -lF' marks symbolic links."//LF// &
+                        "Set this to true if `ls' (or whatever program is specified by"//LF// &
+                        "`insert_directory_program') with `-lF' marks the symbolic link"//LF// &
+                        "itself with a trailing @ (usually the case under Ultrix and macOS)."//LF// &
+                        ""//LF// &
+                        "Example: if `ln -s foo bar; ls -F bar' gives `bar -> foo', set it to"//LF// &
+                        "false (the default), if it gives `bar@ -> foo', set it to true."//LF// &
+                        ""//LF// &
+                        "Dired checks if there is really a @ appended.  Thus, if you have a"//LF// &
+                        "marking `ls' program on one host and a non-marking on another host, and"//LF// &
+                        "don't care about symbolic links which really end in a @, you can"//LF// &
+                        "always set this variable to true."
+        case ("dired_mark")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_mark"
+            entry%doc = "Face used for Dired marks."
+        case ("dired_mark_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_mark_face"
+            if (allocated(dired_mark_face)) then
+                entry%value = repr(dired_mark_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for Dired marks."
+        case ("dired_mark_region")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_mark_region"
+            entry%original = "DIRED_MARK_REGION_FILE"
+            select case (dired_mark_region)
+            case (DIRED_MARK_REGION_NIL)
+                entry%value = "DIRED_MARK_REGION_NIL"
+            case (DIRED_MARK_REGION_FILE)
+                entry%value = "DIRED_MARK_REGION_FILE"
+            case (DIRED_MARK_REGION_LINE)
+                entry%value = "DIRED_MARK_REGION_LINE"
+            case default
+                entry%value = repr(dired_mark_region)
+            end select
+            entry%doc = "Defines what commands that mark files do with the active region."//LF// &
+                        ""//LF// &
+                        "When DIRED_MARK_REGION_NIL, marking commands don't operate on all files in the"//LF// &
+                        "active region.  They process their prefix arguments as usual."//LF// &
+                        ""//LF// &
+                        "When the value of this option is another one, then all Dired commands"//LF// &
+                        "that mark or unmark files will operate on all files in the region"//LF// &
+                        "if the region is active in Transient Mark mode."//LF// &
+                        ""//LF// &
+                        "When DIRED_MARK_REGION_FILE, the region marking is based on the file name."//LF// &
+                        "This means don't mark the file if the end of the region is"//LF// &
+                        "before the file name displayed on the Dired line, so the file name"//LF// &
+                        "is visually outside the region.  This behavior is consistent with"//LF// &
+                        "marking files without the region using the key `m' that works on"//LF// &
+                        "the file name where the cursor is."//LF// &
+                        ""//LF// &
+                        "When DIRED_MARK_REGION_LINE, the region marking is based on Dired lines,"//LF// &
+                        "so include the file into marking if the end of the region"//LF// &
+                        "is anywhere on its Dired line, except the beginning of the line."
+        case ("dired_marked")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_marked"
+            entry%doc = "Face used for marked files."
+        case ("dired_marked_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_marked_face"
+            if (allocated(dired_marked_face)) then
+                entry%value = repr(dired_marked_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for marked files."
+        case ("dired_marker_char")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_marker_char"
+            entry%original = """*"""
+            entry%value = repr(dired_marker_char)
+            entry%doc = "In Dired, the current mark character."//LF// &
+                        "This is what the do-commands look for, and what the mark-commands"//LF// &
+                        "store."
+        case ("dired_mode_hook")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_mode_hook"
+            entry%doc = "Run at the very end of `dired_mode'."
+        case ("dired_mode_map")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_mode_map"
+            entry%doc = "Local keymap for Dired mode buffers."
+        case ("dired_movement_style")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_movement_style"
+            entry%original = "DIRED_MOVEMENT_STYLE_NIL"
+            select case (dired_movement_style)
+            case (DIRED_MOVEMENT_STYLE_NIL)
+                entry%value = "DIRED_MOVEMENT_STYLE_NIL"
+            case (DIRED_MOVEMENT_STYLE_CYCLE)
+                entry%value = "DIRED_MOVEMENT_STYLE_CYCLE"
+            case (DIRED_MOVEMENT_STYLE_BOUNDED)
+                entry%value = "DIRED_MOVEMENT_STYLE_BOUNDED"
+            case (DIRED_MOVEMENT_STYLE_CYCLE_FILES)
+                entry%value = "DIRED_MOVEMENT_STYLE_CYCLE_FILES"
+            case (DIRED_MOVEMENT_STYLE_BOUNDED_FILES)
+                entry%value = "DIRED_MOVEMENT_STYLE_BOUNDED_FILES"
+            case default
+                entry%value = repr(dired_movement_style)
+            end select
+            entry%doc = "A value other than DIRED_MOVEMENT_STYLE_NIL means point skips empty"//LF// &
+                        "lines when moving in Dired buffers."//LF// &
+                        "This affects only `dired_next_line', `dired_previous_line',"//LF// &
+                        "`dired_next_dirline', `dired_prev_dirline'."//LF// &
+                        ""//LF// &
+                        "Possible values other than DIRED_MOVEMENT_STYLE_NIL:"//LF// &
+                        " * DIRED_MOVEMENT_STYLE_CYCLE:  when moving from the last/first visible line, cycle back"//LF// &
+                        "             to the first/last visible line."//LF// &
+                        " * DIRED_MOVEMENT_STYLE_BOUNDED: don't move up/down if the current line is the"//LF// &
+                        "              first/last visible line."//LF// &
+                        " * DIRED_MOVEMENT_STYLE_CYCLE_FILES: like DIRED_MOVEMENT_STYLE_CYCLE"//LF// &
+                        "   but moves only between file lines."//LF// &
+                        " * DIRED_MOVEMENT_STYLE_BOUNDED_FILES: like DIRED_MOVEMENT_STYLE_BOUNDED"//LF// &
+                        "   but moves only between file lines."
+        case ("dired_no_confirm")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_no_confirm"
+            entry%doc = "Dired commands for which Dired should not popup list of affected files."//LF// &
+                        ""//LF// &
+                        "If set, Dired will not pop up the list of files to be affected by"//LF// &
+                        "some Dired commands, when asking for confirmation.  (Dired will still"//LF// &
+                        "ask for confirmation, just without showing the affected files.)"//LF// &
+                        ""//LF// &
+                        "If `all' is true, the list of affected files is never popped up."//LF// &
+                        "`commands' can also hold command names: then the list of the"//LF// &
+                        "affected files will not be popped up only for the corresponding Dired"//LF// &
+                        "commands.  Recognized command names are `byte_compile', `chgrp',"//LF// &
+                        "`chmod', `chown', `compress', `copy', `delete', `hardlink', `load',"//LF// &
+                        "`move', `print', `shell', `symlink', `touch' and `uncompress'."
+        case ("dired_perm_write")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_perm_write"
+            entry%doc = "Face used to highlight permissions of group- and world-writable files."
+        case ("dired_perm_write_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_perm_write_face"
+            if (allocated(dired_perm_write_face)) then
+                entry%value = repr(dired_perm_write_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for permissions of group- and world-writable files."
+        case ("dired_recursive_deletes")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_recursive_deletes"
+            entry%original = "DIRED_RECURSIVE_TOP"
+            select case (dired_recursive_deletes)
+            case (DIRED_RECURSIVE_NEVER)
+                entry%value = "DIRED_RECURSIVE_NEVER"
+            case (DIRED_RECURSIVE_ALWAYS)
+                entry%value = "DIRED_RECURSIVE_ALWAYS"
+            case (DIRED_RECURSIVE_TOP)
+                entry%value = "DIRED_RECURSIVE_TOP"
+            case (DIRED_RECURSIVE_ASK)
+                entry%value = "DIRED_RECURSIVE_ASK"
+            case default
+                entry%value = repr(dired_recursive_deletes)
+            end select
+            entry%doc = "Whether Dired deletes directories recursively."//LF// &
+                        "If DIRED_RECURSIVE_NEVER, Dired will not delete non-empty directories."//LF// &
+                        "DIRED_RECURSIVE_ALWAYS means to delete non-empty directories recursively,"//LF// &
+                        "without asking.  This is dangerous!"//LF// &
+                        "DIRED_RECURSIVE_TOP means to ask for each top-level directory specified by the"//LF// &
+                        "Dired deletion command, and delete its subdirectories without"//LF// &
+                        "asking."//LF// &
+                        "DIRED_RECURSIVE_ASK means to ask for each directory."
+        case ("dired_set_id")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_set_id"
+            entry%doc = "Face used to highlight permissions of suid and guid files."
+        case ("dired_sort_inhibit")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_sort_inhibit"
+            entry%original = ".false."
+            entry%value = repr(dired_sort_inhibit)
+            entry%doc = "True means the Dired sort command is disabled."//LF// &
+                        "The idea is to set this buffer-locally in special Dired buffers."
+        case ("dired_special")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_special"
+            entry%doc = "Face used for sockets, pipes, block devices and char devices."
+        case ("dired_switches_in_mode_line")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_switches_in_mode_line"
+            entry%original = "DIRED_SWITCHES_SORT_ORDER"
+            select case (dired_switches_in_mode_line)
+            case (DIRED_SWITCHES_SORT_ORDER)
+                entry%value = "DIRED_SWITCHES_SORT_ORDER"
+            case (DIRED_SWITCHES_AS_IS)
+                entry%value = "DIRED_SWITCHES_AS_IS"
+            case default
+                entry%value = repr(dired_switches_in_mode_line)
+            end select
+            entry%doc = "How to indicate `dired_actual_switches' in mode-line."//LF// &
+                        "Possible values:"//LF// &
+                        " * DIRED_SWITCHES_SORT_ORDER: Indicate name-or-date sort order, if"//LF// &
+                        "   possible.  Else show full switches."//LF// &
+                        " * DIRED_SWITCHES_AS_IS:  Show full switches."//LF// &
+                        " * N >= 0:  Show only the first N chars of full switches."
+        case ("dired_symlink")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_symlink"
+            entry%doc = "Face used for symbolic links."
+        case ("dired_symlink_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_symlink_face"
+            if (allocated(dired_symlink_face)) then
+                entry%value = repr(dired_symlink_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for symbolic links."
+        case ("dired_trivial_filenames")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_trivial_filenames"
+            if (allocated(dired_trivial_filenames)) then
+                entry%value = repr(dired_trivial_filenames)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp of files to skip when finding first file of a directory."//LF// &
+                        "An unallocated value means move to the subdir line."
+        case ("dired_use_ls_dired")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_use_ls_dired"
+            entry%original = "DIRED_USE_LS_DIRED_UNSPECIFIED"
+            select case (dired_use_ls_dired)
+            case (DIRED_USE_LS_DIRED_NIL)
+                entry%value = "DIRED_USE_LS_DIRED_NIL"
+            case (DIRED_USE_LS_DIRED_T)
+                entry%value = "DIRED_USE_LS_DIRED_T"
+            case (DIRED_USE_LS_DIRED_UNSPECIFIED)
+                entry%value = "DIRED_USE_LS_DIRED_UNSPECIFIED"
+            case default
+                entry%value = repr(dired_use_ls_dired)
+            end select
+            entry%doc = "DIRED_USE_LS_DIRED_T means Dired should pass the ""--dired"" option to ""ls""."//LF// &
+                        "If DIRED_USE_LS_DIRED_NIL, don't pass ""--dired"" to ""ls""."//LF// &
+                        "The special value DIRED_USE_LS_DIRED_UNSPECIFIED means to check whether"//LF// &
+                        "`insert_directory_program' supports the ""--dired"" option, and save"//LF// &
+                        "the result in this variable."//LF// &
+                        "This is performed the first time `dired_insert_directory'"//LF// &
+                        "invokes `insert_directory_program'."//LF// &
+                        ""//LF// &
+                        "Note that if you set this option to DIRED_USE_LS_DIRED_NIL, either through choice or"//LF// &
+                        "because your ""ls"" program does not support ""--dired"", Dired"//LF// &
+                        "will fail to parse some ""unusual"" file names, e.g. those with leading"//LF// &
+                        "spaces.  You might want to install ls from GNU Coreutils, which does"//LF// &
+                        "support this option."
+        case ("dired_warning")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_warning"
+            entry%doc = "Face used to highlight a part of a buffer that needs user attention."
+        case ("dired_warning_face")
+            entry%file = "dired_mode_fm.f90"
+            entry%fortran = "dired_warning_face"
+            if (allocated(dired_warning_face)) then
+                entry%value = repr(dired_warning_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name used for a part of a buffer that needs user attention."
         case ("disabled_command_function")
             entry%file = "novice_fm.f90"
             entry%fortran = "disabled_command_function_p"
@@ -6344,6 +7285,13 @@ contains
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
                         "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
+        case ("find_file_run_dired")
+            entry%file = "files_fm.f90"
+            entry%fortran = "find_file_run_dired"
+            entry%original = ".true."
+            entry%value = repr(find_file_run_dired)
+            entry%doc = "True means allow `find_file' to visit directories."//LF// &
+                        "To visit the directory, `find_file' runs `find_directory_functions'."
         case ("first_change_hook")
             entry%file = "insdel_fm.f90"
             entry%fortran = "first_change_hook"
@@ -6558,6 +7506,21 @@ contains
                         "default name, if one is provided."//LF// &
                         ""//LF// &
                         "If this variable is false, the minibuffer often starts out empty."
+        case ("insert_directory_program")
+            entry%file = "files_fm.f90"
+            entry%fortran = "insert_directory_program"
+            if (allocated(insert_directory_program)) then
+                entry%value = repr(insert_directory_program)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Absolute or relative name of the `ls'-like program."//LF// &
+                        "This is used by `insert_directory' and `dired_insert_directory'"//LF// &
+                        "(thus, also by `dired').  For Dired, this should ideally point to"//LF// &
+                        "GNU ls, or another version of ls that supports the ""--dired"""//LF// &
+                        "flag.  See `dired_use_ls_dired'."//LF// &
+                        ""//LF// &
+                        "On GNU/Linux and other capable systems, the default is ""ls""."
         case ("isearch_lax_whitespace")
             entry%file = "isearch_fm.f90"
             entry%fortran = "isearch_lax_whitespace"
@@ -7077,6 +8040,31 @@ contains
                         "commands.  The value of this variable should be the name of"//LF// &
                         "a variable that holds a history list for replacement"//LF// &
                         "strings or patterns."
+        case ("read_answer_short")
+            entry%file = "map_ynp_fm.f90"
+            entry%fortran = "read_answer_short"
+            entry%original = "READ_ANSWER_SHORT_AUTO"
+            select case (read_answer_short)
+            case (READ_ANSWER_SHORT_NIL)
+                entry%value = "READ_ANSWER_SHORT_NIL"
+            case (READ_ANSWER_SHORT_T)
+                entry%value = "READ_ANSWER_SHORT_T"
+            case (READ_ANSWER_SHORT_AUTO)
+                entry%value = "READ_ANSWER_SHORT_AUTO"
+            case default
+                entry%value = repr(read_answer_short)
+            end select
+            entry%doc = "Whether the `read_answer' function accepts single-character answers."//LF// &
+                        "If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the"//LF// &
+                        "question.  If READ_ANSWER_SHORT_NIL, require long answers.  If"//LF// &
+                        "READ_ANSWER_SHORT_AUTO, accept short answers if"//LF// &
+                        "`use_short_answers' is true."//LF// &
+                        ""//LF// &
+                        "Note that this variable does not affect calls to the more"//LF// &
+                        "commonly-used `yes_or_no_p' function; it only affects calls to"//LF// &
+                        "the `read_answer' function.  To control whether `yes_or_no_p'"//LF// &
+                        "requires a long or a short answer, see the `use_short_answers'"//LF// &
+                        "variable."
         case ("read_buffer_completion_ignore_case")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "read_buffer_completion_ignore_case"
@@ -7201,6 +8189,23 @@ contains
                         "This variable is heeded only when visiting files (or saving"//LF// &
                         "buffers into files they visit).  Writing data to the file system"//LF// &
                         "with `write_region' and the like is not influenced by this variable."
+        case ("revert_buffer_function")
+            entry%file = "files_fm.f90"
+            entry%fortran = "revert_buffer_function"
+            entry%doc = "Function to use to revert this buffer (see the type)."
+        case ("revert_buffer_in_progress")
+            entry%file = "files_fm.f90"
+            entry%fortran = "revert_buffer_in_progress"
+            entry%original = ".false."
+            entry%value = repr(revert_buffer_in_progress)
+            entry%doc = "True within a `revert_buffer'."
+        case ("revert_buffer_preserve_modes")
+            entry%file = "files_fm.f90"
+            entry%fortran = "revert_buffer_preserve_modes"
+            entry%original = ".false."
+            entry%value = repr(revert_buffer_preserve_modes)
+            entry%doc = "True means `revert_buffer' should not reinitialize the modes"//LF// &
+                        "(the PRESERVE_MODES argument)."
         case ("save_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "save_abbrevs"
