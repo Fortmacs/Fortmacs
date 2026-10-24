@@ -61,7 +61,7 @@ module xfaces_fm
                         FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
                         FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
-    use frame_fm, only: frame_type, selected_frame
+    use frame_fm, only: frame_type, selected_frame, frame_window_p
     use term_fm, only: tty_capable_p
     use tty_colors_fm, only: tty_color_desc, tty_color_assoc, tty_color_standard_values, &
                              tty_defined_color_count, clear_face_cache_hook
@@ -247,7 +247,8 @@ contains
 
     !> Realize the fully specified face with attributes ATTRS on frame F
     !> with face id ID, or (ID negative) with the next free id, returned
-    !> in NEW_ID.  Port of xfaces.c:realize_face (on a terminal).
+    !> in NEW_ID.  Port of xfaces.c:realize_face (on a terminal; see
+    !> below for window-system frames).
     subroutine realize_face(f, attrs, id, new_id)
         type(frame_type), intent(inout) :: f
         type(face_attributes_type), intent(in) :: attrs
@@ -263,6 +264,13 @@ contains
             call move_alloc(grown, f%faces)
         end if
         f%faces(k) = realize_tty_face(attrs)
+        ! On a window-system frame, the font part of
+        ! xfaces.c:realize_gui_face (font_load_for_lface); its other parts
+        ! (colors, box, overline, stipple) are Deferred with the GUI, so
+        ! the face is otherwise realized as on a terminal.
+        if (frame_window_p(f)) then
+            if (associated(f%font_driver)) f%faces(k)%font = f%font_driver%load_for_lface(attrs)
+        end if
         if (present(new_id)) new_id = k
     end subroutine realize_face
 
