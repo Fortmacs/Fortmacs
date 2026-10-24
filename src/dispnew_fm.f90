@@ -25,12 +25,18 @@
 !> into it, row by row (`write_row': keep matching prefixes and suffixes,
 !> insert or delete characters where that is cheaper than rewriting).
 !>
-!> Not ported yet: window matrices (there are no windows; redisplay
-!> writes frame rows), line insertion/deletion optimization (scroll.c),
-!> child frames, menus, pausing for input, frame size changes.
+!> A window-system frame (one with a redisplay interface) has no frame
+!> matrices: redisplay hands each window's rows to `update_window_line',
+!> which draws them through the interface, and `update_frame' flushes.
+!>
+!> Not ported yet: window matrices (redisplay writes frame rows on a
+!> terminal; on a window-system frame every row is drawn whole, without
+!> comparing it with what the window showed), line insertion/deletion
+!> optimization (scroll.c), child frames, menus, pausing for input, frame
+!> size changes.
 module dispnew_fm
-    use frame_fm, only: frame_type, selected_frame
-    use dispextern_fm, only: glyph_type, glyph_matrix_type, &
+    use frame_fm, only: frame_type, selected_frame, frame_window_p
+    use dispextern_fm, only: glyph_type, glyph_matrix_type, glyph_row_type, &
                              glyph_equal_p, char_glyph_space_p, &
                              FACE_TTY_DEFAULT_FG_COLOR, FACE_TTY_DEFAULT_BG_COLOR
     use termchar_fm, only: tty_flush
@@ -44,7 +50,7 @@ module dispnew_fm
 
     public :: adjust_frame_glyphs, clear_current_matrices, clear_desired_matrices, &
               redraw_frame, update_frame, write_row, make_matrix_current, &
-              set_desired_row, ding, frame_ring_bell
+              set_desired_row, ding, frame_ring_bell, update_window_line
 
 contains
 
@@ -67,12 +73,17 @@ contains
 
     !> Give `f' matrices of its terminal's size (contents unknown, so the
     !> next update redraws everything), and a default face if it has none.
-    !> Port of the frame part of dispnew.c:adjust_frame_glyphs.
+    !> A window-system frame has no frame matrices.  Port of the frame part
+    !> of dispnew.c:adjust_frame_glyphs (adjust_frame_glyphs_for_frame_redisplay).
     subroutine adjust_frame_glyphs(f)
         type(frame_type), intent(inout) :: f
         integer :: nrows, ncols
         nrows = f%tty%wcm%cm_rows
         ncols = f%tty%wcm%cm_cols
+        if (frame_window_p(f)) then
+            nrows = 0
+            ncols = 0
+        end if
         if (f%current_matrix%nrows /= nrows .or. f%current_matrix%ncols /= ncols) then
             call allocate_matrix(f%current_matrix, nrows, ncols)
             call allocate_matrix(f%desired_matrix, nrows, ncols)
@@ -146,6 +157,11 @@ contains
     !> dispnew.c:redraw_frame.
     subroutine redraw_frame(f)
         type(frame_type), intent(inout) :: f
+        if (frame_window_p(f)) then
+            call f%rif%clear_frame()
+            f%garbaged = .false.
+            return
+        end if
         call tty_clear_frame(f%tty)
         call clear_current_matrices(f)
         call tty_update_end(f%tty, f%cursor_off_p)
@@ -401,6 +417,12 @@ contains
     subroutine update_frame(f, status)
         type(frame_type), intent(inout) :: f
         type(status_type), intent(out) :: status
+        status = status_type()
+        if (frame_window_p(f)) then
+            ! The windows were drawn as redisplay laid them out.
+            call f%rif%flush_display()
+            return
+        end if
         if (.not. f%glyphs_initialized_p) call adjust_frame_glyphs(f)
         if (f%garbaged) call redraw_frame(f)
         call write_matrix(f)
@@ -410,6 +432,25 @@ contains
         call tty_flush(f%tty, status)
         call clear_desired_matrices(f)
     end subroutine update_frame
+
+    !> Draw row `row' of a window on window-system frame `f', the window's
+    !> text area having its top left corner at frame pixel (left, top) and
+    !> its right edge at `right': its glyphs, then clear to the right edge
+    !> (a mode line row spans the whole window).  Port of
+    !> dispnew.c:update_window_line with update_text_area for a row that
+    !> must be drawn whole (its current row unknown).
+    subroutine update_window_line(f, row, left, top, right)
+        type(frame_type), intent(inout) :: f
+        type(glyph_row_type), intent(in) :: row
+        integer, intent(in) :: left, top, right
+        integer :: x, k
+        x = left + row%x
+        if (row%used > 0) call f%rif%write_glyphs(row, 1, row%used, x, top + row%y, right)
+        do k = 1, row%used
+            x = x + row%glyphs(k)%pixel_width
+        end do
+        if (x < right) call f%rif%clear_end_of_line(x, top + row%y, row%height, right)
+    end subroutine update_window_line
 
     !> Ring the bell of the selected frame's terminal; nothing without
     !> one.  The terminal's ring_bell_hook (term.c:tty_ring_bell).
