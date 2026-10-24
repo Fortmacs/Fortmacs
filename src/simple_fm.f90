@@ -95,8 +95,13 @@ module simple_fm
                            real_last_command, last_prefix_arg, read_event, &
                            set_transient_map, last_message, disabled_command_hook, &
                            local_function_key_map, unread_command_events
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc
     implicit none(type, external)
     private
+
+    !> kmacro.el:kmacro-keyboard-quit, which `keyboard_quit' calls (set by
+    !> kmacro_fm, which sits above this module); null for none.
+    procedure(redisplay_proc), pointer, public :: kmacro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
     public :: fundamental_mode, special_mode, syms_of_simple_modes
@@ -630,10 +635,13 @@ contains
 
     !> Signal a `quit' condition.
     !> At top-level, as an editor command, this simply beeps.
-    !> Port of simple.el:keyboard-quit (no kbd macro handling).
+    !> Port of simple.el:keyboard-quit (no `completion_in_region_mode';
+    !> mode lines are always redisplayed).
     subroutine cmd_keyboard_quit(status)
         type(status_type), intent(out) :: status
         if (region_active_p()) call deactivate_mark()
+        if (associated(kmacro_keyboard_quit_hook)) call kmacro_keyboard_quit_hook()
+        defining_kbd_macro = DEFINING_KBD_MACRO_NIL
         call set_error(status, FM_QUIT)
     end subroutine cmd_keyboard_quit
 
