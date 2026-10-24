@@ -53,9 +53,11 @@ module modes_fm
         type(minor_mode_type) :: font_lock_mode
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
+        type(minor_mode_type) :: read_only_mode
         type(minor_mode_type) :: show_paren_local_mode
         type(minor_mode_type) :: show_paren_mode
         type(minor_mode_type) :: transient_mark_mode
+        type(minor_mode_type) :: view_mode
     end type minor_mode_table_type
 
     !> The built-in major modes.
