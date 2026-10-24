@@ -1,4 +1,4 @@
-# Fortmacs
+<h1 align="center"><img src="docs/logo/logo.svg" alt="Fortmacs" width="408"></h1>
 
 > **Not usable yet.** This is an early, experimental port; it builds and
 > runs, but most of Emacs is missing.
@@ -25,7 +25,7 @@ together. A rough estimate from `tools/progress.sh`.
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
-so cost limits the pace as much as review does.
+so token usage and its cost set the pace.
 
 ## Building
 
@@ -150,8 +150,8 @@ What an assistant changes:
 5. **It is faster.** About 65,000 lines of Fortran and tests, not
    counting generated tables, in the first three days (roughly 850 an
    hour), where a person porting by hand might manage a few hundred a day.
-   Much of it was later rewritten after review, which remains the
-   bottleneck.
+   Review steers it through suggestions and directions; what limits the
+   pace is token usage and its cost.
 6. **The safeguards stay human.** Every change is built, tested and checked
    for memory leaks in CI on two architectures, and a human reviews and
    merges every pull request.
