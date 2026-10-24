@@ -155,7 +155,10 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    36. Buffer lists: `list-buffers` (C-x C-b, buff-menu.el) and Ibuffer.
    37. Occur (`occur`, `multi-occur`, Occur mode and its edit mode).
    38. Comint and shell, the rest: history expansion and M-r,
-       completion (on step 28), password prompts, `ansi-color`, C-c C-z,
+       completion (`comint-completion-at-point`, file names through
+       `completion-table-with-quoting`, the `:exit-function` property,
+       shell's completion functions; moved here from step 28), password
+       prompts, `ansi-color`, C-c C-z,
        `list-processes` and the process menu.
    39. The command loop's wrapper commands and C-x RET c
        (`universal-coding-system-argument`), with the process, terminal
