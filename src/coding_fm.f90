@@ -450,7 +450,7 @@ contains
     !> category becomes the category's.  Port of
     !> coding.c:Fdefine_coding_system_internal.
     recursive integer function define(name, ctype, mnemonic, category, eol, ascii_compatible, for_unibyte, prefer_utf_8, &
-                            default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc) result(id)
+                                      default_char, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: ctype, mnemonic, category
         integer, intent(in), optional :: eol, default_char, charset, bom
