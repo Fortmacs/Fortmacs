@@ -56,7 +56,9 @@
 !> are bound with `keymap_global_set'.  Modes are customized from
 !> their hooks and keymaps, named after their Emacs variables: `call text_mode_hook%add(turn_on_auto_fill)'.  New modes
 !> are `major_mode_type' and `minor_mode_type' objects made known with
-!> their `define'.  A `configure' that fails (returns a
+!> their `define'.  Faces are the components of `faces':
+!> `faces%region%background = "blue"', with `face_underline' and `face_box'
+!> for the property-list values of `:underline' and `:box'.  A `configure' that fails (returns a
 !> status that is not ok) leaves the editor running and shows the error.
 !> `fortmacs -q' starts without running `configure'.
 !>
@@ -68,6 +70,11 @@ module fortmacs
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR
     ! Commands and keys.
     use commands_fm, only: commands
+    ! Faces.
+    use face_table_fm, only: faces
+    use faces_fm, only: face_underline, face_box, FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, &
+                        FACE_STYLE_DOTS, FACE_STYLE_DASHES, FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON, &
+                        FACE_BOX_FLAT_BUTTON
     use callint_fm, only: command_proc, command_type, set_command_disabled
     use keymap_fm, only: keymap_global_set, keymap_set, key_valid_p, current_global_map
     use subr_fm, only: global_set_key, y_or_n_p
@@ -307,9 +314,7 @@ module fortmacs
                           compilation_context_lines, COMPILATION_CONTEXT_NIL, COMPILATION_CONTEXT_T, &
                           compilation_message_face, compilation_error_face, compilation_warning_face, &
                           compilation_info_face, compilation_line_face, compilation_column_face, &
-                          compilation_enter_directory_face, compilation_leave_directory_face, compilation_error, &
-                          compilation_warning, compilation_info, compilation_mode_line_fail, compilation_mode_line_run, &
-                          compilation_mode_line_exit, compilation_line_number, compilation_column_number, &
+                          compilation_enter_directory_face, compilation_leave_directory_face, &
                           compilation_minor_mode, compilation_shell_minor_mode, compile_goto_error, &
                           compilation_next_error, compilation_previous_error, compilation_next_file, &
                           compilation_previous_file
@@ -325,7 +330,7 @@ module fortmacs
                          comint_use_prompt_regexp, comint_terminfo_terminal, comint_delimiter_argument_list, &
                          comint_mode_hook, comint_exec_hook, comint_output_filter_functions, &
                          comint_preoutput_filter_functions, comint_input_filter_functions, comint_mode_map, &
-                         comint_highlight_input_face, comint_highlight_prompt, comint_truncate_buffer, &
+                         comint_truncate_buffer, &
                          comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, comint_show_maximum_output
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
                         shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
@@ -453,9 +458,8 @@ module fortmacs
               compilation_search_all_directories, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
               COMPILATION_CONTEXT_T, compilation_message_face, compilation_error_face, compilation_warning_face, &
               compilation_info_face, compilation_line_face, compilation_column_face, compilation_enter_directory_face, &
-              compilation_leave_directory_face, compilation_error, compilation_warning, compilation_info, &
-              compilation_mode_line_fail, compilation_mode_line_run, compilation_mode_line_exit, &
-              compilation_line_number, compilation_column_number, compilation_minor_mode, &
+              compilation_leave_directory_face, &
+              compilation_minor_mode, &
               compilation_shell_minor_mode, compile_goto_error, compilation_next_error, compilation_previous_error, &
               compilation_next_file, compilation_previous_file
     public :: comint_mode, make_comint, make_comint_in_buffer, comint_run, comint_exec, comint_send_input, &
@@ -467,7 +471,7 @@ module fortmacs
               comint_input_ring_size, comint_input_ring_separator, comint_input_history_ignore, comint_process_echoes, &
               comint_eol_on_send, comint_use_prompt_regexp, comint_terminfo_terminal, comint_delimiter_argument_list, &
               comint_mode_hook, comint_exec_hook, comint_output_filter_functions, comint_preoutput_filter_functions, &
-              comint_input_filter_functions, comint_mode_map, comint_highlight_input_face, comint_highlight_prompt, &
+              comint_input_filter_functions, comint_mode_map, &
               comint_truncate_buffer, comint_strip_ctrl_m, comint_postoutput_scroll_to_bottom, &
               comint_show_maximum_output
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
@@ -483,6 +487,8 @@ module fortmacs
               next_error_verbose, next_error_last_buffer
     public :: status_type, set_error, format_error, FM_GENERIC_ERROR
     public :: command_proc, command_type, commands, set_command_disabled
+    public :: faces, face_underline, face_box, FACE_STYLE_LINE, FACE_STYLE_DOUBLE_LINE, FACE_STYLE_WAVE, FACE_STYLE_DOTS, &
+              FACE_STYLE_DASHES, FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON, FACE_BOX_FLAT_BUTTON
     public :: keymap_global_set, keymap_set, key_valid_p, current_global_map, global_set_key
     public :: handle_type, current_buffer, get_buffer_create, set_buffer, buffer_name
     public :: insert, point, point_min, point_max, goto_char, buffer_substring, delete_region, bobp, eobp, bolp, eolp

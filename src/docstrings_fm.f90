@@ -46,11 +46,10 @@ module docstrings_fm
                          inhibit_eol_conversion, inhibit_iso_escape_detection, inhibit_null_byte_detection, &
                          last_coding_system_used, locale_coding_system
     use comint_fm, only: comint_buffer_maximum_size, comint_delimiter_argument_list, &
-                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_highlight_input_face, &
-                         comint_highlight_prompt, comint_inhibit_carriage_motion, comint_input_filter_functions, &
-                         comint_input_history_ignore, comint_input_ignoredups, comint_input_ring_file_name, &
-                         comint_input_ring_file_prefix, comint_input_ring_separator, comint_input_ring_size, &
-                         comint_input_sender_no_newline, comint_mode_hook, comint_mode_map, &
+                         comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_inhibit_carriage_motion, &
+                         comint_input_filter_functions, comint_input_history_ignore, comint_input_ignoredups, &
+                         comint_input_ring_file_name, comint_input_ring_file_prefix, comint_input_ring_separator, &
+                         comint_input_ring_size, comint_input_sender_no_newline, comint_mode_hook, comint_mode_map, &
                          comint_move_point_for_matching_input, COMINT_MATCHING_AFTER_INPUT, &
                          COMINT_MATCHING_END_OF_LINE, comint_move_point_for_output, COMINT_MOVE_NIL, COMINT_MOVE_T, &
                          COMINT_MOVE_ALL, COMINT_MOVE_THIS, COMINT_MOVE_OTHERS, comint_output_filter_functions, &
@@ -59,24 +58,21 @@ module docstrings_fm
                          comint_terminfo_terminal, comint_use_prompt_regexp
     use commands_fm, only: commands
     use compile_fm, only: compilation_always_kill, compilation_ask_about_save, &
-                          compilation_column_face, compilation_column_number, compilation_context_lines, &
-                          COMPILATION_CONTEXT_NIL, COMPILATION_CONTEXT_T, compilation_directory, &
-                          compilation_directory_matcher, compilation_disable_input, compilation_enter_directory_face, &
-                          compilation_error, compilation_error_case_fold_search, compilation_error_face, &
-                          compilation_error_regexp_alist, compilation_error_regexp_alist_alist, &
-                          compilation_error_screen_columns, compilation_filter_hook, compilation_filter_start, &
-                          compilation_first_column, compilation_info, compilation_info_face, &
-                          compilation_leave_directory_face, compilation_line_face, compilation_line_number, &
+                          compilation_column_face, compilation_context_lines, COMPILATION_CONTEXT_NIL, &
+                          COMPILATION_CONTEXT_T, compilation_directory, compilation_directory_matcher, &
+                          compilation_disable_input, compilation_enter_directory_face, &
+                          compilation_error_case_fold_search, compilation_error_face, compilation_error_regexp_alist, &
+                          compilation_error_regexp_alist_alist, compilation_error_screen_columns, &
+                          compilation_filter_hook, compilation_filter_start, compilation_first_column, &
+                          compilation_info_face, compilation_leave_directory_face, compilation_line_face, &
                           compilation_message_face, compilation_minor_mode_hook, compilation_minor_mode_map, &
-                          compilation_mode_hook, compilation_mode_line_exit, compilation_mode_line_fail, &
-                          compilation_mode_line_run, compilation_mode_map, compilation_num_errors_found, &
+                          compilation_mode_hook, compilation_mode_map, compilation_num_errors_found, &
                           compilation_num_infos_found, compilation_num_warnings_found, compilation_read_command, &
                           compilation_scroll_output, COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, &
                           COMPILATION_SCROLL_FIRST_ERROR, compilation_search_all_directories, &
                           compilation_shell_minor_mode_hook, compilation_shell_minor_mode_map, &
                           compilation_skip_threshold, compilation_skip_to_next_location, compilation_skip_visited, &
-                          compilation_transform_file_match_alist, compilation_warning, compilation_warning_face, &
-                          compile_command
+                          compilation_transform_file_match_alist, compilation_warning_face, compile_command
     use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
@@ -128,6 +124,7 @@ module docstrings_fm
     use electric_fm, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                            electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
     use eval_fm, only: change_major_mode_hook
+    use face_table_fm, only: faces
     use files_fm, only: change_major_mode_with_file_name, copy_directory_create_symlink, &
                         directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
                         find_file_run_dired, insert_directory_program, make_backup_files, mode_require_final_newline, &
@@ -273,7 +270,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(720) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(722) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -356,13 +353,14 @@ module docstrings_fm
                                                  "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
                                              "end_of_line", "eobp", "eolp", "exchange_point_and_mark", "execute_extended_command", &
                                                  "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
-                                                                   "extract_rectangle_bounds", "file_modes_number_to_symbolic", &
-                                                   "file_modes_symbolic_to_number", "file_name_sans_versions", "file_to_register", &
-                                                "fill_french_nobreak_p", "fill_paragraph", "fill_polish_nobreak_p", "fill_region", &
-                                                                   "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
-                                                          "fill_single_char_nobreak_p", "fill_single_word_nobreak_p", "find_file", &
-                                              "find_file_other_window", "find_file_read_only", "find_file_read_only_other_window", &
-                                                "first_error", "fixup_whitespace", "font_lock_add_keywords", "font_lock_anchored", &
+                                                                   "extract_rectangle_bounds", "face_box", "face_underline", &
+                                                                 "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
+                                         "file_name_sans_versions", "file_to_register", "fill_french_nobreak_p", "fill_paragraph", &
+                                                               "fill_polish_nobreak_p", "fill_region", "fill_region_as_paragraph", &
+                                                                 "fill_region_as_paragraph_default", "fill_single_char_nobreak_p", &
+                                                              "fill_single_word_nobreak_p", "find_file", "find_file_other_window", &
+                                                         "find_file_read_only", "find_file_read_only_other_window", "first_error", &
+                                                               "fixup_whitespace", "font_lock_add_keywords", "font_lock_anchored", &
                                                         "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
                                                      "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
                                                            "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
@@ -480,7 +478,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(469) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(460) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -498,9 +496,9 @@ module docstrings_fm
                                           "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
                                               "coding_system_require_warning", "colon_double_space", "comint_buffer_maximum_size", &
                                                        "comint_delimiter_argument_list", "comint_eol_on_send", "comint_exec_hook", &
-                                               "comint_highlight_input", "comint_highlight_input_face", "comint_highlight_prompt", &
-                                                                "comint_inhibit_carriage_motion", "comint_input_filter_functions", &
-                                          "comint_input_history_ignore", "comint_input_ignoredups", "comint_input_ring_file_name", &
+                                                                   "comint_highlight_input", "comint_inhibit_carriage_motion", &
+                                                                   "comint_input_filter_functions", "comint_input_history_ignore", &
+                                                                   "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
                                                           "comint_input_sender_no_newline", "comint_mode_hook", "comint_mode_map", &
                                                            "comint_move_point_for_matching_input", "comint_move_point_for_output", &
@@ -509,24 +507,21 @@ module docstrings_fm
                                                                   "comint_scroll_show_maximum_output", "comint_terminfo_terminal", &
                                                              "comint_use_prompt_regexp", "commands", "comment_end_can_be_escaped", &
                                                "comment_use_syntax_ppss", "compilation_always_kill", "compilation_ask_about_save", &
-                                              "compilation_column_face", "compilation_column_number", "compilation_context_lines", &
-                                            "compilation_directory", "compilation_directory_matcher", "compilation_disable_input", &
-                                                                   "compilation_enter_directory_face", "compilation_error", &
-                                                                   "compilation_error_case_fold_search", "compilation_error_face", &
-                                                         "compilation_error_regexp_alist", "compilation_error_regexp_alist_alist", &
-                                                                   "compilation_error_screen_columns", "compilation_filter_hook", &
-                                                       "compilation_filter_start", "compilation_first_column", "compilation_info", &
+                                                  "compilation_column_face", "compilation_context_lines", "compilation_directory", &
+                                                                   "compilation_directory_matcher", "compilation_disable_input", &
+                                                         "compilation_enter_directory_face", "compilation_error_case_fold_search", &
+                                                                   "compilation_error_face", "compilation_error_regexp_alist", &
+                                                       "compilation_error_regexp_alist_alist", "compilation_error_screen_columns", &
+                                                "compilation_filter_hook", "compilation_filter_start", "compilation_first_column", &
                                              "compilation_info_face", "compilation_leave_directory_face", "compilation_line_face", &
-                                             "compilation_line_number", "compilation_message_face", "compilation_minor_mode_hook", &
-                                              "compilation_minor_mode_map", "compilation_mode_hook", "compilation_mode_line_exit", &
-                                                "compilation_mode_line_fail", "compilation_mode_line_run", "compilation_mode_map", &
-                                                                   "compilation_num_errors_found", "compilation_num_infos_found", &
-                                                                   "compilation_num_warnings_found", "compilation_read_command", &
-                                                                "compilation_scroll_output", "compilation_search_all_directories", &
-                                                          "compilation_shell_minor_mode_hook", "compilation_shell_minor_mode_map", &
-                                                                "compilation_skip_threshold", "compilation_skip_to_next_location", &
-                                                             "compilation_skip_visited", "compilation_transform_file_match_alist", &
-                                                             "compilation_warning", "compilation_warning_face", "compile_command", &
+                                          "compilation_message_face", "compilation_minor_mode_hook", "compilation_minor_mode_map", &
+                                                  "compilation_mode_hook", "compilation_mode_map", "compilation_num_errors_found", &
+                                                                  "compilation_num_infos_found", "compilation_num_warnings_found", &
+                                                                   "compilation_read_command", "compilation_scroll_output", &
+                                                        "compilation_search_all_directories", "compilation_shell_minor_mode_hook", &
+                                                                 "compilation_shell_minor_mode_map", "compilation_skip_threshold", &
+                                                                  "compilation_skip_to_next_location", "compilation_skip_visited", &
+                                          "compilation_transform_file_match_alist", "compilation_warning_face", "compile_command", &
                                                    "completion_auto_help", "completion_fail_discreetly", "completion_ignore_case", &
                                          "completion_ignored_extensions", "completion_show_inline_help", "completions_max_height", &
                                                  "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
@@ -570,7 +565,7 @@ module docstrings_fm
                                                                 "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
                                             "electric_pair_text_syntax_table", "enable_recursive_minibuffers", "eol_mnemonic_dos", &
                                            "eol_mnemonic_mac", "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", &
-                                                            "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", &
+                                                   "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", "faces", &
                                                        "file_coding_system_alist", "fill_column", "fill_indent_according_to_mode", &
                                           "fill_nobreak_predicate", "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
                                          "find_file_run_dired", "first_change_hook", "font_lock_defaults", "font_lock_dont_widen", &
@@ -3162,6 +3157,36 @@ contains
             entry%doc = "Return the bounds of the rectangle with corners at START and END."//LF// &
                         "Return it as STARTS and ENDS, the start and end positions of each"//LF// &
                         "line of the rectangle."
+        case ("face_box")
+            entry%file = "faces_fm.f90"
+            entry%fortran = "face_box(line_width, vertical_width, horizontal_width, color, style)"
+            entry%doc = "A box given as upstream's property list (:line-width WIDTH :color"//LF// &
+                        "COLOR :style STYLE), for `faces%NAME%box = face_box(...)'."//LF// &
+                        "LINE_WIDTH N is upstream's single number: vertical lines of width"//LF// &
+                        "|N| and horizontal lines of width N; VERTICAL_WIDTH and"//LF// &
+                        "HORIZONTAL_WIDTH give upstream's pair (VWIDTH . HWIDTH) and default"//LF// &
+                        "to 1.  A negative width draws the line over the text instead of"//LF// &
+                        "beside it.  An absent COLOR is the face's background color for 3D"//LF// &
+                        "boxes and FACE_BOX_FLAT_BUTTON and its foreground color otherwise;"//LF// &
+                        "STYLE is FACE_BOX_RELEASED_BUTTON, FACE_BOX_PRESSED_BUTTON (3D"//LF// &
+                        "buttons) or FACE_BOX_FLAT_BUTTON, and absent for a plain box.  A"//LF// &
+                        "terminal draws no box.  The property-list form of xfaces.c's `:box'"//LF// &
+                        "attribute."
+        case ("face_underline")
+            entry%file = "faces_fm.f90"
+            entry%fortran = "face_underline(color, style, position)"
+            entry%doc = "An underline given as upstream's"//LF// &
+                        "property list (:color COLOR :style STYLE :position POSITION), for"//LF// &
+                        "`faces%NAME%underline = face_underline(...)'.  An absent COLOR is"//LF// &
+                        "the face's foreground color (`foreground-color'); STYLE is one of"//LF// &
+                        "FACE_STYLE_LINE (the default), FACE_STYLE_DOUBLE_LINE,"//LF// &
+                        "FACE_STYLE_WAVE, FACE_STYLE_DOTS and FACE_STYLE_DASHES; POSITION"//LF// &
+                        "true draws the line at the descent of the text instead of the"//LF// &
+                        "baseline (a number of pixels above the descent is Deferred with"//LF// &
+                        "the GUI).  On a terminal, the styles other than a line are drawn"//LF// &
+                        "where the terminal supports them (the Smulx or Su capability) and"//LF// &
+                        "as a line otherwise.  The property-list form of xfaces.c's"//LF// &
+                        "`:underline' attribute."
         case ("file_modes_number_to_symbolic")
             entry%file = "files_fm.f90"
             entry%fortran = "file_modes_number_to_symbolic(mode, filetype)"
@@ -8173,15 +8198,6 @@ contains
             entry%value = repr(comint_highlight_input%value)
             entry%doc = "If true, highlight input with `comint_highlight_input' face."//LF// &
                         "Otherwise keep the original highlighting untouched."
-        case ("comint_highlight_input_face")
-            entry%file = "comint_fm.f90"
-            entry%fortran = "comint_highlight_input_face"
-            entry%doc = "Face to use to highlight user input: the face `comint_highlight_input'"//LF// &
-                        "(the variable of that name is the setting)."
-        case ("comint_highlight_prompt")
-            entry%file = "comint_fm.f90"
-            entry%fortran = "comint_highlight_prompt"
-            entry%doc = "Face to use to highlight prompts."
         case ("comint_inhibit_carriage_motion")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_inhibit_carriage_motion"
@@ -8526,10 +8542,6 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Face name to use for column numbers in compiler messages."
-        case ("compilation_column_number")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_column_number"
-            entry%doc = "Face for displaying column numbers in compiler messages."
         case ("compilation_context_lines")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_context_lines"
@@ -8592,10 +8604,6 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Face name to use for entering directory messages."
-        case ("compilation_error")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_error"
-            entry%doc = "Face used to highlight compiler errors."
         case ("compilation_error_case_fold_search")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_error_case_fold_search"
@@ -8727,10 +8735,6 @@ contains
                         "If this is buffer-local in the destination buffer, Emacs obeys"//LF// &
                         "that value, otherwise it uses the value in the *compilation*"//LF// &
                         "buffer.  This enables a major mode to specify its own value."
-        case ("compilation_info")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_info"
-            entry%doc = "Face used to highlight compiler information."
         case ("compilation_info_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_info_face"
@@ -8758,10 +8762,6 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Face name to use for line numbers in compiler messages."
-        case ("compilation_line_number")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_line_number"
-            entry%doc = "Face for displaying line numbers in compiler messages."
         case ("compilation_message_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_message_face"
@@ -8788,18 +8788,6 @@ contains
             entry%fortran = "compilation_mode_hook"
             entry%user_option = .true.
             entry%doc = "Hook run after entering Compilation mode."
-        case ("compilation_mode_line_exit")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_mode_line_exit"
-            entry%doc = "Face for Compilation mode's ""exit"" mode line indicator."
-        case ("compilation_mode_line_fail")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_mode_line_fail"
-            entry%doc = "Face for Compilation mode's ""error"" mode line indicator."
-        case ("compilation_mode_line_run")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_mode_line_run"
-            entry%doc = "Face for Compilation mode's ""running"" mode line indicator."
         case ("compilation_mode_map")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_mode_map"
@@ -8916,10 +8904,6 @@ contains
                         "used to locate the warning or error is modified using the"//LF// &
                         "replacement, but the compilation buffer still displays the original"//LF// &
                         "value."
-        case ("compilation_warning")
-            entry%file = "compile_fm.f90"
-            entry%fortran = "compilation_warning"
-            entry%doc = "Face used to highlight compiler warnings."
         case ("compilation_warning_face")
             entry%file = "compile_fm.f90"
             entry%fortran = "compilation_warning_face"
@@ -10404,6 +10388,10 @@ contains
                         "shells.  When unallocated, such interactive shell sessions fall back"//LF// &
                         "to using the shell specified in either the environment variable"//LF// &
                         """ESHELL"" or `shell_file_name'."
+        case ("faces")
+            entry%file = "face_table_fm.f90"
+            entry%fortran = "faces"
+            entry%doc = "The faces."
         case ("file_coding_system_alist")
             entry%file = "coding_fm.f90"
             entry%fortran = "file_coding_system_alist"
