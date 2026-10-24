@@ -44,7 +44,7 @@ module simple_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
     use lread_fm, only: sym
-    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting
+    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
     use casetab_fm, only: downcase
     use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE
@@ -110,7 +110,7 @@ module simple_fm
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable
-    public :: read_only_mode, what_line
+    public :: read_only_mode, what_line, what_line_text
     public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
               syms_of_simple_shell
     public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
@@ -265,7 +265,8 @@ module simple_fm
     !> The function to use for `auto_fill_function' if Auto Fill mode is turned on.
     !> Some major modes set this.  Port of simple.el
     !> normal-auto-fill-function (null is `do_auto_fill').
-    procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
+    type(function_setting), target, public :: normal_auto_fill_function = &
+                                              function_setting(name="normal_auto_fill_function")
 
     !> Hook run after entering Special mode (`special_mode_hook').
     type(hook_type), target, public :: special_mode_hook = hook_type(name="special_mode_hook")
@@ -531,6 +532,13 @@ module simple_fm
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine what_line
+
+        !> `what_line's message, shown and returned as TEXT (upstream's
+        !> return value).  (In simple_view_fm.)
+        module subroutine what_line_text(text)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine what_line_text
 
         !> Define `read_only_mode' and `what_line'.  (In simple_view_fm.)
         module subroutine syms_of_simple_view()
@@ -2350,6 +2358,7 @@ contains
 
     subroutine syms_of_simple()
         call defvar_nil("kill_ring")
+        call forward_setting(normal_auto_fill_function)
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command

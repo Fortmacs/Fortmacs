@@ -295,6 +295,7 @@ module buffer_fm
     public :: buf_byte_index, buf_fetch_byte, buf_fetch_char, &
               buf_next_char_len, buf_prev_char_len, buf_bytes
     public :: temp_set_point_both
+    public :: buffer_serial_live
 
 contains
 
@@ -315,6 +316,20 @@ contains
         type(handle_type), intent(in) :: h
         buffer_live_p = table%is_live(h)
     end function buffer_live_p
+
+    !> Whether a live buffer has serial number SERIAL (for Fortran objects
+    !> keeping per-buffer values by serial number).
+    logical function buffer_serial_live(serial) result(live)
+        integer(int64), intent(in) :: serial
+        integer(int64) :: k
+        live = .false.
+        if (.not. allocated(buffers)) return
+        do k = 1, size(buffers, kind=int64)
+            if (buffers(k)%serial /= serial) cycle
+            live = buffer_live_p(buffer_handle(k))
+            return
+        end do
+    end function buffer_serial_live
 
     !> Return the current buffer as a buffer handle.  Port of
     !> buffer.c:Fcurrent_buffer (null before any buffer exists).

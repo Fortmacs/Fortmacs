@@ -29,7 +29,7 @@
 !> horizontal scrolling of ordinary windows, and truncated lines.
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len
+    use buffer_fm, only: buffers, cur, buf_fetch_char, buf_next_char_len, buffer_serial_live
     use characters_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
@@ -54,7 +54,7 @@ module indent_fm
     ! indent.el, in the submodule indent_cmds_fm
     ! ------------------------------------------------------------------
 
-    public :: indent_line_proc, indent_region_proc
+    public :: indent_line_proc, indent_region_proc, kill_indent_locals
     public :: indent_according_to_mode, indent_for_tab_command, insert_tab, indent_rigidly, indent_rigidly_left, &
               indent_rigidly_right, indent_rigidly_left_to_tab_stop, indent_rigidly_right_to_tab_stop, &
               indent_line_to, current_left_margin, move_to_left_margin, indent_to_left_margin, &
@@ -120,11 +120,32 @@ module indent_fm
     !> indent-line-function (null is the default, `indent_relative').
     type(indent_line_setting), public :: indent_line_function = indent_line_setting(name="indent_line_function")
 
+    !> One buffer's `indent_region_function'.
+    type :: indent_region_entry_type
+        integer(int64) :: serial = 0
+        procedure(indent_region_proc), pointer, nopass :: fn => null()
+    end type indent_region_entry_type
+
+    !> The type of `indent_region_function': a default `value' (assign
+    !> with `=>'; null is `indent_region_line_by_line') and buffers' own
+    !> (`set_local').
+    type, public :: indent_region_function_type
+        procedure(indent_region_proc), pointer, nopass :: value => null()
+        type(indent_region_entry_type), allocatable :: entries(:)
+    contains
+        !> Make FN the current buffer's function (setq-local).
+        procedure :: set_local => indent_region_set_local
+        !> The current buffer's function (null for the default).
+        procedure :: get => indent_region_get
+        !> Make the current buffer use the default again.
+        procedure :: kill_local => indent_region_kill_local
+    end type indent_region_function_type
+
     !> Short cut function to indent region using `indent_according_to_mode'.
     !> Default is to really run `indent_according_to_mode' on each line.
     !> Port of indent.el indent-region-function (null is
     !> `indent_region_line_by_line').
-    procedure(indent_region_proc), pointer, public :: indent_region_function => null()
+    type(indent_region_function_type), public :: indent_region_function
 
     interface
         module subroutine indent_according_to_mode(status, inhibit_widen)
@@ -283,6 +304,71 @@ module indent_fm
     integer, parameter :: DEFAULT_WIDTH = 80
 
 contains
+
+    subroutine indent_region_set_local(self, fn)
+        class(indent_region_function_type), intent(inout) :: self
+        procedure(indent_region_proc) :: fn
+        type(indent_region_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        ! Reuse the entry of a dead buffer.
+        do i = 1, size(self%entries)
+            if (.not. buffer_serial_live(self%entries(i)%serial)) then
+                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        n = size(self%entries)
+        allocate (grown(n + 1))
+        do i = 1, n
+            grown(i)%serial = self%entries(i)%serial
+            grown(i)%fn => self%entries(i)%fn
+        end do
+        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, self%entries)
+    end subroutine indent_region_set_local
+
+    function indent_region_get(self) result(fn)
+        class(indent_region_function_type), intent(in) :: self
+        procedure(indent_region_proc), pointer :: fn
+        integer :: i
+        fn => self%value
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+            end if
+        end do
+    end function indent_region_get
+
+    subroutine indent_region_kill_local(self)
+        class(indent_region_function_type), intent(inout) :: self
+        integer :: i
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%serial = 0
+                self%entries(i)%fn => null()
+            end if
+        end do
+    end subroutine indent_region_kill_local
+
+    !> kill-all-local-variables: forget the current buffer's
+    !> `indent_region_function'.
+    subroutine kill_indent_locals()
+        call indent_region_function%kill_local()
+    end subroutine kill_indent_locals
 
     !> Give the current buffer its own value V.  Port of subr.el:setq-local.
     subroutine indent_line_set_local(self, v)

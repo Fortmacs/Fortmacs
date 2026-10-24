@@ -230,7 +230,7 @@ module abbrev_fm
 
     !> True means expand multi-word abbrevs in all caps if the abbrev was so.
     !> Port of abbrev.el abbrev-all-caps.
-    logical, public :: abbrev_all_caps = .false.
+    type(logical_setting), target, public :: abbrev_all_caps = logical_setting(name="abbrev_all_caps", value=.false.)
 
     !> Buffer position for `expand_abbrev' to use as the start of the abbrev
     !> (a marker; the null handle for none).
