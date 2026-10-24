@@ -29,9 +29,16 @@ module docstrings_fm
     use print_fm, only: fortran_repr
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_prefix_arg, mark_even_if_inactive
+    use callproc_fm, only: shell_file_name
     use casefiddle_fm, only: case_symbols_as_words
     use cmds_fm, only: auto_fill_chars
     use commands_fm, only: commands
+    use compile_fm, only: comint_inhibit_carriage_motion, compilation_always_kill, &
+                          compilation_ask_about_save, compilation_directory, compilation_disable_input, &
+                          compilation_filter_hook, compilation_filter_start, compilation_mode_hook, &
+                          compilation_mode_map, compilation_read_command, compilation_scroll_output, &
+                          COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T, COMPILATION_SCROLL_FIRST_ERROR, &
+                          compile_command
     use dired_fm, only: completion_ignored_extensions
     use editfns_fm, only: inhibit_field_text_motion
     use edmacro_fm, only: edmacro_eight_bits
@@ -80,6 +87,7 @@ module docstrings_fm
     use paragraphs_fm, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                              paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
                              sentence_end_without_period, sentence_end_without_space
+    use process_fm, only: delete_exited_processes, process_connection_type
     use prog_mode_fm, only: prog_mode_hook, prog_mode_map
     use rect_fm, only: killed_rectangle
     use register_fm, only: register_alist, register_separator
@@ -92,8 +100,11 @@ module docstrings_fm
     use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
                          cycle_spacing_actions, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
                          inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
-                         kill_whole_line_option, line_move_visual, mark_ring_max, pending_undo_list, &
-                         read_quoted_char_radix, special_mode_hook, special_mode_map, suggest_key_bindings, &
+                         kill_whole_line_option, line_move_visual, mark_ring_max, minibuffer_local_shell_command_map, &
+                         pending_undo_list, read_quoted_char_radix, shell_command_default_error_buffer, &
+                         shell_command_dont_erase_buffer, DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, &
+                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
+                         shell_command_switch, special_mode_hook, special_mode_map, suggest_key_bindings, &
                          transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
@@ -131,9 +142,10 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=38), parameter, public :: function_names(401) = [character(len=38) :: &
+    character(len=38), parameter, public :: function_names(443) = [character(len=38) :: &
                                                                    "abort_minibuffers", &
                                                                    "abort_recursive_edit", &
+                                                                   "accept_process_output", &
                                                                    "add_auto_mode", &
                                                                    "append_to_register", &
                                                                    "apply_on_rectangle", &
@@ -166,6 +178,9 @@ module docstrings_fm
                                                                    "capitalize_word", &
                                                                    "char_syntax", &
                                                                    "clear_rectangle", &
+                                                                   "compilation_mode", &
+                                                                   "compilation_start", &
+                                                                   "compile", &
                                                                    "copy_rectangle_as_kill", &
                                                                    "copy_rectangle_to_register", &
                                                                    "copy_region_as_kill", &
@@ -190,6 +205,7 @@ module docstrings_fm
                                                                    "delete_horizontal_space", &
                                                                    "delete_indentation", &
                                                                    "delete_other_windows", &
+                                                                   "delete_process", &
                                                                    "delete_rectangle", &
                                                                    "delete_region", &
                                                                    "delete_whitespace_rectangle", &
@@ -201,6 +217,7 @@ module docstrings_fm
                                                                    "describe_variable", &
                                                                    "digit_argument", &
                                                                    "disable_command", &
+                                                                   "display_message_or_buffer", &
                                                                    "do_auto_fill", &
                                                                    "down_list", &
                                                                    "downcase", &
@@ -251,8 +268,11 @@ module docstrings_fm
                                                                    "forward_sentence", &
                                                                    "forward_sexp", &
                                                                    "forward_word", &
+                                                                   "free_process", &
                                                                    "fundamental_mode", &
                                                                    "get_buffer_create", &
+                                                                   "get_buffer_process", &
+                                                                   "get_process", &
                                                                    "get_register", &
                                                                    "global_font_lock_mode", &
                                                                    "global_font_lock_mode_enable_in_buffer", &
@@ -276,6 +296,10 @@ module docstrings_fm
                                                                    "insert", &
                                                                    "insert_rectangle", &
                                                                    "insert_register", &
+                                                                   "internal_default_process_filter", &
+                                                                   "internal_default_process_sentinel", &
+                                                                   "internal_default_signal_process", &
+                                                                   "interrupt_process", &
                                                                    "isearch_abort", &
                                                                    "isearch_backward", &
                                                                    "isearch_backward_regexp", &
@@ -311,9 +335,11 @@ module docstrings_fm
                                                                    "keymap_global_set", &
                                                                    "keymap_set", &
                                                                    "kill_buffer", &
+                                                                   "kill_compilation", &
                                                                    "kill_line", &
                                                                    "kill_new", &
                                                                    "kill_paragraph", &
+                                                                   "kill_process", &
                                                                    "kill_rectangle", &
                                                                    "kill_region", &
                                                                    "kill_ring_save", &
@@ -359,6 +385,7 @@ module docstrings_fm
                                                                    "looking_at_p", &
                                                                    "looking_back", &
                                                                    "major_mode_named", &
+                                                                   "make_process", &
                                                                    "make_syntax_table", &
                                                                    "map_query_replace_regexp", &
                                                                    "mark", &
@@ -396,6 +423,7 @@ module docstrings_fm
                                                                    "next_line", &
                                                                    "next_line_or_history_element", &
                                                                    "normal_mode", &
+                                                                   "num_processors", &
                                                                    "number_to_register", &
                                                                    "open_line", &
                                                                    "open_rectangle", &
@@ -416,11 +444,27 @@ module docstrings_fm
                                                                    "previous_history_element", &
                                                                    "previous_line", &
                                                                    "previous_line_or_history_element", &
+                                                                   "process_buffer", &
+                                                                   "process_command", &
+                                                                   "process_exit_status", &
+                                                                   "process_id", &
+                                                                   "process_list", &
+                                                                   "process_live_p", &
+                                                                   "process_mark", &
+                                                                   "process_name", &
+                                                                   "process_query_on_exit_flag", &
+                                                                   "process_send_eof", &
+                                                                   "process_send_region", &
+                                                                   "process_send_string", &
+                                                                   "process_status", &
+                                                                   "process_tty_name", &
+                                                                   "processp", &
                                                                    "prog_mode", &
                                                                    "provided_mode_derived_p", &
                                                                    "push_mark", &
                                                                    "query_replace", &
                                                                    "query_replace_regexp", &
+                                                                   "quit_process", &
                                                                    "quit_window", &
                                                                    "quoted_insert", &
                                                                    "re_search_backward", &
@@ -429,9 +473,11 @@ module docstrings_fm
                                                                    "read_file_name_default", &
                                                                    "read_multiple_choice", &
                                                                    "read_number", &
+                                                                   "read_shell_command", &
                                                                    "read_string", &
                                                                    "recenter", &
                                                                    "recenter_top_bottom", &
+                                                                   "recompile", &
                                                                    "rectangle_dimensions", &
                                                                    "rectangle_intersect_p", &
                                                                    "rectangle_number_lines", &
@@ -474,8 +520,14 @@ module docstrings_fm
                                                                    "set_mark", &
                                                                    "set_mark_command", &
                                                                    "set_match_data", &
+                                                                   "set_process_buffer", &
+                                                                   "set_process_filter", &
+                                                                   "set_process_query_on_exit_flag", &
+                                                                   "set_process_sentinel", &
                                                                    "set_register", &
                                                                    "set_syntax_table", &
+                                                                   "shell_command", &
+                                                                   "shell_command_on_region", &
                                                                    "skip_chars_backward", &
                                                                    "skip_chars_forward", &
                                                                    "skip_syntax_backward", &
@@ -487,6 +539,7 @@ module docstrings_fm
                                                                    "split_window_right", &
                                                                    "standard_syntax_table", &
                                                                    "start_kbd_macro", &
+                                                                   "start_process", &
                                                                    "string_insert_rectangle", &
                                                                    "string_match", &
                                                                    "string_match_p", &
@@ -535,7 +588,7 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(174) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(194) = [character(len=44) :: &
                                                                    "adaptive_fill_first_line_regexp", &
                                                                    "adaptive_fill_mode", &
                                                                    "adaptive_fill_regexp", &
@@ -554,9 +607,21 @@ module docstrings_fm
                                                                    "change_major_mode_hook", &
                                                                    "change_major_mode_with_file_name", &
                                                                    "colon_double_space", &
+                                                                   "comint_inhibit_carriage_motion", &
                                                                    "commands", &
                                                                    "comment_end_can_be_escaped", &
                                                                    "comment_use_syntax_ppss", &
+                                                                   "compilation_always_kill", &
+                                                                   "compilation_ask_about_save", &
+                                                                   "compilation_directory", &
+                                                                   "compilation_disable_input", &
+                                                                   "compilation_filter_hook", &
+                                                                   "compilation_filter_start", &
+                                                                   "compilation_mode_hook", &
+                                                                   "compilation_mode_map", &
+                                                                   "compilation_read_command", &
+                                                                   "compilation_scroll_output", &
+                                                                   "compile_command", &
                                                                    "completion_auto_help", &
                                                                    "completion_fail_discreetly", &
                                                                    "completion_ignore_case", &
@@ -569,6 +634,7 @@ module docstrings_fm
                                                                    "default_justification", &
                                                                    "defining_kbd_macro", &
                                                                    "delete_active_region", &
+                                                                   "delete_exited_processes", &
                                                                    "disabled_command_function", &
                                                                    "display_buffer_mark_dedicated", &
                                                                    "edmacro_eight_bits", &
@@ -636,6 +702,7 @@ module docstrings_fm
                                                                    "mark_even_if_inactive", &
                                                                    "mark_ring_max", &
                                                                    "minibuffer_completing_file_name", &
+                                                                   "minibuffer_local_shell_command_map", &
                                                                    "minibuffer_message_timeout", &
                                                                    "minibuffer_scroll_window", &
                                                                    "mode_require_final_newline", &
@@ -649,6 +716,7 @@ module docstrings_fm
                                                                    "parse_sexp_ignore_comments", &
                                                                    "pending_undo_list", &
                                                                    "pop_up_windows", &
+                                                                   "process_connection_type", &
                                                                    "prog_mode_hook", &
                                                                    "prog_mode_map", &
                                                                    "query_replace_defaults", &
@@ -681,6 +749,11 @@ module docstrings_fm
                                                                    "sentence_end_double_space", &
                                                                    "sentence_end_without_period", &
                                                                    "sentence_end_without_space", &
+                                                                   "shell_command_default_error_buffer", &
+                                                                   "shell_command_dont_erase_buffer", &
+                                                                   "shell_command_prompt_show_cwd", &
+                                                                   "shell_command_switch", &
+                                                                   "shell_file_name", &
                                                                    "special_mode_hook", &
                                                                    "special_mode_map", &
                                                                    "split_height_threshold", &
@@ -738,6 +811,21 @@ contains
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
             entry%doc = "Abort the command that requested this recursive edit or minibuffer input."
+        case ("accept_process_output")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call accept_process_output(got, status, process, seconds)"
+            entry%doc = "Allow any pending output from subprocesses to be read by Emacs."//LF// &
+                        "The subprocess output is given to the respective process filter"//LF// &
+                        "functions."//LF// &
+                        "Optional argument PROCESS means to return only after output is"//LF// &
+                        "received from PROCESS or PROCESS closes the connection."//LF// &
+                        ""//LF// &
+                        "Optional argument SECONDS specifies a timeout; return after that"//LF// &
+                        "much time even if there is no subprocess output."//LF// &
+                        ""//LF// &
+                        "GOT is true if we received any output from PROCESS (or, if PROCESS"//LF// &
+                        "is absent, from any process) before the timeout expired or the"//LF// &
+                        "corresponding connection was closed."
         case ("add_auto_mode")
             entry%file = "files_fm.f90"
             entry%fortran = "call add_auto_mode(regexp, mode)"
@@ -1038,6 +1126,34 @@ contains
                         "When called from a program the rectangle's corners are START and END."//LF// &
                         "With a prefix (or a FILL) argument, also fill with blanks the parts of the"//LF// &
                         "rectangle which were empty."
+        case ("compilation_mode")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "call compilation_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Major mode for compilation log buffers."//LF// &
+                        "\<compilation_mode_map>To kill the compilation, type"//LF// &
+                        "\[kill_compilation]."//LF// &
+                        ""//LF// &
+                        "Runs `compilation_mode_hook' with `run_mode_hooks' (which see)."
+        case ("compilation_start")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "call compilation_start(command, status)"
+            entry%doc = "Run compilation command COMMAND (low level interface)."//LF// &
+                        "If COMMAND starts with a cd command, that becomes the"//LF// &
+                        "`default_directory'."//LF// &
+                        ""//LF// &
+                        "The buffer is the current buffer if it is in Compilation mode, else"//LF// &
+                        "*compilation*."
+        case ("compile")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "call compile(command, status)"
+            entry%interactive = .true.
+            entry%doc = "The command: interactively, read the command (if"//LF// &
+                        "`compilation_read_command' or with a prefix argument), then compile."//LF// &
+                        "The interactive form of compile.el:compile."//LF// &
+                        ""//LF// &
+                        "Compile the program including the current buffer.  Default: run"//LF// &
+                        "`make'."
         case ("copy_rectangle_as_kill")
             entry%file = "rect_fm.f90"
             entry%fortran = "call copy_rectangle_as_kill(start, end, status)"
@@ -1245,6 +1361,11 @@ contains
             entry%interactive = .true.
             entry%doc = "Make WINDOW fill its frame."//LF// &
                         "WINDOW must be a valid window and defaults to the selected one."
+        case ("delete_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call delete_process(process, status)"
+            entry%interactive = .true.
+            entry%doc = "The command: delete the current buffer's process, saying so."
         case ("delete_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call delete_rectangle(start, end, status, fill)"
@@ -1322,6 +1443,11 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters your init file so that this choice applies to"//LF// &
                         "future sessions."
+        case ("display_message_or_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call display_message_or_buffer(buffer, status)"
+            entry%doc = "Display the contents of BUFFER in the echo area if possible,"//LF// &
+                        "otherwise in a pop-up window."
         case ("do_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "call do_auto_fill(status)"
@@ -1843,6 +1969,12 @@ contains
                         ""//LF// &
                         "The word boundaries are normally determined by the buffer's syntax"//LF// &
                         "table and character script (according to `char_script_table')."
+        case ("free_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call free_process(proc, status)"
+            entry%doc = "Free process `proc' (deleting it first if it is listed): the"//LF// &
+                        "handle, and every copy of it, becomes invalid.  Ours: process"//LF// &
+                        "objects are not garbage collected."
         case ("fundamental_mode")
             entry%file = "simple_fm.f90"
             entry%fortran = "call fundamental_mode(status)"
@@ -1854,6 +1986,17 @@ contains
             entry%fortran = "call get_buffer_create(name, h, status, inhibit_buffer_hooks)"
             entry%doc = "Live buffer named `name', created (empty, multibyte) if needed."//LF// &
                         "The first buffer created becomes current."
+        case ("get_buffer_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "get_buffer_process(buffer)"
+            entry%doc = "Return the (or a) live process associated with BUFFER."//LF// &
+                        "BUFFER may be a buffer or the name of one."//LF// &
+                        "Return a null handle if all processes associated with BUFFER have"//LF// &
+                        "been deleted or killed."
+        case ("get_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "get_process(name)"
+            entry%doc = "Return the process named NAME, or a null handle if there is none."
         case ("get_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call get_register(register, value)"
@@ -2055,6 +2198,29 @@ contains
                         "and true otherwise."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("internal_default_process_filter")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call internal_default_process_filter(proc, text, status)"
+            entry%doc = "Function used as default process filter."//LF// &
+                        "This inserts the process's output into its buffer, if there is one."//LF// &
+                        "Otherwise it discards the output."
+        case ("internal_default_process_sentinel")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call internal_default_process_sentinel(proc, msg, status)"
+            entry%doc = "Function used as default sentinel for processes."//LF// &
+                        "This inserts a status message into the process's buffer, if there is"//LF// &
+                        "one."
+        case ("internal_default_signal_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call signal_process(process, sigcode, result, status)"
+            entry%doc = "Send PROCESS the signal with code SIGCODE.  `result' is kill's"//LF// &
+                        "result (0, or -1)."
+        case ("interrupt_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call interrupt_process(status, process)"
+            entry%doc = "Interrupt process PROCESS."//LF// &
+                        "PROCESS may be a process, or absent for the current buffer's"//LF// &
+                        "process."
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -2317,6 +2483,11 @@ contains
                         ""//LF// &
                         "A modified buffer visiting a file is killed only after asking (and"//LF// &
                         "perhaps saving it)."
+        case ("kill_compilation")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "call kill_compilation(status)"
+            entry%interactive = .true.
+            entry%doc = "Kill the process made by the \[compile] or \[grep] commands."
         case ("kill_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2338,6 +2509,10 @@ contains
             entry%doc = "Kill forward to end of paragraph."//LF// &
                         "With ARG N, kill forward to Nth end of paragraph;"//LF// &
                         "negative ARG -N means kill backward to Nth start of paragraph."
+        case ("kill_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call kill_process(status, process)"
+            entry%doc = "Kill process PROCESS."
         case ("kill_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call kill_rectangle(start, end, status, fill)"
@@ -2720,6 +2895,42 @@ contains
             entry%file = "derived_fm.f90"
             entry%fortran = "major_mode_named(name)"
             entry%doc = "The defined major mode named NAME, or null."
+        case ("make_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
+                            ", sentinel, environment)"
+            entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
+                        ""//LF// &
+                        "NAME is name for process.  It is modified if necessary to make it"//LF// &
+                        "unique."//LF// &
+                        ""//LF// &
+                        "BUFFER is the buffer to associate with the process.  Process output"//LF// &
+                        "goes at end of that buffer, unless you specify a filter function to"//LF// &
+                        "handle the output.  BUFFER may be also absent, meaning that this"//LF// &
+                        "process is not associated with any buffer."//LF// &
+                        ""//LF// &
+                        "COMMAND is an array starting with the program file name, followed by"//LF// &
+                        "strings to give to the program as arguments.  If the program file"//LF// &
+                        "name is not an absolute file name, `make_process' will look for the"//LF// &
+                        "program file name in `exec_path' (which is an array of directories)."//LF// &
+                        ""//LF// &
+                        "NOQUERY -- When exiting Emacs, query the user if NOQUERY is false"//LF// &
+                        "and the process is running.  If NOQUERY is not given, query before"//LF// &
+                        "exiting."//LF// &
+                        ""//LF// &
+                        "CONNECTION_TYPE is control type of device used to communicate with"//LF// &
+                        "subprocesses.  Values are `PROCESS_CONNECTION_PIPE' to use a pipe,"//LF// &
+                        "`PROCESS_CONNECTION_PTY' to use a pty, or"//LF// &
+                        "`PROCESS_CONNECTION_DEFAULT' to use the default specified through"//LF// &
+                        "`process_connection_type'."//LF// &
+                        ""//LF// &
+                        "FILTER -- Install FILTER as the process filter."//LF// &
+                        ""//LF// &
+                        "SENTINEL -- Install SENTINEL as the process sentinel."//LF// &
+                        ""//LF// &
+                        "ENVIRONMENT -- ""NAME=VALUE"" entries put first in the process's"//LF// &
+                        "environment (as binding `process_environment' to an array starting"//LF// &
+                        "with them does)."
         case ("make_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call make_syntax_table(h, status, oldtable)"
@@ -3109,6 +3320,14 @@ contains
                         "Uses the visited file name and the -*- line."//LF// &
                         ""//LF// &
                         "This function is called automatically from `find_file'."
+        case ("num_processors")
+            entry%file = "process_fm.f90"
+            entry%fortran = "num_processors(current)"
+            entry%doc = "Return the number of processors, a positive integer."//LF// &
+                        "Each usable thread execution unit counts as a processor."//LF// &
+                        "By default, count the number of available processors,"//LF// &
+                        "overridable via the OMP_NUM_THREADS environment variable."//LF// &
+                        "If CURRENT is true, ignore OMP_NUM_THREADS."
         case ("number_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call number_to_register(register, status, number)"
@@ -3308,6 +3527,93 @@ contains
             entry%doc = "Move cursor vertically up ARG lines, or to the previous history element."//LF// &
                         "When point moves over the top line of multi-line minibuffer, puts ARGth"//LF// &
                         "previous element of the minibuffer history in the minibuffer."
+        case ("process_buffer")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_buffer(process)"
+            entry%doc = "Return the buffer PROCESS is associated with (a null handle for none)."//LF// &
+                        "The default process filter inserts output from PROCESS into this"//LF// &
+                        "buffer."
+        case ("process_command")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call process_command(process, command)"
+            entry%doc = "Return the command that was executed to start PROCESS."//LF// &
+                        "This is an array of strings, the first string being the program"//LF// &
+                        "executed and the rest of the strings being the arguments given to"//LF// &
+                        "it."
+        case ("process_exit_status")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_exit_status(process)"
+            entry%doc = "Return the exit status of PROCESS or the signal number that killed it."//LF// &
+                        "If PROCESS has not yet exited or died, return 0."
+        case ("process_id")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_id(process)"
+            entry%doc = "Return the process id of PROCESS."//LF// &
+                        "This is the pid of the external process which PROCESS uses or talks"//LF// &
+                        "to (0 if there is none)."
+        case ("process_list")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_list()"
+            entry%doc = "Return an array of all processes that are Emacs sub-processes."
+        case ("process_live_p")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_live_p(process)"
+            entry%doc = "Return true if PROCESS is alive."//LF// &
+                        "A process is considered alive if its status is `run'."
+        case ("process_mark")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_mark(process)"
+            entry%doc = "Return the marker for the end of the last output from PROCESS."
+        case ("process_name")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_name(process)"
+            entry%doc = "Return the name of PROCESS, as a string."//LF// &
+                        "This is the name of the program invoked in PROCESS,"//LF// &
+                        "possibly modified to make it unique among process names."
+        case ("process_query_on_exit_flag")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_query_on_exit_flag(process)"
+            entry%doc = "Return the current value of query-on-exit flag for PROCESS."
+        case ("process_send_eof")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call process_send_eof(status, process)"
+            entry%doc = "Make PROCESS see end-of-file in its input."//LF// &
+                        "EOF comes after any text already sent to it."//LF// &
+                        "PROCESS may be a process, or absent, indicating the current"//LF// &
+                        "buffer's process."//LF// &
+                        "If PROCESS is communicating through a pipe (as opposed to a pty),"//LF// &
+                        "then you cannot send any more text to PROCESS after you call this"//LF// &
+                        "function."
+        case ("process_send_region")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call process_send_region(start, end, status, process)"
+            entry%doc = "Send current contents of region as input to PROCESS."//LF// &
+                        "Called from program, takes three arguments, PROCESS, START and END."
+        case ("process_send_string")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call process_send_string(string, status, process)"
+            entry%doc = "Send PROCESS the contents of STRING as input."//LF// &
+                        "PROCESS may be a process, or absent for the current buffer's"//LF// &
+                        "process."
+        case ("process_status")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_status(process)"
+            entry%doc = "Return the status of PROCESS."//LF// &
+                        "The returned value is one of the following:"//LF// &
+                        """run""  -- for a process that is running."//LF// &
+                        """exit"" -- for a process that has exited."//LF// &
+                        """signal"" -- for a process that has got a fatal signal."//LF// &
+                        """"" -- if PROCESS is not a process."
+        case ("process_tty_name")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_tty_name(process)"
+            entry%doc = "Return the name of the terminal PROCESS uses, or """" if none."//LF// &
+                        "This is the terminal that the process itself reads and writes on,"//LF// &
+                        "not the name of the pty that Emacs uses to talk with that terminal."
+        case ("processp")
+            entry%file = "process_fm.f90"
+            entry%fortran = "processp(object)"
+            entry%doc = "Return t if OBJECT is a process."
         case ("prog_mode")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "call prog_mode(status)"
@@ -3429,6 +3735,10 @@ contains
                         ""//LF// &
                         "Arguments REGEXP, TO_STRING, DELIMITED, START, END, and BACKWARD"//LF// &
                         "are passed to `perform_replace' (which see)."
+        case ("quit_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call quit_process(status, process)"
+            entry%doc = "Send QUIT signal to process PROCESS."
         case ("quit_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call quit_window(kill, status, window)"
@@ -3601,6 +3911,14 @@ contains
                         ""//LF// &
                         "DEFAULTS, in place of DEFAULT, is an array of defaults: the first"//LF// &
                         "is the default, all are offered by M-n."
+        case ("read_shell_command")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call read_shell_command(prompt, result, status, initial, history, default, history_positio"// &
+                            "n)"
+            entry%doc = "Read a shell command from the minibuffer, and return it as a"//LF// &
+                        "string.  The arguments are the same as the ones of"//LF// &
+                        "`read_from_minibuffer', except READ and KEYMAP are missing and"//LF// &
+                        "HISTORY defaults to `shell_command_history'."
         case ("read_string")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "call read_string(prompt, result, status, initial, history, default, position)"
@@ -3635,6 +3953,13 @@ contains
                         "With numeric prefix ARG, move current line ARG lines below the"//LF// &
                         "window top.  With plain \[universal_argument], move current line"//LF// &
                         "to window center."
+        case ("recompile")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "call recompile(status, edit_command)"
+            entry%interactive = .true.
+            entry%doc = "The command: recompile, editing the command with a prefix argument."//LF// &
+                        ""//LF// &
+                        "Re-compile the program including the current buffer."
         case ("rectangle_dimensions")
             entry%file = "rect_fm.f90"
             entry%fortran = "call rectangle_dimensions(start, end, width, height)"
@@ -4137,6 +4462,35 @@ contains
                         "DATA should have been created by calling `match_data' previously;"//LF// &
                         "0 elements mark groups that didn't match.  The positions are"//LF// &
                         "taken to be in the current buffer."
+        case ("set_process_buffer")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call set_process_buffer(process, buffer, status)"
+            entry%doc = "Set buffer associated with PROCESS to BUFFER (a buffer, or a null"//LF// &
+                        "handle for none)."
+        case ("set_process_filter")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call set_process_filter(process, status, filter)"
+            entry%doc = "Give PROCESS the filter function FILTER; absent means default."//LF// &
+                        ""//LF// &
+                        "When a process has a non-default filter, its buffer is not used for"//LF// &
+                        "output.  Instead, each time it does output, the entire string of"//LF// &
+                        "output is passed to the filter."//LF// &
+                        ""//LF// &
+                        "The filter gets two arguments: the process and the string of"//LF// &
+                        "output."
+        case ("set_process_query_on_exit_flag")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call set_process_query_on_exit_flag(process, flag, status)"
+            entry%doc = "Specify if query is needed for PROCESS when Emacs is exited."//LF// &
+                        "If the second argument FLAG is false, Emacs will not query the user"//LF// &
+                        "before exiting if PROCESS is running."
+        case ("set_process_sentinel")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call set_process_sentinel(process, status, sentinel)"
+            entry%doc = "Give PROCESS the sentinel SENTINEL; absent for default."//LF// &
+                        "The sentinel is called as a function when the process changes state."//LF// &
+                        "It gets two arguments: the process, and a string describing the"//LF// &
+                        "change."
         case ("set_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call set_register(register, value)"
@@ -4149,6 +4503,31 @@ contains
             entry%fortran = "call set_syntax_table(h, status)"
             entry%doc = "Select a new syntax table for the current buffer."//LF// &
                         "One argument, a syntax table."
+        case ("shell_command")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call shell_command(command, status, output_buffer, output_buffer_name, insert_here, error_"// &
+                            "buffer)"
+            entry%interactive = .true.
+            entry%doc = "The command: read COMMAND (with the visited file as default), and"//LF// &
+                        "insert the output at point with a prefix argument.  The interactive"//LF// &
+                        "form of simple.el:shell-command."//LF// &
+                        ""//LF// &
+                        "Execute string COMMAND in inferior shell; display output, if any."//LF// &
+                        "With prefix argument, insert the COMMAND's output at point."
+        case ("shell_command_on_region")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call shell_command_on_region(start, end, command, status, output_buffer, output_buffer_nam"// &
+                            "e, insert_here, replace, no_mark, error_buffer, display_error_buffer, exit_status, signal_"// &
+                            "description)"
+            entry%interactive = .true.
+            entry%doc = "The command: the region, then COMMAND read in the minibuffer; with"//LF// &
+                        "a prefix argument the output replaces the region.  The interactive"//LF// &
+                        "form of simple.el:shell-command-on-region."//LF// &
+                        ""//LF// &
+                        "Execute string COMMAND in inferior shell with region as input."//LF// &
+                        "Normally display output (if any) in temp buffer specified by"//LF// &
+                        "`shell_command_buffer_name'; prefix arg means replace the region"//LF// &
+                        "with it."
         case ("skip_chars_backward")
             entry%file = "syntax_fm.f90"
             entry%fortran = "skip_chars_backward(string, status, lim)"
@@ -4249,6 +4628,26 @@ contains
                         "Use \[end_kbd_macro] to finish recording and make the macro available."//LF// &
                         "A prefix argument means append to last macro defined;"//LF// &
                         "this begins by re-executing that macro as if you typed it again."
+        case ("start_process")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call start_process(name, buffer, program, process, status, args)"
+            entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
+                        "NAME is name for process.  It is modified if necessary to make it"//LF// &
+                        "unique."//LF// &
+                        "BUFFER is the buffer (or a null handle) to associate with the"//LF// &
+                        "process."//LF// &
+                        ""//LF// &
+                        "Process output (both standard output and standard error streams)"//LF// &
+                        "goes at end of BUFFER, unless you specify a filter function to"//LF// &
+                        "handle the output.  BUFFER may also be absent, meaning that this"//LF// &
+                        "process is not associated with any buffer."//LF// &
+                        ""//LF// &
+                        "PROGRAM is the program file name.  It is searched for in `exec_path'"//LF// &
+                        "(which see).  If PROGRAM is an empty string, start a process"//LF// &
+                        "without a program (Deferred).  Remaining arguments ARGS are strings"//LF// &
+                        "to give the program as arguments."//LF// &
+                        ""//LF// &
+                        "The process runs in `default_directory' of the current buffer."
         case ("string_insert_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call string_insert_rectangle(start, end, string, status)"
@@ -4864,6 +5263,13 @@ contains
             entry%original = ".false."
             entry%value = repr(colon_double_space)
             entry%doc = "True means put two spaces after a colon when filling."
+        case ("comint_inhibit_carriage_motion")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "comint_inhibit_carriage_motion"
+            entry%original = ".false."
+            entry%value = repr(comint_inhibit_carriage_motion%value)
+            entry%doc = "If false, Comint will interpret `carriage control' characters in"//LF// &
+                        "output.  See `comint_carriage_motion' for details."
         case ("commands")
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
@@ -4880,6 +5286,113 @@ contains
             entry%original = ".true."
             entry%value = repr(comment_use_syntax_ppss)
             entry%doc = "True means `forward_comment' can use `syntax_ppss' internally."
+        case ("compilation_always_kill")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_always_kill"
+            entry%original = ".false."
+            entry%value = repr(compilation_always_kill%value)
+            entry%doc = "If true, always kill a running compilation process before starting"//LF// &
+                        "a new one.  If false, ask to kill it."
+        case ("compilation_ask_about_save")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_ask_about_save"
+            entry%original = ".true."
+            entry%value = repr(compilation_ask_about_save%value)
+            entry%doc = "True means \[compile] asks which buffers to save before compiling."//LF// &
+                        "Otherwise, it saves all modified buffers without asking."
+        case ("compilation_directory")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_directory"
+            if (allocated(compilation_directory%value)) then
+                entry%value = repr(compilation_directory%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Directory to restore to when doing `recompile'."
+        case ("compilation_disable_input")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_disable_input"
+            entry%original = ".false."
+            entry%value = repr(compilation_disable_input%value)
+            entry%doc = "If true, send end-of-file as compilation process input."//LF// &
+                        "This only affects platforms that support asynchronous processes (see"//LF// &
+                        "`start_process'); synchronous compilation processes never accept"//LF// &
+                        "input."
+        case ("compilation_filter_hook")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_filter_hook"
+            entry%doc = "Hook run after `compilation_filter' has inserted a string into the"//LF// &
+                        "buffer.  It is called with the variable `compilation_filter_start'"//LF// &
+                        "bound to the position of the start of the inserted text, and point at"//LF// &
+                        "its end."//LF// &
+                        ""//LF// &
+                        "If Emacs lacks asynchronous process support, this hook is run"//LF// &
+                        "after `call_process' inserts the grep output into the buffer."
+        case ("compilation_filter_start")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_filter_start"
+            entry%original = "0"
+            entry%value = repr(compilation_filter_start)
+            entry%doc = "Position of the start of the text inserted by `compilation_filter'."//LF// &
+                        "This is bound before running `compilation_filter_hook'."
+        case ("compilation_mode_hook")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_mode_hook"
+            entry%doc = "Hook run after entering Compilation mode."
+        case ("compilation_mode_map")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_mode_map"
+            entry%doc = "Keymap for compilation log buffers."
+        case ("compilation_read_command")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_read_command"
+            entry%original = ".true."
+            entry%value = repr(compilation_read_command%value)
+            entry%doc = "True means \[compile] reads the compilation command to use."//LF// &
+                        "Otherwise, \[compile] just uses the value of `compile_command'."//LF// &
+                        ""//LF// &
+                        "Note that changing this to false may be a security risk, because a"//LF// &
+                        "file might define a malicious `compile_command' as a file local"//LF// &
+                        "variable, and you might not notice.  Therefore, `compile_command'"//LF// &
+                        "is considered unsafe if this variable is false."
+        case ("compilation_scroll_output")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compilation_scroll_output"
+            entry%original = "COMPILATION_SCROLL_NIL"
+            select case (compilation_scroll_output%value)
+            case (COMPILATION_SCROLL_NIL)
+                entry%value = "COMPILATION_SCROLL_NIL"
+            case (COMPILATION_SCROLL_T)
+                entry%value = "COMPILATION_SCROLL_T"
+            case (COMPILATION_SCROLL_FIRST_ERROR)
+                entry%value = "COMPILATION_SCROLL_FIRST_ERROR"
+            case default
+                entry%value = repr(compilation_scroll_output%value)
+            end select
+            entry%doc = "True to scroll the *compilation* buffer window as output appears."//LF// &
+                        ""//LF// &
+                        "Setting it causes the Compilation mode commands to put point at the"//LF// &
+                        "end of their output window so that the end of the output is always"//LF// &
+                        "visible rather than the beginning."//LF// &
+                        ""//LF// &
+                        "COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,"//LF// &
+                        "and leaves point on its location in the *compilation* buffer."
+        case ("compile_command")
+            entry%file = "compile_fm.f90"
+            entry%fortran = "compile_command"
+            if (allocated(compile_command%value)) then
+                entry%value = repr(compile_command%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Last shell command used to do a compilation; default for next"//LF// &
+                        "compilation."//LF// &
+                        ""//LF// &
+                        "Sometimes it is useful for files to supply local values for this"//LF// &
+                        "variable.  You might also use mode hooks to specify it in certain"//LF// &
+                        "modes."//LF// &
+                        ""//LF// &
+                        "It's often useful to leave a space at the end of the value."
         case ("completion_auto_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -5033,6 +5546,13 @@ contains
             entry%doc = "Whether single-char deletion commands delete an active region."//LF// &
                         "This has an effect only if Transient Mark mode is enabled, and"//LF// &
                         "affects `delete_forward_char' and `delete_backward_char'."
+        case ("delete_exited_processes")
+            entry%file = "process_fm.f90"
+            entry%fortran = "delete_exited_processes"
+            entry%original = ".true."
+            entry%value = repr(delete_exited_processes%value)
+            entry%doc = "True means delete processes immediately when they exit."//LF// &
+                        "False means don't delete them until `list_processes' is run."
         case ("disabled_command_function")
             entry%file = "novice_fm.f90"
             entry%fortran = "disabled_command_function_p"
@@ -5600,6 +6120,10 @@ contains
             entry%original = ".false."
             entry%value = repr(minibuffer_completing_file_name)
             entry%doc = "Whether the minibuffer is completing a file name."
+        case ("minibuffer_local_shell_command_map")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "minibuffer_local_shell_command_map"
+            entry%doc = "Keymap used for completing shell commands in minibuffer."
         case ("minibuffer_message_timeout")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "minibuffer_message_timeout"
@@ -5737,6 +6261,14 @@ contains
             entry%original = ".true."
             entry%value = repr(pop_up_windows)
             entry%doc = "True means `display_buffer' should make a new window."
+        case ("process_connection_type")
+            entry%file = "process_fm.f90"
+            entry%fortran = "process_connection_type"
+            entry%original = ".true."
+            entry%value = repr(process_connection_type%value)
+            entry%doc = "Control type of device used to communicate with subprocesses."//LF// &
+                        "Values are false to use a pipe, or true to use a pty."//LF// &
+                        "The value takes effect when `start_process' is called."
         case ("prog_mode_hook")
             entry%file = "prog_mode_fm.f90"
             entry%fortran = "prog_mode_hook"
@@ -6065,6 +6597,80 @@ contains
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence_end' is unallocated."
+        case ("shell_command_default_error_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "shell_command_default_error_buffer"
+            if (allocated(shell_command_default_error_buffer%value)) then
+                entry%value = repr(shell_command_default_error_buffer%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Buffer name for `shell_command' and `shell_command_on_region' error"//LF// &
+                        "output.  This buffer is used when `shell_command' or"//LF// &
+                        "`shell_command_on_region' is run interactively.  Unallocated"//LF// &
+                        "means that output to stderr and stdout will be intermixed in the"//LF// &
+                        "output stream."
+        case ("shell_command_dont_erase_buffer")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "shell_command_dont_erase_buffer"
+            entry%original = "DONT_ERASE_NIL"
+            select case (shell_command_dont_erase_buffer%value)
+            case (DONT_ERASE_NIL)
+                entry%value = "DONT_ERASE_NIL"
+            case (DONT_ERASE_ERASE)
+                entry%value = "DONT_ERASE_ERASE"
+            case (DONT_ERASE_BEG_LAST_OUT)
+                entry%value = "DONT_ERASE_BEG_LAST_OUT"
+            case (DONT_ERASE_END_LAST_OUT)
+                entry%value = "DONT_ERASE_END_LAST_OUT"
+            case (DONT_ERASE_SAVE_POINT)
+                entry%value = "DONT_ERASE_SAVE_POINT"
+            case default
+                entry%value = repr(shell_command_dont_erase_buffer%value)
+            end select
+            entry%doc = "Whether to erase the output buffer before executing shell command."//LF// &
+                        ""//LF// &
+                        "DONT_ERASE_NIL erases the output buffer before execution of the"//LF// &
+                        "shell command, except when the output buffer is the current one."//LF// &
+                        ""//LF// &
+                        "DONT_ERASE_ERASE ensures the output buffer is erased before"//LF// &
+                        "execution of the shell command even if it is the current buffer."//LF// &
+                        ""//LF// &
+                        "Other values prevent the output buffer from being erased; they"//LF// &
+                        "also reposition point in the shell output buffer after execution of the"//LF// &
+                        "shell command, except when the output buffer is the current buffer."//LF// &
+                        ""//LF// &
+                        "DONT_ERASE_BEG_LAST_OUT sets point at the beginning of the last"//LF// &
+                        "output, DONT_ERASE_END_LAST_OUT sets point at the end of the last"//LF// &
+                        "output, and DONT_ERASE_SAVE_POINT restores the buffer position as it"//LF// &
+                        "was before the shell command."
+        case ("shell_command_prompt_show_cwd")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "shell_command_prompt_show_cwd"
+            entry%original = ".false."
+            entry%value = repr(shell_command_prompt_show_cwd%value)
+            entry%doc = "If true, show current directory when prompting for a shell command."//LF// &
+                        "This affects `shell_command' and `async_shell_command'."
+        case ("shell_command_switch")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "shell_command_switch"
+            if (allocated(shell_command_switch%value)) then
+                entry%value = repr(shell_command_switch%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Switch used to have the shell execute its command line argument."
+        case ("shell_file_name")
+            entry%file = "callproc_fm.f90"
+            entry%fortran = "shell_file_name"
+            if (allocated(shell_file_name%value)) then
+                entry%value = repr(shell_file_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "File name to load inferior shells from."//LF// &
+                        "Initialized from the SHELL environment variable, or to a system-dependent"//LF// &
+                        "default if SHELL is unset.  See Info node `(elisp)Security Considerations'."
         case ("special_mode_hook")
             entry%file = "simple_fm.f90"
             entry%fortran = "special_mode_hook"
