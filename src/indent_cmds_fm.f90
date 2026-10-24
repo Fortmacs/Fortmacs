@@ -145,8 +145,8 @@ contains
     !> handle it specially (since those functions are used for tabbing);
     !> in that case, indent by aligning to the previous non-blank line.
     !>
-    !> Ignore restriction, unless the optional argument INHIBIT-WIDEN is
-    !> non-nil.  Port of indent.el:indent-according-to-mode.
+    !> Ignore restriction, unless the optional argument INHIBIT_WIDEN is
+    !> true.  Port of indent.el:indent-according-to-mode.
     module procedure indent_according_to_mode
     integer(int64) :: savedb, savedz, column, opoint, shortage
     type(status_type) :: st
@@ -602,16 +602,16 @@ contains
     !> With no prefix argument, the command chooses one of these methods and
     !> indents all the lines with it:
     !>
-    !>   1) If `fill_prefix' is non-nil, insert `fill_prefix' at the
+    !>   1) If `fill_prefix' is allocated, insert `fill_prefix' at the
     !>      beginning of each line in the region that does not already begin
     !>      with it.
-    !>   2) If `indent_region_function' is non-nil, call that function
+    !>   2) If `indent_region_function' is associated, call that function
     !>      to indent the region.
     !>   3) Indent each line via `indent_according_to_mode'.
     !>
     !> Called from a program, START and END specify the region to indent.
     !> If the third argument COLUMN is an integer, it specifies the
-    !> column to indent to; if it is nil, use one of the three methods above.
+    !> column to indent to; if it is absent, use one of the three methods above.
     !> Port of indent.el:indent-region (no progress reporter).
     module procedure indent_region
     type(handle_type) :: end_marker, opoint_marker
@@ -728,13 +728,13 @@ contains
     !> An indent point is a non-whitespace character following whitespace.
     !> The following line shows the indentation points in this line.
     !>     ^         ^    ^     ^   ^           ^      ^  ^    ^
-    !> If FIRST-ONLY is non-nil, then only the first indent point is
+    !> If FIRST_ONLY is true, then only the first indent point is
     !> considered.
     !>
     !> If the previous nonblank line has no indent points beyond the
     !> column point starts at, then `tab_to_tab_stop' is done, if both
-    !> FIRST-ONLY and UNINDENTED-OK are nil, otherwise nothing is done.
-    !> If there isn't a previous nonblank line and UNINDENTED-OK is nil,
+    !> FIRST_ONLY and UNINDENTED_OK are false, otherwise nothing is done.
+    !> If there isn't a previous nonblank line and UNINDENTED_OK is false,
     !> call `tab_to_tab_stop'.
     !>
     !> See also `indent_relative_first_indent_point'.  Port of
@@ -853,7 +853,7 @@ contains
     end procedure indent_accumulate_tab_stops
 
     !> Insert spaces or tabs to next defined tab-stop column.
-    !> The variable `tab_stop_list' is a list of columns at which there are tab stops.
+    !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
     !> Whether this inserts tabs or spaces depends on `indent_tabs_mode'.
     !> Port of indent.el:tab-to-tab-stop (no abbrevs).
     module procedure tab_to_tab_stop
@@ -864,7 +864,7 @@ contains
     end procedure tab_to_tab_stop
 
     !> Move point to next defined tab-stop column.
-    !> The variable `tab_stop_list' is a list of columns at which there are tab stops.
+    !> The variable `tab_stop_list' is an array of columns at which there are tab stops.
     !> Port of indent.el:move-to-tab-stop.
     module procedure move_to_tab_stop
     integer(int64) :: nexttab, before, col, tabend, pos

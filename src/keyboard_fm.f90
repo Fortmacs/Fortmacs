@@ -1140,7 +1140,7 @@ contains
     end function at_end_of_macro_p
 
     !> Whether a keyboard macro is executing (`executing_kbd_macro'
-    !> non-nil).
+    !> true).
     logical function executing_kbd_macro_p()
         executing_kbd_macro_p = macro_active
     end function executing_kbd_macro_p

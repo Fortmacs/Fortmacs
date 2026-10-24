@@ -72,7 +72,7 @@ module editfns_fm
               delete_field, constrain_to_field
     public :: format_message
 
-    !> Non-nil means text motion commands don't notice fields.
+    !> True means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
     logical, public :: inhibit_field_text_motion = .false.
 
@@ -82,17 +82,22 @@ contains
     ! Positions
     ! ------------------------------------------------------------------
 
-    !> Port of editfns.c:Fpoint.
+    !> Return value of point, as an integer.
+    !> Beginning of buffer is position `point_min()'.  Port of editfns.c:Fpoint.
     integer(int64) function point()
         point = buffers(cur)%pt
     end function point
 
-    !> Port of editfns.c:Fpoint_min.
+    !> Return the minimum permissible value of point in the current buffer.
+    !> This is 1, unless narrowing (a buffer restriction) is in effect.  Port
+    !> of editfns.c:Fpoint_min.
     integer(int64) function point_min()
         point_min = buffers(cur)%begv
     end function point_min
 
-    !> Port of editfns.c:Fpoint_max.
+    !> Return the maximum permissible value of point in the current buffer.
+    !> This is `buffer_size() + 1', unless narrowing (a buffer restriction)
+    !> is in effect, in which case it is less.  Port of editfns.c:Fpoint_max.
     integer(int64) function point_max()
         point_max = buffers(cur)%zv
     end function point_max
@@ -318,17 +323,22 @@ contains
         end associate
     end function preceding_char
 
+    !> Return true if point is at the beginning of the buffer.
+    !> If the buffer is narrowed, this means the beginning of the narrowed part.
     !> Port of editfns.c:Fbobp.
     logical function bobp()
         bobp = buffers(cur)%pt == buffers(cur)%begv
     end function bobp
 
+    !> Return true if point is at the end of the buffer.
+    !> If the buffer is narrowed, this means the end of the narrowed part.
     !> Port of editfns.c:Feobp.
     logical function eobp()
         eobp = buffers(cur)%pt == buffers(cur)%zv
     end function eobp
 
-    !> Port of editfns.c:Fbolp.
+    !> Return true if point is at the beginning of a line.  Port of
+    !> editfns.c:Fbolp.
     logical function bolp()
         associate (b => buffers(cur))
             bolp = b%pt == b%begv
@@ -336,7 +346,9 @@ contains
         end associate
     end function bolp
 
-    !> Port of editfns.c:Feolp.
+    !> Return true if point is at the end of a line.
+    !> `End of a line' includes point being at the end of the buffer.  Port
+    !> of editfns.c:Feolp.
     logical function eolp()
         associate (b => buffers(cur))
             eolp = b%pt == b%zv
@@ -804,7 +816,7 @@ contains
             if (.not. status%ok()) return
             if (tolen /= nlen) then
                 call set_error(status, FM_GENERIC_ERROR, &
-                               format_message("Characters in `subst-char-in-region' have different byte-lengths"))
+                               format_message("Characters in `subst_char_in_region' have different byte-lengths"))
                 return
             end if
         else

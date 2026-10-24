@@ -463,7 +463,7 @@ contains
     end function process_name
 
     !> Return the command that was executed to start PROCESS.
-    !> This is a list of strings, the first string being the program
+    !> This is an array of strings, the first string being the program
     !> executed and the rest of the strings being the arguments given to
     !> it.  Port of process.c:Fprocess_command.
     subroutine process_command(process, command)
@@ -651,7 +651,7 @@ contains
         end do
     end function get_buffer_process
 
-    !> Return a list of all processes that are Emacs sub-processes.  Port
+    !> Return an array of all processes that are Emacs sub-processes.  Port
     !> of process.c:Fprocess_list.
     function process_list() result(list)
         type(handle_type), allocatable :: list(:)
@@ -676,10 +676,10 @@ contains
     !> handle the output.  BUFFER may be also absent, meaning that this
     !> process is not associated with any buffer.
     !>
-    !> COMMAND is a list starting with the program file name, followed by
+    !> COMMAND is an array starting with the program file name, followed by
     !> strings to give to the program as arguments.  If the program file
     !> name is not an absolute file name, `make_process' will look for the
-    !> program file name in `exec_path' (which is a list of directories).
+    !> program file name in `exec_path' (which is an array of directories).
     !>
     !> NOQUERY -- When exiting Emacs, query the user if NOQUERY is false
     !> and the process is running.  If NOQUERY is not given, query before
@@ -696,7 +696,7 @@ contains
     !> SENTINEL -- Install SENTINEL as the process sentinel.
     !>
     !> ENVIRONMENT -- "NAME=VALUE" entries put first in the process's
-    !> environment (as binding `process_environment' to a list starting
+    !> environment (as binding `process_environment' to an array starting
     !> with them does).
     !>
     !> Port of process.c:Fmake_process and create_process (PATH stands
@@ -730,7 +730,7 @@ contains
         call get_current_directory(current_dir, status)
         if (.not. status%ok()) return
         if (size(command) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Missing program in :command")
+            call set_error(status, FM_GENERIC_ERROR, "Starting a process without a program is not supported yet")
             return
         end if
         call new_process(name, process)

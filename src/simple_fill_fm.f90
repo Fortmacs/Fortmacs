@@ -321,7 +321,7 @@ contains
         if (.not. status%ok()) return
     else
         ! Disallow missing argument; it's probably a typo for C-x C-f.
-        call set_error(status, FM_GENERIC_ERROR, "set-fill-column requires an explicit argument")
+        call set_error(status, FM_GENERIC_ERROR, "set_fill_column requires an explicit argument")
         return
     end if
     write (a, "(i0)") n

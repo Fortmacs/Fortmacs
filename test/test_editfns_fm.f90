@@ -309,7 +309,7 @@ contains
         if (allocated(error)) return
         call subst_char_in_region(1_int64, 6_int64, 97, 233, st)
         call check(error, st%code == FM_GENERIC_ERROR .and. format_error(st) == &
-                   format_message("Characters in `subst-char-in-region' have different byte-lengths"), format_error(st))
+                   format_message("Characters in `subst_char_in_region' have different byte-lengths"), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string(), "a b c")
         call leave(h, old)

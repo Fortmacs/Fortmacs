@@ -71,7 +71,7 @@ module insdel_fm
     public :: signal_before_change, signal_after_change
     public :: replace_range, replace_range_2
 
-    !> List of functions to call before each text change.
+    !> Functions to call before each text change.
     !> Two arguments are passed to each function: the positions of
     !> the beginning and end of the range of old text to be changed.
     !> (For an insertion, the beginning and end are at the same place.)
@@ -87,7 +87,7 @@ module insdel_fm
     !> Port of buffer.c before-change-functions.
     type(change_hook_type), public, target :: before_change_functions = change_hook_type(name="before_change_functions")
 
-    !> List of functions to call after each text change.
+    !> Functions to call after each text change.
     !> Three arguments are passed to each function: the positions of
     !> the beginning and end of the range of changed text,
     !> and the length in chars of the pre-change text replaced by that range.
@@ -105,7 +105,7 @@ module insdel_fm
     !> Port of buffer.c after-change-functions.
     type(after_change_hook_type), public, target :: after_change_functions = after_change_hook_type(name="after_change_functions")
 
-    !> A list of functions to call before changing a buffer which is unmodified.
+    !> Functions to call before changing a buffer which is unmodified.
     !> The functions are run using the `run_hooks' function.
     !> Port of buffer.c first-change-hook.
     type(hook_type), public, target :: first_change_hook = hook_type(name="first_change_hook")
@@ -119,9 +119,8 @@ module insdel_fm
     !>
     !> To delay change hooks during a series of changes, use
     !> `combine_change_calls' or `combine_after_change_calls' instead of
-    !> binding this variable.
+    !> setting this variable.
     !>
-    !> See also the info node `(elisp) Change Hooks'.
     !> Port of insdel.c inhibit-modification-hooks.
     type(logical_setting), public :: inhibit_modification_hooks = logical_setting(name="inhibit_modification_hooks", value=.false.)
 

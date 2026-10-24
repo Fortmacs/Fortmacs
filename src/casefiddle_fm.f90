@@ -61,12 +61,12 @@ module casefiddle_fm
     !> The case actions (enum case_action).
     integer, parameter, public :: CASE_UP = 0, CASE_DOWN = 1, CASE_CAPITALIZE = 2, CASE_CAPITALIZE_UP = 3
 
-    !> If non-nil, case functions treat symbol syntax as part of words.
+    !> If true, case functions treat symbol syntax as part of words.
     !>
     !> Functions such as `upcase_initials' and `replace_match' check or
     !> modify the case pattern of sequences of characters.  Normally, these
     !> operate on sequences of characters whose syntax is word constituent.
-    !> If this variable is non-nil, then they operate on sequences of
+    !> If this variable is true, then they operate on sequences of
     !> characters whose syntax is either word constituent or symbol
     !> constituent.
     !>

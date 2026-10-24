@@ -148,8 +148,8 @@ module compile_fm
     !> end of their output window so that the end of the output is always
     !> visible rather than the beginning.
     !>
-    !> The value `first-error' stops scrolling at the first error, and
-    !> leaves point on its location in the *compilation* buffer.  Port of
+    !> COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,
+    !> and leaves point on its location in the *compilation* buffer.  Port of
     !> compile.el compilation-scroll-output (COMPILATION_SCROLL_NIL is nil,
     !> COMPILATION_SCROLL_T t, COMPILATION_SCROLL_FIRST_ERROR `first-error').
     type(integer_setting), public :: compilation_scroll_output = &
@@ -183,9 +183,9 @@ module compile_fm
     !> buffer has a value of its own, the directory it was started in).
     type(string_setting), public :: compilation_directory = string_setting(name="compilation_directory")
 
-    !> If true, Comint will interpret `carriage control' characters in
+    !> If false, Comint will interpret `carriage control' characters in
     !> output.  See `comint_carriage_motion' for details.  Port of
-    !> comint.el comint-inhibit-carriage-motion (true means don't).
+    !> comint.el comint-inhibit-carriage-motion.
     type(logical_setting), public :: comint_inhibit_carriage_motion = &
                                      logical_setting(name="comint_inhibit_carriage_motion", value=.false.)
 
@@ -1096,5 +1096,6 @@ contains
         commands%recompile%run => cmd_recompile
         commands%kill_compilation%run => kill_compilation
         call add_local_variables_killer(kill_compilation_locals)
+        if (.not. allocated(compile_command%value)) compile_command = default_compile_command()
     end subroutine syms_of_compile
 end module compile_fm
