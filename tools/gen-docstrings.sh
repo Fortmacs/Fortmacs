@@ -88,8 +88,9 @@ function citation(b, var,    flat, k, rest, file, name) {
     file = substr(rest, 1, RLENGTH)
     rest = substr(rest, RLENGTH + 1)
     if (var) {
-        if (!match(rest, /^ [a-z][a-z0-9*+-]*/)) return ""
-        name = substr(rest, 2, RLENGTH - 1)
+        if (!match(rest, /^ [a-z][A-Za-z0-9*+-]*/)) return ""
+        # (lower case: dired-ls-F-marks-symlinks is dired_ls_f_marks_symlinks)
+        name = tolower(substr(rest, 2, RLENGTH - 1))
         sub(/-$/, "", name)
         gsub(/-/, "_", name)
         return name

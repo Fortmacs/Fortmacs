@@ -46,7 +46,8 @@ module fileio_fm
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
                          close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
-                         W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST
+                         W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
+                         ENOTDIR
     implicit none(type, external)
     private
 
@@ -60,7 +61,7 @@ module fileio_fm
               make_symbolic_link, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
               user_uid, group_gid, make_directory_internal, delete_directory_internal, &
-              delete_file_internal
+              delete_file_internal, file_system_info
     public :: insert_file_contents, write_region, verify_visited_file_modtime, &
               set_visited_file_modtime
 
@@ -537,15 +538,18 @@ contains
 
     !> Status of `filename' (following links); `found' is false if it
     !> can't be read.  The parts of dired.c:Ffile_attributes in use.
-    subroutine file_attributes(filename, st, found)
+    subroutine file_attributes(filename, st, found, nofollow)
         character(len=*), intent(in) :: filename
         type(file_stat_type), intent(out) :: st
         logical, intent(out) :: found
+        !> Describe a symbolic link itself, not its target (lstat), as
+        !> upstream's file-attributes always does.
+        logical, intent(in), optional :: nofollow
         character(len=:), allocatable :: absname
         found = .false.
         absname = expand_quietly(filename)
         if (len(absname) == 0) return
-        found = sys_stat(absname, st) == 0
+        found = sys_stat(absname, st, nofollow=nofollow) == 0
     end subroutine file_attributes
 
     !> Whether `filename' is a regular file (following links).
@@ -695,6 +699,35 @@ contains
         err = sys_unlink(absname)
         if (err /= 0 .and. err /= ENOENT) call report_file_errno("Removing old name", absname, err, status)
     end subroutine delete_file_internal
+
+    !> Return storage information about the file system FILENAME is on.
+    !> The values are TOTAL, FREE and AVAIL, where TOTAL is the total
+    !> storage of the file system, FREE is the free storage, and AVAIL is the
+    !> storage available to a non-superuser.  All 3 numbers are in bytes.
+    !> If the underlying system call fails, FOUND is false.  Port of
+    !> fileio.c:Ffile_system_info (an error other than
+    !> a missing file is signaled as "Getting attributes").
+    subroutine file_system_info(filename, total, free, avail, found, status)
+        character(len=*), intent(in) :: filename
+        integer(int64), intent(out) :: total, free, avail
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: absname
+        integer(int32) :: err
+        found = .false.
+        total = 0
+        free = 0
+        avail = 0
+        call expand_file_name(filename, absname, status)
+        if (.not. status%ok()) return
+        err = emacs_statvfs(absname, total, free, avail)
+        if (err == 0) then
+            found = .true.
+        else if (err /= ENOENT .and. err /= ENOTDIR) then
+            ! file_metadata_errno
+            call report_file_errno("Getting attributes", absname, err, status)
+        end if
+    end subroutine file_system_info
 
     !> A file error for `name' from errno `err': "STRING: <strerror>, NAME",
     !> file-missing for ENOENT.  Port of fileio.c:report_file_errno.

@@ -53,7 +53,12 @@ submodule(window_fm) window_display_fm
     use marker_fm, only: set_marker_restricted, copy_marker
     use frame_fm, only: selected_frame, ensure_frame_windows, selected_window
     use editfns_fm, only: goto_char
-    use indent_fm, only: vertical_motion
+    use indent_fm, only: vertical_motion, screen_column
+    use buffer_fm, only: inhibit_read_only
+    use insdel_fm, only: inhibit_modification_hooks
+    use data_fm, only: set
+    use lread_fm, only: sym
+    use lisp_fm, only: value_type, t_value
     use minibuf_fm, only: minibuf_level
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use lisp_fm, only: nilp
@@ -1207,6 +1212,7 @@ contains
         if (type == QR_WINDOW) then
             if (allocated(windows(h%index)%prev_buffers)) call clear_prev_buffers(h)
         end if
+        if (associated(alist%body_function)) call run_body_function(alist, h)
         ! A window that never showed another buffer but BUFFER ever since
         ! it was created on an existing frame: adjust its height if asked
         ! for.
@@ -1216,6 +1222,23 @@ contains
         end if
         window = h
     end function window_display_buffer
+
+    !> Call the `body_function' of ALIST with window H, with
+    !> `inhibit_read_only' and `inhibit_modification_hooks' true.
+    subroutine run_body_function(alist, h)
+        type(display_alist_type), intent(in) :: alist
+        type(handle_type), intent(in) :: h
+        type(value_type) :: saved
+        type(status_type) :: st
+        logical :: saved_hooks
+        saved = inhibit_read_only()
+        call set(sym("inhibit_read_only"), t_value(), st)
+        saved_hooks = inhibit_modification_hooks%value
+        inhibit_modification_hooks = .true.
+        call alist%body_function(h)
+        inhibit_modification_hooks = saved_hooks
+        call set(sym("inhibit_read_only"), saved, st)
+    end subroutine run_body_function
 
     !> (set-window-prev-buffers h nil)
     subroutine clear_prev_buffers(h)
@@ -1465,6 +1488,134 @@ contains
         end if
     end function display_buffer_at_bottom
 
+    !> Try displaying BUFFER in a window below the selected window.
+    !> If there is a window below the selected one and that window
+    !> already displays BUFFER, use that window.  Otherwise, try to
+    !> create a new window below the selected one and show BUFFER there.
+    !> If that attempt fails as well and there is a non-dedicated window
+    !> below the selected one, use that window.  Port of
+    !> window.el:display-buffer-below-selected (no `window_min_height'
+    !> entry).
+    function display_buffer_below_selected(buffer, alist, status) result(window)
+        type(handle_type), intent(in) :: buffer
+        type(display_alist_type), intent(in) :: alist
+        type(status_type), intent(out) :: status
+        type(handle_type) :: window, sw
+        status = status_type()
+        window = window_in_direction_below()
+        if (window_live_p(window)) then
+            if (same_handle(buffer, windows(window%index)%buffer)) then
+                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                if (window%index /= 0 .or. .not. status%ok()) return
+            end if
+        end if
+        ! (let ((split-height-threshold 0) split-width-threshold)
+        !   (window--try-to-split-window (selected-window) alist))
+        sw = selected_window()
+        window = null_handle()
+        if (window_splittable_p(sw, .false., threshold_zero=.true.)) then
+            call split_window_and_copy(sw, .false., window, status)
+            if (.not. status%ok()) then
+                status = status_type()
+                window = null_handle()
+            end if
+        end if
+        if (window_live_p(window)) then
+            window = window_display_buffer(buffer, window, QR_WINDOW, status, alist)
+            if (window%index /= 0 .or. .not. status%ok()) return
+        end if
+        window = window_in_direction_below()
+        if (window_live_p(window)) then
+            if (windows(window%index)%dedicated == DEDICATED_NONE) then
+                window = window_display_buffer(buffer, window, QR_OTHER, status, alist)
+                return
+            end if
+        end if
+        window = null_handle()
+    end function display_buffer_below_selected
+
+    module function window_in_direction_below(window) result(best)
+        type(handle_type), intent(in), optional :: window
+        type(handle_type) :: best, w, best_2, old
+        type(handle_type), allocatable :: list(:)
+        type(status_type) :: st
+        integer :: first, last, posn, best_edge, best_edge_2, best_diff_2, diff, k, w_top, w_left
+        best = null_handle()
+        best_2 = null_handle()
+        if (present(window)) then
+            w = window
+        else
+            w = selected_window()
+        end if
+        if (.not. window_live_p(w)) return
+        first = windows(w%index)%top_line
+        last = first + windows(w%index)%total_lines
+        ! The column of `posn_at_point' of WINDOW's point.
+        old = current_buffer()
+        call set_buffer(windows(w%index)%buffer, st)
+        posn = screen_column_at(w) + windows(w%index)%left_col
+        call set_buffer(old, st)
+        associate (r => windows(selected_frame%root_window%index), m => windows(selected_frame%minibuffer_window%index))
+            best_edge = r%total_lines + m%total_lines
+            best_diff_2 = r%total_cols
+        end associate
+        best_edge_2 = best_edge
+        call window_leaves(selected_frame%root_window, list)
+        if (minibuf_level > 0) list = [list, selected_frame%minibuffer_window]
+        do k = 1, size(list)
+            if (same_handle(list(k), w)) cycle
+            w_top = windows(list(k)%index)%top_line
+            w_left = windows(list(k)%index)%left_col
+            if (w_left <= posn .and. posn < w_left + windows(list(k)%index)%total_cols) then
+                ! W is below WINDOW and covers POSN.
+                if (w_top >= first .and. w_top < best_edge) then
+                    best_edge = w_top
+                    best = list(k)
+                end if
+            else if (last <= w_top) then
+                ! W is below WINDOW but does not cover POSN
+                ! (window--in-direction-2).
+                if (w_left > posn) then
+                    diff = w_left - posn
+                else
+                    diff = posn - w_left - windows(list(k)%index)%total_cols
+                end if
+                if (diff < best_diff_2 .or. (diff == best_diff_2 .and. w_top < best_edge_2)) then
+                    best_edge_2 = w_top
+                    best_diff_2 = diff
+                    best_2 = list(k)
+                end if
+            end if
+        end do
+        if (best%index == 0) best = best_2
+    contains
+
+        !> Point's column in window H (the current buffer's point if H is
+        !> selected, else its own point).
+        integer function screen_column_at(h) result(x)
+            type(handle_type), intent(in) :: h
+            integer(int64) :: opoint
+            opoint = buffers(cur)%pt
+            call goto_char(point_of(h))
+            x = screen_column()
+            call goto_char(opoint)
+        end function screen_column_at
+    end function window_in_direction_below
+
+    module subroutine switch_to_buffer_other_window(buffer, status, norecord)
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: norecord
+        type(display_alist_type) :: alist
+        logical :: saved
+        ! (let ((pop-up-windows t)) (pop-to-buffer buffer-or-name t norecord))
+        saved = pop_up_windows
+        pop_up_windows = .true.
+        alist%inhibit_same_window = .true.
+        call pop_to_buffer(buffer, status, alist=alist, norecord=norecord)
+        pop_up_windows = saved
+    end subroutine switch_to_buffer_other_window
+
     !> Try action function ACTION for BUFFER with ALIST.
     function display_buffer_action(action, buffer, alist, status) result(window)
         integer, intent(in) :: action
@@ -1493,6 +1644,8 @@ contains
             window = display_buffer_use_some_window(buffer, alist, status)
         case (DISPLAY_ACTION_AT_BOTTOM)
             window = display_buffer_at_bottom(buffer, alist, status)
+        case (DISPLAY_ACTION_BELOW_SELECTED)
+            window = display_buffer_below_selected(buffer, alist, status)
         case default
             continue
         end select

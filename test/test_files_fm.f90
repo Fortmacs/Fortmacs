@@ -42,7 +42,7 @@ module test_files_fm
                         save_buffer, basic_save_buffer, make_backup_file_name, &
                         normal_backup_enable_predicate, save_some_buffers, &
                         save_buffers_kill_emacs, temporary_file_directory, make_directory, require_final_newline, &
-                        FINAL_NEWLINE_NEVER, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT
+                        FINAL_NEWLINE_NEVER, FINAL_NEWLINE_ASK, FINAL_NEWLINE_VISIT, find_file_run_dired
     use subr_fm, only: y_or_n_p
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK, YNP_ACT
     use emacs_fm, only: command_line_1, arg_type
@@ -277,11 +277,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
         type(status_type) :: st
+        integer(int64) :: i
         call setup()
+        ! Without `find_file_run_dired', visiting a directory is an error.
+        find_file_run_dired = .false.
         call find_file_noselect(testdir, buf, st)
+        find_file_run_dired = .true.
         call check(error, format_error(st) == abbreviate_file_name(path(""))//" is a directory" .or. &
                    format_error(st) == abbreviate_file_name(file_name_as_directory(emacs_wd)//testdir)// &
                    " is a directory", format_error(st))
+        if (allocated(error)) return
+        ! With it, `find_directory_functions' (Dired) visits it.
+        call find_file_noselect(testdir, buf, st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call resolve_buffer(buf, i, st)
+        call check(error, buffers(i)%major_mode == "dired_mode", "a Dired buffer")
+        call kill_buffer(buf, st)
     end subroutine test_find_directory
 
     subroutine test_find_read_only(error)

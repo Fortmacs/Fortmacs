@@ -26,6 +26,10 @@
 !> read in the minibuffer, or with `read_key' when
 !> `y_or_n_p_use_read_key' is set.  Not ported: ACTION-ALIST, dialog
 !> boxes, NO-CURSOR-IN-ECHO-AREA, switch-frame events.
+!>
+!> `read_answer': a question with long answers or their one-character
+!> abbreviations.  Not ported: dialog boxes, short answers that are
+!> function keys or other non-character events.
 module map_ynp_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_QUIT
@@ -36,11 +40,39 @@ module map_ynp_fm
 
     public :: map_y_or_n_p, ynp_prompter, ynp_actor
     public :: YNP_SKIP, YNP_ASK, YNP_ACT
+    public :: read_answer, read_answer_type
 
     !> What a prompter says about an object: skip it, ask about it (with
     !> the prompt it returns), or act on it without asking (upstream: nil,
     !> a string, or another non-nil value).
     integer, parameter :: YNP_SKIP = 0, YNP_ASK = 1, YNP_ACT = 2
+
+    !> Values of `read_answer_short' (upstream nil, t and `auto').
+    integer, parameter, public :: READ_ANSWER_SHORT_NIL = 0, READ_ANSWER_SHORT_T = 1, READ_ANSWER_SHORT_AUTO = 2
+
+    !> If true, the `read_answer' function accepts single-character answers.
+    !> If READ_ANSWER_SHORT_T, accept short (single key-press) answers to the
+    !> question.  If READ_ANSWER_SHORT_NIL, require long answers.  If
+    !> READ_ANSWER_SHORT_AUTO, accept short answers if
+    !> `use_short_answers' is true.
+    !>
+    !> Note that this variable does not affect calls to the more
+    !> commonly-used `yes_or_no_p' function; it only affects calls to
+    !> the `read_answer' function.  To control whether `yes_or_no_p'
+    !> requires a long or a short answer, see the `use_short_answers'
+    !> variable.  Port of map-ynp.el read-answer-short
+    !> (READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T or
+    !> READ_ANSWER_SHORT_AUTO).
+    integer, public :: read_answer_short = READ_ANSWER_SHORT_AUTO
+
+    !> One answer of `read_answer': LONG-ANSWER, a complete answer;
+    !> SHORT-ANSWER, its one-character abbreviation (a character code);
+    !> HELP-MESSAGE, what the answer means.
+    type :: read_answer_type
+        character(len=:), allocatable :: long
+        integer :: short = 0
+        character(len=:), allocatable :: help
+    end type read_answer_type
 
     abstract interface
         !> Whether and how to ask about object `k'.
@@ -82,6 +114,34 @@ module map_ynp_fm
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: help_object, help_objects, help_action
         end subroutine map_y_or_n_p
+
+        !> Read an answer either as a complete word or its character abbreviation.
+        !> Ask user a question and accept an answer from the list of possible answers.
+        !> Return the long answer even when accepting short ones.
+        !>
+        !> QUESTION should end in a space; this function adds a list of answers to it.
+        !>
+        !> ANSWERS is a list of `read_answer_type' entries, each with
+        !>   LONG, a complete answer,
+        !>   SHORT, an abbreviated one-character answer,
+        !>   HELP, a string describing the meaning of the answer.
+        !>
+        !> Example:
+        !>   [read_answer_type("yes", ichar("y"), "perform the action"),
+        !>    read_answer_type("no", ichar("n"), "skip to the next"),
+        !>    read_answer_type("all", ichar("!"), "accept all remaining without more questions"),
+        !>    read_answer_type("help", ichar("h"), "show help"),
+        !>    read_answer_type("quit", ichar("q"), "exit")]
+        !>
+        !> When `read_answer_short' is true, accept short answers.  Port of
+        !> map-ynp.el:read-answer (no dialog boxes).  (In map_ynp_ask_fm.)
+        recursive module subroutine read_answer(question, answers, answer, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: question
+            type(read_answer_type), intent(in) :: answers(:)
+            character(len=:), allocatable, intent(out) :: answer
+            type(status_type), intent(out) :: status
+        end subroutine read_answer
     end interface
 
     !> The minibuffer keymap of `map_y_or_n_p': each key of
@@ -92,5 +152,15 @@ module map_ynp_fm
     type(command_type), target, public :: cmd_char, cmd_help
     !> The keys cmd-char recorded (unallocated for none).
     type(value_type), allocatable, public :: chars(:)
+
+    !> The answers of the `read_answer' being asked with short answers
+    !> (its help answer included), the message for a wrong key, and its
+    !> minibuffer keymap (read-answer's short-answer-map), whose keys run
+    !> the anonymous commands `read_answer__select' and
+    !> `read_answer__reject'.
+    type(read_answer_type), allocatable, public :: short_answers(:)
+    character(len=:), allocatable, public :: short_answer_message
+    type(handle_type), public :: short_answer_map
+    type(command_type), target, public :: cmd_answer_select, cmd_answer_reject
 
 end module map_ynp_fm

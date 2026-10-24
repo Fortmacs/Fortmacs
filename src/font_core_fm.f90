@@ -84,12 +84,14 @@ module font_core_fm
             type(status_type), intent(out) :: status
         end subroutine font_lock_matcher_proc
 
-        !> A highlight's FACE given as a function of the match: the name
-        !> of the face to give it, or "" for none.
-        function font_lock_face_proc() result(face)
+        !> A highlight's FACE given as a function of the match: FACE gets
+        !> the name of the face to give it, or "" for none.  (A subroutine:
+        !> gfortran mishandles procedure pointer components whose function
+        !> result is allocatable.)
+        subroutine font_lock_face_proc(face)
             implicit none(type, external)
-            character(len=:), allocatable :: face
-        end function font_lock_face_proc
+            character(len=:), allocatable, intent(out) :: face
+        end subroutine font_lock_face_proc
 
         !> An anchored highlighter's PRE-MATCH-FORM or POST-MATCH-FORM:
         !> run before or after its matcher's search; LIMIT, if positive, is
@@ -116,12 +118,16 @@ module font_core_fm
     !> existing fontification (OVERRIDE, a FONT_LOCK_OVERRIDE_*), and
     !> whether a SUBEXP that did not match is fine (LAXMATCH) rather than an
     !> error.
+    !> The face may come with text properties to give the text as well
+    !> (a FACENAME of the form (face FACE PROP VAL ...)): the names in
+    !> `true_properties' are set to true.
     type, public :: font_lock_match_highlight_type
         integer :: subexp = 0
         character(len=:), allocatable :: face
         procedure(font_lock_face_proc), pointer, nopass :: face_function => null()
         integer :: override = FONT_LOCK_OVERRIDE_NIL
         logical :: laxmatch = .false.
+        character(len=64), allocatable :: true_properties(:)
     end type font_lock_match_highlight_type
 
     !> A HIGHLIGHT of a keyword: a MATCH-HIGHLIGHT (`match'), or with

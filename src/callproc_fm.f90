@@ -29,7 +29,7 @@
 !>                       args=list(make_string("-l")))
 !>
 !> Not ported yet: DESTINATION 0 (not waiting, which needs SIGCHLD
-!> reaping), `(:file FILE)' and `(REAL-BUFFER STDERR-FILE)', DISPLAY,
+!> reaping), `(:file FILE)', DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
 !> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
 !> (the editor's environment is passed), remote directories, executable
@@ -54,7 +54,7 @@ module callproc_fm
     use env_fm, only: getenv
     use sysdep_fm, only: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, &
                          emacs_strsignal, emacs_open_read, emacs_mkostemp, emacs_read, close_fd, &
-                         ENOENT
+                         ENOENT, emacs_creat
     implicit none(type, external)
     private
 
@@ -91,21 +91,25 @@ contains
     !> It waits for PROGRAM to terminate and RESULT is a numeric exit
     !> status or a signal description string.
     !>
+    !> With ERROR_FILE, standard error output goes to that file (relative
+    !> to `default_directory'), as for a DESTINATION of the form
+    !> (REAL-DESTINATION ERROR-FILE).
+    !>
     !> The process runs in `default_directory'.  Port of
     !> callproc.c:Fcall_process and call_process.
-    subroutine call_process(program, result, status, infile, destination, args)
+    subroutine call_process(program, result, status, infile, destination, args, error_file)
         character(len=*), intent(in) :: program
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: infile
+        character(len=*), intent(in), optional :: infile, error_file
         type(value_type), intent(in), optional :: destination, args
         type(sys_string_type), allocatable :: argv(:)
         type(value_type), allocatable :: elems(:)
         type(handle_type) :: buffer, old
-        character(len=:), allocatable :: dir, input, output, path
+        character(len=:), allocatable :: dir, input, output, path, errpath
         character(len=65536) :: chunk
         logical :: discard
-        integer(int32) :: fds(2), err, fd, pid, code, sig
+        integer(int32) :: fds(2), err, fd, pid, code, sig, fd_error
         integer(int64) :: n, k
         type(status_type) :: rst
         result = nil()
@@ -180,15 +184,31 @@ contains
             if (.not. status%ok()) return
             argv(k + 1)%s = xstring(elems(k))
         end do
+        fd_error = -1
+        if (present(error_file)) then
+            call expand_file_name(error_file, errpath, status)
+            if (.not. status%ok()) return
+            err = emacs_creat(errpath, int(o'666', int32), fd_error)
+            if (err /= 0) then
+                call report_file_errno("Cannot redirect stderr", errpath, err, status)
+                return
+            end if
+        end if
         fds = -1
         if (.not. discard) then
             err = emacs_pipe(fds)
             if (err /= 0) then
+                if (fd_error >= 0) call close_fd(fd_error)
                 call report_file_errno("Creating process pipe", "", err, status)
                 return
             end if
         end if
-        err = emacs_spawn(path, argv, input, fds(2), dir, pid)
+        if (fd_error >= 0) then
+            err = emacs_spawn(path, argv, input, fds(2), dir, pid, fd_error)
+            call close_fd(fd_error)
+        else
+            err = emacs_spawn(path, argv, input, fds(2), dir, pid)
+        end if
         if (.not. discard) call close_fd(fds(2))
         if (err /= 0) then
             if (.not. discard) call close_fd(fds(1))

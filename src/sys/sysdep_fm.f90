@@ -42,7 +42,7 @@ module sysdep_fm
                             vtime, vwerase, winsize_type, c_creat, c_access, c_rename, c_unlink, &
                             c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, &
                             c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
-                            c_rmdir, c_setenv, c_unsetenv, &
+                            c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
                             c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
                             at_statx_sync_as_stat, statx_basic_stats, ENOENT, EACCES, EEXIST, &
                             ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
@@ -76,7 +76,7 @@ module sysdep_fm
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
-              emacs_localtime
+              emacs_localtime, emacs_statvfs
 
     !> A string of any length, for argument vectors.
     type :: sys_string_type
@@ -713,15 +713,17 @@ contains
     !> arguments `args' (args(1) is its name), standard input from file
     !> `infile', standard output and error to `out_fd' (or /dev/null if it
     !> is negative), in directory `dir' (unless empty), with the editor's
-    !> environment.  `pid' is the child.  The caller checks that `path',
-    !> `infile' and `dir' can be used first; if the child still fails to
-    !> start, it exits with status 127.  Port of callproc.c:emacs_spawn
-    !> (the fork path, without a pty).
-    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid) result(err)
+    !> environment.  With `err_fd', standard error goes there instead.
+    !> `pid' is the child.  The caller checks that `path', `infile' and
+    !> `dir' can be used first; if the child still fails to start, it exits
+    !> with status 127.  Port of callproc.c:emacs_spawn (the fork path,
+    !> without a pty).
+    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_fd) result(err)
         character(len=*), intent(in) :: path, infile, dir
         type(sys_string_type), intent(in) :: args(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
+        integer(int32), intent(in), optional :: err_fd
         type(c_argv_type), target :: argv
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir
         integer(c_int) :: fd, r
@@ -751,6 +753,9 @@ contains
             if (fd < 0) call c_exit(127)
             r = c_dup2(fd, 1)
             r = c_dup2(fd, 2)
+        end if
+        if (present(err_fd)) then
+            if (err_fd >= 0) r = c_dup2(err_fd, 2)
         end if
         if (len(dir) > 0) then
             if (c_chdir(c_dir) /= 0) call c_exit(127)
@@ -930,4 +935,23 @@ contains
         p = c_localtime_r(seconds, tm)
         parts = [tm%tm_year + 1900, tm%tm_mon + 1, tm%tm_mday, tm%tm_hour, tm%tm_min, tm%tm_sec]
     end function emacs_localtime
+
+    !> The file system holding `path': its total, free and available
+    !> space in bytes (statvfs(3): blocks times the fragment size).
+    integer(int32) function emacs_statvfs(path, total, free, avail) result(err)
+        character(len=*), intent(in) :: path
+        integer(int64), intent(out) :: total, free, avail
+        type(statvfs_type) :: buf
+        err = 0
+        total = 0
+        free = 0
+        avail = 0
+        if (c_statvfs(c_path(path), buf) /= 0) then
+            err = errno()
+            return
+        end if
+        total = buf%f_blocks*buf%f_frsize
+        free = buf%f_bfree*buf%f_frsize
+        avail = buf%f_bavail*buf%f_frsize
+    end function emacs_statvfs
 end module sysdep_fm

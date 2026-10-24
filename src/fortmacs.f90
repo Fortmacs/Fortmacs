@@ -240,6 +240,24 @@ module fortmacs
     use edmacro_fm, only: edmacro_eight_bits
     use files_fm, only: require_final_newline, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
                         FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
+    ! Dired.
+    use dired_mode_fm, only: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
+                             dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, &
+                             dired_listing_switches, dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, &
+                             DIRED_USE_LS_DIRED_UNSPECIFIED, dired_ls_f_marks_symlinks, dired_trivial_filenames, &
+                             dired_free_space, DIRED_FREE_SPACE_NIL, DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, &
+                             dired_mark_region, DIRED_MARK_REGION_NIL, DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, &
+                             dired_movement_style, DIRED_MOVEMENT_STYLE_NIL, DIRED_MOVEMENT_STYLE_CYCLE, &
+                             DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
+                             DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_auto_revert_buffer, dired_check_symlinks, &
+                             dired_recursive_deletes, DIRED_RECURSIVE_NEVER, DIRED_RECURSIVE_ALWAYS, DIRED_RECURSIVE_TOP, &
+                             DIRED_RECURSIVE_ASK, dired_no_confirm, dired_no_confirm_type, dired_switches_in_mode_line, &
+                             DIRED_SWITCHES_SORT_ORDER, DIRED_SWITCHES_AS_IS, dired_sort_inhibit, &
+                             dired_garbage_files_regexp, dired_always_read_filesystem, dired_deletion_confirmer, &
+                             dired_header_face, dired_mark_face, dired_marked_face, dired_flagged_face, &
+                             dired_warning_face, dired_perm_write_face, dired_directory_face, dired_symlink_face, &
+                             dired_ignored_face
+    use files_fm, only: insert_directory_program, find_file_run_dired, find_file_other_window, revert_buffer
     implicit none(type, external)
     private
 
@@ -349,4 +367,19 @@ module fortmacs
     public :: kbd_macro_termination_hook, kmacro_ring_max, kmacro_execute_before_append, kmacro_repeat_no_prefix, &
               kmacro_call_repeat_key, kmacro_call_repeat_with_arg, KMACRO_CALL_REPEAT_DISABLED, &
               KMACRO_CALL_REPEAT_LAST_KEY, edmacro_eight_bits
+    public :: dired, dired_other_window, dired_noselect, dired_mode, dired_mode_map, dired_mode_hook, &
+              dired_before_readin_hook, dired_after_readin_hook, dired_initial_position_hook, dired_listing_switches, &
+              dired_use_ls_dired, DIRED_USE_LS_DIRED_NIL, DIRED_USE_LS_DIRED_T, DIRED_USE_LS_DIRED_UNSPECIFIED, &
+              dired_ls_f_marks_symlinks, dired_trivial_filenames, dired_free_space, DIRED_FREE_SPACE_NIL, &
+              DIRED_FREE_SPACE_SEPARATE, DIRED_FREE_SPACE_FIRST, dired_mark_region, DIRED_MARK_REGION_NIL, &
+              DIRED_MARK_REGION_FILE, DIRED_MARK_REGION_LINE, dired_movement_style, DIRED_MOVEMENT_STYLE_NIL, &
+              DIRED_MOVEMENT_STYLE_CYCLE, DIRED_MOVEMENT_STYLE_BOUNDED, DIRED_MOVEMENT_STYLE_CYCLE_FILES, &
+              DIRED_MOVEMENT_STYLE_BOUNDED_FILES, dired_auto_revert_buffer, dired_check_symlinks, &
+              dired_recursive_deletes, DIRED_RECURSIVE_NEVER, DIRED_RECURSIVE_ALWAYS, DIRED_RECURSIVE_TOP, &
+              DIRED_RECURSIVE_ASK, dired_no_confirm, dired_no_confirm_type, dired_switches_in_mode_line, &
+              DIRED_SWITCHES_SORT_ORDER, DIRED_SWITCHES_AS_IS, dired_sort_inhibit, dired_garbage_files_regexp, &
+              dired_always_read_filesystem, dired_deletion_confirmer, dired_header_face, dired_mark_face, &
+              dired_marked_face, dired_flagged_face, dired_warning_face, dired_perm_write_face, &
+              dired_directory_face, dired_symlink_face, dired_ignored_face, insert_directory_program, &
+              find_file_run_dired, find_file_other_window, revert_buffer
 end module fortmacs
