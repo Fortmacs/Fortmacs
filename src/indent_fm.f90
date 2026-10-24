@@ -46,7 +46,7 @@ module indent_fm
     public :: current_column, move_to_column, vertical_motion, screen_column, window_text_width, &
               indent_to, current_indentation, sane_tab_width
 
-    !> Indentation can insert tabs if this is non-nil.  Port of indent.c
+    !> Indentation can insert tabs if this is true.  Port of indent.c
     !> indent-tabs-mode (one global value).
     type(logical_setting), public :: indent_tabs_mode = logical_setting(name="indent_tabs_mode", value=.true.)
 
@@ -87,8 +87,8 @@ module indent_fm
     type(integer_setting), public :: standard_indent = integer_setting(name="standard_indent", value=4)
 
     !> Controls the operation of the TAB key.
-    !> If t, hitting TAB always just indents the current line.
-    !> If nil, hitting TAB indents the current line if point is at the left margin
+    !> If true, hitting TAB always just indents the current line.
+    !> If false, hitting TAB indents the current line if point is at the left margin
     !> or in the line's indentation, otherwise it inserts a "real" TAB character.
     !> Port of indent.el tab-always-indent (no `complete').
     logical, public :: tab_always_indent = .true.

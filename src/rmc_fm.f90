@@ -58,7 +58,7 @@ module rmc_fm
 
     public :: read_multiple_choice, rmc_add_key_description, generated_help
 
-    !> If non-nil, use `read_key' when reading a character by
+    !> If true, use `read_key' when reading a character by
     !> `read_multiple_choice' (read-char-choice).  Otherwise, use the
     !> minibuffer (this is the default).  Port of subr.el
     !> read-char-choice-use-read-key.
@@ -122,14 +122,14 @@ contains
     !> DESCRIPTION is an optional longer explanation for the entry that
     !> will be displayed in a help buffer if the user requests more help.
     !>
-    !> HELP-STRING argument is a string that contains overall
+    !> HELP_STRING argument is a string that contains overall
     !> information about the choices.  If this argument is given, it is
     !> displayed in the help buffer instead of the generated help.
     !>
-    !> SHOW-HELP, if present, means show the help buffer from the start
-    !> (named SHOW-HELP when it is a non-empty string).
+    !> SHOW_HELP, if present, means show the help buffer from the start
+    !> (named SHOW_HELP when it is a non-empty string).
     !>
-    !> If optional argument LONG-FORM is non-nil, the user will have to
+    !> If optional argument LONG_FORM is non-nil, the user will have to
     !> type in long-form answers (using `completing_read') instead of
     !> hitting a single key.
     !>

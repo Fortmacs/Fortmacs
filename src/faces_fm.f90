@@ -747,7 +747,7 @@ contains
         frame_type = type
     end subroutine set_frame_display
 
-    !> Non-nil if DISPLAY matches the frame.  Port of
+    !> True if DISPLAY matches the frame.  Port of
     !> faces.el:face-spec-set-match-display.
     logical function match_display(display, supports_attrs) result(match)
         type(face_display_type), intent(in) :: display

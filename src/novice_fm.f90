@@ -59,7 +59,7 @@ module novice_fm
     public :: disabled_command_function, enable_command, disable_command, syms_of_novice
 
     !> Function to call to handle disabled commands.
-    !> If nil, the feature is disabled, i.e., all commands work normally.
+    !> If false, the feature is disabled, i.e., all commands work normally.
     !> Port of novice.el disabled-command-function (true is the default
     !> function, false is nil).
     logical, public :: disabled_command_function_p = .true.

@@ -81,21 +81,21 @@ module fill_fm
     integer, parameter, public :: JUSTIFY_NONE = 0, JUSTIFY_LEFT = 1, JUSTIFY_RIGHT = 2, JUSTIFY_FULL = 3, &
                                   JUSTIFY_CENTER = 4, JUSTIFY_T = 5
 
-    !> Non-nil means put two spaces after a colon when filling.  Port of
+    !> True means put two spaces after a colon when filling.  Port of
     !> fill.el colon-double-space.
     logical, public :: colon_double_space = .false.
 
-    !> Non-nil means to use a space to separate words of a different kind.
+    !> True means to use a space to separate words of a different kind.
     !> For example, when an English word at the end of a line and a CJK word
     !> at the beginning of the next line are joined into a single line, they
-    !> will be separated by a space if this variable is non-nil.
+    !> will be separated by a space if this variable is true.
     !> Whether to use a space to separate such words also depends on the entry
     !> in `fill_nospace_between_words_table' for the characters before and
     !> after the newline.  Port of fill.el
     !> fill-separate-heterogeneous-words-with-space.
     logical, public :: fill_separate_heterogeneous_words_with_space = .false.
 
-    !> Non-nil means determine a paragraph's fill prefix from its text.
+    !> True means determine a paragraph's fill prefix from its text.
     !> Port of fill.el adaptive-fill-mode.
     type(logical_setting), public :: adaptive_fill_mode = logical_setting(name="adaptive_fill_mode", value=.true.)
 
@@ -466,7 +466,7 @@ contains
         call goto_char(opoint)
     end function fill_single_word_nobreak_p
 
-    !> Return nil if French style allows breaking the line at point.
+    !> Return false if French style allows breaking the line at point.
     !> This is used in `fill_nobreak_predicate' to prevent breaking lines just
     !> after an opening paren or just before a closing paren or a punctuation
     !> mark such as `?' or `:'.  It is common in French writing to put a space
@@ -494,7 +494,7 @@ contains
         call goto_char(opoint)
     end function fill_french_nobreak_p
 
-    !> Return nil if Polish style allows breaking the line at point.
+    !> Return false if Polish style allows breaking the line at point.
     !> This function may be used in the `fill_nobreak_predicate' hook.
     !> It is almost the same as `fill_single_char_nobreak_p', with the
     !> exception that it does not require the one-letter word to be
@@ -504,7 +504,7 @@ contains
         nobreak = two_back_looking_at("[^[:alpha:]]\cl")
     end function fill_polish_nobreak_p
 
-    !> Return non-nil if a one-letter word is before point.
+    !> Return true if a one-letter word is before point.
     !> This function is suitable for adding to the hook `fill_nobreak_predicate',
     !> to prevent the breaking of a line just after a one-letter word,
     !> which is an error according to some typographical conventions.  Port
@@ -530,7 +530,7 @@ contains
         call goto_char(opoint)
     end function two_back_looking_at
 
-    !> Return nil if breaking the line at point is allowed.
+    !> Return false if breaking the line at point is allowed.
     !> Can be customized with the variables `fill_nobreak_predicate'
     !> and `fill_nobreak_invisible'.  Port of fill.el:fill-nobreak-p.
     logical function fill_nobreak_p() result(nobreak)
@@ -652,7 +652,7 @@ contains
     !> at the end of a line get an extra space, delete newlines between
     !> words that are not separated by spaces (CJK), change the other
     !> newlines to spaces and, unless NOSQUEEZE, make the spacing
-    !> canonical (from SQUEEZE-AFTER if positive).  Port of
+    !> canonical (from SQUEEZE_AFTER if positive).  Port of
     !> fill.el:fill-delete-newlines.
     subroutine fill_delete_newlines(from, to, justify, nosqueeze, squeeze_after, status)
         integer(int64), intent(in) :: from, to
@@ -897,7 +897,7 @@ contains
     !> for the possible values.
     !> Optional fourth arg NOSQUEEZE non-nil means not to make spaces
     !> between words canonical before filling.
-    !> Fifth arg SQUEEZE-AFTER, if non-nil, should be a buffer position; it
+    !> Fifth arg SQUEEZE_AFTER, if non-nil, should be a buffer position; it
     !> means canonicalize spaces only starting from that position.
     !> See `canonically_space_region' for the meaning of canonicalization
     !> of spaces.
@@ -1258,7 +1258,7 @@ contains
     !> paragraph as specified by its text properties.
     !>
     !> The fourth arg NOSQUEEZE non-nil means to leave whitespace other
-    !> than line breaks untouched, and fifth arg TO-EOP non-nil means
+    !> than line breaks untouched, and fifth arg TO_EOP non-nil means
     !> to keep filling to the end of the paragraph (or next hard newline,
     !> if variable `use_hard_newlines' is on).
     !>

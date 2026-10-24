@@ -82,11 +82,11 @@ module syntax_fm
     !> The descriptor character of each class (syntax.c:syntax_code_spec).
     character(len=16), parameter :: syntax_code_spec = " .w_()'""$\/<>@!|"
 
-    !> Non-nil means `forward_word', etc., should treat escape chars part of words.
+    !> True means `forward_word', etc., should treat escape chars part of words.
     !> Port of syntax.c words-include-escapes.
     logical, public :: words_include_escapes = .false.
 
-    !> Non-nil means `forward_sexp', etc., should treat comments as whitespace.
+    !> True means `forward_sexp', etc., should treat comments as whitespace.
     !> Port of syntax.c parse-sexp-ignore-comments.
     type(logical_setting), public :: parse_sexp_ignore_comments = &
                                      logical_setting(name="parse_sexp_ignore_comments", value=.false.)
@@ -737,7 +737,7 @@ contains
     end subroutine string_to_syntax
 
     !> Set syntax for character CHAR according to string NEWENTRY.
-    !> The syntax is changed only for table SYNTAX-TABLE, which defaults to
+    !> The syntax is changed only for table SYNTAX_TABLE, which defaults to
     !>  the current buffer's syntax table.
     !> The characters `from' to `to' (one character if equal) are changed.
     !> The first character of NEWENTRY should be one of the following:

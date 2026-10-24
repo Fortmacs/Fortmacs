@@ -113,7 +113,7 @@ module minibuf_fm
         procedure(completion_function), pointer, nopass :: fn => null()
     end type completion_table_type
 
-    !> Non-nil means don't consider case significant in completion.
+    !> True means don't consider case significant in completion.
     !> For file-name completion, `read_file_name_completion_ignore_case'
     !> controls the behavior, rather than this variable.
     !> For buffer name completion, `read_buffer_completion_ignore_case'
@@ -122,7 +122,7 @@ module minibuf_fm
     type(logical_setting), public :: completion_ignore_case = logical_setting(name="completion_ignore_case")
     !> minibuf_level: the depth of active minibuffers.
     integer, public, protected :: minibuf_level = 0
-    !> Non-nil means to allow minibuffer commands while in the minibuffer.
+    !> True means to allow minibuffer commands while in the minibuffer.
     !> This variable makes a difference whenever the minibuffer window is active.
     !> Port of minibuf.c enable-recursive-minibuffers.
     logical, public :: enable_recursive_minibuffers = .false.
@@ -138,7 +138,7 @@ module minibuf_fm
     logical, public :: read_minibuffer_restore_windows = .true.
     !> minibuffer-local-map, the default keymap for reading.
     type(handle_type), public :: minibuffer_local_map
-    !> Non-nil means to add new elements in history.
+    !> True means to add new elements in history.
     !> If set to false, minibuffer reading functions don't add new elements to the
     !> history list, so it is possible to do this afterwards by calling
     !> `add_to_history' explicitly.  Port of minibuf.c history-add-new-input.
@@ -279,7 +279,7 @@ contains
         end do
     end function minibuffer_depth_of
 
-    !> Return t if BUFFER is a minibuffer at the current command loop level.
+    !> Return true if BUFFER is a minibuffer at the current command loop level.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Fminibuffer_innermost_command_loop_p.
     logical function minibuffer_innermost_command_loop_p(buffer) result(innermost)
@@ -290,7 +290,7 @@ contains
         if (innermost) innermost = minibuffer_loop_levels(depth + 1) == command_loop_level
     end function minibuffer_innermost_command_loop_p
 
-    !> Return t if BUFFER is the most nested active minibuffer.
+    !> Return true if BUFFER is the most nested active minibuffer.
     !> No recursive minibuffers are active if BUFFER is the minibuffer.
     !> BUFFER defaults to the current buffer.  Port of
     !> minibuf.c:Finnermost_minibuffer_p.

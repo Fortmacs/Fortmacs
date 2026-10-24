@@ -72,7 +72,7 @@ module editfns_fm
               delete_field, constrain_to_field
     public :: format_message
 
-    !> Non-nil means text motion commands don't notice fields.
+    !> True means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
     logical, public :: inhibit_field_text_motion = .false.
 

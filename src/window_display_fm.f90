@@ -974,9 +974,9 @@ contains
         call quit_window(.not. nilp(current_prefix_arg), status)
     end subroutine cmd_quit_window
 
-    !> Replace BUFFER-OR-NAME with some other buffer in all windows
+    !> Replace BUFFER_OR_NAME with some other buffer in all windows
     !> showing it.  With the exception of side windows, when a window
-    !> showing BUFFER-OR-NAME is dedicated, delete that window.  In any
+    !> showing BUFFER_OR_NAME is dedicated, delete that window.  In any
     !> other case, call `switch_to_prev_buffer' to display some other
     !> buffer in that window.  Remove the buffer from the lists of
     !> previous and next buffers of all windows and remove any
@@ -1011,13 +1011,13 @@ contains
         end if
     end subroutine replace_buffer_in_windows
 
-    !> Put BUFFER-OR-NAME at the end of the list of all buffers.
+    !> Put BUFFER_OR_NAME at the end of the list of all buffers.
     !> There it is the least likely candidate for `other_buffer' to
     !> return; thus, the least likely buffer for \[switch-to-buffer] to
     !> select by default.
     !>
-    !> If BUFFER-OR-NAME is nil or omitted, bury the current buffer.
-    !> Also, if BUFFER-OR-NAME is nil or omitted, remove the current
+    !> If BUFFER_OR_NAME is nil or omitted, bury the current buffer.
+    !> Also, if BUFFER_OR_NAME is nil or omitted, remove the current
     !> buffer from the selected window if it is displayed there.  Port of
     !> window.el:bury-buffer.
     module subroutine bury_buffer(status, buffer)
@@ -1046,14 +1046,14 @@ contains
         end if
     end subroutine bury_buffer
 
-    !> Put BUFFER-OR-NAME at the end of the list of all buffers.
+    !> Put BUFFER_OR_NAME at the end of the list of all buffers.
     !> There it is the least likely candidate for `other_buffer' to
     !> return; thus, the least likely buffer for \[switch-to-buffer] to
     !> select by default.
     !>
-    !> You can specify a buffer name as BUFFER-OR-NAME, or an actual
-    !> buffer object.  If BUFFER-OR-NAME is nil or omitted, bury the
-    !> current buffer.  Also, if BUFFER-OR-NAME is nil or omitted,
+    !> You can specify a buffer name as BUFFER_OR_NAME, or an actual
+    !> buffer object.  If BUFFER_OR_NAME is nil or omitted, bury the
+    !> current buffer.  Also, if BUFFER_OR_NAME is nil or omitted,
     !> remove the current buffer from the selected window if it is
     !> displayed there.  Port of window.el:bury-buffer (the command).
     subroutine cmd_bury_buffer(status)
@@ -1641,7 +1641,7 @@ contains
         windows(window%index)%hscroll = 0
     end subroutine temp_buffer_window_show
 
-    !> Return a window currently displaying BUFFER-OR-NAME, or nil if none:
+    !> Return a window currently displaying BUFFER_OR_NAME, or nil if none:
     !> the selected window if it does, else the first in the cyclic order
     !> from it.  Port of window.c:Fget_buffer_window.
     module function get_buffer_window(buffer) result(window)
@@ -1747,7 +1747,7 @@ contains
         end do
     end function get_largest_window
 
-    !> Return non-nil if `split_window_sensibly' may split WINDOW: one at
+    !> Return true if `split_window_sensibly' may split WINDOW: one at
     !> least `split_height_threshold' lines high and twice
     !> `window_min_height' (or 2), or with HORIZONTAL at least
     !> `split_width_threshold' columns wide and twice `window_min_width'

@@ -56,8 +56,8 @@ module fns_fm
     public :: plist_get, plist_put, plist_member, get, put
     public :: yes_or_no_p
 
-    !> Non-nil means `yes_or_no_p' accepts single-key answers "y" or "n".
-    !> When non-nil, `yes_or_no_p' will use `y_or_n_p' to read the answer.
+    !> True means `yes_or_no_p' accepts single-key answers "y" or "n".
+    !> When true, `yes_or_no_p' will use `y_or_n_p' to read the answer.
     !> This means the user will be able to press just one key to answer, whereas
     !> by default the user needs to type the full "yes" or "no" response
     !> and then press RET.  Port of fns.c use-short-answers.

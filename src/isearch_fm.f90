@@ -96,12 +96,12 @@ module isearch_fm
     !> search-upper-case.
     integer, public :: search_upper_case = UPPER_CASE_NOT_YANKS
 
-    !> Non-nil means random control characters terminate incremental
-    !> search.  (Only t and nil: `edit', `append', `move' and
+    !> True means random control characters terminate incremental
+    !> search.  (Only true and false: `edit', `append', `move' and
     !> `shift_move' are not ported.)  Port of isearch.el search-exit-option.
     logical, public :: search_exit_option = .true.
 
-    !> If non-nil, do a nonincremental search instead of an incremental
+    !> If true, do a nonincremental search instead of an incremental
     !> one.  This applies to RET typed immediately after entering
     !> incremental search.  Port of isearch.el
     !> search-nonincremental-instead.
@@ -130,20 +130,20 @@ module isearch_fm
     !> by syms_of_isearch).
     character(len=:), allocatable, public :: search_whitespace_regexp
 
-    !> If non-nil, a space will match a sequence of whitespace chars.
+    !> If true, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in ordinary incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search_whitespace_regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
     !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-lax-whitespace.
     logical, public :: isearch_lax_whitespace = .true.
 
-    !> If non-nil, a space will match a sequence of whitespace chars.
+    !> If true, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in regexp incremental search, it
     !> will match any sequence matched by the regexp defined by the
-    !> variable `search_whitespace_regexp'.  If the value is nil, each
+    !> variable `search_whitespace_regexp'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
     !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
@@ -265,8 +265,8 @@ contains
         end do
     end function downcase_string
 
-    !> Return t if there are no upper case chars in STRING.
-    !> If REGEXP-FLAG is non-nil, disregard letters preceded by `\' (but
+    !> Return true if there are no upper case chars in STRING.
+    !> If REGEXP-FLAG is true, disregard letters preceded by `\' (but
     !> not `\\') since they have special meaning in a regexp.  Port of
     !> isearch.el:isearch-no-upper-case-p.
     logical function isearch_no_upper_case_p(string, regexp_flag) result(none)

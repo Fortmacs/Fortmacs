@@ -105,7 +105,7 @@ module files_fm
         !> then compares the file name against the entries in `auto_mode_alist'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
-        !> If the optional argument KEEP-MODE-IF-SAME is non-nil, then we
+        !> If the optional argument KEEP_MODE_IF_SAME is non-nil, then we
         !> set the major mode only if that would change it.  Port of
         !> files.el:set-auto-mode (only the first mode of a -*- line; no
         !> interpreter-mode-alist or magic-mode-alist yet).  (In
@@ -146,7 +146,7 @@ module files_fm
         end function auto_mode_spec
     end interface
 
-    !> Non-nil means make a backup of a file the first time it is saved.
+    !> True means make a backup of a file the first time it is saved.
     !> This can be done by renaming the file or by copying.
     !>
     !> Renaming means that Emacs renames the existing file so that it is a
@@ -206,7 +206,7 @@ module files_fm
     type(integer_setting), public :: mode_require_final_newline = &
                                      integer_setting(name="mode_require_final_newline", value=FINAL_NEWLINE_SAVE)
 
-    !> Non-nil means \[write_file] should set the major mode from the file name.
+    !> True means \[write_file] should set the major mode from the file name.
     !> However, the mode will not be changed if
     !> (1) a local variables list or the `-*-' line specifies a major mode, or
     !> (2) the current major mode is a "special" mode,

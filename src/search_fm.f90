@@ -66,7 +66,7 @@ module search_fm
               matcher_overflow, &
               search_command
 
-    !> Non-nil if searches and matches should ignore case.  Port of
+    !> True if searches and matches should ignore case.  Port of
     !> buffer.c case-fold-search (buffer-local when set).
     type(logical_setting), public :: case_fold_search = logical_setting(name="case_fold_search", value=.true.)
 
@@ -128,7 +128,7 @@ module search_fm
         !> Replace text matched by last search with NEWTEXT.
         !> Leave point at the end of the replacement text.
         !>
-        !> If optional second arg FIXEDCASE is non-nil, do not alter the
+        !> If optional second arg FIXEDCASE is true, do not alter the
         !> case of the replacement text.  Otherwise, maybe capitalize the
         !> whole text, or maybe just word initials, based on the replaced
         !> text.  If the replaced text has only capital letters and has at
@@ -138,7 +138,7 @@ module search_fm
         !> word is determined by the syntax tables in effect in the current
         !> buffer, and the variable `case_symbols_as_words'.
         !>
-        !> If optional third arg LITERAL is non-nil, insert NEWTEXT
+        !> If optional third arg LITERAL is true, insert NEWTEXT
         !> literally.  Otherwise treat `\' as special:
         !>   `\&' in NEWTEXT means substitute original matched text.
         !>   `\N' means substitute what matched the Nth `\(...\)'.
@@ -149,7 +149,7 @@ module search_fm
         !>   Any other character following `\' signals an error.
         !> Case conversion does not apply to these substitutions.
         !>
-        !> If optional fourth argument STRING is non-nil, it should be a
+        !> If optional fourth argument STRING is present, it should be a
         !> string to act on; this should be the string on which the
         !> previous match was done via `string_match'.  In this case,
         !> `replace_match' creates and returns a new string (in RESULT),
@@ -430,10 +430,10 @@ contains
     ! Matching at point and in strings
     ! ------------------------------------------------------------------
 
-    !> Return t if text after point matches regular expression REGEXP.
+    !> Return true if text after point matches regular expression REGEXP.
     !> By default, this function modifies the match data that
     !> `match_beginning', `match_end' and `match_data' access.  If
-    !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
+    !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Flooking_at.
     logical function looking_at(regexp, status, inhibit_modify) result(matched)
         character(len=*), intent(in) :: regexp
@@ -442,13 +442,13 @@ contains
         matched = looking_at_1(regexp, .false.,.not. opt(inhibit_modify), status)
     end function looking_at
 
-    !> Return t if text after point matches REGEXP according to Posix rules.
+    !> Return true if text after point matches REGEXP according to Posix rules.
     !> Find the longest match, in accordance with Posix regular expression
     !> rules.
     !>
     !> By default, this function modifies the match data that
     !> `match_beginning', `match_end' and `match_data' access.  If
-    !> INHIBIT-MODIFY is non-nil, don't modify the match data.  Port of
+    !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Fposix_looking_at.
     logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
         character(len=*), intent(in) :: regexp
@@ -464,18 +464,18 @@ contains
         if (present(flag)) opt = flag
     end function opt
 
-    !> Return index of start of first match for REGEXP in STRING, or nil
-    !> (0).  Matching ignores case if `case_fold_search' is non-nil.  If
+    !> Return index of start of first match for REGEXP in STRING, or
+    !> 0.  Matching ignores case if `case_fold_search' is true.  If
     !> START is present, start search at that index in STRING.
     !>
-    !> If INHIBIT-MODIFY is non-nil, match data is not changed.
+    !> If INHIBIT_MODIFY is true, match data is not changed.
     !>
-    !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
+    !> If INHIBIT_MODIFY is false or absent, match data is changed, and
     !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
     !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
-    !> do (match-end 0).
+    !> use `match_end(0)'.
     !>
     !> Indices are 1-based character indices, as Fortran's `index' (Emacs
     !> counts from 0); a negative START counts from the end.  Port of
@@ -489,18 +489,18 @@ contains
     end function string_match
 
     !> Return index of start of first match for Posix REGEXP in STRING, or
-    !> nil (0).  Find the longest match, in accord with Posix regular
-    !> expression rules.  Case is ignored if `case_fold_search' is non-nil
+    !> 0.  Find the longest match, in accord with Posix regular
+    !> expression rules.  Case is ignored if `case_fold_search' is true
     !> in the current buffer.
     !>
-    !> If INHIBIT-MODIFY is non-nil, match data is not changed.
+    !> If INHIBIT_MODIFY is true, match data is not changed.
     !>
-    !> If INHIBIT-MODIFY is nil or missing, match data is changed, and
+    !> If INHIBIT_MODIFY is false or absent, match data is changed, and
     !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
     !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
-    !> do (match-end 0).  Port of search.c:Fposix_string_match.
+    !> use `match_end(0)'.  Port of search.c:Fposix_string_match.
     integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
@@ -521,14 +521,14 @@ contains
 
     !> Search forward from point for STRING.
     !> Set point to the end of the occurrence found, and return point
-    !> in `found' (0 for nil).
+    !> in `found' (0 for none).
     !> The optional argument BOUND is a buffer position that bounds the
     !> search.  The match found must not end after that position.  Absent
     !> means search to the end of the accessible portion of the buffer.
     !> The optional argument NOERROR indicates how errors are handled
     !> when the search fails: if it is SEARCH_SIGNAL or absent, emit an
-    !> error; if it is SEARCH_NOERROR, simply return nil and do nothing;
-    !> if it is SEARCH_MOVE, move to the limit of search and return nil.
+    !> error; if it is SEARCH_NOERROR, simply return 0 and do nothing;
+    !> if it is SEARCH_MOVE, move to the limit of search and return 0.
     !> The optional argument COUNT is a number that indicates the search
     !> direction and the number of occurrences to search for.  If it is
     !> positive, search forward for COUNT successive occurrences; if it is
@@ -568,14 +568,14 @@ contains
 
     !> Search forward from point for regular expression REGEXP.
     !> Set point to the end of the occurrence found, and return point
-    !> in `found' (0 for nil).
+    !> in `found' (0 for none).
     !> The optional argument BOUND is a buffer position that bounds the
     !> search.  The match found must not end after that position.  Absent
     !> means search to the end of the accessible portion of the buffer.
     !> The optional argument NOERROR indicates how errors are handled
     !> when the search fails: if it is SEARCH_SIGNAL or absent, emit an
-    !> error; if it is SEARCH_NOERROR, simply return nil and do nothing;
-    !> if it is SEARCH_MOVE, move to the limit of search and return nil.
+    !> error; if it is SEARCH_NOERROR, simply return 0 and do nothing;
+    !> if it is SEARCH_MOVE, move to the limit of search and return 0.
     !> The optional argument COUNT is a number that indicates the search
     !> direction and the number of occurrences to search for.  If it is
     !> positive, search forward for COUNT successive occurrences; if it is
@@ -885,7 +885,7 @@ contains
     !> Return position of start of text matched by last search.
     !> SUBEXP, a number, specifies the parenthesized subexpression in the
     !> last regexp for which to return the start position.
-    !> Value is nil (0) if SUBEXPth subexpression didn't match, or there
+    !> Value is 0 if SUBEXPth subexpression didn't match, or there
     !> were fewer than SUBEXP subexpressions.
     !> SUBEXP zero means the entire text matched by the whole regexp or
     !> whole string.
@@ -901,7 +901,7 @@ contains
     !> Return position of end of text matched by last search.
     !> SUBEXP, a number, specifies the parenthesized subexpression in the
     !> last regexp for which to return the end position.
-    !> Value is nil (0) if SUBEXPth subexpression didn't match, or there
+    !> Value is 0 if SUBEXPth subexpression didn't match, or there
     !> were fewer than SUBEXP subexpressions.
     !> SUBEXP zero means the entire text matched by the whole regexp or
     !> whole string.
@@ -969,17 +969,17 @@ contains
         end do
     end subroutine update_search_regs
 
-    !> Return a list of positions that record text matched by the last
-    !> search.  Element 2N of the returned list is the position of the
+    !> Return an array of positions that record text matched by the last
+    !> search.  Element 2N + 1 of the returned array is the position of the
     !> beginning of the match of the Nth subexpression; it corresponds to
-    !> `(match-beginning N)'; element 2N + 1 is the position of the end of
-    !> the match of the Nth subexpression; it corresponds to `(match-end
-    !> N)'.  See `match_beginning' and `match_end'.  Positions are
-    !> integers, 0 (nil) when the Nth pair didn't match; trailing nils are
+    !> `match_beginning(N)'; element 2N + 2 is the position of the end of
+    !> the match of the Nth subexpression; it corresponds to `match_end(N)'.
+    !> See `match_beginning' and `match_end'.  Positions are
+    !> integers, 0 when the Nth pair didn't match; trailing zeros are
     !> left out.
     !>
     !> Use `set_match_data' to reinstate the match data from the elements
-    !> of this list.  Port of search.c:Fmatch_data (INTEGERS t, without the
+    !> of this array.  Port of search.c:Fmatch_data (INTEGERS t, without the
     !> buffer).
     function match_data() result(data)
         integer(int64), allocatable :: data(:)
@@ -1002,9 +1002,9 @@ contains
         end do
     end function match_data
 
-    !> Set internal data on last search match from elements of LIST.
-    !> LIST should have been created by calling `match_data' previously;
-    !> nil (0) elements mark groups that didn't match.  The positions are
+    !> Set internal data on last search match from elements of DATA.
+    !> DATA should have been created by calling `match_data' previously;
+    !> 0 elements mark groups that didn't match.  The positions are
     !> taken to be in the current buffer.  Port of search.c:Fset_match_data.
     subroutine set_match_data(data)
         integer(int64), intent(in) :: data(:)

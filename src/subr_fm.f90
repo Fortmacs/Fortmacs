@@ -99,8 +99,8 @@ module subr_fm
     !> variable overrides this default.  Port of minibuf.c history-length
     !> (the value t, no truncation, is not ported: Deferred).
     integer, public :: history_length = 100
-    !> Non-nil means to delete duplicates in history.
-    !> If set to t when adding a new history element, all previous identical
+    !> True means to delete duplicates in history.
+    !> If set to true when adding a new history element, all previous identical
     !> elements are deleted from the history list.  Port of minibuf.c
     !> history-delete-duplicates.
     logical, public :: history_delete_duplicates = .false.
@@ -648,13 +648,13 @@ contains
         looking_at_p = looking_at(regexp, status, inhibit_modify=.true.)
     end function looking_at_p
 
-    !> Return non-nil if text before point matches regular expression
+    !> Return true if text before point matches regular expression
     !> REGEXP.  Like `looking_at' except matches before point, and is
-    !> slower.  LIMIT if non-nil speeds up the search by specifying a
+    !> slower.  LIMIT if true speeds up the search by specifying a
     !> minimum starting position, to avoid checking matches that would
     !> start before LIMIT.
     !>
-    !> If GREEDY is non-nil, extend the match backwards as far as possible,
+    !> If GREEDY is true, extend the match backwards as far as possible,
     !> stopping when a single additional previous character cannot be part
     !> of a match for REGEXP.  When the match is extended, its starting
     !> position is allowed to occur before LIMIT.

@@ -57,9 +57,9 @@ module window_fm
     !> Port of window.c next-screen-context-lines.
     integer, public :: next_screen_context_lines = 2
 
-    !> Move point on scroll error if non-nil.
-    !> If nil, scroll commands signal an error when no more scrolling is
-    !> possible.  If non-nil, they move point to the beginning or end of
+    !> Move point on scroll error if true.
+    !> If false, scroll commands signal an error when no more scrolling is
+    !> possible.  If true, they move point to the beginning or end of
     !> the buffer instead (and then signal at the edge).  Port of
     !> window.el scroll-error-top-bottom.
     logical, public :: scroll_error_top_bottom = .false.
@@ -171,11 +171,11 @@ module window_fm
     !> like `vertical'.  Port of window.el split-window-preferred-direction.
     integer, public :: split_window_preferred_direction = SPLIT_LONGEST
 
-    !> Non-nil means `display_buffer' should make a new window.  Port of
+    !> True means `display_buffer' should make a new window.  Port of
     !> window.el pop-up-windows.
     logical, public :: pop_up_windows = .true.
 
-    !> If non-nil `display_buffer' will try to even window sizes.
+    !> If true `display_buffer' will try to even window sizes.
     !> Otherwise `display_buffer' will leave the window configuration
     !> alone.  Port of window.el even-window-sizes (`height_only' and
     !> `width_only' are deferred).
@@ -583,12 +583,12 @@ module window_fm
         end subroutine syms_of_window_cmds
         ! Showing buffers in windows, in submodule window_display_fm.
 
-        !> Make WINDOW display BUFFER-OR-NAME.
+        !> Make WINDOW display BUFFER_OR_NAME.
         !> WINDOW must be a live window.  Optional third argument
         !> KEEP-MARGINS non-nil means that WINDOW's current display margins,
         !> fringe widths, and scroll bar settings are preserved.  This
         !> function throws an error when WINDOW is strongly dedicated to its
-        !> buffer and does not already display BUFFER-OR-NAME.  Port of
+        !> buffer and does not already display BUFFER_OR_NAME.  Port of
         !> window.c:Fset_window_buffer.
         module subroutine set_window_buffer(h, buffer, status, keep_margins)
             implicit none(type, external)
