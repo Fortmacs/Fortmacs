@@ -59,6 +59,7 @@ program tester
     use test_term_fm, only: collect_term_fm
     use test_dispnew_fm, only: collect_dispnew_fm
     use test_xdisp_fm, only: collect_xdisp_fm
+    use test_fake_gui_fm, only: collect_fake_gui_fm
     use test_fileio_fm, only: collect_fileio_fm
     use test_files_fm, only: collect_files_fm
     use test_minibuf_fm, only: collect_minibuf_fm
@@ -115,6 +116,7 @@ program tester
                  new_testsuite("term_fm", collect_term_fm), &
                  new_testsuite("dispnew_fm", collect_dispnew_fm), &
                  new_testsuite("xdisp_fm", collect_xdisp_fm), &
+                 new_testsuite("fake_gui_fm", collect_fake_gui_fm), &
                  new_testsuite("fileio_fm", collect_fileio_fm), &
                  new_testsuite("files_fm", collect_files_fm), &
                  new_testsuite("minibuf_fm", collect_minibuf_fm), &
