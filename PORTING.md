@@ -135,8 +135,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    25. Faces in the config API: `faces%`, `face_underline`, `face_box` (the
        design decision of 2026-10-24). — done (a number as an underline's
        `:position` is Deferred with the GUI).
-   26. Customize (`customize-variable`, `customize-face`) writing Fortran
-       into init.f90, over tools/user-options and `faces%`.
+   26. Customize (custom.el, wid-edit.el, cus-edit.el: about 13,000 lines
+       upstream), in three PRs: 26a each user option's custom type (from its
+       defcustom) with `customize-set-variable`, `customize-save-variable`
+       and `custom-save-all` writing Fortran assignments into init.f90;
+       26b the widget library (wid-edit.el core); 26c the Customize
+       buffers (`customize`, `customize-variable`, `customize-face` saving
+       `faces%` assignments, groups). See open question 7.
    27. Coding systems (coding.c): decoding and encoding for files and
        processes, `buffer-file-coding-system`.
    28. Completion: more minibuffer completion styles and
@@ -618,9 +623,30 @@ Each lists the default being used meanwhile.
    never be offered upstream. *Default: read upstream as reference only;
    never propose changes to it.*
 
+7. **Custom types (for step 26).** Customize depends on each user
+   option's custom `:type`: prompts name it (`[integer] Set fill-column
+   to value: `), values are read and checked by its widget (a boolean by
+   y-or-n-p, a string or regexp as raw text, an integer or symbol as a
+   read object, a `choice` by completing over its tags, then the chosen
+   alternative), and the Customize buffers build their widgets from it.
+   Fortmacs knows only each option's Fortran type, and the 245 user
+   options use about 40 distinct `:type` forms (boolean, regexp, natnum,
+   file, hook, `choice` of `const`s with `:tag`s, `repeat`, ...). Where an
+   option is enumerated in Fortran, its `choice` constants map to the
+   option's named constants; where Fortran encodes an upstream `nil` or
+   symbol another way (a negative number, an empty string), the mapping
+   is per option. *Default: record each option's type in
+   tools/user-options as a second column, in upstream's notation with
+   underscore names, plus, for each `const`, the Fortran value it maps to;
+   gen-docstrings generates the type tree (an internal derived type, not
+   part of the config API). `repeat`, `hook` and other types whose values
+   are arrays or procedures are Deferred, as for set_variable.*
+
 ## Session log
 
 Resume point for the next working session, newest first.
+
+- 2026-10-24 — Step 26 (Customize) split into 26a–c; open question 7 (custom types) records the analysis and the default. Step 32 (auto-revert) is taken up first in this lane.
 
 - 2026-10-24 — Faces in the config API (`faces-api`, roadmap step 25): tools/gen-faces.sh generates src/face_table_fm.f90, `faces` with one pointer component per face (initialized to the face object, named after the face), checked by tools/check.sh like commands_fm; faces_fm gains `face_underline` and `face_box` (the property-list forms of `:underline` and `:box`), `FACE_BOX_*` style constants and assigning a color to a box; `fortmacs` exports them instead of individual face objects; test_faces_fm config-faces. Next: step 26, Customize.
 
