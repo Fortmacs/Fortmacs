@@ -1,4 +1,4 @@
-# Fortmacs
+<h1 align="center"><img src="docs/logo/logo.svg" alt="Fortmacs" width="408"></h1>
 
 > **Not usable yet.** This is an early, experimental port; it builds and
 > runs, but most of Emacs is missing.
@@ -15,9 +15,9 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆2.07%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆2.33%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆8.82%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆1.18%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">1,325<br>of 63,999</td><td align="center">1,325<br>of 56,864</td><td align="center">754<br>of 8,547</td><td align="center">571<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆2.07%</td><td align="center">≆2.33%</td><td align="center">≆8.82%</td><td align="center">≆1.18%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
+<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆2.30%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆2.59%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆8.86%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆1.48%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
+<tr><td align="center">1,472<br>of 63,999</td><td align="center">1,472<br>of 56,864</td><td align="center">757<br>of 8,547</td><td align="center">715<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">≆2.30%</td><td align="center">≆2.59%</td><td align="center">≆8.86%</td><td align="center">≆1.48%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
 Total is Emacs (its C functions and Elisp definitions) and the packages
@@ -25,7 +25,7 @@ together. A rough estimate from `tools/progress.sh`.
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
-so cost limits the pace as much as review does.
+so token usage and its cost set the pace.
 
 ## Building
 
@@ -150,8 +150,8 @@ What an assistant changes:
 5. **It is faster.** About 65,000 lines of Fortran and tests, not
    counting generated tables, in the first three days (roughly 850 an
    hour), where a person porting by hand might manage a few hundred a day.
-   Much of it was later rewritten after review, which remains the
-   bottleneck.
+   Review steers it through suggestions and directions; what limits the
+   pace is token usage and its cost.
 6. **The safeguards stay human.** Every change is built, tested and checked
    for memory leaks in CI on two architectures, and a human reviews and
    merges every pull request.
