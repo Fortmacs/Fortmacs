@@ -54,7 +54,7 @@ module sysdep_fm
                             c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                             c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                             O_TRUNC, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
-                            c_setsid, c_kill, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
+                            c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                             TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                             TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
                             VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
@@ -86,6 +86,7 @@ module sysdep_fm
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
               emacs_localtime, emacs_statvfs
+    public :: emacs_get_tty_pgrp, emacs_tty_signal_char
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
@@ -1179,6 +1180,40 @@ contains
         err = 0
         if (c_kill(pid, sig) /= 0) err = errno()
     end function emacs_kill
+
+    !> The foreground process group of the terminal `fd' (a pty master: its
+    !> slave's), or -1.  The TIOCGPGRP part of process.c:emacs_get_tty_pgrp.
+    integer(int32) function emacs_get_tty_pgrp(fd) result(gid)
+        integer(int32), intent(in) :: fd
+        gid = c_tcgetpgrp(fd)
+    end function emacs_get_tty_pgrp
+
+    !> The character that "types" signal SIGNO (SIGINT, SIGQUIT or
+    !> SIGTSTP) on the terminal `fd': its INTR, QUIT or SUSP character, or
+    !> -1 if it has none (disabled, or another signal).  The
+    !> SIGNALS_VIA_CHARACTERS part of process.c:process_send_signal.
+    integer function emacs_tty_signal_char(fd, signo) result(c)
+        integer(int32), intent(in) :: fd
+        integer, intent(in) :: signo
+        type(emacs_tty_type) :: t
+        type(status_type) :: st
+        integer :: k
+        c = -1
+        select case (signo)
+        case (2)
+            k = VINTR
+        case (3)
+            k = VQUIT
+        case (20)
+            k = VSUSP
+        case default
+            return
+        end select
+        call emacs_get_tty(fd, t, st)
+        if (.not. st%ok()) return
+        if (t%main%c_cc(k) == CDISABLE) return
+        c = iand(int(t%main%c_cc(k)), 255)
+    end function emacs_tty_signal_char
 
     !> Ignore SIGPIPE, so that writing to a subprocess that has exited is
     !> an EPIPE error, not the editor's death (sysdep.c:init_signals; the

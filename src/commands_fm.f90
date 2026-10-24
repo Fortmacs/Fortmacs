@@ -48,6 +48,7 @@ module commands_fm
         type(command_type) :: apropos_previous_symbol
         type(command_type) :: apropos_user_option
         type(command_type) :: apropos_variable
+        type(command_type) :: async_shell_command
         type(command_type) :: auto_fill_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
@@ -72,8 +73,55 @@ module commands_fm
         type(command_type) :: capitalize_region
         type(command_type) :: capitalize_word
         type(command_type) :: clear_rectangle
+        type(command_type) :: comint_accumulate
+        type(command_type) :: comint_append_output_to_file
+        type(command_type) :: comint_backward_matching_input
+        type(command_type) :: comint_bol
+        type(command_type) :: comint_bol_or_process_mark
+        type(command_type) :: comint_clear_buffer
+        type(command_type) :: comint_copy_old_input
+        type(command_type) :: comint_delchar_or_maybe_eof
+        type(command_type) :: comint_delete_output
+        type(command_type) :: comint_forward_matching_input
+        type(command_type) :: comint_get_next_from_history
+        type(command_type) :: comint_goto_process_mark
+        type(command_type) :: comint_interrupt_subjob
+        type(command_type) :: comint_kill_input
+        type(command_type) :: comint_kill_region
+        type(command_type) :: comint_kill_subjob
+        type(command_type) :: comint_kill_whole_line
+        type(command_type) :: comint_mode
+        type(command_type) :: comint_next_input
+        type(command_type) :: comint_next_matching_input
+        type(command_type) :: comint_next_matching_input_from_input
+        type(command_type) :: comint_next_prompt
+        type(command_type) :: comint_previous_input
+        type(command_type) :: comint_previous_matching_input
+        type(command_type) :: comint_previous_matching_input_from_input
+        type(command_type) :: comint_previous_prompt
+        type(command_type) :: comint_quit_subjob
+        type(command_type) :: comint_restore_input
+        type(command_type) :: comint_run
+        type(command_type) :: comint_send_eof
+        type(command_type) :: comint_send_input
+        type(command_type) :: comint_set_process_mark
+        type(command_type) :: comint_show_maximum_output
+        type(command_type) :: comint_show_output
+        type(command_type) :: comint_strip_ctrl_m
+        type(command_type) :: comint_truncate_buffer
+        type(command_type) :: comint_write_output
+        type(command_type) :: compilation_display_error
+        type(command_type) :: compilation_minor_mode
         type(command_type) :: compilation_mode
+        type(command_type) :: compilation_next_error
+        type(command_type) :: compilation_next_error_function
+        type(command_type) :: compilation_next_file
+        type(command_type) :: compilation_previous_error
+        type(command_type) :: compilation_previous_file
+        type(command_type) :: compilation_set_skip_threshold
+        type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
+        type(command_type) :: compile_goto_error
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -203,6 +251,7 @@ module commands_fm
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
         type(command_type) :: find_file_read_only_other_window
+        type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: font_lock_change_mode
         type(command_type) :: font_lock_debug_fontify
@@ -346,6 +395,8 @@ module commands_fm
         type(command_type) :: newline
         type(command_type) :: newline_and_indent
         type(command_type) :: next_buffer
+        type(command_type) :: next_error
+        type(command_type) :: next_error_no_select
         type(command_type) :: next_history_element
         type(command_type) :: next_line
         type(command_type) :: next_line_or_history_element
@@ -360,6 +411,8 @@ module commands_fm
         type(command_type) :: posix_search_forward
         type(command_type) :: prepend_to_register
         type(command_type) :: previous_buffer
+        type(command_type) :: previous_error
+        type(command_type) :: previous_error_no_select
         type(command_type) :: previous_history_element
         type(command_type) :: previous_line
         type(command_type) :: previous_line_or_history_element
@@ -399,8 +452,15 @@ module commands_fm
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
         type(command_type) :: set_variable
+        type(command_type) :: shell
+        type(command_type) :: shell_backward_command
         type(command_type) :: shell_command
+        type(command_type) :: shell_command_mode
         type(command_type) :: shell_command_on_region
+        type(command_type) :: shell_dirtrack_mode
+        type(command_type) :: shell_forward_command
+        type(command_type) :: shell_mode
+        type(command_type) :: shell_narrow_to_prompt
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
         type(command_type) :: special_mode
@@ -482,7 +542,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(444) = [character(len=39) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(504) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -499,6 +559,7 @@ module commands_fm
                                                                  "apropos_previous_symbol", &
                                                                  "apropos_user_option", &
                                                                  "apropos_variable", &
+                                                                 "async_shell_command", &
                                                                  "auto_fill_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
@@ -523,8 +584,55 @@ module commands_fm
                                                                  "capitalize_region", &
                                                                  "capitalize_word", &
                                                                  "clear_rectangle", &
+                                                                 "comint_accumulate", &
+                                                                 "comint_append_output_to_file", &
+                                                                 "comint_backward_matching_input", &
+                                                                 "comint_bol", &
+                                                                 "comint_bol_or_process_mark", &
+                                                                 "comint_clear_buffer", &
+                                                                 "comint_copy_old_input", &
+                                                                 "comint_delchar_or_maybe_eof", &
+                                                                 "comint_delete_output", &
+                                                                 "comint_forward_matching_input", &
+                                                                 "comint_get_next_from_history", &
+                                                                 "comint_goto_process_mark", &
+                                                                 "comint_interrupt_subjob", &
+                                                                 "comint_kill_input", &
+                                                                 "comint_kill_region", &
+                                                                 "comint_kill_subjob", &
+                                                                 "comint_kill_whole_line", &
+                                                                 "comint_mode", &
+                                                                 "comint_next_input", &
+                                                                 "comint_next_matching_input", &
+                                                                 "comint_next_matching_input_from_input", &
+                                                                 "comint_next_prompt", &
+                                                                 "comint_previous_input", &
+                                                                 "comint_previous_matching_input", &
+                                                                 "comint_previous_matching_input_from_input", &
+                                                                 "comint_previous_prompt", &
+                                                                 "comint_quit_subjob", &
+                                                                 "comint_restore_input", &
+                                                                 "comint_run", &
+                                                                 "comint_send_eof", &
+                                                                 "comint_send_input", &
+                                                                 "comint_set_process_mark", &
+                                                                 "comint_show_maximum_output", &
+                                                                 "comint_show_output", &
+                                                                 "comint_strip_ctrl_m", &
+                                                                 "comint_truncate_buffer", &
+                                                                 "comint_write_output", &
+                                                                 "compilation_display_error", &
+                                                                 "compilation_minor_mode", &
                                                                  "compilation_mode", &
+                                                                 "compilation_next_error", &
+                                                                 "compilation_next_error_function", &
+                                                                 "compilation_next_file", &
+                                                                 "compilation_previous_error", &
+                                                                 "compilation_previous_file", &
+                                                                 "compilation_set_skip_threshold", &
+                                                                 "compilation_shell_minor_mode", &
                                                                  "compile", &
+                                                                 "compile_goto_error", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -654,6 +762,7 @@ module commands_fm
                                                                  "find_file_other_window", &
                                                                  "find_file_read_only", &
                                                                  "find_file_read_only_other_window", &
+                                                                 "first_error", &
                                                                  "fixup_whitespace", &
                                                                  "font_lock_change_mode", &
                                                                  "font_lock_debug_fontify", &
@@ -797,6 +906,8 @@ module commands_fm
                                                                  "newline", &
                                                                  "newline_and_indent", &
                                                                  "next_buffer", &
+                                                                 "next_error", &
+                                                                 "next_error_no_select", &
                                                                  "next_history_element", &
                                                                  "next_line", &
                                                                  "next_line_or_history_element", &
@@ -811,6 +922,8 @@ module commands_fm
                                                                  "posix_search_forward", &
                                                                  "prepend_to_register", &
                                                                  "previous_buffer", &
+                                                                 "previous_error", &
+                                                                 "previous_error_no_select", &
                                                                  "previous_history_element", &
                                                                  "previous_line", &
                                                                  "previous_line_or_history_element", &
@@ -850,8 +963,15 @@ module commands_fm
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
                                                                  "set_variable", &
+                                                                 "shell", &
+                                                                 "shell_backward_command", &
                                                                  "shell_command", &
+                                                                 "shell_command_mode", &
                                                                  "shell_command_on_region", &
+                                                                 "shell_dirtrack_mode", &
+                                                                 "shell_forward_command", &
+                                                                 "shell_mode", &
+                                                                 "shell_narrow_to_prompt", &
                                                                  "show_paren_local_mode", &
                                                                  "show_paren_mode", &
                                                                  "special_mode", &
@@ -969,6 +1089,8 @@ contains
             p => commands%apropos_user_option
         case ("apropos_variable")
             p => commands%apropos_variable
+        case ("async_shell_command")
+            p => commands%async_shell_command
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
         case ("back_to_indentation")
@@ -1017,10 +1139,104 @@ contains
             p => commands%capitalize_word
         case ("clear_rectangle")
             p => commands%clear_rectangle
+        case ("comint_accumulate")
+            p => commands%comint_accumulate
+        case ("comint_append_output_to_file")
+            p => commands%comint_append_output_to_file
+        case ("comint_backward_matching_input")
+            p => commands%comint_backward_matching_input
+        case ("comint_bol")
+            p => commands%comint_bol
+        case ("comint_bol_or_process_mark")
+            p => commands%comint_bol_or_process_mark
+        case ("comint_clear_buffer")
+            p => commands%comint_clear_buffer
+        case ("comint_copy_old_input")
+            p => commands%comint_copy_old_input
+        case ("comint_delchar_or_maybe_eof")
+            p => commands%comint_delchar_or_maybe_eof
+        case ("comint_delete_output")
+            p => commands%comint_delete_output
+        case ("comint_forward_matching_input")
+            p => commands%comint_forward_matching_input
+        case ("comint_get_next_from_history")
+            p => commands%comint_get_next_from_history
+        case ("comint_goto_process_mark")
+            p => commands%comint_goto_process_mark
+        case ("comint_interrupt_subjob")
+            p => commands%comint_interrupt_subjob
+        case ("comint_kill_input")
+            p => commands%comint_kill_input
+        case ("comint_kill_region")
+            p => commands%comint_kill_region
+        case ("comint_kill_subjob")
+            p => commands%comint_kill_subjob
+        case ("comint_kill_whole_line")
+            p => commands%comint_kill_whole_line
+        case ("comint_mode")
+            p => commands%comint_mode
+        case ("comint_next_input")
+            p => commands%comint_next_input
+        case ("comint_next_matching_input")
+            p => commands%comint_next_matching_input
+        case ("comint_next_matching_input_from_input")
+            p => commands%comint_next_matching_input_from_input
+        case ("comint_next_prompt")
+            p => commands%comint_next_prompt
+        case ("comint_previous_input")
+            p => commands%comint_previous_input
+        case ("comint_previous_matching_input")
+            p => commands%comint_previous_matching_input
+        case ("comint_previous_matching_input_from_input")
+            p => commands%comint_previous_matching_input_from_input
+        case ("comint_previous_prompt")
+            p => commands%comint_previous_prompt
+        case ("comint_quit_subjob")
+            p => commands%comint_quit_subjob
+        case ("comint_restore_input")
+            p => commands%comint_restore_input
+        case ("comint_run")
+            p => commands%comint_run
+        case ("comint_send_eof")
+            p => commands%comint_send_eof
+        case ("comint_send_input")
+            p => commands%comint_send_input
+        case ("comint_set_process_mark")
+            p => commands%comint_set_process_mark
+        case ("comint_show_maximum_output")
+            p => commands%comint_show_maximum_output
+        case ("comint_show_output")
+            p => commands%comint_show_output
+        case ("comint_strip_ctrl_m")
+            p => commands%comint_strip_ctrl_m
+        case ("comint_truncate_buffer")
+            p => commands%comint_truncate_buffer
+        case ("comint_write_output")
+            p => commands%comint_write_output
+        case ("compilation_display_error")
+            p => commands%compilation_display_error
+        case ("compilation_minor_mode")
+            p => commands%compilation_minor_mode
         case ("compilation_mode")
             p => commands%compilation_mode
+        case ("compilation_next_error")
+            p => commands%compilation_next_error
+        case ("compilation_next_error_function")
+            p => commands%compilation_next_error_function
+        case ("compilation_next_file")
+            p => commands%compilation_next_file
+        case ("compilation_previous_error")
+            p => commands%compilation_previous_error
+        case ("compilation_previous_file")
+            p => commands%compilation_previous_file
+        case ("compilation_set_skip_threshold")
+            p => commands%compilation_set_skip_threshold
+        case ("compilation_shell_minor_mode")
+            p => commands%compilation_shell_minor_mode
         case ("compile")
             p => commands%compile
+        case ("compile_goto_error")
+            p => commands%compile_goto_error
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
@@ -1279,6 +1495,8 @@ contains
             p => commands%find_file_read_only
         case ("find_file_read_only_other_window")
             p => commands%find_file_read_only_other_window
+        case ("first_error")
+            p => commands%first_error
         case ("fixup_whitespace")
             p => commands%fixup_whitespace
         case ("font_lock_change_mode")
@@ -1565,6 +1783,10 @@ contains
             p => commands%newline_and_indent
         case ("next_buffer")
             p => commands%next_buffer
+        case ("next_error")
+            p => commands%next_error
+        case ("next_error_no_select")
+            p => commands%next_error_no_select
         case ("next_history_element")
             p => commands%next_history_element
         case ("next_line")
@@ -1593,6 +1815,10 @@ contains
             p => commands%prepend_to_register
         case ("previous_buffer")
             p => commands%previous_buffer
+        case ("previous_error")
+            p => commands%previous_error
+        case ("previous_error_no_select")
+            p => commands%previous_error_no_select
         case ("previous_history_element")
             p => commands%previous_history_element
         case ("previous_line")
@@ -1671,10 +1897,24 @@ contains
             p => commands%set_mark_command
         case ("set_variable")
             p => commands%set_variable
+        case ("shell")
+            p => commands%shell
+        case ("shell_backward_command")
+            p => commands%shell_backward_command
         case ("shell_command")
             p => commands%shell_command
+        case ("shell_command_mode")
+            p => commands%shell_command_mode
         case ("shell_command_on_region")
             p => commands%shell_command_on_region
+        case ("shell_dirtrack_mode")
+            p => commands%shell_dirtrack_mode
+        case ("shell_forward_command")
+            p => commands%shell_forward_command
+        case ("shell_mode")
+            p => commands%shell_mode
+        case ("shell_narrow_to_prompt")
+            p => commands%shell_narrow_to_prompt
         case ("show_paren_local_mode")
             p => commands%show_paren_local_mode
         case ("show_paren_mode")

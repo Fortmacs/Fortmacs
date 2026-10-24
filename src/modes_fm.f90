@@ -35,6 +35,7 @@ module modes_fm
     !> One component per built-in major mode.
     type :: major_mode_table_type
         type(major_mode_type) :: apropos_mode
+        type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode
         type(major_mode_type) :: dired_mode
         type(major_mode_type) :: edit_abbrevs_mode
@@ -42,6 +43,8 @@ module modes_fm
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: prog_mode
+        type(major_mode_type) :: shell_command_mode
+        type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: text_mode
     end type major_mode_table_type
@@ -50,6 +53,8 @@ module modes_fm
     type :: minor_mode_table_type
         type(minor_mode_type) :: abbrev_mode
         type(minor_mode_type) :: auto_fill_mode
+        type(minor_mode_type) :: compilation_minor_mode
+        type(minor_mode_type) :: compilation_shell_minor_mode
         type(minor_mode_type) :: electric_indent_local_mode
         type(minor_mode_type) :: electric_indent_mode
         type(minor_mode_type) :: electric_pair_local_mode
@@ -58,6 +63,7 @@ module modes_fm
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode
         type(minor_mode_type) :: show_paren_mode
         type(minor_mode_type) :: transient_mark_mode

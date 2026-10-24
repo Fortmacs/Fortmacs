@@ -247,6 +247,8 @@ contains
         call command_loop(st)
         text = apropos_text()
         call check(error, index(text, "Type RET on an entry to view its full documentation."//LF//LF// &
+                                "comint_kill_whole_line"//TAB//"      M-x ... RET"//LF// &
+                                "  Kill current line, ignoring read-only and field properties."//LF// &
                                 "dired_do_kill_lines"//TAB//"      M-x ... RET"//LF// &
                                 "  Remove all marked lines, or the next ARG lines.") == 1, text)
         if (allocated(error)) return
@@ -326,7 +328,7 @@ contains
         call command_loop(st)
         call check(error, buffers(cur)%name == "*Apropos*", buffers(cur)%name)
         if (allocated(error)) return
-        call type_keys("n RET")
+        call type_keys("n n RET")
         call command_loop(st)
         old = current_buffer()
         call set_buffer(get_buffer("*Help*"), st)
