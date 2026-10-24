@@ -366,6 +366,19 @@ module fortmacs
                           dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
                           dabbrev_search_these_buffers_only, DABBREV_OFF, DABBREV_ON, DABBREV_LIKE_CASE_FOLD_SEARCH, &
                           DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
+    use coding_fm, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
+                         last_coding_system_used, inhibit_eol_conversion, inhibit_null_byte_detection, &
+                         inhibit_iso_escape_detection, eol_mnemonic_unix, eol_mnemonic_dos, eol_mnemonic_mac, &
+                         eol_mnemonic_undecided, default_process_coding_system, file_coding_system_alist, &
+                         file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
+                         coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
+                         coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
+                         set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
+                         decode_coding_string, encode_coding_string, decode_coding_region, encode_coding_region, &
+                         detect_coding_string, detect_coding_region, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED
+    use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, auto_coding_type, prefer_coding_system, &
+                       set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system
+    use process_fm, only: set_process_coding_system, process_coding_system
     use callproc_fm, only: shell_file_name
     use simple_fm, only: shell_command, shell_command_on_region, read_shell_command, display_message_or_buffer, &
                          shell_command_switch, shell_command_default_error_buffer, shell_command_prompt_show_cwd, &
@@ -596,6 +609,18 @@ module fortmacs
               dabbrev_check_other_buffers, dabbrev_select_buffers_function, dabbrev_friend_buffer_function, &
               dabbrev_search_these_buffers_only, DABBREV_OFF, DABBREV_ON, DABBREV_LIKE_CASE_FOLD_SEARCH, &
               DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK
+    public :: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, last_coding_system_used, &
+              inhibit_eol_conversion, inhibit_null_byte_detection, inhibit_iso_escape_detection, eol_mnemonic_unix, &
+              eol_mnemonic_dos, eol_mnemonic_mac, eol_mnemonic_undecided, default_process_coding_system, &
+              file_coding_system_alist, file_coding_type, locale_coding_system, coding_system_p, check_coding_system, &
+              coding_system_base, coding_system_eol_type, coding_system_change_eol_conversion, &
+              coding_system_change_text_conversion, coding_system_type, coding_system_priority_list, &
+              set_coding_system_priority, coding_system_list_entry_type, define_coding_system_alias, &
+              decode_coding_string, encode_coding_string, decode_coding_region, encode_coding_region, &
+              detect_coding_string, detect_coding_region, EOL_UNIX, EOL_DOS, EOL_MAC, EOL_UNDECIDED, &
+              auto_coding_alist, auto_coding_regexp_alist, auto_coding_type, prefer_coding_system, &
+              set_default_coding_systems, set_buffer_file_coding_system, describe_coding_system, &
+              set_process_coding_system, process_coding_system
     public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
               timerp, timer_max_repeats
     public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, &

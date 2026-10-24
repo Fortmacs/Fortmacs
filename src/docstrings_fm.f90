@@ -40,6 +40,11 @@ module docstrings_fm
     use callproc_fm, only: shell_file_name
     use casefiddle_fm, only: case_symbols_as_words
     use cmds_fm, only: auto_fill_chars, post_self_insert_hook
+    use coding_fm, only: buffer_file_coding_system, coding_system_for_read, coding_system_for_write, &
+                         coding_system_require_warning, default_process_coding_system, eol_mnemonic_dos, &
+                         eol_mnemonic_mac, eol_mnemonic_undecided, eol_mnemonic_unix, file_coding_system_alist, &
+                         inhibit_eol_conversion, inhibit_iso_escape_detection, inhibit_null_byte_detection, &
+                         last_coding_system_used, locale_coding_system
     use comint_fm, only: comint_buffer_maximum_size, comint_delimiter_argument_list, &
                          comint_eol_on_send, comint_exec_hook, comint_highlight_input, comint_highlight_input_face, &
                          comint_highlight_prompt, comint_inhibit_carriage_motion, comint_input_filter_functions, &
@@ -169,6 +174,8 @@ module docstrings_fm
                              completion_show_inline_help, completions_max_height, insert_default_directory, &
                              minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
                              read_file_name_completion_ignore_case
+    use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
+                       mule_keymap, select_safe_coding_system_accept_default_p
     use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                              paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
@@ -266,7 +273,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(696) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(720) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -282,7 +289,10 @@ module docstrings_fm
                                             "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", "buffer_name", &
                                                    "buffer_substring", "buffer_to_register", "bury_buffer", "call_last_kbd_macro", &
                                                     "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
-                                                         "capitalize_word", "char_syntax", "clear_rectangle", "comint_accumulate", &
+                                                       "capitalize_word", "char_syntax", "check_coding_system", "clear_rectangle", &
+                                                                   "coding_system_base", "coding_system_change_eol_conversion", &
+                                              "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
+                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
                                                    "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
                                                      "comint_bol_or_process_mark", "comint_clear_buffer", "comint_copy_old_input", &
                                                              "comint_delchar_or_maybe_eof", "comint_delete_output", "comint_exec", &
@@ -306,15 +316,17 @@ module docstrings_fm
                                                        "copy_to_register", "count_lines", "current_buffer", "current_fill_column", &
                                              "current_global_map", "current_indentation", "current_justification", "current_kill", &
                                                          "cycle_spacing", "dabbrev__same_major_mode_p", "dabbrev__select_buffers", &
-                                           "dabbrev_expand", "deactivate_mark", "default_indent_new_line", "define_global_abbrev", &
+                                              "dabbrev_expand", "deactivate_mark", "decode_coding_region", "decode_coding_string", &
+                                                  "default_indent_new_line", "define_coding_system_alias", "define_global_abbrev", &
                                            "define_mode_abbrev", "delete_all_space", "delete_backward_char", "delete_blank_lines", &
                                                                  "delete_char", "delete_extract_rectangle", "delete_forward_char", &
                                                           "delete_horizontal_space", "delete_indentation", "delete_other_windows", &
                                              "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
-                                                       "delete_window", "derived_mode_p", "describe_bindings", "describe_command", &
-                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
-                                                                "describe_symbol", "describe_variable", "digit_argument", "dired", &
-                                                  "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
+                                                 "delete_window", "derived_mode_p", "describe_bindings", "describe_coding_system", &
+                                                        "describe_command", "describe_current_coding_system", "describe_function", &
+                                                       "describe_key", "describe_key_briefly", "describe_mode", "describe_symbol", &
+                                            "describe_variable", "detect_coding_region", "detect_coding_string", "digit_argument", &
+                                         "dired", "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
                                                         "dired_create_directory", "dired_create_empty_file", "dired_display_file", &
                                                         "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", "dired_do_compress", &
                                                "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", "dired_do_delete", &
@@ -340,10 +352,11 @@ module docstrings_fm
                                                                    "electric_indent_mode", "electric_newline_and_maybe_indent", &
                                                             "electric_pair_conservative_inhibit", "electric_pair_default_inhibit", &
                                                                    "electric_pair_default_skip_self", "electric_pair_delete_pair", &
-                                              "electric_pair_local_mode", "electric_pair_mode", "enable_command", "end_kbd_macro", &
-                                                        "end_of_buffer", "end_of_line", "eobp", "eolp", "exchange_point_and_mark", &
-                                          "execute_extended_command", "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", &
-                                                 "extract_rectangle", "extract_rectangle_bounds", "file_modes_number_to_symbolic", &
+                                                               "electric_pair_local_mode", "electric_pair_mode", "enable_command", &
+                                                 "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
+                                             "end_of_line", "eobp", "eolp", "exchange_point_and_mark", "execute_extended_command", &
+                                                 "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
+                                                                   "extract_rectangle_bounds", "file_modes_number_to_symbolic", &
                                                    "file_modes_symbolic_to_number", "file_name_sans_versions", "file_to_register", &
                                                 "fill_french_nobreak_p", "fill_paragraph", "fill_polish_nobreak_p", "fill_region", &
                                                                    "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
@@ -408,11 +421,12 @@ module docstrings_fm
                                               "open_line", "open_rectangle", "other_buffer", "other_window", "parse_partial_sexp", &
                                                     "point", "point_max", "point_min", "point_to_register", "pop_to_mark_command", &
                                                               "posix_looking_at", "posix_search_backward", "posix_search_forward", &
-                                                 "posix_string_match", "prepend_to_register", "previous_buffer", "previous_error", &
-                                                          "previous_error_no_select", "previous_history_element", "previous_line", &
-                                                          "previous_line_or_history_element", "process_buffer", "process_command", &
-                                            "process_exit_status", "process_id", "process_list", "process_live_p", "process_mark", &
-                                          "process_name", "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
+                                           "posix_string_match", "prefer_coding_system", "prepend_to_register", "previous_buffer", &
+                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
+                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
+                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
+                                                                 "process_list", "process_live_p", "process_mark", "process_name", &
+                                                          "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                              "process_send_string", "process_status", "process_tty_name", "processp", "prog_mode", &
                                                   "provided_mode_derived_p", "push_mark", "query_replace", "query_replace_regexp", &
                                                              "quit_process", "quit_window", "quoted_insert", "re_search_backward", &
@@ -423,18 +437,20 @@ module docstrings_fm
                                            "rectangle_intersect_p", "rectangle_number_lines", "rectangle_position_as_coordinates", &
                                                               "regexp_quote", "region_active_p", "region_beginning", "region_end", &
                                                    "register_read_with_preview", "rename_file", "replace_match", "replace_regexp", &
-                                             "replace_string", "revert_buffer", "right_char", "right_word", "rotate_yank_pointer", &
-                                          "run_at_time", "run_mode_hooks", "run_with_idle_timer", "run_with_timer", "save_buffer", &
-                                                    "save_buffers_kill_terminal", "save_some_buffers", "scan_lists", "scan_sexps", &
-                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
-                                           "scroll_up", "scroll_up_command", "search_backward", "search_forward", "select_window", &
-                                          "selected_window", "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                                          "set_command_disabled", "set_error", "set_file_modes", "set_file_times", &
+                                              "replace_string", "revert_buffer", "revert_buffer_with_coding_system", "right_char", &
+                                                             "right_word", "rotate_yank_pointer", "run_at_time", "run_mode_hooks", &
+                                             "run_with_idle_timer", "run_with_timer", "save_buffer", "save_buffers_kill_terminal", &
+                                            "save_some_buffers", "scan_lists", "scan_sexps", "scroll_down", "scroll_down_command", &
+                                              "scroll_other_window", "scroll_other_window_down", "scroll_up", "scroll_up_command", &
+                                                          "search_backward", "search_forward", "select_window", "selected_window", &
+                                                             "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
+                                            "set_buffer_file_coding_system", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
                                                        "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
-                                                 "set_mark_command", "set_match_data", "set_process_buffer", "set_process_filter", &
-                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
-                                           "set_syntax_table", "set_variable", "shell", "shell_backward_command", "shell_command", &
-                                                           "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
+                                          "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                            "set_register", "set_syntax_table", "set_variable", "shell", "shell_backward_command", &
+                                          "shell_command", "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
                                            "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", "show_paren__default", &
                                                        "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
                                                               "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
@@ -464,21 +480,23 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(449) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(469) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
                                               "after_change_functions", "after_change_major_mode_hook", "amalgamating_undo_limit", &
                                            "apropos_all_words_regexp", "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", &
                                              "apropos_regexp", "async_shell_command_buffer", "async_shell_command_display_buffer", &
-                                                       "async_shell_command_mode", "async_shell_command_width", "auto_fill_chars", &
-                                                          "auto_fill_function", "auto_fill_inhibit_regexp", "auto_fill_mode_hook", &
+                                                     "async_shell_command_mode", "async_shell_command_width", "auto_coding_alist", &
+                                                              "auto_coding_regexp_alist", "auto_fill_chars", "auto_fill_function", &
+                                                                   "auto_fill_inhibit_regexp", "auto_fill_mode_hook", &
                                                                 "backward_delete_char_untabify_method", "before_change_functions", &
                                                   "blink_matching_delay", "blink_matching_paren", "blink_matching_paren_distance", &
                                                     "blink_matching_paren_dont_ignore_comments", "blink_matching_paren_on_screen", &
-                                                                   "case_fold_search", "case_replace", "case_symbols_as_words", &
+                                         "buffer_file_coding_system", "case_fold_search", "case_replace", "case_symbols_as_words", &
                                                                    "change_major_mode_after_body_hook", "change_major_mode_hook", &
-                                           "change_major_mode_with_file_name", "colon_double_space", "comint_buffer_maximum_size", &
+                                          "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
+                                              "coding_system_require_warning", "colon_double_space", "comint_buffer_maximum_size", &
                                                        "comint_delimiter_argument_list", "comint_eol_on_send", "comint_exec_hook", &
                                                "comint_highlight_input", "comint_highlight_input_face", "comint_highlight_prompt", &
                                                                 "comint_inhibit_carriage_motion", "comint_input_filter_functions", &
@@ -518,16 +536,16 @@ module docstrings_fm
                                          "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
                                                                    "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
                                            "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
-                                                "dabbrev_upcase_means_case_search", "default_justification", "defining_kbd_macro", &
-                                                                   "delete_active_region", "delete_exited_processes", &
-                                                             "directory_listing_before_filename_regexp", "dired__ls_error_buffer", &
-                                                "dired__ls_error_file", "dired_after_readin_hook", "dired_always_read_filesystem", &
-                                                   "dired_auto_revert_buffer", "dired_before_readin_hook", "dired_broken_symlink", &
-                                         "dired_check_symlinks", "dired_chown_program", "dired_compress_directory_default_suffix", &
-                                                                "dired_compress_file_alist", "dired_compress_file_default_suffix", &
-                                           "dired_compress_file_suffixes", "dired_compress_files_alist", "dired_copy_dereference", &
-                                                                   "dired_copy_preserve_time", "dired_create_destination_dirs", &
-                                                                   "dired_create_destination_dirs_on_trailing_dirsep", &
+                                                                   "dabbrev_upcase_means_case_search", "default_justification", &
+                                                    "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
+                                                            "delete_exited_processes", "directory_listing_before_filename_regexp", &
+                                                      "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
+                                           "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
+                                                            "dired_broken_symlink", "dired_check_symlinks", "dired_chown_program", &
+                                                           "dired_compress_directory_default_suffix", "dired_compress_file_alist", &
+                                                             "dired_compress_file_default_suffix", "dired_compress_file_suffixes", &
+                                               "dired_compress_files_alist", "dired_copy_dereference", "dired_copy_preserve_time", &
+                                              "dired_create_destination_dirs", "dired_create_destination_dirs_on_trailing_dirsep", &
                                             "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
                                            "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
                                            "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
@@ -550,11 +568,12 @@ module docstrings_fm
                                                                 "electric_pair_open_newline_between_pairs", "electric_pair_pairs", &
                                                                 "electric_pair_preserve_balance", "electric_pair_skip_whitespace", &
                                                                 "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
-                                           "electric_pair_text_syntax_table", "enable_recursive_minibuffers", "even_window_sizes", &
-                                             "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", "fill_column", &
-                                                         "fill_indent_according_to_mode", "fill_nobreak_predicate", "fill_prefix", &
-                                                            "fill_separate_heterogeneous_words_with_space", "find_file_run_dired", &
-                                                                "first_change_hook", "font_lock_defaults", "font_lock_dont_widen", &
+                                            "electric_pair_text_syntax_table", "enable_recursive_minibuffers", "eol_mnemonic_dos", &
+                                           "eol_mnemonic_mac", "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", &
+                                                            "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", &
+                                                       "file_coding_system_alist", "fill_column", "fill_indent_according_to_mode", &
+                                          "fill_nobreak_predicate", "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
+                                         "find_file_run_dired", "first_change_hook", "font_lock_defaults", "font_lock_dont_widen", &
                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
                                                   "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
                                                   "font_lock_verbose", "fontification_functions", "fundamental_mode_abbrev_table", &
@@ -562,7 +581,8 @@ module docstrings_fm
                                              "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_add_new_input", &
                                                             "history_delete_duplicates", "history_length", "indent_line_function", &
                                                                  "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
-                                            "inhibit_field_text_motion", "inhibit_modification_hooks", "insert_default_directory", &
+                                            "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
+                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
                                                 "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", &
@@ -571,13 +591,14 @@ module docstrings_fm
                                                                    "kmacro_counter_value_start", "kmacro_default_counter_format", &
                                                   "kmacro_execute_before_append", "kmacro_initial_counter_value", "kmacro_keymap", &
                                                "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
-                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", "last_input_event", &
+                                                                   "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
+                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
                                                     "last_kbd_macro", "left_margin", "line_move_visual", "list_buffers_directory", &
-                                                 "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "message_log_max", &
-                                                                   "messages_buffer_mode_hook", "messages_buffer_mode_map", &
+                                            "locale_coding_system", "make_backup_files", "mark_even_if_inactive", "mark_ring_max", &
+                                                       "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                           "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
                                            "minibuffer_message_timeout", "minibuffer_scroll_window", "mode_require_final_newline", &
-                                                        "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
+                                         "mule_keymap", "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
                                                          "next_error_verbose", "next_screen_context_lines", "only_global_abbrevs", &
                                                                    "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
@@ -595,7 +616,8 @@ module docstrings_fm
                                                       "revert_buffer_in_progress", "revert_buffer_preserve_modes", "save_abbrevs", &
                                                    "save_some_buffers_functions", "scroll_error_top_bottom", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
-                                             "search_upper_case", "search_whitespace_regexp", "sentence_end", "sentence_end_base", &
+                                                                   "search_upper_case", "search_whitespace_regexp", &
+                                                "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                                                    "shell_cd_regexp", "shell_command_default_error_buffer", &
                                            "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
@@ -626,7 +648,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(245) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(253) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -636,6 +658,8 @@ module docstrings_fm
                                                                       "async_shell_command_buffer", &
                                                                       "async_shell_command_display_buffer", &
                                                                       "async_shell_command_width", &
+                                                                      "auto_coding_alist", &
+                                                                      "auto_coding_regexp_alist", &
                                                                       "auto_fill_inhibit_regexp", &
                                                                       "backward_delete_char_untabify_method", &
                                                                       "blink_matching_delay", &
@@ -744,10 +768,15 @@ module docstrings_fm
                                                                       "electric_pair_skip_whitespace_chars", &
                                                                       "electric_pair_text_pairs", &
                                                                       "enable_recursive_minibuffers", &
+                                                                      "eol_mnemonic_dos", &
+                                                                      "eol_mnemonic_mac", &
+                                                                      "eol_mnemonic_undecided", &
+                                                                      "eol_mnemonic_unix", &
                                                                       "even_window_sizes", &
                                                                       "explicit_bash_args", &
                                                                       "explicit_csh_args", &
                                                                       "explicit_shell_file_name", &
+                                                                      "file_coding_system_alist", &
                                                                       "fill_column", &
                                                                       "fill_nobreak_predicate", &
                                                                       "fill_prefix", &
@@ -761,6 +790,7 @@ module docstrings_fm
                                                                       "history_delete_duplicates", &
                                                                       "history_length", &
                                                                       "indent_tabs_mode", &
+                                                                      "inhibit_eol_conversion", &
                                                                       "insert_default_directory", &
                                                                       "insert_directory_program", &
                                                                       "isearch_lax_whitespace", &
@@ -1421,6 +1451,13 @@ contains
                         "character `w' (119) is returned."//LF// &
                         "The characters that correspond to various syntax codes"//LF// &
                         "are listed in the documentation of `modify_syntax_entry'."
+        case ("check_coding_system")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call check_coding_system(coding_system, status)"
+            entry%doc = "Check validity of CODING-SYSTEM."//LF// &
+                        "If valid, return CODING-SYSTEM, else signal a `coding_system_error' error."//LF// &
+                        "It is valid if it is nil or a symbol defined as a coding system by the"//LF// &
+                        "function `define_coding_system'."
         case ("clear_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call clear_rectangle(start, end, status, fill)"
@@ -1431,6 +1468,64 @@ contains
                         "When called from a program the rectangle's corners are START and END."//LF// &
                         "With a prefix (or a FILL) argument, also fill with blanks the parts of the"//LF// &
                         "rectangle which were empty."
+        case ("coding_system_base")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_base(coding_system)"
+            entry%doc = "Return the base of CODING-SYSTEM."//LF// &
+                        "Any alias or subsidiary coding system is not a base coding system."
+        case ("coding_system_change_eol_conversion")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_change_eol_conversion(coding_system, eol_type)"
+            entry%doc = "Return a coding system which differs from CODING-SYSTEM in EOL conversion."//LF// &
+                        "The returned coding system converts end-of-line by EOL-TYPE"//LF// &
+                        "but text as the same way as CODING-SYSTEM."//LF// &
+                        "EOL-TYPE should be `unix', `dos', `mac', or nil (EOL_UNIX, EOL_DOS,"//LF// &
+                        "EOL_MAC or EOL_UNDECIDED here)."//LF// &
+                        "If EOL-TYPE is nil, the returned coding system detects"//LF// &
+                        "how end-of-line is formatted automatically while decoding."//LF// &
+                        ""//LF// &
+                        "EOL-TYPE can be specified by an integer 0, 1, or 2."//LF// &
+                        "They means `unix', `dos', and `mac' respectively."
+        case ("coding_system_change_text_conversion")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_change_text_conversion(coding_system, coding)"
+            entry%doc = "Return a coding system which differs from CODING-SYSTEM in text conversion."//LF// &
+                        "The returned coding system converts text by CODING"//LF// &
+                        "but end-of-line as the same way as CODING-SYSTEM."//LF// &
+                        "If CODING is nil, the returned coding system detects"//LF// &
+                        "how text is formatted automatically while decoding."
+        case ("coding_system_eol_type")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_eol_type(coding_system)"
+            entry%doc = "Return eol-type of CODING-SYSTEM."//LF// &
+                        "An eol-type is an integer 0, 1, 2, or a vector of coding systems."//LF// &
+                        ""//LF// &
+                        "Integer values 0, 1, and 2 indicate a format of end-of-line; LF, CRLF,"//LF// &
+                        "and CR respectively."//LF// &
+                        ""//LF// &
+                        "A vector value indicates that a format of end-of-line should be"//LF// &
+                        "detected automatically.  Nth element of the vector is the subsidiary"//LF// &
+                        "coding system whose eol-type is N."
+        case ("coding_system_p")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_p(object)"
+            entry%doc = "Return t if OBJECT is nil or a coding-system."//LF// &
+                        "See the documentation of `define_coding_system' for information"//LF// &
+                        "about coding-system objects."
+        case ("coding_system_priority_list")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call coding_system_priority_list(names, highestp)"
+            entry%doc = "Return a list of coding systems ordered by their priorities."//LF// &
+                        "The list contains a subset of coding systems; i.e. coding systems"//LF// &
+                        "assigned to each coding category (see `coding_category_list')."//LF// &
+                        ""//LF// &
+                        "HIGHESTP true means just return the highest priority one."
+        case ("coding_system_type")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_type(coding_system)"
+            entry%doc = "Return the coding type of CODING-SYSTEM."//LF// &
+                        "A coding type is a symbol indicating the encoding method of CODING-SYSTEM."//LF// &
+                        "See the function `define_coding_system' for more detail."
         case ("comint_accumulate")
             entry%file = "comint_fm.f90"
             entry%interactive = .true.
@@ -1987,6 +2082,26 @@ contains
             entry%doc = "Deactivate the mark."//LF// &
                         "If Transient Mark mode is disabled, this function normally does"//LF// &
                         "nothing; but if FORCE is true, it deactivates the mark anyway."
+        case ("decode_coding_region")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call decode_coding_region(start, end, coding_system, inserted, status)"
+            entry%doc = "Decode the current region from the specified coding system."//LF// &
+                        "When called from a program, takes four arguments:"//LF// &
+                        "        START, END, CODING-SYSTEM, and DESTINATION."//LF// &
+                        "START and END are buffer positions."//LF// &
+                        ""//LF// &
+                        "This function sets `last_coding_system_used' to the precise coding"//LF// &
+                        "system used to decode the text, which may be different from"//LF// &
+                        "CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided').  INSERTED is the"//LF// &
+                        "length of the decoded text."
+        case ("decode_coding_string")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call decode_coding_string(string, coding_system, result, status, multibyte)"
+            entry%doc = "Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT."//LF// &
+                        "If CODING-SYSTEM is nil, it returns STRING itself.  The value is a"//LF// &
+                        "multibyte string.  This function sets `last_coding_system_used' to"//LF// &
+                        "the precise coding system used to decode STRING, which may be"//LF// &
+                        "different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided')."
         case ("default_indent_new_line")
             entry%file = "simple_fm.f90"
             entry%fortran = "call default_indent_new_line(status, soft)"
@@ -1996,6 +2111,10 @@ contains
                         ""//LF// &
                         "The inserted newline is marked hard if variable `use_hard_newlines' is true,"//LF// &
                         "unless optional argument SOFT is true."
+        case ("define_coding_system_alias")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call define_coding_system_alias(alias, coding_system)"
+            entry%doc = "Define ALIAS as an alias for coding system CODING_SYSTEM."
         case ("define_global_abbrev")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call define_global_abbrev(abbrev, expansion, status)"
@@ -2145,10 +2264,19 @@ contains
             entry%interactive = .true.
             entry%doc = "Display a buffer showing a list of all defined keys, and their"//LF// &
                         "definitions.  The keys are displayed in order of precedence."
+        case ("describe_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "call describe_coding_system(coding_system, status)"
+            entry%interactive = .true.
+            entry%doc = "Display information about CODING-SYSTEM."
         case ("describe_command")
             entry%file = "help_fns_fm.f90"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of COMMAND (a name)."
+        case ("describe_current_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display coding systems currently used, in detail."
         case ("describe_function")
             entry%file = "help_fns_fm.f90"
             entry%fortran = "call describe_function(function, status)"
@@ -2187,6 +2315,17 @@ contains
             entry%fortran = "call describe_variable(variable, status)"
             entry%interactive = .true.
             entry%doc = "Display the full documentation of VARIABLE (a name)."
+        case ("detect_coding_region")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call detect_coding_region(start, end, names, status, highest)"
+            entry%doc = "Detect coding system of the text in the region between START and END."//LF// &
+                        "Return a list of possible coding systems ordered by priority."//LF// &
+                        "See `detect_coding_bytes'."
+        case ("detect_coding_string")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call detect_coding_string(string, names, highest, multibyte)"
+            entry%doc = "Detect coding system of the text in STRING (bytes, unless"//LF// &
+                        "MULTIBYTE).  See `detect_coding_bytes'."
         case ("digit_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2913,6 +3052,25 @@ contains
                         "COMMAND is a command name."//LF// &
                         "This command alters the user's init file so that this will apply"//LF// &
                         "to future sessions."
+        case ("encode_coding_region")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call encode_coding_region(start, end, coding_system, inserted, status)"
+            entry%doc = "Encode the current region by specified coding system."//LF// &
+                        "When called from a program, takes four arguments:"//LF// &
+                        "        START, END, CODING-SYSTEM and DESTINATION."//LF// &
+                        "START and END are buffer positions."//LF// &
+                        ""//LF// &
+                        "This function sets `last_coding_system_used' to the precise coding"//LF// &
+                        "system used to encode the text, which may be different from"//LF// &
+                        "CODING-SYSTEM.  INSERTED is the length of the encoded text."
+        case ("encode_coding_string")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call encode_coding_string(string, coding_system, result, status, multibyte)"
+            entry%doc = "Encode STRING (multibyte, unless MULTIBYTE is false) to CODING-SYSTEM"//LF// &
+                        "into RESULT, the bytes.  If CODING-SYSTEM is nil, it returns STRING"//LF// &
+                        "itself.  This function sets `last_coding_system_used' to the precise"//LF// &
+                        "coding system used to encode STRING, which may be different from"//LF// &
+                        "CODING-SYSTEM."
         case ("end_kbd_macro")
             entry%file = "macros_fm.f90"
             entry%interactive = .true.
@@ -4529,7 +4687,7 @@ contains
         case ("make_process")
             entry%file = "process_fm.f90"
             entry%fortran = "call make_process(name, command, process, status, buffer, noquery, connection_type, filter"// &
-                            ", sentinel, environment)"
+                            ", sentinel, environment, coding)"
             entry%doc = "Start a program in a subprocess.  Return the process object for it."//LF// &
                         ""//LF// &
                         "NAME is name for process.  It is modified if necessary to make it"//LF// &
@@ -5154,6 +5312,24 @@ contains
                         "`match_string' to extract the substrings matched by the parenthesis"//LF// &
                         "constructions in REGEXP.  For index of first char beyond the match,"//LF// &
                         "use `match_end(0)'."
+        case ("prefer_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "call prefer_coding_system(coding_system, status, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Add CODING-SYSTEM at the front of the priority list for automatic detection."//LF// &
+                        "This also sets the following coding systems:"//LF// &
+                        "  o coding system of a newly created buffer"//LF// &
+                        "  o default coding system for subprocess I/O"//LF// &
+                        ""//LF// &
+                        "If CODING-SYSTEM specifies a certain type of EOL conversion, the coding"//LF// &
+                        "systems set by this function will use that type of EOL conversion."//LF// &
+                        ""//LF// &
+                        "A coding system that requires automatic detection of text+encoding"//LF// &
+                        "(e.g. undecided, unix) can't be preferred."//LF// &
+                        ""//LF// &
+                        "To prefer, for instance, utf-8, say the following:"//LF// &
+                        ""//LF// &
+                        "  call prefer_coding_system(""utf-8"", status)"
         case ("prepend_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call prepend_to_register(register, start, end, status, delete_flag)"
@@ -5228,6 +5404,11 @@ contains
             entry%doc = "Return the buffer PROCESS is associated with (a null handle for none)."//LF// &
                         "The default process filter inserts output from PROCESS into this"//LF// &
                         "buffer."
+        case ("process_coding_system")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call process_coding_system(process, decoding, encoding, status)"
+            entry%doc = "Return the coding systems for decoding the output of PROCESS"//LF// &
+                        "(DECODING) and for encoding its input (ENCODING)."
         case ("process_command")
             entry%file = "process_fm.f90"
             entry%fortran = "call process_command(process, command)"
@@ -5894,6 +6075,17 @@ contains
                         "buffers).  This is done via the variable `revert_buffer_function'."//LF// &
                         "In these cases, it should reconstruct the buffer contents from the"//LF// &
                         "appropriate data."
+        case ("revert_buffer_with_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the current buffer's file again using coding system CODING-SYSTEM."//LF// &
+                        "For a list of possible values of CODING-SYSTEM, use \[list_coding_systems]."//LF// &
+                        ""//LF// &
+                        "If CODING-SYSTEM leaves the text conversion unspecified, or if it leaves"//LF// &
+                        "the end-of-line conversion unspecified, FORCE controls what to do."//LF// &
+                        "If FORCE is false, get the unspecified aspect (or aspects) from the buffer's"//LF// &
+                        "previous `buffer_file_coding_system' value (if it is specified there)."//LF// &
+                        "Otherwise, determine it from the file contents as usual for visiting a file."
         case ("right_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -6209,12 +6401,45 @@ contains
             entry%file = "buffer_fm.f90"
             entry%fortran = "call set_buffer(h, status)"
             entry%doc = "Make `h' the current buffer."
+        case ("set_buffer_file_coding_system")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "call set_buffer_file_coding_system(coding_system, force, nomodify, interactive, status)"
+            entry%interactive = .true.
+            entry%doc = "Set the file coding-system of the current buffer to CODING-SYSTEM."//LF// &
+                        "This means that when you save the buffer, it will be converted"//LF// &
+                        "according to CODING-SYSTEM.  For a list of possible values of"//LF// &
+                        "CODING-SYSTEM, use \[list_coding_systems]."//LF// &
+                        ""//LF// &
+                        "If CODING-SYSTEM leaves the text conversion unspecified, or if it leaves"//LF// &
+                        "the end-of-line conversion unspecified, FORCE controls what to do."//LF// &
+                        "If FORCE is false, get the unspecified aspect (or aspects) from the buffer's"//LF// &
+                        "previous `buffer_file_coding_system' value (if it is specified there)."//LF// &
+                        "Otherwise, leave it unspecified."//LF// &
+                        ""//LF// &
+                        "This marks the buffer modified so that the succeeding \[save_buffer]"//LF// &
+                        "surely saves the buffer with CODING-SYSTEM.  From a program, if you"//LF// &
+                        "don't want to mark the buffer modified, specify true for NOMODIFY."//LF// &
+                        "If you know exactly what coding system you want to use,"//LF// &
+                        "just set the variable `buffer_file_coding_system' directly."
+        case ("set_coding_system_priority")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "call set_coding_system_priority(coding_systems, status)"
+            entry%doc = "Assign higher priority to the coding systems given as arguments."//LF// &
+                        "If multiple coding systems belong to the same category,"//LF// &
+                        "all but the first one are ignored."
         case ("set_command_disabled")
             entry%file = "callint_fm.f90"
             entry%fortran = "call set_command_disabled(name, disabled, status)"
             entry%doc = "Make the command named NAME disabled or not (its `disabled'"//LF// &
                         "property), for a name only known at run time; built-in commands"//LF// &
                         "are `commands%NAME%disabled'."
+        case ("set_default_coding_systems")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "call set_default_coding_systems(coding_system, status)"
+            entry%doc = "Set default value of various coding systems to CODING-SYSTEM."//LF// &
+                        "This sets the following coding systems:"//LF// &
+                        "  o coding system of a newly created buffer"//LF// &
+                        "  o default coding system for subprocess I/O"
         case ("set_error")
             entry%file = "error_fm.f90"
             entry%fortran = "call set_error(status, code, detail)"
@@ -6287,6 +6512,12 @@ contains
             entry%fortran = "call set_process_buffer(process, buffer, status)"
             entry%doc = "Set buffer associated with PROCESS to BUFFER (a buffer, or a null"//LF// &
                         "handle for none)."
+        case ("set_process_coding_system")
+            entry%file = "process_fm.f90"
+            entry%fortran = "call set_process_coding_system(process, decoding, encoding, status)"
+            entry%doc = "Set coding systems of PROCESS to DECODING and ENCODING."//LF// &
+                        "DECODING will be used to decode subprocess output and ENCODING to"//LF// &
+                        "encode subprocess input."
         case ("set_process_filter")
             entry%file = "process_fm.f90"
             entry%fortran = "call set_process_filter(process, status, filter)"
@@ -7597,6 +7828,28 @@ contains
                         "output.  If negative, use the shell default number (usually 80"//LF// &
                         "columns).  If a natural number, tell the shell to use that number"//LF// &
                         "of columns for command output."
+        case ("auto_coding_alist")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "auto_coding_alist"
+            entry%user_option = .true.
+            entry%doc = "Alist of filename patterns vs corresponding coding systems."//LF// &
+                        "Each element looks like (REGEXP . CODING-SYSTEM)."//LF// &
+                        "A file whose name matches REGEXP is decoded by CODING-SYSTEM on reading."//LF// &
+                        ""//LF// &
+                        "The settings in this alist take priority over `coding:' tags"//LF// &
+                        "in the file (see the function `set_auto_coding')"//LF// &
+                        "and the contents of `file_coding_system_alist'."
+        case ("auto_coding_regexp_alist")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "auto_coding_regexp_alist"
+            entry%user_option = .true.
+            entry%doc = "Alist of patterns vs corresponding coding systems."//LF// &
+                        "Each element looks like (REGEXP . CODING-SYSTEM)."//LF// &
+                        "A file whose first bytes match REGEXP is decoded by CODING-SYSTEM on reading."//LF// &
+                        ""//LF// &
+                        "The settings in this alist take priority over `coding:' tags"//LF// &
+                        "in the file (see the function `set_auto_coding')"//LF// &
+                        "and the contents of `file_coding_system_alist'."
         case ("auto_fill_chars")
             entry%file = "cmds_fm.f90"
             entry%fortran = "auto_fill_chars"
@@ -7744,6 +7997,29 @@ contains
                         "This variable has no effect if `blink_matching_paren' is"//LF// &
                         "`BLINK_MATCHING_PAREN_NIL'.  (In that case, the open-paren is never"//LF// &
                         "shown.)  It is also ignored if `show_paren_mode' is enabled."
+        case ("buffer_file_coding_system")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "buffer_file_coding_system"
+            if (allocated(buffer_file_coding_system%value)) then
+                entry%value = repr(buffer_file_coding_system%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Coding system to be used for encoding the buffer contents on saving."//LF// &
+                        "This variable applies to saving the buffer, and also to `write_region'"//LF// &
+                        "and other functions that use `write_region'."//LF// &
+                        "It does not apply to sending output to subprocesses, however."//LF// &
+                        ""//LF// &
+                        "If this is nil, the buffer is saved without any code conversion"//LF// &
+                        "unless some coding system is specified in `file_coding_system_alist'"//LF// &
+                        "for the buffer file."//LF// &
+                        ""//LF// &
+                        "If the text to be saved cannot be encoded as specified by this variable,"//LF// &
+                        "an alternative encoding is selected by `select_safe_coding_system', which see."//LF// &
+                        ""//LF// &
+                        "The variable `coding_system_for_write', if set, overrides this variable."//LF// &
+                        ""//LF// &
+                        "This variable is never applied to a way of decoding a file while reading it."
         case ("case_fold_search")
             entry%file = "search_fm.f90"
             entry%fortran = "case_fold_search"
@@ -7796,6 +8072,47 @@ contains
                         "(2) the current major mode is a ""special"" mode,"//LF// &
                         "    not suitable for ordinary files, or"//LF// &
                         "(3) the new file name does not particularly specify any mode."
+        case ("coding_system_for_read")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_for_read"
+            if (allocated(coding_system_for_read%value)) then
+                entry%value = repr(coding_system_for_read%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Specify the coding system for read operations."//LF// &
+                        "It is useful to bind this variable temporarily, but do not set it globally."//LF// &
+                        "If the value is a coding system, it is used for decoding on read operation."//LF// &
+                        "If not, an appropriate element is used from one of the coding system alists."//LF// &
+                        "There are three such tables: `file_coding_system_alist',"//LF// &
+                        "`process_coding_system_alist', and `network_coding_system_alist'."
+        case ("coding_system_for_write")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_for_write"
+            if (allocated(coding_system_for_write%value)) then
+                entry%value = repr(coding_system_for_write%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Specify the coding system for write operations."//LF// &
+                        "Programs bind this variable temporarily, but you should not set it globally."//LF// &
+                        "If the value is a coding system, it is used for encoding of output,"//LF// &
+                        "when writing it to a file and when sending it to a file or subprocess."//LF// &
+                        ""//LF// &
+                        "If this does not specify a coding system, an appropriate element"//LF// &
+                        "is used from one of the coding system alists."//LF// &
+                        "There are three such tables: `file_coding_system_alist',"//LF// &
+                        "`process_coding_system_alist', and `network_coding_system_alist'."//LF// &
+                        "For output to files, if the above procedure does not specify a coding system,"//LF// &
+                        "the value of `buffer_file_coding_system' is used."
+        case ("coding_system_require_warning")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "coding_system_require_warning"
+            entry%value = repr(coding_system_require_warning%value)
+            entry%doc = "Internal use only."//LF// &
+                        "If true, on writing a file, `select_safe_coding_system_function' is"//LF// &
+                        "called even if `coding_system_for_write' is set.  The command"//LF// &
+                        "`universal_coding_system_argument' sets this variable temporarily."
         case ("colon_double_space")
             entry%file = "fill_fm.f90"
             entry%fortran = "colon_double_space"
@@ -9028,6 +9345,13 @@ contains
                         "line is centered.  JUSTIFY_NONE means no justification or centering."//LF// &
                         "The requested kind of justification is done whenever lines are filled."//LF// &
                         "The `justification' text-property can locally override this variable."
+        case ("default_process_coding_system")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "default_process_coding_system"
+            entry%value = repr(default_process_coding_system)
+            entry%doc = "Cons of coding systems used for process I/O by default."//LF// &
+                        "The first element is used for decoding a process output,"//LF// &
+                        "the second is used for encoding a text to be sent to a process."
         case ("defining_kbd_macro")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "defining_kbd_macro"
@@ -10006,6 +10330,46 @@ contains
             entry%value = repr(enable_recursive_minibuffers)
             entry%doc = "True means to allow minibuffer commands while in the minibuffer."//LF// &
                         "This variable makes a difference whenever the minibuffer window is active."
+        case ("eol_mnemonic_dos")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "eol_mnemonic_dos"
+            entry%user_option = .true.
+            if (allocated(eol_mnemonic_dos%value)) then
+                entry%value = repr(eol_mnemonic_dos%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String displayed in mode line for DOS-like (CRLF) end-of-line format."
+        case ("eol_mnemonic_mac")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "eol_mnemonic_mac"
+            entry%user_option = .true.
+            if (allocated(eol_mnemonic_mac%value)) then
+                entry%value = repr(eol_mnemonic_mac%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String displayed in mode line for MAC-like (CR) end-of-line format."
+        case ("eol_mnemonic_undecided")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "eol_mnemonic_undecided"
+            entry%user_option = .true.
+            if (allocated(eol_mnemonic_undecided%value)) then
+                entry%value = repr(eol_mnemonic_undecided%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String displayed in mode line when end-of-line format is not yet determined."
+        case ("eol_mnemonic_unix")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "eol_mnemonic_unix"
+            entry%user_option = .true.
+            if (allocated(eol_mnemonic_unix%value)) then
+                entry%value = repr(eol_mnemonic_unix%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String displayed in mode line for UNIX-like (LF) end-of-line format."
         case ("even_window_sizes")
             entry%file = "window_fm.f90"
             entry%fortran = "even_window_sizes"
@@ -10040,6 +10404,15 @@ contains
                         "shells.  When unallocated, such interactive shell sessions fall back"//LF// &
                         "to using the shell specified in either the environment variable"//LF// &
                         """ESHELL"" or `shell_file_name'."
+        case ("file_coding_system_alist")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "file_coding_system_alist"
+            entry%user_option = .true.
+            entry%doc = "Alist to decide a coding system to use for a file I/O operation."//LF// &
+                        "Each element has a PATTERN, a regular expression matching a file"//LF// &
+                        "name, and the coding systems for decoding and for encoding the"//LF// &
+                        "file contents ("""" for none).  See also the function"//LF// &
+                        "`find_operation_coding_system' and the variable `auto_coding_alist'."
         case ("fill_column")
             entry%file = "buffer_fm.f90"
             entry%fortran = "fill_column"
@@ -10282,12 +10655,47 @@ contains
             entry%original = ".false."
             entry%value = repr(inhibit_auto_fill)
             entry%doc = "True means to do as if `auto_fill_mode' was disabled."
+        case ("inhibit_eol_conversion")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "inhibit_eol_conversion"
+            entry%user_option = .true.
+            entry%value = repr(inhibit_eol_conversion%value)
+            entry%doc = "True means always inhibit code conversion of end-of-line format."//LF// &
+                        "See info node `Coding Systems' and info node `Text and Binary' concerning"//LF// &
+                        "such conversion."
         case ("inhibit_field_text_motion")
             entry%file = "editfns_fm.f90"
             entry%fortran = "inhibit_field_text_motion"
             entry%original = ".false."
             entry%value = repr(inhibit_field_text_motion)
             entry%doc = "True means text motion commands don't notice fields."
+        case ("inhibit_iso_escape_detection")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "inhibit_iso_escape_detection"
+            entry%value = repr(inhibit_iso_escape_detection%value)
+            entry%doc = "If true, Emacs ignores ISO-2022 escape sequences during code detection."//LF// &
+                        ""//LF// &
+                        "When Emacs reads text, it tries to detect how the text is encoded."//LF// &
+                        "This code detection is sensitive to escape sequences.  If Emacs sees"//LF// &
+                        "a valid ISO-2022 escape sequence, it assumes the text is encoded in one"//LF// &
+                        "of the ISO2022 encodings, and decodes text by the corresponding coding"//LF// &
+                        "system (e.g. `iso-2022-7bit')."//LF// &
+                        ""//LF// &
+                        "However, there may be a case that you want to read escape sequences in"//LF// &
+                        "a file as is.  In such a case, you can set this variable to true."//LF// &
+                        "Then the code detection will ignore any escape sequences, and no text is"//LF// &
+                        "detected as encoded in some ISO-2022 encoding.  The result is that all"//LF// &
+                        "escape sequences become visible in a buffer."//LF// &
+                        ""//LF// &
+                        "The default value is false, and it is strongly recommended not to change"//LF// &
+                        "it.  That is because many Emacs Lisp source files that contain"//LF// &
+                        "non-ASCII characters are encoded by the coding system `iso-2022-7bit'"//LF// &
+                        "in Emacs's distribution, and they won't be decoded correctly on"//LF// &
+                        "reading if you suppress escape sequence detection."//LF// &
+                        ""//LF// &
+                        "The other way to read escape sequences in a file without decoding is"//LF// &
+                        "to explicitly specify some coding system that doesn't use ISO-2022"//LF// &
+                        "escape sequence (e.g., `latin-1') on reading by \[universal_coding_system_argument]."
         case ("inhibit_modification_hooks")
             entry%file = "insdel_fm.f90"
             entry%fortran = "inhibit_modification_hooks"
@@ -10303,6 +10711,19 @@ contains
                         "To delay change hooks during a series of changes, use"//LF// &
                         "`combine_change_calls' or `combine_after_change_calls' instead of"//LF// &
                         "setting this variable."
+        case ("inhibit_null_byte_detection")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "inhibit_null_byte_detection"
+            entry%value = repr(inhibit_null_byte_detection%value)
+            entry%doc = "If true, Emacs ignores null bytes on code detection."//LF// &
+                        "By default, Emacs treats it as binary data, and does not attempt to"//LF// &
+                        "decode it.  The effect is as if you specified `no-conversion' for"//LF// &
+                        "reading that text."//LF// &
+                        ""//LF// &
+                        "Set this to true when a regular text happens to include null bytes."//LF// &
+                        "Examples are Index nodes of Info files and null-byte delimited output"//LF// &
+                        "from GNU Find and GNU Grep.  Emacs will then ignore the null bytes and"//LF// &
+                        "decode text as usual."
         case ("insert_default_directory")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "insert_default_directory"
@@ -10569,6 +10990,25 @@ contains
             end if
             entry%doc = "The exact text of the last abbrev that was expanded."//LF// &
                         "It is unallocated if the abbrev has already been unexpanded."
+        case ("last_coding_system_specified")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "last_coding_system_specified"
+            if (allocated(last_coding_system_specified)) then
+                entry%value = repr(last_coding_system_specified)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The most recent coding system specified explicitly by the user when"//LF// &
+                        "asked to choose one."
+        case ("last_coding_system_used")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "last_coding_system_used"
+            if (allocated(last_coding_system_used%value)) then
+                entry%value = repr(last_coding_system_used%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Coding system used in the latest file or process I/O."
         case ("last_input_event")
             entry%file = "keyboard_fm.f90"
             entry%fortran = "last_input_event"
@@ -10614,6 +11054,17 @@ contains
             end if
             entry%doc = "The directory a buffer's list shows for it (its shell's directory"//LF// &
                         "for a shell buffer)."
+        case ("locale_coding_system")
+            entry%file = "coding_fm.f90"
+            entry%fortran = "locale_coding_system"
+            if (allocated(locale_coding_system%value)) then
+                entry%value = repr(locale_coding_system%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Coding system to use with system messages."//LF// &
+                        "Potentially also used for decoding keyboard input on X Windows, and is"//LF// &
+                        "used for encoding standard output and error streams."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -10725,6 +11176,10 @@ contains
                         "variable since this value is used for modes for files that ought to have"//LF// &
                         "final newlines.  So if you set this to FINAL_NEWLINE_NEVER, you must explicitly check and"//LF// &
                         "add a final newline, whenever you save a file that really needs one."
+        case ("mule_keymap")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "mule_keymap"
+            entry%doc = "Keymap for Mule (Multilingual environment) specific commands."
         case ("multibyte_syntax_as_symbol")
             entry%file = "syntax_fm.f90"
             entry%fortran = "multibyte_syntax_as_symbol"
@@ -11241,6 +11696,14 @@ contains
                         "`isearch_regexp_lax_whitespace' is false for regexp incremental"//LF// &
                         "search, then each space you type matches literally, against one"//LF// &
                         "space."
+        case ("select_safe_coding_system_accept_default_p")
+            entry%file = "mule_fm.f90"
+            entry%fortran = "select_safe_coding_system_accept_default_p"
+            entry%original = ".false."
+            entry%value = repr(select_safe_coding_system_accept_default_p)
+            entry%doc = "If true, a coding system selected automatically is accepted without"//LF// &
+                        "asking (the default coding systems that encode the text are always"//LF// &
+                        "accepted: ACCEPT-DEFAULT-P has no function here)."
         case ("sentence_end")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end"
@@ -12286,6 +12749,18 @@ contains
             kind = OPTION_CHOICE
         case ("enable_recursive_minibuffers")
             kind = OPTION_LOGICAL
+        case ("eol_mnemonic_dos")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("eol_mnemonic_mac")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("eol_mnemonic_undecided")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("eol_mnemonic_unix")
+            kind = OPTION_STRING
+            setting = .true.
         case ("even_window_sizes")
             kind = OPTION_LOGICAL
         case ("explicit_shell_file_name")
@@ -12312,6 +12787,9 @@ contains
         case ("history_length")
             kind = OPTION_INTEGER
         case ("indent_tabs_mode")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("inhibit_eol_conversion")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("insert_default_directory")
@@ -12745,6 +13223,12 @@ contains
             else
                 indent_tabs_mode = v
             end if
+        case ("inhibit_eol_conversion")
+            if (local) then
+                call inhibit_eol_conversion%set_local(v)
+            else
+                inhibit_eol_conversion = v
+            end if
         case ("insert_default_directory")
             insert_default_directory = v
         case ("isearch_lax_whitespace")
@@ -13150,6 +13634,30 @@ contains
             dired_touch_program = v
         case ("dired_trivial_filenames")
             dired_trivial_filenames = v
+        case ("eol_mnemonic_dos")
+            if (local) then
+                call eol_mnemonic_dos%set_local(v)
+            else
+                eol_mnemonic_dos = v
+            end if
+        case ("eol_mnemonic_mac")
+            if (local) then
+                call eol_mnemonic_mac%set_local(v)
+            else
+                eol_mnemonic_mac = v
+            end if
+        case ("eol_mnemonic_undecided")
+            if (local) then
+                call eol_mnemonic_undecided%set_local(v)
+            else
+                eol_mnemonic_undecided = v
+            end if
+        case ("eol_mnemonic_unix")
+            if (local) then
+                call eol_mnemonic_unix%set_local(v)
+            else
+                eol_mnemonic_unix = v
+            end if
         case ("explicit_shell_file_name")
             if (local) then
                 call explicit_shell_file_name%set_local(v)
