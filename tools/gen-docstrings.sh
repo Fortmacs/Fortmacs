@@ -53,6 +53,9 @@ trap 'rm -f "$tmp".*' EXIT
 find src -name '*.f90' ! -name docstrings_fm.f90 | sort | xargs awk '
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 function help_name(s) { return s }
+# A declaration line with deferred lengths (len=:) written as len=*, so
+# the "::" that separates the names is the first colon.
+function declline(s) { gsub(/len=:/, "len=*", s); return s }
 
 # The docstring of comment block b (lines joined by \036): the text
 # before "Port of".
@@ -170,6 +173,24 @@ ingeneric != "" && /^[ \t]*module procedure/ {
     next
 }
 
+# A separate module procedure in a submodule (`module procedure NAME`):
+# its comment documents the procedure its parent declares.
+ingeneric == "" && /^[ \t]*module procedure[ \t]+[a-zA-Z0-9_]+[ \t]*$/ {
+    if (block != "") {
+        pname = tolower($3)
+        key = pname SUBSEP base
+        if (!(key in pdoc)) {
+            pdoc[key] = docstring(block)
+            c = citation(block, 0)
+            pcite[key] = c
+            if (c != "" && !(c in cited)) cited[c] = key
+        }
+        if (!(pname in anydoc) || anydoc[pname] == "") anydoc[pname] = pdoc[key]
+    }
+    block = ""
+    next
+}
+
 # Built-in commands (not in comments): `commands%NAME%run => PROC`, and
 # `commands%NAME%interactive = .false.` for a function that is not a
 # command.
@@ -198,8 +219,8 @@ ingeneric != "" && /^[ \t]*module procedure/ {
         sig = pname sig
         if (sig ~ /&[ \t]*$/) { sub(/&[ \t]*$/, "", sig); insig = 1; block = ""; next }
         finish_sig()
-    } else if (block != "" && line !~ /parameter/ && match(line, /^[ \t]*(integer|logical|character|real|type[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
-        decl = substr(line, 1, RLENGTH)
+    } else if (block != "" && line !~ /parameter/ && match(declline(line), /^[ \t]*(integer|logical|character|real|type[ \t]*\()[^:!]*::[ \t]*[a-z0-9_]+/)) {
+        decl = substr(declline(line), 1, RLENGTH)
         vname = decl; sub(/.*[ \t:]/, "", vname)
         type = decl; sub(/[ \t]*::.*/, "", type); sub(/^[ \t]+/, "", type)
         rest = substr($0, RLENGTH + 1)
@@ -333,6 +354,19 @@ END {
         if (!(name in ffile)) { ffile[name] = cmdfile[name]; fcall[name] = "" }
         finter[name] = (name in noninteractive) ? 0 : 1
     }
+    # A command without a docstring of its own that runs the procedure of
+    # another command is an alias of it (join_line of delete_indentation):
+    # it gets the docstring of that command, the first such name in order
+    # whatever order this awk visits the array in.
+    for (name in cmd) {
+        if (fdoc[name] != "") continue
+        best = ""
+        for (other in cmd)
+            if (other != name && cmd[other] == cmd[name] && fdoc[other] != "" && (best == "" || other < best))
+                best = other
+        if (best != "") alias_doc[name] = fdoc[best]
+    }
+    for (name in alias_doc) fdoc[name] = alias_doc[name]
     for (lisp in fdoc)
         printf "F\037%s\037%s\037%s\037%d\037%s\n", lisp, ffile[lisp], fcall[lisp], finter[lisp], fdoc[lisp]
 }

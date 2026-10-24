@@ -989,17 +989,20 @@ contains
     !>
     !> If a file's name is FOO, its backup file is called FOO~.
     !> Port of files.el:save-buffer (the command; no numbered backups).
-    !> Choose the major mode for this buffer automatically.  Port of
+    subroutine cmd_save_buffer(status)
+        type(status_type), intent(out) :: status
+        call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
+    end subroutine cmd_save_buffer
+
+    !> Choose the major mode for this buffer automatically.
+    !> Uses the visited file name and the -*- line.
+    !>
+    !> This function is called automatically from `find_file'.  Port of
     !> files.el:normal-mode as a command.
     recursive subroutine cmd_normal_mode(status)
         type(status_type), intent(out) :: status
         call normal_mode(status)
     end subroutine cmd_normal_mode
-
-    subroutine cmd_save_buffer(status)
-        type(status_type), intent(out) :: status
-        call save_buffer(prefix_numeric_value(current_prefix_arg), .true., status)
-    end subroutine cmd_save_buffer
 
     !> Save some modified file-visiting buffers.  Asks user about each one.
     !> You can answer \`y' or \`SPC' to save, \`n' or \`DEL' not to save,

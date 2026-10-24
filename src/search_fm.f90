@@ -43,7 +43,7 @@ module search_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
     use handle_fm, only: handle_type
-    use print_fm, only: prin1_string
+    use print_fm, only: fortran_string
     use data_fm, only: logical_setting
     use character_fm, only: string_char_and_length, char_bytes, char_head_p
     use casetab_fm, only: case_canon
@@ -75,8 +75,8 @@ module search_fm
     !> the limit of the search, return nil).
     integer, parameter, public :: SEARCH_SIGNAL = 0, SEARCH_NOERROR = 1, SEARCH_MOVE = 2
 
-    !> If a string, the regexp that replaces spaces in a regexp being
-    !> compiled; unallocated is nil.  Port of search.c
+    !> If allocated, the regexp that replaces spaces in a regexp being
+    !> compiled; unallocated for none.  Port of search.c
     !> search-spaces-regexp.
     character(len=:), allocatable, public :: search_spaces_regexp
 
@@ -695,7 +695,7 @@ contains
         if (.not. status%ok()) return
         if (np <= 0) then
             if (mode == SEARCH_SIGNAL) then
-                call set_error(status, FM_SEARCH_FAILED, prin1_string(string))
+                call set_error(status, FM_SEARCH_FAILED, fortran_string(string))
             else if (mode == SEARCH_MOVE) then
                 call temp_set_point_both(buffers(cur), lim, lim_byte)
             end if

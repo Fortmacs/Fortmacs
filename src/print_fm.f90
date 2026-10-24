@@ -40,7 +40,7 @@ module print_fm
     implicit none(type, external)
     private
 
-    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr
+    public :: prin1_to_string, prin1_string, marker_repr, fortran_repr, fortran_string
 
 contains
 
@@ -107,7 +107,6 @@ contains
         character(len=:), allocatable :: s
         type(value_type), allocatable :: elems(:)
         type(status_type) :: status
-        character(len=:), allocatable :: text
         integer :: k
         select case (vtag(object))
         case (V_NIL)
@@ -120,13 +119,7 @@ contains
                 s = ".true."
             end if
         case (V_STRING)
-            text = xstring(object)
-            s = """"
-            do k = 1, len(text)
-                s = s//text(k:k)
-                if (text(k:k) == """") s = s//""""
-            end do
-            s = s//""""
+            s = fortran_string(xstring(object))
         case (V_LIST)
             call list_elements(object, elems)
             s = "["
@@ -139,6 +132,20 @@ contains
             s = prin1_to_string(object)
         end select
     end function fortran_repr
+
+    !> The string TEXT as a Fortran literal: in double quotes, each double
+    !> quote doubled.  (Ours: how help and error messages show a string.)
+    pure function fortran_string(text) result(s)
+        character(len=*), intent(in) :: text
+        character(len=:), allocatable :: s
+        integer :: k
+        s = """"
+        do k = 1, len(text)
+            s = s//text(k:k)
+            if (text(k:k) == """") s = s//""""
+        end do
+        s = s//""""
+    end function fortran_string
 
     !> The printed representation of the string TEXT, as `prin1' writes
     !> it: in double quotes, a backslash escaping each double quote and

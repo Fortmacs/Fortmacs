@@ -154,8 +154,8 @@ module subr_fm
     !> confusing to some users.  Port of subr.el y-or-n-p-use-read-key.
     logical, public :: y_or_n_p_use_read_key = .false.
 
-    !> History list symbol to add `y_or_n_p' answers to (unallocated for
-    !> nil: no history).  Port of subr.el y-or-n-p-history-variable.
+    !> Name of the history list to add `y_or_n_p' answers to (unallocated for
+    !> no history).  Port of subr.el y-or-n-p-history-variable.
     character(len=:), allocatable, public :: y_or_n_p_history_variable
 
     !> What `silent_modifications_begin' changed, for

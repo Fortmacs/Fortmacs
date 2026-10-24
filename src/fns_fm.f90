@@ -25,7 +25,7 @@
 module fns_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
-    use print_fm, only: prin1_string
+    use print_fm, only: fortran_string
     use character_fm, only: multibyte_chars_in_text, string_char_and_length
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
@@ -379,7 +379,7 @@ contains
         logical :: has_to
         character(len=:), allocatable :: from_text, to_text
         f = 0
-        from_text = "nil"
+        from_text = ".false."
         if (present(from)) then
             f = from
             from_text = int_text(from)
@@ -388,7 +388,7 @@ contains
         has_to = present(to)
         if (present(to_given)) has_to = has_to .and. to_given
         t = n
-        to_text = "nil"
+        to_text = ".false."
         if (has_to) then
             t = to
             to_text = int_text(to)
@@ -397,7 +397,7 @@ contains
         ok = 0 <= f .and. f <= t .and. t <= n
         ifrom = f
         ito = t
-        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_string(string)//", "//from_text//", "//to_text)
+        if (.not. ok) call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//from_text//", "//to_text)
     end subroutine validate_subarray
 
     !> The decimal text of N.

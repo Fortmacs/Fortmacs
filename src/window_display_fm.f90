@@ -544,7 +544,7 @@ contains
             ! Don't switch in minibuffer window.
             h = selected_frame%selected_window
             if (.not. window_live_p(h)) then
-                call set_error(status, FM_GENERIC_ERROR, "Window nil is a minibuffer window")
+                call set_error(status, FM_GENERIC_ERROR, "Window .false. is a minibuffer window")
                 return
             end if
         end if
@@ -685,7 +685,7 @@ contains
             ! Don't switch in minibuffer window.
             h = selected_frame%selected_window
             if (.not. window_live_p(h)) then
-                call set_error(status, FM_GENERIC_ERROR, "Window nil is a minibuffer window")
+                call set_error(status, FM_GENERIC_ERROR, "Window .false. is a minibuffer window")
                 return
             end if
         end if

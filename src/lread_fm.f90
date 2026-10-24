@@ -35,7 +35,7 @@ module lread_fm
     public :: intern, intern_soft, sym, ensure_obarray
 
     !> File name, including directory, of user's initialization file.
-    !> While Emacs loads and evaluates any init file, value is the real name
+    !> While the init file's `configure' runs, value is the real name
     !> of the file.  Port of lread.c user-init-file (unallocated is nil:
     !> -q, or no init file compiled in).
     character(len=:), allocatable, public :: user_init_file

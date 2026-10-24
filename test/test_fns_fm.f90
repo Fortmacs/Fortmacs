@@ -124,7 +124,7 @@ contains
         call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "from after to")
         if (allocated(error)) return
         r = substring("abc", -4_int64, status=st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == 'Args out of range: "abc", -4, nil', &
+        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == 'Args out of range: "abc", -4, .false.', &
                    format_error(st))
     end subroutine test_substring
 end module test_fns_fm

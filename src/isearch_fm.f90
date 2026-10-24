@@ -115,16 +115,16 @@ module isearch_fm
     !> thrown away.  Port of isearch.el regexp-search-ring-max.
     integer, public :: regexp_search_ring_max = 16
 
-    !> If non-nil, regular expression to match a sequence of whitespace
+    !> If allocated, regular expression to match a sequence of whitespace
     !> chars.  When you enter a space or spaces in the incremental search,
     !> it will match any sequence matched by this regexp.  As an
     !> exception, spaces are treated normally in regexp incremental search
     !> if they occur in a regexp construct like [...] or *, + or ?.
     !>
     !> If the value is a string, it applies to both ordinary and regexp
-    !> incremental search.  If the value is nil (unallocated), or
-    !> `isearch_lax_whitespace' is nil for ordinary incremental search, or
-    !> `isearch_regexp_lax_whitespace' is nil for regexp incremental
+    !> incremental search.  If the value is unallocated, or
+    !> `isearch_lax_whitespace' is false for ordinary incremental search, or
+    !> `isearch_regexp_lax_whitespace' is false for regexp incremental
     !> search, then each space you type matches literally, against one
     !> space.  Port of isearch.el search-whitespace-regexp (made "[ \t]+"
     !> by syms_of_isearch).

@@ -395,6 +395,10 @@ contains
         if (allocated(error)) return
         ! A hook has no printed form yet: the documentation follows the
         ! Fortran name.
+        ! A deferred-length string variable is documented too.
+        call describe_variable_text("search_whitespace_regexp", text, found)
+        call check(error, found .and. index(text, "Its Fortran name is "//LQ//"search_whitespace_regexp"//RQ) > 0, text)
+        if (allocated(error)) return
         call describe_variable_text("text_mode_hook", text, found)
         call check(error, found .and. index(text, "Its value") == 0 .and. index(text, "Original value") == 0 .and. &
                    index(text, "Its Fortran name is "//LQ//"text_mode_hook"//RQ//"."//LF//LF//"Normal hook run") > 0, text)
@@ -418,6 +422,22 @@ contains
         ! A function (not a subroutine) of the config API.
         call describe_function_1("looking_at", text, "looking_at is ")
         call check(error, index(text, "looking_at is a Fortran function in "//LQ//"search_fm.f90"//RQ//".") == 1, text)
+        if (allocated(error)) return
+        ! Each command shows its own docstring (normal_mode once showed
+        ! save_buffer's), an alias that of the command it runs, and
+        ! procedures documented in a submodule theirs.
+        call describe_function_1("normal_mode", text)
+        call check(error, index(text, "Choose the major mode for this buffer automatically.") > 0 .and. &
+                   index(text, "Save current buffer") == 0, text)
+        if (allocated(error)) return
+        call describe_function_1("join_line", text)
+        call check(error, index(text, "Join this line to previous") > 0, text)
+        if (allocated(error)) return
+        call describe_function_1("indent_relative", text)
+        call check(error, index(text, "Space out to under next indent point") > 0, text)
+        if (allocated(error)) return
+        call describe_function_1("point", text)
+        call check(error, index(text, "Return value of point, as an integer.") > 0, text)
     end subroutine test_function_file
 
     !> Values written as Fortran.

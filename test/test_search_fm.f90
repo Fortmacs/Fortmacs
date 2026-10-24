@@ -99,7 +99,7 @@ contains
         if (allocated(error)) return
         ! The data print as with prin1.
         call search_forward('q"\', pos, st)
-        call check(error, format_error(st) == 'Search failed: "q\"\\"', format_error(st))
+        call check(error, format_error(st) == 'Search failed: "q""\"', format_error(st))
         if (allocated(error)) return
         ! COUNT; the empty string matches at point.
         call goto_char(1_int64)

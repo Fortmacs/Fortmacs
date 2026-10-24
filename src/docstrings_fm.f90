@@ -39,11 +39,11 @@ module docstrings_fm
                         mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, &
                         FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, require_final_newline, FINAL_NEWLINE_NEVER, &
                         FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK
-    use fill_fm, only: adaptive_fill_mode, colon_double_space, default_justification, JUSTIFY_NONE, &
-                       JUSTIFY_LEFT, JUSTIFY_RIGHT, JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, &
-                       fill_indent_according_to_mode, fill_nobreak_predicate, &
-                       fill_separate_heterogeneous_words_with_space
-    use fns_fm, only: use_short_answers
+    use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
+                       colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
+                       JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
+                       fill_nobreak_predicate, fill_separate_heterogeneous_words_with_space
+    use fns_fm, only: use_short_answers, yes_or_no_prompt
     use font_core_fm, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
                             global_font_lock_mode_hook
     use font_lock_fm, only: font_lock_dont_widen, font_lock_extra_managed_props, &
@@ -57,9 +57,11 @@ module docstrings_fm
                          inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
                           regexp_search_ring_max, search_exit_option, search_nonincremental_instead, search_ring_max, &
-                          search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS
+                          search_upper_case, UPPER_CASE_NIL, UPPER_CASE_T, UPPER_CASE_NOT_YANKS, &
+                          search_whitespace_regexp
     use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: minibuffer_message_timeout
+    use lread_fm, only: user_init_file
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
@@ -67,16 +69,18 @@ module docstrings_fm
                              minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
                              read_file_name_completion_ignore_case
     use novice_fm, only: disabled_command_function_p
-    use paragraphs_fm, only: paragraph_ignore_fill_prefix, paragraph_separate, paragraph_start, &
-                             sentence_end, sentence_end_double_space, sentence_end_without_period
+    use paragraphs_fm, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
+                             paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
+                             sentence_end_without_period, sentence_end_without_space
     use prog_mode_fm, only: prog_mode_hook, prog_mode_map
     use rect_fm, only: killed_rectangle
     use register_fm, only: register_alist, register_separator
-    use replace_fm, only: case_replace, query_replace_defaults, query_replace_show_replacement, &
-                          query_replace_skip_read_only, replace_count, replace_lax_whitespace, &
-                          replace_regexp_lax_whitespace
+    use replace_fm, only: case_replace, query_replace_defaults, query_replace_from_history_variable, &
+                          query_replace_from_to_separator, query_replace_show_replacement, &
+                          query_replace_skip_read_only, query_replace_to_history_variable, replace_count, &
+                          replace_lax_whitespace, replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
-    use search_fm, only: case_fold_search
+    use search_fm, only: case_fold_search, search_spaces_regexp
     use simple_fm, only: auto_fill_inhibit_regexp, auto_fill_mode_hook, copy_region_blink_delay, &
                          cycle_spacing_actions, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
                          inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
@@ -84,7 +88,7 @@ module docstrings_fm
                          read_quoted_char_radix, special_mode_hook, special_mode_map, suggest_key_bindings, &
                          transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
-                       history_delete_duplicates, history_length, y_or_n_p_use_read_key
+                       history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
                          multibyte_syntax_as_symbol, open_paren_in_column_0_is_defun_start, &
                          parse_sexp_ignore_comments, words_include_escapes
@@ -490,8 +494,10 @@ module docstrings_fm
                                                                    "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=44), parameter, public :: variable_names(142) = [character(len=44) :: &
+    character(len=44), parameter, public :: variable_names(155) = [character(len=44) :: &
+                                                                   "adaptive_fill_first_line_regexp", &
                                                                    "adaptive_fill_mode", &
+                                                                   "adaptive_fill_regexp", &
                                                                    "after_change_functions", &
                                                                    "after_change_major_mode_hook", &
                                                                    "amalgamating_undo_limit", &
@@ -576,6 +582,7 @@ module docstrings_fm
                                                                    "multibyte_syntax_as_symbol", &
                                                                    "next_screen_context_lines", &
                                                                    "open_paren_in_column_0_is_defun_start", &
+                                                                   "page_delimiter", &
                                                                    "paragraph_ignore_fill_prefix", &
                                                                    "paragraph_separate", &
                                                                    "paragraph_start", &
@@ -585,8 +592,11 @@ module docstrings_fm
                                                                    "prog_mode_hook", &
                                                                    "prog_mode_map", &
                                                                    "query_replace_defaults", &
+                                                                   "query_replace_from_history_variable", &
+                                                                   "query_replace_from_to_separator", &
                                                                    "query_replace_show_replacement", &
                                                                    "query_replace_skip_read_only", &
+                                                                   "query_replace_to_history_variable", &
                                                                    "read_buffer_completion_ignore_case", &
                                                                    "read_char_choice_use_read_key", &
                                                                    "read_file_name_completion_ignore_case", &
@@ -603,10 +613,14 @@ module docstrings_fm
                                                                    "search_exit_option", &
                                                                    "search_nonincremental_instead", &
                                                                    "search_ring_max", &
+                                                                   "search_spaces_regexp", &
                                                                    "search_upper_case", &
+                                                                   "search_whitespace_regexp", &
                                                                    "sentence_end", &
+                                                                   "sentence_end_base", &
                                                                    "sentence_end_double_space", &
                                                                    "sentence_end_without_period", &
+                                                                   "sentence_end_without_space", &
                                                                    "special_mode_hook", &
                                                                    "special_mode_map", &
                                                                    "split_height_threshold", &
@@ -628,11 +642,14 @@ module docstrings_fm
                                                                    "undo_in_progress", &
                                                                    "undo_no_redo", &
                                                                    "use_short_answers", &
+                                                                   "user_init_file", &
                                                                    "visible_bell", &
                                                                    "window_min_height", &
                                                                    "window_min_width", &
                                                                    "words_include_escapes", &
-                                                                   "y_or_n_p_use_read_key"]
+                                                                   "y_or_n_p_history_variable", &
+                                                                   "y_or_n_p_use_read_key", &
+                                                                   "yes_or_no_prompt"]
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -854,19 +871,28 @@ contains
         case ("beginning_of_line_text")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move to the beginning of the text on this line."//LF// &
+                        ""//LF// &
+                        "With optional argument N, move forward N-1 lines first."//LF// &
+                        ""//LF// &
+                        "From the beginning of the line, moves past the `left_margin'"//LF// &
+                        "indentation, the `fill_prefix', and any indentation used for"//LF// &
+                        "centering or right-justifying the line, but does not move past"//LF// &
+                        "any whitespace that was explicitly inserted (such as a tab used"//LF// &
+                        "to indent the first line of a paragraph)."
         case ("bobp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "bobp()"
-            entry%doc = ""
+            entry%doc = "Return true if point is at the beginning of the buffer."//LF// &
+                        "If the buffer is narrowed, this means the beginning of the narrowed part."
         case ("bolp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "bolp()"
-            entry%doc = ""
+            entry%doc = "Return true if point is at the beginning of a line."
         case ("buffer_name")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call buffer_name(h, name, status)"
-            entry%doc = ""
+            entry%doc = "Return the name of BUFFER (handle `h'), as a string."
         case ("buffer_substring")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call buffer_substring(start, end, text, status)"
@@ -1000,7 +1026,7 @@ contains
         case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
-            entry%doc = ""
+            entry%doc = "Return the current buffer as a buffer handle."
         case ("current_fill_column")
             entry%file = "fill_fm.f90"
             entry%fortran = "current_fill_column()"
@@ -1304,11 +1330,13 @@ contains
         case ("eobp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "eobp()"
-            entry%doc = ""
+            entry%doc = "Return true if point is at the end of the buffer."//LF// &
+                        "If the buffer is narrowed, this means the end of the narrowed part."
         case ("eolp")
             entry%file = "editfns_fm.f90"
             entry%fortran = "eolp()"
-            entry%doc = ""
+            entry%doc = "Return true if point is at the end of a line."//LF// &
+                        "`End of a line' includes point being at the end of the buffer."
         case ("exchange_point_and_mark")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -1417,7 +1445,23 @@ contains
         case ("fill_region_as_paragraph")
             entry%file = "fill_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Fill the region as if it were a single paragraph."//LF// &
+                        "The implementation is `fill_region_as_paragraph_default'."//LF// &
+                        ""//LF// &
+                        "The arguments FROM and TO define the boundaries of the region."//LF// &
+                        ""//LF// &
+                        "The optional third argument JUSTIFY, when called interactively with a"//LF// &
+                        "prefix arg, is assigned the value JUSTIFY_FULL."//LF// &
+                        "When called from Fortran, JUSTIFY can specify any type of justification;"//LF// &
+                        "see `default_justification' for the possible values."//LF// &
+                        "Optional fourth arg NOSQUEEZE true means not to make spaces between"//LF// &
+                        "words canonical before filling."//LF// &
+                        "Fifth arg SQUEEZE_AFTER, if present, should be a buffer position; it"//LF// &
+                        "means canonicalize spaces only starting from that position."//LF// &
+                        "See `canonically_space_region' for the meaning of canonicalization of"//LF// &
+                        "spaces."//LF// &
+                        ""//LF// &
+                        "It returns the `fill_prefix' used for filling."
         case ("fill_region_as_paragraph_default")
             entry%file = "fill_fm.f90"
             entry%fortran = "call fill_region_as_paragraph(from_in, to_in, status, justify, nosqueeze, squeeze_after, u"// &
@@ -1788,43 +1832,112 @@ contains
         case ("indent_according_to_mode")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent line in proper way for current major mode."//LF// &
+                        "Normally, this is done by calling the function specified by the"//LF// &
+                        "variable `indent_line_function'.  However, if the value of that"//LF// &
+                        "variable is present in the `indent_line_ignored_functions' variable,"//LF// &
+                        "handle it specially (since those functions are used for tabbing);"//LF// &
+                        "in that case, indent by aligning to the previous non-blank line."//LF// &
+                        ""//LF// &
+                        "Ignore restriction, unless the optional argument INHIBIT_WIDEN is"//LF// &
+                        "true."
         case ("indent_for_tab_command")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent the current line or region, or insert a tab, as appropriate."//LF// &
+                        "This function either inserts a tab, or indents the current line,"//LF// &
+                        "or performs symbol completion, depending on `tab_always_indent'."//LF// &
+                        "The function called to actually indent the line or insert a tab"//LF// &
+                        "is given by the variable `indent_line_function'."//LF// &
+                        ""//LF// &
+                        "In most major modes, if point was in the current line's"//LF// &
+                        "indentation, it is moved to the first non-whitespace character"//LF// &
+                        "after indenting; otherwise it stays at the same position relative"//LF// &
+                        "to the text."//LF// &
+                        ""//LF// &
+                        "If `transient_mark_mode' is turned on and the region is active,"//LF// &
+                        "this function instead calls `indent_region'.  In this case, any"//LF// &
+                        "prefix argument is ignored."
         case ("indent_region")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent each nonblank line in the region."//LF// &
+                        "A numeric prefix argument specifies a column: indent each line to that column."//LF// &
+                        ""//LF// &
+                        "With no prefix argument, the command chooses one of these methods and"//LF// &
+                        "indents all the lines with it:"//LF// &
+                        ""//LF// &
+                        "  1) If `fill_prefix' is allocated, insert `fill_prefix' at the"//LF// &
+                        "     beginning of each line in the region that does not already begin"//LF// &
+                        "     with it."//LF// &
+                        "  2) If `indent_region_function' is associated, call that function"//LF// &
+                        "     to indent the region."//LF// &
+                        "  3) Indent each line via `indent_according_to_mode'."//LF// &
+                        ""//LF// &
+                        "Called from a program, START and END specify the region to indent."//LF// &
+                        "If the third argument COLUMN is an integer, it specifies the"//LF// &
+                        "column to indent to; if it is absent, use one of the three methods above."
         case ("indent_relative")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Space out to under next indent point in previous nonblank line."//LF// &
+                        "An indent point is a non-whitespace character following whitespace."//LF// &
+                        "The following line shows the indentation points in this line."//LF// &
+                        "    ^         ^    ^     ^   ^           ^      ^  ^    ^"//LF// &
+                        "If FIRST_ONLY is true, then only the first indent point is"//LF// &
+                        "considered."//LF// &
+                        ""//LF// &
+                        "If the previous nonblank line has no indent points beyond the"//LF// &
+                        "column point starts at, then `tab_to_tab_stop' is done, if both"//LF// &
+                        "FIRST_ONLY and UNINDENTED_OK are false, otherwise nothing is done."//LF// &
+                        "If there isn't a previous nonblank line and UNINDENTED_OK is false,"//LF// &
+                        "call `tab_to_tab_stop'."//LF// &
+                        ""//LF// &
+                        "See also `indent_relative_first_indent_point'."
         case ("indent_relative_first_indent_point")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent the current line like the previous nonblank line."//LF// &
+                        "Indent to the first indentation position in the previous nonblank"//LF// &
+                        "line if that position is greater than the current column."//LF// &
+                        ""//LF// &
+                        "See also `indent_relative'."
         case ("indent_rigidly")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent all lines starting in the region."//LF// &
+                        "If called interactively with no prefix argument, activate a"//LF// &
+                        "transient mode in which the indentation can be adjusted interactively"//LF// &
+                        "by typing <left>, <right>, S-<left>, or S-<right>."//LF// &
+                        "In addition, TAB is also bound (and calls `indent_rigidly_right')."//LF// &
+                        ""//LF// &
+                        "Typing any other key exits this mode, and this key is then"//LF// &
+                        "acted upon as normally.  If `transient_mark_mode' is enabled,"//LF// &
+                        "exiting also deactivates the mark."//LF// &
+                        ""//LF// &
+                        "If called from a program, or interactively with prefix ARG,"//LF// &
+                        "indent all lines starting in the region forward by ARG columns."//LF// &
+                        "If called from a program, START and END specify the beginning and"//LF// &
+                        "end of the text to act on, in place of the region."//LF// &
+                        ""//LF// &
+                        "Negative values of ARG indent backward, so you can remove all"//LF// &
+                        "indentation by specifying a large negative ARG."
         case ("indent_rigidly_left")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent all lines between BEG and END leftward by one space."
         case ("indent_rigidly_left_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent all lines between BEG and END leftward to a tab stop."
         case ("indent_rigidly_right")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent all lines between BEG and END rightward by one space."
         case ("indent_rigidly_right_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Indent all lines between BEG and END rightward to a tab stop."
         case ("indent_tabs_mode")
             entry%file = "simple_modes_fm.f90"
             entry%interactive = .true.
@@ -2040,7 +2153,14 @@ contains
         case ("join_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Join this line to previous and fix up whitespace at join."//LF// &
+                        "If there is a fill prefix, delete it from the beginning of this"//LF// &
+                        "line."//LF// &
+                        "With prefix ARG, join the current line to the following line."//LF// &
+                        "When BEG and END are present, join all lines in the region they"//LF// &
+                        "define.  Interactively, BEG and END are, respectively, the start"//LF// &
+                        "and end of the region if it is active, else absent.  (The region is"//LF// &
+                        "ignored if prefix ARG is given.)"
         case ("jump_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call jump_to_register(register, status, delete)"
@@ -2581,11 +2701,16 @@ contains
         case ("move_to_left_margin")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move to the left margin of the current line."//LF// &
+                        "With optional argument, move forward N-1 lines first."//LF// &
+                        "The column moved to is the one given by the `current_left_margin' function."//LF// &
+                        "If the line's indentation appears to be wrong, and this command is called"//LF// &
+                        "interactively or with optional argument FORCE, it will be fixed."
         case ("move_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Move point to next defined tab-stop column."//LF// &
+                        "The variable `tab_stop_list' is an array of columns at which there are tab stops."
         case ("move_to_window_line")
             entry%file = "window_scroll_fm.f90"
             entry%interactive = .true.
@@ -2665,27 +2790,10 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "call normal_mode(status, find_file)"
             entry%interactive = .true.
-            entry%doc = "Save current buffer in visited file if modified."//LF// &
-                        "Variations are described below."//LF// &
+            entry%doc = "Choose the major mode for this buffer automatically."//LF// &
+                        "Uses the visited file name and the -*- line."//LF// &
                         ""//LF// &
-                        "By default, makes the previous version into a backup file"//LF// &
-                        " if previously requested or if this is the first save."//LF// &
-                        "Prefixed with one \[universal_argument], marks this version"//LF// &
-                        " to become a backup when the next save is done."//LF// &
-                        "Prefixed with two \[universal_argument]'s,"//LF// &
-                        " makes the previous version into a backup file."//LF// &
-                        "Prefixed with three \[universal_argument]'s, marks this version"//LF// &
-                        " to become a backup when the next save is done,"//LF// &
-                        " and makes the previous version into a backup file."//LF// &
-                        ""//LF// &
-                        "With a numeric prefix argument of 0, never make the previous version"//LF// &
-                        "into a backup file."//LF// &
-                        ""//LF// &
-                        "Note that `make_backup_files' and `backup_enable_predicate' still"//LF// &
-                        "control whether a backup will actually be produced, even when you"//LF// &
-                        "invoke this command prefixed with two or three \[universal_argument]'s."//LF// &
-                        ""//LF// &
-                        "If a file's name is FOO, its backup file is called FOO~."
+                        "This function is called automatically from `find_file'."
         case ("number_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call number_to_register(register, status, number)"
@@ -2764,15 +2872,19 @@ contains
         case ("point")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point()"
-            entry%doc = ""
+            entry%doc = "Return value of point, as an integer."//LF// &
+                        "Beginning of buffer is position `point_min()'."
         case ("point_max")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point_max()"
-            entry%doc = ""
+            entry%doc = "Return the maximum permissible value of point in the current buffer."//LF// &
+                        "This is `buffer_size() + 1', unless narrowing (a buffer restriction)"//LF// &
+                        "is in effect, in which case it is less."
         case ("point_min")
             entry%file = "editfns_fm.f90"
             entry%fortran = "point_min()"
-            entry%doc = ""
+            entry%doc = "Return the minimum permissible value of point in the current buffer."//LF// &
+                        "This is 1, unless narrowing (a buffer restriction) is in effect."
         case ("point_to_register")
             entry%file = "register_fm.f90"
             entry%fortran = "call point_to_register(register, status, arg)"
@@ -3431,9 +3543,27 @@ contains
             entry%file = "files_fm.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
             entry%interactive = .true.
-            entry%doc = "Save the current buffer in its visited file if modified.  `arg' is"//LF// &
-                        "the numeric prefix: 4 (C-u) backs up the previous version on the"//LF// &
-                        "next save, 16 (C-u C-u) now, 64 both; 0 never."
+            entry%doc = "Save current buffer in visited file if modified."//LF// &
+                        "Variations are described below."//LF// &
+                        ""//LF// &
+                        "By default, makes the previous version into a backup file"//LF// &
+                        " if previously requested or if this is the first save."//LF// &
+                        "Prefixed with one \[universal_argument], marks this version"//LF// &
+                        " to become a backup when the next save is done."//LF// &
+                        "Prefixed with two \[universal_argument]'s,"//LF// &
+                        " makes the previous version into a backup file."//LF// &
+                        "Prefixed with three \[universal_argument]'s, marks this version"//LF// &
+                        " to become a backup when the next save is done,"//LF// &
+                        " and makes the previous version into a backup file."//LF// &
+                        ""//LF// &
+                        "With a numeric prefix argument of 0, never make the previous version"//LF// &
+                        "into a backup file."//LF// &
+                        ""//LF// &
+                        "Note that `make_backup_files' and `backup_enable_predicate' still"//LF// &
+                        "control whether a backup will actually be produced, even when you"//LF// &
+                        "invoke this command prefixed with two or three \[universal_argument]'s."//LF// &
+                        ""//LF// &
+                        "If a file's name is FOO, its backup file is called FOO~."
         case ("save_buffers_kill_terminal")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
@@ -3882,7 +4012,9 @@ contains
         case ("tab_to_tab_stop")
             entry%file = "indent_cmds_fm.f90"
             entry%interactive = .true.
-            entry%doc = ""
+            entry%doc = "Insert spaces or tabs to next defined tab-stop column."//LF// &
+                        "The variable `tab_stop_list' is an array of columns at which there are tab stops."//LF// &
+                        "Whether this inserts tabs or spaces depends on `indent_tabs_mode'."
         case ("text_mode")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "call text_mode(status)"
@@ -4239,12 +4371,45 @@ contains
         found = .true.
         entry%original = ""
         select case (name)
+        case ("adaptive_fill_first_line_regexp")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "adaptive_fill_first_line_regexp"
+            if (allocated(adaptive_fill_first_line_regexp)) then
+                entry%value = repr(adaptive_fill_first_line_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp specifying whether to set fill prefix from a one-line paragraph."//LF// &
+                        "When a paragraph has just one line, then after `adaptive_fill_regexp'"//LF// &
+                        "finds the prefix at the beginning of the line, if it doesn't"//LF// &
+                        "match this regexp, it is replaced with whitespace."//LF// &
+                        ""//LF// &
+                        "By default, this regexp matches sequences of just spaces and tabs."//LF// &
+                        ""//LF// &
+                        "However, we never use a prefix from a one-line paragraph"//LF// &
+                        "if it would act as a paragraph-starter on the second line."
         case ("adaptive_fill_mode")
             entry%file = "fill_fm.f90"
             entry%fortran = "adaptive_fill_mode"
             entry%original = ".true."
             entry%value = repr(adaptive_fill_mode%value)
             entry%doc = "True means determine a paragraph's fill prefix from its text."
+        case ("adaptive_fill_regexp")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "adaptive_fill_regexp"
+            if (allocated(adaptive_fill_regexp)) then
+                entry%value = repr(adaptive_fill_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match text at start of line that constitutes indentation."//LF// &
+                        "If Adaptive Fill mode is enabled, a prefix matching this pattern"//LF// &
+                        "on the first and second lines of a paragraph is used as the"//LF// &
+                        "standard indentation for the whole paragraph."//LF// &
+                        ""//LF// &
+                        "If the paragraph has just one line, the indentation is taken from that"//LF// &
+                        "line, but in that case `adaptive_fill_first_line_regexp' also plays"//LF// &
+                        "a role."
         case ("after_change_functions")
             entry%file = "insdel_fm.f90"
             entry%fortran = "after_change_functions"
@@ -5012,6 +5177,15 @@ contains
             entry%original = ".true."
             entry%value = repr(open_paren_in_column_0_is_defun_start)
             entry%doc = "True means an open paren in column 0 denotes the start of a defun."
+        case ("page_delimiter")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "page_delimiter"
+            if (allocated(page_delimiter)) then
+                entry%value = repr(page_delimiter)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp describing line-beginnings that separate pages."
         case ("paragraph_ignore_fill_prefix")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "paragraph_ignore_fill_prefix"
@@ -5091,6 +5265,29 @@ contains
             entry%doc = "Default values of FROM_STRING and TO_STRING for `query_replace'."//LF// &
                         "This is an array of FROM_STRING and TO_STRING pairs, or unallocated"//LF// &
                         "if there are no default values."
+        case ("query_replace_from_history_variable")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_from_history_variable"
+            if (allocated(query_replace_from_history_variable)) then
+                entry%value = repr(query_replace_from_history_variable)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "History list to use for the FROM argument of `query_replace'"//LF// &
+                        "commands.  The value of this variable should be the name of"//LF// &
+                        "a variable that holds a history list for the strings"//LF// &
+                        "or patterns to be replaced."
+        case ("query_replace_from_to_separator")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_from_to_separator"
+            if (allocated(query_replace_from_to_separator)) then
+                entry%value = repr(query_replace_from_to_separator)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String that separates FROM and TO in the history of replacement"//LF// &
+                        "pairs.  When unallocated, the pair will not be added to the"//LF// &
+                        "history (same behavior as in Emacs 24.5)."
         case ("query_replace_show_replacement")
             entry%file = "replace_fm.f90"
             entry%fortran = "query_replace_show_replacement"
@@ -5104,6 +5301,18 @@ contains
             entry%original = ".false."
             entry%value = repr(query_replace_skip_read_only)
             entry%doc = "True means `query_replace' and friends ignore read-only matches."
+        case ("query_replace_to_history_variable")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "query_replace_to_history_variable"
+            if (allocated(query_replace_to_history_variable)) then
+                entry%value = repr(query_replace_to_history_variable)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "History list to use for the TO argument of `query_replace'"//LF// &
+                        "commands.  The value of this variable should be the name of"//LF// &
+                        "a variable that holds a history list for replacement"//LF// &
+                        "strings or patterns."
         case ("read_buffer_completion_ignore_case")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "read_buffer_completion_ignore_case"
@@ -5260,6 +5469,16 @@ contains
             entry%value = repr(search_ring_max)
             entry%doc = "Maximum length of search ring before oldest elements are thrown"//LF// &
                         "away."
+        case ("search_spaces_regexp")
+            entry%file = "search_fm.f90"
+            entry%fortran = "search_spaces_regexp"
+            if (allocated(search_spaces_regexp)) then
+                entry%value = repr(search_spaces_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, the regexp that replaces spaces in a regexp being"//LF// &
+                        "compiled; unallocated for none."
         case ("search_upper_case")
             entry%file = "isearch_fm.f90"
             entry%fortran = "search_upper_case"
@@ -5280,6 +5499,26 @@ contains
                         "apply to chars in regexps that are prefixed with `\'."//LF// &
                         "If this value is UPPER_CASE_NOT_YANKS, text yanked into the search string"//LF// &
                         "in Isearch mode is always downcased."
+        case ("search_whitespace_regexp")
+            entry%file = "isearch_fm.f90"
+            entry%fortran = "search_whitespace_regexp"
+            if (allocated(search_whitespace_regexp)) then
+                entry%value = repr(search_whitespace_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "If allocated, regular expression to match a sequence of whitespace"//LF// &
+                        "chars.  When you enter a space or spaces in the incremental search,"//LF// &
+                        "it will match any sequence matched by this regexp.  As an"//LF// &
+                        "exception, spaces are treated normally in regexp incremental search"//LF// &
+                        "if they occur in a regexp construct like [...] or *, + or ?."//LF// &
+                        ""//LF// &
+                        "If the value is a string, it applies to both ordinary and regexp"//LF// &
+                        "incremental search.  If the value is unallocated, or"//LF// &
+                        "`isearch_lax_whitespace' is false for ordinary incremental search, or"//LF// &
+                        "`isearch_regexp_lax_whitespace' is false for regexp incremental"//LF// &
+                        "search, then each space you type matches literally, against one"//LF// &
+                        "space."
         case ("sentence_end")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end"
@@ -5295,6 +5534,16 @@ contains
                         "An unallocated value means to use the default value defined"//LF// &
                         "by the function `sentence_end'.  You should always use this function"//LF// &
                         "to obtain the value of this variable."
+        case ("sentence_end_base")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end_base"
+            if (allocated(sentence_end_base)) then
+                entry%value = repr(sentence_end_base)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching the basic end of a sentence, not including"//LF// &
+                        "following space."
         case ("sentence_end_double_space")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "sentence_end_double_space"
@@ -5313,6 +5562,19 @@ contains
             entry%doc = "True means a sentence will end without a period."//LF// &
                         "For example, a sentence in Thai text ends with double space but"//LF// &
                         "without a period."//LF// &
+                        ""//LF// &
+                        "This value is used by the function `sentence_end' to construct the"//LF// &
+                        "regexp describing the end of a sentence, when the value of the"//LF// &
+                        "variable `sentence_end' is unallocated."
+        case ("sentence_end_without_space")
+            entry%file = "paragraphs_fm.f90"
+            entry%fortran = "sentence_end_without_space"
+            if (allocated(sentence_end_without_space)) then
+                entry%value = repr(sentence_end_without_space)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String of characters that end sentence without following spaces."//LF// &
                         ""//LF// &
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
@@ -5493,6 +5755,17 @@ contains
                         "This means the user will be able to press just one key to answer, whereas"//LF// &
                         "by default the user needs to type the full ""yes"" or ""no"" response"//LF// &
                         "and then press RET."
+        case ("user_init_file")
+            entry%file = "lread_fm.f90"
+            entry%fortran = "user_init_file"
+            if (allocated(user_init_file)) then
+                entry%value = repr(user_init_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "File name, including directory, of user's initialization file."//LF// &
+                        "While the init file's `configure' runs, value is the real name"//LF// &
+                        "of the file."
         case ("visible_bell")
             entry%file = "term_fm.f90"
             entry%fortran = "visible_bell"
@@ -5525,6 +5798,16 @@ contains
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
             entry%doc = "True means `forward_word', etc., should treat escape chars part of words."
+        case ("y_or_n_p_history_variable")
+            entry%file = "subr_fm.f90"
+            entry%fortran = "y_or_n_p_history_variable"
+            if (allocated(y_or_n_p_history_variable)) then
+                entry%value = repr(y_or_n_p_history_variable)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Name of the history list to add `y_or_n_p' answers to (unallocated for"//LF// &
+                        "no history)."
         case ("y_or_n_p_use_read_key")
             entry%file = "subr_fm.f90"
             entry%fortran = "y_or_n_p_use_read_key"
@@ -5539,6 +5822,16 @@ contains
                         "to the minibuffer before entering the character.  This is not"//LF// &
                         "possible when using `read_key', but using `read_key' may be less"//LF// &
                         "confusing to some users."
+        case ("yes_or_no_prompt")
+            entry%file = "fns_fm.f90"
+            entry%fortran = "yes_or_no_prompt"
+            if (allocated(yes_or_no_prompt)) then
+                entry%value = repr(yes_or_no_prompt)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String to append when `yes_or_no_p' asks a question."//LF// &
+                        "For best results this should end in a space."
         case default
             found = .false.
         end select

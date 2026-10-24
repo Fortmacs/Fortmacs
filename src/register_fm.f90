@@ -60,7 +60,7 @@ module register_fm
     use data_fm, only: value_eq, kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
     use keymap_fm, only: single_key_description
-    use print_fm, only: prin1_string, marker_repr
+    use print_fm, only: fortran_string, marker_repr
     use buffer_fm, only: buffers, cur, current_buffer, buffer_live_p, get_file_buffer, get_buffer_create, &
                          set_buffer, set_buffer_read_only, erase_buffer, kill_buffer, barf_if_buffer_read_only, &
                          vdeactivate_mark, get_buffer
@@ -410,11 +410,11 @@ contains
         case (REGISTER_WINDOW_CONFIGURATION)
             s = "a window configuration: "//configuration_buffers(val%configuration)//"."
         case (REGISTER_FILE)
-            s = "the file "//prin1_string(val%text)//"."
+            s = "the file "//fortran_string(val%text)//"."
         case (REGISTER_BUFFER)
             s = "the buffer "//buffer_repr(val%buffer)//"."
         case (REGISTER_FILE_QUERY)
-            s = "a file-query reference:"//char(10)//"    file "//prin1_string(val%text)//","//char(10)// &
+            s = "a file-query reference:"//char(10)//"    file "//fortran_string(val%text)//","//char(10)// &
                 "    position "//int_text(val%number)//"."
         case (REGISTER_RECTANGLE)
             if (verbose) then
@@ -430,7 +430,7 @@ contains
         case default
             ! The default method (nil).
             s = "Garbage:"//char(10)
-            if (verbose) s = s//"nil"
+            if (verbose) s = s//".false."
         end select
     end function register_val_describe
 
@@ -1105,7 +1105,7 @@ contains
         case (REGISTER_MARKER)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "sequencep, "//marker_repr(sep%marker))
         case (REGISTER_RECTANGLE)
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//prin1_string(sep%rectangle(1)%text))
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, "//fortran_string(sep%rectangle(1)%text))
         case (REGISTER_FILE)
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "characterp, file")
         case (REGISTER_FILE_QUERY)
@@ -1282,7 +1282,7 @@ contains
         if (buffer_live_p(buffer)) then
             name = buffers(buffer%index)%name
         else
-            name = "nil"
+            name = ".false."
         end if
         call register_read_with_preview(format_message("Store reference to buffer `")//name// &
                                         format_message("' in register: "), register, status)

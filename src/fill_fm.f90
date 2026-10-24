@@ -1625,6 +1625,26 @@ contains
         call fill_region(b, e, status, prefix_justify())
     end subroutine cmd_fill_region
 
+    !> Fill the region as if it were a single paragraph.
+    !> The implementation is `fill_region_as_paragraph_default'.
+    !>
+    !> The arguments FROM and TO define the boundaries of the region.
+    !>
+    !> The optional third argument JUSTIFY, when called interactively with a
+    !> prefix arg, is assigned the value JUSTIFY_FULL.
+    !> When called from Fortran, JUSTIFY can specify any type of justification;
+    !> see `default_justification' for the possible values.
+    !> Optional fourth arg NOSQUEEZE true means not to make spaces between
+    !> words canonical before filling.
+    !> Fifth arg SQUEEZE_AFTER, if present, should be a buffer position; it
+    !> means canonicalize spaces only starting from that position.
+    !> See `canonically_space_region' for the meaning of canonicalization of
+    !> spaces.
+    !>
+    !> It returns the `fill_prefix' used for filling.  Port of
+    !> fill.el:fill-region-as-paragraph (the command;
+    !> `fill_region_as_paragraph_function' is not ported, so it is always
+    !> `fill_region_as_paragraph_default').
     recursive subroutine cmd_fill_region_as_paragraph(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e

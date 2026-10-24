@@ -110,7 +110,7 @@ module paragraphs_fm
     !>
     !> This value is used by the function `sentence_end' to construct the
     !> regexp describing the end of a sentence, when the value of the
-    !> variable `sentence_end' is nil.  Port of paragraphs.el
+    !> variable `sentence_end' is unallocated.  Port of paragraphs.el
     !> sentence-end-without-space.
     character(len=:), allocatable, public :: sentence_end_without_space
 

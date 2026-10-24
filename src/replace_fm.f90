@@ -131,15 +131,15 @@ module replace_fm
     character(len=:), allocatable, public :: query_replace_from_to_separator
 
     !> History list to use for the FROM argument of `query_replace'
-    !> commands.  The value of this variable should be a symbol; that
-    !> symbol is used as a variable to hold a history list for the strings
+    !> commands.  The value of this variable should be the name of
+    !> a variable that holds a history list for the strings
     !> or patterns to be replaced.  Port of replace.el
     !> query-replace-from-history-variable.
     character(len=:), allocatable, public :: query_replace_from_history_variable
 
     !> History list to use for the TO argument of `query_replace'
-    !> commands.  The value of this variable should be a symbol; that
-    !> symbol is used as a variable to hold a history list for replacement
+    !> commands.  The value of this variable should be the name of
+    !> a variable that holds a history list for replacement
     !> strings or patterns.  Port of replace.el
     !> query-replace-to-history-variable.
     character(len=:), allocatable, public :: query_replace_to_history_variable

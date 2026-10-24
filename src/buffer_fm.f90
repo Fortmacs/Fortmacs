@@ -312,7 +312,8 @@ contains
         buffer_live_p = table%is_live(h)
     end function buffer_live_p
 
-    !> Port of buffer.c:Fcurrent_buffer.  Null before any buffer exists.
+    !> Return the current buffer as a buffer handle.  Port of
+    !> buffer.c:Fcurrent_buffer (null before any buffer exists).
     function current_buffer() result(h)
         type(handle_type) :: h
         integer(int64) :: k
@@ -481,7 +482,9 @@ contains
         end function same
     end function generate_new_buffer_name
 
-    !> Port of buffer.c:Fbuffer_name.
+    !> Return the name of BUFFER (handle `h'), as a string.  Port of
+    !> buffer.c:Fbuffer_name (a killed buffer is an error, where upstream
+    !> returns nil).
     subroutine buffer_name(h, name, status)
         type(handle_type), intent(in) :: h
         character(len=:), allocatable, intent(out) :: name
