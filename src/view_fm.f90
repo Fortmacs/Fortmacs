@@ -67,7 +67,7 @@ module view_fm
     use minibuf_fm, only: read_string
     use minibuffer_fm, only: read_file_name, read_buffer, REQUIRE_MATCH_T
     use help_fm, only: substitute_command_keys, register_keymap_name
-    use print_fm, only: prin1_to_string
+    use print_fm, only: fortran_string
     use derived_fm, only: major_mode_type, major_mode_named
     use modes_fm, only: minor_modes
     implicit none(type, external)
@@ -266,6 +266,9 @@ contains
         if (associated(p)) special_major_mode = p%special
     end function special_major_mode
 
+    !> View FILE in View mode, returning to previous buffer when done.
+    !> The buffer is killed when done unless it was visited before (or is
+    !> modified).  Port of view.el:view-file.
     recursive subroutine view_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -305,6 +308,10 @@ contains
         call view_file(file, status)
     end subroutine cmd_view_file
 
+    !> View FILE in View mode in another window.
+    !> When done, return that window to its previous buffer, and kill the
+    !> buffer visiting FILE if unmodified and if it wasn't visited before.
+    !> Port of view.el:view-file-other-window.
     recursive subroutine view_file_other_window(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
@@ -351,6 +358,10 @@ contains
         call view_file_other_window(file, status)
     end subroutine cmd_view_file_other_window
 
+    !> View BUFFER in View mode, returning to previous buffer when done.
+    !> EXIT_ACTION, if present, is called with the buffer when finished
+    !> viewing it.  This function does not enable View mode if the buffer's
+    !> major mode has a `special' mode-class.  Port of view.el:view-buffer.
     recursive subroutine view_buffer(buffer, status, exit_action)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -415,6 +426,9 @@ contains
         end do
     end function buffer_by_name
 
+    !> View BUFFER in View mode in another window.  EXIT_ACTION, if
+    !> present, is called with the buffer when finished viewing it.  Port
+    !> of view.el:view-buffer-other-window (NOT-RETURN is ignored upstream).
     recursive subroutine view_buffer_other_window(buffer, status, exit_action)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
@@ -532,14 +546,14 @@ contains
     !> \[view_leave]	quit View mode and maybe switch buffers, but don't kill this buffer.
     !> \[view_kill_and_leave]	quit View mode, kill current buffer and go back to other buffer.
     !>
-    !> The effect of \[view_leave], \[view_quit] and \[view_kill_and_leave] depends on how view-mode was entered.  If it was
+    !> The effect of \[view_leave], \[view_quit] and \[view_kill_and_leave] depends on how view_mode was entered.  If it was
     !> entered by view_file, view_file_other_window, or the Dired mode v command,
     !> then \[view_quit] will try to kill the current buffer.
-    !> If view-mode was entered from another buffer, by \[view_buffer],
+    !> If view_mode was entered from another buffer, by \[view_buffer],
     !> \[view_buffer_other_window], \[view_file], or \[view_file_other_window],
     !> then \[view_leave], \[view_quit] and \[view_kill_and_leave] will return to that buffer.
     !>
-    !> Entry to view-mode runs the normal hook `view_mode_hook'.  Port of
+    !> Entry to view_mode runs the normal hook `view_mode_hook'.  Port of
     !> view.el:view-mode.
     recursive subroutine view_mode(status)
         type(status_type), intent(out) :: status
@@ -1243,7 +1257,7 @@ contains
                     first = .true.
                 else
                     if (len(regexp) < 2) then
-                        call set_error(status, FM_ARGS_OUT_OF_RANGE, prin1_to_string(make_string(regexp))//", 0, 2")
+                        call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(regexp)//", 0, 2")
                         return
                     end if
                     if (regexp(1:2) == "!@" .or. regexp(1:2) == "@!") then

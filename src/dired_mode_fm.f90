@@ -28,20 +28,18 @@
 !> `insert_directory' (files.el), which runs `insert_directory_program'
 !> with `dired_listing_switches' and "--dired" so the file names are
 !> known exactly.  Named `dired_mode_fm' because dired.c is `dired_fm'.
-!> The commands of dired-aux.el that Dired needs are in the submodule
-!> dired_aux_fm.
+!> dired-aux.el (the operations on marked files) is in the submodule
+!> dired_aux_fm; its options are declared here.
 !>
 !> Deferred: a list of files as the directory argument (a cons
 !> `dired_directory'), inserted subdirectories (`i', `dired_insert_subdir',
 !> `$' hiding, `dired_switches_alist', `dired_subdir_switches'),
 !> `dired_hide_details_mode' and its options (the `invisible' properties
-!> are set, but redisplay shows invisible text), `dired_view_file' (`v':
-!> needs view-mode), `dired_find_alternate_file' (`a') and
-!> `dired_kill_when_opening_new_dired_buffer', the file operations of
-!> dired-aux.el (`C', `R', `H', `S', `Y', `M', `G', `O', `T', `Z', `c',
-!> `P', `!', `&', `X', `=', `A', `Q', `k', `y', `w' with a prefix of 1
-!> (project.el), `% u', `% l', `% r'...), the query of
-!> `dired_unmark_all_files' with a prefix argument (`dired_query'),
+!> are set, but redisplay shows invisible text), `dired_find_alternate_file'
+!> (`a') and `dired_kill_when_opening_new_dired_buffer', the dired-aux.el
+!> commands listed as deferred in dired_aux_fm (`P', `!', `&', `X', `E',
+!> `=', `A', `Q', `.'), `dired_toggle_read_only' (wdired; C-x C-q runs
+!> `read_only_mode'), `w' with a prefix of 1 (project.el),
 !> `dired_auto_revert_buffer' as a function, `dired_movement_style' t,
 !> mouse, drag-and-drop and click-to-select, `dired_make_directory_clickable'
 !> (keymaps in text properties), the warning about file names with
@@ -5286,11 +5284,15 @@ contains
     !> Remove a specific mark (or any mark) from every file.
     !> After this command, type the mark character to remove,
     !> or type RET to remove all marks.  Port of
-    !> dired.el:dired-unmark-all-files (ARG, querying each file, is
-    !> deferred).
-    recursive subroutine dired_unmark_all_files(mark, status)
+    !> With ARG true, query for each marked file.  Port of
+    !> dired.el:dired-unmark-all-files.
+    recursive subroutine dired_unmark_all_files(mark, status, arg)
         character, intent(in) :: mark
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: arg
+        character(len=:), allocatable :: file, help
+        integer :: query
+        logical :: ask, answer, file_found
         type(value_type) :: saved_ro
         type(status_type) :: st
         integer(int64) :: opoint, count, found_pos
@@ -5298,6 +5300,11 @@ contains
         status = status_type()
         opoint = point()
         count = 0
+        ask = .false.
+        if (present(arg)) ask = arg
+        query = 0
+        help = substitute_command_keys("Type \`SPC' or \`y' to unmark one file, \`DEL' or \`n' to skip to next,"//LF// &
+                                       "\`!' to unmark all remaining files with no more questions.")
         call inhibit_read_only_begin(saved_ro)
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
@@ -5310,6 +5317,17 @@ contains
                 found = found_pos > 0
             end if
             if (.not. found) exit
+            if (ask) then
+                found_pos = point()
+                call dired_get_filename(file, file_found, st, DIRED_LOCALP_T, .true.)
+                call goto_char(found_pos)
+                if (.not. (st%ok() .and. file_found)) cycle
+                call dired_query(query, format_message("Unmark file `")//file//format_message("'? "), answer, status, &
+                                 help_form=help)
+                call goto_char(found_pos)
+                if (.not. status%ok()) exit
+                if (.not. answer) cycle
+            end if
             call subst_char_in_region(point() - 1, point(), iachar(char_before_point()), iachar(" "), status)
             count = count + 1
         end do
@@ -5328,22 +5346,17 @@ contains
     !> or type RET to remove all marks.
     !> With prefix arg, query for each marked file.
     !> Type \[help_command] at that time for help.  Port of
-    !> dired.el:dired-unmark-all-files (interactive; the query is
-    !> deferred).
+    !> dired.el:dired-unmark-all-files (interactive).
     recursive subroutine cmd_dired_unmark_all_files(status)
         type(status_type), intent(out) :: status
         integer(int64) :: mark
         call read_char("Remove marks (RET means all): ", mark, status)
         if (.not. status%ok()) return
-        if (.not. nilp(current_prefix_arg)) then
-            call set_error(status, FM_GENERIC_ERROR, "Querying each marked file (dired_query) is not supported yet")
-            return
-        end if
         if (mark > 127) then
             call set_error(status, FM_GENERIC_ERROR, "Non-ASCII mark character")
             return
         end if
-        call dired_unmark_all_files(achar(mark), status)
+        call dired_unmark_all_files(achar(mark), status, .not. nilp(current_prefix_arg))
     end subroutine cmd_dired_unmark_all_files
 
     !> Remove all marks from all files in the Dired buffer.  Port of

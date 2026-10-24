@@ -35,7 +35,8 @@
 !>
 !> Deferred: shell commands (`!', `&', `X', `dired_do_shell_command',
 !> `dired_do_async_shell_command', the guessing of commands,
-!> `dired_do_open' and `E': processes), printing (`P'), diffs (`=',
+!> `dired_do_open' and `E': the guessing of commands needs mailcap.el and
+!> xdg.el, asynchronous shell commands are not ported), printing (`P'), diffs (`=',
 !> `dired_backup_diff', `dired_compare_directories': diff.el), searching
 !> and replacing in marked files (`A', `Q', `dired_do_search',
 !> `dired_do_query_replace_regexp', `dired_do_isearch': xref and
@@ -67,6 +68,7 @@ submodule(dired_mode_fm) dired_aux_fm
     use window_fm, only: pop_to_buffer, same_handle
     use view_fm, only: view_file
     use keyboard_fm, only: sit_for
+    use print_fm, only: fortran_repr
     implicit none(type, external)
 
     !> File names `dired_create_files' records as failing (and
@@ -888,7 +890,7 @@ contains
         if (failed) then
             call buffer_substring(point_min(), point_max(), output, st)
             call set_buffer(old, st)
-            call dired_log(program//" "//prin1_to_string(arglist)//LF)
+            call dired_log(program//" "//fortran_repr(arglist)//LF)
             call dired_log(output)
         else
             call set_buffer(old, st)
@@ -2221,7 +2223,7 @@ contains
         call goto_char(aux_mpos(locals(k)%subdir_alist(i)%marker))
         ! Update subdir headerline in buffer
         if (.not. looking_at("^. \(.+\)\(:\)"//LF, st)) then
-            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired-subdir-alist broken?")
+            call set_error(status, FM_GENERIC_ERROR, dir//" not found where expected - dired_subdir_alist broken?")
         else
             b1 = match_beginning(1, st)
             e1 = match_end(1, st)
