@@ -23,9 +23,10 @@
 !> The column of point and moving to a column, counted as the text is
 !> displayed (tabs to the next tab stop, control characters as ^X, raw
 !> bytes as \ooo, wide characters as two columns); and moving by screen
-!> lines, the way the selected window shows continued lines.
+!> lines, the way the selected window shows continued lines.  Columns
+!> skip invisible text and count display strings and spaces.
 !>
-!> Not yet: invisible text, display properties, selective display,
+!> Not yet: images in columns, selective display,
 !> horizontal scrolling of ordinary windows, and truncated lines.
 module indent_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64

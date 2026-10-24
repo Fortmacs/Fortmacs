@@ -23,8 +23,9 @@
 !>
 !> Functions that return nil upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
-!> checked, change hooks run) as upstream.  Not yet: properties on
-!> strings, overlays (get-char-property = get-text-property), undo
+!> checked, change hooks run) as upstream.  `get_char_property' and the
+!> char-property-change functions look at overlays too.  Not yet:
+!> properties on strings, undo
 !> records, modification hooks (the `modification_hooks'
 !> property and friends), LIMIT t in next-property-change,
 !> add-face-text-property, stickiness for insert-and-inherit, and

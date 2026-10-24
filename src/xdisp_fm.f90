@@ -31,6 +31,12 @@
 !> row; a TAB, ^X or \ooo is split between the rows).  Recentering puts
 !> point's screen line half the window's height from the top.
 !>
+!> Display properties: overlay before- and after-strings, invisible text
+!> (skipped, or shown as an ellipsis, as `buffer_invisibility_spec'
+!> says), and text replaced by a `display' string or `(space ...)' spec
+!> (handle_stop); the strings and spaces are in the face of the text
+!> where they are shown.
+!>
 !> Faces (xfaces_fm): text in the face of its `face' property, an active
 !> region in the region face (extended to the end of a line where the
 !> face has `extend'), ^X and \ooo in escape_glyph, non-ASCII spaces and
@@ -43,8 +49,10 @@
 !> expanded by fixed code (no mode-line-format interpretation; coding
 !> systems shown as UUU:, no base-line cache for %l), character widths
 !> follow a built-in table of wide ranges (no char-width-table), there
-!> are no overlays, display or invisible properties, display tables,
-!> faces in echo-area messages, bidi or truncate-lines
+!> are no display tables, display specs other than strings and spaces
+!> (images, margins, `raise', `height' and the like), text properties
+!> in overlay and display strings, faces in echo-area messages, bidi or
+!> truncate-lines
 !> (truncate-partial-width-windows is Deferred: narrow side-by-side
 !> windows continue lines instead of truncating them, as that needs
 !> auto-hscroll of windows; only the minibuffer line scrolls

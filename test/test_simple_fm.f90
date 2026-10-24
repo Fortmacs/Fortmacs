@@ -110,7 +110,8 @@ contains
                     new_unittest("yank-pop-read-only", test_yank_pop_read_only), &
                     new_unittest("end-of-buffer-recenters", test_end_of_buffer), &
                     new_unittest("kill-ring-save-indicates", test_indicate_copied_region), &
-                    new_unittest("special-mode-suppresses-self-insert", test_special_mode_suppress) &
+                    new_unittest("special-mode-suppresses-self-insert", test_special_mode_suppress), &
+                    new_unittest("line-motion-invisible", test_line_motion_invisible) &
                     ]
     end subroutine collect_simple_fm
 
@@ -1252,4 +1253,53 @@ contains
         call fundamental_mode(st)
         call kill_buffer(h, st)
     end subroutine test_special_mode_suppress
+    !> Line motion over invisible text, as in GNU Emacs: C-n by buffer
+    !> lines skips an invisible line; C-e and C-a treat an invisible
+    !> newline as absent.
+    subroutine test_line_motion_invisible(error)
+        use textprop_fm, only: put_text_property
+        use lisp_fm, only: t_value
+        use simple_fm, only: line_move_visual
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call init_bindings()
+        call discard_input()
+        call get_buffer_create("*line-motion-invisible*", h, st)
+        call set_buffer(h, st)
+        call show_alone()
+        call insert("one"//achar(10)//"two"//achar(10)//"three", st)
+        call put_text_property(5_int64, 9_int64, sym("invisible"), t_value(), st)
+        line_move_visual = .false.
+        call check(error, after_keys(2_int64, "C-n") == 10, "C-n by buffer lines")
+        if (allocated(error)) return
+        call check(error, after_keys(2_int64, "C-n C-p") == 2, "C-p back")
+        line_move_visual = .true.
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("ab"//achar(10)//"cd"//achar(10)//"ef", st)
+        call put_text_property(3_int64, 4_int64, sym("invisible"), t_value(), st)
+        call check(error, after_keys(1_int64, "C-e") == 6, "C-e")
+        if (allocated(error)) return
+        call check(error, after_keys(1_int64, "C-e C-a") == 1, "C-a")
+        if (allocated(error)) return
+        call check(error, after_keys(1_int64, "C-n") == 7, "C-n")
+        call kill_buffer(h, st)
+        call get_buffer_create("*scratch*", h, st)
+        call set_buffer(h, st)
+        call show_alone()
+    contains
+
+        integer(int64) function after_keys(from, keys) result(pos)
+            integer(int64), intent(in) :: from
+            character(len=*), intent(in) :: keys
+            type(value_type), allocatable :: evs(:)
+            type(status_type) :: st2
+            call goto_char(from)
+            call key_parse(keys, evs, st2)
+            call unread_command_events(evs)
+            call command_loop(st2)
+            pos = point()
+        end function after_keys
+    end subroutine test_line_motion_invisible
 end module test_simple_fm

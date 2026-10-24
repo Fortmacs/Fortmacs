@@ -22,6 +22,7 @@
 
 module test_bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
+    use test_support, only: show_alone
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, FM_QUIT
     use handle_fm, only: handle_type
@@ -72,6 +73,8 @@ contains
         call init_bindings()
         call get_buffer_create(name, buf, st)
         call set_buffer(buf, st)
+        ! The command loop works in the selected window's buffer.
+        call show_alone()
         call kbd_store_bytes(bytes)
         call command_loop(st)
     end subroutine type_into

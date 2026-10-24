@@ -33,13 +33,16 @@
 !> No garbage collector frees overlays: `free_overlay' deletes an overlay
 !> and releases its handle.
 !>
+!> Redisplay (xdisp_fm) also shows their `invisible', `display',
+!> `before_string' and `after_string' properties, and textprop_fm's
+!> `get_char_property' family looks at them.
+!>
 !> Deferred: indirect buffers, overlay modification hooks
 !> (`modification_hooks', `insert_in_front_hooks', `insert_behind_hooks'),
-!> the display-related properties redisplay would use (`invisible',
-!> `display', `before_string', `after_string', `window', `mouse_face',
-!> `intangible'), priorities given as (PRIMARY . SECONDARY) pairs (no
-!> dotted pairs), `overlay_lists', `overlay_recenter', `remove_overlays'
-!> (subr.el), `copy_overlay' and the `get_char_property' family.
+!> the `window', `mouse_face' and `intangible' properties, priorities
+!> given as (PRIMARY . SECONDARY) pairs (no dotted pairs),
+!> `overlay_lists', `overlay_recenter', `remove_overlays' (subr.el) and
+!> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT

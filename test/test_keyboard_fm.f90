@@ -197,6 +197,7 @@ contains
         if (allocated(error)) return
         call check(error, point_after(7_int64, "C-b C-b") == 5, "ellipsis C-b C-b")
         call kill_buffer(h, st)
+        call show_scratch()
     end subroutine test_adjust_invisible
 
     !> Point leaves text a display string replaces (3 to 5).
@@ -216,7 +217,19 @@ contains
         if (allocated(error)) return
         call check(error, point_after(7_int64, "C-b C-b C-b") == 3, "back over it")
         call kill_buffer(h, st)
+        call show_scratch()
     end subroutine test_adjust_display
+
+    !> Leave *scratch* current and shown alone, for the suites that follow.
+    subroutine show_scratch()
+        use buffer_fm, only: get_buffer_create, set_buffer
+        use test_support, only: show_alone
+        type(handle_type) :: h
+        type(status_type) :: st
+        call get_buffer_create("*scratch*", h, st)
+        call set_buffer(h, st)
+        call show_alone()
+    end subroutine show_scratch
 
     subroutine fresh_global(km)
         type(handle_type), intent(out) :: km
