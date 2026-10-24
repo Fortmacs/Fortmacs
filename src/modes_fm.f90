@@ -37,6 +37,7 @@ module modes_fm
         type(major_mode_type) :: apropos_mode
         type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode
+        type(major_mode_type) :: diff_mode
         type(major_mode_type) :: dired_mode
         type(major_mode_type) :: edit_abbrevs_mode
         type(major_mode_type) :: fundamental_mode

@@ -564,10 +564,12 @@ module window_fm
         !> Buffers not visible in windows are preferred to visible buffers.
         !> Ignore internal buffers (names starting with a space).  If no
         !> other buffer exists, return the buffer `*scratch*' (creating it
-        !> if necessary).  Port of buffer.c:Fother_buffer (VISIBLE-OK nil).
-        module function other_buffer(buffer) result(h)
+        !> if necessary).  If VISIBLE_OK is true, visible buffers are not
+        !> passed over.  Port of buffer.c:Fother_buffer.
+        module function other_buffer(buffer, visible_ok) result(h)
             implicit none(type, external)
             type(handle_type), intent(in) :: buffer
+            logical, intent(in), optional :: visible_ok
             type(handle_type) :: h
         end function other_buffer
 

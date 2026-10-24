@@ -158,13 +158,36 @@ module commands_fm
         type(command_type) :: describe_mode
         type(command_type) :: describe_symbol
         type(command_type) :: describe_variable
+        type(command_type) :: diff
+        type(command_type) :: diff_apply_buffer
+        type(command_type) :: diff_apply_hunk
+        type(command_type) :: diff_backup
+        type(command_type) :: diff_buffer_with_file
+        type(command_type) :: diff_buffers
+        type(command_type) :: diff_delete_other_hunks
+        type(command_type) :: diff_file_kill
+        type(command_type) :: diff_file_next
+        type(command_type) :: diff_file_prev
+        type(command_type) :: diff_fixup_modifs
+        type(command_type) :: diff_goto_source
+        type(command_type) :: diff_hunk_kill
+        type(command_type) :: diff_hunk_next
+        type(command_type) :: diff_hunk_prev
+        type(command_type) :: diff_kill_junk
+        type(command_type) :: diff_mode
+        type(command_type) :: diff_restrict_view
+        type(command_type) :: diff_revert_and_kill_hunk
+        type(command_type) :: diff_split_hunk
+        type(command_type) :: diff_test_hunk
         type(command_type) :: digit_argument
         type(command_type) :: dired
+        type(command_type) :: dired_backup_diff
         type(command_type) :: dired_build_subdir_alist
         type(command_type) :: dired_change_marks
         type(command_type) :: dired_copy_filename_as_kill
         type(command_type) :: dired_create_directory
         type(command_type) :: dired_create_empty_file
+        type(command_type) :: dired_diff
         type(command_type) :: dired_display_file
         type(command_type) :: dired_do_chgrp
         type(command_type) :: dired_do_chmod
@@ -552,7 +575,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(514) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(537) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -679,13 +702,36 @@ module commands_fm
                                                                  "describe_mode", &
                                                                  "describe_symbol", &
                                                                  "describe_variable", &
+                                                                 "diff", &
+                                                                 "diff_apply_buffer", &
+                                                                 "diff_apply_hunk", &
+                                                                 "diff_backup", &
+                                                                 "diff_buffer_with_file", &
+                                                                 "diff_buffers", &
+                                                                 "diff_delete_other_hunks", &
+                                                                 "diff_file_kill", &
+                                                                 "diff_file_next", &
+                                                                 "diff_file_prev", &
+                                                                 "diff_fixup_modifs", &
+                                                                 "diff_goto_source", &
+                                                                 "diff_hunk_kill", &
+                                                                 "diff_hunk_next", &
+                                                                 "diff_hunk_prev", &
+                                                                 "diff_kill_junk", &
+                                                                 "diff_mode", &
+                                                                 "diff_restrict_view", &
+                                                                 "diff_revert_and_kill_hunk", &
+                                                                 "diff_split_hunk", &
+                                                                 "diff_test_hunk", &
                                                                  "digit_argument", &
                                                                  "dired", &
+                                                                 "dired_backup_diff", &
                                                                  "dired_build_subdir_alist", &
                                                                  "dired_change_marks", &
                                                                  "dired_copy_filename_as_kill", &
                                                                  "dired_create_directory", &
                                                                  "dired_create_empty_file", &
+                                                                 "dired_diff", &
                                                                  "dired_display_file", &
                                                                  "dired_do_chgrp", &
                                                                  "dired_do_chmod", &
@@ -1329,10 +1375,54 @@ contains
             p => commands%describe_symbol
         case ("describe_variable")
             p => commands%describe_variable
+        case ("diff")
+            p => commands%diff
+        case ("diff_apply_buffer")
+            p => commands%diff_apply_buffer
+        case ("diff_apply_hunk")
+            p => commands%diff_apply_hunk
+        case ("diff_backup")
+            p => commands%diff_backup
+        case ("diff_buffer_with_file")
+            p => commands%diff_buffer_with_file
+        case ("diff_buffers")
+            p => commands%diff_buffers
+        case ("diff_delete_other_hunks")
+            p => commands%diff_delete_other_hunks
+        case ("diff_file_kill")
+            p => commands%diff_file_kill
+        case ("diff_file_next")
+            p => commands%diff_file_next
+        case ("diff_file_prev")
+            p => commands%diff_file_prev
+        case ("diff_fixup_modifs")
+            p => commands%diff_fixup_modifs
+        case ("diff_goto_source")
+            p => commands%diff_goto_source
+        case ("diff_hunk_kill")
+            p => commands%diff_hunk_kill
+        case ("diff_hunk_next")
+            p => commands%diff_hunk_next
+        case ("diff_hunk_prev")
+            p => commands%diff_hunk_prev
+        case ("diff_kill_junk")
+            p => commands%diff_kill_junk
+        case ("diff_mode")
+            p => commands%diff_mode
+        case ("diff_restrict_view")
+            p => commands%diff_restrict_view
+        case ("diff_revert_and_kill_hunk")
+            p => commands%diff_revert_and_kill_hunk
+        case ("diff_split_hunk")
+            p => commands%diff_split_hunk
+        case ("diff_test_hunk")
+            p => commands%diff_test_hunk
         case ("digit_argument")
             p => commands%digit_argument
         case ("dired")
             p => commands%dired
+        case ("dired_backup_diff")
+            p => commands%dired_backup_diff
         case ("dired_build_subdir_alist")
             p => commands%dired_build_subdir_alist
         case ("dired_change_marks")
@@ -1343,6 +1433,8 @@ contains
             p => commands%dired_create_directory
         case ("dired_create_empty_file")
             p => commands%dired_create_empty_file
+        case ("dired_diff")
+            p => commands%dired_diff
         case ("dired_display_file")
             p => commands%dired_display_file
         case ("dired_do_chgrp")

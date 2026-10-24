@@ -67,7 +67,7 @@ module files_fm
     implicit none(type, external)
     private
 
-    public :: syms_of_files
+    public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file
     public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
@@ -365,6 +365,36 @@ module files_fm
             character(len=:), allocatable, intent(out) :: truename
             type(status_type), intent(out) :: status
         end subroutine file_truename
+
+        !> A new empty file in `temporary_file_directory' whose name starts
+        !> with PREFIX.  Port of files.el:make-temp-file (no DIR-FLAG,
+        !> SUFFIX or TEXT).  (In files_dir_fm.)
+        module subroutine make_temp_file(prefix, file, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: prefix
+            character(len=:), allocatable, intent(out) :: file
+            type(status_type), intent(out) :: status
+        end subroutine make_temp_file
+
+        !> Return a list of backup files for FILENAME.
+        !> The list will be sorted by modification time so that the most
+        !> recent files are first.  Port of files.el:file-backup-file-names.
+        !> (In files_dir_fm.)
+        module subroutine file_backup_file_names(filename, names)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            type(value_type), intent(out) :: names
+        end subroutine file_backup_file_names
+
+        !> Return most recent backup file for FILENAME (FOUND false if no
+        !> backups exist).  Port of files.el:file-newest-backup.  (In
+        !> files_dir_fm.)
+        module subroutine file_newest_backup(filename, backup, found)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename
+            character(len=:), allocatable, intent(out) :: backup
+            logical, intent(out) :: found
+        end subroutine file_newest_backup
 
         !> Delete file named FILENAME.  If it is a symlink, remove the symlink.
         !> If file has multiple names, it continues to exist with the other names.

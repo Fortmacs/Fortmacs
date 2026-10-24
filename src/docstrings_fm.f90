@@ -84,6 +84,12 @@ module docstrings_fm
                           dabbrev_eliminate_newlines, dabbrev_ignored_buffer_modes, dabbrev_ignored_buffer_names, &
                           dabbrev_ignored_buffer_regexps, dabbrev_limit, dabbrev_search_these_buffers_only, &
                           dabbrev_upcase_means_case_search
+    use diff_fm, only: diff_command, diff_entire_buffers, diff_switches, diff_use_labels, &
+                       DIFF_LABELS_NO, DIFF_LABELS_YES, DIFF_LABELS_CHECK
+    use diff_mode_fm, only: diff_advance_after_apply_hunk, diff_ask_before_revert_and_kill_hunk, &
+                            diff_default_read_only, diff_jump_to_old_file, diff_mode_hook, diff_mode_map, &
+                            diff_mode_read_only, diff_mode_read_only_map, diff_mode_shared_map, diff_read_only_map, &
+                            diff_valid_unified_empty_line
     use dired_fm, only: completion_ignored_extensions
     use dired_mode_fm, only: dired_after_readin_hook, dired_always_read_filesystem, &
                              dired_auto_revert_buffer, dired_before_readin_hook, dired_broken_symlink, &
@@ -273,7 +279,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(727) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(750) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -327,38 +333,43 @@ module docstrings_fm
                                                                 "describe_bindings", "describe_coding_system", "describe_command", &
                                                             "describe_current_coding_system", "describe_function", "describe_key", &
                                                   "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
-                                                        "detect_coding_region", "detect_coding_string", "digit_argument", "dired", &
-                                                  "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
-                                                        "dired_create_directory", "dired_create_empty_file", "dired_display_file", &
-                                                        "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", "dired_do_compress", &
-                                               "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", "dired_do_delete", &
-                                                       "dired_do_flagged_delete", "dired_do_hardlink", "dired_do_hardlink_regexp", &
-                                                               "dired_do_kill_lines", "dired_do_redisplay", "dired_do_relsymlink", &
-                                                        "dired_do_relsymlink_regexp", "dired_do_rename", "dired_do_rename_regexp", &
-                                                "dired_do_symlink", "dired_do_symlink_regexp", "dired_do_touch", "dired_downcase", &
-                                                  "dired_find_file", "dired_find_file_other_window", "dired_flag_auto_save_files", &
-                                                 "dired_flag_backup_files", "dired_flag_file_deletion", "dired_flag_files_regexp", &
-                                            "dired_flag_garbage_files", "dired_goto_file", "dired_kill_line", "dired_kill_subdir", &
-                                                                 "dired_mark", "dired_mark_directories", "dired_mark_executables", &
-                                                                  "dired_mark_files_containing_regexp", "dired_mark_files_regexp", &
-                                             "dired_mark_subdir_files", "dired_mark_symlinks", "dired_mode", "dired_next_dirline", &
-                                               "dired_next_line", "dired_next_marked_file", "dired_next_subdir", "dired_noselect", &
-                                                       "dired_number_of_marked_files", "dired_other_window", "dired_prev_dirline", &
-                                                             "dired_prev_marked_file", "dired_prev_subdir", "dired_previous_line", &
-                                                             "dired_show_file_type", "dired_sort_toggle_or_edit", "dired_summary", &
-                                                     "dired_toggle_marks", "dired_undo", "dired_unmark", "dired_unmark_all_files", &
-                                          "dired_unmark_all_marks", "dired_unmark_backward", "dired_up_directory", "dired_upcase", &
-                                                   "dired_view_file", "dired_why", "disable_command", "display_message_or_buffer", &
-                                                      "do_auto_fill", "down_list", "downcase", "downcase_region", "downcase_word", &
-                                                     "edit_abbrevs", "electric_indent_just_newline", "electric_indent_local_mode", &
-                                                                   "electric_indent_mode", "electric_newline_and_maybe_indent", &
-                                                            "electric_pair_conservative_inhibit", "electric_pair_default_inhibit", &
-                                                                   "electric_pair_default_skip_self", "electric_pair_delete_pair", &
-                                                               "electric_pair_local_mode", "electric_pair_mode", "enable_command", &
-                                                 "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
-                                             "end_of_line", "eobp", "eolp", "exchange_point_and_mark", "execute_extended_command", &
-                                                 "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
-                                                                   "extract_rectangle_bounds", "face_box", "face_underline", &
+                                                      "detect_coding_region", "detect_coding_string", "diff", "diff_apply_buffer", &
+                                                        "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", "diff_buffers", &
+                                                  "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", "diff_file_prev", &
+                                                      "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", "diff_hunk_next", &
+                                                            "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
+                                               "diff_revert_and_kill_hunk", "diff_split_hunk", "diff_test_hunk", "digit_argument", &
+                                                   "dired", "dired_backup_diff", "dired_build_subdir_alist", "dired_change_marks", &
+                                               "dired_copy_filename_as_kill", "dired_create_directory", "dired_create_empty_file", &
+                                         "dired_diff", "dired_display_file", "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", &
+                                             "dired_do_compress", "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", &
+                                                                "dired_do_delete", "dired_do_flagged_delete", "dired_do_hardlink", &
+                                                          "dired_do_hardlink_regexp", "dired_do_kill_lines", "dired_do_redisplay", &
+                                                           "dired_do_relsymlink", "dired_do_relsymlink_regexp", "dired_do_rename", &
+                                                          "dired_do_rename_regexp", "dired_do_symlink", "dired_do_symlink_regexp", &
+                                            "dired_do_touch", "dired_downcase", "dired_find_file", "dired_find_file_other_window", &
+                                              "dired_flag_auto_save_files", "dired_flag_backup_files", "dired_flag_file_deletion", &
+                                                         "dired_flag_files_regexp", "dired_flag_garbage_files", "dired_goto_file", &
+                                                   "dired_kill_line", "dired_kill_subdir", "dired_mark", "dired_mark_directories", &
+                                                                   "dired_mark_executables", "dired_mark_files_containing_regexp", &
+                                                      "dired_mark_files_regexp", "dired_mark_subdir_files", "dired_mark_symlinks", &
+                                                  "dired_mode", "dired_next_dirline", "dired_next_line", "dired_next_marked_file", &
+                                                            "dired_next_subdir", "dired_noselect", "dired_number_of_marked_files", &
+                                                             "dired_other_window", "dired_prev_dirline", "dired_prev_marked_file", &
+                                                               "dired_prev_subdir", "dired_previous_line", "dired_show_file_type", &
+                                                 "dired_sort_toggle_or_edit", "dired_summary", "dired_toggle_marks", "dired_undo", &
+                                                               "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
+                                                 "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
+                                         "dired_why", "disable_command", "display_message_or_buffer", "do_auto_fill", "down_list", &
+                                                                   "downcase", "downcase_region", "downcase_word", "edit_abbrevs", &
+                                             "electric_indent_just_newline", "electric_indent_local_mode", "electric_indent_mode", &
+                                                        "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
+                                                               "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
+                                                    "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
+                                                "enable_command", "encode_coding_region", "encode_coding_string", "end_kbd_macro", &
+                                                        "end_of_buffer", "end_of_line", "eobp", "eolp", "exchange_point_and_mark", &
+                                          "execute_extended_command", "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", &
+                                                    "extract_rectangle", "extract_rectangle_bounds", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "fill_french_nobreak_p", "fill_paragraph", &
                                                                "fill_polish_nobreak_p", "fill_region", "fill_region_as_paragraph", &
@@ -483,7 +494,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(472) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(487) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -541,7 +552,12 @@ module docstrings_fm
                                            "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
                                                                    "dabbrev_upcase_means_case_search", "default_justification", &
                                                     "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
-                                                            "delete_exited_processes", "directory_listing_before_filename_regexp", &
+                                                                   "delete_exited_processes", "diff_advance_after_apply_hunk", &
+                                                 "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
+                                                "diff_entire_buffers", "diff_jump_to_old_file", "diff_mode_hook", "diff_mode_map", &
+                                                         "diff_mode_read_only", "diff_mode_read_only_map", "diff_mode_shared_map", &
+                                                                   "diff_read_only_map", "diff_switches", "diff_use_labels", &
+                                                      "diff_valid_unified_empty_line", "directory_listing_before_filename_regexp", &
                                                       "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
                                            "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
                                                             "dired_broken_symlink", "dired_check_symlinks", "dired_chown_program", &
@@ -652,7 +668,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(259) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(267) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -736,6 +752,14 @@ module docstrings_fm
                                                                       "default_justification", &
                                                                       "delete_active_region", &
                                                                       "delete_exited_processes", &
+                                                                      "diff_advance_after_apply_hunk", &
+                                                                      "diff_ask_before_revert_and_kill_hunk", &
+                                                                      "diff_command", &
+                                                                      "diff_default_read_only", &
+                                                                      "diff_entire_buffers", &
+                                                                      "diff_jump_to_old_file", &
+                                                                      "diff_mode_hook", &
+                                                                      "diff_switches", &
                                                                       "dired_after_readin_hook", &
                                                                       "dired_always_read_filesystem", &
                                                                       "dired_auto_revert_buffer", &
@@ -2375,6 +2399,164 @@ contains
             entry%fortran = "call detect_coding_string(string, names, highest, multibyte)"
             entry%doc = "Detect coding system of the text in STRING (bytes, unless"//LF// &
                         "MULTIBYTE).  See `detect_coding_bytes'."
+        case ("diff")
+            entry%file = "diff_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Find and display the differences between OLD and NEW files."//LF// &
+                        "When called interactively, read NEW, then OLD, using the"//LF// &
+                        "minibuffer.  The default for NEW is the current buffer's file name,"//LF// &
+                        "and the default for OLD is a backup file for NEW, if one exists."//LF// &
+                        "If NO_ASYNC is true, call diff synchronously."//LF// &
+                        ""//LF// &
+                        "When called interactively with a prefix argument SWITCHES, prompt"//LF// &
+                        "interactively for diff switches.  Otherwise, the switches"//LF// &
+                        "specified in the variable `diff_switches' are passed to the diff"//LF// &
+                        "command."//LF// &
+                        ""//LF// &
+                        "Non-interactively, OLD and NEW may each be a file or a buffer."
+        case ("diff_apply_buffer")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Apply the diff in the entire diff buffer (or the hunks from"//LF// &
+                        "BEG to END): FAILURES gets the number of failed hunks."
+        case ("diff_apply_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Apply the current hunk to its source file and go to the next"//LF// &
+                        "hunk."
+        case ("diff_backup")
+            entry%file = "diff_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Diff this file with its backup file or vice versa."//LF// &
+                        "Uses the latest backup, if there are several numerical backups."//LF// &
+                        "If this file is a backup, diff it with its original."//LF// &
+                        "The backup file is the first file given to `diff'."//LF// &
+                        "With prefix arg SWITCHES, prompt for diff switches."
+        case ("diff_buffer_with_file")
+            entry%file = "diff_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "View the differences between BUFFER and its associated file."//LF// &
+                        "This requires the external program `diff' to be in your"//LF// &
+                        "`exec_path'."
+        case ("diff_buffers")
+            entry%file = "diff_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Find and display the differences between OLD and NEW buffers."//LF// &
+                        ""//LF// &
+                        "When called interactively, read NEW, then OLD, using the"//LF// &
+                        "minibuffer.  The default for NEW is the current buffer, and the"//LF// &
+                        "default for OLD is the most recently selected other buffer."//LF// &
+                        "If NO_ASYNC is true, call diff synchronously."//LF// &
+                        ""//LF// &
+                        "When called interactively with a prefix argument, prompt"//LF// &
+                        "interactively for diff switches.  Otherwise, the switches specified"//LF// &
+                        "in the variable `diff_switches' are passed to the diff command."//LF// &
+                        ""//LF// &
+                        "Also see the `diff_entire_buffers' variable."
+        case ("diff_delete_other_hunks")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete hunks other than the current one."//LF// &
+                        "Interactively, if the region is active, delete all hunks that the"//LF// &
+                        "region overlaps; otherwise delete all hunks except the current one."
+        case ("diff_file_kill")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill current file's hunks."//LF// &
+                        "When called from programs with DELETE true, delete them, instead."
+        case ("diff_file_next")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next COUNT'th file."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
+                        "to 1."
+        case ("diff_file_prev")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous COUNT'th file."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
+                        "to 1."
+        case ("diff_fixup_modifs")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Fixup the hunk headers (in case the buffer was modified)."//LF// &
+                        "START and END are either taken from the region (if a prefix arg is"//LF// &
+                        "given) or else cover the whole buffer."
+        case ("diff_goto_source")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Jump to the corresponding source line."
+        case ("diff_hunk_kill")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the hunk at point."//LF// &
+                        "When killing the last hunk left for a file, kill the file header"//LF// &
+                        "too.  Interactively, if the region is active, kill all hunks that"//LF// &
+                        "the region overlaps."//LF// &
+                        ""//LF// &
+                        "When called from programs with BEG and END, kill all hunks"//LF// &
+                        "overlapped by the region from BEG to END as though called"//LF// &
+                        "interactively with an active region delimited by BEG and END."
+        case ("diff_hunk_next")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next COUNT'th hunk."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
+                        "to 1."
+        case ("diff_hunk_prev")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous COUNT'th hunk."//LF// &
+                        "Interactively, COUNT is the prefix numeric argument, and defaults"//LF// &
+                        "to 1."
+        case ("diff_kill_junk")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill spurious empty diffs."
+        case ("diff_mode")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for viewing/editing context diffs."//LF// &
+                        "Supports unified and context diffs as well as, to a lesser extent,"//LF// &
+                        "diffs in the old ""normal"" format.  (Unified diffs have become the"//LF// &
+                        "standard, most commonly encountered format.)"//LF// &
+                        ""//LF// &
+                        "\{diff_mode_map}"//LF// &
+                        "In read-only buffers the following bindings are also available:"//LF// &
+                        "\{diff_read_only_map}"
+        case ("diff_restrict_view")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Restrict the view to the current hunk."//LF// &
+                        "If FILE is true (the prefix ARG is given), restrict the view to the"//LF// &
+                        "current file instead."
+        case ("diff_revert_and_kill_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Reverse-apply and then kill the hunk at point.  Save changed buffer."//LF// &
+                        "Interactively, if the region is active, reverse-apply and kill all"//LF// &
+                        "hunks that the region overlaps."//LF// &
+                        ""//LF// &
+                        "This command is useful in buffers generated by \[vc_diff] and"//LF// &
+                        "\[vc_root_diff], especially when preparing to commit the patch with"//LF// &
+                        "\[vc_next_action].  You can use \[diff_hunk_kill] to temporarily"//LF// &
+                        "remove changes that you intend to include in a separate commit or"//LF// &
+                        "commits, and you can use this command to permanently drop changes"//LF// &
+                        "you didn't intend, or no longer want."//LF// &
+                        ""//LF// &
+                        "This is a destructive operation, so by default, this command asks"//LF// &
+                        "you to confirm you really want to reverse-apply and kill the hunk."//LF// &
+                        "You can customize `diff_ask_before_revert_and_kill_hunk' to control"//LF// &
+                        "that."
+        case ("diff_split_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Split the current (unified diff) hunk at point into two hunks."
+        case ("diff_test_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "See whether it's possible to apply the current hunk.  With"//LF// &
+                        "REVERSE, try to reverse the hunk."
         case ("digit_argument")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -2397,6 +2579,14 @@ contains
                         ""//LF// &
                         "If DIRNAME is already in a Dired buffer, that buffer is used without"//LF// &
                         "refresh."
+        case ("dired_backup_diff")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Diff this file with its backup file or vice versa."//LF// &
+                        "Uses the latest backup, if there are several numerical backups."//LF// &
+                        "If this file is a backup, diff it with its original."//LF// &
+                        "The backup file is the first file given to `diff'."//LF// &
+                        "With prefix arg, prompt for argument SWITCHES which is options for `diff'."
         case ("dired_build_subdir_alist")
             entry%file = "dired_mode_fm.f90"
             entry%interactive = .true.
@@ -2441,6 +2631,26 @@ contains
                         "true, act on the current subdirectory by default, otherwise act on"//LF// &
                         "the default directory by default."//LF// &
                         "If FILE already exists, signal an error."
+        case ("dired_diff")
+            entry%file = "dired_aux_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Compare file at point with FILE using `diff'."//LF// &
+                        "If called interactively, prompt for FILE."//LF// &
+                        "If the mark is active in Transient Mark mode, use the file at the mark"//LF// &
+                        "as the default for FILE.  (That's the mark set by C-SPC,"//LF// &
+                        "not by Dired's m command.)"//LF// &
+                        "If the file at point has a backup file, use that as the default FILE."//LF// &
+                        "If the file at point is a backup file, use its original, if that exists"//LF// &
+                        "and can be found.  Note that customizations of `backup_directory_alist'"//LF// &
+                        "and `make_backup_file_name_function' change where this function searches"//LF// &
+                        "for the backup file, and affect its ability to find the original of a"//LF// &
+                        "backup file."//LF// &
+                        ""//LF// &
+                        "FILE is the first argument given to the `diff' function.  The file at"//LF// &
+                        "point is the second argument given to `diff'."//LF// &
+                        ""//LF// &
+                        "With prefix arg, prompt for second argument SWITCHES, which is"//LF// &
+                        "the string of command switches used as the third argument of `diff'."
         case ("dired_display_file")
             entry%file = "dired_mode_fm.f90"
             entry%interactive = .true.
@@ -5272,12 +5482,13 @@ contains
                         "no text on the right side of the rectangle."
         case ("other_buffer")
             entry%file = "window_fm.f90"
-            entry%fortran = "other_buffer(buffer)"
+            entry%fortran = "other_buffer(buffer, visible_ok)"
             entry%doc = "Return most recently selected buffer other than BUFFER."//LF// &
                         "Buffers not visible in windows are preferred to visible buffers."//LF// &
                         "Ignore internal buffers (names starting with a space).  If no"//LF// &
                         "other buffer exists, return the buffer `*scratch*' (creating it"//LF// &
-                        "if necessary)."
+                        "if necessary).  If VISIBLE_OK is true, visible buffers are not"//LF// &
+                        "passed over."
         case ("other_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call other_window(count, status)"
@@ -9512,6 +9723,124 @@ contains
             entry%value = repr(delete_exited_processes%value)
             entry%doc = "True means delete processes immediately when they exit."//LF// &
                         "False means don't delete them until `list_processes' is run."
+        case ("diff_advance_after_apply_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_advance_after_apply_hunk"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(diff_advance_after_apply_hunk)
+            entry%doc = "True means `diff_apply_hunk' will move to the next hunk after"//LF// &
+                        "applying."
+        case ("diff_ask_before_revert_and_kill_hunk")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_ask_before_revert_and_kill_hunk"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(diff_ask_before_revert_and_kill_hunk)
+            entry%doc = "If true, `diff_revert_and_kill_hunk' will ask for confirmation."
+        case ("diff_command")
+            entry%file = "diff_fm.f90"
+            entry%fortran = "diff_command"
+            entry%user_option = .true.
+            if (allocated(diff_command)) then
+                entry%value = repr(diff_command)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The command to use to run diff."
+        case ("diff_default_read_only")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_default_read_only"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(diff_default_read_only)
+            entry%doc = "If true, `diff_mode' buffers default to being read-only."
+        case ("diff_entire_buffers")
+            entry%file = "diff_fm.f90"
+            entry%fortran = "diff_entire_buffers"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(diff_entire_buffers)
+            entry%doc = "If true, diff the entire buffers, not just the visible part."//LF// &
+                        "If false, only use the narrowed-to parts of the buffers."
+        case ("diff_jump_to_old_file")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_jump_to_old_file"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(diff_jump_to_old_file)
+            entry%doc = "True means `diff_goto_source' jumps to the old file."//LF// &
+                        "Else, it jumps to the new file."
+        case ("diff_mode_hook")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Run after setting up the `diff_mode' major mode."
+        case ("diff_mode_map")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_mode_map"
+            entry%doc = "Keymap for `diff_mode'.  See also `diff_mode_shared_map'."
+        case ("diff_mode_read_only")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_mode_read_only"
+            entry%value = repr(diff_mode_read_only%value)
+            entry%doc = "True when read-only diff buffer uses short keys."
+        case ("diff_mode_read_only_map")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_mode_read_only_map"
+            entry%doc = "Additional bindings for read-only `diff_mode' buffers."
+        case ("diff_mode_shared_map")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_mode_shared_map"
+            entry%doc = "Bindings for read-only `diff_mode' buffers.  See also"//LF// &
+                        "`diff_mode_read_only_map'."
+        case ("diff_read_only_map")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_read_only_map"
+            entry%doc = "Additional bindings for read-only `diff_mode' buffers."
+        case ("diff_switches")
+            entry%file = "diff_fm.f90"
+            entry%fortran = "diff_switches"
+            entry%user_option = .true.
+            if (allocated(diff_switches)) then
+                entry%value = repr(diff_switches)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "A string specifying switches to be passed to diff."//LF// &
+                        ""//LF// &
+                        "This variable is also used in the `vc_diff' command (and related"//LF// &
+                        "commands) if the backend-specific diff switch variable isn't set"//LF// &
+                        "(`vc_git_diff_switches' for git, for instance), and"//LF// &
+                        "`vc_diff_switches' isn't set."
+        case ("diff_use_labels")
+            entry%file = "diff_fm.f90"
+            entry%fortran = "diff_use_labels"
+            entry%original = "DIFF_LABELS_CHECK"
+            select case (diff_use_labels)
+            case (DIFF_LABELS_NO)
+                entry%value = "DIFF_LABELS_NO"
+            case (DIFF_LABELS_YES)
+                entry%value = "DIFF_LABELS_YES"
+            case (DIFF_LABELS_CHECK)
+                entry%value = "DIFF_LABELS_CHECK"
+            case default
+                entry%value = repr(diff_use_labels)
+            end select
+            entry%doc = "Whether `diff_command' understands the ""--label"" option."//LF// &
+                        "Possible values are:"//LF// &
+                        "  DIFF_LABELS_YES   -- yes, it does"//LF// &
+                        "  DIFF_LABELS_NO    -- no, it does not"//LF// &
+                        "  DIFF_LABELS_CHECK -- try to probe whether it does"
+        case ("diff_valid_unified_empty_line")
+            entry%file = "diff_mode_fm.f90"
+            entry%fortran = "diff_valid_unified_empty_line"
+            entry%original = ".true."
+            entry%value = repr(diff_valid_unified_empty_line)
+            entry%doc = "If true, empty lines are valid in unified diffs."//LF// &
+                        "Some versions of diff replace all-blank context lines in unified"//LF// &
+                        "format with empty lines.  This makes the format less robust, but is"//LF// &
+                        "tolerated."
         case ("directory_listing_before_filename_regexp")
             entry%file = "files_fm.f90"
             entry%fortran = "directory_listing_before_filename_regexp"
@@ -12865,6 +13194,20 @@ contains
         case ("delete_exited_processes")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("diff_advance_after_apply_hunk")
+            kind = OPTION_LOGICAL
+        case ("diff_ask_before_revert_and_kill_hunk")
+            kind = OPTION_LOGICAL
+        case ("diff_command")
+            kind = OPTION_STRING
+        case ("diff_default_read_only")
+            kind = OPTION_LOGICAL
+        case ("diff_entire_buffers")
+            kind = OPTION_LOGICAL
+        case ("diff_jump_to_old_file")
+            kind = OPTION_LOGICAL
+        case ("diff_switches")
+            kind = OPTION_STRING
         case ("dired_always_read_filesystem")
             kind = OPTION_LOGICAL
         case ("dired_auto_revert_buffer")
@@ -13371,6 +13714,16 @@ contains
             else
                 delete_exited_processes = v
             end if
+        case ("diff_advance_after_apply_hunk")
+            diff_advance_after_apply_hunk = v
+        case ("diff_ask_before_revert_and_kill_hunk")
+            diff_ask_before_revert_and_kill_hunk = v
+        case ("diff_default_read_only")
+            diff_default_read_only = v
+        case ("diff_entire_buffers")
+            diff_entire_buffers = v
+        case ("diff_jump_to_old_file")
+            diff_jump_to_old_file = v
         case ("dired_always_read_filesystem")
             dired_always_read_filesystem = v
         case ("dired_auto_revert_buffer")
@@ -13804,6 +14157,10 @@ contains
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")
             dabbrev_abbrev_skip_leading_regexp = v
+        case ("diff_command")
+            diff_command = v
+        case ("diff_switches")
+            diff_switches = v
         case ("dired_chown_program")
             dired_chown_program = v
         case ("dired_compress_directory_default_suffix")

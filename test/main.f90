@@ -78,6 +78,7 @@ program tester
     use test_dired_fm, only: collect_dired_fm
     use test_dired_mode_fm, only: collect_dired_mode_fm
     use test_dired_aux_fm, only: collect_dired_aux_fm
+    use test_diff_mode_fm, only: collect_diff_mode_fm
     use test_view_fm, only: collect_view_fm
     use test_files_copy_fm, only: collect_files_copy_fm
     use test_casetab_fm, only: collect_casetab_fm
@@ -151,6 +152,7 @@ program tester
                  new_testsuite("dired_fm", collect_dired_fm), &
                  new_testsuite("dired_mode_fm", collect_dired_mode_fm), &
                  new_testsuite("dired_aux_fm", collect_dired_aux_fm), &
+                 new_testsuite("diff_mode_fm", collect_diff_mode_fm), &
                  new_testsuite("view_fm", collect_view_fm), &
                  new_testsuite("files_copy_fm", collect_files_copy_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &

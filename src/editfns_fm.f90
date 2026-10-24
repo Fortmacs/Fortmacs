@@ -64,7 +64,7 @@ module editfns_fm
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
-    public :: insert_char_n, narrow_to_region, widen, validate_region, subst_char_in_region
+    public :: insert_char_n, narrow_to_region, widen, buffer_narrowed_p, current_time_string, validate_region, subst_char_in_region
     public :: buffer_substring, buffer_string, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
@@ -463,7 +463,37 @@ contains
         end associate
     end subroutine narrow_to_region
 
+    !> The current local time as `current_time_string' gives it:
+    !> "Sun Sep 16 01:03:52 1973".  Port of editfns.c:Fcurrent_time_string.
+    function current_time_string() result(s)
+        character(len=:), allocatable :: s
+        character(len=3), parameter :: days(0:6) = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        character(len=3), parameter :: months(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", &
+                                                     "Sep", "Oct", "Nov", "Dec"]
+        integer :: v(8), y, m, d, w
+        character(len=32) :: buf
+        call date_and_time(values=v)
+        y = v(1)
+        m = v(2)
+        d = v(3)
+        ! Zeller's congruence (Sunday = 0)
+        if (m < 3) then
+            w = mod(d + (13*(m + 13))/5 + (y - 1) + (y - 1)/4 - (y - 1)/100 + (y - 1)/400 + 6, 7)
+        else
+            w = mod(d + (13*(m + 1))/5 + y + y/4 - y/100 + y/400 + 6, 7)
+        end if
+        write (buf, "(a3,1x,a3,1x,i2,1x,i2.2,':',i2.2,':',i2.2,1x,i4)") days(w), months(m), d, v(5), v(6), v(7), y
+        s = trim(buf)
+    end function current_time_string
+
+    !> Return true if the current buffer is narrowed.  Port of
+    !> subr.el:buffer-narrowed-p.
+    logical function buffer_narrowed_p()
+        buffer_narrowed_p = buffers(cur)%zv - buffers(cur)%begv /= buffers(cur)%text%z - BEG
+    end function buffer_narrowed_p
+
     !> Remove narrowing.  Port of editfns.c:Fwiden.
+
     subroutine widen()
         associate (b => buffers(cur))
             b%begv = BEG
