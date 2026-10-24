@@ -247,6 +247,10 @@ module window_fm
         logical :: mini = .false.
         !> Where redisplay put the cursor, relative to the window; -1: none.
         integer :: cursor_vpos = -1, cursor_hpos = -1
+        !> On a window-system frame, where and how large redisplay draws the
+        !> cursor, in frame pixels (window.h phys_cursor with
+        !> phys_cursor_width and phys_cursor_height).
+        integer :: phys_cursor_x = 0, phys_cursor_y = 0, phys_cursor_width = 0, phys_cursor_height = 0
         !> Columns scrolled off the left (only the minibuffer window
         !> scrolls horizontally so far: auto-hscroll).
         integer :: hscroll = 0
