@@ -42,8 +42,9 @@ module test_process_fm
 
     public :: collect_process_fm
 
-    !> Wall-clock limit of a wait, in seconds.
-    integer, parameter :: TIMEOUT = 120
+    !> Wall-clock limit of a wait, in seconds: generous, for valgrind on a
+    !> loaded machine (a wait ends as soon as its condition holds).
+    integer, parameter :: TIMEOUT = 600
 
     ! What the recording sentinel and filter saw.
     integer :: sentinel_calls = 0
@@ -72,7 +73,8 @@ contains
                     new_unittest("process-send-string-and-eof", test_send), &
                     new_unittest("process-unique-names", test_unique_names), &
                     new_unittest("process-kill-buffer", test_kill_buffer), &
-                    new_unittest("process-missing-program", test_missing_program) &
+                    new_unittest("process-missing-program", test_missing_program), &
+                    new_unittest("process-workers-beside-main-thread", test_workers_beside_main) &
                     ]
     end subroutine collect_process_fm
 
@@ -532,4 +534,31 @@ contains
         end if
         if (.not. allocated(error)) call check(error, size(process_list()) == 0, "not listed")
     end subroutine test_missing_program
+    !> Workers and the main thread run the same src/sys procedures at once
+    !> (errno while polling): many short-lived processes, the main thread
+    !> polling for their messages without waiting.  (With -fcheck=all a
+    !> non-recursive procedure has a static recursion guard, which two
+    !> threads in it at once trip.)
+    subroutine test_workers_beside_main(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: proc
+        type(process_arg_type), allocatable :: args(:)
+        type(status_type) :: st
+        integer(int64) :: start
+        integer :: k
+        logical :: ready
+        call sh_args("exit 0", args)
+        do k = 1, 100
+            call start_process("short", null_handle(), "sh", proc, st, args)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) return
+            call system_clock(start)
+            ready = .false.
+            do while (.not. ready .and. elapsed(start) < TIMEOUT)
+                ready = wait_for_worker_messages(0)
+            end do
+            call process_shutdown()
+            call free_process(proc, st)
+        end do
+    end subroutine test_workers_beside_main
 end module test_process_fm
