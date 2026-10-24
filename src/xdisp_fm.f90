@@ -80,7 +80,10 @@ module xdisp_fm
     use error_fm, only: status_type
     use handle_fm, only: handle_type
     use eval_fm, only: position_hook_type
-    use textprop_fm, only: get_text_property, next_single_property_change
+    use textprop_fm, only: get_text_property, next_single_property_change, get_char_property, &
+                           get_char_property_and_overlay, next_char_property_change, &
+                           next_single_char_property_change, text_prop_means_invisible
+    use itree_fm, only: overlays_in, overlay_start, overlay_end, overlay_get
     use buffer_fm, only: cur, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                          buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
@@ -99,9 +102,9 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, nilp, stringp, xstring
+    use lisp_fm, only: value_type, nilp, stringp, xstring, consp, list_elements, fixnump, xfixnum
     use lread_fm, only: sym
-    use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer
+    use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
     use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
                          buffer_file_coding_system
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, temp_set_point_both, BEG, BEG_BYTE
@@ -117,7 +120,7 @@ module xdisp_fm
               mode_line_modes_prefix
     public :: redisplay, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
-              mode_line_row, recenter_start, mode_line_percent
+              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
 
     !> Values of `message_log_max' other than a number of lines.
@@ -260,13 +263,31 @@ module xdisp_fm
     integer, parameter :: MAX_CHAR_CELLS = 1000
 
     !> How display_row ended a screen row: at the end of the accessible
-    !> text, after a newline, or continued on the next row.
-    integer, parameter :: ROW_ENDS_AT_ZV = 0, ROW_ENDS_IN_NEWLINE = 1, ROW_CONTINUED = 2
+    !> text, after a newline, continued on the next row, or after a
+    !> newline in an overlay or display string (the next row starts a new
+    !> display line in the same buffer line).
+    integer, parameter :: ROW_ENDS_AT_ZV = 0, ROW_ENDS_IN_NEWLINE = 1, ROW_CONTINUED = 2, ROW_ENDS_IN_STRING_NEWLINE = 3
+
+    !> Kinds of display item: an overlay string (before-string or
+    !> after-string), the ellipsis of invisible text, a display string
+    !> (the `display' property's string), a stretch of space (a `(space
+    !> ...)' display spec).
+    integer, parameter :: ITEM_OVERLAY_STRING = 1, ITEM_ELLIPSIS = 2, ITEM_DISPLAY_STRING = 3, ITEM_STRETCH = 4
+
+    !> Something shown at a buffer position before (or instead of) the
+    !> text there: the string `s' (multibyte), or for ITEM_STRETCH,
+    !> `width' columns (or up to column `align_to', if not negative).
+    type :: display_item_type
+        integer :: kind = ITEM_OVERLAY_STRING
+        character(len=:), allocatable :: s
+        integer :: width = 0, align_to = -1
+    end type display_item_type
 
     !> Where a screen row starts: the state of xdisp.c's iterator at the
     !> start of a display line.
     type, public :: row_start_type
-        !> The first character shown (charpos, bytepos).
+        !> The first character shown (charpos, bytepos); while `item' is
+        !> not 0, the position the items are shown at.
         integer(int64) :: pos = 1, byte = 1
         !> it->continuation_lines_width: the columns of the rows before
         !> this one on the same line (TABs count from it).
@@ -276,7 +297,45 @@ module xdisp_fm
         logical :: mid = .false.
         !> ... whose first `skip' cells were shown there.
         integer :: skip = 0
+        !> The items shown at `pos' (overlay strings, then an ellipsis or a
+        !> display string), the one being shown (0 for none: the buffer
+        !> text), the byte of the next character in its string, and
+        !> where the buffer text resumes after them (`pos' itself, or the
+        !> end of the invisible or replaced text).  (Upstream's iterator
+        !> stack with its overlay strings.)
+        type(display_item_type), allocatable :: items(:)
+        integer :: item = 0
+        integer(int64) :: ibyte = 1
+        integer(int64) :: resume = 0, resume_byte = 0
+        !> The next buffer position whose `invisible' and `display'
+        !> properties and overlay strings to look at (it->stop_charpos);
+        !> negative: `pos'.
+        integer(int64) :: stop = -1
+        !> Text hidden (invisible, or replaced by a display string) just
+        !> before the next glyph that is not from an overlay string: that
+        !> glyph shows the cursor for a point in it.
+        integer(int64) :: hidden_beg = 0, hidden_end = 0
     end type row_start_type
+
+    !> What comes next on a row: the end of the accessible text, a buffer
+    !> newline, a buffer character, a character of an item's string, a
+    !> newline in an item's string, a stretch.
+    integer, parameter :: EL_EOB = 0, EL_NEWLINE = 1, EL_CHAR = 2, EL_STRING_CHAR = 3, EL_STRING_NEWLINE = 4, &
+                          EL_STRETCH = 5
+
+    type :: element_type
+        integer :: kind = EL_EOB
+        integer(int32) :: c = 0
+        !> The character's bytes, the stretch's columns.
+        integer :: len = 0, width = 0
+        !> From an overlay string (never shows the cursor).
+        logical :: overlay_string = .false.
+        !> From a display string or space (the cursor of a point at its
+        !> position on its first glyph).
+        logical :: display = .false.
+        !> The first glyph of its display string or space.
+        logical :: first = .false.
+    end type element_type
 
 contains
 
@@ -398,10 +457,13 @@ contains
     !> stop (tab-width times the space width; the stop after that if the
     !> next is closer than a space), the ascent and descent the font's.
     !> Port of the IT_CHARACTER part of xdisp.c:gui_produce_glyphs.
-    subroutine gui_produce_glyph(f, g, x)
+    subroutine gui_produce_glyph(f, g, x, stretch)
         type(frame_type), intent(in) :: f
         type(glyph_type), intent(inout) :: g
         integer, intent(in) :: x
+        !> For a stretch from a space display spec: its width in columns
+        !> (of the font's space width), or -1 - N to align to column N.
+        integer, intent(in), optional :: stretch
         type(font_type) :: ft
         type(font_metrics_type) :: pcm
         integer :: id, boff, tw, next_tab_x
@@ -414,6 +476,14 @@ contains
         boff = ft%baseline_offset
         g%ascent = ft%ascent + boff
         g%descent = ft%descent - boff
+        if (g%type == STRETCH_GLYPH .and. present(stretch)) then
+            if (stretch >= 0) then
+                g%pixel_width = stretch*ft%space_width
+            else
+                g%pixel_width = max(0, (-1 - stretch)*ft%space_width - x)
+            end if
+            return
+        end if
         if (g%type == STRETCH_GLYPH) then
             g%pixel_width = 0
             if (ft%space_width > 0) then
@@ -499,6 +569,405 @@ contains
         height = ft%height
     end function estimate_mode_line_height
 
+    ! ------------------------------------------------------------------
+    ! What is shown: buffer text, overlay strings, invisible text,
+    ! display strings
+    ! ------------------------------------------------------------------
+
+    !> Look at the properties of the text at `s%pos' in buffer slot `bi'
+    !> and its overlay strings, and set up `s' to show what goes there:
+    !> invisible text is skipped (shown as an ellipsis if the spec says
+    !> so, after the before-strings at its start when a text property
+    !> makes it invisible), text with a string or a space for its
+    !> `display' property is replaced by it (after the overlay strings at
+    !> its start), and the overlay strings of the position come before
+    !> its text.  Port of xdisp.c:handle_stop with handle_invisible_prop,
+    !> handle_display_prop (string and space display specs) and
+    !> handle_overlay_change (load_overlay_strings).
+    subroutine handle_stop(bi, s)
+        integer(int64), intent(in) :: bi
+        type(row_start_type), intent(inout) :: s
+        integer(int64) :: saved, p, zv, newpos, endpos
+        type(value_type) :: prop, disp
+        type(handle_type) :: ov
+        integer :: invis, width, align_to
+        logical :: ellipsis
+        saved = cur
+        call set_buffer_internal(bi)
+        p = s%pos
+        zv = buffers(bi)%zv
+        if (allocated(s%items)) deallocate (s%items)
+        allocate (s%items(0))
+        s%item = 0
+        s%resume = p
+        s%resume_byte = s%byte
+        if (p >= zv) then
+            s%stop = huge(0_int64)
+            ! The overlay strings at the end of the text.
+            call load_overlay_strings(p, s%items)
+        else
+            s%stop = next_char_property_change(p, zv)
+            call get_char_property_and_overlay(p, sym("invisible"), prop, ov)
+            invis = text_prop_means_invisible(prop)
+            if (invis /= 0) then
+                ! Skip invisible text, up to visible text or the end.
+                ellipsis = invis == 2
+                newpos = p
+                do
+                    newpos = next_single_char_property_change(newpos, sym("invisible"), zv)
+                    if (newpos >= zv) exit
+                    invis = text_prop_means_invisible(get_char_property(newpos, sym("invisible")))
+                    ! If there are adjacent invisible texts, don't lose the
+                    ! second one's ellipsis.
+                    if (invis == 2) ellipsis = .true.
+                    if (invis == 0) exit
+                end do
+                ! Before-strings at the start of text invisible because of
+                ! a text property are shown, because 20.x did it that way
+                ! (an invisible overlay's strings come at its end).
+                if (ov%index == 0) call load_overlay_strings(p, s%items)
+                if (ellipsis) call push_item(s%items, ITEM_ELLIPSIS, "...")
+                call hide(newpos)
+            else
+                disp = get_char_property(p, sym("display"))
+                if (stringp(disp)) then
+                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    call load_overlay_strings(p, s%items)
+                    if (len(xstring(disp)) > 0) then
+                        call push_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
+                        call hide(endpos, p + 1)
+                    else
+                        call hide(endpos)
+                    end if
+                else if (space_spec(disp, width, align_to)) then
+                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    call load_overlay_strings(p, s%items)
+                    call push_item(s%items, ITEM_STRETCH, "", width, align_to)
+                    call hide(endpos, p + 1)
+                else
+                    call load_overlay_strings(p, s%items)
+                end if
+            end if
+        end if
+        if (size(s%items) > 0) then
+            s%item = 1
+            s%ibyte = 1
+        end if
+        if (saved > 0) call set_buffer_internal(saved)
+    contains
+
+        !> The text up to ENDPOS is not shown: the buffer text resumes
+        !> there, after the items; a point in it from FROM (default its
+        !> start) shows the cursor on the next glyph.
+        subroutine hide(endpos, from)
+            integer(int64), intent(in) :: endpos
+            integer(int64), intent(in), optional :: from
+            ! (Hidden text right after hidden text adds to it.)
+            if (s%hidden_end /= p .or. s%hidden_end <= s%hidden_beg) s%hidden_beg = p
+            if (present(from)) s%hidden_beg = max(s%hidden_beg, from)
+            s%hidden_end = endpos
+            s%resume = endpos
+            s%resume_byte = buf_charpos_to_bytepos(bi, endpos)
+            s%stop = endpos
+        end subroutine hide
+    end subroutine handle_stop
+
+    !> Append to ITEMS the overlay strings at position CHARPOS of the
+    !> current buffer: the after-strings of the overlays ending there and
+    !> the before-strings of those starting there (both, at either end,
+    !> of an overlay whose text is invisible), after-strings before
+    !> before-strings (of different overlays), after-strings in order of
+    !> decreasing priority and before-strings of increasing priority.
+    !> Port of xdisp.c:load_overlay_strings (no `window' property).
+    subroutine load_overlay_strings(charpos, items)
+        integer(int64), intent(in) :: charpos
+        type(display_item_type), allocatable, intent(inout) :: items(:)
+        type(handle_type), allocatable :: vec(:)
+        type(value_type) :: str
+        integer(int64), allocatable :: prio(:), ids(:)
+        logical, allocatable :: after(:)
+        type(display_item_type), allocatable :: entries(:)
+        integer(int64) :: start, end, tp, ti
+        integer :: k, n, i, j, invis
+        logical :: ta
+        type(display_item_type) :: te
+        call overlays_in(max(charpos - 1, 1_int64), charpos + 1, vec)
+        allocate (entries(2*size(vec)), prio(2*size(vec)), ids(2*size(vec)), after(2*size(vec)))
+        n = 0
+        ! (ITREE_FOREACH ... DESCENDING: by decreasing start.)
+        do k = size(vec), 1, -1
+            start = overlay_start(vec(k))
+            end = overlay_end(vec(k))
+            if (end /= charpos .and. start /= charpos) cycle
+            invis = text_prop_means_invisible(overlay_get(vec(k), "invisible"))
+            if (start == charpos .or. (end == charpos .and. invis /= 0)) then
+                str = overlay_get(vec(k), "before_string")
+                call record(vec(k), str, .false.)
+            end if
+            if (end == charpos .or. (start == charpos .and. invis /= 0)) then
+                str = overlay_get(vec(k), "after_string")
+                call record(vec(k), str, .true.)
+            end if
+        end do
+        ! Sort entries (stably).
+        do i = 2, n
+            te = entries(i)
+            tp = prio(i)
+            ti = ids(i)
+            ta = after(i)
+            j = i - 1
+            do while (j >= 1)
+                if (compare(ta, tp, ti, after(j), prio(j), ids(j)) >= 0) exit
+                entries(j + 1) = entries(j)
+                prio(j + 1) = prio(j)
+                ids(j + 1) = ids(j)
+                after(j + 1) = after(j)
+                j = j - 1
+            end do
+            entries(j + 1) = te
+            prio(j + 1) = tp
+            ids(j + 1) = ti
+            after(j + 1) = ta
+        end do
+        do k = 1, n
+            call push_item(items, ITEM_OVERLAY_STRING, entries(k)%s)
+        end do
+    contains
+
+        subroutine record(overlay, string, after_p)
+            type(handle_type), intent(in) :: overlay
+            type(value_type), intent(in) :: string
+            logical, intent(in) :: after_p
+            type(value_type) :: priority
+            if (.not. stringp(string)) return
+            if (len(xstring(string)) == 0) return
+            n = n + 1
+            entries(n)%s = xstring(string)
+            priority = overlay_get(overlay, "priority")
+            prio(n) = 0
+            if (fixnump(priority)) prio(n) = xfixnum(priority)
+            ids(n) = overlay%index
+            after(n) = after_p
+        end subroutine record
+
+        !> Port of xdisp.c:compare_overlay_entries.
+        integer function compare(a1, p1, i1, a2, p2, i2) result(r)
+            logical, intent(in) :: a1, a2
+            integer(int64), intent(in) :: p1, i1, p2, i2
+            r = 0
+            if (a1 .neqv. a2) then
+                ! Let after-strings appear in front of before-strings if
+                ! they come from different overlays.
+                if (i1 == i2) then
+                    r = merge(1, -1, a1)
+                else
+                    r = merge(-1, 1, a1)
+                end if
+            else if (p1 /= p2) then
+                if (a1) then
+                    ! After-strings sorted in order of decreasing priority.
+                    r = merge(-1, 1, p2 < p1)
+                else
+                    ! Before-strings sorted in order of increasing priority.
+                    r = merge(-1, 1, p1 < p2)
+                end if
+            end if
+        end function compare
+    end subroutine load_overlay_strings
+
+    !> Append an item of KIND with string STR (and for a stretch, WIDTH
+    !> and ALIGN_TO) to ITEMS.
+    subroutine push_item(items, kind, str, width, align_to)
+        type(display_item_type), allocatable, intent(inout) :: items(:)
+        integer, intent(in) :: kind
+        character(len=*), intent(in) :: str
+        integer, intent(in), optional :: width, align_to
+        type(display_item_type), allocatable :: grown(:)
+        integer :: n
+        if (.not. allocated(items)) allocate (items(0))
+        n = size(items)
+        allocate (grown(n + 1))
+        grown(1:n) = items
+        grown(n + 1)%kind = kind
+        grown(n + 1)%s = str
+        if (present(width)) grown(n + 1)%width = width
+        if (present(align_to)) grown(n + 1)%align_to = align_to
+        call move_alloc(grown, items)
+    end subroutine push_item
+
+    !> Whether display property value V is a `(space . PROPS)' spec,
+    !> with its width in columns, or the column to align to: `:width' N
+    !> or `:align-to' N, N an integer number of columns or a list (PIXELS)
+    !> (on a terminal, pixels are columns; there are no floats).  Port of the space part of
+    !> xdisp.c:handle_single_display_spec with calc_pixel_width_or_height
+    !> (`:relative-width', `:height', and expressions are deferred).
+    logical function space_spec(v, width, align_to) result(is_space)
+        type(value_type), intent(in) :: v
+        integer, intent(out) :: width, align_to
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+        integer :: n
+        is_space = .false.
+        width = 0
+        align_to = -1
+        if (.not. consp(v)) return
+        call list_elements(v, elts)
+        if (size(elts) < 1) return
+        if (.not. value_eq(elts(1), sym("space"))) return
+        is_space = .true.
+        do k = 2, size(elts) - 1, 2
+            if (.not. number_of(elts(k + 1), n)) cycle
+            if (value_eq(elts(k), sym(":width"))) then
+                width = max(0, n)
+                return
+            else if (value_eq(elts(k), sym(":align-to"))) then
+                align_to = max(0, n)
+                return
+            end if
+        end do
+    contains
+
+        logical function number_of(x, n) result(ok)
+            type(value_type), intent(in) :: x
+            integer, intent(out) :: n
+            type(value_type), allocatable :: px(:)
+            ok = .true.
+            n = 0
+            if (fixnump(x)) then
+                n = int(xfixnum(x))
+            else if (consp(x)) then
+                call list_elements(x, px)
+                ok = .false.
+                if (size(px) /= 1) return
+                if (.not. fixnump(px(1))) return
+                n = int(xfixnum(px(1)))
+                ok = .true.
+            else
+                ok = .false.
+            end if
+        end function number_of
+    end function space_spec
+
+    !> What comes next from `s' in buffer slot `bi' (without moving
+    !> past it), handling the properties at stops on the way.
+    !> (xdisp.c:get_next_display_element.)
+    subroutine peek_element(bi, s, el)
+        integer(int64), intent(in) :: bi
+        type(row_start_type), intent(inout) :: s
+        type(element_type), intent(out) :: el
+        integer(int32) :: c
+        integer :: n
+        do
+            if (s%item > 0) then
+                if (s%item > size(s%items)) then
+                    ! The items are done: back to the buffer text.
+                    s%item = 0
+                    deallocate (s%items)
+                    s%pos = s%resume
+                    s%byte = s%resume_byte
+                    cycle
+                end if
+                associate (it => s%items(s%item))
+                    if (it%kind == ITEM_STRETCH) then
+                        if (s%ibyte > 1) then
+                            call next_item()
+                            cycle
+                        end if
+                        el%kind = EL_STRETCH
+                        el%width = it%width
+                        el%display = .true.
+                        el%first = .true.
+                        return
+                    end if
+                    if (s%ibyte > len(it%s)) then
+                        call next_item()
+                        cycle
+                    end if
+                    call string_char_and_length(it%s, s%ibyte, c, n)
+                    el%c = c
+                    el%len = n
+                    el%kind = EL_STRING_CHAR
+                    if (c == 10) el%kind = EL_STRING_NEWLINE
+                    el%overlay_string = it%kind == ITEM_OVERLAY_STRING
+                    el%display = it%kind == ITEM_DISPLAY_STRING
+                    el%first = s%ibyte == 1
+                end associate
+                return
+            end if
+            if (s%stop < 0 .or. s%pos >= s%stop) then
+                call handle_stop(bi, s)
+                if (s%item > 0) cycle
+                if (s%pos /= s%resume) then
+                    s%pos = s%resume
+                    s%byte = s%resume_byte
+                    cycle
+                end if
+            end if
+            if (s%pos >= buffers(bi)%zv) then
+                el%kind = EL_EOB
+                return
+            end if
+            el%c = buf_fetch_char(buffers(bi), s%byte)
+            el%len = buf_next_char_len(buffers(bi), s%byte)
+            el%kind = EL_CHAR
+            if (el%c == 10) el%kind = EL_NEWLINE
+            return
+        end do
+    contains
+
+        subroutine next_item()
+            s%item = s%item + 1
+            s%ibyte = 1
+        end subroutine next_item
+    end subroutine peek_element
+
+    !> Move `s' past the element `el' peek_element gave.
+    !> (xdisp.c:set_iterator_to_next.)
+    subroutine consume_element(s, el)
+        type(row_start_type), intent(inout) :: s
+        type(element_type), intent(in) :: el
+        select case (el%kind)
+        case (EL_CHAR, EL_NEWLINE)
+            s%pos = s%pos + 1
+            s%byte = s%byte + el%len
+        case (EL_STRING_CHAR, EL_STRING_NEWLINE)
+            s%ibyte = s%ibyte + el%len
+        case (EL_STRETCH)
+            s%ibyte = 2
+        case default
+            continue
+        end select
+        s%mid = .false.
+        s%skip = 0
+        if (.not. el%overlay_string .and. .not. el%display) then
+            s%hidden_beg = 0
+            s%hidden_end = 0
+        end if
+    end subroutine consume_element
+
+    !> Whether a glyph of element `el' from `s' shows the cursor of `pt':
+    !> a buffer character at `pt'; the first glyph of a display string or
+    !> space shown at `pt'; or the first glyph not from an overlay string
+    !> after hidden text that `pt' is in (text that is invisible, or
+    !> replaced from after its first position).
+    logical function cursor_at_element(s, el, pt) result(here)
+        type(row_start_type), intent(in) :: s
+        type(element_type), intent(in) :: el
+        integer(int64), intent(in) :: pt
+        here = .false.
+        if (el%overlay_string) return
+        if (el%display) then
+            here = el%first .and. s%pos == pt
+            return
+        end if
+        if (s%hidden_end > s%hidden_beg) then
+            if (pt >= s%hidden_beg .and. pt < s%hidden_end) here = .true.
+        end if
+        if (el%kind == EL_CHAR .or. el%kind == EL_NEWLINE .or. el%kind == EL_EOB) then
+            if (s%pos == pt) here = .true.
+        end if
+    end function cursor_at_element
+
     !> Lay out one screen row of buffer slot `bi' from `s' (updated to the
     !> start of the next row), with the continuation glyph \ at column
     !> `last_x' + 1 (it->last_visible_x is `last_x').  A character that
@@ -521,7 +990,8 @@ contains
     !> `cursor_col' are pixels and display_row_gui lays the row out;
     !> `cursor_hpos' is the glyph of the cursor, `ascent' and `descent'
     !> the row's (0 on a terminal).
-    subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, re, f, cursor_hpos, ascent, descent)
+    subroutine display_row(bi, s, last_x, pt, ends, cursor_col, used, glyphs, rb, re, f, cursor_hpos, ascent, descent, &
+                           goal_x, goal_pos)
         integer(int64), intent(in) :: bi
         type(row_start_type), intent(inout) :: s
         integer, intent(in) :: last_x
@@ -531,14 +1001,22 @@ contains
         integer(int64), intent(in), optional :: rb, re
         type(frame_type), intent(inout), optional :: f
         integer, intent(out), optional :: cursor_hpos, ascent, descent
+        !> The x to find the buffer position of (for vertical motion):
+        !> `goal_pos' is the position of the character whose glyphs span
+        !> it, else of the last character on the row (the newline, or the
+        !> end of the text).
+        integer, intent(in), optional :: goal_x
+        integer(int64), intent(out), optional :: goal_pos
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
-        integer(int64) :: zv, stop, rbeg, rend, endpos, fstop
-        integer(int32) :: c, face_id, extend_face_id
+        type(element_type) :: el
+        integer(int64) :: stop, rbeg, rend, endpos, fstop, last_pos, gpos
+        integer(int32) :: face_id, extend_face_id
         integer :: col, n, first, ncells, k, hpos, asc, desc
         logical :: faces
-        zv = buffers(bi)%zv
         col = 0
         cursor_col = -1
+        gpos = -1
+        last_pos = s%pos
         faces = present(glyphs) .and. present(f)
         rbeg = 0
         rend = 0
@@ -561,20 +1039,23 @@ contains
         face_id = DEFAULT_FACE_ID
         stop = -1
         do
-            if (s%pos >= zv) then
-                if (s%pos == pt) cursor_col = col
+            call peek_element(bi, s, el)
+            if (el%kind == EL_EOB) then
+                if (cursor_at_element(s, el, pt)) cursor_col = col
                 ends = ROW_ENDS_AT_ZV
+                if (gpos < 0) gpos = s%pos
                 exit
             end if
-            ! handle_fontified_prop and handle_face_prop at the next stop.
+            ! handle_fontified_prop and handle_face_prop at the next stop
+            ! (an item has the face of the text where it is shown).
             if (faces .and. s%pos >= stop) then
                 call handle_fontified_prop(bi, s%pos, s%pos + TEXT_PROP_DISTANCE_LIMIT, fstop)
                 face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend)
                 stop = min(stop, fstop)
             end if
-            c = buf_fetch_char(buffers(bi), s%byte)
-            if (c == 10) then
-                if (s%pos == pt) cursor_col = col
+            if (el%kind == EL_NEWLINE) then
+                if (cursor_at_element(s, el, pt)) cursor_col = col
+                if (gpos < 0) gpos = s%pos
                 if (faces .and. face_id /= DEFAULT_FACE_ID .and. col + 1 <= size(glyphs)) then
                     ! A space for the cursor at the end of the line, in the
                     ! newline's face.
@@ -592,14 +1073,40 @@ contains
                 ends = ROW_ENDS_IN_NEWLINE
                 exit
             end if
+            if (el%kind == EL_STRING_NEWLINE) then
+                ! A newline in a string ends the display line.
+                if (cursor_at_element(s, el, pt)) cursor_col = col
+                if (gpos < 0) gpos = s%pos
+                call consume_element(s, el)
+                s%cont = 0
+                ends = ROW_ENDS_IN_STRING_NEWLINE
+                exit
+            end if
             cells = glyph_type()
-            call produce_char(c, col + s%cont, cells, n)
-            if (faces) cells(1:n)%face_id = char_face(f, c, face_id)
+            if (el%kind == EL_STRETCH) then
+                n = el%width
+                if (s%items(s%item)%align_to >= 0) n = max(0, s%items(s%item)%align_to - col)
+                n = min(n, MAX_CHAR_CELLS)
+                cells(1:n)%ch = 32
+            else
+                call produce_char(el%c, col + s%cont, cells, n)
+            end if
+            if (faces .and. n > 0) then
+                if (el%kind == EL_STRETCH) then
+                    cells(1:n)%face_id = face_id
+                else
+                    cells(1:n)%face_id = char_face(f, el%c, face_id)
+                end if
+            end if
             ! The rest of a ^X or \ooo begun on the row before (a TAB's
             ! rest follows from the column).
             first = 1
-            if (s%mid .and. c /= 9) first = min(n, s%skip + 1)
+            if (s%mid .and. el%c /= 9 .and. el%kind /= EL_STRETCH) first = min(n, s%skip + 1)
             ncells = n - first + 1
+            if (n == 0) ncells = 0
+            if (gpos < 0 .and. present(goal_x)) then
+                if (col + ncells > goal_x) gpos = element_pos()
+            end if
             if (col + ncells > last_x .and. col > 0) then
                 ends = ROW_CONTINUED
                 if (n == 2 .and. cells(2)%padding) then
@@ -614,9 +1121,10 @@ contains
                     k = last_x - col
                     if (k > 0) then
                         if (present(glyphs)) glyphs(col + 1:col + k) = cells(first:first + k - 1)
-                        if (s%pos == pt .and. .not. s%mid) cursor_col = col
+                        if (.not. s%mid .and. cursor_at_element(s, el, pt)) cursor_col = col
                         s%skip = first - 1 + k
                         s%mid = .true.
+                        last_pos = element_pos()
                     end if
                     if (present(glyphs)) then
                         glyphs(last_x + 1) = glyph_type()
@@ -625,22 +1133,29 @@ contains
                     s%cont = s%cont + last_x
                 end if
                 col = last_x + 1
+                if (gpos < 0) gpos = last_pos
                 exit
             end if
-            if (present(glyphs)) then
+            if (present(glyphs) .and. ncells > 0) then
                 ! (Only a character alone on a too narrow row is clipped.)
                 k = min(ncells, size(glyphs) - col)
                 if (k > 0) glyphs(col + 1:col + k) = cells(first:first + k - 1)
             end if
-            if (s%pos == pt .and. .not. s%mid) cursor_col = col
+            if (.not. s%mid .and. cursor_at_element(s, el, pt)) cursor_col = col
+            if (ncells > 0 .or. el%kind == EL_CHAR) last_pos = element_pos()
             col = col + ncells
-            s%pos = s%pos + 1
-            s%byte = s%byte + buf_next_char_len(buffers(bi), s%byte)
-            s%mid = .false.
-            s%skip = 0
+            call consume_element(s, el)
         end do
         used = min(col, last_x + 1)
         if (present(cursor_hpos)) cursor_hpos = cursor_col + 1
+        if (present(goal_pos)) goal_pos = gpos
+    contains
+
+        !> The buffer position an element stands for: its own, or where
+        !> its item is shown.
+        integer(int64) function element_pos() result(pos)
+            pos = s%pos
+        end function element_pos
     end subroutine display_row
 
     !> display_row on window-system frame `f': lay out one screen row of
@@ -668,11 +1183,11 @@ contains
         type(glyph_type), intent(inout) :: glyphs(:)
         type(frame_type), intent(inout) :: f
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
-        integer(int64) :: zv, stop, fstop
-        integer(int32) :: c, face_id
+        type(element_type) :: el
+        integer(int64) :: stop, fstop
+        integer(int32) :: face_id
         integer :: x, n, first, k, a, d
         logical :: shown, continued
-        zv = buffers(bi)%zv
         x = 0
         used = 0
         cursor_x = -1
@@ -682,8 +1197,9 @@ contains
         face_id = DEFAULT_FACE_ID
         stop = -1
         do
-            if (s%pos >= zv) then
-                if (s%pos == pt) call set_cursor()
+            call peek_element(bi, s, el)
+            if (el%kind == EL_EOB) then
+                if (cursor_at_element(s, el, pt)) call set_cursor()
                 call append_space(DEFAULT_FACE_ID)
                 ends = ROW_ENDS_AT_ZV
                 exit
@@ -694,28 +1210,43 @@ contains
                 face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend)
                 stop = min(stop, fstop)
             end if
-            c = buf_fetch_char(buffers(bi), s%byte)
-            if (c == 10) then
-                if (s%pos == pt) call set_cursor()
+            if (el%kind == EL_NEWLINE .or. el%kind == EL_STRING_NEWLINE) then
+                if (cursor_at_element(s, el, pt)) call set_cursor()
                 ! A newline has no width, but the height of its face's font.
                 call normal_char_ascent_descent(f, face_id, a, d)
                 ascent = max(ascent, a)
                 descent = max(descent, d)
                 call append_space(face_id)
-                s = row_start_type(pos=s%pos + 1, byte=s%byte + 1)
-                ends = ROW_ENDS_IN_NEWLINE
+                if (el%kind == EL_NEWLINE) then
+                    s = row_start_type(pos=s%pos + 1, byte=s%byte + 1)
+                    ends = ROW_ENDS_IN_NEWLINE
+                else
+                    call consume_element(s, el)
+                    s%cont = 0
+                    ends = ROW_ENDS_IN_STRING_NEWLINE
+                end if
                 exit
             end if
             cells = glyph_type()
-            call produce_char(c, x + s%cont, cells, n, gui=.true.)
-            cells(1:n)%face_id = char_face(f, c, face_id)
+            if (el%kind == EL_STRETCH) then
+                n = 1
+                cells(1)%type = STRETCH_GLYPH
+                cells(1)%face_id = face_id
+            else
+                call produce_char(el%c, x + s%cont, cells, n, gui=.true.)
+                cells(1:n)%face_id = char_face(f, el%c, face_id)
+            end if
             ! The rest of a display vector begun on the row before.
             first = 1
-            if (s%mid .and. c /= 9) first = min(n, s%skip + 1)
+            if (s%mid .and. el%c /= 9 .and. el%kind /= EL_STRETCH) first = min(n, s%skip + 1)
             shown = .false.
             continued = .false.
             do k = first, n
-                call gui_produce_glyph(f, cells(k), x + s%cont)
+                if (el%kind == EL_STRETCH) then
+                    call gui_produce_glyph(f, cells(k), x, stretch_cols(s%items(s%item)))
+                else
+                    call gui_produce_glyph(f, cells(k), x + s%cont)
+                end if
                 if (x + cells(k)%pixel_width > last_x) then
                     continued = .true.
                     exit
@@ -730,14 +1261,14 @@ contains
                     call show(cells(k))
                     s%cont = s%cont + x
                     if (k == n) then
-                        call next_char()
+                        call consume_element(s, el)
                     else
                         s%mid = .true.
                         s%skip = k
                     end if
                 else if (cells(k)%type == STRETCH_GLYPH) then
-                    ! A TAB that extends past the right edge fills the row
-                    ! without being consumed.
+                    ! A TAB (or space) that extends past the right edge
+                    ! fills the row without being consumed.
                     cells(k)%pixel_width = last_x - x
                     call show(cells(k))
                     call put(continuation_glyph(f), .true.)
@@ -759,7 +1290,7 @@ contains
                 end if
                 exit
             end if
-            call next_char()
+            call consume_element(s, el)
         end do
     contains
 
@@ -769,11 +1300,13 @@ contains
             cursor_hpos = used + 1
         end subroutine set_cursor
 
-        !> Show glyph `g' of the current character, the cursor on its first
-        !> one if it is at `pt'.
+        !> Show glyph `g' of the current element, the cursor on its first
+        !> one if it shows the cursor.
         subroutine show(g)
             type(glyph_type), intent(in) :: g
-            if (.not. shown .and. s%pos == pt .and. .not. s%mid) call set_cursor()
+            if (.not. shown .and. .not. s%mid) then
+                if (cursor_at_element(s, el, pt)) call set_cursor()
+            end if
             shown = .true.
             call put(g, .true.)
             x = x + g%pixel_width
@@ -792,14 +1325,6 @@ contains
             end if
         end subroutine put
 
-        !> Go on to the next character.
-        subroutine next_char()
-            s%pos = s%pos + 1
-            s%byte = s%byte + buf_next_char_len(buffers(bi), s%byte)
-            s%mid = .false.
-            s%skip = 0
-        end subroutine next_char
-
         !> append_space_for_newline: a space in face `id' for the cursor;
         !> an empty row gets the height of its font.
         subroutine append_space(id)
@@ -815,6 +1340,13 @@ contains
             glyphs(used) = g
         end subroutine append_space
     end subroutine display_row_gui
+
+    !> The `stretch' argument of gui_produce_glyph for a stretch item.
+    integer function stretch_cols(item) result(n)
+        type(display_item_type), intent(in) :: item
+        n = item%width
+        if (item%align_to >= 0) n = -1 - item%align_to
+    end function stretch_cols
 
     !> If the text at POS in buffer slot BI is not fontified (its
     !> `fontified' property is false), call `fontification_functions' with
@@ -918,7 +1450,7 @@ contains
             else
                 call display_row(bi, s, last_x, -1_int64, ends, cursor_col, used)
             end if
-            if (ends /= ROW_CONTINUED) exit
+            if (ends /= ROW_CONTINUED .and. ends /= ROW_ENDS_IN_STRING_NEWLINE) exit
         end do
         eol = s%pos
         if (ends == ROW_ENDS_IN_NEWLINE) eol = s%pos - 1
@@ -932,13 +1464,31 @@ contains
         k = nrows
         do while (k > 1)
             if (rows(k)%pos < pos) exit
-            if (rows(k)%pos == pos .and. .not. rows(k)%mid) exit
+            if (rows(k)%pos == pos .and. (rows(k)%item > 0 .or. .not. rows(k)%mid)) exit
             k = k - 1
         end do
     end function display_row_of
 
-    !> The start of the line holding `pos' in buffer slot `bi'.
+    !> The start of the visible line holding `pos' in buffer slot `bi':
+    !> the start of its line, or of the line before when the newline
+    !> before it is invisible.  (xdisp.c:back_to_previous_visible_line_start;
+    !> no selective display.)
     integer(int64) function line_beginning(bi, pos) result(bol)
+        integer(int64), intent(in) :: bi, pos
+        integer(int64) :: saved
+        saved = cur
+        call set_buffer_internal(bi)
+        bol = raw_line_beginning(bi, pos)
+        do while (bol > buffers(bi)%begv)
+            ! Check the newline before for invisibility.
+            if (text_prop_means_invisible(get_char_property(bol - 1, sym("invisible"))) == 0) exit
+            bol = raw_line_beginning(bi, bol - 1)
+        end do
+        if (saved > 0) call set_buffer_internal(saved)
+    end function line_beginning
+
+    !> The start of the line holding `pos' in buffer slot `bi'.
+    integer(int64) function raw_line_beginning(bi, pos) result(bol)
         integer(int64), intent(in) :: bi, pos
         integer(int64) :: byte, begv_byte
         begv_byte = buffers(bi)%begv_byte
@@ -948,7 +1498,7 @@ contains
             byte = byte - 1
         end do
         bol = buf_bytepos_to_charpos(bi, byte)
-    end function line_beginning
+    end function raw_line_beginning
 
     !> Where display starts for window start `start': the continuation
     !> width of the row it begins.  Port of the line-start part of
