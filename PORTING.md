@@ -132,6 +132,23 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    24. Abbrevs and dabbrev (abbrev tables, Abbrev mode, C-x a, C-x ', M-',
        M-/, saving abbrevs into init.f90). — done (core: see abbrev_fm and
        dabbrev_fm for what is Deferred; hippie-exp.el is Deferred).
+   25. Faces in the config API: `faces%`, `face_underline`, `face_box` (the
+       design decision of 2026-10-24).
+   26. Customize (`customize-variable`, `customize-face`) writing Fortran
+       into init.f90, over tools/user-options and `faces%`.
+   27. Coding systems (coding.c): decoding and encoding for files and
+       processes, `buffer-file-coding-system`.
+   28. Completion: more minibuffer completion styles and
+       `completion-at-point` (then `dabbrev-completion`, Comint and shell
+       completion).
+   29. Display properties in redisplay: `invisible`, `display`,
+       `before-string` and `after-string` on overlays and text.
+   30. Major modes: Outline mode, f90-mode, sh-script, conf-mode.
+   31. diff.el, Diff mode and VC with vc-git (Dired's `=`, VC renames).
+   32. Auto-revert, with file notifications through inotify in src/sys.
+   33. Small everyday packages: bookmarks, recentf, savehist, saveplace,
+       `repeat-mode`, `rectangle-mark-mode`.
+   34. The Info reader (C-h i and the manual commands of help).
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
 rendering, then Wayland) comes after the bulk of Emacs is ported; its
@@ -600,6 +617,8 @@ Each lists the default being used meanwhile.
 ## Session log
 
 Resume point for the next working session, newest first.
+
+- 2026-10-24 — Roadmap steps 25–34 (proposed by the session that did steps 20–24; `--rollback` and `--list-generations` were already done in Phase 5.1). Two sessions work in tandem, each one step per PR based on main: session_01QDZcHmpSKFnvYKAGB3eDAc takes 25, 26, 30, 32, 34; session_01JGaKkfcr9sr1gmwgRQK6TQ takes 27, 28, 29, 31, 33. After each merge, each session merges main into its own open PR.
 
 - 2026-10-24 — Design decision: faces in the config API through `faces%`, with `face_underline` and `face_box` constructors for property-list attributes (not implemented yet). CLAUDE.md: changes to PORTING.md and CLAUDE.md go through a PR.
 
