@@ -2217,10 +2217,15 @@ contains
                         "result (0, or -1)."
         case ("interrupt_process")
             entry%file = "process_fm.f90"
-            entry%fortran = "call interrupt_process(status, process)"
+            entry%fortran = "call interrupt_process(status, process, current_group)"
             entry%doc = "Interrupt process PROCESS."//LF// &
                         "PROCESS may be a process, or absent for the current buffer's"//LF// &
-                        "process."
+                        "process."//LF// &
+                        "Second arg CURRENT_GROUP true means send signal to"//LF// &
+                        "the current process-group of the process's controlling terminal"//LF// &
+                        "rather than to the process's own process group."//LF// &
+                        "If the process is a shell, this means interrupt current subjob"//LF// &
+                        "rather than the shell."
         case ("isearch_abort")
             entry%file = "isearch_fm.f90"
             entry%interactive = .true.
@@ -2511,8 +2516,9 @@ contains
                         "negative ARG -N means kill backward to Nth start of paragraph."
         case ("kill_process")
             entry%file = "process_fm.f90"
-            entry%fortran = "call kill_process(status, process)"
-            entry%doc = "Kill process PROCESS."
+            entry%fortran = "call kill_process(status, process, current_group)"
+            entry%doc = "Kill process PROCESS.  May be process or name of one."//LF// &
+                        "See function `interrupt_process' for more details on usage."
         case ("kill_rectangle")
             entry%file = "rect_fm.f90"
             entry%fortran = "call kill_rectangle(start, end, status, fill)"
@@ -2909,10 +2915,10 @@ contains
                         "handle the output.  BUFFER may be also absent, meaning that this"//LF// &
                         "process is not associated with any buffer."//LF// &
                         ""//LF// &
-                        "COMMAND is a list starting with the program file name, followed by"//LF// &
+                        "COMMAND is an array starting with the program file name, followed by"//LF// &
                         "strings to give to the program as arguments.  If the program file"//LF// &
                         "name is not an absolute file name, `make_process' will look for the"//LF// &
-                        "program file name in `exec_path' (which is a list of directories)."//LF// &
+                        "program file name in `exec_path' (which is an array of directories)."//LF// &
                         ""//LF// &
                         "NOQUERY -- When exiting Emacs, query the user if NOQUERY is false"//LF// &
                         "and the process is running.  If NOQUERY is not given, query before"//LF// &
@@ -2929,7 +2935,7 @@ contains
                         "SENTINEL -- Install SENTINEL as the process sentinel."//LF// &
                         ""//LF// &
                         "ENVIRONMENT -- ""NAME=VALUE"" entries put first in the process's"//LF// &
-                        "environment (as binding `process_environment' to a list starting"//LF// &
+                        "environment (as binding `process_environment' to an array starting"//LF// &
                         "with them does)."
         case ("make_syntax_table")
             entry%file = "syntax_fm.f90"
@@ -3537,7 +3543,7 @@ contains
             entry%file = "process_fm.f90"
             entry%fortran = "call process_command(process, command)"
             entry%doc = "Return the command that was executed to start PROCESS."//LF// &
-                        "This is a list of strings, the first string being the program"//LF// &
+                        "This is an array of strings, the first string being the program"//LF// &
                         "executed and the rest of the strings being the arguments given to"//LF// &
                         "it."
         case ("process_exit_status")
@@ -3554,7 +3560,7 @@ contains
         case ("process_list")
             entry%file = "process_fm.f90"
             entry%fortran = "process_list()"
-            entry%doc = "Return a list of all processes that are Emacs sub-processes."
+            entry%doc = "Return an array of all processes that are Emacs sub-processes."
         case ("process_live_p")
             entry%file = "process_fm.f90"
             entry%fortran = "process_live_p(process)"
@@ -3737,8 +3743,9 @@ contains
                         "are passed to `perform_replace' (which see)."
         case ("quit_process")
             entry%file = "process_fm.f90"
-            entry%fortran = "call quit_process(status, process)"
-            entry%doc = "Send QUIT signal to process PROCESS."
+            entry%fortran = "call quit_process(status, process, current_group)"
+            entry%doc = "Send QUIT signal to process PROCESS.  May be process or name of one."//LF// &
+                        "See function `interrupt_process' for more details on usage."
         case ("quit_window")
             entry%file = "window_fm.f90"
             entry%fortran = "call quit_window(kill, status, window)"
@@ -5268,7 +5275,7 @@ contains
             entry%fortran = "comint_inhibit_carriage_motion"
             entry%original = ".false."
             entry%value = repr(comint_inhibit_carriage_motion%value)
-            entry%doc = "If true, Comint will interpret `carriage control' characters in"//LF// &
+            entry%doc = "If false, Comint will interpret `carriage control' characters in"//LF// &
                         "output.  See `comint_carriage_motion' for details."
         case ("commands")
             entry%file = "commands_fm.f90"
@@ -5375,8 +5382,8 @@ contains
                         "end of their output window so that the end of the output is always"//LF// &
                         "visible rather than the beginning."//LF// &
                         ""//LF// &
-                        "The value `first-error' stops scrolling at the first error, and"//LF// &
-                        "leaves point on its location in the *compilation* buffer."
+                        "COMPILATION_SCROLL_FIRST_ERROR stops scrolling at the first error,"//LF// &
+                        "and leaves point on its location in the *compilation* buffer."
         case ("compile_command")
             entry%file = "compile_fm.f90"
             entry%fortran = "compile_command"
@@ -6607,7 +6614,7 @@ contains
             end if
             entry%doc = "Buffer name for `shell_command' and `shell_command_on_region' error"//LF// &
                         "output.  This buffer is used when `shell_command' or"//LF// &
-                        "`shell_command_on_region' is run interactively.  A value of nil"//LF// &
+                        "`shell_command_on_region' is run interactively.  Unallocated"//LF// &
                         "means that output to stderr and stdout will be intermixed in the"//LF// &
                         "output stream."
         case ("shell_command_dont_erase_buffer")
@@ -6630,20 +6637,20 @@ contains
             end select
             entry%doc = "Whether to erase the output buffer before executing shell command."//LF// &
                         ""//LF// &
-                        "A nil value erases the output buffer before execution of the"//LF// &
+                        "DONT_ERASE_NIL erases the output buffer before execution of the"//LF// &
                         "shell command, except when the output buffer is the current one."//LF// &
                         ""//LF// &
-                        "The value `erase' ensures the output buffer is erased before"//LF// &
+                        "DONT_ERASE_ERASE ensures the output buffer is erased before"//LF// &
                         "execution of the shell command even if it is the current buffer."//LF// &
                         ""//LF// &
                         "Other values prevent the output buffer from being erased; they"//LF// &
                         "also reposition point in the shell output buffer after execution of the"//LF// &
                         "shell command, except when the output buffer is the current buffer."//LF// &
                         ""//LF// &
-                        "The value `beg_last_out' sets point at the beginning of the last"//LF// &
-                        "output, `end_last_out' sets point at the end of the last output,"//LF// &
-                        "and `save_point' restores the buffer position as it was before the"//LF// &
-                        "shell command."
+                        "DONT_ERASE_BEG_LAST_OUT sets point at the beginning of the last"//LF// &
+                        "output, DONT_ERASE_END_LAST_OUT sets point at the end of the last"//LF// &
+                        "output, and DONT_ERASE_SAVE_POINT restores the buffer position as it"//LF// &
+                        "was before the shell command."
         case ("shell_command_prompt_show_cwd")
             entry%file = "simple_fm.f90"
             entry%fortran = "shell_command_prompt_show_cwd"

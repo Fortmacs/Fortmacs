@@ -509,7 +509,7 @@ module simple_fm
 
     !> Buffer name for `shell_command' and `shell_command_on_region' error
     !> output.  This buffer is used when `shell_command' or
-    !> `shell_command_on_region' is run interactively.  A value of nil
+    !> `shell_command_on_region' is run interactively.  Unallocated
     !> means that output to stderr and stdout will be intermixed in the
     !> output stream.  Port of simple.el shell-command-default-error-buffer.
     type(string_setting), public :: shell_command_default_error_buffer = &
@@ -521,27 +521,26 @@ module simple_fm
     type(logical_setting), public :: shell_command_prompt_show_cwd = &
                                      logical_setting(name="shell_command_prompt_show_cwd", value=.false.)
 
-    !> Values of `shell_command_dont_erase_buffer': nil, `erase',
-    !> `beg-last-out', `end-last-out' and `save-point'.
+    !> Values of `shell_command_dont_erase_buffer' (see there).
     integer, parameter, public :: DONT_ERASE_NIL = 0, DONT_ERASE_ERASE = 1, DONT_ERASE_BEG_LAST_OUT = 2, &
                                   DONT_ERASE_END_LAST_OUT = 3, DONT_ERASE_SAVE_POINT = 4
 
     !> Whether to erase the output buffer before executing shell command.
     !>
-    !> A nil value erases the output buffer before execution of the
+    !> DONT_ERASE_NIL erases the output buffer before execution of the
     !> shell command, except when the output buffer is the current one.
     !>
-    !> The value `erase' ensures the output buffer is erased before
+    !> DONT_ERASE_ERASE ensures the output buffer is erased before
     !> execution of the shell command even if it is the current buffer.
     !>
     !> Other values prevent the output buffer from being erased; they
     !> also reposition point in the shell output buffer after execution of the
     !> shell command, except when the output buffer is the current buffer.
     !>
-    !> The value `beg_last_out' sets point at the beginning of the last
-    !> output, `end_last_out' sets point at the end of the last output,
-    !> and `save_point' restores the buffer position as it was before the
-    !> shell command.  Port of simple.el shell-command-dont-erase-buffer
+    !> DONT_ERASE_BEG_LAST_OUT sets point at the beginning of the last
+    !> output, DONT_ERASE_END_LAST_OUT sets point at the end of the last
+    !> output, and DONT_ERASE_SAVE_POINT restores the buffer position as it
+    !> was before the shell command.  Port of simple.el shell-command-dont-erase-buffer
     !> (DONT_ERASE_NIL is nil, DONT_ERASE_ERASE `erase',
     !> DONT_ERASE_BEG_LAST_OUT `beg-last-out', DONT_ERASE_END_LAST_OUT
     !> `end-last-out', DONT_ERASE_SAVE_POINT `save-point').

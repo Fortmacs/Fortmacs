@@ -146,8 +146,7 @@ contains
         call init_bindings()
         write (n, "(i0)") (2*num_processors() + 2)/3
         expected = "make -k -j"//trim(n)//" "
-        ! The default is made when first needed.
-        call check(error,.not. allocated(compile_command%value) .or. compile_command%value == expected, "default")
+        call check(error, compile_command%value, expected)
     end subroutine test_default_command
 
     !> The header, the output and the end line.
