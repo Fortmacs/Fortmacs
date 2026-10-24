@@ -46,7 +46,7 @@ module indent_fm
     public :: current_column, move_to_column, vertical_motion, screen_column, window_text_width, &
               indent_to, current_indentation, sane_tab_width
 
-    !> Indentation can insert tabs if this is non-nil.  Port of indent.c
+    !> Indentation can insert tabs if this is true.  Port of indent.c
     !> indent-tabs-mode (one global value).
     type(logical_setting), public :: indent_tabs_mode = logical_setting(name="indent_tabs_mode", value=.true.)
 
@@ -87,18 +87,18 @@ module indent_fm
     type(integer_setting), public :: standard_indent = integer_setting(name="standard_indent", value=4)
 
     !> Controls the operation of the TAB key.
-    !> If t, hitting TAB always just indents the current line.
-    !> If nil, hitting TAB indents the current line if point is at the left margin
+    !> If true, hitting TAB always just indents the current line.
+    !> If false, hitting TAB indents the current line if point is at the left margin
     !> or in the line's indentation, otherwise it inserts a "real" TAB character.
     !> Port of indent.el tab-always-indent (no `complete').
     logical, public :: tab_always_indent = .true.
 
-    !> List of tab stop positions used by `tab_to_tab_stop'.
-    !> This should be nil, or a list of integers, ordered from smallest to largest.
+    !> Array of tab stop positions used by `tab_to_tab_stop'.
+    !> This should be unallocated, or an array of integers, ordered from smallest to largest.
     !> It implicitly extends to infinity through repetition of the last step.
-    !> For example, (1 2 5) is equivalent to (1 2 5 8 11 ...).  If the list has
+    !> For example, [1, 2, 5] is equivalent to [1, 2, 5, 8, 11, ...].  If the array has
     !> fewer than 2 elements, `tab_width' is used as the "last step".
-    !> A value of nil means a tab stop every `tab_width' columns.  Port of
+    !> An unallocated or empty value means a tab stop every `tab_width' columns.  Port of
     !> indent.el tab-stop-list (unallocated or empty is nil).
     integer(int64), allocatable, public :: tab_stop_list(:)
 
@@ -114,7 +114,7 @@ module indent_fm
     !> Function to indent the current line.
     !> This function will be called with no arguments.
     !> If it is called somewhere where it cannot auto-indent, the function
-    !> should return `noindent' to signal that it didn't.
+    !> should set its NOINDENT argument to true to signal that it didn't.
     !> Setting this function is all you need to make TAB indent appropriately.
     !> Don't rebind TAB unless you really need to.  Port of indent.el
     !> indent-line-function (null is the default, `indent_relative').

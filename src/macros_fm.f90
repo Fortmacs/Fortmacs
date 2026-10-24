@@ -32,7 +32,7 @@ submodule(keyboard_fm) macros_fm
     use commands_fm, only: commands
     use error_fm, only: FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: make_list
-    use print_fm, only: prin1_to_string
+    use print_fm, only: fortran_repr
     use xdisp_fm, only: message
     implicit none(type, external)
 
@@ -54,7 +54,7 @@ contains
     else
         ! Check the type of last-kbd-macro.
         if (.not. allocated(last_kbd_macro)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "arrayp, nil")
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "arrayp, .false.")
             return
         end if
         n = size(last_kbd_macro, kind=int64)
@@ -98,7 +98,7 @@ contains
     else if (fixnump(repeat)) then
         n = xfixnum(repeat)
     else
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "fixnump, "//prin1_to_string(repeat))
+        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "fixnump, "//fortran_repr(repeat))
         return
     end if
     call finish_kbd_macro()

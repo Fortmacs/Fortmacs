@@ -56,8 +56,8 @@ module cmds_fm
         integer :: to = -1
     end type char_range_type
 
-    !> A char-table which contains characters which invoke auto-filling.
-    !> Such characters have value t in this table.  Port of character.c
+    !> The characters which invoke auto-filling, as ranges of characters.
+    !> Port of character.c
     !> auto-fill-chars: here the ranges whose value is t (unallocated is
     !> not a char-table: space and newline).  `syms_of_cmds' gives it
     !> space and newline (character.c) and characters.el's CJK ranges.
@@ -269,7 +269,7 @@ contains
         end if
     end subroutine internal_self_insert
 
-    !> Whether `auto_fill_chars' has a non-nil value for `c' (space and
+    !> Whether `auto_fill_chars' contains `c' (space and
     !> newline when it is not a char-table).
     logical function auto_fill_char_p(c)
         integer(int32), intent(in) :: c
@@ -299,7 +299,7 @@ contains
     !> Move point N characters forward (backward if N is negative).
     !> On reaching end or beginning of buffer, stop and signal error.
     !> Interactively, N is the numeric prefix argument.
-    !> If N is omitted or nil, move point 1 character forward.
+    !> If N is omitted, move point 1 character forward.
     !>
     !> Depending on the bidirectional context, the movement may be to the
     !> right or to the left on the screen.  This is in contrast with
@@ -312,7 +312,7 @@ contains
     !> Move point N characters backward (forward if N is negative).
     !> On attempt to pass beginning or end of buffer, stop and signal error.
     !> Interactively, N is the numeric prefix argument.
-    !> If N is omitted or nil, move point 1 character backward.
+    !> If N is omitted, move point 1 character backward.
     !>
     !> Depending on the bidirectional context, the movement may be to the
     !> right or to the left on the screen.  This is in contrast with
@@ -346,14 +346,14 @@ contains
     end subroutine cmd_forward_line
 
     !> Move point to beginning of current line (in the logical order).
-    !> With argument N not nil or 1, move forward N - 1 lines first.
+    !> With argument N not 1, move forward N - 1 lines first.
     !> If point reaches the beginning or end of buffer, it stops there.
     !>
     !> This function constrains point to the current field unless this moves
     !> point to a different line from the original, unconstrained result.
-    !> If N is nil or 1, and a front-sticky field starts at point, the point
+    !> If N is 1, and a front-sticky field starts at point, the point
     !> does not move.  To ignore field boundaries set
-    !> `inhibit_field_text_motion' to t, or use the `forward_line' function
+    !> `inhibit_field_text_motion' to true, or use the `forward_line' function
     !> instead.  Port of cmds.c:Fbeginning_of_line (the command).
     subroutine cmd_beginning_of_line(status)
         type(status_type), intent(out) :: status
@@ -362,14 +362,14 @@ contains
     end subroutine cmd_beginning_of_line
 
     !> Move point to end of current line (in the logical order).
-    !> With argument N not nil or 1, move forward N - 1 lines first.
+    !> With argument N not 1, move forward N - 1 lines first.
     !> If point reaches the beginning or end of buffer, it stops there.
     !>
     !> This function constrains point to the current field unless this moves
     !> point to a different line from the original, unconstrained result.  If
-    !> N is nil or 1, and a rear-sticky field ends at point, the point does
+    !> N is 1, and a rear-sticky field ends at point, the point does
     !> not move.  To ignore field boundaries set `inhibit_field_text_motion'
-    !> to t.  Port of cmds.c:Fend_of_line (the command).
+    !> to true.  Port of cmds.c:Fend_of_line (the command).
     subroutine cmd_end_of_line(status)
         type(status_type), intent(out) :: status
         status = status_type()
@@ -379,7 +379,7 @@ contains
     !> Delete the following N characters (previous if N is negative).
     !> Interactively, N is the prefix arg.
     !>
-    !> Optional second arg KILLFLAG non-nil means kill instead (save in kill ring).
+    !> Optional second arg KILLFLAG true means kill instead (save in kill ring).
     !> Interactively, N is the prefix arg, and KILLFLAG is set if
     !> N was explicitly specified.
     !>

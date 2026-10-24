@@ -35,7 +35,7 @@ module text_mode_fm
 
     public :: text_mode, syms_of_text_mode
 
-    !> Non-nil if this buffer's major mode is a variant of Text mode.
+    !> True if this buffer's major mode is a variant of Text mode.
     !> Obsolete since 27.1: don't set it, and instead of testing its value
     !> use `derived_mode_p'.  Port of text-mode.el text-mode-variant.
     type(logical_setting), public :: text_mode_variant = logical_setting(name="text_mode_variant", value=.false.)

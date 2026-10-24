@@ -121,7 +121,7 @@ contains
     !>
     !> If an edge of the buffer or a field boundary is reached, point is left there.
     !> Field boundaries are not noticed if `inhibit_field_text_motion' is
-    !> non-nil.  Port of bindings.el:right-word (left-to-right paragraphs
+    !> true.  Port of bindings.el:right-word (left-to-right paragraphs
     !> only).
     subroutine cmd_right_word(status)
         type(status_type), intent(out) :: status
@@ -139,7 +139,7 @@ contains
     !>
     !> If an edge of the buffer or a field boundary is reached, point is left there.
     !> Field boundaries are not noticed if `inhibit_field_text_motion' is
-    !> non-nil.  Port of bindings.el:left-word (left-to-right paragraphs
+    !> true.  Port of bindings.el:left-word (left-to-right paragraphs
     !> only).
     subroutine cmd_left_word(status)
         type(status_type), intent(out) :: status
