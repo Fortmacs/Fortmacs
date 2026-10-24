@@ -149,6 +149,29 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    33. Small everyday packages: bookmarks, recentf, savehist, saveplace,
        `repeat-mode`, `rectangle-mark-mode`.
    34. The Info reader (C-h i and the manual commands of help).
+   35. Grep (grep.el: `grep`, `lgrep`, `rgrep`, `grep-find`, Grep mode on
+       compile_fm and next-error).
+   36. Buffer lists: `list-buffers` (C-x C-b, buff-menu.el) and Ibuffer.
+   37. Occur (`occur`, `multi-occur`, Occur mode and its edit mode).
+   38. Comint and shell, the rest: history expansion and M-r,
+       completion (on step 28), password prompts, `ansi-color`, C-c C-z,
+       `list-processes` and the process menu.
+   39. The command loop's wrapper commands and C-x RET c
+       (`universal-coding-system-argument`), with the process, terminal
+       and keyboard coding system commands (C-x RET p, t, k).
+   40. More major modes: `sh-mode` beyond step 30, `makefile-mode`,
+       `python-mode`, `js-mode`, `css-mode`, `sgml-mode`/`html-mode`.
+   41. Charsets and the other coding systems: charset maps (ISO-8859-x,
+       Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
+       language environments (C-x RET l) and input methods (`C-\`).
+   42. Spelling: `ispell` and `flyspell` over an external speller process.
+   43. Terminal frames: several frames on one terminal (C-x 5), and
+       `tab-bar-mode`/`tab-line-mode`.
+   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+       `window-divider` and side windows.
+   45. Calendar and diary.
+   46. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+       HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
 rendering, then Wayland) comes after the bulk of Emacs is ported; its
@@ -617,6 +640,8 @@ Each lists the default being used meanwhile.
 ## Session log
 
 Resume point for the next working session, newest first.
+
+- 2026-10-24 — Roadmap steps 35–46 (deferred parts of steps 18–27 first, then larger areas, the GUI last). Lanes as for 25–34: session_01QDZcHmpSKFnvYKAGB3eDAc takes 36, 40, 42, 43, 45; session_01JGaKkfcr9sr1gmwgRQK6TQ takes 35, 37, 38, 39, 41, 44; 46 is decided when it comes. Coordination stays on issue #85.
 
 - 2026-10-24 — Roadmap steps 25–34 (proposed by the session that did steps 20–24; `--rollback` and `--list-generations` were already done in Phase 5.1). Two sessions work in tandem, each one step per PR based on main: session_01QDZcHmpSKFnvYKAGB3eDAc takes 25, 26, 30, 32, 34; session_01JGaKkfcr9sr1gmwgRQK6TQ takes 27, 28, 29, 31, 33. After each merge, each session merges main into its own open PR.
 
