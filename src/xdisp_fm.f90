@@ -120,8 +120,11 @@ module xdisp_fm
               mode_line_modes_prefix
     public :: redisplay, init_frame_windows, glyph_width, &
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
-              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning
+              mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
+
+    !> Values of `invisible_p': hidden, and replaced by an ellipsis.
+    integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
 
     !> Values of `message_log_max' other than a number of lines.
     integer(int64), parameter, public :: MESSAGE_LOG_DISABLED = -1, MESSAGE_LOG_UNLIMITED = -2
@@ -573,6 +576,22 @@ contains
     ! What is shown: buffer text, overlay strings, invisible text,
     ! display strings
     ! ------------------------------------------------------------------
+
+    !> True if text properties at POS cause text there to be currently
+    !> invisible.  POS is a buffer position; the value of the `invisible'
+    !> property at that position in the current buffer is examined.
+    !>
+    !> The value is INVISIBLE_HIDDEN for currently invisible text that is
+    !> entirely hidden on display, INVISIBLE_ELLIPSIS if the text is
+    !> replaced by an ellipsis, 0 if it is visible.
+    !>
+    !> Note that whether text with `invisible' property is actually hidden
+    !> on display may depend on `buffer_invisibility_spec', which see.
+    !> Port of xdisp.c:Finvisible_p (a position).
+    integer function invisible_p(pos) result(invis)
+        integer(int64), intent(in) :: pos
+        invis = text_prop_means_invisible(get_char_property(pos, sym("invisible")))
+    end function invisible_p
 
     !> Look at the properties of the text at `s%pos' in buffer slot `bi'
     !> and its overlay strings, and set up `s' to show what goes there:

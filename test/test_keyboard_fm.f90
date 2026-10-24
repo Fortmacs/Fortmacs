@@ -73,6 +73,8 @@ contains
                     new_unittest("command-loop", test_command_loop), &
                     new_unittest("command-loop/prefix-arg-and-macro", test_prefix_and_macro), &
                     new_unittest("execute-kbd-macro/until-error", test_macro_until_error), &
+                    new_unittest("adjust-point-invisible", test_adjust_invisible), &
+                    new_unittest("adjust-point-display", test_adjust_display), &
                     new_unittest("command-loop/tty", test_tty) &
                     ]
     end subroutine collect_keyboard_fm
@@ -133,6 +135,89 @@ contains
     end function kbd
 
     !> A fresh global map, made current.
+    !> Buffer "*adjust*" holding "abcdef", shown in the selected window,
+    !> point at 1, the global bindings in place.
+    subroutine adjust_buffer(h)
+        use bindings_fm, only: init_bindings
+        use buffer_fm, only: get_buffer_create, set_buffer, erase_buffer
+        use insdel_fm, only: insert
+        use editfns_fm, only: goto_char
+        use test_support, only: show_alone
+        use window_fm, only: switch_to_buffer
+        type(handle_type), intent(out) :: h
+        type(status_type) :: st
+        call init_bindings()
+        call discard_input()
+        call get_buffer_create("*adjust*", h, st)
+        call switch_to_buffer("*adjust*", st)
+        call set_buffer(h, st)
+        call erase_buffer(st)
+        call insert("abcdef", st)
+        call goto_char(1_int64)
+    end subroutine adjust_buffer
+
+    !> Point after KEYS from position FROM.
+    integer(int64) function point_after(from, keys) result(pos)
+        use editfns_fm, only: goto_char, point
+        integer(int64), intent(in) :: from
+        character(len=*), intent(in) :: keys
+        type(value_type), allocatable :: evs(:)
+        type(status_type) :: st
+        call goto_char(from)
+        call key_parse(keys, evs, st)
+        call unread_command_events(evs)
+        call command_loop(st)
+        pos = point()
+    end function point_after
+
+    !> Point leaves invisible text, as in GNU Emacs: C-f from 1 over
+    !> "bcd" (2 to 5) stays at 2, then goes past it to 6; C-b from 6 to 2.
+    !> With an ellipsis, it stops at the end.
+    subroutine test_adjust_invisible(error)
+        use textprop_fm, only: put_text_property
+        use buffer_fm, only: kill_buffer
+        use lisp_fm, only: t_value
+        use subr_fm, only: add_to_invisibility_spec
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call adjust_buffer(h)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call check(error, point_after(1_int64, "C-f") == 2, "C-f")
+        if (allocated(error)) return
+        call check(error, point_after(1_int64, "C-f C-f") == 6, "C-f C-f")
+        if (allocated(error)) return
+        call check(error, point_after(7_int64, "C-b") == 6, "C-b")
+        if (allocated(error)) return
+        call check(error, point_after(7_int64, "C-b C-b") == 2, "C-b C-b")
+        if (allocated(error)) return
+        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call check(error, point_after(1_int64, "C-f C-f") == 5, "ellipsis C-f C-f")
+        if (allocated(error)) return
+        call check(error, point_after(7_int64, "C-b C-b") == 5, "ellipsis C-b C-b")
+        call kill_buffer(h, st)
+    end subroutine test_adjust_invisible
+
+    !> Point leaves text a display string replaces (3 to 5).
+    subroutine test_adjust_display(error)
+        use textprop_fm, only: put_text_property
+        use buffer_fm, only: kill_buffer
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        call adjust_buffer(h)
+        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call check(error, point_after(1_int64, "C-f C-f") == 3, "to its start")
+        if (allocated(error)) return
+        call check(error, point_after(1_int64, "C-f C-f C-f") == 5, "past it")
+        if (allocated(error)) return
+        call check(error, point_after(7_int64, "C-b C-b") == 5, "back to its end")
+        if (allocated(error)) return
+        call check(error, point_after(7_int64, "C-b C-b C-b") == 3, "back over it")
+        call kill_buffer(h, st)
+    end subroutine test_adjust_display
+
     subroutine fresh_global(km)
         type(handle_type), intent(out) :: km
         type(status_type) :: st

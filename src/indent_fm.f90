@@ -33,7 +33,14 @@ module indent_fm
     use characters_fm, only: char_has_category
     use marker_fm, only: char_to_byte
     use error_fm, only: status_type
-    use lisp_fm, only: value_type
+    use lisp_fm, only: value_type, nilp, consp, stringp, xstring, fixnump, xfixnum, list_elements
+    use lread_fm, only: sym
+    use data_fm, only: value_eq
+    use handle_fm, only: handle_type
+    use character_fm, only: string_char_and_length
+    use textprop_fm, only: get_char_property, get_char_property_and_overlay, text_prop_means_invisible, &
+                           next_property_change, next_single_property_change, get_property_and_range
+    use itree_fm, only: next_overlay_change, overlay_end
     use data_fm, only: logical_setting, integer_setting, setting_type
     use editfns_fm, only: goto_char, pos_bol, point, insert_char_n
     use insdel_fm, only: del_range
@@ -295,21 +302,167 @@ contains
         self%void = .false.
     end subroutine indent_line_set_local
 
-    !> Columns from the start of the line to point.
+    !> Columns from the start of the line to point.  Invisible text
+    !> (unless shown as an ellipsis) takes no columns, text with a display
+    !> string or space as many as they take.
     !> Port of indent.c:Fcurrent_column (current_column).
     integer(int64) function current_column() result(col)
-        integer(int64) :: pos, byte
-        integer(int32) :: c
-        pos = pos_bol()
-        byte = char_to_byte(pos)
-        col = 0
-        do while (pos < buffers(cur)%pt)
-            c = buf_fetch_char(buffers(cur), byte)
-            col = col + glyph_columns(c, int(col))
-            byte = byte + buf_next_char_len(buffers(cur), byte)
-            pos = pos + 1
-        end do
+        integer(int64) :: pos, prev_pos, prev_col
+        pos = buffers(cur)%pt
+        call scan_for_column(pos, huge(0_int64), col, prev_pos, prev_col)
     end function current_column
+
+    !> Scan from the start of the current line up to END (stopping at a
+    !> newline) or until column GOAL is reached: END is where the scan
+    !> stopped and COL its column; PREV_POS and PREV_COL the position and
+    !> column of the last character scanned.  Port of
+    !> indent.c:scan_for_column (no compositions or display tables).
+    subroutine scan_for_column(end, goal, col, prev_pos, prev_col)
+        integer(int64), intent(inout) :: end
+        integer(int64), intent(in) :: goal
+        integer(int64), intent(out) :: col, prev_pos, prev_col
+        integer(int64) :: scan, byte, next_boundary, endp, width
+        integer(int32) :: c
+        scan = pos_bol()
+        col = 0
+        prev_col = 0
+        next_boundary = scan
+        prev_pos = scan
+        ! Scan forward to the target position.
+        do while (scan < end)
+            ! Occasionally we may need to skip invisible text.
+            do while (scan == next_boundary)
+                ! This updates NEXT_BOUNDARY to the next place where we
+                ! might need to skip more invisible text.
+                scan = skip_invisible(scan, next_boundary, end)
+                if (scan >= end) exit
+            end do
+            if (scan >= end) exit
+            ! Test reaching the goal column.  We do this after skipping
+            ! invisible characters, so that we put point before the
+            ! character on which the cursor will appear.
+            if (col >= goal) exit
+            prev_col = col
+            prev_pos = scan
+            ! Check display property.
+            width = check_display_width(scan, col, endp)
+            if (width >= 0) then
+                col = col + width
+                ! Avoid infinite loops with 0-width overlays.
+                if (endp > scan) then
+                    scan = endp
+                    cycle
+                end if
+            end if
+            byte = char_to_byte(scan)
+            c = buf_fetch_char(buffers(cur), byte)
+            if (c == 10) exit
+            col = col + glyph_columns(c, int(col))
+            scan = scan + 1
+        end do
+        end = scan
+    end subroutine scan_for_column
+
+    !> If the text at POS is invisible (not shown as an ellipsis), the
+    !> position to skip to, else POS; NEXT_BOUNDARY gets the next position
+    !> where the invisibility might change.  Port of indent.c:skip_invisible
+    !> for columns (WINDOW nil).
+    integer(int64) function skip_invisible(pos, next_boundary, to) result(newpos)
+        integer(int64), intent(in) :: pos, to
+        integer(int64), intent(out) :: next_boundary
+        integer(int64) :: overlay_limit, proplimit
+        type(status_type) :: st
+        logical :: found
+        ! We must not advance farther than the next overlay change.  The
+        ! overlay change might change the invisible property; or there
+        ! might be overlay strings to be displayed there.
+        overlay_limit = next_overlay_change(pos)
+        ! As for text properties, this gives a lower bound for where the
+        ! invisible text property could change.
+        call next_property_change(pos, proplimit, found, st)
+        if (.not. found) proplimit = buffers(cur)%zv
+        proplimit = min(proplimit, overlay_limit)
+        if (proplimit > pos + 100 .or. proplimit >= to) then
+            next_boundary = proplimit
+        else
+            ! Don't scan terribly far, and no matter what, don't go past
+            ! next overlay change.
+            proplimit = min(pos + 100, to, overlay_limit)
+            call next_single_property_change(pos, sym("invisible"), next_boundary, found, st, proplimit)
+            if (.not. found) next_boundary = proplimit
+        end if
+        ! If the `invisible' property is set, we can skip to the next
+        ! property change; when counting columns, don't skip over
+        ! ellipsis text.
+        newpos = pos
+        if (text_prop_means_invisible(get_char_property(pos, sym("invisible"))) == 1) newpos = next_boundary
+    end function skip_invisible
+
+    !> The width in columns of text at POS (column COL) that a `display'
+    !> property replaces with a space or a string, and in ENDPOS the end
+    !> of that text; -1 if there is no such display property.  Port of
+    !> indent.c:check_display_width (images are deferred).
+    integer(int64) function check_display_width(pos, col, endpos) result(width)
+        integer(int64), intent(in) :: pos, col
+        integer(int64), intent(out) :: endpos
+        type(value_type) :: val
+        type(value_type), allocatable :: elts(:)
+        type(handle_type) :: overlay
+        integer(int64) :: start
+        integer :: k
+        width = -1
+        endpos = pos
+        call get_char_property_and_overlay(pos, sym("display"), val, overlay)
+        if (nilp(val)) return
+        if (consp(val)) then
+            call list_elements(val, elts)
+            ! Handle '(space ...)' display specs.
+            if (value_eq(elts(1), sym("space"))) then
+                do k = 2, size(elts) - 1, 2
+                    if (value_eq(elts(k), sym(":width")) .or. value_eq(elts(k), sym(":relative-width"))) then
+                        if (fixnump(elts(k + 1))) then
+                            if (xfixnum(elts(k + 1)) >= 0) width = xfixnum(elts(k + 1))
+                        end if
+                        exit
+                    end if
+                end do
+                if (width < 0) then
+                    do k = 2, size(elts) - 1, 2
+                        if (value_eq(elts(k), sym(":align-to"))) then
+                            if (fixnump(elts(k + 1))) then
+                                if (xfixnum(elts(k + 1)) >= col) width = xfixnum(elts(k + 1)) - col
+                            end if
+                            exit
+                        end if
+                    end do
+                end if
+            end if
+        else if (stringp(val)) then
+            ! Handle 'display' strings.
+            width = display_string_width(xstring(val))
+        end if
+        if (width >= 0) then
+            if (overlay%index /= 0) then
+                endpos = overlay_end(overlay)
+            else
+                call get_property_and_range(pos, sym("display"), val, start, endpos)
+            end if
+        end if
+    end function check_display_width
+
+    !> Columns STRING takes on display.  (character.c:Fstring_width.)
+    integer(int64) function display_string_width(string) result(width)
+        character(len=*), intent(in) :: string
+        integer(int64) :: i
+        integer(int32) :: c, clen
+        width = 0
+        i = 1
+        do while (i <= len(string, kind=int64))
+            call string_char_and_length(string, i, c, clen)
+            i = i + clen
+            width = width + glyph_columns(c, int(width))
+        end do
+    end function display_string_width
 
     !> Move point to column COLUMN in the current line.
     !> The column of a character is calculated by adding together the widths
@@ -338,7 +491,7 @@ contains
         logical, intent(in), optional :: force
         type(status_type), intent(out), optional :: status
         logical, intent(in), optional :: coerce
-        integer(int64) :: pos, byte, prev_pos, prev_col, goal_pt, col
+        integer(int64) :: pos, prev_pos, prev_col, goal_pt, col
         integer(int32) :: c
         type(status_type) :: st
         logical :: split, pad
@@ -346,21 +499,10 @@ contains
         if (present(force)) pad = force
         split = pad
         if (present(coerce)) split = split .or. coerce
-        pos = pos_bol()
-        byte = char_to_byte(pos)
-        reached = 0
-        prev_pos = pos
-        prev_col = 0
+        pos = buffers(cur)%zv
+        call scan_for_column(pos, column, reached, prev_pos, prev_col)
         c = 0
-        do while (pos < buffers(cur)%zv .and. reached < column)
-            c = buf_fetch_char(buffers(cur), byte)
-            if (c == 10) exit
-            prev_pos = pos
-            prev_col = reached
-            reached = reached + glyph_columns(c, int(reached))
-            byte = byte + buf_next_char_len(buffers(cur), byte)
-            pos = pos + 1
-        end do
+        if (prev_pos < buffers(cur)%zv) c = buf_fetch_char(buffers(cur), char_to_byte(prev_pos))
         call goto_char(pos)
         if (present(status)) status = status_type()
         if (.not. split) return

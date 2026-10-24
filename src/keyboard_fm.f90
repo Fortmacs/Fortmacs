@@ -73,6 +73,10 @@ module keyboard_fm
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available
     use eval_fm, only: hook_type
+    use textprop_fm, only: get_char_property_and_overlay, get_property_and_range, text_prop_means_invisible, &
+                           next_single_char_property_change, previous_single_char_property_change, get_pos_property
+    use itree_fm, only: overlay_start, overlay_end, overlay_get
+    use editfns_fm, only: goto_char
     use timer_fm, only: timer_check, timer_start_idle, timer_stop_idle, timers_run, timer_error_message
     implicit none(type, external)
     private
@@ -205,6 +209,26 @@ module keyboard_fm
     !> screen is current.  Set by the program (xdisp_fm sits above this
     !> module); null in tests.
     procedure(redisplay_proc), pointer, public :: redisplay_hook => null()
+
+    !> If true, suppress point adjustment after executing a command.
+    !>
+    !> After a command is executed, if point moved into a region that has
+    !> special properties (e.g. composition, display), Emacs adjusts point
+    !> to the boundary of the region.  But when a command leaves this
+    !> variable at a true value, this point adjustment is suppressed.
+    !>
+    !> This variable is set to false before reading a command, and is
+    !> checked just after executing the command.  Port of keyboard.c
+    !> disable-point-adjustment.
+    logical, public :: disable_point_adjustment = .false.
+
+    !> If true, always suppress point adjustments.
+    !>
+    !> The default value is false, in which case point adjustments are
+    !> suppressed only after special commands that leave
+    !> `disable_point_adjustment' (which see) at a true value.  Port of
+    !> keyboard.c global-disable-point-adjustment.
+    logical, public :: global_disable_point_adjustment = .false.
 
     !> Normal hook run after each command is executed.  (An error in one
     !> of its functions ends the run; safe_run_hooks's message and removal
@@ -1297,6 +1321,7 @@ contains
         type(value_type) :: cmd, remapped
         logical :: eof, handled
         type(status_type) :: hook_status
+        integer(int64) :: last_point_position, prev_serial, prev_modiff
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
@@ -1343,6 +1368,19 @@ contains
             ! The hook may have changed the command (command-execute runs
             ! this-command).
             cmd = this_command
+        end if
+        ! By default, we adjust point to a boundary of a region that has
+        ! such a property that should be treated intangible (e.g.
+        ! composition, display).  But, some commands will set this
+        ! variable differently.
+        disable_point_adjustment = .false.
+        last_point_position = 0
+        prev_serial = -1
+        prev_modiff = 0
+        if (cur /= 0) then
+            last_point_position = buffers(cur)%pt
+            prev_serial = buffers(cur)%serial
+            prev_modiff = buffers(cur)%text%modiff
         end if
         ! keyboard.c:command_loop_1: undo boundaries for the changes of the
         ! last command, and where point is for record_point.
@@ -1391,10 +1429,205 @@ contains
                 buffers(cur)%mark_active = .false.
             end if
         end if
+        ! finalize: point moved into text that should be intangible.
+        if (cur /= 0) then
+            if (buffers(cur)%serial == prev_serial .and. selected_window_shows_current() .and. &
+                last_point_position /= buffers(cur)%pt) then
+                if (.not. disable_point_adjustment .and. .not. global_disable_point_adjustment) then
+                    call adjust_point_for_property(last_point_position, buffers(cur)%text%modiff /= prev_modiff)
+                end if
+            end if
+        end if
         ! Install chars successfully executed in kbd macro.
         if (defining_kbd_macro /= DEFINING_KBD_MACRO_NIL .and. nilp(prefix_arg)) call finalize_kbd_macro_chars()
         done = eof
     end subroutine command_loop_step
+
+    !> Whether the selected window shows the current buffer.
+    logical function selected_window_shows_current() result(shows)
+        use frame_fm, only: selected_window
+        use window_fm, only: windows, window_live_p
+        type(handle_type) :: sw
+        shows = .false.
+        sw = selected_window()
+        if (.not. window_live_p(sw)) return
+        shows = windows(sw%index)%buffer%index == buffer_handle_index()
+    end function selected_window_shows_current
+
+    !> The handle index of the current buffer.
+    integer function buffer_handle_index() result(k)
+        use buffer_fm, only: current_buffer
+        type(handle_type) :: b
+        b = current_buffer()
+        k = b%index
+    end function buffer_handle_index
+
+    !> Whether display property value PROP replaces the text it is on (a
+    !> string or a space spec; the other replacing specs, such as
+    !> images, are not shown yet).  Port of
+    !> xdisp.c:display_prop_intangible_p.
+    logical function display_prop_intangible_p(prop) result(replaces)
+        type(value_type), intent(in) :: prop
+        type(value_type), allocatable :: elts(:)
+        replaces = stringp(prop)
+        if (replaces .or. vtag(prop) /= V_LIST) return
+        call list_elements(prop, elts)
+        if (size(elts) > 0) replaces = value_eq(elts(1), sym("space"))
+    end function display_prop_intangible_p
+
+    !> Adjust point to a boundary of a region that has such a property
+    !> that should be treated intangible (`display' replacing text, and
+    !> `invisible'; no compositions yet).  For the moment, we check
+    !> `composition', `display' and `invisible' properties.  LAST_PT is
+    !> the last position of point.  MODIFIED says the command changed
+    !> the buffer.  Port of keyboard.c:adjust_point_for_property.
+    subroutine adjust_point_for_property(last_pt, modified)
+        integer(int64), intent(in) :: last_pt
+        logical, intent(in) :: modified
+        integer(int64) :: beg, end, orig_pt, pt_before_invis, begv, zv
+        type(value_type) :: val
+        type(handle_type) :: overlay
+        logical :: check_display, check_invisible, ellipsis, shown, ok
+        integer :: inv
+        check_display = .true.
+        check_invisible = .true.
+        orig_pt = pt()
+        pt_before_invis = pt()
+        begv = buffers(cur)%begv
+        zv = buffers(cur)%zv
+        do while (check_display .or. check_invisible)
+            if (check_display .and. pt() > begv .and. pt() < zv) then
+                call get_char_property_and_overlay(pt(), sym("display"), val, overlay)
+                ok = .false.
+                if (.not. nilp(val)) ok = display_prop_intangible_p(val)
+                if (ok) then
+                    if (overlay%index == 0) then
+                        call get_property_and_range(pt(), sym("display"), val, beg, end)
+                    else
+                        beg = overlay_start(overlay)
+                        end = overlay_end(overlay)
+                    end if
+                    if (beg < pt() .or. (beg <= pt() .and. empty_string(val))) then
+                        if (pt() < last_pt) then
+                            if (empty_string(val)) then
+                                call goto_char(max(beg - 1, begv))
+                            else
+                                call goto_char(beg)
+                            end if
+                        else
+                            call goto_char(end)
+                        end if
+                        check_invisible = .true.
+                    end if
+                end if
+            end if
+            check_display = .false.
+            pt_before_invis = pt()
+            if (check_invisible .and. pt() > begv .and. pt() < zv) then
+                ellipsis = .false.
+                beg = pt()
+                end = pt()
+                ! Find boundaries `beg' and `end' of the invisible area, if
+                ! any.
+                do while (end < zv)
+                    call get_char_property_and_overlay(end, sym("invisible"), val, overlay)
+                    if (nilp(val)) exit
+                    inv = text_prop_means_invisible(val)
+                    if (inv == 0) exit
+                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    end = next_single_char_property_change(end, sym("invisible"))
+                end do
+                do while (beg > begv)
+                    call get_char_property_and_overlay(beg - 1, sym("invisible"), val, overlay)
+                    if (nilp(val)) exit
+                    inv = text_prop_means_invisible(val)
+                    if (inv == 0) exit
+                    ellipsis = ellipsis .or. inv > 1 .or. overlay_strings_p(overlay)
+                    beg = previous_single_char_property_change(beg, sym("invisible"))
+                end do
+                ! Move away from the inside area.
+                if (beg < pt() .and. end > pt()) then
+                    if (orig_pt == pt() .and. (last_pt < beg .or. last_pt > end)) then
+                        ! We haven't moved yet (so we don't need to fear
+                        ! infinite-looping) and we were outside the range
+                        ! before (so either end of the range still
+                        ! corresponds to a move in the right direction):
+                        ! pretend we moved less than we actually did, so that
+                        ! we still have more freedom below in choosing which
+                        ! end of the range to go to.
+                        orig_pt = -1
+                        if (pt() < last_pt) then
+                            call goto_char(end)
+                        else
+                            call goto_char(beg)
+                        end if
+                    else
+                        ! We either have moved already or the last point was
+                        ! already in the range: we don't get to choose which
+                        ! end of the range we have to go to.
+                        if (pt() < last_pt) then
+                            call goto_char(beg)
+                        else
+                            call goto_char(end)
+                        end if
+                    end if
+                    check_display = .true.
+                end if
+                ! Pretend the area doesn't exist if the buffer is not
+                ! modified, but only if the invisible text is not shown on
+                ! display.  Invisible text might be "shown on display" if
+                ! there's a replacing display property on the same text.
+                call get_char_property_and_overlay(beg, sym("display"), val, overlay)
+                shown = .false.
+                if (.not. nilp(val)) shown = display_prop_intangible_p(val)
+                ! If the "invisible" text is shown, undo any point
+                ! adjustments due to invisible property, as cursor
+                ! positioning by the display engine will do a better job.
+                if (shown) call goto_char(pt_before_invis)
+                if (.not. modified .and. .not. shown .and. .not. ellipsis .and. beg < end) then
+                    if (last_pt == beg .and. pt() == end .and. end < zv) then
+                        check_display = .true.
+                        call goto_char(end + 1)
+                    else if (last_pt == end .and. pt() == beg .and. beg > begv) then
+                        check_display = .true.
+                        call goto_char(beg - 1)
+                    else if (pt() == merge(beg, end, pt() < last_pt)) then
+                        ! We've already moved as far as we can.  Trying to go
+                        ! to the other end would mean moving backwards and
+                        ! thus could lead to an infinite loop.
+                        continue
+                    else if (text_prop_means_invisible(get_pos_property(pt(), sym("invisible"))) /= 0) then
+                        if (text_prop_means_invisible(get_pos_property(merge(end, beg, pt() == beg), &
+                                                                       sym("invisible"))) == 0) then
+                            check_display = .true.
+                            call goto_char(merge(end, beg, pt() == beg))
+                        end if
+                    end if
+                end if
+            end if
+            check_invisible = .false.
+        end do
+    contains
+
+        integer(int64) function pt()
+            pt = buffers(cur)%pt
+        end function pt
+
+        logical function empty_string(v)
+            type(value_type), intent(in) :: v
+            empty_string = .false.
+            if (stringp(v)) empty_string = len(xstring(v)) == 0
+        end function empty_string
+
+        !> Whether OVERLAY has an after-string or a before-string.
+        logical function overlay_strings_p(ov)
+            type(handle_type), intent(in) :: ov
+            overlay_strings_p = .false.
+            if (ov%index == 0) return
+            overlay_strings_p = .not. nilp(overlay_get(ov, "after_string")) .or. &
+                                .not. nilp(overlay_get(ov, "before_string"))
+        end function overlay_strings_p
+    end subroutine adjust_point_for_property
 
     !> Run commands until input ends or `request_exit' is called.  Command
     !> errors don't stop the loop.  Port of keyboard.c:command_loop_1.

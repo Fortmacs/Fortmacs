@@ -54,7 +54,8 @@ module itree_fm
     private
 
     public :: make_overlay, move_overlay, delete_overlay, free_overlay, delete_all_overlays, overlayp, &
-              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_prop, overlay_put, overlay_properties, &
+              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_prop, overlay_advance, overlay_put, &
+              overlay_properties, &
               overlays_at, overlays_in, next_overlay_change, previous_overlay_change, sort_overlays, &
               adjust_overlays_for_insert, adjust_overlays_for_delete, buffer_has_overlays, overlay_priority, &
               compare_overlays
@@ -416,6 +417,19 @@ contains
         if (.not. overlayp(overlay)) return
         val = textget(overlays(overlay%index)%plist, sym(prop))
     end function overlay_get
+
+    !> Whether text inserted at OVERLAY's start goes outside it
+    !> (front-advance), and at its end inside (rear-advance).  Port of
+    !> buffer.h:OVERLAY_FRONT_ADVANCE_P and OVERLAY_REAR_ADVANCE_P.
+    subroutine overlay_advance(overlay, front_advance, rear_advance)
+        type(handle_type), intent(in) :: overlay
+        logical, intent(out) :: front_advance, rear_advance
+        front_advance = .false.
+        rear_advance = .false.
+        if (.not. overlayp(overlay)) return
+        front_advance = overlays(overlay%index)%front_advance
+        rear_advance = overlays(overlay%index)%rear_advance
+    end subroutine overlay_advance
 
     !> `overlay_get' with the property given as a symbol value.
     function overlay_get_prop(overlay, prop) result(val)

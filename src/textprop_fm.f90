@@ -41,7 +41,8 @@ module textprop_fm
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, BEG, inhibit_read_only
     use handle_fm, only: handle_type, null_handle
-    use itree_fm, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change
+    use itree_fm, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change, overlays_in, &
+                        overlay_start, overlay_end, overlay_advance, overlay_priority, compare_overlays
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
                             plist_get_eq, split_interval_left, split_interval_right, textget, tmem
     implicit none(type, external)
@@ -55,7 +56,8 @@ module textprop_fm
               text_property_not_all, verify_interval_modification
     public :: text_property_stickiness, next_single_char_property_change, &
               previous_single_char_property_change, get_char_property, get_char_property_and_overlay, &
-              next_char_property_change, previous_char_property_change, text_prop_means_invisible
+              next_char_property_change, previous_char_property_change, text_prop_means_invisible, &
+              get_pos_property, get_property_and_range
 
     interface
         !> Check that the properties of START..END may change, run the
@@ -869,6 +871,77 @@ contains
             end associate
         end function match
     end function text_prop_means_invisible
+
+    !> Return the value of POSITION's property PROP, in the current buffer.
+    !> Almost identical to `get_char_property' except for the following
+    !> difference: Whereas `get_char_property' returns the property of the
+    !> char at (i.e. right after) POSITION, this pays attention to
+    !> properties's stickiness and overlays's advancement settings, in
+    !> order to find the property of POSITION itself, i.e. the property
+    !> that a char would inherit if it were inserted at POSITION.  Port of
+    !> editfns.c:Fget_pos_property (no `window' properties).
+    function get_pos_property(position, prop) result(val)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        type(value_type) :: val
+        type(handle_type), allocatable :: vec(:)
+        type(handle_type) :: best
+        type(value_type) :: tem
+        type(status_type) :: status
+        integer(int64) :: b, e, p1, s1, p2, s2
+        logical :: fa, ra
+        integer :: k
+        val = nil()
+        if (cur == 0) return
+        ! First check if there's an overlay at POS.
+        best = null_handle()
+        call overlays_in(max(position - 1, 1_int64), position + 1, vec)
+        do k = 1, size(vec)
+            tem = overlay_get_prop(vec(k), prop)
+            if (nilp(tem)) cycle
+            b = overlay_start(vec(k))
+            e = overlay_end(vec(k))
+            call overlay_advance(vec(k), fa, ra)
+            ! Check the overlay is indeed active at point.
+            if ((b == position .and. fa) .or. (e == position .and. .not. ra) .or. b > position .or. e < position) cycle
+            if (best%index /= 0) then
+                call overlay_priority(best, p1, s1)
+                call overlay_priority(vec(k), p2, s2)
+                if (compare_overlays(p1, s1, overlay_start(best), overlay_end(best), int(best%index, int64), &
+                                     p2, s2, b, e, int(vec(k)%index, int64)) >= 0) cycle
+            end if
+            best = vec(k)
+            val = tem
+        end do
+        if (best%index /= 0) return
+        ! Now check the text properties.
+        select case (text_property_stickiness(prop, position))
+        case (1:)
+            call get_text_property(position, prop, val, status)
+        case (:-1)
+            if (position > buffers(cur)%begv) call get_text_property(position - 1, prop, val, status)
+        case default
+            val = nil()
+        end select
+        if (.not. status%ok()) val = nil()
+    end function get_pos_property
+
+    !> The value VAL of text property PROP at POS and the range [BEG, END)
+    !> of the text around POS where it has that value (`eq').  Port of
+    !> intervals.c:get_property_and_range for the current buffer.
+    subroutine get_property_and_range(pos, prop, val, beg, end)
+        integer(int64), intent(in) :: pos
+        type(value_type), intent(in) :: prop
+        type(value_type), intent(out) :: val
+        integer(int64), intent(out) :: beg, end
+        type(status_type) :: status
+        logical :: found
+        call get_text_property(pos, prop, val, status)
+        call previous_single_property_change(pos + 1, prop, beg, found, status, buffers(cur)%begv)
+        if (.not. found) beg = buffers(cur)%begv
+        call next_single_property_change(pos, prop, end, found, status, buffers(cur)%zv)
+        if (.not. found) end = buffers(cur)%zv
+    end subroutine get_property_and_range
 
     !> Return the value of POSITION's property PROP, in the current
     !> buffer.  Both overlay properties and text properties are checked:

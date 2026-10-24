@@ -85,7 +85,9 @@ contains
                     new_unittest("indent-rigidly-transient-map", test_indent_rigidly_map), &
                     new_unittest("indent-for-tab-noindent-fallback", test_noindent_fallback), &
                     new_unittest("indent-region-progress", test_indent_region_progress), &
-                    new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte) &
+                    new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte), &
+                    new_unittest("current-column-display-properties", test_column_display_props), &
+                    new_unittest("vertical-motion-invisible", test_vertical_motion_invisible) &
                     ]
     end subroutine collect_indent_fm
 
@@ -504,4 +506,70 @@ contains
         buffers(cur)%multibyte = .true.
         call leave(h)
     end subroutine test_indentation_unibyte
+    !> current-column and move-to-column skip invisible text (not text
+    !> shown as an ellipsis) and count display strings and spaces, as GNU
+    !> Emacs does.
+    subroutine test_column_display_props(error)
+        use textprop_fm, only: put_text_property
+        use lread_fm, only: sym
+        use lisp_fm, only: t_value, make_string, list
+        use subr_fm, only: add_to_invisibility_spec
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: reached
+        call get_buffer_create("*column-props*", h, st)
+        call set_buffer(h, st)
+        call insert("abcdef", st)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 2, "invisible")
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call move_to_column(2_int64, reached)
+        call check(error, point() == 6 .and. reached == 2, "move-to-column")
+        if (allocated(error)) return
+        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 5, "ellipsis")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("abcdef", st)
+        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 5, "display string")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("ab"//achar(9)//"cd", st)
+        call put_text_property(3_int64, 4_int64, sym("display"), list(sym("space"), sym(":align-to"), &
+                                                                      make_fixnum(10_int64)), st)
+        call goto_char(5_int64)
+        call check(error, current_column() == 11, "space")
+        call kill_buffer(h, st)
+    end subroutine test_column_display_props
+
+    !> C-n moves by visible lines: a line made invisible is skipped.
+    subroutine test_vertical_motion_invisible(error)
+        use textprop_fm, only: put_text_property
+        use lread_fm, only: sym
+        use lisp_fm, only: t_value
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: moved
+        call get_buffer_create("*vmotion-props*", h, st)
+        call set_buffer(h, st)
+        call show_alone()
+        call insert("one"//achar(10)//"two"//achar(10)//"three", st)
+        ! "two\n" is invisible.
+        call put_text_property(5_int64, 9_int64, sym("invisible"), t_value(), st)
+        call goto_char(2_int64)
+        call vertical_motion(1_int64, moved, 1)
+        call check(error, moved == 1 .and. point() == 10, "to three")
+        if (allocated(error)) return
+        call vertical_motion(-1_int64, moved, 1)
+        call check(error, moved == -1 .and. point() == 2, "back to one")
+        call kill_buffer(h, st)
+    end subroutine test_vertical_motion_invisible
 end module test_indent_fm
