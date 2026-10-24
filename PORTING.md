@@ -548,6 +548,24 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   with a hook or an enable function are not written (a Fortran procedure
   has no name to write; the init file defines them in code).
 
+- **Faces in the config API (2026-10-24).** Faces are reached through a
+  generated `faces%` object, as commands are through `commands%`, because
+  faces, like commands, are a namespace of their own in Emacs rather than
+  variables: `faces%region%background = "blue"`,
+  `faces%link%underline = .true.`, `faces%error%underline = "red"`.
+  Attributes that are property lists upstream (`:underline` with `:color`,
+  `:style` and `:position`; `:box`) are set in one assignment from a
+  constructor, because Fortran cannot react to a single component being
+  assigned (`%style` alone would leave the attribute unspecified):
+  `faces%error%underline = face_underline(color="red", style=FACE_STYLE_WAVE)`,
+  `faces%mode_line%box = face_box(line_width=2, color="gray")`. Styles keep
+  upstream's names as faces_fm's constants `FACE_STYLE_LINE`,
+  `FACE_STYLE_DOUBLE_LINE`, `FACE_STYLE_WAVE`, `FACE_STYLE_DOTS` and
+  `FACE_STYLE_DASHES`. On a terminal, a wave is drawn as a curly underline
+  where the terminal supports one and the other styles as a plain
+  underline, as upstream does. Not implemented yet: `faces%`,
+  `face_underline` and `face_box` come with the next code step.
+
 ## Open questions
 
 Decisions the porting work is waiting on, or defaults taken provisionally.
@@ -582,6 +600,8 @@ Each lists the default being used meanwhile.
 ## Session log
 
 Resume point for the next working session, newest first.
+
+- 2026-10-24 — Design decision: faces in the config API through `faces%`, with `face_underline` and `face_box` constructors for property-list attributes (not implemented yet). CLAUDE.md: changes to PORTING.md and CLAUDE.md go through a PR.
 
 - 2026-10-24 — Comint (`comint`, roadmap step 20): `comint_fm` (comint-mode, make-comint, the output filter with prompts and fields, input and its ring, the subjob commands with CURRENT-GROUP over the pty), `ring_fm`, `shell_fm` (M-x shell, shell-mode, directory tracking), asynchronous shell commands in `simple_shell_fm`, `simple_next_error_fm` (next-error, M-g n/p, C-x `), compile.el's error parsing with all 67 rules (compile-tests.el's 179 cases pass), error motion, `compile-goto-error`, the Compilation minor modes, the mode line ("[Compiling] ", ":run", counts) and C-u M-x compile; shared: string hooks (eval_fm), `mode_line_process` parts and mode-line-modes entries (xdisp_fm), `forward_setting` for buffer-local settings of higher modules (data_fm), comint-carriage-motion widens again as upstream. Next: list-processes, grep.
 - 2026-10-24 — More help commands and set-variable (`help-extras`, roadmap step 22): help_fm gets `describe-bindings` (C-h b, keymap.c's describe-buffer-bindings and help.el's describe-map tree, with keymap_fm's new `accessible_keymaps` and `map_keymap_items`), \{MAP} summaries, `view-lossage` (keyboard_fm's recent keys ring), `view-echo-area-messages` (*Messages*: xdisp_fm's `message_dolog`, `message_nolog` for prompts, errors logged, Messages Buffer mode) and `help-for-help` (help-macro.el's screen); help_fns_fm `describe-mode` (outline layout), `describe-symbol`, `describe-command` and the C-h v buffer-local and customize lines; apropos_fm (apropos.el: C-h a, C-h u, C-h d, apropos-variable/-function, Apropos mode with RET/n/p); simple_setvar_fm `set-variable` with Fortran literals over the user options listed in tools/user-options (gen-docstrings.sh generates their setters); error codes end-of-file and invalid-read-syntax. Next: step 23, parenthesis matching and electric modes.
