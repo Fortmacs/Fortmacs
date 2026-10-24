@@ -20,16 +20,18 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Leaving the minibuffer, its basic keys, `read_file_name', and
-!> completion: `completing_read', the completion styles basic and emacs22,
-!> TAB, SPC, ? and RET in the completion maps, `minibuffer_message', and
-!> the *Completions* list (shown in the root window while the minibuffer
-!> is active, as there is no window splitting yet).
+!> completion: `completing_read', the completion styles (in the
+!> submodule minibuffer_styles_fm), TAB, SPC, ? and RET in the completion
+!> maps, `minibuffer_message', the *Completions* list, and completion in
+!> buffers: `completion_at_point' with `completion_at_point_functions',
+!> `completion_in_region' and `completion_in_region_mode'.
 !>
-!> Not ported yet: the partial-completion, substring and flex styles,
-!> cycling, completion metadata (categories, annotations, groups),
-!> moving through and choosing from *Completions* (M-<up>, M-<down>,
-!> M-RET, mouse), `completion_at_point' in buffers, `completion_show_help',
-!> and completion of environment variables and ~USER in file names.
+!> Not ported yet: cycling, completion metadata other than the category
+!> (annotations, groups, sorting functions, `completion_extra_properties',
+!> `:exit-function'), moving through and choosing from *Completions*
+!> (M-<up>, M-<down>, M-RET, mouse), `completion_show_help', completion
+!> tables with quoting, and completion of environment variables and ~USER
+!> in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_fm, only: commands

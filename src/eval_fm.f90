@@ -35,7 +35,8 @@
 !> `hook_type' (normal hooks: no arguments, `command_proc'),
 !> `change_hook_type' (`change_function': the bounds of a change) and
 !> `after_change_hook_type' (`after_change_function': the bounds and the
-!> old length).  They extend `hook_base_type', which keeps the functions,
+!> old length), and others such as `capf_hook_type' (`capf_function':
+!> the completion data at point).  They extend `hook_base_type', which keeps the functions,
 !> buffers' own values and depths (subr.el's add-hook and remove-hook)
 !> once for all kinds; an entry holds a procedure pointer of its hook's
 !> kind, and each kind adds the type-bound procedures taking that kind of

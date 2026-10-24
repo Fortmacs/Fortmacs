@@ -650,7 +650,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(253) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(258) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -706,7 +706,12 @@ module docstrings_fm
                                                                       "compilation_transform_file_match_alist", &
                                                                       "compile_command", &
                                                                       "completion_auto_help", &
+                                                                      "completion_category_overrides", &
+                                                                      "completion_flex_nospace", &
                                                                       "completion_ignored_extensions", &
+                                                                      "completion_pcm_leading_wildcard", &
+                                                                      "completion_pcm_word_delimiters", &
+                                                                      "completion_styles", &
                                                                       "completions_max_height", &
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
@@ -9016,6 +9021,7 @@ contains
         case ("completion_category_overrides")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_category_overrides"
+            entry%user_option = .true.
             entry%doc = "List of category-specific user overrides for completion styles."//LF// &
                         "Each entry gives the styles to use for that category; these take"//LF// &
                         "precedence over `completion_category_defaults'."
@@ -9028,6 +9034,7 @@ contains
         case ("completion_flex_nospace")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_flex_nospace"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(completion_flex_nospace)
             entry%doc = "True if `flex' completion rejects spaces in search pattern."
@@ -9057,6 +9064,7 @@ contains
         case ("completion_pcm_leading_wildcard")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_pcm_leading_wildcard"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(completion_pcm_leading_wildcard)
             entry%doc = "If true, partial-completion behaves as if each word is preceded by"//LF// &
@@ -9065,6 +9073,7 @@ contains
         case ("completion_pcm_word_delimiters")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_pcm_word_delimiters"
+            entry%user_option = .true.
             if (allocated(completion_pcm_word_delimiters)) then
                 entry%value = repr(completion_pcm_word_delimiters)
             else
@@ -9086,6 +9095,7 @@ contains
         case ("completion_styles")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_styles"
+            entry%user_option = .true.
             if (allocated(completion_styles)) then
                 entry%value = repr(completion_styles)
             else
@@ -12770,6 +12780,12 @@ contains
             setting = .true.
         case ("completion_auto_help")
             kind = OPTION_LOGICAL
+        case ("completion_flex_nospace")
+            kind = OPTION_LOGICAL
+        case ("completion_pcm_leading_wildcard")
+            kind = OPTION_LOGICAL
+        case ("completion_pcm_word_delimiters")
+            kind = OPTION_STRING
         case ("completions_max_height")
             kind = OPTION_INTEGER
         case ("copy_directory_create_symlink")
@@ -13287,6 +13303,10 @@ contains
             end if
         case ("completion_auto_help")
             completion_auto_help = v
+        case ("completion_flex_nospace")
+            completion_flex_nospace = v
+        case ("completion_pcm_leading_wildcard")
+            completion_pcm_leading_wildcard = v
         case ("copy_directory_create_symlink")
             copy_directory_create_symlink = v
         case ("dabbrev_backward_only")
@@ -13730,6 +13750,8 @@ contains
             else
                 compile_command = v
             end if
+        case ("completion_pcm_word_delimiters")
+            completion_pcm_word_delimiters = v
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")
