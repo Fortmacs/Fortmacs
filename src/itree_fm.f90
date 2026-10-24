@@ -136,7 +136,7 @@ contains
             n = n + 1
             idx(n) = i
         end do
-        idx = idx(1:n)
+        call shrink_indices(idx, int(n))
         ! Insertion sort by begin (stable).
         do i = 2, n
             tmp = idx(i)
@@ -149,6 +149,27 @@ contains
             idx(k + 1) = tmp
         end do
     end subroutine buffer_nodes
+
+    !> Keep the first N elements of IDX (into a new array: no reallocation
+    !> to size 0, which valgrind reports).
+    subroutine shrink_indices(idx, n)
+        integer(int64), allocatable, intent(inout) :: idx(:)
+        integer, intent(in) :: n
+        integer(int64), allocatable :: kept(:)
+        allocate (kept(n))
+        kept = idx(1:n)
+        call move_alloc(kept, idx)
+    end subroutine shrink_indices
+
+    !> Keep the first N elements of VEC.
+    subroutine shrink_handles(vec, n)
+        type(handle_type), allocatable, intent(inout) :: vec(:)
+        integer, intent(in) :: n
+        type(handle_type), allocatable :: kept(:)
+        allocate (kept(n))
+        kept = vec(1:n)
+        call move_alloc(kept, vec)
+    end subroutine shrink_handles
 
     !> Whether the current buffer has overlays (buffer.c:buffer_has_overlays).
     logical function buffer_has_overlays()
@@ -486,7 +507,7 @@ contains
             n = n + 1
             vec(n) = table%handle_of(idx(k))
         end do
-        vec = vec(1:n)
+        call shrink_handles(vec, n)
     end subroutine overlays_in_1
 
     !> Whether node [NB, NE] intersects the search range [B, E]
@@ -644,7 +665,7 @@ contains
                 vec(n) = vec(i)
             end if
         end do
-        vec = vec(1:n)
+        call shrink_handles(vec, n)
         allocate (prio(n), sprio(n))
         do i = 1, n
             call overlay_priority(vec(i), prio(i), sprio(i))

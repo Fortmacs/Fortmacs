@@ -396,15 +396,29 @@ contains
         was = .false.
         k = position_in(timer_list, timer)
         if (k > 0) then
-            timer_list = [timer_list(1:k - 1), timer_list(k + 1:)]
+            call remove_at(timer_list, k)
             was = .true.
         end if
         k = position_in(timer_idle_list, timer)
         if (k > 0) then
-            timer_idle_list = [timer_idle_list(1:k - 1), timer_idle_list(k + 1:)]
+            call remove_at(timer_idle_list, k)
             was = .true.
         end if
     end subroutine cancel_timer_internal
+
+    !> Remove element K of LIST (into a new array: no reallocation to size
+    !> 0, which valgrind reports).
+    subroutine remove_at(list, k)
+        type(handle_type), allocatable, intent(inout) :: list(:)
+        integer, intent(in) :: k
+        type(handle_type), allocatable :: kept(:)
+        integer :: n
+        n = size(list)
+        allocate (kept(n - 1))
+        kept(1:k - 1) = list(1:k - 1)
+        kept(k:n - 1) = list(k + 1:n)
+        call move_alloc(kept, list)
+    end subroutine remove_at
 
     !> Cancel all timers which would run FUNCTION.
     !> This affects ordinary timers such as are scheduled by `run_at_time',
@@ -425,7 +439,7 @@ contains
             do while (k <= size(list))
                 p => timers(list(k)%index)%fn
                 if (associated(p, function)) then
-                    list = [list(1:k - 1), list(k + 1:)]
+                    call remove_at(list, k)
                 else
                     k = k + 1
                 end if
