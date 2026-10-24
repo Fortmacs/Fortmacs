@@ -26,6 +26,8 @@ program tester
                          testsuite_type, select_suite
     use test_version_fm, only: collect_version_fm
     use test_help_fm, only: collect_help_fm
+    use test_apropos_fm, only: collect_apropos_fm
+    use test_simple_setvar_fm, only: collect_simple_setvar_fm
     use test_syntax_fm, only: collect_syntax_fm
     use test_syntax_scan_fm, only: collect_syntax_scan_fm
     use test_font_lock_fm, only: collect_font_lock_fm
@@ -75,6 +77,9 @@ program tester
     use test_config_fm, only: collect_config_fm
     use test_dired_fm, only: collect_dired_fm
     use test_dired_mode_fm, only: collect_dired_mode_fm
+    use test_dired_aux_fm, only: collect_dired_aux_fm
+    use test_view_fm, only: collect_view_fm
+    use test_files_copy_fm, only: collect_files_copy_fm
     use test_casetab_fm, only: collect_casetab_fm
     use test_search_fm, only: collect_search_fm
     use test_isearch_fm, only: collect_isearch_fm
@@ -87,6 +92,14 @@ program tester
     use test_rect_fm, only: collect_rect_fm
     use test_register_fm, only: collect_register_fm
     use test_kmacro_fm, only: collect_kmacro_fm
+    use test_abbrev_fm, only: collect_abbrev_fm
+    use test_dabbrev_fm, only: collect_dabbrev_fm
+    use test_timer_fm, only: collect_timer_fm
+    use test_itree_fm, only: collect_itree_fm
+    use test_paren_fm, only: collect_paren_fm
+    use test_electric_fm, only: collect_electric_fm
+    use test_elec_pair_fm, only: collect_elec_pair_fm
+    use test_simple_electric_fm, only: collect_simple_electric_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -135,6 +148,9 @@ program tester
                  new_testsuite("config_fm", collect_config_fm), &
                  new_testsuite("dired_fm", collect_dired_fm), &
                  new_testsuite("dired_mode_fm", collect_dired_mode_fm), &
+                 new_testsuite("dired_aux_fm", collect_dired_aux_fm), &
+                 new_testsuite("view_fm", collect_view_fm), &
+                 new_testsuite("files_copy_fm", collect_files_copy_fm), &
                  new_testsuite("casetab_fm", collect_casetab_fm), &
                  new_testsuite("search_fm", collect_search_fm), &
                  new_testsuite("isearch_fm", collect_isearch_fm), &
@@ -142,6 +158,8 @@ program tester
                  new_testsuite("undo_fm", collect_undo_fm), &
                  new_testsuite("simple_fm", collect_simple_fm), &
                  new_testsuite("help_fm", collect_help_fm), &
+                 new_testsuite("apropos_fm", collect_apropos_fm), &
+                 new_testsuite("simple_setvar_fm", collect_simple_setvar_fm), &
                  new_testsuite("syntax_fm", collect_syntax_fm), &
                  new_testsuite("syntax_scan_fm", collect_syntax_scan_fm), &
                  new_testsuite("paragraphs_fm", collect_paragraphs_fm), &
@@ -157,7 +175,15 @@ program tester
                  new_testsuite("font_lock_fm", collect_font_lock_fm), &
                  new_testsuite("rect_fm", collect_rect_fm), &
                  new_testsuite("register_fm", collect_register_fm), &
-                 new_testsuite("kmacro_fm", collect_kmacro_fm) &
+                 new_testsuite("kmacro_fm", collect_kmacro_fm), &
+                 new_testsuite("abbrev_fm", collect_abbrev_fm), &
+                 new_testsuite("dabbrev_fm", collect_dabbrev_fm), &
+                 new_testsuite("timer_fm", collect_timer_fm), &
+                 new_testsuite("itree_fm", collect_itree_fm), &
+                 new_testsuite("paren_fm", collect_paren_fm), &
+                 new_testsuite("electric_fm", collect_electric_fm), &
+                 new_testsuite("elec_pair_fm", collect_elec_pair_fm), &
+                 new_testsuite("simple_electric_fm", collect_simple_electric_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

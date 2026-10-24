@@ -61,6 +61,7 @@ module bindings_fm
     use minibuffer_fm, only: minibuffer_local_completion_map, minibuffer_local_must_match_map, &
                              minibuffer_local_filename_completion_map, minibuffer_local_filename_must_match_map
     use help_fns_fm, only: syms_of_help_fns
+    use apropos_fm, only: syms_of_apropos
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
     use minibuffer_fm, only: syms_of_minibuffer
     use subr_fm, only: syms_of_subr
@@ -70,12 +71,19 @@ module bindings_fm
     use font_lock_fm, only: syms_of_font_lock
     use jit_lock_fm, only: syms_of_jit_lock
     use dired_mode_fm, only: syms_of_dired_mode, dired_mode_map
+    use view_fm, only: syms_of_view
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
     use comint_fm, only: syms_of_comint, comint_mode_map
     use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
     use register_fm, only: syms_of_register
+    use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
+    use dabbrev_fm, only: syms_of_dabbrev
+    use paren_fm, only: syms_of_paren
+    use electric_fm, only: syms_of_electric
+    use elec_pair_fm, only: syms_of_elec_pair
+    use modes_fm, only: minor_modes
     implicit none(type, external)
     private
 
@@ -92,6 +100,9 @@ module bindings_fm
                                  function_key_map, ctl_x_x_map, ctl_x_r_map, ctl_x_4_map
     !> bindings.el:goto-map, keymap for navigation commands (M-g).
     type(handle_type), public :: goto_map
+
+    !> bindings.el:abbrev-map (keymap for abbrev commands).
+    type(handle_type), public :: abbrev_map
 
 contains
 
@@ -201,6 +212,9 @@ contains
         if (keymap_live_p(ctl_x_r_map)) call free_keymap(ctl_x_r_map, status)
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
+        if (keymap_live_p(abbrev_map)) call free_keymap(abbrev_map, status)
+        ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
+        call syms_of_abbrev()
         call syms_of_cmds()
         call syms_of_simple()
         call syms_of_window()
@@ -230,6 +244,7 @@ contains
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()
+        call syms_of_dabbrev()
         ! subr.el: esc-map, ctl-x-map, global-map.
         call make_keymap(esc_map)
         call make_keymap(ctl_x_map)
@@ -350,6 +365,23 @@ contains
         call bind(global_map, "<f4>", "kmacro_end_or_call_macro")
         key(1) = make_fixnum(11_int64)
         call define_key(ctl_x_map, key, make_keymap_ref(kmacro_keymap), status)
+        ! bindings.el: abbrev-map, and the abbrev keys.
+        call make_sparse_keymap(abbrev_map)
+        call bind(abbrev_map, "l", "add_mode_abbrev")
+        call bind(abbrev_map, "C-a", "add_mode_abbrev")
+        call bind(abbrev_map, "g", "add_global_abbrev")
+        call bind(abbrev_map, "+", "add_mode_abbrev")
+        call bind(abbrev_map, "i g", "inverse_add_global_abbrev")
+        call bind(abbrev_map, "i l", "inverse_add_mode_abbrev")
+        call bind(abbrev_map, "-", "inverse_add_global_abbrev")
+        call bind(abbrev_map, "e", "expand_abbrev")
+        call bind(abbrev_map, "'", "expand_abbrev")
+        key(1) = make_fixnum(int(iachar("a"), int64))
+        call define_key(ctl_x_map, key, make_keymap_ref(abbrev_map), status)
+        call bind(esc_map, "'", "abbrev_prefix_mark")
+        call bind(ctl_x_map, "'", "expand_abbrev")
+        ! dabbrev.el (autoloads; dabbrev_completion is not ported).
+        call bind(esc_map, "/", "dabbrev_expand")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
@@ -469,6 +501,7 @@ contains
         key(1) = make_fixnum(int(iachar("4"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_4_map), status)
         call syms_of_files(ctl_x_map, ctl_x_4_map)
+        call syms_of_view()
         call syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
         call syms_of_isearch(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
@@ -491,12 +524,15 @@ contains
         ! Help (help.el, help-fns.el), after the maps it names exist.
         call syms_of_help(global_map)
         call syms_of_help_fns()
+        call syms_of_apropos()
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
         call register_keymap_name("ctl_x_4_map", ctl_x_4_map)
         call register_keymap_name("dired_mode_map", dired_mode_map)
         call register_keymap_name("ctl_x_r_map", ctl_x_r_map)
+        call register_keymap_name("abbrev_map", abbrev_map)
+        call register_keymap_name("edit_abbrevs_mode_map", edit_abbrevs_mode_map)
         call register_keymap_name("kmacro_keymap", kmacro_keymap)
         call register_keymap_name("isearch_mode_map", isearch_mode_map)
         call register_keymap_name("text_mode_map", text_mode_map)
@@ -520,5 +556,13 @@ contains
             call make_sparse_keymap(local_function_key_map)
         end if
         call set_keymap_parent(local_function_key_map, function_key_map, status)
+        ! paren.el, electric.el and elec-pair.el; Show Paren mode and
+        ! Electric Indent mode are on (their :init-value, set after the
+        ! files load at startup).
+        call syms_of_paren()
+        call syms_of_electric(global_map)
+        call syms_of_elec_pair()
+        call minor_modes%show_paren_mode%enable(status)
+        call minor_modes%electric_indent_mode%enable(status)
     end subroutine init_bindings
 end module bindings_fm

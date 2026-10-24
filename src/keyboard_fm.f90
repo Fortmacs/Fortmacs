@@ -43,7 +43,7 @@
 !> ends the definition.  macros.c is the submodule macros_fm.
 !>
 !> Not ported yet: echoing, the echo area and `message' (the last message
-!> is kept in `last_message'), timers, idle hooks and redisplay, mouse and
+!> is kept in `last_message'), idle hooks, mouse and
 !> switch-frame events, the (t . EVENT) and (no-record . EVENT) forms of
 !> `unread_command_events', `help_char', case
 !> tables (upper-case fallback is ASCII only), quit while computing (C-g
@@ -73,6 +73,7 @@ module keyboard_fm
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available
     use eval_fm, only: hook_type
+    use timer_fm, only: timer_check, timer_start_idle, timer_stop_idle, timers_run, timer_error_message
     implicit none(type, external)
     private
 
@@ -81,12 +82,12 @@ module keyboard_fm
               discard_input, input_pending_p, read_event
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
-              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for, &
-              run_at_time, cancel_timer
+              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
     public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, defining_kbd_macro_p, &
               syms_of_macros
+    public :: recent_keys, lossage_size, message_log_proc
     public :: READ_KEY_ELTS, redisplay_proc, transient_exit_proc, kbd_macro_loop_proc
 
     !> keyboard.c:READ_KEY_ELTS, the longest key sequence.
@@ -158,6 +159,13 @@ module keyboard_fm
             implicit none(type, external)
         end function kbd_macro_loop_proc
 
+        !> Log `text' in the *Messages* buffer as echo-area output
+        !> (xdisp.c via print.c:printchar).
+        subroutine message_log_proc(text)
+            implicit none(type, external)
+            character(len=*), intent(in) :: text
+        end subroutine message_log_proc
+
         !> Run a disabled command's handler instead of the command, if
         !> CMD is disabled: `handled' says it was.
         subroutine disabled_command_proc(cmd, handled, status)
@@ -173,6 +181,25 @@ module keyboard_fm
     !> property test and `disabled_command_function'), set by novice_fm;
     !> null for none.
     procedure(disabled_command_proc), pointer, public :: disabled_command_hook => null()
+
+    !> Logs the error messages of the command loop in *Messages*
+    !> (xdisp_fm sits above this module; set by simple_fm); null for
+    !> none.
+    procedure(message_log_proc), pointer, public :: message_log_hook => null()
+
+    !> keyboard.c:lossage_limit, the number of events and commands
+    !> `recent_keys' keeps (3 * MIN_NUM_RECENT_KEYS).
+    integer, parameter :: LOSSAGE_LIMIT = 300
+
+    !> keyboard.c:recent_keys, a ring of the last LOSSAGE_LIMIT input
+    !> events not from keyboard macros, and of the commands run, as
+    !> upstream's pseudo-events (nil . COMMAND): `recent_is_command' marks
+    !> those, whose command (nil for an undefined key) is in
+    !> `recent_events'.  The next entry goes at `recent_keys_index'
+    !> (1-based); `total_keys' entries are filled.
+    type(value_type) :: recent_events(LOSSAGE_LIMIT)
+    logical :: recent_is_command(LOSSAGE_LIMIT) = .false.
+    integer :: recent_keys_index = 1, total_keys = 0
 
     !> Called by read_event before it waits for terminal input, so the
     !> screen is current.  Set by the program (xdisp_fm sits above this
@@ -255,12 +282,6 @@ module keyboard_fm
     !> Port of keyboard.c minibuffer-message-timeout (a non-number, no
     !> timeout, is not ported: Deferred).
     integer, public :: minibuffer_message_timeout = 2
-
-    !> A timer (timer.el run-at-time, one at a time): the function to run
-    !> while waiting for input once `system_clock' reaches `timer_due';
-    !> null for none.
-    procedure(redisplay_proc), pointer :: timer_function => null()
-    integer(int64) :: timer_due = 0
 
     !> Set by `request_exit' to end `command_loop'.
     logical :: exit_requested = .false.
@@ -587,24 +608,78 @@ contains
     !> from a keyboard macro being executed, goes into the keyboard macro
     !> being defined.  The core of keyboard.c:read_char, with the macro
     !> part of record_char.
-    subroutine read_event(ev, have, status)
+    recursive subroutine read_event(ev, have, status)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         call read_event_1(ev, have, status)
         if (.not. have) return
+        ! Now that we have read an event, Emacs is not idle.
+        call timer_stop_idle()
         last_input_event = ev
         if (.not. macro_active) call store_kbd_macro_char(ev)
+        ! recent_keys should not include events from keyboard macros.
+        if (.not. macro_active) call record_recent(ev, .false.)
     end subroutine read_event
 
+    !> Store `ev' (an event, or the command run if `command') into the
+    !> ring of recent keys.  The recent_keys part of keyboard.c:record_char
+    !> (no help-echo or mouse-movement events) and of command_loop_1.
+    subroutine record_recent(ev, command)
+        type(value_type), intent(in) :: ev
+        logical, intent(in) :: command
+        if (total_keys < LOSSAGE_LIMIT) total_keys = total_keys + 1
+        recent_events(recent_keys_index) = ev
+        recent_is_command(recent_keys_index) = command
+        recent_keys_index = recent_keys_index + 1
+        if (recent_keys_index > LOSSAGE_LIMIT) recent_keys_index = 1
+    end subroutine record_recent
+
+    !> Return the last few events, not counting those from keyboard macros.
+    !> If INCLUDE_CMDS is true, include the commands that were run, as
+    !> pseudo-events: `is_command' marks them, their command (.false.
+    !> for none) being the event.  Port of keyboard.c:Frecent_keys.
+    subroutine recent_keys(include_cmds, keys, is_command)
+        logical, intent(in) :: include_cmds
+        type(value_type), allocatable, intent(out) :: keys(:)
+        logical, allocatable, intent(out) :: is_command(:)
+        integer :: i, k, n, first
+        if (total_keys < LOSSAGE_LIMIT) then
+            first = 1
+        else
+            first = recent_keys_index
+        end if
+        n = total_keys
+        if (.not. include_cmds) n = total_keys - count(recent_is_command(1:total_keys))
+        allocate (keys(n), is_command(n))
+        n = 0
+        i = first
+        do k = 1, total_keys
+            if (include_cmds .or. .not. recent_is_command(i)) then
+                n = n + 1
+                keys(n) = recent_events(i)
+                is_command(n) = recent_is_command(i)
+            end if
+            i = i + 1
+            if (i > LOSSAGE_LIMIT) i = 1
+        end do
+    end subroutine recent_keys
+
+    !> Return the maximum number of keystrokes and commands recorded by
+    !> `recent_keys'.  Port of keyboard.c:Flossage_size (no ARG: the size
+    !> can't be changed yet).
+    integer function lossage_size()
+        lossage_size = LOSSAGE_LIMIT
+    end function lossage_size
+
     !> The next input event (read_event without recording it).
-    subroutine read_event_1(ev, have, status)
+    recursive subroutine read_event_1(ev, have, status)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
         integer(int64) :: nread
         have = .false.
-        do
+        reading: do
             if (nunread > 0) then
                 ev = unread(1)
                 unread(1:nunread - 1) = unread(2:nunread)
@@ -653,15 +728,26 @@ contains
             if (associated(redisplay_hook)) then
                 if (.not. input_available(input_fd, 0_int32)) call redisplay_hook()
             end if
-            if (.not. wait_for_input(timer_wait())) then
-                call run_due_timer()
-                cycle
-            end if
+            ! Emacs is idle while it waits for input; the timers run while
+            ! waiting, and the wait ends when the next one is due
+            ! (read_char's timer_start_idle, wait_reading_process_output's
+            ! timer_check).
+            call timer_start_idle()
+            waiting: do
+                if (wait_for_input(run_timers())) exit waiting
+                ! A timer or subprocess may have queued events, or C-g came.
+                if (nunread > 0 .or. tail >= head) cycle reading
+                if (interrupt_pending()) then
+                    ev = make_fixnum(7_int64)
+                    have = .true.
+                    return
+                end if
+            end do waiting
             call tty_read_avail_input(nread, status)
             if (.not. status%ok()) return
             ! End of file: the terminal went away.
             if (nread == 0) return
-        end do
+        end do reading
     end subroutine read_event_1
 
     ! ------------------------------------------------------------------
@@ -1035,50 +1121,29 @@ contains
         if (associated(on_exit)) call on_exit()
     end subroutine clear_transient_map
 
-    !> Run `fn' once after `ms' milliseconds, while waiting for input,
-    !> replacing any timer set before.  Port of timer.el:run-at-time (one
-    !> timer; it runs only while reading terminal input).
-    subroutine run_at_time(ms, fn)
-        integer(int32), intent(in) :: ms
-        procedure(redisplay_proc) :: fn
-        integer(int64) :: count, rate
-        call system_clock(count, rate)
-        timer_due = count + int(ms, int64)*rate/1000
-        timer_function => fn
-    end subroutine run_at_time
-
-    !> Cancel the timer.  Port of timer.el:cancel-timer.
-    subroutine cancel_timer()
-        timer_function => null()
-    end subroutine cancel_timer
-
-    !> Milliseconds until the timer is due (0 if it is), or -1 (wait
-    !> forever) when there is none.
-    integer(int32) function timer_wait() result(ms)
-        integer(int64) :: count, rate
-        ms = -1_int32
-        if (.not. associated(timer_function)) return
-        call system_clock(count, rate)
-        ms = int(max(0_int64, min((timer_due - count)*1000/max(rate, 1_int64), int(huge(0_int32), int64))), int32)
-    end function timer_wait
-
-    !> Run the timer if it is due (timer.c:timer_check), then redisplay.
-    subroutine run_due_timer()
-        procedure(redisplay_proc), pointer :: fn
-        if (.not. associated(timer_function)) return
-        if (timer_wait() > 0) return
-        fn => timer_function
-        timer_function => null()
-        call fn()
-        if (associated(redisplay_hook)) call redisplay_hook()
-    end subroutine run_due_timer
+    !> Run the ripe timers (keyboard.c:timer_check), show the error a
+    !> timer function signaled, and redisplay if any timer ran, as
+    !> process.c:wait_reading_process_output does.  The result is the
+    !> number of milliseconds to wait for the next timer, or -1 for none.
+    recursive integer(int32) function run_timers() result(ms)
+        integer(int64) :: old_timers_run
+        old_timers_run = timers_run
+        ms = timer_check()
+        if (allocated(timer_error_message)) then
+            last_message = timer_error_message
+            deallocate (timer_error_message)
+        end if
+        if (timers_run /= old_timers_run .and. associated(redisplay_hook)) call redisplay_hook()
+    end function run_timers
 
     !> Redisplay, then wait `ms' milliseconds or until input arrives,
-    !> taking subprocess output meanwhile.  Port of subr.el:sit-for (for a
-    !> terminal; without one, only subprocess output is waited for).
-    subroutine sit_for(ms)
+    !> taking subprocess output and running the ordinary timers
+    !> meanwhile.  Port of subr.el:sit-for (for a terminal; without one,
+    !> only subprocess output is waited for).
+    recursive subroutine sit_for(ms)
         integer(int32), intent(in) :: ms
         integer(int64) :: start, now, rate, left
+        integer(int32) :: timeout, next_timer
         logical :: ready(2)
         integer(int32) :: fds(2)
         if (associated(redisplay_hook)) call redisplay_hook()
@@ -1093,11 +1158,15 @@ contains
             fds = [input_fd, -1_int32]
             if (associated(process_output_hook)) fds(2) = process_wake_fd
             if (all(fds < 0)) return
-            call inputs_available(fds, int(left, int32), ready)
+            timeout = int(left, int32)
+            next_timer = run_timers()
+            if (next_timer >= 0) timeout = min(timeout, next_timer)
+            call inputs_available(fds, timeout, ready)
             if (ready(1)) return
-            if (.not. ready(2)) return
-            call process_output_hook()
-            if (associated(redisplay_hook)) call redisplay_hook()
+            if (ready(2)) then
+                call process_output_hook()
+                if (associated(redisplay_hook)) call redisplay_hook()
+            end if
         end do
     end subroutine sit_for
 
@@ -1204,6 +1273,7 @@ contains
         call discard_input()
         call bitch_at_user(st)
         last_message = macroerror//format_error(status)
+        if (associated(message_log_hook)) call message_log_hook(last_message)
     end subroutine cmd_error
 
     !> Read one key sequence and run its command.  `done' at end of input
@@ -1252,6 +1322,8 @@ contains
         end if
         last_command_event = keys(size(keys))
         this_command_keys = keys
+        ! Execute the command: recorded in recent_keys as (nil . cmd).
+        call record_recent(cmd, .true.)
         this_command = cmd
         real_this_command = cmd
         ! pre-command-hook: a transient map lasts for one key sequence,

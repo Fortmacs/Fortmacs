@@ -42,7 +42,7 @@ module simple_fm
                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
-                       nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements
+                       nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
@@ -85,6 +85,7 @@ module simple_fm
                          SEARCH_NOERROR
     use fns_fm, only: value_equal
     use eval_fm, only: hook_type
+    use abbrev_fm, only: abbrev_table_type
     use insdel_fm, only: insert_before_markers
     use editfns_fm, only: char_before, eolp, point_marker, delete_and_extract_region, char_after, pos_bol, &
                           inhibit_field_text_motion
@@ -104,12 +105,17 @@ module simple_fm
     procedure(redisplay_proc), pointer, public :: kmacro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
-    public :: fundamental_mode, special_mode, syms_of_simple_modes
     public :: async_shell_command, shell_command_sentinel
     public :: set_next_error_function, has_next_error_function, next_error_buffer_p, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
+    public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
+    public :: set_variable
+    public :: read_only_mode, what_line
     public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
               syms_of_simple_shell
+    public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
+              blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
+              backward_delete_char_untabify, blink_matching_check_proc
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -251,11 +257,24 @@ module simple_fm
     !> Keymap for `special_mode'.  Port of simple.el special-mode-map.
     type(handle_type), public :: special_mode_map
 
+    !> Hook run after entering Messages mode (`messages_buffer_mode_hook').
+    type(hook_type), target, public :: messages_buffer_mode_hook = hook_type(name="messages_buffer_mode_hook")
+
+    !> Keymap for `messages_buffer_mode'.  Port of simple.el
+    !> messages-buffer-mode-map.
+    type(handle_type), public :: messages_buffer_mode_map
+    !> Abbrev table for `special_mode'.  Port of simple.el
+    !> special-mode-abbrev-table (made by define-derived-mode).
+    type(abbrev_table_type), target, public :: special_mode_abbrev_table
+
     !> Hook run after entering or leaving `transient_mark_mode'.
     type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient_mark_mode_hook")
 
     !> Hook run after entering or leaving `indent_tabs_mode'.
     type(hook_type), target, public :: indent_tabs_mode_hook = hook_type(name="indent_tabs_mode_hook")
+
+    !> Hook run after entering or leaving `read_only_mode'.
+    type(hook_type), target, public :: read_only_mode_hook = hook_type(name="read_only_mode_hook")
 
     !> Hook run after entering or leaving `auto_fill_mode'.
     type(hook_type), target, public :: auto_fill_mode_hook = hook_type(name="auto_fill_mode_hook")
@@ -343,21 +362,28 @@ module simple_fm
         !> If `auto_fill_mode' is enabled, this may cause automatic line
         !> breaking of the preceding line.  A present ARG inhibits this.
         !>
-        !> ARG absent means one newline.  Port of simple.el:newline
-        !> (electric indentation, `use_hard_newlines' and
-        !> `post_self_insert_hook' are not ported).  (In simple_fill_fm,
-        !> for `page_delimiter'.)
-        module subroutine newline(status, arg)
+        !> If `electric_indent_mode' is enabled, this indents the final new line
+        !> that it adds, and reindents the preceding line.  To just insert
+        !> a newline, use \[electric_indent_just_newline].
+        !>
+        !> ARG absent means one newline.  A true INTERACTIVE says the
+        !> function was called interactively: `post_self_insert_hook' runs
+        !> (electric indentation, blinking parens); otherwise only the
+        !> newline and the left margin are done.  Port of simple.el:newline
+        !> (`use_hard_newlines' is not ported).  (In simple_fill_fm, for
+        !> `page_delimiter'.)
+        recursive module subroutine newline(status, arg, interactive)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: arg
+            logical, intent(in), optional :: interactive
         end subroutine newline
 
         !> Insert a newline and leave point before it.
         !> If there is a fill prefix and/or a `left_margin', insert them on
         !> the new line if the line would have been blank.
-        !> With arg N, insert N newlines.  Port of simple.el:open-line (no
-        !> abbrevs).  (In simple_fill_fm.)
+        !> With arg N, insert N newlines.  Port of simple.el:open-line.
+        !> (In simple_fill_fm.)
         module subroutine open_line(n, status)
             implicit none(type, external)
             integer(int64), intent(in) :: n
@@ -404,12 +430,94 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine special_mode
 
+        !> Major mode used in the "*Messages*" buffer.  Port of
+        !> simple.el:messages-buffer-mode (`window_point_insertion_type'
+        !> is not ported: windows showing the buffer don't follow its
+        !> end).  (In simple_modes_fm.)
+        module subroutine messages_buffer_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine messages_buffer_mode
+
+        !> Return the "*Messages*" buffer.
+        !> If it does not exist, create it and switch it to
+        !> `messages_buffer_mode'.  Port of simple.el:messages-buffer.
+        !> (In simple_modes_fm.)
+        module subroutine messages_buffer(buffer, status)
+            implicit none(type, external)
+            type(handle_type), intent(out) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine messages_buffer
+
+        !> Set VARIABLE to VALUE.  VALUE is a Fortran literal of the
+        !> variable's type.  VARIABLE should be a user option variable name,
+        !> a variable meant to be customized by users.  You should enter
+        !> VALUE in Fortran syntax, so if you want VALUE to be a string, you
+        !> must surround it with doublequotes.  VALUE is used literally, not
+        !> evaluated.
+        !>
+        !> The type of VARIABLE is used to check that VALUE is valid.
+        !>
+        !> With a prefix argument, set VARIABLE to VALUE buffer-locally.
+        !>
+        !> When called interactively, the user is prompted for VARIABLE and
+        !> then VALUE.  The current value of VARIABLE will be put in the
+        !> minibuffer history so that it can be accessed with \`M-n', which
+        !> makes it easier to edit it.  Port of simple.el:set-variable (see
+        !> simple_setvar_fm for what is read).  (In simple_setvar_fm.)
+        module subroutine set_variable(variable, value, make_local, status)
+            implicit none(type, external)
+            character(len=*), intent(in) :: variable, value
+            logical, intent(in) :: make_local
+            type(status_type), intent(out) :: status
+        end subroutine set_variable
+
+        !> Set VARIABLE to VALUE, read in the minibuffer.  Port of
+        !> simple.el:set-variable (the command).  (In simple_setvar_fm.)
+        recursive module subroutine cmd_set_variable(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_set_variable
+
         !> Define `fundamental_mode' and `special_mode' (with
         !> `special_mode_map'); safe to call again.  (In simple_modes_fm.)
         module subroutine syms_of_simple_modes()
             implicit none(type, external)
         end subroutine syms_of_simple_modes
 
+        !> Change whether the current buffer is read-only.
+        !>
+        !> If buffer is read-only and `view_read_only' is true, enter
+        !> view mode.
+        !>
+        !> Do not call this from a program unless you really intend to
+        !> do the same thing as the \[read_only_mode] command, including
+        !> possibly enabling or disabling View mode.  Also, note that this
+        !> command works by setting the variable `buffer_read_only', which
+        !> does not affect read-only regions caused by text properties.  To
+        !> ignore read-only status in a program (whether due to text
+        !> properties or buffer state), bind `inhibit_read_only' temporarily
+        !> to a true value.
+        !>
+        !> Reverting a buffer will keep the read-only status set by using
+        !> this command.  Port of simple.el:read-only-mode.  (In
+        !> simple_view_fm.)
+        recursive module subroutine read_only_mode(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine read_only_mode
+
+        !> Print the current buffer line number and narrowed line number of point.
+        !> Port of simple.el:what-line.  (In simple_view_fm.)
+        module subroutine what_line(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine what_line
+
+        !> Define `read_only_mode' and `what_line'.  (In simple_view_fm.)
+        module subroutine syms_of_simple_view()
+            implicit none(type, external)
+        end subroutine syms_of_simple_view
         !> Read a shell command from the minibuffer, and return it as a
         !> string.  The arguments are the same as the ones of
         !> `read_from_minibuffer', except READ and KEYMAP are missing and
@@ -543,6 +651,86 @@ module simple_fm
         module subroutine syms_of_simple_shell()
             implicit none(type, external)
         end subroutine syms_of_simple_shell
+
+        !> Momentarily highlight the beginning of the sexp before point.
+        !> Port of simple.el:blink-matching-open.  (In simple_electric_fm,
+        !> for paren_fm.)
+        recursive module subroutine blink_matching_open(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine blink_matching_open
+
+        !> Return whether or not START...END are matching parens.
+        !> END is the current point and START is the blink position.
+        !> START might be 0 if no matching starter was found.
+        !> Returns true if we find there is a mismatch.  Port of
+        !> simple.el:blink-matching-check-mismatch.  (In simple_electric_fm.)
+        module logical function blink_matching_check_mismatch(start, end) result(mismatch)
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+        end function blink_matching_check_mismatch
+
+        !> Return the line string that contains the openparen at POS.
+        !> Remove the line string's properties.  Port of
+        !> simple.el:blink-paren-open-paren-line-string
+        !> (`blink_matching_paren_highlight_offscreen' is not ported).  (In
+        !> simple_electric_fm.)
+        module function blink_paren_open_paren_line_string(pos) result(line_string)
+            implicit none(type, external)
+            integer(int64), intent(in) :: pos
+            character(len=:), allocatable :: line_string
+        end function blink_paren_open_paren_line_string
+
+        !> Call `blink_paren_function' after a char with closeparen syntax is
+        !> self-inserted, unless an odd number of quoting characters
+        !> precede it or a keyboard macro is executing.  Port of
+        !> simple.el:blink-paren-post-self-insert-function (no
+        !> `noninteractive': Fortmacs has no batch mode).  (In
+        !> simple_electric_fm.)
+        recursive module subroutine blink_paren_post_self_insert_function(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine blink_paren_post_self_insert_function
+
+        !> Insert a newline, then indent according to major mode.
+        !> Indentation is done using the value of `indent_line_function'.
+        !> In programming language modes, this is the same as TAB.
+        !> In some text modes, where TAB inserts a tab, this command indents to the
+        !> column specified by the function `current_left_margin'.
+        !>
+        !> With ARG, perform this action that many times.  Port of
+        !> simple.el:newline-and-indent.  (In simple_electric_fm.)
+        recursive module subroutine newline_and_indent(status, arg)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: arg
+        end subroutine newline_and_indent
+
+        !> Register the commands of simple_electric_fm and put
+        !> `blink_paren_post_self_insert_function' on `post_self_insert_hook'
+        !> (as loading simple.el does).
+        module subroutine syms_of_simple_electric()
+            implicit none(type, external)
+        end subroutine syms_of_simple_electric
+
+        !> Delete characters backward, changing tabs into spaces.
+        !> The exact behavior depends on `backward_delete_char_untabify_method'.
+        !>
+        !> Delete ARG chars, and kill (save in kill ring) if KILLP is true.
+        !>
+        !> If Transient Mark mode is enabled, the mark is active, and ARG is 1,
+        !> delete the text in the region and deactivate the mark instead.
+        !> To disable this, set option `delete_active_region' to false.
+        !>
+        !> Interactively, ARG is the prefix arg (default 1)
+        !> and KILLP is true if a prefix arg was specified.  Port of
+        !> simple.el:backward-delete-char-untabify.  (In simple_electric_fm.)
+        recursive module subroutine backward_delete_char_untabify(arg, status, killp)
+            implicit none(type, external)
+            integer(int64), intent(in) :: arg
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: killp
+        end subroutine backward_delete_char_untabify
     end interface
 
     !> Name of the output buffer for shell commands.  Port of simple.el
@@ -831,6 +1019,92 @@ module simple_fm
     !> copy-region-blink-delay.
     real, public :: copy_region_blink_delay = 1.0
 
+    !> Values of `blink_matching_paren'.
+    integer, parameter, public :: BLINK_MATCHING_PAREN_NIL = 0, BLINK_MATCHING_PAREN_T = 1, &
+                                  BLINK_MATCHING_PAREN_JUMP = 2, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN = 3
+
+    !> True means show matching open-paren when close-paren is inserted.
+    !> If this is true, then when you type a closing delimiter, such as a
+    !> closing parenthesis or brace, Emacs briefly indicates the location
+    !> of the matching opening delimiter.
+    !>
+    !> The valid values are:
+    !>
+    !>   `BLINK_MATCHING_PAREN_T'               Highlight the matching open-paren if it is visible
+    !>                                          in the window, otherwise show the text with matching
+    !>                                          open-paren in the echo area.  This is the default.
+    !>   `BLINK_MATCHING_PAREN_JUMP'            If the matching open-paren is visible in the window,
+    !>                                          briefly move cursor to its position; otherwise show
+    !>                                          the text with matching open-paren in the echo area.
+    !>   `BLINK_MATCHING_PAREN_JUMP_OFFSCREEN'  Briefly move cursor to the matching open-paren
+    !>                                          even if it is not visible in the window.
+    !>   `BLINK_MATCHING_PAREN_NIL'             Don't show the matching open-paren.
+    !>
+    !> Port of simple.el blink-matching-paren.
+    integer, public :: blink_matching_paren = BLINK_MATCHING_PAREN_T
+
+    !> Values of `backward_delete_char_untabify_method'.
+    integer, parameter, public :: UNTABIFY_METHOD_NIL = 0, UNTABIFY_METHOD_UNTABIFY = 1, UNTABIFY_METHOD_HUNGRY = 2, &
+                                  UNTABIFY_METHOD_ALL = 3
+
+    !> The method for untabifying when deleting backward.
+    !> Can be `UNTABIFY_METHOD_UNTABIFY' -- turn a tab to many spaces, then delete one space;
+    !>        `UNTABIFY_METHOD_HUNGRY' -- delete all whitespace, both tabs and spaces;
+    !>        `UNTABIFY_METHOD_ALL' -- delete all whitespace, including tabs, spaces and newlines;
+    !>        `UNTABIFY_METHOD_NIL' -- just delete one character.
+    !> Port of simple.el backward-delete-char-untabify-method.
+    integer, public :: backward_delete_char_untabify_method = UNTABIFY_METHOD_UNTABIFY
+
+    !> True means show matching open-paren when it is on screen.
+    !> If false, don't show it (but the open-paren can still be shown
+    !> in the echo area when it is off screen).
+    !>
+    !> This variable has no effect if `blink_matching_paren' is
+    !> `BLINK_MATCHING_PAREN_NIL'.  (In that case, the open-paren is never
+    !> shown.)  It is also ignored if `show_paren_mode' is enabled.  Port
+    !> of simple.el blink-matching-paren-on-screen.
+    logical, public :: blink_matching_paren_on_screen = .true.
+
+    !> If not negative, maximum distance to search backwards for matching
+    !> open-paren.  If negative, search stops at the beginning of the
+    !> accessible portion of the buffer.  Port of simple.el
+    !> blink-matching-paren-distance (negative for nil).
+    integer(int64), public :: blink_matching_paren_distance = 100*1024
+
+    !> Time in seconds to delay after showing a matching paren.  Port of
+    !> simple.el blink-matching-delay.
+    real, public :: blink_matching_delay = 1.0
+
+    !> If false, `blink_matching_paren' ignores comments.
+    !> More precisely, when looking for the matching parenthesis,
+    !> it skips the contents of comments that end before point.  Port of
+    !> simple.el blink-matching-paren-dont-ignore-comments.
+    logical, public :: blink_matching_paren_dont_ignore_comments = .false.
+
+    abstract interface
+        !> A `blink_matching_check_function': START (0 if none) and END
+        !> are the positions just before the opening token and right
+        !> after the closing one; true if the two do not match.
+        logical function blink_matching_check_proc(start, end)
+            import :: int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+        end function blink_matching_check_proc
+    end interface
+
+    !> Function to check parentheses mismatches.
+    !> The function takes two arguments (START and END) where START is the
+    !> position just before the opening token and END is the position right after.
+    !> START can be 0, if it was not found.
+    !> The function should return true if the two tokens do not match.
+    !> Port of simple.el blink-matching-check-function.
+    procedure(blink_matching_check_proc), pointer, public :: blink_matching_check_function => null()
+
+    !> Function called, if set, whenever a close parenthesis is inserted.
+    !> More precisely, a char with closeparen syntax is self-inserted.
+    !> Port of simple.el blink-paren-function.
+    procedure(command_proc), pointer, public :: blink_paren_function => null()
+
     !> Whether the cursor must be blinked after a copy.
     !> When this condition holds, and the copied region fits in the
     !> current window, `kill_ring_save' will blink the cursor between
@@ -961,16 +1235,19 @@ contains
     !>
     !> If `auto_fill_mode' is enabled, this may cause automatic line
     !> breaking of the preceding line.  A present ARG inhibits this.
-    !> Port of simple.el:newline (the command, "*P"; electric indentation
-    !> and hard newlines are not ported).
+    !> If `electric_indent_mode' is enabled, this indents the final new line
+    !> that it adds, and reindents the preceding line.  To just insert
+    !> a newline, use \[electric_indent_just_newline].
+    !> Port of simple.el:newline (the command, "*P\np"; hard newlines are
+    !> not ported).
     subroutine cmd_newline(status)
         type(status_type), intent(out) :: status
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
         if (nilp(current_prefix_arg)) then
-            call newline(status)
+            call newline(status, interactive=.true.)
         else
-            call newline(status, arg_p())
+            call newline(status, arg_p(), interactive=.true.)
         end if
     end subroutine cmd_newline
 
@@ -2113,12 +2390,20 @@ contains
         kill_forward_chars_hook => kill_forward_chars
         call syms_of_simple_fill()
         call syms_of_simple_modes()
+        call syms_of_simple_view()
         call syms_of_simple_shell()
         call syms_of_simple_next_error()
+        call syms_of_simple_electric()
         cycle_spacing_actions = [cycle_spacing_action_type(CYCLE_JUST_ONE_SPACE), &
                                  cycle_spacing_action_type(CYCLE_DELETE_ALL_SPACE), &
                                  cycle_spacing_action_type(CYCLE_RESTORE)]
         commands%mark_word%run => cmd_mark_word
+        commands%set_variable%run => cmd_set_variable
+        ! simple.el set-variable-value-history and custom.el
+        ! custom-variable-history: the minibuffer histories of
+        ! `set_variable'.
+        call defvar_nil("set_variable_value_history")
+        call defvar_nil("custom_variable_history")
     end subroutine syms_of_simple
 
     ! ------------------------------------------------------------------

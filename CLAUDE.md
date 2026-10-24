@@ -1,0 +1,46 @@
+# Fortmacs: instructions for Claude
+
+Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+, gfortran).
+- Reference source is upstream emacs-31.1 (tools/fetch-upstream.sh); cite the original file/function when porting. Read-only reference: never propose changes upstream.
+- Behaviour mirrors vanilla Emacs 31.1 exactly: no deviations and no added features. Anything not yet ported is listed as Deferred, never approximated. The only exceptions:
+  - The Fortran configuration and generations.
+  - Names use underscores where Emacs uses hyphens (commands, variables, functions, modes, hooks, keymaps, error symbols: `M-x find_file`, `C-h v fill_column`, `text_mode_hook`). Keys and mode-line text are unchanged.
+  - No run-time Lisp: eval-expression, eval-buffer and ielm are "Not applicable"; *scratch* starts in Fundamental mode with no Lisp message.
+  - Customize and other setting-saving commands write Fortran assignments into init.f90.
+  - Values are shown as Fortran (.true./.false., integers, strings, named constants); docstrings and messages carry no Lisp terms ("non-nil" becomes "true").
+  - Packages are Fortran modules built in via `fortmacs --recompile`.
+  - Help names the Fortran source file (simple_fm.f90).
+- Target: Linux only (x86-64 and aarch64). No macOS/Windows support.
+- Pure Fortran: no C source files and no C libraries beyond libc system calls, except FreeType and HarfBuzz for the GUI's fonts. Use ISO_C_BINDING only for OS/terminal I/O, sockets, threads and those two font libraries, isolated in src/sys/; hardcode Linux struct layouts and constants there. Reimplement in Fortran what upstream gets from other libraries (terminfo, X11). Project tooling is shell and awk (no Python).
+- No Lisp interpreter and no Lisp-style code: always use the closest idiomatic, standard Fortran. Lisp is the reference for behaviour only, never for how code looks.
+  - Settings are module variables or typed setting objects; values use intrinsic types and literals (.true./.false., integers, character).
+  - Things that exist at compile time (commands, settings, modes, hooks, keymaps) are named objects of derived types, changed by plain assignment to components, e.g. `commands%upcase_region%disabled = .false.`. Per-mode objects are named after their Emacs variables (text_mode_hook, text_mode_map, text_mode_syntax_table); no major_modes%/minor_modes% in the config API. Behaviour lives in type-bound procedures; functions are procedure pointers.
+  - Only names that exist solely at run time (e.g. typed by the user) go through a specific subroutine with intrinsic arguments, e.g. `call set_command_disabled(name, .false.)`; never generic property bags like put/get.
+  - A generic Lisp value type (value_type) stays internal, only where data is truly dynamically typed, and never appears in the config API (no nil(), sym(), put(...) style).
+- Port order: data structures → command loop/keymaps → terminal display → Fortran-native config API → features.
+- Display: terminal first; a GUI (X11, later Wayland) after the bulk of Emacs is ported, with the protocol spoken in Fortran over a socket and fonts through FreeType and HarfBuzz. Keep redisplay independent of the output device.
+- Config: a Fortran module in ~/.config/fortmacs/init.f90, statically linked into the binary; changing it means rebuilding (`fortmacs --recompile`, similar to Guix). No Elisp, no dlopen. It contains only idiomatic Fortran (assignments, pointer assignment, type-bound calls); commands that edit the init file (such as enable-command) write that form. Rebuilds are numbered generations in ~/.local/state/fortmacs/generations with a `current` symlink (build scratch in ~/.cache/fortmacs); --rollback and --list-generations come after the config API.
+- Docs: FORD !> comments on every public entity. Ported commands, functions and variables carry the upstream docstring (adapted to Fortran names), compiled into the binary for built-in help (C-h f/k/v).
+- Build with fpm. Every ported module gets a test-drive test; port the upstream ERT tests (test/src/*-tests.el) where they exist.
+- CI: the full matrix (Ubuntu and Fedora on x86-64 and aarch64, Arch x86-64) on every non-draft PR and on main after each merge; Guix weekly. No runs for documentation-only pushes; a new push cancels a PR's older run. CI runs the tests: no local test runs before pushing, only the generators and the formatter (as tools/check.sh --fix does) so CI's freshness checks pass.
+- Workflow: one roadmap step per PR, based on main (never stack PRs); batch related fixes into one PR rather than many small ones, and keep a PR as a draft until it is complete. When the user is away, build the next step on the open PR's branch instead of waiting for a merge. Each PR updates PORTING.md (status table, session log) and the README progress block (tools/progress.sh --update-readme). After opening a PR, poll it and continue once it is merged.
+- License: GPLv3 or later, matching upstream. Ported files keep upstream FSF copyright notices plus ours.
+- Keep answers short.
+
+## Fortran conventions
+
+- Style: the fortran-lang and stdlib style guides (4-space indentation, 132-column limit). fprettify formats, Fortitude lints with its default rules.
+- `implicit none (type, external)` everywhere, including interface bodies; modules `private` by default with explicit `public`.
+- `intent` on every dummy argument; mark `recursive` explicitly (gfortran doesn't fully default to it).
+- Kinds: int64 from iso_fortran_env for buffer positions, sizes and counts (Emacs's ptrdiff_t; default integer is 32-bit in gfortran); default integer only for small values such as screen columns.
+- Prefer allocatables over pointers. Reference buffers, windows and markers by integer handles into registries, not raw pointers.
+- No GC: objects have explicit lifetimes (e.g. kill-buffer frees, free_marker). Handles carry a generation counter so stale handles are detected, not reused.
+- Threads: one main thread owns all editor state. Background work runs on POSIX worker threads (bound in src/sys/, built with -pthread) that only see copied data and report back through a queue polled by the command loop. Worker code must be reentrant. No OpenMP or coarrays.
+- No common, equivalence, goto or PDTs. No initialized local declarations (they imply `save`).
+- gfortran safety: no recursive allocatable types (shallow-copy bug); never put a function result inside an array constructor of a type with allocatable components (leak; use list(...) or variables); never pass the same variable to two dummies when one is intent(out). `.and.`/`.or.` don't short-circuit: guard substrings and elements with a nested `if`. A function reference can't be the left side of a component assignment (`f(x)%c = v` is invalid), so compile-time objects are named variables.
+- Errors: return a status/error type; no `stop` outside main. This replaces Emacs's signal/throw.
+- Naming: one module per upstream file, named after it with an `_fm` suffix (buffer.c → buffer_fm, simple.el → simple_fm); file names match (buffer_fm.f90, test_buffer_fm.f90). Modules that port nothing take the suffix too (config_fm), except the user-facing API module `fortmacs`. Use a submodule when a module would otherwise form a cycle.
+- Text: buffers store UTF-8 bytes (Emacs internal encoding); track char and byte positions separately (PT/PT_BYTE). Positions are 1-based, as in Emacs.
+- Tooling: gfortran ≥ 13; debug profile `-std=f2018 -Wall -Wextra -fcheck=all -g`.
+
+See PORTING.md for the roadmap, the status of each module, conventions learned while porting, design decisions and the session log.
