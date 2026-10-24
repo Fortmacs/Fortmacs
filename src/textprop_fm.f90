@@ -36,10 +36,12 @@ module textprop_fm
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY
     use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, nilp, &
-                       stringp, value_type, xstring
+                       stringp, value_type, xstring, nil
     use lread_fm, only: intern
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, BEG, inhibit_read_only
+    use handle_fm, only: handle_type, null_handle
+    use itree_fm, only: overlays_at, overlay_get_prop, next_overlay_change, previous_overlay_change
     use intervals_fm, only: create_root_interval, find_interval, interval_end, intervals_equal, &
                             plist_get_eq, split_interval_left, split_interval_right, textget, tmem
     implicit none(type, external)
@@ -52,7 +54,8 @@ module textprop_fm
               previous_single_property_change, text_property_any, &
               text_property_not_all, verify_interval_modification
     public :: text_property_stickiness, next_single_char_property_change, &
-              previous_single_char_property_change
+              previous_single_char_property_change, get_char_property, get_char_property_and_overlay, &
+              next_char_property_change, previous_char_property_change, text_prop_means_invisible
 
     interface
         !> Check that the properties of START..END may change, run the
@@ -825,48 +828,200 @@ contains
         end function default_nonsticky
     end function text_property_stickiness
 
-    !> The next position after `position' where `prop' changes, or
-    !> `limit' (default point-max) if it doesn't change before it.  Port of
-    !> textprop.c:Fnext_single_char_property_change for the current
-    !> buffer (text properties only: there are no overlays yet).
+    !> How PROPVAL, a value of the `invisible' property, makes text
+    !> invisible in the current buffer: 0 not at all, 1 hidden, 2 hidden
+    !> and replaced by an ellipsis (`buffer_invisibility_spec' t: any
+    !> non-nil value hides text).  Port of xdisp.c:invisible_prop with
+    !> TEXT_PROP_MEANS_INVISIBLE.
+    integer function text_prop_means_invisible(propval) result(invis)
+        type(value_type), intent(in) :: propval
+        type(value_type), allocatable :: elts(:)
+        integer :: k
+        invis = 0
+        if (cur == 0) return
+        if (buffers(cur)%invisibility_spec_t) then
+            if (.not. nilp(propval)) invis = 1
+            return
+        end if
+        if (.not. allocated(buffers(cur)%invisibility_spec)) return
+        invis = match(propval)
+        if (invis /= 0) return
+        if (consp(propval)) then
+            call list_elements(propval, elts)
+            do k = 1, size(elts)
+                invis = match(elts(k))
+                if (invis /= 0) return
+            end do
+        end if
+    contains
+
+        integer function match(v) result(m)
+            type(value_type), intent(in) :: v
+            integer :: j
+            m = 0
+            associate (spec => buffers(cur)%invisibility_spec)
+                do j = 1, size(spec)
+                    if (.not. value_eq(v, spec(j)%atom)) cycle
+                    m = 1
+                    if (spec(j)%cons .and. spec(j)%ellipsis) m = 2
+                    return
+                end do
+            end associate
+        end function match
+    end function text_prop_means_invisible
+
+    !> Return the value of POSITION's property PROP, in the current
+    !> buffer.  Both overlay properties and text properties are checked:
+    !> of the overlays containing POSITION with a PROP property, the one
+    !> with the highest priority gives the value, else the text property
+    !> does.  Port of textprop.c:Fget_char_property (OBJECT the current
+    !> buffer; no `window' properties).
+    function get_char_property(position, prop) result(val)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        type(value_type) :: val
+        type(handle_type) :: overlay
+        call get_char_property_and_overlay(position, prop, val, overlay)
+    end function get_char_property
+
+    !> Like `get_char_property', but with extra info on where the value
+    !> came from: OVERLAY is the overlay it came from, the null handle if
+    !> it is a text property (or nil).  Port of
+    !> textprop.c:get_char_property_and_overlay for the current buffer.
+    subroutine get_char_property_and_overlay(position, prop, val, overlay)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop
+        type(value_type), intent(out) :: val
+        type(handle_type), intent(out) :: overlay
+        type(handle_type), allocatable :: vec(:)
+        type(status_type) :: status
+        integer :: k
+        overlay = null_handle()
+        val = nil()
+        if (cur == 0) return
+        ! The overlays containing POSITION, highest priority first.
+        call overlays_at(position, vec, sorted=.true.)
+        do k = 1, size(vec)
+            val = overlay_get_prop(vec(k), prop)
+            if (.not. nilp(val)) then
+                overlay = vec(k)
+                return
+            end if
+        end do
+        call get_text_property(position, prop, val, status)
+        if (.not. status%ok()) val = nil()
+    end subroutine get_char_property_and_overlay
+
+    !> Return the position of next text property or overlay change.
+    !> This scans characters forward in the current buffer from POSITION
+    !> till it finds a change in some text property, or the beginning or
+    !> end of an overlay, and returns the position of that.  If none is
+    !> found, and LIMIT is absent, the function returns `point_max'.
+    !> If the optional second argument LIMIT is present, don't search past
+    !> position LIMIT; return LIMIT if nothing is found before LIMIT.
+    !> LIMIT is a no-op if it is greater than `point_max'.  Port of
+    !> textprop.c:Fnext_char_property_change.
+    integer(int64) function next_char_property_change(position, limit) result(next)
+        integer(int64), intent(in) :: position
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: temp
+        type(status_type) :: status
+        logical :: found
+        temp = next_overlay_change(position)
+        if (present(limit)) temp = min(temp, limit)
+        call next_property_change(position, next, found, status, temp)
+        if (.not. found .or. .not. status%ok()) next = temp
+    end function next_char_property_change
+
+    !> Return the position of previous text property or overlay change.
+    !> Scans characters backward in the current buffer from POSITION till
+    !> it finds a change in some text property, or the beginning or end of
+    !> an overlay, and returns the position of that.  If none is found, and
+    !> LIMIT is absent, the function returns `point_min'.  If the optional
+    !> second argument LIMIT is present, don't search back past position
+    !> LIMIT; return LIMIT if nothing is found before LIMIT.  LIMIT is a
+    !> no-op if it is less than `point_min'.  Port of
+    !> textprop.c:Fprevious_char_property_change.
+    integer(int64) function previous_char_property_change(position, limit) result(prev)
+        integer(int64), intent(in) :: position
+        integer(int64), intent(in), optional :: limit
+        integer(int64) :: temp
+        type(status_type) :: status
+        logical :: found
+        temp = previous_overlay_change(position)
+        if (present(limit)) temp = max(temp, limit)
+        call previous_property_change(position, prev, found, status, temp)
+        if (.not. found .or. .not. status%ok()) prev = temp
+    end function previous_char_property_change
+
+    !> Return the position of next text property or overlay change for a
+    !> specific property.  Scans characters forward from POSITION till it
+    !> finds a change in the PROP property, then returns the position of
+    !> the change.  The property values are compared with `eq'.  If the
+    !> property is constant all the way to the end of the buffer, return
+    !> the last valid position in the buffer, or LIMIT if present and not
+    !> past it.  Port of textprop.c:Fnext_single_char_property_change for
+    !> the current buffer.
     integer(int64) function next_single_char_property_change(position, prop, limit) result(next)
         integer(int64), intent(in) :: position
         type(value_type), intent(in) :: prop
         integer(int64), intent(in), optional :: limit
+        type(value_type) :: initial_value, value
         integer(int64) :: lim
-        type(status_type) :: status
-        logical :: found
         lim = buffers(cur)%zv
         if (present(limit)) lim = limit
         if (position >= lim) then
-            next = min(lim, buffers(cur)%zv)
+            next = lim
+            if (next > buffers(cur)%zv) next = buffers(cur)%zv
             return
         end if
-        call next_single_property_change(position, prop, next, found, status, lim)
-        if (.not. found .or. .not. status%ok()) next = lim
-        next = min(next, lim)
+        initial_value = get_char_property(position, prop)
+        next = position
+        do
+            next = next_char_property_change(next, lim)
+            if (next >= lim) then
+                next = lim
+                exit
+            end if
+            value = get_char_property(next, prop)
+            if (.not. value_eq(value, initial_value)) exit
+            if (next >= buffers(cur)%zv) exit
+        end do
     end function next_single_char_property_change
 
-    !> The previous position before `position' where `prop' changes, or
-    !> `limit' (default point-min).  Port of
+    !> Return the position of previous text property or overlay change
+    !> for a specific property.  Scans characters backward from POSITION
+    !> till it finds a change in the PROP property, then returns the
+    !> position of the change.  The property values are compared with
+    !> `eq'.  If the property is constant all the way to the start of the
+    !> buffer, return the first valid position in the buffer, or LIMIT if
+    !> present and not before it.  Port of
     !> textprop.c:Fprevious_single_char_property_change for the current
-    !> buffer (text properties only).
+    !> buffer.
     integer(int64) function previous_single_char_property_change(position, prop, limit) result(prev)
         integer(int64), intent(in) :: position
         type(value_type), intent(in) :: prop
         integer(int64), intent(in), optional :: limit
+        type(value_type) :: initial_value, value
         integer(int64) :: lim
-        type(status_type) :: status
-        logical :: found
         lim = buffers(cur)%begv
         if (present(limit)) lim = limit
         if (position <= lim) then
-            prev = max(lim, buffers(cur)%begv)
+            prev = lim
+            if (prev < buffers(cur)%begv) prev = buffers(cur)%begv
             return
         end if
-        call previous_single_property_change(position, prop, prev, found, status, lim)
-        if (.not. found .or. .not. status%ok()) prev = lim
-        prev = max(prev, lim)
+        initial_value = get_char_property(position - 1, prop)
+        prev = position
+        do
+            prev = previous_char_property_change(prev, lim)
+            if (prev <= lim) then
+                prev = lim
+                exit
+            end if
+            value = get_char_property(prev - 1, prop)
+            if (.not. value_eq(value, initial_value)) exit
+        end do
     end function previous_single_char_property_change
 
     ! ------------------------------------------------------------------

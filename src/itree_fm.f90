@@ -54,7 +54,7 @@ module itree_fm
     private
 
     public :: make_overlay, move_overlay, delete_overlay, free_overlay, delete_all_overlays, overlayp, &
-              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_put, overlay_properties, &
+              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_prop, overlay_put, overlay_properties, &
               overlays_at, overlays_in, next_overlay_change, previous_overlay_change, sort_overlays, &
               adjust_overlays_for_insert, adjust_overlays_for_delete, buffer_has_overlays, overlay_priority, &
               compare_overlays
@@ -416,6 +416,15 @@ contains
         if (.not. overlayp(overlay)) return
         val = textget(overlays(overlay%index)%plist, sym(prop))
     end function overlay_get
+
+    !> `overlay_get' with the property given as a symbol value.
+    function overlay_get_prop(overlay, prop) result(val)
+        type(handle_type), intent(in) :: overlay
+        type(value_type), intent(in) :: prop
+        type(value_type) :: val
+        if (.not. overlayp(overlay)) return
+        val = textget(overlays(overlay%index)%plist, prop)
+    end function overlay_get_prop
 
     !> Set one property of overlay OVERLAY: give property PROP value VALUE.
     !> Port of buffer.c:Foverlay_put.
