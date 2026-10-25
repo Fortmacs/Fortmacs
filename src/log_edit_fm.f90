@@ -113,7 +113,7 @@ module log_edit_fm
               log_edit_insert_message_template, log_edit_previous_comment, log_edit_next_comment, &
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
               log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
-              log_edit_done_strip_cvs_lines, log_edit_fill_entry, &
+              log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
               syms_of_log_edit
 
     !> A string of a list (files, command line arguments).
@@ -403,6 +403,24 @@ contains
         k = local_index(.false.)
         if (k > 0) b = locals(k)%vc_backend
     end function log_edit_vc_backend
+
+    !> Set the current buffer's `log_edit_callback' (setq-local): the
+    !> command `log_edit_done' calls to perform the operation.
+    subroutine set_log_edit_callback(callback)
+        procedure(command_proc) :: callback
+        integer :: k
+        k = local_index(.true.)
+        locals(k)%callback => callback
+    end subroutine set_log_edit_callback
+
+    !> Set the current buffer's `log_edit_vc_backend' (setq-local): B is
+    !> a VC backend index, 0 for nil.
+    subroutine set_log_edit_vc_backend(b)
+        integer, intent(in) :: b
+        integer :: k
+        k = local_index(.true.)
+        locals(k)%vc_backend = b
+    end subroutine set_log_edit_vc_backend
 
     ! The current value of log-edit-comment-ring-index (SET false for nil).
     subroutine get_ring_index(set, index)
@@ -1067,6 +1085,8 @@ contains
             same = .false.
             if (log_edit_confirm == LOG_EDIT_CONFIRM_CHANGED) then
                 call log_edit_files(files)
+                ! An unset `log_edit_initial_files' is nil, the empty list.
+                same = size(files) == 0
                 k = local_index(.false.)
                 if (k > 0) then
                     if (locals(k)%has_initial_files) same = same_files(files, locals(k)%initial_files)

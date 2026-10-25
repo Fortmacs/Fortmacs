@@ -354,8 +354,16 @@ module vc_hooks_fm
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
 
+    !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).
+    integer, parameter, public :: MAX_VC_BACKENDS = 16
+
     !> The backends ported, registered by their modules (vc_git_fm).
-    type(vc_backend_type), allocatable, target :: vc_backends(:)
+    !> (A fixed array: with gfortran 13, move_alloc on an array of this
+    !> type frees a procedure pointer component, aborting.)
+    type(vc_backend_type), target :: vc_backends(MAX_VC_BACKENDS)
+
+    ! The number of entries of `vc_backends' in use.
+    integer :: n_vc_backends = 0
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -425,27 +433,24 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make the backend named NAME known to VC (as loading vc-BACKEND.el
-    !> does): B is its index in `vc_backends', whose operations the
+    !> does): B is its index in `vc_backends' (0 when it is full), whose operations the
     !> backend module then sets.  A backend of the same name keeps its
     !> entry, which the module sets again.
     subroutine register_vc_backend(name, b)
         character(len=*), intent(in) :: name
         integer, intent(out) :: b
-        type(vc_backend_type), allocatable :: grown(:)
-        integer :: k, n
-        if (.not. allocated(vc_backends)) allocate (vc_backends(0))
-        do k = 1, size(vc_backends)
+        integer :: k
+        do k = 1, n_vc_backends
             if (vc_backends(k)%name == name) then
                 b = k
                 return
             end if
         end do
-        n = size(vc_backends)
-        allocate (grown(n + 1))
-        grown(1:n) = vc_backends
-        grown(n + 1)%name = name
-        call move_alloc(grown, vc_backends)
-        b = n + 1
+        b = 0
+        if (n_vc_backends == MAX_VC_BACKENDS) return
+        n_vc_backends = n_vc_backends + 1
+        vc_backends(n_vc_backends)%name = name
+        b = n_vc_backends
     end subroutine register_vc_backend
 
     !> The index in `vc_backends' of the backend named NAME (0 if none
@@ -454,8 +459,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: k
         b = 0
-        if (.not. allocated(vc_backends)) return
-        do k = 1, size(vc_backends)
+        do k = 1, n_vc_backends
             if (vc_backends(k)%name == trim(name)) then
                 b = k
                 return
