@@ -1051,6 +1051,8 @@ contains
     buffers(cur)%major_mode = "fundamental_mode"
     buffers(cur)%mode_name = "Fundamental"
     buffers(cur)%keymap = null_handle()
+    buffers(cur)%invisibility_spec_t = .true.
+    if (allocated(buffers(cur)%invisibility_spec)) deallocate (buffers(cur)%invisibility_spec)
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then
             call get(make_symbol_ref(buffers(cur)%local_ids(i)), sym("permanent_local"), prop, st)

@@ -201,6 +201,7 @@ kmacro_execute_before_append
 kmacro_repeat_no_prefix
 kmacro_ring_max
 left_margin
+line_move_ignore_invisible
 line_move_visual
 make_backup_files
 mark_even_if_inactive

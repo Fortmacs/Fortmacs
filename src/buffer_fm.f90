@@ -97,6 +97,13 @@ module buffer_fm
         character(len=:), allocatable :: text
     end type undo_entry_type
 
+    !> An element of a buffer's invisibility spec: `ATOM', or
+    !> `(ATOM . ELLIPSIS)' (`cons') with ELLIPSIS true or false.
+    type, public :: invisibility_entry_type
+        type(value_type) :: atom
+        logical :: cons = .false., ellipsis = .false.
+    end type invisibility_entry_type
+
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -167,6 +174,10 @@ module buffer_fm
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
+        !> BVAR invisibility_spec (`buffer_invisibility_spec'): true for
+        !> t, else the list `invisibility_spec'.
+        logical :: invisibility_spec_t = .true.
+        type(invisibility_entry_type), allocatable :: invisibility_spec(:)
     end type buffer_type
 
     !> True if Transient Mark mode is enabled.
