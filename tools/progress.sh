@@ -143,11 +143,11 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # The pie is an SVG image, docs/progress/NAME.svg (GitHub strips colors
 # from HTML in Markdown): the whole pie is everything to port, each colored
 # slice the ported part of one kind, to scale (a share too small to see
-# still shows a sliver), and the dark gray slice what is still to port.
+# still shows a sliver), and the black slice what is still to port.
 # A legend on the right gives each kind's share and count.  The colors are
-# the logo's: purple and blue first, then red, tan and black.  The labels
+# the logo's: purple and blue first, then red, tan and gray.  The labels
 # are TEXT and the lines between slices EDGE: gray and cream for GitHub's
-# light theme, cream and black for its dark one.
+# light theme, cream and cream for its dark one (outlining the pie).
 # Arguments: NAME TEXT EDGE and lines of LABEL|COLOR|DONE|TOTAL.
 pie_svg() {
     printf '%s\n' "$4" | awk -F'|' -v text="$2" -v edge="$3" '
@@ -173,7 +173,7 @@ pie_svg() {
         }
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
-            rest = "#4B423E"
+            rest = "#13110B"
             printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"180\" viewBox=\"0 0 520 180\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
@@ -188,7 +188,7 @@ pie_svg() {
             for (i = 1; i <= n + 1; i++) {
                 y = 26 + (i - 1) * 26
                 printf "<text x=\"262\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(d[i], t[i])
-                printf "<rect x=\"272\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\"/>\n", y - 11, color[i]
+                printf "<rect x=\"272\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", y - 11, color[i], edge
                 printf "<text x=\"294\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, label[i]
                 printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
@@ -224,9 +224,9 @@ readme_block() {
 Elisp|#1F747A|$l_done|$l_total
 GNU ELPA|#963E2C|$gnu_done|$gnu_total
 NonGNU ELPA|#B08866|$nongnu_done|$nongnu_total
-MELPA|#13110B|$melpa_done|$melpa_total"
+MELPA|#4B423E|$melpa_done|$melpa_total"
     pie_svg pie "#4B423E" "#DFD6D1" "$parts"
-    pie_svg pie-dark "#DFD6D1" "#13110B" "$parts"
+    pie_svg pie-dark "#DFD6D1" "#DFD6D1" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
