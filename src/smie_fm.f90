@@ -1867,7 +1867,7 @@ contains
         end do
     contains
         ! The forward and backward levels of T.
-        subroutine forw_back(t, f, b)
+        recursive subroutine forw_back(t, f, b)
             type(smie_toklevels_type), intent(in) :: t
             type(smie_level_type), intent(out) :: f, b
             if (forward) then
@@ -1880,7 +1880,7 @@ contains
         end subroutine forw_back
 
         ! (push (LEFT RIGHT) levels).
-        subroutine push_levels(left, right)
+        recursive subroutine push_levels(left, right)
             type(smie_level_type), intent(in) :: left, right
             if (forward) then
                 lfw = [lfw, right]
@@ -1891,7 +1891,7 @@ contains
             end if
         end subroutine push_levels
 
-        subroutine pop_levels()
+        recursive subroutine pop_levels()
             n = size(lfw)
             lfw = lfw(1:n - 1)
             lbk = lbk(1:n - 1)
@@ -1919,7 +1919,7 @@ contains
         end function associative_last
 
         ! (prog1 (list (or FORW t) (point) TOK) (goto-char POS)).
-        subroutine bump(f, t, p)
+        recursive subroutine bump(f, t, p)
             type(smie_level_type), intent(in) :: f
             character(len=*), intent(in) :: t
             integer(int64), intent(in) :: p
@@ -1931,7 +1931,7 @@ contains
         end subroutine bump
 
         ! NEXT-SEXP: skip one sexp.
-        subroutine next_sexp(st)
+        recursive subroutine next_sexp(st)
             type(status_type), intent(out) :: st
             st = status_type()
             if (forward) then
@@ -3945,6 +3945,7 @@ contains
             end if
             self%locals(k)%serial = buffers(cur)%serial
             ! A buffer's own value starts as (t).
+            if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
             allocate (self%locals(k)%entries(1))
             self%locals(k)%entries(1)%is_t = .true.
         end if
