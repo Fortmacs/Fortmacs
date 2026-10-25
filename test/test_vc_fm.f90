@@ -95,6 +95,8 @@ contains
                     new_unittest("vc-test-git10-rename-directory", test_rename_directory), &
                     new_unittest("vc-git-mode-line", test_mode_line), &
                     new_unittest("vc-git-diff", test_diff), &
+                    new_unittest("vc-git-print-log", test_print_log), &
+                    new_unittest("vc-git-print-root-log", test_print_root_log), &
                     new_unittest("vc-git-revert", test_revert) &
                     ]
     end subroutine collect_vc_fm
@@ -917,6 +919,179 @@ contains
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_diff
+
+    !> Wait for the process of the log buffer BUF to finish (its
+    !> `vc_exec_after' actions run).
+    subroutine wait_buffer_process(buf)
+        use process_fm, only: get_buffer_process
+        type(handle_type), intent(in) :: buf
+        type(handle_type) :: proc
+        type(status_type) :: st
+        logical :: got
+        integer :: k
+        proc = get_buffer_process(buf)
+        if (proc%index /= 0) then
+            do k = 1, 600
+                if (.not. process_live_p(proc)) exit
+                call accept_process_output(got, st, proc, 0.05)
+            end do
+        end if
+        call accept_process_output(got, st, seconds=0.05)
+    end subroutine wait_buffer_process
+
+    !> A Git repository whose a.txt has two commits ("init" and "second"),
+    !> visited in BUF.
+    subroutine two_commits(h, buf, status)
+        type(handle_type), intent(out) :: h, buf
+        type(status_type), intent(out) :: status
+        call committed_file(h, buf, status)
+        if (.not. status%ok()) return
+        call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
+        call git("commit", "-q", "-a", "-m", "second")
+    end subroutine two_commits
+
+    !> C-x v l in a file under Git shows its long log in Git-Log-View mode,
+    !> where n and p move between commits, d shows the diff of a commit,
+    !> m marks it and w copies its revision.
+    subroutine test_print_log(error)
+        use vc_fm, only: vc_print_log
+        use log_view_fm, only: log_view_msg_next, log_view_msg_prev, log_view_current_tag, log_view_diff, &
+                               log_view_mark_entry, log_view_get_marked, log_view_unmark_all_entries
+        use font_lock_fm, only: font_lock_ensure
+        use editfns_fm, only: point, point_max
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buf, log, d
+        type(status_type) :: st
+        type(vc_string_type), allocatable :: marked(:)
+        character(len=:), allocatable :: text, newest, oldest
+        logical :: has
+        if (.not. have_git(error)) return
+        call two_commits(h, buf, st)
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call set_buffer(buf, st)
+            call vc_print_log(st, "", 500_int64)
+            call check(error, st%ok(), "vc-print-log: "//format_error(st))
+            if (allocated(error)) exit body
+            log = get_buffer("*vc-change-log*")
+            call check(error, buffer_live_p(log), "*vc-change-log*")
+            if (allocated(error)) exit body
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            text = buffer_string()
+            call check(error, buffers(cur)%major_mode, "vc_git_log_view_mode")
+            if (allocated(error)) exit body
+            call check(error, index(text, "    second") > 0 .and. index(text, "    init") > index(text, "    second"), text)
+            if (allocated(error)) exit body
+            call check(error, buffers(cur)%read_only, "read-only")
+            if (allocated(error)) exit body
+            ! n and p.
+            call goto_char(point_min())
+            call log_view_current_tag(newest, has)
+            call check(error, has .and. len(newest) == 40, "newest tag: "//newest)
+            if (allocated(error)) exit body
+            call log_view_msg_next(st)
+            call log_view_current_tag(oldest, has)
+            call check(error, st%ok() .and. has .and. oldest /= newest, "n: "//format_error(st))
+            if (allocated(error)) exit body
+            ! n on the last entry goes to the end (easy-mmode-define-navigation).
+            call log_view_msg_next(st)
+            call check(error, st%ok() .and. point() == point_max(), "n at the last entry")
+            if (allocated(error)) exit body
+            call log_view_msg_prev(st)
+            call log_view_current_tag(text, has)
+            call check(error, st%ok() .and. text == oldest, "p from the end: "//format_error(st))
+            if (allocated(error)) exit body
+            call log_view_msg_prev(st)
+            call log_view_current_tag(text, has)
+            call check(error, st%ok() .and. text == newest, "p: "//format_error(st))
+            if (allocated(error)) exit body
+            ! d on the newest commit: its diff with the previous one.
+            call log_view_diff(point(), point(), st)
+            call check(error, st%ok(), "d: "//format_error(st))
+            if (allocated(error)) exit body
+            d = get_buffer("*vc-diff*")
+            call set_buffer(d, st)
+            text = buffer_string()
+            call check(error, index(text, "-two"//achar(10)//"+three"//achar(10)) > 0, text)
+            if (allocated(error)) exit body
+            call kill_buffer(d, st)
+            ! m marks the entry (the marks are found through the faces).
+            call set_buffer(log, st)
+            call font_lock_ensure(st)
+            call goto_char(point_min())
+            call log_view_mark_entry(1_int64, st)
+            call log_view_get_marked(marked)
+            call check(error, size(marked) == 1, "one marked")
+            if (allocated(error)) exit body
+            call check(error, marked(1)%s, newest)
+            if (allocated(error)) exit body
+            call log_view_unmark_all_entries(st)
+            call log_view_get_marked(marked)
+            call check(error, size(marked) == 0, "unmarked")
+            if (allocated(error)) exit body
+            call kill_buffer(log, st)
+        end block body
+        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        call teardown(h)
+    end subroutine test_print_log
+
+    !> C-x v L shows the short log of the whole tree, whose entries RET
+    !> expands to the full log message and collapses again.
+    subroutine test_print_root_log(error)
+        use vc_fm, only: vc_print_root_log
+        use log_view_fm, only: log_view_message_re, log_view_toggle_entry_display
+        use search_fm, only: re_search_forward
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buf, log
+        type(status_type) :: st
+        character(len=:), allocatable :: short, text
+        integer(int64) :: found
+        integer :: entries
+        if (.not. have_git(error)) return
+        call two_commits(h, buf, st)
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call set_buffer(buf, st)
+            call vc_print_root_log(st, 500_int64)
+            call check(error, st%ok(), "vc-print-root-log: "//format_error(st))
+            if (allocated(error)) exit body
+            log = get_buffer("*vc-change-log*")
+            call wait_buffer_process(log)
+            call set_buffer(log, st)
+            short = buffer_string()
+            call goto_char(point_min())
+            entries = 0
+            do
+                call re_search_forward(log_view_message_re(), found, st, noerror=SEARCH_NOERROR)
+                if (found == 0) exit
+                entries = entries + 1
+            end do
+            call check(error, entries == 2, "two short entries in:"//achar(10)//short)
+            if (allocated(error)) exit body
+            call check(error, index(short, "second") > 0 .and. index(short, "Author:") == 0, short)
+            if (allocated(error)) exit body
+            ! RET expands the first entry.
+            call goto_char(point_min())
+            call log_view_toggle_entry_display(st)
+            text = buffer_string()
+            call check(error, st%ok() .and. index(text, "Author:") > 0, "expanded: "//format_error(st)//achar(10)//text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "second") < index(text, "Author:"), text)
+            if (allocated(error)) exit body
+            ! RET again collapses it.
+            call goto_char(point_min())
+            call log_view_toggle_entry_display(st)
+            text = buffer_string()
+            call check(error, st%ok() .and. text == short, "collapsed: "//format_error(st)//achar(10)//text)
+            if (allocated(error)) exit body
+            call kill_buffer(log, st)
+        end block body
+        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        call teardown(h)
+    end subroutine test_print_root_log
 
     !> `vc_revert_files' puts back the committed text of a file.
     subroutine test_revert(error)

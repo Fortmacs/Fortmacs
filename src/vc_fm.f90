@@ -50,7 +50,8 @@ module vc_fm
     use data_fm, only: symbol_value, set, add_local_variables_killer
     use eval_fm, only: hook_type
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, buffer_live_p, &
-                         get_file_buffer, buffer_list, kill_buffer, generate_new_buffer_name, restore_buffer_modified_p
+                         get_file_buffer, buffer_list, kill_buffer, generate_new_buffer_name, restore_buffer_modified_p, &
+                         buffer_serial_live
     use editfns_fm, only: point, goto_char, point_min, point_max, bolp, eobp, buffer_string, buffer_narrowed_p
     use insdel_fm, only: insert
     use search_fm, only: re_search_forward, replace_match, regexp_quote, SEARCH_NOERROR
@@ -87,6 +88,7 @@ module vc_fm
                            VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, VC_MODEL_NIL, VC_MODEL_IMPLICIT, &
                            VC_BACKEND_NONE, VC_PROP_BACKEND, VC_PROP_STATE, VC_PROP_CHECKOUT_TIME
     use vc_hooks_fm, only: VC_PROP_WORKING_REVISION, vc_file_set_working_revision, vc_delete_automatic_version_backups
+    use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NONE, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
     use log_edit_fm, only: log_edit_mode
     use vc_dispatcher_fm, only: vc_action_type, vc_setup_buffer, vc_exec_after, vc_delistify, vc_resynch_buffer, &
                                 vc_buffer_sync, vc_parent_buffer, set_vc_parent_buffer, vc_mode_line_hook, &
@@ -101,7 +103,9 @@ module vc_fm
               vc_checkout, vc_mark_resolved, vc_diff_internal, vc_read_revision, vc_version_diff, vc_checkin, &
               vc_root_version_diff, vc_diff, vc_root_diff, vc_buffer_sync_fileset, vc_revision_other_window, &
               vc_find_revision, vc_revert, vc_revert_file, vc_revert_files, vc_delete_file, vc_rename_file, &
-              vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, vc_version_backup_file
+              vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, vc_version_backup_file, &
+              vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
+              log_buffer_index, vc_shrink_buffer_window, with_backend_in_rootdir
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -239,6 +243,134 @@ module vc_fm
 
     type(vc_locals_type), allocatable :: locals(:)
 
+    ! ------------------------------------------------------------------
+    ! Logs
+    ! ------------------------------------------------------------------
+
+    !> The value of `vc_log_short_style': which filesets get a short log.
+    type, public :: vc_log_short_style_type
+        !> Show a short log if the fileset contains a directory.
+        logical :: directory = .true.
+        !> Show short logs for files.
+        logical :: file = .false.
+    end type vc_log_short_style_type
+
+    !> Whether or not to show a short log.
+    !> If `directory' is true, show a short log if the fileset
+    !> contains a directory.
+    !> If `file' is true, show short logs for files.
+    !> Not all VC backends support short logs!  Port of vc.el
+    !> vc-log-short-style.
+    type(vc_log_short_style_type), public :: vc_log_short_style
+
+    !> Values of `vc_log_view_type': the type of VC log shown in a buffer.
+    !> short: short log form, one line for each commit; long: long log
+    !> form, including full log message and author; with_diff: log
+    !> including diffs; log_outgoing: log of changes to be pushed to
+    !> upstream; log_incoming: log of changes to be brought by pulling from
+    !> upstream; log_unintegrated: log of changes you've not yet finished
+    !> sharing; log_search: log entries matching a pattern, shown in long
+    !> format; mergebase: log created by `vc_log_mergebase'.
+    integer, parameter, public :: VC_LOG_VIEW_NIL = 0, VC_LOG_VIEW_SHORT = 1, VC_LOG_VIEW_LONG = 2, &
+                                  VC_LOG_VIEW_WITH_DIFF = 3, VC_LOG_VIEW_LOG_OUTGOING = 4, &
+                                  VC_LOG_VIEW_LOG_INCOMING = 5, VC_LOG_VIEW_LOG_UNINTEGRATED = 6, &
+                                  VC_LOG_VIEW_LOG_SEARCH = 7, VC_LOG_VIEW_MERGEBASE = 8
+
+    !> Functions run at the end of the log command.
+    !> Each function runs in the log output buffer without args.  Port of
+    !> vc.el vc-log-finish-functions.
+    type(hook_type), target, public :: vc_log_finish_functions = hook_type(name="vc_log_finish_functions")
+
+    ! A log buffer's permanent-local `vc_log_view_type' and `vc--shortlog',
+    ! and the arguments its `revert_buffer_function' runs
+    ! `vc_print_log_internal' with, by serial number.
+    type :: vc_log_buffer_type
+        integer(int64) :: serial = 0
+        integer :: view_type = VC_LOG_VIEW_NIL
+        logical :: shortlog = .false.
+        logical :: has_args = .false.
+        integer :: backend = 0
+        type(vc_string_type), allocatable :: files(:)
+        character(len=:), allocatable :: working_revision
+        logical :: is_start_revision = .false.
+        type(vc_log_limit_type) :: limit
+        integer :: type = VC_LOG_VIEW_NIL
+    end type vc_log_buffer_type
+
+    type(vc_log_buffer_type), allocatable :: log_buffers(:)
+
+    interface
+        !> For specified BACKEND and FILES, show the VC log.
+        !> Leave point at WORKING_REVISION, if it is not "".
+        !> If IS_START_REVISION is true, start the log from WORKING_REVISION
+        !> (not all backends support this); i.e., show only WORKING_REVISION and
+        !> earlier revisions.  Show up to LIMIT entries (none means unlimited).
+        !> LIMIT can also be a string, which means the revision before which to
+        !> stop.  Port of vc.el:vc-print-log-internal.  (In vc_log_fm.)
+        recursive module subroutine vc_print_log_internal(backend, files, working_revision, status, &
+                                                          is_start_revision, limit, type)
+            implicit none(type, external)
+            integer, intent(in) :: backend
+            type(vc_string_type), intent(in) :: files(:)
+            character(len=*), intent(in) :: working_revision
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: is_start_revision
+            type(vc_log_limit_type), intent(in), optional :: limit
+            integer, intent(in), optional :: type
+        end subroutine vc_print_log_internal
+
+        !> Show in another window the VC change history of the current fileset.
+        !> If WORKING_REVISION is not "", it should be a revision ID; position
+        !> point in the change history buffer at that revision.
+        !> If LIMIT is given, it should be a number specifying the maximum
+        !> number of revisions to show; the default for interactive calls is
+        !> `vc_log_show_limit'.
+        !>
+        !> When called interactively with a prefix argument, prompt for
+        !> WORKING_REVISION and LIMIT.
+        !>
+        !> This shows a short log (one line for each commit) if the current
+        !> fileset includes directories and the VC backend supports that;
+        !> otherwise it shows the detailed log of each commit, which includes
+        !> the full log message and the author.  Additional control of the
+        !> shown log style is available via `vc_log_short_style'.  Port of
+        !> vc.el:vc-print-log.  (In vc_log_fm.)
+        recursive module subroutine vc_print_log(status, working_revision, limit)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: working_revision
+            integer(int64), intent(in), optional :: limit
+        end subroutine vc_print_log
+
+        !> Show in another window VC change history of the current VC controlled tree.
+        !> If LIMIT is given, it should be a number specifying the maximum
+        !> number of revisions to show; the default is `vc_log_show_limit'.
+        !> When called interactively with a prefix argument, prompt for LIMIT, but
+        !> if the prefix argument is a number, use it as LIMIT.
+        !> A special case is when the prefix argument is 1: in this case
+        !> the command prompts for the id of a REVISION, and shows that revision
+        !> with its diffs (if the underlying VCS backend supports that).  Port of
+        !> vc.el:vc-print-root-log.  (In vc_log_fm.)
+        recursive module subroutine vc_print_root_log(status, limit, revision)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: limit
+            character(len=*), intent(in), optional :: revision
+        end subroutine vc_print_root_log
+
+        !> The commands C-x v l and C-x v L, reading their arguments.  (In
+        !> vc_log_fm.)
+        recursive module subroutine cmd_vc_print_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_log
+
+        recursive module subroutine cmd_vc_print_root_log(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine cmd_vc_print_root_log
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -367,6 +499,64 @@ contains
         end do
         locals = pack(locals, keep)
     end subroutine kill_vc_locals
+
+    !> The index of the current buffer's entry in `log_buffers', made if
+    !> CREATE (0 if none).  (Public for vc_log_fm.)
+    integer function log_buffer_index(create) result(k)
+        logical, intent(in) :: create
+        type(vc_log_buffer_type), allocatable :: grown(:)
+        integer :: i, n
+        k = 0
+        if (cur == 0) return
+        if (.not. allocated(log_buffers)) allocate (log_buffers(0))
+        do k = 1, size(log_buffers)
+            if (log_buffers(k)%serial == buffers(cur)%serial) return
+        end do
+        k = 0
+        if (.not. create) return
+        do k = 1, size(log_buffers)
+            if (.not. buffer_serial_live(log_buffers(k)%serial)) then
+                log_buffers(k) = vc_log_buffer_type(serial=buffers(cur)%serial)
+                return
+            end if
+        end do
+        n = size(log_buffers)
+        allocate (grown(n + 1))
+        do i = 1, n
+            grown(i) = log_buffers(i)
+        end do
+        grown(n + 1)%serial = buffers(cur)%serial
+        call move_alloc(grown, log_buffers)
+        k = n + 1
+    end function log_buffer_index
+
+    !> The current buffer's `vc_log_view_type' (VC_LOG_VIEW_NIL if not
+    !> set): the type of VC log shown in it.
+    integer function vc_log_view_type()
+        integer :: k
+        vc_log_view_type = VC_LOG_VIEW_NIL
+        k = log_buffer_index(.false.)
+        if (k > 0) vc_log_view_type = log_buffers(k)%view_type
+    end function vc_log_view_type
+
+    !> The current buffer's `vc--shortlog': whether this is a shortlog.
+    logical function vc_shortlog()
+        integer :: k
+        vc_shortlog = .false.
+        k = log_buffer_index(.false.)
+        if (k > 0) vc_shortlog = log_buffers(k)%shortlog
+    end function vc_shortlog
+
+    !> Call `shrink_window_if_larger_than_buffer' only when the current
+    !> buffer is visible.  Port of vc.el:vc-shrink-buffer-window (as a
+    !> function of `vc_log_finish_functions').
+    recursive subroutine vc_shrink_buffer_window(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: window
+        status = status_type()
+        window = get_buffer_window(current_buffer())
+        if (window%index /= 0) call shrink_window_if_larger_than_buffer(window)
+    end subroutine vc_shrink_buffer_window
 
     !> The current buffer's `vc_buffer_revision' ("" for nil): the VCS
     !> revision to which this buffer's contents corresponds.  Port of vc.el
@@ -3010,6 +3200,11 @@ contains
         commands%vc_delete_file%run => cmd_vc_delete_file
         commands%vc_rename_file%run => cmd_vc_rename_file
         commands%vc_clear_context%run => cmd_vc_clear_context
+        commands%vc_print_log%run => cmd_vc_print_log
+        commands%vc_print_root_log%run => cmd_vc_print_root_log
+        if (.not. vc_log_finish_functions%member(vc_shrink_buffer_window)) then
+            call vc_log_finish_functions%add(vc_shrink_buffer_window)
+        end if
         vc_mode_line_hook => mode_line_hook
         call add_local_variables_killer(kill_vc_locals)
         call syms_of_vc_dispatcher()

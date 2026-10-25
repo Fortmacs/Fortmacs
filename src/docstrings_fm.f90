@@ -327,12 +327,15 @@ module docstrings_fm
     use vc_fm, only: vc_allow_async_diff, vc_allow_async_revert, vc_annotate_switches, &
                      vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
                      vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
-                     vc_find_revision_no_save, vc_log_show_limit, vc_register_switches, vc_revert_show_diff, &
-                     VC_REVERT_SHOW_DIFF_NIL, VC_REVERT_SHOW_DIFF_T, VC_REVERT_SHOW_DIFF_KILL
+                     vc_find_revision_no_save, vc_log_finish_functions, vc_log_short_style, vc_log_show_limit, &
+                     vc_register_switches, vc_revert_show_diff, VC_REVERT_SHOW_DIFF_NIL, VC_REVERT_SHOW_DIFF_T, &
+                     VC_REVERT_SHOW_DIFF_KILL
     use vc_git_fm, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
                          vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
-                         vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, vc_git_program, &
-                         vc_git_revision_complete_only_branches, vc_git_use_literal_pathspecs
+                         vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, &
+                         vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
+                         vc_git_revision_complete_only_branches, vc_git_root_log_format, vc_git_shortlog_switches, &
+                         vc_git_use_literal_pathspecs
     use vc_hooks_fm, only: vc_consult_headers, vc_directory_exclusion_list, vc_display_status, &
                            VC_DISPLAY_STATUS_NIL, VC_DISPLAY_STATUS_T, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
                            VC_FOLLOW_SYMLINKS_NIL, VC_FOLLOW_SYMLINKS_T, VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, &
@@ -377,7 +380,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(872) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(892) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -541,7 +544,13 @@ module docstrings_fm
                                                        "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
                                                       "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
                                                        "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
-                                                        "log_edit_show_diff", "log_edit_show_files", "looking_at", "looking_at_p", &
+                                                    "log_edit_show_diff", "log_edit_show_files", "log_view_copy_revision_as_kill", &
+                                                    "log_view_diff", "log_view_diff_changeset", "log_view_display_entry_and_diff", &
+                                                             "log_view_file_next", "log_view_file_prev", "log_view_find_revision", &
+                                                             "log_view_mark_entry", "log_view_mode", "log_view_msg_and_diff_next", &
+                                                           "log_view_msg_and_diff_prev", "log_view_msg_next", "log_view_msg_prev", &
+                                                                   "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
+                                             "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
                                                        "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
                                                      "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_paragraph", &
@@ -609,13 +618,14 @@ module docstrings_fm
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                                 "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", &
                                                                    "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                              "vc_git_log_edit_toggle_signoff", "vc_ignore", "vc_next_action", "vc_refresh_state", &
-                                           "vc_register", "vc_rename_file", "vc_restore", "vc_revert", "vc_revision_other_window", &
-                                                   "vc_root_diff", "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", &
-                                                "view_buffer", "view_buffer_other_window", "view_echo_area_messages", "view_exit", &
-                                                    "view_exit_and_edit", "view_file", "view_file_other_window", "view_goto_line", &
-                                            "view_goto_percent", "view_kill_and_leave", "view_leave", "view_lossage", "view_mode", &
-                                                  "view_quit", "view_quit_all", "view_register", "view_scroll_half_page_backward", &
+                                          "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
+                                         "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
+                                                            "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
+                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
+                                         "view_buffer_other_window", "view_echo_area_messages", "view_exit", "view_exit_and_edit", &
+                                                     "view_file", "view_file_other_window", "view_goto_line", "view_goto_percent", &
+                                                    "view_kill_and_leave", "view_leave", "view_lossage", "view_mode", "view_quit", &
+                                                               "view_quit_all", "view_register", "view_scroll_half_page_backward", &
                                          "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
                                                            "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
                                                              "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
@@ -627,7 +637,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(730) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(736) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -867,16 +877,18 @@ module docstrings_fm
                                                       "vc_find_revision_no_save", "vc_finish_logentry_hook", "vc_follow_symlinks", &
                                             "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
-                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_program", &
-                                                         "vc_git_revision_complete_only_branches", "vc_git_use_literal_pathspecs", &
-                                                               "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_show_limit", &
-                                                                "vc_logentry_check_hook", "vc_make_backup_files", "vc_prefix_map", &
-                                                            "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
-                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
-                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
-                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
-                                                 "visible_bell", "window_min_height", "window_min_width", "words_include_escapes", &
-                                                           "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
+                                                                  "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
+                                            "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
+                                             "vc_git_root_log_format", "vc_git_shortlog_switches", "vc_git_use_literal_pathspecs", &
+                                                         "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_finish_functions", &
+                                                              "vc_log_short_style", "vc_log_show_limit", "vc_logentry_check_hook", &
+                                          "vc_make_backup_files", "vc_prefix_map", "vc_register_switches", "vc_resolve_conflicts", &
+                                           "vc_revert_show_diff", "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", &
+                                           "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
+                                                   "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
+                                                 "view_scroll_auto_exit", "visible_bell", "window_min_height", "window_min_width", &
+                                                    "words_include_escapes", "y_or_n_p_history_variable", "y_or_n_p_use_read_key", &
+                                                                   "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
     character(len=48), parameter, public :: user_option_names(374) = [character(len=48) :: &
@@ -5822,6 +5834,125 @@ contains
             entry%file = "log_edit_fm.f90"
             entry%interactive = .true.
             entry%doc = "Show the list of files to be committed."
+        case ("log_view_copy_revision_as_kill")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Copy the ID of the revision at point to the kill ring."//LF// &
+                        "If there are marked revisions, copy the IDs of those, separated by"//LF// &
+                        "spaces."
+        case ("log_view_diff")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Get the diff between two revisions."//LF// &
+                        "If the region is inactive or the mark is on the revision at"//LF// &
+                        "point, get the diff between the revision at point and its"//LF// &
+                        "previous revision.  Otherwise, get the diff between the revisions"//LF// &
+                        "where the region starts and ends."//LF// &
+                        ""//LF// &
+                        "Unlike `log_view_diff_changeset', this function only shows the"//LF// &
+                        "part of the changeset which affected the currently considered"//LF// &
+                        "file(s)."
+        case ("log_view_diff_changeset")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Get the diff between two revisions."//LF// &
+                        "If the region is inactive or the mark is on the revision at"//LF// &
+                        "point, get the diff between the revision at point and its"//LF// &
+                        "previous revision.  Otherwise, get the diff between the revisions"//LF// &
+                        "where the region starts and ends."//LF// &
+                        ""//LF// &
+                        "Unlike `log_view_diff' this function shows the whole changeset,"//LF// &
+                        "including changes affecting other files than the currently"//LF// &
+                        "considered file(s)."
+        case ("log_view_display_entry_and_diff")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Expand current Log View entry, if possible, and also display its diff."//LF// &
+                        "If the current Log View entry is already expanded, only display its"//LF// &
+                        "diff; this command never collapses entries."//LF// &
+                        "In contrast with `log_view_diff_changeset', the window displaying the"//LF// &
+                        "diff is not selected."//LF// &
+                        "See also `log_view_toggle_entry_display'."
+        case ("log_view_file_next")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next COUNT'th file."//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_file_prev")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous COUNT'th file."//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_find_revision")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit the version at POS."//LF// &
+                        "If called interactively, visit the version at point."
+        case ("log_view_mark_entry")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the log entry at point."//LF// &
+                        "If the region is active in Transient Mark mode, mark all entries."//LF// &
+                        "When called with a prefix argument, mark that many log entries."//LF// &
+                        "When called from a program, mark ARG entries or all entries lying"//LF// &
+                        "between BEG and END.  If BEG and END are supplied, ARG is ignored."//LF// &
+                        ""//LF// &
+                        "When entries are marked, some commands that usually operate on the entry"//LF// &
+                        "at point will instead operate on all marked entries."//LF// &
+                        "Use \[log_view_unmark_entry] to unmark an entry."//LF// &
+                        ""//LF// &
+                        "Programs can use `log_view_get_marked' to obtain a list of all"//LF// &
+                        "marked revisions."
+        case ("log_view_mode")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for browsing CVS log output."
+        case ("log_view_msg_and_diff_next")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to next COUNT'th entry, expand it if possible, and show its diff."//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_msg_and_diff_prev")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to previous COUNT'th entry, expand it if possible, and show its diff."//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_msg_next")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next COUNT'th log message."//LF// &
+                        ""//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_msg_prev")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous COUNT'th log message."//LF// &
+                        "Interactively, COUNT is the numeric prefix argument, and defaults to 1."
+        case ("log_view_toggle_entry_display")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "If possible, expand the current Log View entry."//LF// &
+                        "This calls `log_view_expanded_log_entry_function' to do the work."//LF// &
+                        "See also `log_view_display_entry_and_diff'."
+        case ("log_view_toggle_mark_entry")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle the marked state for the log entry at point."//LF// &
+                        "See `log_view_mark_entry'."
+        case ("log_view_unmark_all_entries")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark all marked log entries in this buffer."
+        case ("log_view_unmark_entry")
+            entry%file = "log_view_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark the log entry at point."//LF// &
+                        "If the region is active in Transient Mark mode, unmark all entries."//LF// &
+                        "When called with a prefix argument, unmark that many log entries."//LF// &
+                        "When called from a program, mark ARG entries or all entries lying"//LF// &
+                        "between BEG and END.  If BEG and END are supplied, ARG is ignored."//LF// &
+                        ""//LF// &
+                        "See `log_view_mark_entry'."
         case ("looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "looking_at(regexp, status, inhibit_modify)"
@@ -8604,6 +8735,10 @@ contains
             entry%file = "vc_git_fm.f90"
             entry%interactive = .true.
             entry%doc = "Toggle whether to add the ""Signed-off-by"" line at the end of commit message."
+        case ("vc_git_log_view_mode")
+            entry%file = "vc_git_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for Git logs."
         case ("vc_ignore")
             entry%file = "vc_fm.f90"
             entry%interactive = .true.
@@ -8664,6 +8799,22 @@ contains
                         "you can specify another VC backend for the file(s),"//LF// &
                         "or (for centralized VCS only) the revision ID or branch ID"//LF// &
                         "from which to check out the file(s)."
+        case ("vc_print_log")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The commands C-x v l and C-x v L, reading their arguments.  (In"//LF// &
+                        "vc_log_fm.)"
+        case ("vc_print_root_log")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show in another window VC change history of the current VC controlled tree."//LF// &
+                        "If LIMIT is given, it should be a number specifying the maximum"//LF// &
+                        "number of revisions to show; the default is `vc_log_show_limit'."//LF// &
+                        "When called interactively with a prefix argument, prompt for LIMIT, but"//LF// &
+                        "if the prefix argument is a number, use it as LIMIT."//LF// &
+                        "A special case is when the prefix argument is 1: in this case"//LF// &
+                        "the command prompts for the id of a REVISION, and shows that revision"//LF// &
+                        "with its diffs (if the underlying VCS backend supports that)."
         case ("vc_refresh_state")
             entry%file = "vc_hooks_fm.f90"
             entry%interactive = .true.
@@ -16381,6 +16532,25 @@ contains
             entry%fortran = "vc_git_log_edit_summary_target_warning"
             entry%doc = "Face for Git commit summary lines beyond the target length."//LF// &
                         "See `vc_git_log_edit_summary_target_len'."
+        case ("vc_git_log_switches")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_switches"
+            entry%doc = "String or list of strings giving Git log switches for non-shortlogs."
+        case ("vc_git_print_log_follow")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_print_log_follow"
+            entry%original = ".false."
+            entry%value = repr(vc_git_print_log_follow)
+            entry%doc = "If true, use the flag `--follow' when producing single file logs."//LF// &
+                        ""//LF// &
+                        "A true value will make the printed log automatically follow"//LF// &
+                        "the file renames.  The downsides is that the log produced this"//LF// &
+                        "way may omit certain (merge) commits, and that `log_view_diff'"//LF// &
+                        "fails on commits that used the previous name, in that log buffer."//LF// &
+                        ""//LF// &
+                        "When this variable is false, and the log ends with a rename, there is a"//LF// &
+                        "button which you can press to show the log for the file name before the"//LF// &
+                        "rename."
         case ("vc_git_program")
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_program"
@@ -16403,6 +16573,19 @@ contains
                         "`vc_git_revision_completion_table'.  This is used by various VC"//LF// &
                         "commands when completing branch names.  When false, tags are also"//LF// &
                         "included in the completions."
+        case ("vc_git_root_log_format")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_root_log_format"
+            entry%doc = "Git log format for `vc_print_root_log'."//LF// &
+                        "This should be a FORMAT, a REGEXP and KEYWORDS, where FORMAT is a"//LF// &
+                        "format string (which is passed to ""git log"" via the argument"//LF// &
+                        """--pretty=tformat:FORMAT""), REGEXP is a regular expression"//LF// &
+                        "matching the resulting Git log output, and KEYWORDS is a list of"//LF// &
+                        "`font_lock_keywords' for highlighting the Log View buffer."
+        case ("vc_git_shortlog_switches")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_shortlog_switches"
+            entry%doc = "String or list of strings giving Git log switches for shortlogs."
         case ("vc_git_use_literal_pathspecs")
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_use_literal_pathspecs"
@@ -16438,6 +16621,19 @@ contains
                         "The default regexp prevents fruitless and time-consuming attempts"//LF// &
                         "to determine the VC status in directories in which filenames are"//LF// &
                         "interpreted as hostnames."
+        case ("vc_log_finish_functions")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_log_finish_functions"
+            entry%doc = "Functions run at the end of the log command."//LF// &
+                        "Each function runs in the log output buffer without args."
+        case ("vc_log_short_style")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_log_short_style"
+            entry%doc = "Whether or not to show a short log."//LF// &
+                        "If `directory' is true, show a short log if the fileset"//LF// &
+                        "contains a directory."//LF// &
+                        "If `file' is true, show short logs for files."//LF// &
+                        "Not all VC backends support short logs!"
         case ("vc_log_show_limit")
             entry%file = "vc_fm.f90"
             entry%fortran = "vc_log_show_limit"
