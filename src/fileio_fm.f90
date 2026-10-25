@@ -35,13 +35,17 @@
 !> `buffer_file_coding_system'; text that the chosen coding system cannot
 !> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
-    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, vdeactivate_mark
-    use marker_fm, only: char_to_byte
-    use insdel_fm, only: insert, inhibit_modification_hooks
-    use editfns_fm, only: point, goto_char, validate_region
+    use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, vdeactivate_mark, current_buffer
+    use marker_fm, only: char_to_byte, byte_to_char, set_marker, marker_position, free_marker
+    use handle_fm, only: handle_type
+    use character_fm, only: char_head_p
+    use window_fm, only: windows, window_leaves, window_point, same_handle
+    use frame_fm, only: selected_frame
+    use insdel_fm, only: insert, del_range, del_range_byte, inhibit_modification_hooks
+    use editfns_fm, only: point, goto_char, validate_region, point_marker
     use data_fm, only: default_value
     use lisp_fm, only: value_type, stringp, xstring
     use lread_fm, only: sym
@@ -54,7 +58,7 @@ module fileio_fm
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
-                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
+                         close_fd, emacs_geteuid, emacs_getuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                          W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
@@ -170,7 +174,7 @@ module fileio_fm
               file_executable_p, file_newer_than_file_p, &
               make_symbolic_link, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
-              user_uid, group_gid, make_directory_internal, delete_directory_internal, &
+              user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info
     public :: insert_file_contents, write_region, verify_visited_file_modtime, &
               set_visited_file_modtime
@@ -179,7 +183,7 @@ module fileio_fm
     character(len=:), allocatable, protected :: emacs_wd
 
     !> NONEXISTENT_MODTIME_NSECS: the modtime of a file that doesn't exist.
-    integer(int32), parameter :: NONEXISTENT_MODTIME_NSECS = -1
+    integer(int32), parameter, public :: NONEXISTENT_MODTIME_NSECS = -1
 
     !> Bytes per read(2) in insert_file_contents (READ_BUF_SIZE).
     integer, parameter :: READ_BUF_SIZE = 65536
@@ -233,8 +237,11 @@ contains
         character(len=*), intent(in) :: directory
         character(len=:), allocatable :: file
         integer :: n
+        logical :: keep
         n = len(directory)
-        if (.not. (n == 2 .and. directory(1:1) == "/")) then
+        keep = .false.
+        if (n == 2) keep = directory(1:1) == "/"
+        if (.not. keep) then
             do while (n > 1)
                 if (directory(n:n) /= "/") exit
                 n = n - 1
@@ -691,6 +698,11 @@ contains
     integer(int32) function user_uid()
         user_uid = emacs_geteuid()
     end function user_uid
+
+    !> The real user id.  Port of editfns.c:Fuser_real_uid.
+    integer(int32) function user_real_uid()
+        user_real_uid = emacs_getuid()
+    end function user_real_uid
 
     !> The effective group id.  Port of editfns.c:Fgroup_gid.
     integer(int32) function group_gid()
@@ -1282,26 +1294,33 @@ contains
     !> is marked unmodified, even if the file doesn't exist (which is then
     !> reported as file-missing).  `inserted' is the number of characters
     !> inserted.  The change hooks run for the inserted text, except when
-    !> visiting.  Port of fileio.c:Finsert_file_contents (no BEG, END or
-    !> REPLACE; decoding as described in the module documentation).
-    subroutine insert_file_contents(filename, visit, inserted, status)
+    !> visiting.  With `replace' (REPLACE `if-regular'), the accessible
+    !> portion of the buffer is replaced instead, keeping the text the file
+    !> shares with it at both ends, so that point and markers stay where
+    !> they are; a file that is not regular replaces it all.  Port of
+    !> fileio.c:Finsert_file_contents (no BEG or END; decoding as described
+    !> in the module documentation).
+    subroutine insert_file_contents(filename, visit, inserted, status, replace)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
+        logical, intent(in), optional :: replace
         character(len=:), allocatable :: absname, data, text, coding, encoding, head, used
         type(file_stat_type) :: st
         type(status_type) :: cst
         integer(int64) :: opoint, nchars, k
-        logical :: opened, saved_inhibit
+        logical :: opened, saved_inhibit, repl
         inserted = 0
+        repl = .false.
+        if (present(replace)) repl = replace
         if (buffers(cur)%read_only) then
             call barf_if_buffer_read_only(status)
             if (.not. status%ok()) return
         end if
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
-        if (visit .and. buffers(cur)%text%z > BEG) then
+        if (visit .and. buffers(cur)%text%z > BEG .and. .not. repl) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot do file visiting in a non-empty buffer")
             return
         end if
@@ -1326,6 +1345,17 @@ contains
                 buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
             end if
             return
+        end if
+        ! The REPLACE code would need to be changed in order to work on
+        ! named pipes, and it's probably just not worth it.
+        if (repl .and. iand(st%mode, S_IFMT) /= S_IFREG) then
+            if (visit) then
+                call set_error(status, FM_FILE_ERROR, "not a regular file: "//absname)
+                return
+            end if
+            call del_range(buffers(cur)%begv, buffers(cur)%zv, status)
+            if (.not. status%ok()) return
+            repl = .false.
         end if
         ! Decide the coding system to use for reading the file.
         coding = ""
@@ -1365,8 +1395,11 @@ contains
         else
             nchars = len(text, kind=int64)
         end if
-        opoint = point()
-        if (len(text) > 0) then
+        if (repl) then
+            call replace_accessible_text(text, nchars, status)
+            if (.not. status%ok()) return
+        else if (len(text) > 0) then
+            opoint = point()
             ! Normal visiting is done in a new buffer "before" the buffer
             ! is changed: no change hooks.
             saved_inhibit = inhibit_modification_hooks%value
@@ -1389,6 +1422,128 @@ contains
         last_coding_system_used = used
         if (associated(after_insert_file_set_coding)) call after_insert_file_set_coding(inserted, visit)
     end subroutine insert_file_contents
+
+    !> Replace the accessible portion of the current buffer with TEXT
+    !> (decoded file contents), deleting and inserting only between the
+    !> longest head and tail they share.  Point and the window points
+    !> inside the replaced text keep their relative distance into it.
+    !> INSERTED is the number of characters inserted.  The REPLACE part
+    !> of fileio.c:Finsert_file_contents, with get_window_points_and_markers
+    !> and restore_window_points.
+    subroutine replace_accessible_text(text, inserted, status)
+        character(len=*), intent(in) :: text
+        integer(int64), intent(out) :: inserted
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: wins(:), marks(:)
+        integer(int64), allocatable :: oldpos(:)
+        type(handle_type) :: buf
+        type(status_type) :: st
+        character(len=:), allocatable :: old
+        integer(int64) :: same_at_start, same_at_end, bufpos, bufposlim, n, temp, same_at_end_charpos
+        integer(int64) :: begv_byte, zv_byte
+        integer :: k, nmarks
+        inserted = 0
+        status = status_type()
+        buf = current_buffer()
+        ! Replacement should preserve point as it preserves markers.
+        allocate (wins(0))
+        call window_leaves(selected_frame%root_window, wins)
+        allocate (marks(size(wins) + 1), oldpos(size(wins) + 1))
+        nmarks = 1
+        call point_marker(marks(1))
+        oldpos(1) = point()
+        do k = 1, size(wins)
+            associate (w => windows(wins(k)%index))
+                if (same_handle(w%buffer, buf) .and. w%pointm%index /= 0) then
+                    nmarks = nmarks + 1
+                    marks(nmarks) = w%pointm
+                    oldpos(nmarks) = window_point(w)
+                end if
+            end associate
+        end do
+        begv_byte = buffers(cur)%begv_byte
+        zv_byte = buffers(cur)%zv_byte
+        old = buf_bytes(buffers(cur), begv_byte, zv_byte)
+        n = len(text, kind=int64)
+        ! Compare the beginning of the converted string with the buffer
+        ! text.
+        same_at_start = begv_byte
+        same_at_end = zv_byte
+        bufpos = 0
+        bufposlim = min(n, same_at_end - same_at_start)
+        do while (bufpos < bufposlim)
+            if (old(bufpos + 1:bufpos + 1) /= text(bufpos + 1:bufpos + 1)) exit
+            same_at_start = same_at_start + 1
+            bufpos = bufpos + 1
+        end do
+        body: block
+            ! If the file matches the head of buffer completely, there's
+            ! no need to replace anything.
+            if (bufpos == n) then
+                ! Truncate the buffer to the size of the file.
+                if (same_at_start /= same_at_end) call del_range_byte(same_at_start, same_at_end, status)
+                exit body
+            end if
+            ! Extend the start of non-matching text area to the previous
+            ! multibyte character boundary.
+            if (buffers(cur)%multibyte) then
+                do while (same_at_start > begv_byte)
+                    ! The byte at the end of the text reads as a character
+                    ! head (FETCH_BYTE at ZV_BYTE).
+                    if (same_at_start - begv_byte + 1 > len(old)) exit
+                    if (char_head_p(ichar(old(same_at_start - begv_byte + 1:same_at_start - begv_byte + 1), int32))) exit
+                    same_at_start = same_at_start - 1
+                end do
+            end if
+            ! Scan from the end, comparing with the buffer.  The limits
+            ! prevent overlap of the matching head with the matching tail
+            ! in the buffer and in the file.
+            bufposlim = max(same_at_start - begv_byte, n - (same_at_end - same_at_start))
+            bufpos = n
+            do while (bufposlim < bufpos)
+                if (old(same_at_end - begv_byte:same_at_end - begv_byte) /= text(bufpos:bufpos)) exit
+                same_at_end = same_at_end - 1
+                bufpos = bufpos - 1
+            end do
+            ! Extend the end of non-matching text area to the next
+            ! multibyte character boundary.
+            if (buffers(cur)%multibyte) then
+                do while (same_at_end < zv_byte)
+                    if (char_head_p(ichar(old(same_at_end - begv_byte + 1:same_at_end - begv_byte + 1), int32))) exit
+                    same_at_end = same_at_end + 1
+                end do
+            end if
+            same_at_end_charpos = byte_to_char(same_at_end)
+            ! The bytes taken from the file: those between the shared head
+            ! and tail.
+            bufposlim = same_at_start - begv_byte
+            bufpos = n - (zv_byte - same_at_end)
+            if (same_at_end /= same_at_start) then
+                call del_range_byte(same_at_start, same_at_end, status)
+                if (.not. status%ok()) exit body
+            end if
+            temp = byte_to_char(same_at_start)
+            ! Insert from the file at the proper position.
+            call goto_char(temp)
+            call insert(text(bufposlim + 1:bufpos), status)
+            if (.not. status%ok()) exit body
+            inserted = point() - temp
+            ! Set point before the inserted characters.
+            call goto_char(temp)
+        end block body
+        if (inserted > 0) then
+            do k = 1, nmarks
+                if (oldpos(k) > temp .and. oldpos(k) <= same_at_end_charpos) then
+                    call set_marker(marks(k), &
+                                    temp + int(real(inserted, real64)/real(same_at_end_charpos - temp, real64) &
+                                               *real(oldpos(k) - temp, real64), int64), st, buf)
+                end if
+            end do
+        end if
+        call marker_position(marks(1), temp, st)
+        if (st%ok()) call goto_char(temp)
+        call free_marker(marks(1), st)
+    end subroutine replace_accessible_text
 
     !> Write the text between `start' and `end' (default: the whole
     !> buffer, ignoring narrowing) to file `filename', replacing it.  With

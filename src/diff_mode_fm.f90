@@ -87,7 +87,7 @@ module diff_mode_fm
               diff_goto_source, diff_apply_buffer, diff_revert_and_kill_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_kill_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, diff_name_type
+              diff_buffer_type, diff_name_type, set_diff_vc_backend, diff_vc_backend
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
     !> diff-mode.el diff-default-read-only.
@@ -224,6 +224,9 @@ module diff_mode_fm
         type(remembered_type), allocatable :: remembered(:)
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
+        !> `diff_vc_backend' (the name of the VC backend that produced
+        !> the diff, unallocated for nil) and `diff_vc_revisions'.
+        character(len=:), allocatable :: vc_backend, vc_rev1, vc_rev2
     end type diff_locals_type
 
     type(diff_locals_type), allocatable :: diff_buffers(:)
@@ -1594,6 +1597,31 @@ contains
         end if
         call goto_char(saved)
     end subroutine diff_setup_buffer_type
+
+    !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
+    !> backend name; absent for nil) and `diff_vc_revisions' to (REV1
+    !> REV2).  Port of the setq-local of diff-mode.el diff-vc-backend and
+    !> diff-vc-revisions.
+    subroutine set_diff_vc_backend(backend, rev1, rev2)
+        character(len=*), intent(in), optional :: backend, rev1, rev2
+        integer :: k
+        k = entry_index()
+        if (allocated(diff_buffers(k)%vc_backend)) deallocate (diff_buffers(k)%vc_backend)
+        if (allocated(diff_buffers(k)%vc_rev1)) deallocate (diff_buffers(k)%vc_rev1)
+        if (allocated(diff_buffers(k)%vc_rev2)) deallocate (diff_buffers(k)%vc_rev2)
+        if (present(backend)) diff_buffers(k)%vc_backend = backend
+        if (present(rev1)) diff_buffers(k)%vc_rev1 = rev1
+        if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
+    end subroutine set_diff_vc_backend
+
+    !> The current buffer's `diff_vc_backend' ("" for nil).
+    function diff_vc_backend() result(name)
+        character(len=:), allocatable :: name
+        integer :: k
+        name = ""
+        k = entry_index()
+        if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
+    end function diff_vc_backend
 
     !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN (nil),
     !> DIFF_BUFFER_GIT or DIFF_BUFFER_HG.  Port of the buffer-local

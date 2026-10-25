@@ -1052,6 +1052,7 @@ contains
     buffers(cur)%mode_name = "Fundamental"
     buffers(cur)%keymap = null_handle()
     buffers(cur)%invisibility_spec_t = .true.
+    buffers(cur)%read_only_mode_state_set = .false.
     if (allocated(buffers(cur)%invisibility_spec)) deallocate (buffers(cur)%invisibility_spec)
     do i = buffers(cur)%nlocal, 1, -1
         if (.not. all) then

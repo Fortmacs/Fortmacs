@@ -155,14 +155,16 @@ module docstrings_fm
                       F90_SMART_END_NIL, F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, f90_smart_end_names, &
                       f90_start_block_re, f90_type_indent
     use face_table_fm, only: faces
-    use files_fm, only: after_save_hook, auto_mode_interpreter_regexp, before_save_hook, &
-                        change_major_mode_with_file_name, copy_directory_create_symlink, &
-                        directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
-                        find_file_run_dired, insert_directory_program, make_backup_files, mode_require_final_newline, &
+    use files_fm, only: after_revert_hook, after_save_hook, auto_mode_interpreter_regexp, &
+                        before_revert_hook, before_save_hook, change_major_mode_with_file_name, &
+                        copy_directory_create_symlink, directory_listing_before_filename_regexp, &
+                        dired_ls_error_buffer, dired_ls_error_file, find_file_hook, find_file_run_dired, &
+                        insert_directory_program, kill_buffer_hook, locate_dominating_stop_dir_regexp, &
+                        make_backup_files, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
+                        FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, require_final_newline, &
                         FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
-                        FINAL_NEWLINE_ASK, require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
-                        FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
-                        revert_buffer_in_progress, revert_buffer_preserve_modes, save_some_buffers_functions, &
+                        FINAL_NEWLINE_ASK, revert_buffer_function, revert_buffer_in_progress, &
+                        revert_buffer_preserve_modes, revert_without_query, save_some_buffers_functions, &
                         view_read_only
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
@@ -307,6 +309,21 @@ module docstrings_fm
                             text_mode_syntax_table, text_mode_variant
     use timer_fm, only: timer_max_repeats
     use undo_fm, only: amalgamating_undo_limit, this_command_amalgamating
+    use vc_dispatcher_fm, only: vc_command_messages, VC_COMMAND_MESSAGES_NIL, VC_COMMAND_MESSAGES_T, &
+                                VC_COMMAND_MESSAGES_LOG, vc_display_failed_async_commands, vc_sentinel_movepoint, &
+                                vc_suppress_confirm
+    use vc_fm, only: vc_allow_async_diff, vc_allow_async_revert, vc_annotate_switches, &
+                     vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
+                     vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
+                     vc_find_revision_no_save, vc_log_show_limit, vc_register_switches, vc_revert_show_diff, &
+                     VC_REVERT_SHOW_DIFF_NIL, VC_REVERT_SHOW_DIFF_T, VC_REVERT_SHOW_DIFF_KILL
+    use vc_git_fm, only: vc_git_diff_switches, vc_git_program, &
+                         vc_git_revision_complete_only_branches, vc_git_use_literal_pathspecs
+    use vc_hooks_fm, only: vc_consult_headers, vc_directory_exclusion_list, vc_display_status, &
+                           VC_DISPLAY_STATUS_NIL, VC_DISPLAY_STATUS_T, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
+                           VC_FOLLOW_SYMLINKS_NIL, VC_FOLLOW_SYMLINKS_T, VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, &
+                           vc_ignore_dir_regexp, vc_make_backup_files, vc_prefix_map, vc_resolve_conflicts, &
+                           vc_state_base, vc_use_short_revision
     use view_fm, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                        view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_fm, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
@@ -346,7 +363,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(834) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(849) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -569,7 +586,10 @@ module docstrings_fm
                                          "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
                                            "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                                   "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
+                                                   "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_ignore", &
+                                              "vc_next_action", "vc_refresh_state", "vc_register", "vc_rename_file", "vc_restore", &
+                                                  "vc_revert", "vc_revision_other_window", "vc_root_diff", "vc_root_version_diff", &
+                                                "vc_version_diff", "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
                                                         "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
                                            "view_file_other_window", "view_goto_line", "view_goto_percent", "view_kill_and_leave", &
                                          "view_leave", "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
@@ -584,26 +604,26 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(654) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(694) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
-                                                      "after_change_functions", "after_change_major_mode_hook", "after_save_hook", &
-                                                       "amalgamating_undo_limit", "apropos_all_words_regexp", "apropos_mode_hook", &
-                                            "apropos_mode_map", "apropos_pattern", "apropos_regexp", "async_shell_command_buffer", &
-                                                                 "async_shell_command_display_buffer", "async_shell_command_mode", &
-                                                     "async_shell_command_width", "auto_coding_alist", "auto_coding_regexp_alist", &
-                                                              "auto_fill_chars", "auto_fill_function", "auto_fill_inhibit_regexp", &
-                                                                   "auto_fill_mode_hook", "auto_mode_interpreter_regexp", &
-                                            "backward_delete_char_untabify_method", "before_change_functions", "before_save_hook", &
-                                                  "blink_matching_delay", "blink_matching_paren", "blink_matching_paren_distance", &
-                                                    "blink_matching_paren_dont_ignore_comments", "blink_matching_paren_on_screen", &
-                                         "buffer_file_coding_system", "case_fold_search", "case_replace", "case_symbols_as_words", &
-                                                                   "change_major_mode_after_body_hook", "change_major_mode_hook", &
-                                          "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
-                                              "coding_system_require_warning", "colon_double_space", "comint_buffer_maximum_size", &
-                                                       "comint_delimiter_argument_list", "comint_eol_on_send", "comint_exec_hook", &
-                                                                   "comint_highlight_input", "comint_inhibit_carriage_motion", &
+                                                    "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
+                                                         "after_save_hook", "amalgamating_undo_limit", "apropos_all_words_regexp", &
+                                                     "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", "apropos_regexp", &
+                                                               "async_shell_command_buffer", "async_shell_command_display_buffer", &
+                                                     "async_shell_command_mode", "async_shell_command_width", "auto_coding_alist", &
+                                                              "auto_coding_regexp_alist", "auto_fill_chars", "auto_fill_function", &
+                                                "auto_fill_inhibit_regexp", "auto_fill_mode_hook", "auto_mode_interpreter_regexp", &
+                                          "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
+                                                               "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
+                                                     "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
+                                                "blink_matching_paren_on_screen", "buffer_file_coding_system", "case_fold_search", &
+                                                     "case_replace", "case_symbols_as_words", "change_major_mode_after_body_hook", &
+                                           "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
+                                                 "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
+                                             "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
+                                                   "comint_exec_hook", "comint_highlight_input", "comint_inhibit_carriage_motion", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
@@ -712,7 +732,7 @@ module docstrings_fm
                                                      "f90_start_block_re", "f90_type_indent", "faces", "file_coding_system_alist", &
                                                          "fill_column", "fill_indent_according_to_mode", "fill_nobreak_predicate", &
                                                         "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
-                                                            "fill_separate_heterogeneous_words_with_space", "find_file_run_dired", &
+                                          "fill_separate_heterogeneous_words_with_space", "find_file_hook", "find_file_run_dired", &
                                                 "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
                                                     "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
                                                   "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
@@ -727,16 +747,17 @@ module docstrings_fm
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
-                                                "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", "kill_whole_line", &
-                                                      "killed_rectangle", "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", &
-                                                         "kmacro_counter", "kmacro_counter_format", "kmacro_counter_format_start", &
-                                                                   "kmacro_counter_value_start", "kmacro_default_counter_format", &
-                                                  "kmacro_execute_before_append", "kmacro_initial_counter_value", "kmacro_keymap", &
-                                               "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
-                                                                   "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
-                                                    "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
-                                                "last_kbd_macro", "left_margin", "line_move_ignore_invisible", "line_move_visual", &
-                                                            "list_buffers_directory", "locale_coding_system", "make_backup_files", &
+                                               "kill_buffer_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
+                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
+                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
+                                                                   "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                                  "kmacro_default_counter_format", "kmacro_execute_before_append", &
+                                                           "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
+                                                       "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
+                                                       "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
+                                                   "last_coding_system_used", "last_input_event", "last_kbd_macro", "left_margin", &
+                                                       "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
+                                                 "locale_coding_system", "locate_dominating_stop_dir_regexp", "make_backup_files", &
                                          "mark_even_if_inactive", "mark_ring_max", "message_log_max", "messages_buffer_mode_hook", &
                                                                    "messages_buffer_mode_map", "minibuffer_completing_file_name", &
                                                                "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
@@ -757,10 +778,10 @@ module docstrings_fm
                                                         "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
                                                 "register_alist", "register_separator", "replace_count", "replace_lax_whitespace", &
                                                "replace_regexp_lax_whitespace", "require_final_newline", "revert_buffer_function", &
-                                                      "revert_buffer_in_progress", "revert_buffer_preserve_modes", "save_abbrevs", &
-                                                   "save_some_buffers_functions", "scroll_error_top_bottom", "search_exit_option", &
-                                                       "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
-                                                                   "search_upper_case", "search_whitespace_regexp", &
+                                              "revert_buffer_in_progress", "revert_buffer_preserve_modes", "revert_without_query", &
+                                                         "save_abbrevs", "save_some_buffers_functions", "scroll_error_top_bottom", &
+                                                         "search_exit_option", "search_nonincremental_instead", "search_ring_max", &
+                                                          "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
                                                 "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
                                               "sh_alias_alist", "sh_ancestor_alist", "sh_assignment_regexp", "sh_backslash_align", &
@@ -805,14 +826,24 @@ module docstrings_fm
                                                                   "text_mode_variant", "timer_max_repeats", "transient_mark_mode", &
                                                                    "transient_mark_mode_hook", "truncate_partial_width_windows", &
                                                        "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
-                                                          "use_short_answers", "user_init_file", "view_exits_all_viewing_windows", &
+                                            "use_short_answers", "user_init_file", "vc_allow_async_diff", "vc_allow_async_revert", &
+                                                              "vc_annotate_switches", "vc_before_checkin_hook", "vc_checkin_hook", &
+                                         "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", "vc_command_messages", &
+                                                     "vc_consult_headers", "vc_deduce_backend_nonvc_modes", "vc_diff_added_files", &
+                                            "vc_diff_switches", "vc_directory_exclusion_list", "vc_display_failed_async_commands", &
+                                                            "vc_display_status", "vc_find_revision_no_save", "vc_follow_symlinks", &
+                                               "vc_git_diff_switches", "vc_git_program", "vc_git_revision_complete_only_branches", &
+                                                    "vc_git_use_literal_pathspecs", "vc_handled_backends", "vc_ignore_dir_regexp", &
+                                             "vc_log_show_limit", "vc_make_backup_files", "vc_prefix_map", "vc_register_switches", &
+                                          "vc_resolve_conflicts", "vc_revert_show_diff", "vc_sentinel_movepoint", "vc_state_base", &
+                                                 "vc_suppress_confirm", "vc_use_short_revision", "view_exits_all_viewing_windows", &
                                                                    "view_inhibit_help_message", "view_mode_hook", "view_mode_map", &
                                              "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", "visible_bell", &
                                                                  "window_min_height", "window_min_width", "words_include_escapes", &
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(344) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(374) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -998,6 +1029,7 @@ module docstrings_fm
                                                                       "fill_nobreak_predicate", &
                                                                       "fill_prefix", &
                                                                       "fill_separate_heterogeneous_words_with_space", &
+                                                                      "find_file_hook", &
                                                                       "find_file_run_dired", &
                                                                       "font_lock_global_modes", &
                                                                       "font_lock_maximum_decoration", &
@@ -1055,6 +1087,7 @@ module docstrings_fm
                                                                       "replace_lax_whitespace", &
                                                                       "replace_regexp_lax_whitespace", &
                                                                       "require_final_newline", &
+                                                                      "revert_without_query", &
                                                                       "save_abbrevs", &
                                                                       "scroll_error_top_bottom", &
                                                                       "search_exit_option", &
@@ -1147,6 +1180,34 @@ module docstrings_fm
                                                                       "truncate_partial_width_windows", &
                                                                       "undo_no_redo", &
                                                                       "use_short_answers", &
+                                                                      "vc_allow_async_diff", &
+                                                                      "vc_allow_async_revert", &
+                                                                      "vc_annotate_switches", &
+                                                                      "vc_before_checkin_hook", &
+                                                                      "vc_checkin_hook", &
+                                                                      "vc_checkin_switches", &
+                                                                      "vc_checkout_hook", &
+                                                                      "vc_checkout_switches", &
+                                                                      "vc_command_messages", &
+                                                                      "vc_consult_headers", &
+                                                                      "vc_deduce_backend_nonvc_modes", &
+                                                                      "vc_diff_switches", &
+                                                                      "vc_directory_exclusion_list", &
+                                                                      "vc_display_failed_async_commands", &
+                                                                      "vc_display_status", &
+                                                                      "vc_find_revision_no_save", &
+                                                                      "vc_follow_symlinks", &
+                                                                      "vc_git_diff_switches", &
+                                                                      "vc_git_program", &
+                                                                      "vc_git_revision_complete_only_branches", &
+                                                                      "vc_handled_backends", &
+                                                                      "vc_ignore_dir_regexp", &
+                                                                      "vc_log_show_limit", &
+                                                                      "vc_make_backup_files", &
+                                                                      "vc_register_switches", &
+                                                                      "vc_resolve_conflicts", &
+                                                                      "vc_revert_show_diff", &
+                                                                      "vc_suppress_confirm", &
                                                                       "view_exits_all_viewing_windows", &
                                                                       "view_inhibit_help_message", &
                                                                       "view_mode_hook", &
@@ -8349,6 +8410,173 @@ contains
                         ""//LF// &
                         "With negative argument, convert previous words but do not move."//LF// &
                         "See also `capitalize_word'."
+        case ("vc_clear_context")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Clear all cached file properties."
+        case ("vc_create_repo")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Create an empty repository in the current directory, with backend B."
+        case ("vc_delete_file")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete file and mark it as such in the version control system."//LF// &
+                        "If called interactively, read FILES, defaulting to the current"//LF// &
+                        "buffer's file name if it's under version control."//LF// &
+                        "NOCONFIRM true means don't"//LF// &
+                        "prompt to confirm deletion."//LF// &
+                        "For some VCS, FILES can include directories."//LF// &
+                        "These are recursively deleted."
+        case ("vc_diff")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display diffs between file revisions."//LF// &
+                        "Normally this compares the currently selected fileset with their"//LF// &
+                        "working revisions.  With a prefix argument HISTORIC, it reads two revision"//LF// &
+                        "designators specifying which revisions to compare."//LF// &
+                        ""//LF// &
+                        "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
+                        "saving the buffer."//LF// &
+                        "Optional argument FILESET, if present, overrides the fileset."
+        case ("vc_ignore")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Ignore FILE under the VCS of DIRECTORY."//LF// &
+                        ""//LF// &
+                        "Normally, FILE is a wildcard specification that matches the files"//LF// &
+                        "to be ignored.  When REMOVE is true, remove FILE from the list"//LF// &
+                        "of ignored files."//LF// &
+                        ""//LF// &
+                        "DIRECTORY defaults to `default_directory' and is used to"//LF// &
+                        "determine the responsible VC backend."//LF// &
+                        ""//LF// &
+                        "When called interactively, prompt for a FILE to ignore, unless a"//LF// &
+                        "prefix argument is given, in which case prompt for a file FILE to"//LF// &
+                        "remove from the list of ignored files."
+        case ("vc_next_action")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Do the next logical version control operation on the current fileset."//LF// &
+                        "This requires that all files in the current VC fileset be in the"//LF// &
+                        "sufficiently similar states.  If they are not, signal an error."//LF// &
+                        "Also signal an error if files in the fileset are ignored by the VCS."//LF// &
+                        ""//LF// &
+                        "For modern merging-based version control systems:"//LF// &
+                        "  If every file in the fileset is not registered for version"//LF// &
+                        "   control, register the fileset (but don't commit).  If VERBOSE is"//LF// &
+                        "   true (interactively, the prefix argument), ask for the VC"//LF// &
+                        "   backend with which to register the fileset."//LF// &
+                        "  If every work file in the VC fileset is either added or modified,"//LF// &
+                        "   pop up a *vc-log* buffer to commit the fileset changes."//LF// &
+                        "  (If some are added or modified and some are unregistered, offer to"//LF// &
+                        "   register the unregistered ones, first.)"//LF// &
+                        "  For a centralized version control system, if any work file in"//LF// &
+                        "   the VC fileset is out of date, offer to update the fileset."//LF// &
+                        ""//LF// &
+                        "For old-style locking-based version control systems, like RCS:"//LF// &
+                        "  If every file is not registered, register the file(s); with a prefix"//LF// &
+                        "   argument, allow to specify the VC backend for registration."//LF// &
+                        "  If every file is registered and unlocked, check out (lock)"//LF// &
+                        "   the file(s) for editing."//LF// &
+                        "  If every file is locked by you and has changes, pop up a"//LF// &
+                        "   *vc-log* buffer to check in the changes.  Leave a"//LF// &
+                        "   read-only copy of each changed file after checking in."//LF// &
+                        "  If every file is locked by you and unchanged, unlock them."//LF// &
+                        "  If every file is locked by someone else, offer to steal the lock."//LF// &
+                        "  If files are unlocked, but have changes, offer to either claim the"//LF// &
+                        "   lock or revert to the last checked-in version."//LF// &
+                        ""//LF// &
+                        "If this command is invoked from a patch buffer under `diff_mode', it"//LF// &
+                        "will apply the diffs from the patch and pop up a *vc-log* buffer to"//LF// &
+                        "check-in the resulting changes."//LF// &
+                        ""//LF// &
+                        "When using this command to register a new file (or files), it"//LF// &
+                        "will automatically deduce which VC repository to register it"//LF// &
+                        "with, using the most specific one."//LF// &
+                        ""//LF// &
+                        "If VERBOSE is true (interactively, the prefix argument),"//LF// &
+                        "you can specify another VC backend for the file(s),"//LF// &
+                        "or (for centralized VCS only) the revision ID or branch ID"//LF// &
+                        "from which to check out the file(s)."
+        case ("vc_refresh_state")
+            entry%file = "vc_hooks_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Refresh the VC state of the current buffer's file."//LF// &
+                        ""//LF// &
+                        "This command is more thorough than `vc_state_refresh', in that it"//LF// &
+                        "also supports switching a back-end or removing the file from VC."//LF// &
+                        "In the latter case, VC mode is deactivated for this buffer."
+        case ("vc_register")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Register into a version control system."//LF// &
+                        "If FILESET is given, register the files in that fileset."//LF// &
+                        "Otherwise register the current file."//LF// &
+                        "If COMMENT is present, use that as an initial comment."//LF// &
+                        ""//LF// &
+                        "The version control system to use is found by cycling through the list"//LF// &
+                        "`vc_handled_backends'.  The first backend in that list which declares"//LF// &
+                        "itself responsible for the file (usually because other files in that"//LF// &
+                        "directory are already registered under that backend) will be used to"//LF// &
+                        "register the file.  If no backend declares itself responsible, the"//LF// &
+                        "first backend that could register the file is used."
+        case ("vc_rename_file")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Rename file OLD to NEW in both working tree and repository."//LF// &
+                        "When called interactively, read OLD and NEW, defaulting OLD to the"//LF// &
+                        "current buffer's file name if it's under version control."//LF// &
+                        "If NEW is a directory name, rename FILE to a like-named file under NEW."//LF// &
+                        "For NEW to be recognized as a directory name, it should end in a slash."//LF// &
+                        "Signal a `file_already_exists' error if a file NEW already exists unless"//LF// &
+                        "OK_IF_ALREADY_EXISTS is true."
+        case ("vc_restore")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
+                        "This asks for confirmation if the buffer contents are not identical"//LF// &
+                        "to the working revision (except for keyword expansion)."
+        case ("vc_revert")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Revert working copies of the selected fileset to their repository contents."//LF// &
+                        "This asks for confirmation if the buffer contents are not identical"//LF// &
+                        "to the working revision (except for keyword expansion)."
+        case ("vc_revision_other_window")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Visit revision REV of the current file in another window."//LF// &
+                        "If the current file is named `F', the revision is named `F.~REV~'."//LF// &
+                        "If `F.~REV~' already exists, use it instead of checking it out again."//LF// &
+                        ""//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("vc_root_diff")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display diffs between VC-controlled whole tree revisions."//LF// &
+                        "Normally, this compares the tree corresponding to the current"//LF// &
+                        "fileset with the working revision."//LF// &
+                        "With a prefix argument HISTORIC, prompt for two revision"//LF// &
+                        "designators specifying which revisions to compare."//LF// &
+                        ""//LF// &
+                        "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
+                        "saving the buffer."
+        case ("vc_root_version_diff")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Report diffs between REV1 and REV2 revisions of the whole tree."
+        case ("vc_version_diff")
+            entry%file = "vc_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Report diffs between revisions REV1 and REV2 in the repository history."//LF// &
+                        "This compares two revisions of the current fileset."//LF// &
+                        "If REV1 is """", it defaults to the previous revision, i.e. revision"//LF// &
+                        "before the last commit."//LF// &
+                        "If REV2 is """", it defaults to the work tree, i.e. the current"//LF// &
+                        "state of each file in the fileset."
         case ("view_back_to_mark")
             entry%file = "view_fm.f90"
             entry%interactive = .true.
@@ -8944,6 +9172,16 @@ contains
             entry%file = "subr_fm.f90"
             entry%fortran = "after_change_major_mode_hook"
             entry%doc = "Normal hook run at the very end of major mode functions."
+        case ("after_revert_hook")
+            entry%file = "files_fm.f90"
+            entry%fortran = "after_revert_hook"
+            entry%doc = "Normal hook for `revert_buffer' to run after reverting."//LF// &
+                        "Note that the hook value that it runs is the value that was in effect"//LF// &
+                        "before reverting; that makes a difference if you have buffer-local"//LF// &
+                        "hook functions."//LF// &
+                        ""//LF// &
+                        "The function `revert_buffer__default' runs this."//LF// &
+                        "A customized `revert_buffer_function' need not run this hook."
         case ("after_save_hook")
             entry%file = "files_fm.f90"
             entry%fortran = "after_save_hook"
@@ -9161,6 +9399,12 @@ contains
                         "If an unhandled error happens in running these functions,"//LF// &
                         "the variable's value remains empty.  That prevents the error"//LF// &
                         "from happening repeatedly and making Emacs nonfunctional."
+        case ("before_revert_hook")
+            entry%file = "files_fm.f90"
+            entry%fortran = "before_revert_hook"
+            entry%doc = "Normal hook for `revert_buffer' to run before reverting."//LF// &
+                        "The function `revert_buffer__default' runs this."//LF// &
+                        "A customized `revert_buffer_function' need not run this hook."
         case ("before_save_hook")
             entry%file = "files_fm.f90"
             entry%fortran = "before_save_hook"
@@ -12721,6 +12965,14 @@ contains
                         "Whether to use a space to separate such words also depends on the entry"//LF// &
                         "in `fill_nospace_between_words_table' for the characters before and"//LF// &
                         "after the newline."
+        case ("find_file_hook")
+            entry%file = "files_fm.f90"
+            entry%fortran = "find_file_hook"
+            entry%user_option = .true.
+            entry%doc = "List of functions to be called after a buffer is loaded from a file."//LF// &
+                        "The buffer's local variables (if any) will have been processed before the"//LF// &
+                        "functions are called.  This includes directory-local variables, if any,"//LF// &
+                        "for the file's directory."
         case ("find_file_run_dired")
             entry%file = "files_fm.f90"
             entry%fortran = "find_file_run_dired"
@@ -13109,6 +13361,12 @@ contains
             entry%doc = "Normal hook run whenever a keyboard macro terminates."//LF// &
                         "This is run whether the macro ends normally or prematurely due to"//LF// &
                         "an error."
+        case ("kill_buffer_hook")
+            entry%file = "files_fm.f90"
+            entry%fortran = "kill_buffer_hook"
+            entry%doc = "Hook run when a buffer is killed."//LF// &
+                        "The buffer being killed is current while the hook is running."//LF// &
+                        "See `kill_buffer'."
         case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
@@ -13379,6 +13637,21 @@ contains
             entry%doc = "Coding system to use with system messages."//LF// &
                         "Potentially also used for decoding keyboard input on X Windows, and is"//LF// &
                         "used for encoding standard output and error streams."
+        case ("locate_dominating_stop_dir_regexp")
+            entry%file = "files_fm.f90"
+            entry%fortran = "locate_dominating_stop_dir_regexp"
+            if (allocated(locate_dominating_stop_dir_regexp)) then
+                entry%value = repr(locate_dominating_stop_dir_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp of directory names that stop the search in `locate_dominating_file'."//LF// &
+                        "Any directory whose name matches this regexp will be treated like"//LF// &
+                        "a kind of root directory by `locate_dominating_file', which will stop its"//LF// &
+                        "search when it bumps into it."//LF// &
+                        "The default regexp prevents fruitless and time-consuming attempts to find"//LF// &
+                        "special files in directories in which file names are interpreted as host names,"//LF// &
+                        "or mount points potentially requiring authentication as a different user."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -13932,6 +14205,21 @@ contains
             entry%value = repr(revert_buffer_preserve_modes)
             entry%doc = "True means `revert_buffer' should not reinitialize the modes"//LF// &
                         "(the PRESERVE_MODES argument)."
+        case ("revert_without_query")
+            entry%file = "files_fm.f90"
+            entry%fortran = "revert_without_query"
+            entry%user_option = .true.
+            if (allocated(revert_without_query)) then
+                entry%value = repr(revert_without_query)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Specify which files should be reverted without query."//LF// &
+                        "The value is a list of regular expressions."//LF// &
+                        "If the file name matches one of these regular expressions,"//LF// &
+                        "then `revert_buffer' reverts the file without querying"//LF// &
+                        "if the file has changed on disk and you have not edited the buffer."//LF// &
+                        "(Each is used without its trailing blanks.)"
         case ("save_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "save_abbrevs"
@@ -15443,6 +15731,345 @@ contains
             entry%doc = "File name, including directory, of user's initialization file."//LF// &
                         "While the init file's `configure' runs, value is the real name"//LF// &
                         "of the file."
+        case ("vc_allow_async_diff")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_allow_async_diff"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_allow_async_diff)
+            entry%doc = "True to allow asynchronous diff process."//LF// &
+                        "Enabling this means the buffer will be displayed before the diff is"//LF// &
+                        "generated, and so might only say ""No changes ...""."
+        case ("vc_allow_async_revert")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_allow_async_revert"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_allow_async_revert)
+            entry%doc = "Specifies whether the diff during C-x v u may be asynchronous."//LF// &
+                        "Enabling this option means that you can confirm a revert operation even"//LF// &
+                        "if the local changes in the file have not been found and displayed yet."
+        case ("vc_annotate_switches")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_annotate_switches"
+            entry%user_option = .true.
+            entry%doc = "A string or list of strings specifying switches for annotate under VC."//LF// &
+                        "When running annotate under a given BACKEND, VC uses the first"//LF// &
+                        "non-nil value of `vc_BACKEND_annotate_switches' and"//LF// &
+                        "`vc_annotate_switches', in that order.  Since nil means to check"//LF// &
+                        "the next variable in the sequence, setting the first to the value"//LF// &
+                        "t means no switches at all.  `vc_annotate_switches' should"//LF// &
+                        "contain switches that are specific to version control, but not"//LF// &
+                        "specific to any particular backend."//LF// &
+                        ""//LF// &
+                        "As very few switches (if any) are used across different VC tools,"//LF// &
+                        "please consider using the specific `vc_BACKEND_annotate_switches'"//LF// &
+                        "for the backend you use."
+        case ("vc_before_checkin_hook")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_before_checkin_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook (list of functions) run before a commit or a file checkin."//LF// &
+                        "See `run_hooks'."
+        case ("vc_checkin_hook")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_checkin_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook (list of functions) run after commit or file checkin."//LF// &
+                        "See also `log_edit_done_hook'."
+        case ("vc_checkin_switches")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_checkin_switches"
+            entry%user_option = .true.
+            entry%doc = "A string or list of strings specifying extra switches for checkin."//LF// &
+                        "These are passed to the checkin program by `vc_checkin'."
+        case ("vc_checkout_hook")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_checkout_hook"
+            entry%user_option = .true.
+            entry%doc = "Normal hook (list of functions) run after checking out a file."//LF// &
+                        "See `run_hooks'."
+        case ("vc_checkout_switches")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_checkout_switches"
+            entry%user_option = .true.
+            entry%doc = "A string or list of strings specifying extra switches for checkout."//LF// &
+                        "These are passed to the checkout program by `vc_checkout'."
+        case ("vc_command_messages")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_command_messages"
+            entry%user_option = .true.
+            entry%original = "VC_COMMAND_MESSAGES_NIL"
+            select case (vc_command_messages)
+            case (VC_COMMAND_MESSAGES_NIL)
+                entry%value = "VC_COMMAND_MESSAGES_NIL"
+            case (VC_COMMAND_MESSAGES_T)
+                entry%value = "VC_COMMAND_MESSAGES_T"
+            case (VC_COMMAND_MESSAGES_LOG)
+                entry%value = "VC_COMMAND_MESSAGES_LOG"
+            case default
+                entry%value = repr(vc_command_messages)
+            end select
+            entry%doc = "If true, display and log messages about running back-end commands."//LF// &
+                        "If the value is VC_COMMAND_MESSAGES_LOG, messages about running VC back-end commands are"//LF// &
+                        "logged in the *Messages* buffer, but not displayed."
+        case ("vc_consult_headers")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_consult_headers"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(vc_consult_headers)
+            entry%doc = "If true, identify work files by searching for version headers."
+        case ("vc_deduce_backend_nonvc_modes")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_deduce_backend_nonvc_modes"
+            entry%user_option = .true.
+            if (allocated(vc_deduce_backend_nonvc_modes)) then
+                entry%value = repr(vc_deduce_backend_nonvc_modes)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of modes not supported by VC where backend should be deduced."//LF// &
+                        "In these modes the backend is deduced based on `default_directory'."//LF// &
+                        "If `vc_deduce_backend_all_modes' is true, the backend is deduced in"//LF// &
+                        "all modes."
+        case ("vc_diff_added_files")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_diff_added_files"
+            entry%original = ".false."
+            entry%value = repr(vc_diff_added_files)
+            entry%doc = "If true, diff added files by comparing them to /dev/null."
+        case ("vc_diff_switches")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_diff_switches"
+            entry%user_option = .true.
+            entry%doc = "A string or list of strings specifying switches for diff under VC."//LF// &
+                        "When running diff under a given BACKEND, VC uses the first"//LF// &
+                        "non-nil value of `vc_BACKEND_diff_switches', `vc_diff_switches',"//LF// &
+                        "and `diff_switches', in that order.  Since nil means to check the"//LF// &
+                        "next variable in the sequence, either of the first two may use"//LF// &
+                        "the value t to mean no switches at all.  `vc_diff_switches'"//LF// &
+                        "should contain switches that are specific to version control, but"//LF// &
+                        "not specific to any particular backend."
+        case ("vc_directory_exclusion_list")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_directory_exclusion_list"
+            entry%user_option = .true.
+            if (allocated(vc_directory_exclusion_list)) then
+                entry%value = repr(vc_directory_exclusion_list)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of directory names to be ignored when walking directory trees."
+        case ("vc_display_failed_async_commands")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_display_failed_async_commands"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_display_failed_async_commands)
+            entry%doc = "If true, display VC async command buffers when the command fails."//LF// &
+                        "Considers VC async commands to have failed whenever they die due to a"//LF// &
+                        "fatal signal or exit with a non-zero status."
+        case ("vc_display_status")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_display_status"
+            entry%user_option = .true.
+            entry%original = "VC_DISPLAY_STATUS_T"
+            select case (vc_display_status)
+            case (VC_DISPLAY_STATUS_NIL)
+                entry%value = "VC_DISPLAY_STATUS_NIL"
+            case (VC_DISPLAY_STATUS_T)
+                entry%value = "VC_DISPLAY_STATUS_T"
+            case (VC_DISPLAY_STATUS_NO_BACKEND)
+                entry%value = "VC_DISPLAY_STATUS_NO_BACKEND"
+            case default
+                entry%value = repr(vc_display_status)
+            end select
+            entry%doc = "If true, display revision number and lock status in mode line."//LF// &
+                        "If false, only the backend name is displayed.  When the value"//LF// &
+                        "is VC_DISPLAY_STATUS_NO_BACKEND, then no backend name is displayed before the"//LF// &
+                        "revision number and lock status."
+        case ("vc_find_revision_no_save")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_find_revision_no_save"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_find_revision_no_save)
+            entry%doc = "If true, `vc_find_revision' doesn't write the created buffer to file."
+        case ("vc_follow_symlinks")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_follow_symlinks"
+            entry%user_option = .true.
+            entry%original = "VC_FOLLOW_SYMLINKS_ASK"
+            select case (vc_follow_symlinks)
+            case (VC_FOLLOW_SYMLINKS_NIL)
+                entry%value = "VC_FOLLOW_SYMLINKS_NIL"
+            case (VC_FOLLOW_SYMLINKS_T)
+                entry%value = "VC_FOLLOW_SYMLINKS_T"
+            case (VC_FOLLOW_SYMLINKS_ASK)
+                entry%value = "VC_FOLLOW_SYMLINKS_ASK"
+            case default
+                entry%value = repr(vc_follow_symlinks)
+            end select
+            entry%doc = "What to do if visiting a symbolic link to a file under version control."//LF// &
+                        "Editing such a file through the link bypasses the version control system,"//LF// &
+                        "which is dangerous and probably not what you want."//LF// &
+                        ""//LF// &
+                        "If this variable is VC_FOLLOW_SYMLINKS_T, VC follows the link and visits the real file,"//LF// &
+                        "telling you about it in the echo area.  If it is VC_FOLLOW_SYMLINKS_ASK, VC asks for"//LF// &
+                        "confirmation whether it should follow the link.  If VC_FOLLOW_SYMLINKS_NIL, the link is"//LF// &
+                        "visited and a warning displayed."
+        case ("vc_git_diff_switches")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_diff_switches"
+            entry%user_option = .true.
+            entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
+                        "If nil, use the value of `vc_diff_switches'.  If t, use no switches."
+        case ("vc_git_program")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_program"
+            entry%user_option = .true.
+            if (allocated(vc_git_program)) then
+                entry%value = repr(vc_git_program)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Name of the Git executable (excluding any arguments)."
+        case ("vc_git_revision_complete_only_branches")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_revision_complete_only_branches"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_git_revision_complete_only_branches)
+            entry%doc = "Control whether tags are returned by revision completion for Git."//LF// &
+                        ""//LF// &
+                        "When true, only branches and remotes will be returned by"//LF// &
+                        "`vc_git_revision_completion_table'.  This is used by various VC"//LF// &
+                        "commands when completing branch names.  When false, tags are also"//LF// &
+                        "included in the completions."
+        case ("vc_git_use_literal_pathspecs")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_use_literal_pathspecs"
+            entry%original = ".true."
+            entry%value = repr(vc_git_use_literal_pathspecs)
+            entry%doc = "True to treat pathspecs in commands literally."//LF// &
+                        "Good example of file name that needs this: ""test[56].xx""."
+        case ("vc_handled_backends")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_handled_backends"
+            entry%user_option = .true.
+            if (allocated(vc_handled_backends)) then
+                entry%value = repr(vc_handled_backends)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of version control backends for which VC will be used."//LF// &
+                        "Entries in this list will be tried in order to determine whether a"//LF// &
+                        "file is under that sort of version control."//LF// &
+                        "Removing an entry from the list prevents VC from being activated"//LF// &
+                        "when visiting a file managed by that backend."//LF// &
+                        "An empty list disables VC altogether."
+        case ("vc_ignore_dir_regexp")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_ignore_dir_regexp"
+            entry%user_option = .true.
+            if (allocated(vc_ignore_dir_regexp)) then
+                entry%value = repr(vc_ignore_dir_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching directory names that are not under VC's control."//LF// &
+                        "The default regexp prevents fruitless and time-consuming attempts"//LF// &
+                        "to determine the VC status in directories in which filenames are"//LF// &
+                        "interpreted as hostnames."
+        case ("vc_log_show_limit")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_log_show_limit"
+            entry%user_option = .true.
+            entry%original = "500"
+            entry%value = repr(vc_log_show_limit)
+            entry%doc = "Limit the number of items shown by the VC log commands."//LF// &
+                        "Zero means unlimited."//LF// &
+                        "Not all VC backends are able to support this feature."
+        case ("vc_make_backup_files")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_make_backup_files"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_make_backup_files)
+            entry%doc = "If true, backups of registered files are made as with other files."//LF// &
+                        "If false (the default), files covered by version control don't get backups."
+        case ("vc_prefix_map")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_prefix_map"
+            entry%doc = "Version control prefix map (C-x v)."
+        case ("vc_register_switches")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_register_switches"
+            entry%user_option = .true.
+            entry%doc = "A string or list of strings; extra switches for registering a file."//LF// &
+                        "These are passed to the checkin program by `vc_register'."
+        case ("vc_resolve_conflicts")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_resolve_conflicts"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(vc_resolve_conflicts)
+            entry%doc = "Whether to mark conflicted file as resolved upon saving."//LF// &
+                        ""//LF// &
+                        "If this is true and there are no more conflict markers in the file,"//LF// &
+                        "VC will mark the conflicts in the saved file as resolved.  This is"//LF// &
+                        "only meaningful for VCS that handle conflicts by inserting conflict"//LF// &
+                        "markers in a conflicted file."//LF// &
+                        ""//LF// &
+                        "When saving a conflicted file, VC first tries to use the value"//LF// &
+                        "of `vc_BACKEND_resolve_conflicts', for handling backend-specific"//LF// &
+                        "settings.  It defaults to this option if that option has the special"//LF// &
+                        "value `default'."
+        case ("vc_revert_show_diff")
+            entry%file = "vc_fm.f90"
+            entry%fortran = "vc_revert_show_diff"
+            entry%user_option = .true.
+            entry%original = "VC_REVERT_SHOW_DIFF_T"
+            select case (vc_revert_show_diff)
+            case (VC_REVERT_SHOW_DIFF_NIL)
+                entry%value = "VC_REVERT_SHOW_DIFF_NIL"
+            case (VC_REVERT_SHOW_DIFF_T)
+                entry%value = "VC_REVERT_SHOW_DIFF_T"
+            case (VC_REVERT_SHOW_DIFF_KILL)
+                entry%value = "VC_REVERT_SHOW_DIFF_KILL"
+            case default
+                entry%value = repr(vc_revert_show_diff)
+            end select
+            entry%doc = "If true, `vc_revert' shows a `vc_diff' buffer before querying."//LF// &
+                        "VC_REVERT_SHOW_DIFF_T shows it and buries it afterwards,"//LF// &
+                        "VC_REVERT_SHOW_DIFF_KILL shows it and kills it afterwards, and"//LF// &
+                        "VC_REVERT_SHOW_DIFF_NIL doesn't show it."
+        case ("vc_sentinel_movepoint")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_sentinel_movepoint"
+            entry%original = "0"
+            entry%value = repr(vc_sentinel_movepoint)
+            entry%doc = "Where a sentinel wants point to go afterwards (0 for nil)."
+        case ("vc_state_base")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_state_base"
+            entry%doc = "Base face for VC state indicator."
+        case ("vc_suppress_confirm")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_suppress_confirm"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(vc_suppress_confirm)
+            entry%doc = "If true, treat user as expert; suppress yes-no prompts on some things."
+        case ("vc_use_short_revision")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_use_short_revision"
+            entry%original = ".false."
+            entry%value = repr(vc_use_short_revision)
+            entry%doc = "If true, VC backend functions should return short revisions if possible."//LF// &
+                        "This is set to true when calling `vc_short_revision', which will"//LF// &
+                        "then call the `working_revision' backend function."
         case ("view_exits_all_viewing_windows")
             entry%file = "view_fm.f90"
             entry%fortran = "view_exits_all_viewing_windows"
@@ -16282,6 +16909,38 @@ contains
             kind = OPTION_LOGICAL
         case ("use_short_answers")
             kind = OPTION_LOGICAL
+        case ("vc_allow_async_diff")
+            kind = OPTION_LOGICAL
+        case ("vc_allow_async_revert")
+            kind = OPTION_LOGICAL
+        case ("vc_command_messages")
+            kind = OPTION_CHOICE
+        case ("vc_consult_headers")
+            kind = OPTION_LOGICAL
+        case ("vc_display_failed_async_commands")
+            kind = OPTION_LOGICAL
+        case ("vc_display_status")
+            kind = OPTION_CHOICE
+        case ("vc_find_revision_no_save")
+            kind = OPTION_LOGICAL
+        case ("vc_follow_symlinks")
+            kind = OPTION_CHOICE
+        case ("vc_git_program")
+            kind = OPTION_STRING
+        case ("vc_git_revision_complete_only_branches")
+            kind = OPTION_LOGICAL
+        case ("vc_ignore_dir_regexp")
+            kind = OPTION_STRING
+        case ("vc_log_show_limit")
+            kind = OPTION_INTEGER
+        case ("vc_make_backup_files")
+            kind = OPTION_LOGICAL
+        case ("vc_resolve_conflicts")
+            kind = OPTION_LOGICAL
+        case ("vc_revert_show_diff")
+            kind = OPTION_CHOICE
+        case ("vc_suppress_confirm")
+            kind = OPTION_LOGICAL
         case ("view_exits_all_viewing_windows")
             kind = OPTION_LOGICAL
         case ("view_inhibit_help_message")
@@ -16714,6 +17373,24 @@ contains
             undo_no_redo = v
         case ("use_short_answers")
             use_short_answers = v
+        case ("vc_allow_async_diff")
+            vc_allow_async_diff = v
+        case ("vc_allow_async_revert")
+            vc_allow_async_revert = v
+        case ("vc_consult_headers")
+            vc_consult_headers = v
+        case ("vc_display_failed_async_commands")
+            vc_display_failed_async_commands = v
+        case ("vc_find_revision_no_save")
+            vc_find_revision_no_save = v
+        case ("vc_git_revision_complete_only_branches")
+            vc_git_revision_complete_only_branches = v
+        case ("vc_make_backup_files")
+            vc_make_backup_files = v
+        case ("vc_resolve_conflicts")
+            vc_resolve_conflicts = v
+        case ("vc_suppress_confirm")
+            vc_suppress_confirm = v
         case ("view_exits_all_viewing_windows")
             view_exits_all_viewing_windows = v
         case ("view_inhibit_help_message")
@@ -17010,6 +17687,12 @@ contains
                 return
             end if
             truncate_partial_width_windows = int(v)
+        case ("vc_log_show_limit")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            vc_log_show_limit = int(v)
         case ("window_min_height")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -17301,6 +17984,10 @@ contains
             else
                 shell_pushd_regexp = v
             end if
+        case ("vc_git_program")
+            vc_git_program = v
+        case ("vc_ignore_dir_regexp")
+            vc_ignore_dir_regexp = v
         case ("yes_or_no_prompt")
             yes_or_no_prompt = v
         case default
@@ -18450,6 +19137,50 @@ contains
                 split_window_preferred_direction = SPLIT_VERTICAL
             case ("SPLIT_HORIZONTAL")
                 split_window_preferred_direction = SPLIT_HORIZONTAL
+            case default
+                ok = .false.
+            end select
+        case ("vc_command_messages")
+            select case (constant)
+            case ("VC_COMMAND_MESSAGES_NIL")
+                vc_command_messages = VC_COMMAND_MESSAGES_NIL
+            case ("VC_COMMAND_MESSAGES_T")
+                vc_command_messages = VC_COMMAND_MESSAGES_T
+            case ("VC_COMMAND_MESSAGES_LOG")
+                vc_command_messages = VC_COMMAND_MESSAGES_LOG
+            case default
+                ok = .false.
+            end select
+        case ("vc_display_status")
+            select case (constant)
+            case ("VC_DISPLAY_STATUS_NIL")
+                vc_display_status = VC_DISPLAY_STATUS_NIL
+            case ("VC_DISPLAY_STATUS_T")
+                vc_display_status = VC_DISPLAY_STATUS_T
+            case ("VC_DISPLAY_STATUS_NO_BACKEND")
+                vc_display_status = VC_DISPLAY_STATUS_NO_BACKEND
+            case default
+                ok = .false.
+            end select
+        case ("vc_follow_symlinks")
+            select case (constant)
+            case ("VC_FOLLOW_SYMLINKS_NIL")
+                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_NIL
+            case ("VC_FOLLOW_SYMLINKS_T")
+                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_T
+            case ("VC_FOLLOW_SYMLINKS_ASK")
+                vc_follow_symlinks = VC_FOLLOW_SYMLINKS_ASK
+            case default
+                ok = .false.
+            end select
+        case ("vc_revert_show_diff")
+            select case (constant)
+            case ("VC_REVERT_SHOW_DIFF_NIL")
+                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_NIL
+            case ("VC_REVERT_SHOW_DIFF_T")
+                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_T
+            case ("VC_REVERT_SHOW_DIFF_KILL")
+                vc_revert_show_diff = VC_REVERT_SHOW_DIFF_KILL
             case default
                 ok = .false.
             end select

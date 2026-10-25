@@ -138,6 +138,18 @@ module buffer_fm
         character(len=:), allocatable :: directory
         !> `buffer_backed_up': a backup was made since the file was visited.
         logical :: backed_up = .false.
+        !> `read_only_mode__state' (simple.el): the `buffer_read_only'
+        !> value last set by `read_only_mode' (or View mode), restored when
+        !> reverting; only when `read_only_mode_state_set' (bound locally).
+        logical :: read_only_mode_state = .false., read_only_mode_state_set = .false.
+        !> `backup_inhibited' (files.el): true means don't make a backup,
+        !> regardless of the other parameters.  Permanent-local; VC sets it
+        !> for files under version control.
+        logical :: backup_inhibited = .false.
+        !> `vc_mode' (vc-hooks.el): the version control status shown in the
+        !> mode line (" Git-main"); unallocated when the file is not under
+        !> version control.  Permanent-local.
+        character(len=:), allocatable :: vc_mode
         !> modtime and modtime_size: the visited file's modification time
         !> and size when last read or written.  `modtime_known' is false for
         !> UNKNOWN_MODTIME_NSECS; a nonexistent file has modtime_nsec -1
@@ -274,6 +286,11 @@ module buffer_fm
     !> Called by kill_buffer to kill the processes of the buffer being
     !> killed (process.c:kill_buffer_processes, set by process_fm).
     procedure(buffer_proc), pointer, public :: kill_buffer_processes_hook => null()
+
+    !> Called by kill_buffer, with the buffer to kill current, to run
+    !> `kill_buffer_hook' (set by files_fm, which defines the hook as
+    !> files.el does).
+    procedure(buffer_proc), pointer, public :: run_kill_buffer_hook => null()
 
     interface
         !> Kill buffer `h': unchain its markers, free its text, and if it was

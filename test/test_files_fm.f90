@@ -90,7 +90,10 @@ contains
                     new_unittest("command-line-files", test_command_line), &
                     new_unittest("files-tests-make-directory", test_make_directory), &
                     new_unittest("require-final-newline", test_final_newline), &
-                    new_unittest("write-file", test_write_file) &
+                    new_unittest("write-file", test_write_file), &
+                    new_unittest("files-tests-revert-buffer", test_revert_buffer), &
+                    new_unittest("revert-buffer-replace", test_revert_buffer_replace), &
+                    new_unittest("revert-buffer-nonexistent", test_revert_nonexistent) &
                     ]
     end subroutine collect_files_fm
 
@@ -751,6 +754,117 @@ contains
         call kill_file_buffers()
     end subroutine test_write_file
 
+    !> Write TEXT to FILE from a scratch buffer (another program's edit).
+    subroutine put_file(file, text)
+        character(len=*), intent(in) :: file, text
+        type(handle_type) :: old, buf
+        type(status_type) :: st
+        old = current_buffer()
+        call get_buffer_create(" put", buf, st)
+        call set_buffer(buf, st)
+        call insert(text, st)
+        call write_region(file, .false., st)
+        call kill_buffer(buf, st)
+        call set_buffer(old, st)
+    end subroutine put_file
+
+    !> Test that revert-buffer is successful.  Port of
+    !> files-tests.el:files-tests-revert-buffer.
+    subroutine test_revert_buffer(error)
+        use files_fm, only: write_file, revert_buffer
+        use buffer_fm, only: erase_buffer
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: nl = achar(10)
+        character(len=*), parameter :: lao = "The Way that can be told of is not the eternal Way;"//nl// &
+                                       "The name that can be named is not the eternal name."//nl// &
+                                       "The Nameless is the origin of Heaven and Earth;"//nl// &
+                                       "The Named is the mother of all things."//nl// &
+                                       "Therefore let there always be non-being,"//nl// &
+                                       "  so we may see their subtlety,"//nl// &
+                                       "And let there always be being,"//nl// &
+                                       "  so we may see their outcome."//nl// &
+                                       "The two are the same,"//nl// &
+                                       "But after they are produced,"//nl// &
+                                       "  they have different names."//nl
+        character(len=*), parameter :: tzu = "The Nameless is the origin of Heaven and Earth;"//nl// &
+                                       "The named is the mother of all things."//nl// &
+                                       nl// &
+                                       "Therefore let there always be non-being,"//nl// &
+                                       "  so we may see their subtlety,"//nl// &
+                                       "And let there always be being,"//nl// &
+                                       "  so we may see their outcome."//nl// &
+                                       "The two are the same,"//nl// &
+                                       "But after they are produced,"//nl// &
+                                       "  they have different names."//nl// &
+                                       "They both may be called deep and profound."//nl// &
+                                       "Deeper and more profound,"//nl// &
+                                       "The door of all subtleties!"//nl
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call setup()
+        call get_buffer_create("x", buf, st)
+        call set_buffer(buf, st)
+        call insert(lao, st)
+        call write_file(path("x"), .false., st)
+        call erase_buffer(st)
+        call insert(tzu, st)
+        call revert_buffer(st, .true., .true., .true.)
+        call check(error, st%ok(), format_error(st))
+        if (.not. allocated(error)) call check(error, buffer_string(), lao)
+        call kill_buffer(buf, st)
+    end subroutine test_revert_buffer
+
+    !> Reverting a buffer whose file another program changed keeps point
+    !> in the text they share and leaves the buffer unmodified, with its
+    !> major mode; a read-only state set with C-x C-q survives.
+    subroutine test_revert_buffer_replace(error)
+        use files_fm, only: revert_buffer
+        use simple_fm, only: read_only_mode
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: nl = achar(10)
+        type(status_type) :: st
+        type(handle_type) :: buf
+        body: block
+            call setup()
+            call put_file(path("c.txt"), "abc"//nl//"def"//nl)
+            call find_file_noselect(path("c.txt"), buf, st)
+            call set_buffer(buf, st)
+            call goto_char(6_int64)
+            call put_file(path("c.txt"), "abc"//nl//"def"//nl//"ghi"//nl)
+            call revert_buffer(st, .true., .true.)
+            call check(error, st%ok(), format_error(st))
+            if (allocated(error)) exit body
+            call check(error, buffer_string(), "abc"//nl//"def"//nl//"ghi"//nl)
+            if (allocated(error)) exit body
+            call check(error, point() == 6_int64, "point kept")
+            if (allocated(error)) exit body
+            call check(error, buffers(cur)%text%save_modiff >= buffers(cur)%text%modiff, "unmodified")
+            if (allocated(error)) exit body
+            call check(error, buffers(cur)%major_mode, "text_mode")
+            if (allocated(error)) exit body
+            call read_only_mode(st)
+            call check(error, buffers(cur)%read_only, "C-x C-q")
+            if (allocated(error)) exit body
+            call put_file(path("c.txt"), "x"//nl)
+            call revert_buffer(st, .true., .true.)
+            call check(error, buffer_string() == "x"//nl .and. buffers(cur)%read_only, "still read-only")
+        end block body
+        call kill_file_buffers()
+    end subroutine test_revert_buffer_replace
+
+    !> A buffer whose file was never written can't be reverted.
+    subroutine test_revert_nonexistent(error)
+        use files_fm, only: revert_buffer
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type) :: buf
+        call setup()
+        call find_file_noselect(path("new"), buf, st)
+        call set_buffer(buf, st)
+        call revert_buffer(st, .true., .true.)
+        call check(error, format_error(st), "Cannot revert nonexistent file "//path("new"))
+        call kill_file_buffers()
+    end subroutine test_revert_nonexistent
     !> The current buffer's `major_mode'.
     function mode_name_of_current() result(mode)
         character(len=:), allocatable :: mode

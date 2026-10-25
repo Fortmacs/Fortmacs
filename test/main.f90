@@ -109,6 +109,7 @@ program tester
     use test_electric_fm, only: collect_electric_fm
     use test_elec_pair_fm, only: collect_elec_pair_fm
     use test_simple_electric_fm, only: collect_simple_electric_fm
+    use test_vc_fm, only: collect_vc_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -201,7 +202,8 @@ program tester
                  new_testsuite("paren_fm", collect_paren_fm), &
                  new_testsuite("electric_fm", collect_electric_fm), &
                  new_testsuite("elec_pair_fm", collect_elec_pair_fm), &
-                 new_testsuite("simple_electric_fm", collect_simple_electric_fm) &
+                 new_testsuite("simple_electric_fm", collect_simple_electric_fm), &
+                 new_testsuite("vc_fm", collect_vc_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

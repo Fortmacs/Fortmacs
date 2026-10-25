@@ -205,9 +205,17 @@ module xdisp_fm
         logical function lighter_active_proc()
             implicit none(type, external)
         end function lighter_active_proc
+        !> The text a minor-mode-alist entry shows for buffer slot BI, whose
+        !> variable holds the text itself ("" when it is nil).
+        function lighter_text_proc(bi) result(text)
+            import :: int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: bi
+            character(len=:), allocatable :: text
+        end function lighter_text_proc
     end interface
 
-    public :: lighter_active_proc
+    public :: lighter_active_proc, lighter_text_proc
 
     !> An entry of minor-mode-alist: VARIABLE and its LIGHTER, shown in
     !> FACE (none if empty); ACTIVE, if associated, tells whether the
@@ -215,6 +223,7 @@ module xdisp_fm
     type :: lighter_type
         character(len=:), allocatable :: variable, lighter, face
         procedure(lighter_active_proc), pointer, nopass :: active => null()
+        procedure(lighter_text_proc), pointer, nopass :: text => null()
     end type lighter_type
 
     !> A part of a mode line shown in another face: characters FIRST to
@@ -1929,6 +1938,15 @@ contains
         s = s//coding_system_eol_type_mnemonic(cs)
     end function mode_line_mule_info
 
+    !> The `vc_mode' of buffer BI, "" when its file is not under version
+    !> control (nil).
+    function buffer_vc_mode(bi) result(vc)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable :: vc
+        vc = ""
+        if (allocated(buffers(bi)%vc_mode)) vc = buffers(bi)%vc_mode
+    end function buffer_vc_mode
+
     !> The default mode line of a buffer named NAME on a text terminal,
     !> before it is cut to the window: bindings.el's
     !> standard-mode-line-format as xdisp.c:display_mode_element and
@@ -1937,7 +1955,8 @@ contains
     !> mode-line-modified "%1*%1+", mode-line-remote "%1@",
     !> mode-line-frame-identification " %F  ", "%12b", "   ",
     !> mode-line-position: (-3 "%p") and (6 " L%l"), "  ",
-    !> mode-line-modes "%[(" MODES ")%] ", mode-line-end-spaces "-%-").
+    !> (vc-mode vc-mode) VC, "  ", mode-line-modes "%[(" MODES ")%] ",
+    !> mode-line-end-spaces "-%-").
     !> POSITION is what %p gives (`All', `Top', `Bottom' or ` 5%'), LINE
     !> what %l gives, MODES the text in parentheses (mode_line_modes,
     !> default "Fundamental").  The dashes of %- are WIDTH long.
@@ -1948,7 +1967,7 @@ contains
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
     !> before its "(".
-    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule) result(s)
+    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -1957,6 +1976,8 @@ contains
         !> The elements of `mode_line_modes' before its "(" (mode_line_modes_prefix).
         character(len=*), intent(in), optional :: prefix
         character(len=*), intent(in), optional :: mule
+        !> The buffer's `vc_mode' ((vc-mode vc-mode), after the position).
+        character(len=*), intent(in), optional :: vc
         character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
@@ -1986,7 +2007,9 @@ contains
         else
             s = "-"//coding//star//plus//"-"//" F1  "
         end if
-        s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)//"  "
+        s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)
+        if (present(vc)) s = s//vc
+        s = s//"  "
         if (present(prefix)) s = s//prefix
         s = s//"("
         if (present(modes)) then
@@ -2175,12 +2198,17 @@ contains
     !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
     !> VARIABLE's earlier lighter), in FACE if present (a propertized
     !> lighter).  ACTIVE, if present, tells whether VARIABLE is true (a
-    !> variable kept in Fortran).  Port of the mode-line part of
+    !> variable kept in Fortran).  TEXT, if present, gives the text for
+    !> an entry (VARIABLE VARIABLE) whose variable holds the text (a
+    !> Fortran-kept string, "" for nil).  With FIRST, a new entry goes in
+    !> front (consed onto minor-mode-alist).  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
-    subroutine add_minor_mode_lighter(variable, lighter, face, active)
+    subroutine add_minor_mode_lighter(variable, lighter, face, active, text, first)
         character(len=*), intent(in) :: variable, lighter
         character(len=*), intent(in), optional :: face
         procedure(lighter_active_proc), optional :: active
+        procedure(lighter_text_proc), optional :: text
+        logical, intent(in), optional :: first
         type(lighter_type), allocatable :: grown(:)
         integer :: i, k
         k = 0
@@ -2199,6 +2227,14 @@ contains
             end if
             n_lighters = n_lighters + 1
             k = n_lighters
+            if (present(first)) then
+                if (first) then
+                    do i = n_lighters, 2, -1
+                        lighters(i) = lighters(i - 1)
+                    end do
+                    k = 1
+                end if
+            end if
             lighters(k)%variable = variable
         end if
         lighters(k)%lighter = lighter
@@ -2206,6 +2242,8 @@ contains
         if (present(face)) lighters(k)%face = face
         lighters(k)%active => null()
         if (present(active)) lighters(k)%active => active
+        lighters(k)%text => null()
+        if (present(text)) lighters(k)%text => text
     end subroutine add_minor_mode_lighter
 
     !> The entry of buffer slot BI in `process_entries' (0 for none).
@@ -2369,6 +2407,7 @@ contains
         integer :: i, n, nchars, before
         logical :: on
         type(mode_line_part_type), allocatable :: parts(:)
+        character(len=:), allocatable :: text
         integer :: e
         if (allocated(buffers(bi)%mode_name)) then
             modes = buffers(bi)%mode_name
@@ -2396,6 +2435,11 @@ contains
         end do
         if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) modes = modes//" Narrow"
         do i = 1, n_lighters
+            if (associated(lighters(i)%text)) then
+                text = lighters(i)%text(bi)
+                if (len(text) > 0) modes = modes//text
+                cycle
+            end if
             if (associated(lighters(i)%active)) then
                 on = lighters(i)%active()
             else
@@ -2451,7 +2495,7 @@ contains
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix(), mule)
+                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi))
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
         id_face = merge_faces(f, "mode_line_buffer_id", 0_int32, face_id)

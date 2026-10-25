@@ -155,6 +155,16 @@ module face_table_fm
     use faces_fm, only: underline
     use faces_fm, only: variable_pitch
     use faces_fm, only: variable_pitch_text
+    use vc_hooks_fm, only: vc_conflict_state
+    use vc_hooks_fm, only: vc_edited_state
+    use vc_hooks_fm, only: vc_ignored_state
+    use vc_hooks_fm, only: vc_locally_added_state
+    use vc_hooks_fm, only: vc_locked_state
+    use vc_hooks_fm, only: vc_missing_state
+    use vc_hooks_fm, only: vc_needs_update_state
+    use vc_hooks_fm, only: vc_removed_state
+    use vc_hooks_fm, only: vc_state_base
+    use vc_hooks_fm, only: vc_up_to_date_state
     use faces_fm, only: vertical_border
     use faces_fm, only: warning
     use faces_fm, only: window_divider
@@ -297,6 +307,16 @@ module face_table_fm
         type(named_face_type), pointer :: underline => underline
         type(named_face_type), pointer :: variable_pitch => variable_pitch
         type(named_face_type), pointer :: variable_pitch_text => variable_pitch_text
+        type(named_face_type), pointer :: vc_conflict_state => vc_conflict_state
+        type(named_face_type), pointer :: vc_edited_state => vc_edited_state
+        type(named_face_type), pointer :: vc_ignored_state => vc_ignored_state
+        type(named_face_type), pointer :: vc_locally_added_state => vc_locally_added_state
+        type(named_face_type), pointer :: vc_locked_state => vc_locked_state
+        type(named_face_type), pointer :: vc_missing_state => vc_missing_state
+        type(named_face_type), pointer :: vc_needs_update_state => vc_needs_update_state
+        type(named_face_type), pointer :: vc_removed_state => vc_removed_state
+        type(named_face_type), pointer :: vc_state_base => vc_state_base
+        type(named_face_type), pointer :: vc_up_to_date_state => vc_up_to_date_state
         type(named_face_type), pointer :: vertical_border => vertical_border
         type(named_face_type), pointer :: warning => warning
         type(named_face_type), pointer :: window_divider => window_divider

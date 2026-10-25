@@ -43,7 +43,7 @@ module files_fm
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
                          buffer_list, kill_buffer, erase_buffer, set_buffer_read_only, &
-                         rename_buffer, restore_buffer_modified_p, buffer_live_p, buffer_handle
+                         rename_buffer, restore_buffer_modified_p, buffer_live_p, buffer_handle, run_kill_buffer_hook
     use fileio_fm, only: file_stat_type, expand_file_name, file_name_directory, directory_name_p, &
                          file_name_nondirectory, directory_file_name, file_name_as_directory, &
                          get_homedir, file_exists_p, file_readable_p, file_writable_p, &
@@ -65,6 +65,7 @@ module files_fm
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     use window_fm, only: pop_to_buffer_same_window, switch_to_buffer_other_window
     use coding_fm, only: buffer_file_coding_system, last_coding_system_used
+    use eval_fm, only: hook_type
     implicit none(type, external)
     private
 
@@ -86,15 +87,15 @@ module files_fm
     !> associated with that interpreter in interpreter-mode-alist.  Port of
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
-    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name
+    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
-    public :: file_relative_name
+    public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
-    public :: save_some_buffers_proc, add_save_some_buffers_function
+    public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
     public :: find_file_other_window, backup_file_name_p, revert_buffer, revert_function_proc, find_directory_proc
     public :: insert_directory, insert_directory_clean, insert_directory_wildcard_in_dir_p, file_truename, &
               delete_file, delete_directory, file_name_extension, auto_save_file_name_p, &
@@ -560,10 +561,12 @@ module files_fm
         !>
         !> This function calls the function that `revert_buffer_function'
         !> specifies to do the work, with arguments IGNORE_AUTO and
-        !> NOCONFIRM.  Port of files.el:revert-buffer
-        !> (`revert_buffer_restore_functions' and the default function,
-        !> which reverts a file-visiting buffer, are deferred).  (In
-        !> files_dir_fm.)
+        !> NOCONFIRM.  The default function runs the hooks
+        !> `before_revert_hook' and `after_revert_hook'.  Reverting keeps
+        !> the read-only state set by `read_only_mode'
+        !> (`revert_buffer_restore_functions' is fixed to
+        !> revert-buffer-restore-read-only).  Port of files.el:revert-buffer.
+        !> (In files_dir_fm.)
         recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -625,6 +628,42 @@ module files_fm
     type(integer_setting), public :: require_final_newline = &
                                      integer_setting(name="require_final_newline", value=FINAL_NEWLINE_NEVER)
 
+    !> Regexp of directory names that stop the search in `locate_dominating_file'.
+    !> Any directory whose name matches this regexp will be treated like
+    !> a kind of root directory by `locate_dominating_file', which will stop its
+    !> search when it bumps into it.
+    !> The default regexp prevents fruitless and time-consuming attempts to find
+    !> special files in directories in which file names are interpreted as host names,
+    !> or mount points potentially requiring authentication as a different user.
+    !> Port of files.el locate-dominating-stop-dir-regexp.
+    character(len=:), allocatable, public :: locate_dominating_stop_dir_regexp
+
+    !> List of functions to be called after a buffer is loaded from a file.
+    !> The buffer's local variables (if any) will have been processed before the
+    !> functions are called.  This includes directory-local variables, if any,
+    !> for the file's directory.  Port of files.el find-file-hook.
+    type(hook_type), target, public :: find_file_hook = hook_type(name="find_file_hook")
+
+    !> Hook run when a buffer is killed.
+    !> The buffer being killed is current while the hook is running.
+    !> See `kill_buffer'.  Port of files.el kill-buffer-hook.
+    type(hook_type), target, public :: kill_buffer_hook = hook_type(name="kill_buffer_hook")
+
+    !> A procedure of the current buffer (vc-hooks.el's `vc_before_save'
+    !> and `vc_after_save', which `basic_save_buffer' calls directly).
+    abstract interface
+        subroutine vc_save_proc()
+            implicit none(type, external)
+        end subroutine vc_save_proc
+    end interface
+
+    !> vc-hooks.el:vc-before-save, set by vc_hooks_fm (which is above
+    !> files_fm).
+    procedure(vc_save_proc), pointer, public :: vc_before_save_proc => null()
+
+    !> vc-hooks.el:vc-after-save, set by vc_hooks_fm.
+    procedure(vc_save_proc), pointer, public :: vc_after_save_proc => null()
+
     !> Whether to add a newline at end of file, in certain major modes.
     !> Those modes set `require_final_newline' to this value when you enable them.
     !> They do so because they are often used for files that are supposed
@@ -666,6 +705,12 @@ module files_fm
             logical, intent(out) :: result
             type(status_type), intent(out) :: status
         end subroutine save_some_buffers_proc
+
+        !> A PRED of `save_some_buffers': whether to offer to save the
+        !> current buffer.
+        logical function save_some_buffers_pred()
+            implicit none(type, external)
+        end function save_some_buffers_pred
     end interface
 
     !> A function of `save_some_buffers_functions'.
@@ -752,6 +797,31 @@ module files_fm
     !> revert-buffer-preserve-modes.
     logical, public :: revert_buffer_preserve_modes = .false.
 
+    !> Specify which files should be reverted without query.
+    !> The value is a list of regular expressions.
+    !> If the file name matches one of these regular expressions,
+    !> then `revert_buffer' reverts the file without querying
+    !> if the file has changed on disk and you have not edited the buffer.
+    !> (Each is used without its trailing blanks.)  Port of files.el
+    !> revert-without-query.
+    character(len=:), allocatable, public :: revert_without_query(:)
+
+    !> Normal hook for `revert_buffer' to run before reverting.
+    !> The function `revert_buffer__default' runs this.
+    !> A customized `revert_buffer_function' need not run this hook.
+    !> Port of files.el before-revert-hook.
+    type(hook_type), target, public :: before_revert_hook = hook_type(name="before_revert_hook")
+
+    !> Normal hook for `revert_buffer' to run after reverting.
+    !> Note that the hook value that it runs is the value that was in effect
+    !> before reverting; that makes a difference if you have buffer-local
+    !> hook functions.
+    !>
+    !> The function `revert_buffer__default' runs this.
+    !> A customized `revert_buffer_function' need not run this hook.
+    !> Port of files.el after-revert-hook.
+    type(hook_type), target, public :: after_revert_hook = hook_type(name="after_revert_hook")
+
     !> True means allow `find_file' to visit directories.
     !> To visit the directory, `find_file' runs `find_directory_functions'.
     !> Port of files.el find-file-run-dired.
@@ -794,6 +864,100 @@ contains
     ! ------------------------------------------------------------------
     ! Visiting
     ! ------------------------------------------------------------------
+
+    !> Starting at FILE, look up directory hierarchy for directory containing NAME.
+    !> FILE can be a file or a directory.  If it's a file, its directory will
+    !> serve as the starting point for searching the hierarchy of directories.
+    !> Stop at the first parent directory containing a file NAME,
+    !> and return the directory in ROOT (FOUND false if not found).  Port of
+    !> files.el:locate-dominating-file (NAME a file name; STOP is the
+    !> regexp to use for `locate_dominating_stop_dir_regexp').
+    subroutine locate_dominating_file(file, name, root, found, stop)
+        use search_fm, only: string_match
+        character(len=*), intent(in) :: file, name
+        character(len=:), allocatable, intent(out) :: root
+        logical, intent(out) :: found
+        character(len=*), intent(in), optional :: stop
+        character(len=:), allocatable :: f, expanded, try, up, stopre
+        type(status_type) :: st
+        logical :: have_file
+        root = ""
+        found = .false.
+        stopre = locate_dominating_stop_dir_regexp
+        if (present(stop)) stopre = stop
+        ! Represent /home/luser/foo as ~/foo so that we don't try to look for
+        ! `name' in /home or in /.
+        call expand_file_name(file, expanded, st)
+        if (.not. st%ok()) return
+        f = abbreviate_file_name(expanded)
+        if (.not. directory_name_p(f) .and. file_directory_p(f)) f = file_name_as_directory(f)
+        have_file = .true.
+        do while (have_file .and. .not. found)
+            if (string_match(stopre, f, st) > 0) exit
+            f = file_name_directory(f)
+            ! (file-name-directory F) is nil: no directory to look in.
+            if (len(f) == 0) exit
+            call expand_file_name(name, try, st, f)
+            if (st%ok() .and. file_exists_p(try)) then
+                found = .true.
+                root = f
+            else
+                up = file_name_directory(directory_file_name(f))
+                if (up == f) have_file = .false.
+                f = up
+            end if
+        end do
+        if (found) root = file_name_as_directory(root)
+    end subroutine locate_dominating_file
+
+    !> Search for COMMAND in `exec_path' and return the absolute file name
+    !> in PATH ("" if COMMAND is not found anywhere in `exec_path').  Port of
+    !> files.el:executable-find (`exec_path' is PATH; no REMOTE).
+    subroutine executable_find(command, path)
+        use env_fm, only: getenv
+        use fileio_fm, only: file_executable_p
+        character(len=*), intent(in) :: command
+        character(len=:), allocatable, intent(out) :: path
+        character(len=:), allocatable :: dir, search, entry, candidate
+        type(status_type) :: st
+        logical :: found
+        integer :: b, e
+        path = ""
+        dir = "./"
+        if (cur > 0) then
+            if (allocated(buffers(cur)%directory)) dir = buffers(cur)%directory
+        end if
+        if (index(command, "/") > 0) then
+            call expand_file_name(command, candidate, st, dir)
+            if (st%ok() .and. executable(candidate)) path = candidate
+            return
+        end if
+        call getenv("PATH", search, found)
+        if (.not. found) return
+        b = 1
+        do while (b <= len(search) + 1)
+            e = index(search(b:), ":")
+            if (e == 0) then
+                e = len(search) + 1
+            else
+                e = b + e - 1
+            end if
+            entry = search(b:e - 1)
+            if (len(entry) == 0) entry = dir
+            call expand_file_name(command, candidate, st, file_name_as_directory(entry))
+            if (st%ok() .and. executable(candidate)) then
+                path = candidate
+                return
+            end if
+            b = e + 1
+        end do
+    contains
+
+        logical function executable(name)
+            character(len=*), intent(in) :: name
+            executable = file_executable_p(name) .and. .not. file_directory_p(name)
+        end function executable
+    end subroutine executable_find
 
     !> `filename' with the home directory replaced by "~".  Port of
     !> files.el:abbreviate-file-name (no directory-abbrev-alist).
@@ -897,10 +1061,12 @@ contains
 
     !> Set up the current buffer after visiting its file: read-only if the
     !> file can't be written, and a message about new or protected files
-    !> when `warn', then the major mode.  Port of files.el:after-find-file
-    !> (no auto-save, local variables or hooks).
-    subroutine after_find_file(error, warn)
+    !> when `warn', then (unless `nomodes') the major mode and
+    !> `find_file_hook'.  Port of files.el:after-find-file (no auto-save or
+    !> local variables).
+    recursive subroutine after_find_file(error, warn, nomodes)
         logical, intent(in) :: error, warn
+        logical, intent(in), optional :: nomodes
         character(len=:), allocatable :: msg, file
         integer(int32) :: modes
         type(status_type) :: st
@@ -932,12 +1098,16 @@ contains
                 call set_buffer_read_only(current_buffer(), .true., st)
             end if
         end if
+        if (present(nomodes)) then
+            if (nomodes) return
+        end if
         call normal_mode(st, .true.)
         ! If requested, add a newline at the end of the file.
         if (require_final_newline%value == FINAL_NEWLINE_VISIT .or. &
             require_final_newline%value == FINAL_NEWLINE_VISIT_SAVE) then
             if (missing_final_newline()) call insert_final_newline(st)
         end if
+        call find_file_hook%run(st)
     end subroutine after_find_file
 
     !> Edit file FILENAME: visit it with `find_file_noselect' and switch to
@@ -1063,7 +1233,7 @@ contains
         integer(int32) :: modes
         logical :: found, make_copy
         setmodes = -1
-        if (.not. make_backup_files .or. buffers(cur)%backed_up) return
+        if (.not. make_backup_files .or. buffers(cur)%backup_inhibited .or. buffers(cur)%backed_up) return
         if (.not. allocated(buffers(cur)%filename)) return
         file = buffers(cur)%filename
         ! backup-inhibited, set by find-file from backup-enable-predicate
@@ -1124,7 +1294,8 @@ contains
     !> Save the current buffer in its visited file, if it was modified or
     !> the file doesn't exist; otherwise say so when called interactively.
     !> Port of files.el:basic-save-buffer with basic-save-buffer-2 (no
-    !> hooks, final newline, file-precious-flag or break-hardlink-on-save).
+    !> write-contents-functions, write-file-functions, file-precious-flag
+    !> or break-hardlink-on-save).
     subroutine basic_save_buffer(called_interactively, status)
         logical, intent(in) :: called_interactively
         type(status_type), intent(out) :: status
@@ -1183,6 +1354,8 @@ contains
             call set_visited_file_name(file, status)
             if (.not. status%ok()) return
         end if
+        ! Support VC version backups.
+        if (associated(vc_before_save_proc)) call vc_before_save_proc()
         file = buffers(cur)%filename
         call expand_file_name(file, dir, status)
         if (.not. status%ok()) return
@@ -1238,6 +1411,8 @@ contains
         ! saving by binding it locally.
         if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
         call message(wrote)
+        ! Support VC `implicit' locking.
+        if (associated(vc_after_save_proc)) call vc_after_save_proc()
         call after_save_hook%run(status)
     end subroutine basic_save_buffer
 
@@ -1346,15 +1521,20 @@ contains
     !> Ask about saving each modified file-visiting buffer, then save
     !> those the user accepts (all, without asking, if `arg').
     !> The functions in `save_some_buffers_functions' are called after
-    !> saving the buffers.  Port of files.el:save-some-buffers (PRED nil;
-    !> no buffer-save-without-query or buffer-offer-save).
-    recursive subroutine save_some_buffers(arg, called_interactively, status)
+    !> saving the buffers.  PRED, if present, is called with each buffer
+    !> current and says whether to offer to save it.  Port of
+    !> files.el:save-some-buffers (PRED nil or a function; no
+    !> buffer-save-without-query or buffer-offer-save).
+    recursive subroutine save_some_buffers(arg, called_interactively, status, pred)
         logical, intent(in) :: arg, called_interactively
         type(status_type), intent(out) :: status
+        procedure(save_some_buffers_pred), optional :: pred
         type(handle_type), allocatable :: all(:)
+        type(handle_type) :: old
+        type(status_type) :: st
         integer(int64) :: k, i, n
         integer :: done
-        logical :: inhibit, r
+        logical :: inhibit, r, offer
         ! files--buffers-needing-to-be-saved
         all = buffer_list()
         allocate (pending(size(all)))
@@ -1364,6 +1544,13 @@ contains
             if (.not. status%ok()) cycle
             if (.not. allocated(buffers(i)%filename)) cycle
             if (buffers(i)%text%save_modiff >= buffers(i)%text%modiff) cycle
+            if (present(pred)) then
+                old = current_buffer()
+                call set_buffer(all(k), st)
+                offer = pred()
+                call set_buffer(old, st)
+                if (.not. offer) cycle
+            end if
             n = n + 1
             pending(n) = all(k)
         end do
@@ -1776,17 +1963,29 @@ contains
 
     !> Register the commands and their keys in `ctl_x_map' (and
     !> `ctl_x_4_map').
+    !> Run `kill_buffer_hook' in the buffer H being killed (current).
+    !> Part of buffer.c:Fkill_buffer.
+    subroutine run_kill_hook(h)
+        type(handle_type), intent(in) :: h
+        type(status_type) :: st
+        if (h%index == 0) return
+        call kill_buffer_hook%run(st)
+    end subroutine run_kill_hook
+
     subroutine syms_of_files(ctl_x_map, ctl_x_4_map)
         type(handle_type), intent(in) :: ctl_x_map
         type(handle_type), intent(in), optional :: ctl_x_4_map
         type(value_type) :: key(1)
         type(status_type) :: status
         if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
+        if (.not. allocated(locate_dominating_stop_dir_regexp)) locate_dominating_stop_dir_regexp = &
+            "\`\(?:[\/][\/][^\/]+[\/]\|/\(?:net\|afs\|\.\.\.\)/\)\'"
         if (.not. allocated(directory_listing_before_filename_regexp)) call init_directory_listing_regexp()
         if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
         commands%find_file%run => cmd_find_file
         commands%find_file_other_window%run => cmd_find_file_other_window
         commands%revert_buffer%run => cmd_revert_buffer
+        run_kill_buffer_hook => run_kill_hook
         call syms_of_files_copy()
         call syms_of_files_read(ctl_x_map, ctl_x_4_map)
         if (present(ctl_x_4_map)) then

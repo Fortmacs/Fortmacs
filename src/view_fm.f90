@@ -34,8 +34,7 @@
 !> and `view_try_extend_at_buffer_end' (reverting a file-visiting buffer),
 !> `H', `h' and `?' (describe-mode), the frame commands
 !> (`view_file_other_frame', `view_buffer_other_frame'), the QUIT-RESTORE
-!> argument of `view_mode_enter', `read_only_mode__state' (read only by
-!> reverting file buffers), the obsolete `view_mode_disable'.  `''
+!> argument of `view_mode_enter', the obsolete `view_mode_disable'.  `''
 !> runs `jump_to_register', as there is no alias `register_to_point'.
 module view_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -574,7 +573,7 @@ contains
         end if
     end subroutine view_mode_body
 
-    !> Port of view.el:view--enable (`read_only_mode__state' is not kept).
+    !> Port of view.el:view--enable.
     subroutine view_enable()
         integer :: k
         ! Always leave view mode before changing major mode.
@@ -585,10 +584,11 @@ contains
         locals(k)%has_half_page_size = .false.
         locals(k)%old_read_only = buffers(cur)%read_only
         buffers(cur)%read_only = .true.
+        buffers(cur)%read_only_mode_state = .true.
+        buffers(cur)%read_only_mode_state_set = .true.
     end subroutine view_enable
 
-    !> Port of view.el:view--disable (no overlays; `read_only_mode__state'
-    !> is not kept).
+    !> Port of view.el:view--disable (no overlays).
     recursive subroutine view_disable(status)
         type(status_type), intent(out) :: status
         integer :: k
@@ -602,6 +602,9 @@ contains
         ! so that View mode stays off if read-only-mode is called.
         k = local_index(.false.)
         if (k > 0) locals(k)%has_view_read_only = .false.
+        ! Reset the read-only state memory as well, so that `revert_buffer'
+        ! won't make the buffer read-only again.
+        if (buffers(cur)%read_only_mode_state_set) buffers(cur)%read_only_mode_state = .false.
         if (buffers(cur)%read_only) then
             buffers(cur)%read_only = .false.
             if (k > 0) buffers(cur)%read_only = locals(k)%old_read_only

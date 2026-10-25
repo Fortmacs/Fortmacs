@@ -611,6 +611,21 @@ module commands_fm
         type(command_type) :: upcase_initials_region
         type(command_type) :: upcase_region
         type(command_type) :: upcase_word
+        type(command_type) :: vc_clear_context
+        type(command_type) :: vc_create_repo
+        type(command_type) :: vc_delete_file
+        type(command_type) :: vc_diff
+        type(command_type) :: vc_ignore
+        type(command_type) :: vc_next_action
+        type(command_type) :: vc_refresh_state
+        type(command_type) :: vc_register
+        type(command_type) :: vc_rename_file
+        type(command_type) :: vc_restore
+        type(command_type) :: vc_revert
+        type(command_type) :: vc_revision_other_window
+        type(command_type) :: vc_root_diff
+        type(command_type) :: vc_root_version_diff
+        type(command_type) :: vc_version_diff
         type(command_type) :: view_back_to_mark
         type(command_type) :: view_buffer
         type(command_type) :: view_buffer_other_window
@@ -658,7 +673,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(620) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(635) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1238,6 +1253,21 @@ module commands_fm
                                                                  "upcase_initials_region", &
                                                                  "upcase_region", &
                                                                  "upcase_word", &
+                                                                 "vc_clear_context", &
+                                                                 "vc_create_repo", &
+                                                                 "vc_delete_file", &
+                                                                 "vc_diff", &
+                                                                 "vc_ignore", &
+                                                                 "vc_next_action", &
+                                                                 "vc_refresh_state", &
+                                                                 "vc_register", &
+                                                                 "vc_rename_file", &
+                                                                 "vc_restore", &
+                                                                 "vc_revert", &
+                                                                 "vc_revision_other_window", &
+                                                                 "vc_root_diff", &
+                                                                 "vc_root_version_diff", &
+                                                                 "vc_version_diff", &
                                                                  "view_back_to_mark", &
                                                                  "view_buffer", &
                                                                  "view_buffer_other_window", &
@@ -2447,6 +2477,36 @@ contains
             p => commands%upcase_region
         case ("upcase_word")
             p => commands%upcase_word
+        case ("vc_clear_context")
+            p => commands%vc_clear_context
+        case ("vc_create_repo")
+            p => commands%vc_create_repo
+        case ("vc_delete_file")
+            p => commands%vc_delete_file
+        case ("vc_diff")
+            p => commands%vc_diff
+        case ("vc_ignore")
+            p => commands%vc_ignore
+        case ("vc_next_action")
+            p => commands%vc_next_action
+        case ("vc_refresh_state")
+            p => commands%vc_refresh_state
+        case ("vc_register")
+            p => commands%vc_register
+        case ("vc_rename_file")
+            p => commands%vc_rename_file
+        case ("vc_restore")
+            p => commands%vc_restore
+        case ("vc_revert")
+            p => commands%vc_revert
+        case ("vc_revision_other_window")
+            p => commands%vc_revision_other_window
+        case ("vc_root_diff")
+            p => commands%vc_root_diff
+        case ("vc_root_version_diff")
+            p => commands%vc_root_version_diff
+        case ("vc_version_diff")
+            p => commands%vc_version_diff
         case ("view_back_to_mark")
             p => commands%view_back_to_mark
         case ("view_buffer")

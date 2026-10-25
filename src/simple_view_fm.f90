@@ -22,8 +22,6 @@
 
 !> `read_only_mode' (C-x C-q) and `what_line': a submodule because
 !> Read-Only mode uses view_fm (View mode), which uses simple_fm.
-!> `read_only_mode__state' is not kept (only reverting a file-visiting
-!> buffer reads it, and that is deferred).
 submodule(simple_fm) simple_view_fm
     use commands_fm, only: commands
     use modes_fm, only: minor_modes
@@ -44,6 +42,11 @@ contains
         logical :: special
         status = status_type()
         buffers(cur)%read_only = enable
+        ! We're saving this value here so that we can restore the
+        ! readedness state after reverting the buffer to the value that's
+        ! been explicitly set by the user.
+        buffers(cur)%read_only_mode_state = buffers(cur)%read_only
+        buffers(cur)%read_only_mode_state_set = .true.
         if (.not. buffers(cur)%read_only .and. view_mode_enabled()) then
             call view_exit_and_edit(status)
             ! Must leave view mode.

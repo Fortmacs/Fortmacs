@@ -737,7 +737,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes
         procedure(revert_function_proc), pointer :: fn
-        logical :: ia, nc, saved_in_progress, saved_preserve
+        logical :: ia, nc, saved_in_progress, saved_preserve, restore_read_only, read_only_state
         ia = .false.
         if (present(ignore_auto)) ia = ignore_auto
         nc = .false.
@@ -747,18 +747,153 @@ contains
         revert_buffer_in_progress = .true.
         revert_buffer_preserve_modes = .false.
         if (present(preserve_modes)) revert_buffer_preserve_modes = preserve_modes
+        ! revert-buffer-restore-functions: revert-buffer-restore-read-only.
+        restore_read_only = buffers(cur)%read_only_mode_state_set
+        read_only_state = buffers(cur)%read_only_mode_state
         fn => revert_buffer_function%get()
         if (associated(fn)) then
             call fn(ia, nc, status)
-        else if (.not. allocated(buffers(cur)%filename)) then
-            ! revert-buffer--default
-            call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
         else
-            call set_error(status, FM_GENERIC_ERROR, "Reverting a file-visiting buffer is not supported yet")
+            call revert_buffer_default(ia, nc, status)
+        end if
+        if (restore_read_only) then
+            buffers(cur)%read_only = read_only_state
+            buffers(cur)%read_only_mode_state = read_only_state
+            buffers(cur)%read_only_mode_state_set = .true.
         end if
         revert_buffer_in_progress = saved_in_progress
         revert_buffer_preserve_modes = saved_preserve
     end subroutine revert_buffer
+
+    !> Default function for `revert_buffer'.
+    !> The arguments IGNORE_AUTO and NOCONFIRM are as described for `revert_buffer'.
+    !> Runs the hooks `before_revert_hook' and `after_revert_hook' at the
+    !> start and end.
+    !> The function signals an error if the buffer is not associated with
+    !> a file.
+    !>
+    !> Calls `revert_buffer_insert_file_contents__default_function' to
+    !> reread the contents of the visited file, with two arguments: the
+    !> first is the file name, the second is true if reading an auto-save
+    !> file.
+    !>
+    !> This function handles only buffers that are visiting files.
+    !> Non-file buffers need a custom `revert_buffer_function'; see
+    !> `revert_buffer'.  Port of files.el:revert-buffer--default (there
+    !> are no auto-save files or indirect buffers, so it always reverts
+    !> from the visited file).
+    recursive subroutine revert_buffer_default(ignore_auto, noconfirm, status)
+        use fns_fm, only: yes_or_no_p
+        use buffer_fm, only: buffer_modified_p, inhibit_read_only
+        use data_fm, only: set
+        use lisp_fm, only: value_type
+        logical, intent(in) :: ignore_auto, noconfirm
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: file_name
+        type(hook_type) :: run_hook
+        type(status_type) :: st
+        logical :: proceed, modified, auto_save_p
+        integer :: k
+        status = status_type()
+        ! No buffer is auto-saved (buffer_auto_save_file_name is never
+        ! set), so the auto-save file is never offered, IGNORE_AUTO or not.
+        auto_save_p = .false. .and. .not. ignore_auto
+        if (.not. allocated(buffers(cur)%filename)) then
+            call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
+            return
+        end if
+        file_name = buffers(cur)%filename
+        call buffer_modified_p(current_buffer(), modified, st)
+        proceed = noconfirm
+        if (.not. proceed .and. .not. modified .and. allocated(revert_without_query)) then
+            do k = 1, size(revert_without_query)
+                if (string_match(trim(revert_without_query(k)), file_name, st) > 0) then
+                    proceed = .true.
+                    exit
+                end if
+            end do
+        end if
+        if (.not. proceed) then
+            if (modified) then
+                call yes_or_no_p("Discard edits and reread from "//file_name//"? ", proceed, status)
+            else
+                call yes_or_no_p("Revert buffer from file "//file_name//"? ", proceed, status)
+            end if
+            if (.not. status%ok() .or. .not. proceed) return
+        end if
+        call before_revert_hook%run(st)
+        ! If file was backed up but has changed since,
+        ! we should make another backup.
+        if (.not. auto_save_p .and. .not. verify_visited_file_modtime()) buffers(cur)%backed_up = .false.
+        ! Effectively copy the after_revert_hook status,
+        ! since after_find_file will clobber it.
+        run_hook = after_revert_hook
+        block
+            type(value_type) :: saved_inhibit
+            saved_inhibit = inhibit_read_only()
+            call set(sym("inhibit_read_only"), t_value(), st)
+            call revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
+            call set(sym("inhibit_read_only"), saved_inhibit, st)
+        end block
+        if (.not. status%ok()) return
+        call after_find_file(.false., .false., revert_buffer_preserve_modes)
+        ! Run after_revert_hook as it was before we reverted.
+        call run_hook%run(st)
+    end subroutine revert_buffer_default
+
+    !> Default function for `revert_buffer_insert_file_contents_function'.
+    !> The function `revert_buffer__default' calls this.
+    !> FILE_NAME is the name of the file.  AUTO_SAVE_P is true if this is
+    !> an auto-save file.  Port of
+    !> files.el:revert-buffer-insert-file-contents--default-function.
+    recursive subroutine revert_buffer_insert_file_contents_default(file_name, auto_save_p, status)
+        use fileio_fm, only: NONEXISTENT_MODTIME_NSECS
+        use coding_fm, only: coding_system_for_read, buffer_file_coding_system
+        use mule_fm, only: buffer_file_coding_system_explicit
+        character(len=*), intent(in) :: file_name
+        logical, intent(in) :: auto_save_p
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: saved_coding, explicit_read, explicit_write
+        logical :: had_coding, file_number
+        integer(int64) :: inserted
+        status = status_type()
+        ! buffer_file_number: the file existed when last visited or saved.
+        file_number = buffers(cur)%modtime_known .and. buffers(cur)%modtime_nsec /= NONEXISTENT_MODTIME_NSECS
+        if (.not. file_exists_p(file_name)) then
+            if (file_number) then
+                call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer exists!")
+            else
+                call set_error(status, FM_GENERIC_ERROR, "Cannot revert nonexistent file "//file_name)
+            end if
+            return
+        end if
+        if (.not. file_readable_p(file_name)) then
+            if (file_number) then
+                call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer readable!")
+            else
+                call set_error(status, FM_GENERIC_ERROR, "Cannot revert unreadable file "//file_name)
+            end if
+            return
+        end if
+        call widen()
+        had_coding = allocated(coding_system_for_read%value)
+        if (had_coding) saved_coding = coding_system_for_read%value
+        if (.not. had_coding) then
+            call buffer_file_coding_system_explicit(explicit_read, explicit_write)
+            if (len(explicit_read) > 0) coding_system_for_read%value = explicit_read
+        end if
+        ! This force after_insert_file_set_coding (called from
+        ! insert_file_contents) to set buffer_file_coding_system to a
+        ! proper value.
+        call buffer_file_coding_system%kill_local()
+        ! Note that this preserves point in an intelligent way.
+        call insert_file_contents(file_name,.not. auto_save_p, inserted, status, replace=.true.)
+        if (had_coding) then
+            coding_system_for_read%value = saved_coding
+        else if (allocated(coding_system_for_read%value)) then
+            deallocate (coding_system_for_read%value)
+        end if
+    end subroutine revert_buffer_insert_file_contents_default
     module procedure file_backup_file_names
     use dired_fm, only: file_name_all_completions
     use fileio_fm, only: file_directory_p, file_newer_than_file_p, expand_file_name, file_name_directory, &
