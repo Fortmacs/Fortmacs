@@ -156,7 +156,7 @@ module docstrings_fm
     use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T, &
                            DEFINING_KBD_MACRO_APPEND, kbd_macro_termination_hook, last_input_event, last_kbd_macro, &
-                           minibuffer_message_timeout
+                           minibuffer_message_timeout, post_command_hook
     use kmacro_fm, only: kmacro_call_repeat_key, KMACRO_CALL_REPEAT_DISABLED, &
                          KMACRO_CALL_REPEAT_LAST_KEY, kmacro_call_repeat_with_arg, kmacro_counter, &
                          kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
@@ -167,10 +167,12 @@ module docstrings_fm
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
                           history_add_new_input, read_minibuffer_restore_windows
-    use minibuffer_fm, only: completion_auto_help, completion_fail_discreetly, &
-                             completion_show_inline_help, completions_max_height, insert_default_directory, &
-                             minibuffer_completing_file_name, read_buffer_completion_ignore_case, &
-                             read_file_name_completion_ignore_case
+    use minibuffer_fm, only: completion_at_point_functions, completion_auto_help, &
+                             completion_category_defaults, completion_category_overrides, completion_fail_discreetly, &
+                             completion_flex_nospace, completion_in_region_mode_map, completion_pcm_leading_wildcard, &
+                             completion_pcm_word_delimiters, completion_show_inline_help, completion_styles, &
+                             completions_max_height, insert_default_directory, minibuffer_completing_file_name, &
+                             read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
                        mule_keymap, select_safe_coding_system_accept_default_p
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
@@ -280,7 +282,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(732) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(737) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -320,22 +322,24 @@ module docstrings_fm
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                    "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                              "compile", "compile_goto_error", "copy_abbrev_table", "copy_directory", "copy_file", &
-                                                    "copy_rectangle_as_kill", "copy_rectangle_to_register", "copy_region_as_kill", &
-                                                         "copy_syntax_table", "copy_to_register", "count_lines", "current_buffer", &
-                                                               "current_fill_column", "current_global_map", "current_indentation", &
+                                                        "compile", "compile_goto_error", "complete_symbol", "completion_at_point", &
+                                                     "completion_help_at_point", "completion_in_region_mode", "copy_abbrev_table", &
+                                            "copy_directory", "copy_file", "copy_rectangle_as_kill", "copy_rectangle_to_register", &
+                                                    "copy_region_as_kill", "copy_syntax_table", "copy_to_register", "count_lines", &
+                                             "current_buffer", "current_fill_column", "current_global_map", "current_indentation", &
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
-                                           "dabbrev__select_buffers", "dabbrev_expand", "deactivate_mark", "decode_coding_region", &
-                                                  "decode_coding_string", "default_indent_new_line", "define_coding_system_alias", &
-                                         "define_global_abbrev", "define_mode_abbrev", "delete_all_space", "delete_backward_char", &
-                                           "delete_blank_lines", "delete_char", "delete_extract_rectangle", "delete_forward_char", &
-                                                          "delete_horizontal_space", "delete_indentation", "delete_other_windows", &
-                                             "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
-                                                 "delete_window", "derived_mode_p", "describe_bindings", "describe_coding_system", &
-                                                        "describe_command", "describe_current_coding_system", "describe_function", &
-                                                       "describe_key", "describe_key_briefly", "describe_mode", "describe_symbol", &
-                                            "describe_variable", "detect_coding_region", "detect_coding_string", "digit_argument", &
-                                         "dired", "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
+                                             "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
+                                                        "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
+                                                       "define_coding_system_alias", "define_global_abbrev", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                               "delete_indentation", "delete_other_windows", "delete_process", "delete_rectangle", &
+                                                "delete_region", "delete_whitespace_rectangle", "delete_window", "derived_mode_p", &
+                                                                "describe_bindings", "describe_coding_system", "describe_command", &
+                                                            "describe_current_coding_system", "describe_function", "describe_key", &
+                                                  "describe_key_briefly", "describe_mode", "describe_symbol", "describe_variable", &
+                                                        "detect_coding_region", "detect_coding_string", "digit_argument", "dired", &
+                                                  "dired_build_subdir_alist", "dired_change_marks", "dired_copy_filename_as_kill", &
                                                         "dired_create_directory", "dired_create_empty_file", "dired_display_file", &
                                                         "dired_do_chgrp", "dired_do_chmod", "dired_do_chown", "dired_do_compress", &
                                                "dired_do_compress_to", "dired_do_copy", "dired_do_copy_regexp", "dired_do_delete", &
@@ -490,7 +494,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(480) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(489) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -539,26 +543,29 @@ module docstrings_fm
                                                           "compilation_shell_minor_mode_hook", "compilation_shell_minor_mode_map", &
                                                                 "compilation_skip_threshold", "compilation_skip_to_next_location", &
                                                              "compilation_skip_visited", "compilation_transform_file_match_alist", &
-                                                            "compilation_warning_face", "compile_command", "completion_auto_help", &
-                                          "completion_fail_discreetly", "completion_ignore_case", "completion_ignored_extensions", &
-                                         "completion_show_inline_help", "completions_max_height", "copy_directory_create_symlink", &
-                                                         "copy_region_blink_delay", "current_prefix_arg", "cycle_spacing_actions", &
-                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
-                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
-                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
-                                                                   "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
-                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
-                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
-                                                   "default_justification", "default_process_coding_system", "defining_kbd_macro", &
-                                                                   "delete_active_region", "delete_exited_processes", &
-                                                             "directory_listing_before_filename_regexp", "dired__ls_error_buffer", &
-                                                "dired__ls_error_file", "dired_after_readin_hook", "dired_always_read_filesystem", &
-                                                   "dired_auto_revert_buffer", "dired_before_readin_hook", "dired_broken_symlink", &
-                                         "dired_check_symlinks", "dired_chown_program", "dired_compress_directory_default_suffix", &
-                                                                "dired_compress_file_alist", "dired_compress_file_default_suffix", &
-                                           "dired_compress_file_suffixes", "dired_compress_files_alist", "dired_copy_dereference", &
-                                                                   "dired_copy_preserve_time", "dired_create_destination_dirs", &
-                                                                   "dired_create_destination_dirs_on_trailing_dirsep", &
+                                                   "compilation_warning_face", "compile_command", "completion_at_point_functions", &
+                                          "completion_auto_help", "completion_category_defaults", "completion_category_overrides", &
+                                                "completion_fail_discreetly", "completion_flex_nospace", "completion_ignore_case", &
+                                                                 "completion_ignored_extensions", "completion_in_region_mode_map", &
+                                                              "completion_pcm_leading_wildcard", "completion_pcm_word_delimiters", &
+                                                     "completion_show_inline_help", "completion_styles", "completions_max_height", &
+                                                 "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
+                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                                                   "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
+                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
+                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
+                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
+                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
+                                                                   "dabbrev_upcase_means_case_search", "default_justification", &
+                                                    "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
+                                                            "delete_exited_processes", "directory_listing_before_filename_regexp", &
+                                                      "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
+                                           "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
+                                                            "dired_broken_symlink", "dired_check_symlinks", "dired_chown_program", &
+                                                           "dired_compress_directory_default_suffix", "dired_compress_file_alist", &
+                                                             "dired_compress_file_default_suffix", "dired_compress_file_suffixes", &
+                                               "dired_compress_files_alist", "dired_copy_dereference", "dired_copy_preserve_time", &
+                                              "dired_create_destination_dirs", "dired_create_destination_dirs_on_trailing_dirsep", &
                                             "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
                                            "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
                                            "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
@@ -615,7 +622,7 @@ module docstrings_fm
                                                          "next_error_verbose", "next_screen_context_lines", "only_global_abbrevs", &
                                                                    "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
-                                                              "parse_sexp_ignore_comments", "pending_undo_list", "pop_up_windows", &
+                                         "parse_sexp_ignore_comments", "pending_undo_list", "pop_up_windows", "post_command_hook", &
                                                      "post_self_insert_hook", "process_connection_type", "prog_mode_abbrev_table", &
                                                                    "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
                                                          "query_replace_from_history_variable", "query_replace_from_to_separator", &
@@ -661,7 +668,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(253) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(258) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -717,7 +724,12 @@ module docstrings_fm
                                                                       "compilation_transform_file_match_alist", &
                                                                       "compile_command", &
                                                                       "completion_auto_help", &
+                                                                      "completion_category_overrides", &
+                                                                      "completion_flex_nospace", &
                                                                       "completion_ignored_extensions", &
+                                                                      "completion_pcm_leading_wildcard", &
+                                                                      "completion_pcm_word_delimiters", &
+                                                                      "completion_styles", &
                                                                       "completions_max_height", &
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
@@ -1949,6 +1961,31 @@ contains
             entry%interactive = .true.
             entry%doc = "Visit the source for the error message at point."//LF// &
                         "Use this command in a compilation log buffer."
+        case ("complete_symbol")
+            entry%file = "bindings_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Perform completion on the text around point."//LF// &
+                        "The completion method is determined by `completion_at_point_functions'."//LF// &
+                        ""//LF// &
+                        "With a prefix argument, this command does completion within"//LF// &
+                        "the collection of symbols listed in the index of the manual for the"//LF// &
+                        "language you are using (info_complete_symbol, not ported yet)."
+        case ("completion_at_point")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Perform completion on the text around point."//LF// &
+                        "The completion method is determined by"//LF// &
+                        "`completion_at_point_functions'."
+        case ("completion_help_at_point")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the completions on the text around point."//LF// &
+                        "The completion method is determined by"//LF// &
+                        "`completion_at_point_functions'."
+        case ("completion_in_region_mode")
+            entry%file = "minibuffer_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Transient minor mode used during `completion_in_region'."
         case ("copy_abbrev_table")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "call copy_abbrev_table(table, new)"
@@ -2131,6 +2168,20 @@ contains
                         "which `dabbrev_friend_buffer_function' returns"//LF// &
                         "false when called with the buffer as argument.  It returns the list"//LF// &
                         "of the buffers that are not discarded."
+        case ("dabbrev_completion")
+            entry%file = "dabbrev_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Completion on current word."//LF// &
+                        "Like \[dabbrev_expand] but finds all expansions in the current buffer"//LF// &
+                        "and presents suggestions for completion."//LF// &
+                        ""//LF// &
+                        "With a prefix argument ARG, it searches all buffers accepted by the"//LF// &
+                        "function pointed out by `dabbrev_friend_buffer_function' to find the"//LF// &
+                        "completions."//LF// &
+                        ""//LF// &
+                        "If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]"// &
+                        "),"//LF// &
+                        "then it searches *all* buffers."
         case ("dabbrev_expand")
             entry%file = "dabbrev_fm.f90"
             entry%fortran = "call dabbrev_expand(status, arg)"
@@ -9274,6 +9325,29 @@ contains
                         "modes."//LF// &
                         ""//LF// &
                         "It's often useful to leave a space at the end of the value."
+        case ("completion_at_point_functions")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_at_point_functions"
+            entry%doc = "Special hook to find the completion table for the entity at point."//LF// &
+                        "Each function on this hook is called in turn and should return"//LF// &
+                        "either nothing, meaning it is not applicable at point, or the"//LF// &
+                        "completion data (START END COLLECTION . PROPS), where:"//LF// &
+                        " START and END delimit the entity to complete and should include point,"//LF// &
+                        " COLLECTION is the completion table to use to complete the entity, and"//LF// &
+                        " PROPS is a property list for additional information."//LF// &
+                        "Currently supported properties are:"//LF// &
+                        " `predicate'        a predicate that completion candidates need to satisfy."//LF// &
+                        " `exclusive'        false means that if the completion table fails to"//LF// &
+                        "   match the text at point, then instead of reporting a completion"//LF// &
+                        "   failure, the completion should try the next completion function."//LF// &
+                        "As is the case with most hooks, the functions are responsible for"//LF// &
+                        "preserving things like point and current buffer."//LF// &
+                        ""//LF// &
+                        "NOTE: These functions should be cheap to run since they're sometimes"//LF// &
+                        "run from `post_command_hook'; and they should ideally only choose"//LF// &
+                        "which kind of completion table to use, and not pre-filter it based"//LF// &
+                        "on the current text between START and END (e.g., they should not"//LF// &
+                        "obey `completion_styles')."
         case ("completion_auto_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_auto_help"
@@ -9283,12 +9357,31 @@ contains
             entry%doc = "True means automatically provide help for invalid completion"//LF// &
                         "input.  (Only true and false: `lazy', `always' and `visible' are not"//LF// &
                         "ported.)"
+        case ("completion_category_defaults")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_category_defaults"
+            entry%doc = "Default settings for specific completion categories."//LF// &
+                        "Each entry gives the styles to use for that category."
+        case ("completion_category_overrides")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_category_overrides"
+            entry%user_option = .true.
+            entry%doc = "List of category-specific user overrides for completion styles."//LF// &
+                        "Each entry gives the styles to use for that category; these take"//LF// &
+                        "precedence over `completion_category_defaults'."
         case ("completion_fail_discreetly")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_fail_discreetly"
             entry%original = ".false."
             entry%value = repr(completion_fail_discreetly)
             entry%doc = "If true, stay quiet when there is no match."
+        case ("completion_flex_nospace")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_flex_nospace"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(completion_flex_nospace)
+            entry%doc = "True if `flex' completion rejects spaces in search pattern."
         case ("completion_ignore_case")
             entry%file = "minibuf_fm.f90"
             entry%fortran = "completion_ignore_case"
@@ -9308,12 +9401,57 @@ contains
                         "these strings or when displaying a list of completions.  It ignores"//LF// &
                         "directory names if they match any string in this array which ends in"//LF// &
                         "a slash."
+        case ("completion_in_region_mode_map")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_in_region_mode_map"
+            entry%doc = "Keymap activated during `completion_in_region'."
+        case ("completion_pcm_leading_wildcard")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_pcm_leading_wildcard"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(completion_pcm_leading_wildcard)
+            entry%doc = "If true, partial-completion behaves as if each word is preceded by"//LF// &
+                        "wildcard.  If false, only the first word is not preceded by"//LF// &
+                        "wildcard."
+        case ("completion_pcm_word_delimiters")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_pcm_word_delimiters"
+            entry%user_option = .true.
+            if (allocated(completion_pcm_word_delimiters)) then
+                entry%value = repr(completion_pcm_word_delimiters)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "A string of characters treated as word delimiters for completion."//LF// &
+                        "Some arcane rules:"//LF// &
+                        "If `]' is in this string, it must come first."//LF// &
+                        "If `^' is in this string, it must not come first."//LF// &
+                        "If `-' is in this string, it must come first or right after `]'."//LF// &
+                        "In other words, if S is this string, then `[S]' must be a valid Emacs"//LF// &
+                        "regular expression (not containing character ranges like `a-z')."
         case ("completion_show_inline_help")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completion_show_inline_help"
             entry%original = ".true."
             entry%value = repr(completion_show_inline_help)
             entry%doc = "If true, print helpful inline messages during completion."
+        case ("completion_styles")
+            entry%file = "minibuffer_fm.f90"
+            entry%fortran = "completion_styles"
+            entry%user_option = .true.
+            if (allocated(completion_styles)) then
+                entry%value = repr(completion_styles)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of completion styles to use."//LF// &
+                        "The available styles are basic, partial-completion, emacs22,"//LF// &
+                        "emacs21, initials, substring and flex (shorthand never matches, as"//LF// &
+                        "there are no symbol shorthands)."//LF// &
+                        ""//LF// &
+                        "Note that `completion_category_overrides' may override these"//LF// &
+                        "styles for specific categories, such as files, buffers, etc."
         case ("completions_max_height")
             entry%file = "minibuffer_fm.f90"
             entry%fortran = "completions_max_height"
@@ -11642,6 +11780,12 @@ contains
             entry%original = ".true."
             entry%value = repr(pop_up_windows)
             entry%doc = "True means `display_buffer' should make a new window."
+        case ("post_command_hook")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "post_command_hook"
+            entry%doc = "Normal hook run after each command is executed.  (An error in one"//LF// &
+                        "of its functions ends the run; safe_run_hooks's message and removal"//LF// &
+                        "of the function are deferred.)"
         case ("post_self_insert_hook")
             entry%file = "cmds_fm.f90"
             entry%fortran = "post_self_insert_hook"
@@ -12980,6 +13124,12 @@ contains
             setting = .true.
         case ("completion_auto_help")
             kind = OPTION_LOGICAL
+        case ("completion_flex_nospace")
+            kind = OPTION_LOGICAL
+        case ("completion_pcm_leading_wildcard")
+            kind = OPTION_LOGICAL
+        case ("completion_pcm_word_delimiters")
+            kind = OPTION_STRING
         case ("completions_max_height")
             kind = OPTION_INTEGER
         case ("copy_directory_create_symlink")
@@ -13497,6 +13647,10 @@ contains
             end if
         case ("completion_auto_help")
             completion_auto_help = v
+        case ("completion_flex_nospace")
+            completion_flex_nospace = v
+        case ("completion_pcm_leading_wildcard")
+            completion_pcm_leading_wildcard = v
         case ("copy_directory_create_symlink")
             copy_directory_create_symlink = v
         case ("dabbrev_backward_only")
@@ -13940,6 +14094,8 @@ contains
             else
                 compile_command = v
             end if
+        case ("completion_pcm_word_delimiters")
+            completion_pcm_word_delimiters = v
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")

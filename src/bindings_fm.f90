@@ -28,9 +28,9 @@
 module bindings_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_fm, only: commands
-    use error_fm, only: status_type
+    use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list
+    use lisp_fm, only: value_type, make_fixnum, make_keymap_ref, list, nilp
     use lread_fm, only: sym
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
@@ -64,7 +64,7 @@ module bindings_fm
     use help_fns_fm, only: syms_of_help_fns
     use apropos_fm, only: syms_of_apropos
     use minibuf_fm, only: init_minibuf, minibuffer_local_map
-    use minibuffer_fm, only: syms_of_minibuffer
+    use minibuffer_fm, only: syms_of_minibuffer, completion_at_point
     use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
     use prog_mode_fm, only: syms_of_prog_mode
@@ -107,6 +107,22 @@ module bindings_fm
     type(handle_type), public :: abbrev_map
 
 contains
+
+    !> Perform completion on the text around point.
+    !> The completion method is determined by `completion_at_point_functions'.
+    !>
+    !> With a prefix argument, this command does completion within
+    !> the collection of symbols listed in the index of the manual for the
+    !> language you are using (info_complete_symbol, not ported yet).
+    !> Port of bindings.el:complete-symbol.
+    subroutine cmd_complete_symbol(status)
+        type(status_type), intent(out) :: status
+        if (.not. nilp(current_prefix_arg)) then
+            call set_error(status, FM_GENERIC_ERROR, "info_complete_symbol is not ported yet")
+            return
+        end if
+        call completion_at_point(status)
+    end subroutine cmd_complete_symbol
 
     !> Move point N characters to the right (to the left if N is negative).
     !> On reaching beginning or end of buffer, stop and signal error.
@@ -221,6 +237,7 @@ contains
         call syms_of_simple()
         call syms_of_window()
         commands%right_char%run => cmd_right_char
+        commands%complete_symbol%run => cmd_complete_symbol
         commands%left_char%run => cmd_left_char
         commands%right_word%run => cmd_right_word
         commands%left_word%run => cmd_left_word
@@ -310,6 +327,7 @@ contains
         call bind(global_map, "<deleteline>", "kill_line")
         call bind(global_map, "S-<delete>", "kill_region")
         call bind(esc_map, "x", "execute_extended_command")
+        call bind(esc_map, "TAB", "complete_symbol")
         call bind(global_map, "<next>", "scroll_up_command")
         call bind(global_map, "<prior>", "scroll_down_command")
         call bind(global_map, "C-v", "scroll_up_command")
@@ -383,8 +401,9 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(abbrev_map), status)
         call bind(esc_map, "'", "abbrev_prefix_mark")
         call bind(ctl_x_map, "'", "expand_abbrev")
-        ! dabbrev.el (autoloads; dabbrev_completion is not ported).
+        ! dabbrev.el (autoloads).
         call bind(esc_map, "/", "dabbrev_expand")
+        call bind(global_map, "C-M-/", "dabbrev_completion")
         call bind(global_map, "C-?", "undo_redo")
         call bind(global_map, "C-M-_", "undo_redo")
         ! The mark and killing (bindings.el).
