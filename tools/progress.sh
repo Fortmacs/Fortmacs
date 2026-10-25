@@ -146,10 +146,11 @@ p_done=$((gnu_done + nongnu_done + melpa_done))
 # still shows a sliver), and the dark gray slice what is still to port.
 # A legend on the right gives each kind's share and count.  The colors are
 # the logo's: purple and blue first, then red, tan and black.  The labels
-# are TEXT: gray for GitHub's light theme, cream for its dark one.
-# Arguments: NAME TEXT and lines of LABEL|COLOR|DONE|TOTAL.
+# are TEXT and the lines between slices EDGE: gray and cream for GitHub's
+# light theme, cream and black for its dark one.
+# Arguments: NAME TEXT EDGE and lines of LABEL|COLOR|DONE|TOTAL.
 pie_svg() {
-    printf '%s\n' "$3" | awk -F'|' -v text="$2" '
+    printf '%s\n' "$4" | awk -F'|' -v text="$2" -v edge="$3" '
         function commas(n,   s) {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
@@ -167,8 +168,8 @@ pie_svg() {
             pi = atan2(0, -1)
             x1 = 90 + 80 * sin(2 * pi * a); y1 = 90 - 80 * cos(2 * pi * a)
             x2 = 90 + 80 * sin(2 * pi * b); y2 = 90 - 80 * cos(2 * pi * b)
-            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"#ffffff\" stroke-width=\"1\"/>\n", \
-                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill
+            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
+                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, edge
         }
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
@@ -224,8 +225,8 @@ Elisp|#1F747A|$l_done|$l_total
 GNU ELPA|#963E2C|$gnu_done|$gnu_total
 NonGNU ELPA|#B08866|$nongnu_done|$nongnu_total
 MELPA|#13110B|$melpa_done|$melpa_total"
-    pie_svg pie "#4B423E" "$parts"
-    pie_svg pie-dark "#DFD6D1" "$parts"
+    pie_svg pie "#4B423E" "#DFD6D1" "$parts"
+    pie_svg pie-dark "#DFD6D1" "#13110B" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
