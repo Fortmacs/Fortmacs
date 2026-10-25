@@ -110,6 +110,15 @@ module commands_fm
         type(command_type) :: comint_strip_ctrl_m
         type(command_type) :: comint_truncate_buffer
         type(command_type) :: comint_write_output
+        type(command_type) :: comment_box
+        type(command_type) :: comment_dwim
+        type(command_type) :: comment_indent
+        type(command_type) :: comment_indent_new_line
+        type(command_type) :: comment_kill
+        type(command_type) :: comment_line
+        type(command_type) :: comment_or_uncomment_region
+        type(command_type) :: comment_region
+        type(command_type) :: comment_set_column
         type(command_type) :: compilation_display_error
         type(command_type) :: compilation_minor_mode
         type(command_type) :: compilation_mode
@@ -126,6 +135,21 @@ module commands_fm
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
+        type(command_type) :: conf_align_assignments
+        type(command_type) :: conf_colon_mode
+        type(command_type) :: conf_desktop_mode
+        type(command_type) :: conf_javaprop_mode
+        type(command_type) :: conf_mode
+        type(command_type) :: conf_mode_maybe
+        type(command_type) :: conf_npmrc_mode
+        type(command_type) :: conf_ppd_mode
+        type(command_type) :: conf_quote_normal
+        type(command_type) :: conf_space_keywords
+        type(command_type) :: conf_space_mode
+        type(command_type) :: conf_toml_mode
+        type(command_type) :: conf_unix_mode
+        type(command_type) :: conf_windows_mode
+        type(command_type) :: conf_xdefaults_mode
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -515,6 +539,7 @@ module commands_fm
         type(command_type) :: turn_on_auto_fill
         type(command_type) :: turn_on_font_lock
         type(command_type) :: turn_on_font_lock_if_desired
+        type(command_type) :: uncomment_region
         type(command_type) :: undefined
         type(command_type) :: undo
         type(command_type) :: undo_only
@@ -575,7 +600,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(537) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(562) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -654,6 +679,15 @@ module commands_fm
                                                                  "comint_strip_ctrl_m", &
                                                                  "comint_truncate_buffer", &
                                                                  "comint_write_output", &
+                                                                 "comment_box", &
+                                                                 "comment_dwim", &
+                                                                 "comment_indent", &
+                                                                 "comment_indent_new_line", &
+                                                                 "comment_kill", &
+                                                                 "comment_line", &
+                                                                 "comment_or_uncomment_region", &
+                                                                 "comment_region", &
+                                                                 "comment_set_column", &
                                                                  "compilation_display_error", &
                                                                  "compilation_minor_mode", &
                                                                  "compilation_mode", &
@@ -670,6 +704,21 @@ module commands_fm
                                                                  "completion_at_point", &
                                                                  "completion_help_at_point", &
                                                                  "completion_in_region_mode", &
+                                                                 "conf_align_assignments", &
+                                                                 "conf_colon_mode", &
+                                                                 "conf_desktop_mode", &
+                                                                 "conf_javaprop_mode", &
+                                                                 "conf_mode", &
+                                                                 "conf_mode_maybe", &
+                                                                 "conf_npmrc_mode", &
+                                                                 "conf_ppd_mode", &
+                                                                 "conf_quote_normal", &
+                                                                 "conf_space_keywords", &
+                                                                 "conf_space_mode", &
+                                                                 "conf_toml_mode", &
+                                                                 "conf_unix_mode", &
+                                                                 "conf_windows_mode", &
+                                                                 "conf_xdefaults_mode", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -1059,6 +1108,7 @@ module commands_fm
                                                                  "turn_on_auto_fill", &
                                                                  "turn_on_font_lock", &
                                                                  "turn_on_font_lock_if_desired", &
+                                                                 "uncomment_region", &
                                                                  "undefined", &
                                                                  "undo", &
                                                                  "undo_only", &
@@ -1279,6 +1329,24 @@ contains
             p => commands%comint_truncate_buffer
         case ("comint_write_output")
             p => commands%comint_write_output
+        case ("comment_box")
+            p => commands%comment_box
+        case ("comment_dwim")
+            p => commands%comment_dwim
+        case ("comment_indent")
+            p => commands%comment_indent
+        case ("comment_indent_new_line")
+            p => commands%comment_indent_new_line
+        case ("comment_kill")
+            p => commands%comment_kill
+        case ("comment_line")
+            p => commands%comment_line
+        case ("comment_or_uncomment_region")
+            p => commands%comment_or_uncomment_region
+        case ("comment_region")
+            p => commands%comment_region
+        case ("comment_set_column")
+            p => commands%comment_set_column
         case ("compilation_display_error")
             p => commands%compilation_display_error
         case ("compilation_minor_mode")
@@ -1311,6 +1379,36 @@ contains
             p => commands%completion_help_at_point
         case ("completion_in_region_mode")
             p => commands%completion_in_region_mode
+        case ("conf_align_assignments")
+            p => commands%conf_align_assignments
+        case ("conf_colon_mode")
+            p => commands%conf_colon_mode
+        case ("conf_desktop_mode")
+            p => commands%conf_desktop_mode
+        case ("conf_javaprop_mode")
+            p => commands%conf_javaprop_mode
+        case ("conf_mode")
+            p => commands%conf_mode
+        case ("conf_mode_maybe")
+            p => commands%conf_mode_maybe
+        case ("conf_npmrc_mode")
+            p => commands%conf_npmrc_mode
+        case ("conf_ppd_mode")
+            p => commands%conf_ppd_mode
+        case ("conf_quote_normal")
+            p => commands%conf_quote_normal
+        case ("conf_space_keywords")
+            p => commands%conf_space_keywords
+        case ("conf_space_mode")
+            p => commands%conf_space_mode
+        case ("conf_toml_mode")
+            p => commands%conf_toml_mode
+        case ("conf_unix_mode")
+            p => commands%conf_unix_mode
+        case ("conf_windows_mode")
+            p => commands%conf_windows_mode
+        case ("conf_xdefaults_mode")
+            p => commands%conf_xdefaults_mode
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
@@ -2089,6 +2187,8 @@ contains
             p => commands%turn_on_font_lock
         case ("turn_on_font_lock_if_desired")
             p => commands%turn_on_font_lock_if_desired
+        case ("uncomment_region")
+            p => commands%uncomment_region
         case ("undefined")
             p => commands%undefined
         case ("undo")

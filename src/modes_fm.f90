@@ -37,6 +37,17 @@ module modes_fm
         type(major_mode_type) :: apropos_mode
         type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode
+        type(major_mode_type) :: conf_colon_mode
+        type(major_mode_type) :: conf_desktop_mode
+        type(major_mode_type) :: conf_javaprop_mode
+        type(major_mode_type) :: conf_mode
+        type(major_mode_type) :: conf_npmrc_mode
+        type(major_mode_type) :: conf_ppd_mode
+        type(major_mode_type) :: conf_space_mode
+        type(major_mode_type) :: conf_toml_mode
+        type(major_mode_type) :: conf_unix_mode
+        type(major_mode_type) :: conf_windows_mode
+        type(major_mode_type) :: conf_xdefaults_mode
         type(major_mode_type) :: diff_mode
         type(major_mode_type) :: dired_mode
         type(major_mode_type) :: edit_abbrevs_mode
