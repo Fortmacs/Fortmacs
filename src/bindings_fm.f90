@@ -53,7 +53,8 @@ module bindings_fm
     use isearch_fm, only: syms_of_isearch
     use window_fm, only: syms_of_window
     use files_fm, only: syms_of_files
-    use help_fm, only: syms_of_help, register_keymap_name
+    use help_fm, only: syms_of_help, register_keymap_name, help_map
+    use mule_fm, only: syms_of_mule
     use isearch_fm, only: isearch_mode_map
     use text_mode_fm, only: text_mode_map
     use prog_mode_fm, only: prog_mode_map
@@ -530,6 +531,7 @@ contains
         call syms_of_help(global_map)
         call syms_of_help_fns()
         call syms_of_apropos()
+        call syms_of_mule(ctl_x_map, help_map)
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("esc_map", esc_map)
         call register_keymap_name("ctl_x_map", ctl_x_map)
