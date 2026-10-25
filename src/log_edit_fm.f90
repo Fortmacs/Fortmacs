@@ -35,9 +35,7 @@
 !> Deferred: `log_edit_generate_changelog_from_diff' (C-c C-w, needing
 !> `diff_add_log_current_defuns'), `log_edit_add_to_changelog' and
 !> `log_edit_comment_to_change_log' (needing `add_change_log_entry'),
-!> `log_edit_fill_entry' as the `fill_paragraph_function' (needing
-!> `change_log_read_defuns'), `log_edit_done_strip_cvs_lines' (needing
-!> `flush_lines'), the BUFFER argument of `log_edit' (PCL-CVS) and so
+!> the BUFFER argument of `log_edit' (PCL-CVS) and so
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
 !> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
 !> the menu and the tool bar,
@@ -82,7 +80,7 @@ module log_edit_fm
     use simple_fm, only: rfc822_goto_eoh, push_mark, special_mode, delete_horizontal_space, do_auto_fill, &
                          normal_auto_fill_function
     use indent_fm, only: current_indentation, indent_rigidly
-    use fill_fm, only: string_width
+    use fill_fm, only: string_width, fill_paragraph_function
     use indent_fm, only: current_column
     use buffer_fm, only: fill_column, get_file_buffer
     use window_fm, only: display_alist_type, shrink_window_if_larger_than_buffer, DISPLAY_ACTION_BELOW_SELECTED, &
@@ -115,6 +113,7 @@ module log_edit_fm
               log_edit_insert_message_template, log_edit_previous_comment, log_edit_next_comment, &
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
               log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
+              log_edit_done_strip_cvs_lines, log_edit_fill_entry, &
               syms_of_log_edit
 
     !> A string of a list (files, command line arguments).
@@ -935,6 +934,7 @@ contains
         call log_edit_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call normal_auto_fill_function%set_local(log_edit_do_auto_fill)
+        call fill_paragraph_function%set_local(log_edit_fill_entry)
         k = local_index(.true.)
         locals(k)%has_ring_index = .true.
         locals(k)%ring_index_set = ring_index_set
@@ -2295,6 +2295,234 @@ contains
         call f%define("log_edit_unknown_header", "Face for unknown headers in `log_edit_mode' buffers.")
         call f%spec_entry(display_when(), face_attrs(inherit="font_lock_comment_face"))
     end subroutine define_faces
+    ! Insert FUNC_NAMES, following ChangeLog formatting.
+    ! Port of log-edit.el:log-edit--insert-filled-defuns.
+    recursive subroutine log_edit_insert_filled_defuns(func_names, status)
+        use add_log_fm, only: change_log_string_type
+        use cmds_fm, only: delete_char
+        type(change_log_string_type), intent(in) :: func_names(:)
+        type(status_type), intent(out) :: status
+        logical :: inside_paren_pair, first_line, found, more
+        integer(int64) :: fill
+        integer :: c
+        integer :: i
+        status = status_type()
+        if (size(func_names) == 0) then
+            call insert(":", status)
+            return
+        end if
+        fill = fill_column%value
+        ! Insert a space unless this list of defun names is being
+        ! inserted at the start of a line or after a space character.
+        call char_before(c, found)
+        if (.not. (found .and. (c == 10 .or. c == 32)) .and. .not. current_column() > fill) then
+            call insert(" ", status)
+            if (.not. status%ok()) return
+        end if
+        inside_paren_pair = .false.
+        first_line = .true.
+        ! Now insert the functions names one by one, inserting newlines
+        ! as appropriate.
+        i = 1
+        do while (i <= size(func_names))
+            associate (name => func_names(i)%s)
+                more = i < size(func_names)
+                ! If inserting `name' after preexisting text in the first
+                ! line would overflow the fill column, place it on its own
+                ! line.
+                if (first_line .and. current_column() > 0 .and. &
+                    current_column() + string_width(name) + merge(1, 2, more) > fill) then
+                    call insert(achar(10), status)
+                    ! Iterate over this function name again.
+                    i = i - 1
+                else if (inside_paren_pair) then
+                    ! If `name' is not the first item in a list of defuns
+                    ! and inserting it would overflow the fill column,
+                    ! start a new list of defuns on the next line.
+                    if (current_column() + string_width(name) + merge(0, 1, more) > fill) then
+                        call delete_char(-2_int64, status)
+                        if (.not. status%ok()) return
+                        call insert(")"//achar(10), status)
+                        inside_paren_pair = .false.
+                        ! Iterate over this function name again.
+                        i = i - 1
+                    else
+                        ! Insert this defun name with a separator attached.
+                        call insert(name//", ", status)
+                    end if
+                    ! Otherwise, decide whether to start a list of defuns or
+                    ! to insert `name' on its own line.
+                else if (current_column() + string_width(name) + merge(1, 2, more) > fill) then
+                    ! ...would leave insufficient space for any
+                    ! subsequent defun names so insert it on its own
+                    ! line.
+                    if (more) then
+                        call insert("("//name//")"//achar(10), status)
+                    else
+                        call insert("("//name//"):", status)
+                    end if
+                else if (.not. more) then
+                    ! Insert a new defun list, unless `name' is the last
+                    ! function name.
+                    call insert("("//name//"):", status)
+                else
+                    inside_paren_pair = .true.
+                    call insert("("//name//", ", status)
+                end if
+            end associate
+            if (.not. status%ok()) return
+            first_line = .false.
+            i = i + 1
+        end do
+        ! Close any open list of defuns.
+        if (inside_paren_pair) then
+            call delete_char(-2_int64, status)
+            if (.not. status%ok()) return
+            call insert("):", status)
+        end if
+    end subroutine log_edit_insert_filled_defuns
+
+    !> Like \[fill_paragraph], but for filling ChangeLog-formatted entries.
+    !> Consecutive function entries without prose (i.e., lines of the
+    !> form "(FUNCTION):") will be combined into "(FUNC1, FUNC2):"
+    !> according to `fill_column'.  Port of log-edit.el:log-edit-fill-entry.
+    recursive subroutine log_edit_fill_entry(status, done, justify)
+        use add_log_fm, only: change_log_string_type, change_log_read_defuns, change_log_unindented_file_names_re
+        use fill_fm, only: fill_region, fill_indent_according_to_mode
+        use editfns_fm, only: line_beginning_position
+        use subr_fm, only: replace_regexp_in_region, replace_string_in_region
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: done
+        integer, intent(in), optional :: justify
+        character(len=*), parameter :: NBSP = char(194)//char(160)
+        type(change_log_string_type), allocatable :: defuns(:)
+        type(handle_type) :: opoint, end_marker, defuns_beg, space_beg, space_end
+        integer(int64) :: beg, end, e, b, here, n
+        logical :: found
+        logical :: have_defuns, have_space, saved_indent
+        type(status_type) :: st
+        status = status_type()
+        done = .false.
+        opoint = marker_at(point())
+        call log_edit_changelog_paragraph(beg, end)
+        if (beg == end) then
+            ! Not a ChangeLog entry, fill as normal.
+            call goto_char(release(opoint))
+            return
+        end if
+        end_marker = marker_at(end)
+        call goto_char(beg)
+        do
+            ! Match a regexp against the next ChangeLog entry.
+            ! `defuns_beg' will be the end of the file name,
+            ! which marks the beginning of the list of defuns.
+            have_defuns = .false.
+            e = mpos(end_marker)
+            if (beg < mpos(end_marker)) then
+                call re_search_forward("\(?1:"//change_log_unindented_file_names_re//"\)\|^\(?1:\)[[:blank:]]*(", &
+                                       found, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
+                if (found) then
+                    have_defuns = .true.
+                    defuns_beg = marker_at(match_end(1, st))
+                    e = match_beginning(0, st)
+                end if
+            end if
+            ! Fill the intervening prose between the end of the
+            ! last match and the beginning of the current match.
+            saved_indent = fill_indent_according_to_mode
+            fill_indent_according_to_mode = .true.
+            call goto_char(beg)
+            b = line_beginning_position()
+            have_space = .false.
+            if (line_end_position() <= e) then
+                ! Replace space characters within parentheses
+                ! that resemble ChangeLog defun names between BEG
+                ! and END with non-breaking spaces to prevent
+                ! them from being considered break points by
+                ! `fill_region'.
+                here = point()
+                call goto_char(b)
+                ! Also replace spaces within defun lists
+                ! prefixed by a file name so that
+                ! fill-region never attempts to break
+                ! them, even if multiple items combine
+                ! with symbols to exceed the fill column
+                ! by the expressly permitted margin of 1
+                ! character.
+                call re_search_forward("^\([[:blank:]]*\|\* .*[[:blank:]]\)(.*\([[:space:]]\).*):", found, st, &
+                                       bound=e, noerror=SEARCH_NOERROR)
+                if (found) then
+                    have_space = .true.
+                    space_beg = marker_at(match_beginning(0, st))
+                    space_end = marker_at(match_end(0, st))
+                    call replace_regexp_in_region("[[:space:]]", NBSP, n, status, mpos(space_beg), mpos(space_end))
+                end if
+                call goto_char(here)
+                if (status%ok()) call fill_region(b, e, status, justify)
+            end if
+            fill_indent_according_to_mode = saved_indent
+            ! Restore the spaces replaced by NBSPs.
+            if (have_space) then
+                if (status%ok()) then
+                    call replace_string_in_region(NBSP, " ", n, status, mpos(space_beg), mpos(space_end))
+                end if
+                n = release(space_beg)
+                n = release(space_end)
+            end if
+            if (.not. status%ok() .or. .not. have_defuns) exit
+            call goto_char(mpos(defuns_beg))
+            call change_log_read_defuns(defuns, status, mpos(end_marker))
+            if (status%ok()) call delete_region(mpos(defuns_beg), point(), status)
+            if (status%ok()) call log_edit_insert_filled_defuns(defuns, status)
+            n = release(defuns_beg)
+            if (.not. status%ok()) exit
+            beg = point()
+        end do
+        n = release(end_marker)
+        call goto_char(release(opoint))
+        if (status%ok()) done = .true.
+    end subroutine log_edit_fill_entry
+
+    !> Strip lines starting with "CVS:" from commit log message.
+    !> When not called interactively do this only when the VC backend is CVS.
+    !> This mimicks what CVS does when invoked as 'cvs commit [files...]'.
+    !> Port of log-edit.el:log-edit-done-strip-cvs-lines (this is the
+    !> non-interactive call, for `log_edit_done_hook').
+    recursive subroutine log_edit_done_strip_cvs_lines(status)
+        type(status_type), intent(out) :: status
+        call strip_cvs_lines(.false., status)
+    end subroutine log_edit_done_strip_cvs_lines
+
+    recursive subroutine cmd_log_edit_done_strip_cvs_lines(status)
+        type(status_type), intent(out) :: status
+        call strip_cvs_lines(.true., status)
+    end subroutine cmd_log_edit_done_strip_cvs_lines
+
+    recursive subroutine strip_cvs_lines(interactive, status)
+        use vc_hooks_fm, only: vc_backends
+        use search_fm, only: case_fold_search
+        use replace_fm, only: flush_lines
+        logical, intent(in) :: interactive
+        type(status_type), intent(out) :: status
+        integer(int64) :: count
+        logical :: cvs, saved_fold
+        integer :: b
+        status = status_type()
+        cvs = interactive
+        b = log_edit_vc_backend()
+        if (.not. cvs .and. b > 0) cvs = vc_backends(b)%name == "CVS"
+        if (.not. cvs) return
+        saved_fold = case_fold_search%value
+        case_fold_search%value = .false.
+        call goto_char(point_min())
+        ! NB: While CVS defines CVSEDITPREFIX as "CVS: " it actually
+        ! checks only the first four characters of af a line, i.e. "CVS:"
+        ! to deal with editors that strip trailing whitespace.
+        ! c.f. src/cvs.h and src/logmsg.c:do_editor()
+        call flush_lines("^CVS:", count, status)
+        case_fold_search%value = saved_fold
+    end subroutine strip_cvs_lines
+
 
     !> Define Log Edit mode, its keymap, faces and hooks, and register the
     !> commands.
@@ -2308,6 +2536,7 @@ contains
         log_edit_mode_map = major_modes%log_edit_mode%map
         commands%log_edit_mode%run => log_edit_mode
         commands%log_edit_done%run => cmd_log_edit_done
+        commands%log_edit_done_strip_cvs_lines%run => cmd_log_edit_done_strip_cvs_lines
         commands%log_edit_insert_changelog%run => cmd_log_edit_insert_changelog
         commands%log_edit_show_diff%run => cmd_log_edit_show_diff
         commands%log_edit_show_files%run => cmd_log_edit_show_files

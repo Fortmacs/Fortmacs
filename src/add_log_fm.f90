@@ -61,6 +61,21 @@ module add_log_fm
 
     public :: find_change_log, change_log_name, add_log_find_changelog_buffer, add_log_pseudo_changelog_buffer_name, &
               add_log_iso8601_time_string, change_log_mode, syms_of_add_log
+    public :: change_log_string_type, change_log_read_defuns
+
+    !> A string of a list (function names).
+    type :: change_log_string_type
+        character(len=:), allocatable :: s
+    end type change_log_string_type
+
+    !> Regexp matching the file names of unindented ChangeLog entries.
+    !> Port of add-log.el change-log-unindented-file-names-re.
+    character(len=*), parameter, public :: change_log_unindented_file_names_re = "^[*] \([^ ,:([" // achar(10) // "]+\)"
+
+    !> Regexp matching a tag name in change log entries.  Port of
+    !> add-log.el change-log-tag-re.
+    character(len=*), parameter, public :: change_log_tag_re = &
+                                           "(\(\(?:\sw\|\s_\)+\(?:[, " // achar(9) // "]+\(?:\sw\|\s_\)+\)*\))"
 
     !> A function that returns the date for a ChangeLog header.
     abstract interface
@@ -135,6 +150,70 @@ module add_log_fm
     type(handle_type), public :: change_log_mode_syntax_table
 
 contains
+
+    !> Read ChangeLog formatted function names at point until END.
+    !> Move point to the end of names read and return the function names
+    !> as a list of strings.  Port of add-log.el:change-log-read-defuns.
+    recursive subroutine change_log_read_defuns(names, status, end)
+        use editfns_fm, only: point, goto_char
+        use syntax_fm, only: skip_chars_forward, skip_chars_backward
+        use search_fm, only: looking_at, match_end
+        use subr_fm, only: match_string_no_properties
+        type(change_log_string_type), allocatable, intent(out) :: names(:)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: end
+        character(len=:), allocatable :: tag
+        integer(int64) :: moved
+        logical :: tagged
+        allocate (names(0))
+        do
+            moved = skip_chars_forward(":"//achar(10)//"[:blank:]", status, end)
+            if (.not. status%ok()) return
+            if (present(end)) then
+                if (point() >= end) exit
+            end if
+            tagged = looking_at(change_log_tag_re, status)
+            if (.not. status%ok()) return
+            if (.not. tagged) exit
+            tag = match_string_no_properties(1)
+            call goto_char(match_end(0, status))
+            call split_tag(tag)
+        end do
+        moved = skip_chars_backward(achar(10)//"[:blank:]", status)
+    contains
+        ! (split-string TAG ",[[:blank:]]*" t), appended to NAMES.
+        subroutine split_tag(tag)
+            character(len=*), intent(in) :: tag
+            integer :: i, j
+            i = 1
+            do
+                j = index(tag(i:), ",")
+                if (j == 0) then
+                    call add(tag(i:))
+                    exit
+                end if
+                call add(tag(i:i + j - 2))
+                i = i + j
+                do while (i <= len(tag))
+                    if (tag(i:i) /= " " .and. tag(i:i) /= achar(9)) exit
+                    i = i + 1
+                end do
+            end do
+        end subroutine split_tag
+
+        subroutine add(name)
+            character(len=*), intent(in) :: name
+            type(change_log_string_type), allocatable :: grown(:)
+            integer :: n
+            if (len(name) == 0) return
+            n = size(names)
+            allocate (grown(n + 1))
+            grown(1:n) = names
+            grown(n + 1)%s = name
+            call move_alloc(grown, names)
+        end subroutine add
+    end subroutine change_log_read_defuns
+
 
     !> Return the date in ISO 8601 form (YYYY-MM-DD), local time.  Port
     !> of add-log.el:add-log-iso8601-time-string (no

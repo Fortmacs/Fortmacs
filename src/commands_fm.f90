@@ -468,6 +468,7 @@ module commands_fm
         type(command_type) :: log_edit_comment_search_forward
         type(command_type) :: log_edit_diff_fileset
         type(command_type) :: log_edit_done
+        type(command_type) :: log_edit_done_strip_cvs_lines
         type(command_type) :: log_edit_insert_changelog
         type(command_type) :: log_edit_insert_cvs_rcstemplate
         type(command_type) :: log_edit_insert_cvs_template
@@ -695,7 +696,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(657) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(658) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1132,6 +1133,7 @@ module commands_fm
                                                                  "log_edit_comment_search_forward", &
                                                                  "log_edit_diff_fileset", &
                                                                  "log_edit_done", &
+                                                                 "log_edit_done_strip_cvs_lines", &
                                                                  "log_edit_insert_changelog", &
                                                                  "log_edit_insert_cvs_rcstemplate", &
                                                                  "log_edit_insert_cvs_template", &
@@ -2235,6 +2237,8 @@ contains
             p => commands%log_edit_diff_fileset
         case ("log_edit_done")
             p => commands%log_edit_done
+        case ("log_edit_done_strip_cvs_lines")
+            p => commands%log_edit_done_strip_cvs_lines
         case ("log_edit_insert_changelog")
             p => commands%log_edit_insert_changelog
         case ("log_edit_insert_cvs_rcstemplate")

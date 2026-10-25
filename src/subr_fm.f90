@@ -56,6 +56,7 @@ module subr_fm
     public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_symbol, find_tag_default, &
               find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
+    public :: replace_string_in_region, replace_regexp_in_region
     public :: add_to_invisibility_spec, remove_from_invisibility_spec
     public :: read_char_from_minibuffer, read_char_choice, shell_quote_argument
 
@@ -351,6 +352,122 @@ module subr_fm
     end interface
 
 contains
+
+    !> Replace STRING with REPLACEMENT in the region from START to END.
+    !> The number of replaced occurrences is returned in MATCHES (0 if
+    !> STRING doesn't exist in the region).
+    !>
+    !> If START is absent, use the current point.  If END is absent, use
+    !> `point_max'.
+    !>
+    !> Comparisons and replacements are done with fixed case.
+    !> Port of subr.el:replace-string-in-region.
+    recursive subroutine replace_string_in_region(string, replacement, matches, status, start, end)
+        character(len=*), intent(in) :: string, replacement
+        integer(int64), intent(out) :: matches
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start, end
+        call replace_in_region(string, replacement, .false., matches, status, start, end)
+    end subroutine replace_string_in_region
+
+    !> Replace REGEXP with REPLACEMENT in the region from START to END.
+    !> The number of replaced occurrences is returned in MATCHES (0 if
+    !> REGEXP doesn't exist in the region).
+    !>
+    !> If START is absent, use the current point.  If END is absent, use
+    !> `point_max'.
+    !>
+    !> Comparisons and replacements are done with fixed case.
+    !>
+    !> REPLACEMENT can use the following special elements:
+    !>
+    !>   `\&' in NEWTEXT means substitute original matched text.
+    !>   `\N' means substitute what matched the Nth `\(...\)'.
+    !>        If Nth parens didn't match, substitute nothing.
+    !>   `\\' means insert one `\'.
+    !>   `\?' is treated literally.
+    !> Port of subr.el:replace-regexp-in-region.
+    recursive subroutine replace_regexp_in_region(regexp, replacement, matches, status, start, end)
+        character(len=*), intent(in) :: regexp, replacement
+        integer(int64), intent(out) :: matches
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start, end
+        call replace_in_region(regexp, replacement, .true., matches, status, start, end)
+    end subroutine replace_regexp_in_region
+
+    ! The body of `replace_string_in_region' (REGEXP_FLAG false) and
+    ! `replace_regexp_in_region'.
+    recursive subroutine replace_in_region(pattern, replacement, regexp_flag, matches, status, start, end)
+        use marker_fm, only: copy_marker_at, marker_position, free_marker
+        use buffer_fm, only: buffers, cur
+        use search_fm, only: case_fold_search, search_forward, replace_match
+        use error_fm, only: set_error, FM_GENERIC_ERROR
+        character(len=*), intent(in) :: pattern, replacement
+        logical, intent(in) :: regexp_flag
+        integer(int64), intent(out) :: matches
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start, end
+        type(handle_type) :: opoint, obeg, oend
+        integer(int64) :: s, e, found, pos
+        logical :: narrowed, saved_fold
+        type(status_type) :: st
+        matches = 0
+        status = status_type()
+        s = point()
+        if (present(start)) then
+            s = start
+            if (s < point_min()) then
+                call set_error(status, FM_GENERIC_ERROR, "Start before start of buffer")
+                return
+            end if
+        end if
+        e = point_max()
+        if (present(end)) then
+            e = end
+            if (e > point_max()) then
+                call set_error(status, FM_GENERIC_ERROR, "End after end of buffer")
+                return
+            end if
+        end if
+        ! (save-excursion (goto-char start) (save-restriction ...))
+        call copy_marker_at(point(), opoint, .false., st)
+        narrowed = buffers(cur)%begv /= 1 .or. buffers(cur)%zv /= buffers(cur)%text%z
+        if (narrowed) then
+            call copy_marker_at(buffers(cur)%begv, obeg, .false., st)
+            call copy_marker_at(buffers(cur)%zv, oend, .true., st)
+        end if
+        call goto_char(s)
+        call narrow_to_region(s, e, st)
+        saved_fold = case_fold_search%value
+        case_fold_search%value = .false.
+        do
+            if (regexp_flag) then
+                call re_search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
+            else
+                call search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
+            end if
+            if (.not. status%ok() .or. found == 0) exit
+            if (regexp_flag) then
+                call replace_match(replacement, status, fixedcase=.true.)
+            else
+                call replace_match(replacement, status, fixedcase=.true., literal=.true.)
+            end if
+            if (.not. status%ok()) exit
+            matches = matches + 1
+        end do
+        case_fold_search%value = saved_fold
+        call widen()
+        if (narrowed) then
+            call marker_position(obeg, s, st)
+            call marker_position(oend, e, st)
+            call narrow_to_region(s, e, st)
+            call free_marker(obeg, st)
+            call free_marker(oend, st)
+        end if
+        call marker_position(opoint, pos, st)
+        call goto_char(pos)
+        call free_marker(opoint, st)
+    end subroutine replace_in_region
 
     !> Add ELEMENT to `buffer_invisibility_spec'.
     !> See documentation for `buffer_invisibility_spec' for the kind of
