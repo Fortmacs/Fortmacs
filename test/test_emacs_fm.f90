@@ -33,6 +33,11 @@ module test_emacs_fm
     use lread_fm, only: user_init_file, sym
     use emacs_fm, only: emacs_main, command_line, arg_type, init_file_had_error, load_init_file, sort_args
     use error_fm, only: format_error, format_message
+    use frame_fm, only: selected_frame
+    use test_support, only: show_alone
+    use window_fm, only: windows, window_leaves
+    use fileio_fm, only: emacs_wd, file_name_as_directory, write_region, make_directory_internal, init_fileio
+    use buffer_fm, only: kill_buffer, get_file_buffer
     use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
                         keymap_global_set, insert, get_buffer_create, set_buffer, &
                         handle_type, tab_width
@@ -53,7 +58,9 @@ contains
                     new_unittest("init-file-configure", test_configure), &
                     new_unittest("init-file-skipped-with-q", test_no_init_file), &
                     new_unittest("init-file-error", test_init_error), &
-                    new_unittest("scratch-fundamental-mode", test_scratch) &
+                    new_unittest("scratch-fundamental-mode", test_scratch), &
+                    new_unittest("initial-window-shows-scratch", test_initial_window), &
+                    new_unittest("command-line-displays-files", test_display_files) &
                     ]
     end subroutine collect_emacs_fm
 
@@ -79,12 +86,14 @@ contains
     end subroutine failing_configure
 
     !> Run the editor on a pty with `keys` typed (they must end with
-    !> C-x C-c), *scratch* emptied first.
-    subroutine run_on_pty(keys, st, args, configure)
+    !> C-x C-c), *scratch* emptied first; the terminal has `lines` lines
+    !> (8 if absent).
+    subroutine run_on_pty(keys, st, args, configure, lines)
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: st
         type(arg_type), intent(in), optional :: args(:)
         procedure(sample_configure), optional :: configure
+        integer(int32), intent(in), optional :: lines
         type(emacs_tty_type) :: old
         type(handle_type) :: scratch
         type(status_type) :: ignore
@@ -96,7 +105,11 @@ contains
         call erase_buffer(st)
         call open_pty(master, slave, st)
         if (.not. st%ok()) return
-        call set_tty_size(slave, 40_int32, 8_int32, ignore)
+        if (present(lines)) then
+            call set_tty_size(slave, 40_int32, lines, ignore)
+        else
+            call set_tty_size(slave, 40_int32, 8_int32, ignore)
+        end if
         ! Raw mode first, so C-c is not taken as an interrupt.
         call init_sys_modes(slave, old, ignore)
         call emacs_write(master, keys, ignore)
@@ -260,4 +273,57 @@ contains
         if (allocated(error)) return
         call check(error, xstring(name) == "Fundamental", xstring(name))
     end subroutine test_scratch
+
+    !> The frame's window shows *scratch*, and what is typed goes there
+    !> (frame.c:make_frame gives the root window the current buffer).
+    subroutine test_initial_window(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        call run_on_pty("abc"//achar(24)//achar(3), st)
+        call check(error, st%ok(), "emacs_main")
+        if (allocated(error)) return
+        call check(error, windows(selected_frame%root_window%index)%buffer%index == cur, "root window shows *scratch*")
+        if (allocated(error)) return
+        call check(error, buffers(cur)%name == "*scratch*", buffers(cur)%name)
+        if (allocated(error)) return
+        call check(error, buffer_string(), "abc")
+    end subroutine test_initial_window
+
+    !> Two files on the command line: the second is shown in the selected
+    !> window, the first in the other one (startup.el:command-line-1).
+    subroutine test_display_files(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        type(handle_type), allocatable :: leaves(:)
+        type(handle_type) :: a, b, tmp
+        character(len=:), allocatable :: dir
+        character(len=256) :: names(2)
+        call init_fileio()
+        dir = file_name_as_directory(file_name_as_directory(emacs_wd)//"build/test-emacs-files")
+        call make_directory_internal(dir, st)
+        call get_buffer_create(" *emacs-test-file*", tmp, st)
+        call set_buffer(tmp, st)
+        call insert("A", st)
+        call write_region(dir//"a.txt", .false., st)
+        call write_region(dir//"b.txt", .false., st)
+        call kill_buffer(tmp, st)
+        names(1) = dir//"a.txt"
+        names(2) = dir//"b.txt"
+        call run_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
+        call check(error, st%ok(), "emacs_main: "//format_error(st))
+        if (allocated(error)) return
+        a = get_file_buffer(dir//"a.txt")
+        b = get_file_buffer(dir//"b.txt")
+        call window_leaves(selected_frame%root_window, leaves)
+        call check(error, size(leaves) == 2, "two windows")
+        if (allocated(error)) return
+        call check(error, windows(selected_frame%selected_window%index)%buffer%index == b%index, &
+                   "b.txt in the selected window")
+        if (allocated(error)) return
+        call check(error, windows(leaves(1)%index)%buffer%index == b%index .and. &
+                   windows(leaves(2)%index)%buffer%index == a%index, "b.txt above a.txt")
+        call kill_buffer(a, st)
+        call kill_buffer(b, st)
+        call show_alone()
+    end subroutine test_display_files
 end module test_emacs_fm

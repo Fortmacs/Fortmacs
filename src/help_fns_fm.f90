@@ -356,7 +356,7 @@ contains
     recursive subroutine cmd_describe_function(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
-        call completing_read("Describe function: ", completion_obarray_table(), name, status, &
+        call completing_read("Describe function: ", completion_obarray_table("symbol-help"), name, status, &
                              function_symbol_p, require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         ! help-fns--describe-function-or-command-prompt (no function at
@@ -379,7 +379,7 @@ contains
         do k = 1, size(variable_names)
             names(k) = make_string(trim(variable_names(k)))
         end do
-        call completing_read("Describe variable: ", completion_list_table(make_list(names)), name, status, &
+        call completing_read("Describe variable: ", completion_list_table(make_list(names), "symbol-help"), name, status, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         ! (No variable at point yet.)
@@ -600,7 +600,7 @@ contains
     recursive subroutine cmd_describe_symbol(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
-        call completing_read("Describe symbol: ", completion_obarray_table(), name, status, symbol_known_p, &
+        call completing_read("Describe symbol: ", completion_obarray_table("symbol-help"), name, status, symbol_known_p, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         if (len(name) == 0) then
@@ -617,7 +617,7 @@ contains
     recursive subroutine cmd_describe_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name
-        call completing_read("Describe command: ", completion_obarray_table(), name, status, commandp, &
+        call completing_read("Describe command: ", completion_obarray_table("symbol-help"), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T)
         if (.not. status%ok()) return
         if (len(name) == 0) then

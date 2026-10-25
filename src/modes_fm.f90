@@ -66,6 +66,7 @@ module modes_fm
         type(minor_mode_type) :: auto_fill_mode
         type(minor_mode_type) :: compilation_minor_mode
         type(minor_mode_type) :: compilation_shell_minor_mode
+        type(minor_mode_type) :: completion_in_region_mode
         type(minor_mode_type) :: electric_indent_local_mode
         type(minor_mode_type) :: electric_indent_mode
         type(minor_mode_type) :: electric_pair_local_mode

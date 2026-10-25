@@ -131,6 +131,10 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: complete_symbol
+        type(command_type) :: completion_at_point
+        type(command_type) :: completion_help_at_point
+        type(command_type) :: completion_in_region_mode
         type(command_type) :: conf_align_assignments
         type(command_type) :: conf_colon_mode
         type(command_type) :: conf_desktop_mode
@@ -151,6 +155,7 @@ module commands_fm
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
         type(command_type) :: cycle_spacing
+        type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
         type(command_type) :: define_global_abbrev
@@ -572,7 +577,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(534) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(539) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -672,6 +677,10 @@ module commands_fm
                                                                  "compilation_shell_minor_mode", &
                                                                  "compile", &
                                                                  "compile_goto_error", &
+                                                                 "complete_symbol", &
+                                                                 "completion_at_point", &
+                                                                 "completion_help_at_point", &
+                                                                 "completion_in_region_mode", &
                                                                  "conf_align_assignments", &
                                                                  "conf_colon_mode", &
                                                                  "conf_desktop_mode", &
@@ -692,6 +701,7 @@ module commands_fm
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
                                                                  "cycle_spacing", &
+                                                                 "dabbrev_completion", &
                                                                  "dabbrev_expand", &
                                                                  "default_indent_new_line", &
                                                                  "define_global_abbrev", &
@@ -1315,6 +1325,14 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("complete_symbol")
+            p => commands%complete_symbol
+        case ("completion_at_point")
+            p => commands%completion_at_point
+        case ("completion_help_at_point")
+            p => commands%completion_help_at_point
+        case ("completion_in_region_mode")
+            p => commands%completion_in_region_mode
         case ("conf_align_assignments")
             p => commands%conf_align_assignments
         case ("conf_colon_mode")
@@ -1355,6 +1373,8 @@ contains
             p => commands%copy_to_register
         case ("cycle_spacing")
             p => commands%cycle_spacing
+        case ("dabbrev_completion")
+            p => commands%dabbrev_completion
         case ("dabbrev_expand")
             p => commands%dabbrev_expand
         case ("default_indent_new_line")

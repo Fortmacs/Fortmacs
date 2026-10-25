@@ -79,7 +79,7 @@ module keyboard_fm
 
     public :: set_input_meta_mode, set_input_fd, kbd_store_bytes, &
               tty_read_avail_input, unread_command_events, &
-              discard_input, input_pending_p, read_event
+              discard_input, input_pending_p, read_event, unread_command_events_p
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
@@ -206,9 +206,11 @@ module keyboard_fm
     !> module); null in tests.
     procedure(redisplay_proc), pointer, public :: redisplay_hook => null()
 
-    !> Run after each command (keyboard.c's post-command-hook, with one
-    !> function); null for none.
-    procedure(redisplay_proc), pointer, public :: post_command_hook => null()
+    !> Normal hook run after each command is executed.  (An error in one
+    !> of its functions ends the run; safe_run_hooks's message and removal
+    !> of the function are deferred.)  Port of keyboard.c
+    !> post-command-hook.
+    type(hook_type), target, public :: post_command_hook = hook_type(name="post_command_hook")
 
     !> Run before each command, after its keys are read and `this_command'
     !> is set (keyboard.c's pre-command-hook, with one function); null
@@ -594,6 +596,12 @@ contains
         if (allocated(events)) deallocate (events)
         if (allocated(pending_bytes)) deallocate (pending_bytes)
     end subroutine discard_input
+
+    !> Whether `unread_command_events' holds events (the variable is
+    !> non-nil).
+    logical function unread_command_events_p()
+        unread_command_events_p = nunread > 0
+    end function unread_command_events_p
 
     !> Whether input is waiting.  Port of keyboard.c:Finput_pending_p.
     logical function input_pending_p()
@@ -1288,6 +1296,7 @@ contains
         type(value_type), allocatable :: keys(:)
         type(value_type) :: cmd, remapped
         logical :: eof, handled
+        type(status_type) :: hook_status
         done = .false.
         ! Make sure the current window's buffer is selected.
         call select_window_buffer()
@@ -1366,7 +1375,7 @@ contains
             call cmd_error(status)
             last_command = this_command
             real_last_command = real_this_command
-            if (associated(post_command_hook)) call post_command_hook()
+            call post_command_hook%run(hook_status)
             done = eof
             return
         end if
@@ -1374,7 +1383,7 @@ contains
         last_command = this_command
         real_last_command = real_this_command
         ! post-command-hook
-        if (associated(post_command_hook)) call post_command_hook()
+        call post_command_hook%run(hook_status)
         ! A command that changed the buffer (or asked to) ends an active
         ! region in Transient Mark mode (simple.el:deactivate-mark).
         if (cur /= 0) then

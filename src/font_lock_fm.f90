@@ -1397,7 +1397,7 @@ contains
         status = status_type()
         start = match_beginning(highlight%subexp, st)
         end = match_end(highlight%subexp, st)
-        if (start < 0 .or. .not. st%ok()) then
+        if (start <= 0 .or. .not. st%ok()) then
             ! No match but we might not signal an error.
             if (.not. highlight%laxmatch) then
                 write (buf, "(i0)") highlight%subexp
