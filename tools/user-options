@@ -266,6 +266,12 @@ read_minibuffer_restore_windows
 read_quoted_char_radix
 regexp_search_ring_max
 register_separator
+repeat_check_key
+repeat_exit_key
+repeat_exit_timeout
+repeat_keep_prefix
+repeat_on_final_keystroke
+repeat_too_dangerous
 replace_lax_whitespace
 replace_regexp_lax_whitespace
 require_final_newline

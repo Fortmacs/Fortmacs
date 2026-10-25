@@ -387,7 +387,7 @@ contains
     function repeat_get_map_sym() result(map)
         type(handle_type) :: map
         type(command_type), pointer :: p, q
-        logical :: continue
+        logical :: continues
         integer :: k
         map = null_handle()
         if (.not. minor_modes%repeat_mode%enabled()) return
@@ -399,17 +399,17 @@ contains
             if (.not. keymap_live_p(map) .and. associated(q)) map = q%repeat_map
         end if
         if (keymap_live_p(repeat_in_progress)) then
-            continue = .false.
+            continues = .false.
             p => this_command_object()
             if (associated(p)) then
-                continue = p%repeat_continue_all
-                if (.not. continue .and. allocated(p%repeat_continue)) then
+                continues = p%repeat_continue_all
+                if (.not. continues .and. allocated(p%repeat_continue)) then
                     do k = 1, size(p%repeat_continue)
-                        if (same(p%repeat_continue(k), repeat_in_progress)) continue = .true.
+                        if (same(p%repeat_continue(k), repeat_in_progress)) continues = .true.
                     end do
                 end if
             end if
-            if (continue) map = repeat_in_progress
+            if (continues) map = repeat_in_progress
         end if
     end function repeat_get_map_sym
 
@@ -539,7 +539,7 @@ contains
                 end if
             end if
             if (timeout > 0.0) call run_with_idle_timer(repeat_exit_timer, real(timeout, real64), .false., &
-                                                         repeat_exit, st)
+                                                        repeat_exit, st)
         end if
         repeat_map = null_handle()
         prev_mb_depth = minibuf_level

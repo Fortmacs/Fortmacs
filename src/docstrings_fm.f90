@@ -42,9 +42,10 @@ module docstrings_fm
     use autorevert_fm, only: auto_revert_lockout_interval, auto_revert_avoid_polling, &
                              auto_revert_buffer_in_progress, auto_revert_check_vc_info, auto_revert_interval, &
                              auto_revert_mode_hook, auto_revert_mode_text, auto_revert_notify_exclude_dir_regexp, &
-                             auto_revert_remote_files, auto_revert_stop_on_user_input, auto_revert_tail_mode_text, &
-                             auto_revert_use_notify, auto_revert_verbose, global_auto_revert_ignore_buffer, &
-                             global_auto_revert_ignore_modes, global_auto_revert_mode_hook, global_auto_revert_mode_text, &
+                             auto_revert_remote_files, auto_revert_stop_on_user_input, auto_revert_tail_mode_hook, &
+                             auto_revert_tail_mode_text, auto_revert_use_notify, auto_revert_verbose, &
+                             global_auto_revert_ignore_buffer, global_auto_revert_ignore_modes, &
+                             global_auto_revert_mode_hook, global_auto_revert_mode_text, &
                              global_auto_revert_non_file_buffers
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
@@ -259,8 +260,8 @@ module docstrings_fm
     use rect_fm, only: killed_rectangle
     use register_fm, only: register_alist, register_separator
     use repeat_fm, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
-                         repeat_keep_prefix, repeat_map, repeat_num_input_keys_at_repeat, repeat_on_final_keystroke, &
-                         repeat_previous_repeated_command, repeat_too_dangerous
+                         repeat_keep_prefix, repeat_map, repeat_mode_hook, repeat_num_input_keys_at_repeat, &
+                         repeat_on_final_keystroke, repeat_previous_repeated_command, repeat_too_dangerous
     use replace_fm, only: case_replace, query_replace_defaults, query_replace_from_history_variable, &
                           query_replace_from_to_separator, query_replace_show_replacement, &
                           query_replace_skip_read_only, query_replace_to_history_variable, replace_count, &
@@ -395,7 +396,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(928) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(932) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -600,20 +601,21 @@ module docstrings_fm
                                                         "rectangle_dimensions", "rectangle_intersect_p", "rectangle_number_lines", &
                                                            "rectangle_position_as_coordinates", "regexp_quote", "region_active_p", &
                                                                    "region_beginning", "region_end", "register_read_with_preview", &
-                                                       "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_exit", &
-                                              "repeat_mode", "replace_match", "replace_regexp", "replace_string", "revert_buffer", &
-                                            "revert_buffer_with_coding_system", "right_char", "right_word", "rotate_yank_pointer", &
-                                          "run_at_time", "run_mode_hooks", "run_with_idle_timer", "run_with_timer", "save_buffer", &
-                                                    "save_buffers_kill_terminal", "save_some_buffers", "scan_lists", "scan_sexps", &
-                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
-                                           "scroll_up", "scroll_up_command", "search_backward", "search_forward", "select_window", &
-                                          "selected_window", "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
-                                            "set_buffer_file_coding_system", "set_coding_system_priority", "set_command_disabled", &
-                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
-                                                       "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
-                                          "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
-                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
-                                                    "set_register", "set_syntax_table", "set_variable", "sh_add", "sh_assignment", &
+                                               "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
+                                                "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
+                                                  "revert_buffer", "revert_buffer_with_coding_system", "right_char", "right_word", &
+                                                    "rotate_yank_pointer", "run_at_time", "run_mode_hooks", "run_with_idle_timer", &
+                                               "run_with_timer", "save_buffer", "save_buffers_kill_terminal", "save_some_buffers", &
+                                          "scan_lists", "scan_sexps", "scroll_down", "scroll_down_command", "scroll_other_window", &
+                                                  "scroll_other_window_down", "scroll_up", "scroll_up_command", "search_backward", &
+                                                      "search_forward", "select_window", "selected_window", "self_insert_command", &
+                                                   "sentence_end", "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
+                                               "set_coding_system_priority", "set_command_disabled", "set_default_coding_systems", &
+                                            "set_error", "set_file_modes", "set_file_times", "set_fill_column", "set_fill_prefix", &
+                                                       "set_local_abbrev_table", "set_mark", "set_mark_command", "set_match_data", &
+                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
+                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
+                                                  "set_repeat_map", "set_syntax_table", "set_variable", "sh_add", "sh_assignment", &
                                          "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
                                                        "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
                                          "sh_make_vars_local", "sh_mode", "sh_reset_indent_vars_to_global_values", "sh_set_shell", &
@@ -630,10 +632,11 @@ module docstrings_fm
                                                      "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "text_mode", "timerp", &
                                               "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
                                               "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                           "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
+                                                       "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
+                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
@@ -663,7 +666,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(780) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(782) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -679,9 +682,10 @@ module docstrings_fm
                                             "auto_revert_buffer_in_progress", "auto_revert_check_vc_info", "auto_revert_interval", &
                                                                    "auto_revert_mode_hook", "auto_revert_mode_text", &
                                                               "auto_revert_notify_exclude_dir_regexp", "auto_revert_remote_files", &
-                                         "auto_revert_stop_on_user_input", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
-                                         "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
-                                         "before_revert_hook", "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
+                                                                   "auto_revert_stop_on_user_input", "auto_revert_tail_mode_hook", &
+                                                    "auto_revert_tail_mode_text", "auto_revert_use_notify", "auto_revert_verbose", &
+                                          "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
+                                                               "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
                                                            "blink_matching_paren_on_screen", "buffer_auto_revert_by_notification", &
                                          "buffer_file_coding_system", "buffer_stale_function", "case_fold_search", "case_replace", &
@@ -857,7 +861,7 @@ module docstrings_fm
                                                         "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
                                                     "register_alist", "register_separator", "repeat_check_key", "repeat_exit_key", &
                                                   "repeat_exit_timeout", "repeat_in_progress", "repeat_keep_prefix", "repeat_map", &
-                                                                   "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
+                                               "repeat_mode_hook", "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
@@ -933,7 +937,7 @@ module docstrings_fm
                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(390) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(396) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1190,6 +1194,12 @@ module docstrings_fm
                                                                       "read_quoted_char_radix", &
                                                                       "regexp_search_ring_max", &
                                                                       "register_separator", &
+                                                                      "repeat_check_key", &
+                                                                      "repeat_exit_key", &
+                                                                      "repeat_exit_timeout", &
+                                                                      "repeat_keep_prefix", &
+                                                                      "repeat_on_final_keystroke", &
+                                                                      "repeat_too_dangerous", &
                                                                       "replace_lax_whitespace", &
                                                                       "replace_regexp_lax_whitespace", &
                                                                       "require_final_newline", &
@@ -1597,6 +1607,7 @@ contains
                         "argument enables it, and zero or a negative one disables it."
         case ("auto_revert_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call auto_revert_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle reverting buffer when the file changes (Auto-Revert Mode)."//LF// &
                         ""//LF// &
@@ -1620,6 +1631,7 @@ contains
             entry%doc = "The interactive form of `auto_revert_set_timer'."
         case ("auto_revert_tail_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call auto_revert_tail_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle reverting tail of buffer when the file grows."//LF// &
                         ""//LF// &
@@ -4872,6 +4884,7 @@ contains
                         "in VALUE belong to the register."
         case ("global_auto_revert_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call global_auto_revert_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle Global Auto-Revert Mode."//LF// &
                         ""//LF// &
@@ -7427,14 +7440,21 @@ contains
                         "`repeat' ignores commands bound to input events.  Hence the term"//LF// &
                         """most recently executed command"" shall be read as ""most"//LF// &
                         "recently executed command not bound to an input event""."
+        case ("repeat_echo_message")
+            entry%file = "repeat_fm.f90"
+            entry%fortran = "call repeat_echo_message(keymap)"
+            entry%doc = "Display in the echo area the repeating keys defined by KEYMAP."//LF// &
+                        "See `repeat_echo_function' to enable/disable."
         case ("repeat_exit")
             entry%file = "repeat_fm.f90"
+            entry%fortran = "call repeat_exit(status)"
             entry%interactive = .true.
             entry%doc = "Exit the repeating sequence."//LF// &
                         "This function can be used to force exit of repetition while it's"//LF// &
                         "active."
         case ("repeat_mode")
             entry%file = "repeat_fm.f90"
+            entry%fortran = "call repeat_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle Repeat mode."//LF// &
                         "When Repeat mode is enabled, certain commands bound to multi-key"//LF// &
@@ -8063,6 +8083,12 @@ contains
                         "number or a rectangle)."//LF// &
                         "See the documentation of the variable `register_alist' for possible"//LF// &
                         "VALUEs."
+        case ("set_repeat_map")
+            entry%file = "keymap_fm.f90"
+            entry%fortran = "call set_repeat_map(map, exit)"
+            entry%doc = "Give the commands MAP binds (other than those named in EXIT) MAP"//LF// &
+                        "as their `repeat_map', so that Repeat mode repeats them with its"//LF// &
+                        "keys."
         case ("set_syntax_table")
             entry%file = "syntax_fm.f90"
             entry%fortran = "call set_syntax_table(h, status)"
@@ -8721,6 +8747,20 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("turn_on_auto_revert_mode")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "call turn_on_auto_revert_mode(status)"
+            entry%doc = "Turn on Auto-Revert Mode."//LF// &
+                        ""//LF// &
+                        "This function is designed to be added to hooks, for example:"//LF// &
+                        "  call c_mode_hook%add(turn_on_auto_revert_mode)"
+        case ("turn_on_auto_revert_tail_mode")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "call turn_on_auto_revert_tail_mode(status)"
+            entry%doc = "Turn on Auto-Revert Tail Mode."//LF// &
+                        ""//LF// &
+                        "This function is designed to be added to hooks, for example:"//LF// &
+                        "  call my_logfile_mode_hook%add(turn_on_auto_revert_tail_mode)"
         case ("turn_on_font_lock")
             entry%file = "font_core_fm.f90"
             entry%fortran = "call turn_on_font_lock(status)"
@@ -10185,6 +10225,10 @@ contains
                         "When false, Auto-Revert Mode checks files and reverts buffers,"//LF// &
                         "with quitting disabled, without paying attention to user input."//LF// &
                         "Thus, with this setting, Emacs might be non-responsive at times."
+        case ("auto_revert_tail_mode_hook")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "auto_revert_tail_mode_hook"
+            entry%doc = "Hook run after entering or leaving `auto_revert_tail_mode'."
         case ("auto_revert_tail_mode_text")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "auto_revert_tail_mode_text"
@@ -15291,6 +15335,7 @@ contains
         case ("repeat_check_key")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_check_key"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(repeat_check_key)
             entry%doc = "Whether to check that the last key exists in the repeat map."//LF// &
@@ -15309,6 +15354,7 @@ contains
         case ("repeat_exit_key")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_exit_key"
+            entry%user_option = .true.
             if (allocated(repeat_exit_key)) then
                 entry%value = repr(repeat_exit_key)
             else
@@ -15320,6 +15366,7 @@ contains
         case ("repeat_exit_timeout")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_exit_timeout"
+            entry%user_option = .true.
             entry%original = "0.0"
             entry%value = repr(repeat_exit_timeout)
             entry%doc = "Break the repetition chain of keys after specified amount of idle time."//LF// &
@@ -15335,6 +15382,7 @@ contains
         case ("repeat_keep_prefix")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_keep_prefix"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(repeat_keep_prefix)
             entry%doc = "Whether to keep the prefix arg of the previous command when repeating."
@@ -15344,6 +15392,10 @@ contains
             entry%doc = "The value of the repeating transient map for the next command."//LF// &
                         "A command called from the map can set it again to the same map when"//LF// &
                         "the map can't be set on the command's `repeat_map'."
+        case ("repeat_mode_hook")
+            entry%file = "repeat_fm.f90"
+            entry%fortran = "repeat_mode_hook"
+            entry%doc = "Hook run after entering or leaving `repeat_mode'."
         case ("repeat_num_input_keys_at_repeat")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_num_input_keys_at_repeat"
@@ -15353,6 +15405,7 @@ contains
         case ("repeat_on_final_keystroke")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_on_final_keystroke"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(repeat_on_final_keystroke)
             entry%doc = "Allow `repeat' to re-execute for repeating lastchar of a key sequence."//LF// &
@@ -15369,6 +15422,7 @@ contains
         case ("repeat_too_dangerous")
             entry%file = "repeat_fm.f90"
             entry%fortran = "repeat_too_dangerous"
+            entry%user_option = .true.
             if (allocated(repeat_too_dangerous)) then
                 entry%value = repr(repeat_too_dangerous)
             else
@@ -18190,6 +18244,16 @@ contains
             kind = OPTION_INTEGER
         case ("register_separator")
             kind = OPTION_INTEGER
+        case ("repeat_check_key")
+            kind = OPTION_LOGICAL
+        case ("repeat_exit_key")
+            kind = OPTION_STRING
+        case ("repeat_exit_timeout")
+            kind = OPTION_REAL
+        case ("repeat_keep_prefix")
+            kind = OPTION_LOGICAL
+        case ("repeat_on_final_keystroke")
+            kind = OPTION_LOGICAL
         case ("replace_lax_whitespace")
             kind = OPTION_LOGICAL
         case ("replace_regexp_lax_whitespace")
@@ -18785,6 +18849,12 @@ contains
             read_file_name_completion_ignore_case = v
         case ("read_minibuffer_restore_windows")
             read_minibuffer_restore_windows = v
+        case ("repeat_check_key")
+            repeat_check_key = v
+        case ("repeat_keep_prefix")
+            repeat_keep_prefix = v
+        case ("repeat_on_final_keystroke")
+            repeat_on_final_keystroke = v
         case ("replace_lax_whitespace")
             replace_lax_whitespace = v
         case ("replace_regexp_lax_whitespace")
@@ -19229,6 +19299,8 @@ contains
             blink_matching_delay = v
         case ("copy_region_blink_delay")
             copy_region_blink_delay = v
+        case ("repeat_exit_timeout")
+            repeat_exit_timeout = v
         case ("show_paren_delay")
             show_paren_delay = v
         case default
@@ -19424,6 +19496,8 @@ contains
             query_replace_from_to_separator = v
         case ("query_replace_to_history_variable")
             query_replace_to_history_variable = v
+        case ("repeat_exit_key")
+            repeat_exit_key = v
         case ("search_whitespace_regexp")
             search_whitespace_regexp = v
         case ("sentence_end")

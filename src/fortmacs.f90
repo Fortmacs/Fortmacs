@@ -405,6 +405,13 @@ module fortmacs
                              global_auto_revert_non_file_buffers, global_auto_revert_ignore_modes, &
                              auto_revert_check_vc_info, global_auto_revert_ignore_buffer, auto_revert_remote_files, &
                              auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, auto_revert_avoid_polling
+    use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
+                         repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
+                         repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
+    use lisp_fm, only: PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO
+    use keymap_fm, only: set_repeat_map
+    use comint_fm, only: comint_repeat_map
+    use shell_fm, only: shell_repeat_map
     use files_fm, only: buffer_stale_function, buffer_stale_proc, BUFFER_STALE_NO, BUFFER_STALE_YES, &
                         BUFFER_STALE_FAST, buffer_auto_revert_by_notification, mounted_file_systems, &
                         after_set_visited_file_name_hook
@@ -693,6 +700,10 @@ module fortmacs
               global_auto_revert_ignore_modes, auto_revert_check_vc_info, global_auto_revert_ignore_buffer, &
               auto_revert_remote_files, auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, &
               auto_revert_avoid_polling
+    public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
+              repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
+              repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &
+              comint_repeat_map, shell_repeat_map
     public :: buffer_stale_function, buffer_stale_proc, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST, &
               buffer_auto_revert_by_notification, mounted_file_systems, after_set_visited_file_name_hook
     public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, &
