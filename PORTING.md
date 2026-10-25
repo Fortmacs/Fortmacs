@@ -529,10 +529,12 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   current by `sys_setenv` and `sys_unsetenv`), as upstream keeps
   `process-environment`.
 
-- gfortran 13 aborts (`free(): invalid pointer`) on `move_alloc` of an
-  array whose type has procedure pointer components: it frees one of
-  them.  Registries of such types (`vc_backends`) are fixed-size arrays
-  with a count.
+- gfortran 13 aborts (`free(): invalid pointer`) when it deallocates an
+  array (`move_alloc` included) whose type has an associated procedure
+  pointer component with a function interface returning
+  `character(len=:), allocatable`: it frees the procedure as if it were
+  an allocatable result.  Subroutine pointers are safe.  `vc_backends`,
+  which has such components, is a fixed-size array with a count.
 
 - An `intent(out)` allocatable is freed on entry, so passing the same
   variable as input and result (`call expand_file_name(f, f, st)`) reads

@@ -358,8 +358,9 @@ module vc_hooks_fm
     integer, parameter, public :: MAX_VC_BACKENDS = 16
 
     !> The backends ported, registered by their modules (vc_git_fm).
-    !> (A fixed array: with gfortran 13, move_alloc on an array of this
-    !> type frees a procedure pointer component, aborting.)
+    !> (A fixed array: gfortran 13 frees an associated procedure pointer
+    !> component whose function returns an allocatable string when an
+    !> array of this type is deallocated, aborting.)
     type(vc_backend_type), target :: vc_backends(MAX_VC_BACKENDS)
 
     ! The number of entries of `vc_backends' in use.
