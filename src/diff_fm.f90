@@ -516,12 +516,28 @@ contains
         call set_buffer(pbuf, st)
         if (k <= size(diff_processes)) then
             call diff_sentinel(process_exit_status(proc), diff_processes(k)%old_temp, diff_processes(k)%new_temp)
-            diff_processes = [diff_processes(1:k - 1), diff_processes(k + 1:)]
+            call drop_process(k)
         else
             call diff_sentinel(process_exit_status(proc))
         end if
         call set_buffer(obuf, st)
     end subroutine diff_process_sentinel
+
+    !> Forget entry K of `diff_processes' (copied element by element: an
+    !> array constructor of this type reallocates to size 0 when it empties).
+    subroutine drop_process(k)
+        integer, intent(in) :: k
+        type(diff_process_type), allocatable :: rest(:)
+        integer :: i, j
+        allocate (rest(size(diff_processes) - 1))
+        j = 0
+        do i = 1, size(diff_processes)
+            if (i == k) cycle
+            j = j + 1
+            rest(j) = diff_processes(i)
+        end do
+        call move_alloc(rest, diff_processes)
+    end subroutine drop_process
 
     !> Diff this file with its backup file or vice versa.
     !> Uses the latest backup, if there are several numerical backups.
