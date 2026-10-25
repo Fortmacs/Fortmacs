@@ -43,6 +43,7 @@ module bindings_fm
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
+    use smie_fm, only: syms_of_smie
     use paragraphs_fm, only: syms_of_paragraphs
     use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
@@ -251,6 +252,7 @@ contains
         commands%left_word%run => cmd_left_word
         call syms_of_syntax()
         call syms_of_syntax_propertize()
+        call syms_of_smie()
         call syms_of_paragraphs()
         call syms_of_lisp_cmds()
         call syms_of_search()

@@ -1138,6 +1138,19 @@ contains
         end select
     end subroutine get_default
 
+    module procedure function_setting_default
+    integer(int64) :: id
+    integer :: i
+    fn => s%value
+    call ensure_obarray()
+    id = xsymbol(sym(trim(s%name)))
+    if (.not. local_variable_p(sym(trim(s%name)))) return
+    ! The default is saved as (0, the setting's index) while the current
+    ! buffer has its own value.
+    i = fn_index(0_int64, resolve(id), .false.)
+    if (i > 0) fn => fn_store(i)%s%value
+    end procedure function_setting_default
+
     module procedure default_value
     integer(int64) :: id
     logical :: bound

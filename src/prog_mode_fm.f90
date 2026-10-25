@@ -33,7 +33,7 @@ module prog_mode_fm
     implicit none(type, external)
     private
 
-    public :: prog_mode, syms_of_prog_mode
+    public :: prog_mode, syms_of_prog_mode, prog_first_column
 
     !> Normal hook run when entering programming modes.  Port of
     !> prog-mode.el prog-mode-hook.
@@ -46,6 +46,31 @@ module prog_mode_fm
     !> Abbrev table for `prog_mode'.  Port of prog-mode.el
     !> prog-mode-abbrev-table (made by define-derived-mode).
     type(abbrev_table_type), target, public :: prog_mode_abbrev_table
+
+    !> The value of `prog_indentation_context': nil (`active' false) or
+    !> (FIRST-COLUMN . REST).
+    type, public :: prog_indentation_context_type
+        logical :: active = .false.
+        integer :: first_column = 0
+    end type prog_indentation_context_type
+
+    !> When true (`active'), provides context for indenting embedded code chunks.
+    !>
+    !> There are languages where part of the code is actually written in
+    !> a sub language, e.g., a Yacc/Bison or ANTLR grammar can also include
+    !> JS or Python code.  This variable enables the primary mode of the
+    !> main language to use the indentation engine of the sub-mode for
+    !> lines in code chunks written in the sub-mode's language.
+    !>
+    !> When a major mode of such a main language decides to delegate the
+    !> indentation of a line/region to the indentation engine of the sub
+    !> mode, it should bind this variable to true around the call.
+    !>
+    !> `first_column' is the column the indentation engine of the sub-mode
+    !> should use for top-level language constructs inside the code
+    !> chunk (instead of 0).  Port of prog-mode.el prog-indentation-context
+    !> (its unused REST is left out).
+    type(prog_indentation_context_type), public :: prog_indentation_context
 
 contains
 
@@ -69,4 +94,11 @@ contains
         prog_mode_map = major_modes%prog_mode%map
         commands%prog_mode%run => prog_mode
     end subroutine syms_of_prog_mode
+
+    !> Return the indentation column normally used for top-level constructs.
+    !> Port of prog-mode.el:prog-first-column.
+    integer function prog_first_column()
+        prog_first_column = 0
+        if (prog_indentation_context%active) prog_first_column = prog_indentation_context%first_column
+    end function prog_first_column
 end module prog_mode_fm

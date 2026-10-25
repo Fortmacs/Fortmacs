@@ -157,6 +157,7 @@ module data_fm
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
               local_variable_p, local_variable_if_set_p, automatically_local_p, forwarded_variable_p, default_value, &
+              function_setting_default, &
               set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
 
     interface
@@ -305,6 +306,15 @@ module data_fm
             implicit none(type, external)
             type(value_type), intent(in) :: variable
         end function forwarded_variable_p
+
+        !> The default value of the forwarded function setting S (its value
+        !> in buffers without their own), in FN.  Not a port: what
+        !> default-value gives for such a variable.  (In data_buffer_fm.)
+        module subroutine function_setting_default(s, fn)
+            implicit none(type, external)
+            type(function_setting), intent(in) :: s
+            procedure(command_proc), pointer, intent(out) :: fn
+        end subroutine function_setting_default
 
         !> Return SYMBOL's default value.
         !> This is the value that is seen in buffers that do not have their own values

@@ -238,7 +238,7 @@ module fortmacs
                          open_paren_in_column_0_is_defun_start, comment_use_syntax_ppss
     use syntax_fm, only: forward_comment, scan_lists, scan_sexps, parse_partial_sexp, parse_state_type, &
                          ST_COMMENT_STYLE, ST_STRING_STYLE, COMMENTSTOP_NIL, COMMENTSTOP_COMMENT, COMMENTSTOP_SYNTAX_TABLE
-    use lisp_cmds_fm, only: forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
+    use lisp_cmds_fm, only: forward_sexp_function, forward_sexp, backward_sexp, forward_list, backward_list, down_list, up_list, &
                             backward_up_list, kill_sexp, backward_kill_sexp, mark_sexp
     ! Keyboard macros.
     use keyboard_fm, only: kbd_macro_termination_hook
@@ -451,6 +451,7 @@ module fortmacs
                       f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
                       F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
                       F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
+    use smie_fm, only: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
     private
@@ -734,5 +735,6 @@ module fortmacs
               f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
               F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
               F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
+    public :: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions, forward_sexp_function
     public :: fill_paragraph_function, fill_paragraph_handle_comment
 end module fortmacs
