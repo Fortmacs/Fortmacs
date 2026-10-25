@@ -12,7 +12,10 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
 <img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.20% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+</picture>
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
