@@ -9187,7 +9187,7 @@ contains
             entry%fortran = "after_save_hook"
             entry%user_option = .true.
             entry%doc = "Normal hook that is run after a buffer is saved to its file."//LF// &
-                        "Used only by `save_buffer'."
+                        "Only used by `save_buffer'."
         case ("amalgamating_undo_limit")
             entry%file = "undo_fm.f90"
             entry%fortran = "amalgamating_undo_limit"
@@ -9410,7 +9410,7 @@ contains
             entry%fortran = "before_save_hook"
             entry%user_option = .true.
             entry%doc = "Normal hook that is run before a buffer is saved to its file."//LF// &
-                        "Used only by `save_buffer'."
+                        "Only used by `save_buffer'."
         case ("blink_matching_delay")
             entry%file = "simple_fm.f90"
             entry%fortran = "blink_matching_delay"
