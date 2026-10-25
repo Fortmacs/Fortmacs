@@ -26,8 +26,8 @@ submodule(files_fm) files_mode_fm
     use eval_fm, only: funcall_noargs
     use subr_fm, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
     use callint_fm, only: fboundp
-    use search_fm, only: string_match, case_fold_search, match_beginning
-    use editfns_fm, only: point_min, point_max, buffer_substring
+    use search_fm, only: string_match, case_fold_search, match_beginning, match_end, looking_at
+    use editfns_fm, only: point_min, point_max, buffer_substring, point, goto_char
     implicit none(type, external)
 
     !> An entry of auto-mode-alist.
@@ -41,6 +41,16 @@ submodule(files_fm) files_mode_fm
     !> auto-mode-alist, first entries first; set up on first use.
     type(auto_mode_type), allocatable :: auto_modes(:)
     integer :: n_auto_modes = 0
+
+    !> interpreter-mode-alist: (REGEXP . MODE) for the modes that exist so
+    !> far, in files.el's order.
+    character(len=*), parameter :: interpreter_regexps(15) = [character(len=24) :: &
+                                                     "[acjkwz]sh", "r?bash2?", "dash", "mksh", "\(dt\|pd\|w\)ksh", "es", "i?tcsh", &
+                                                              "oash", "rc", "rpm", "sh5?", "tail", "more", "less", "pg"]
+    character(len=*), parameter :: interpreter_modes(15) = [character(len=16) :: &
+                                                      "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
+                                                "sh_mode", "sh_mode", "sh_mode", "sh_mode", "text_mode", "text_mode", "text_mode", &
+                                                            "text_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
     integer(int64), parameter :: SPEC_LIMIT = 4096
@@ -70,6 +80,19 @@ contains
     subroutine init_auto_modes()
         if (allocated(auto_modes)) return
         call append_auto_mode("\.te?xt\'", "text_mode")
+        call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "sh_mode")
+        call append_auto_mode("\.bash\'", "sh_mode")
+        ! Bash builtin 'fc' creates a temp file named "bash-fc.XXXXXX"
+        ! to edit shell commands from its history list.
+        call append_auto_mode("/bash-fc\.[0-9A-Za-z]\{6\}\'", "sh_mode")
+        ! A login sh first attempts to read /etc/profile.
+        call append_auto_mode("\`/etc/profile\'", "sh_mode")
+        call append_auto_mode("/PKGBUILD\'", "sh_mode")
+        call append_auto_mode("\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\'", &
+                              "sh_mode")
+        call append_auto_mode("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "sh_mode")
+        call append_auto_mode("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "sh_mode")
+        call append_auto_mode("\.m?spec\'", "sh_mode")
         call append_auto_mode("\.article\'", "text_mode")
         call append_auto_mode("\.letter\'", "text_mode")
         ! The Fortran standard does not say anything about file extensions.
@@ -81,6 +104,7 @@ contains
         call append_auto_mode("\`/tmp/Re", "text_mode")
         call append_auto_mode("/Message[0-9]*\'", "text_mode")
         call append_auto_mode("\`/tmp/fol/", "text_mode")
+        call append_auto_mode("/crontab\.X*[0-9]+\'", "shell_script_mode")
         call append_auto_mode("/config\.\(?:bat\|log\)\'", "fundamental_mode")
         ! Windows candidates may be opened case sensitively on Unix
         call append_auto_mode("\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\'", "conf_mode")
@@ -274,6 +298,37 @@ contains
         done = status%ok()
     end function set_auto_mode_0
 
+    !> The mode for the interpreter the first line names (as
+    !> `auto_mode_interpreter_regexp' finds it) in interpreter-mode-alist,
+    !> or "".  Part of files.el:set-auto-mode.
+    recursive subroutine interpreter_mode(mode, status)
+        character(len=:), allocatable, intent(out) :: mode
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: interp, name
+        integer(int64) :: here, idx
+        integer :: i
+        logical :: found
+        mode = ""
+        here = point()
+        if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
+        call goto_char(point_min())
+        found = looking_at(auto_mode_interpreter_regexp, status)
+        if (found) call buffer_substring(match_beginning(2, status), match_end(2, status), interp, status)
+        call goto_char(here)
+        if (.not. status%ok() .or. .not. found) return
+        ! Map interpreter name to a mode, signaling we're done at the
+        ! same time.
+        name = file_name_nondirectory(interp)
+        do i = 1, size(interpreter_regexps)
+            idx = string_match("\`"//trim(interpreter_regexps(i))//"\'", name, status, inhibit_modify=.true.)
+            if (.not. status%ok()) return
+            if (idx > 0) then
+                mode = trim(interpreter_modes(i))
+                return
+            end if
+        end do
+    end subroutine interpreter_mode
+
     !> The mode of the first auto-mode-alist entry matching NAME, or "".
     !> A (REGEXP MODE t) entry removes the match from the name and the
     !> search goes on; its MODE is run if a later entry matches too.
@@ -344,6 +399,16 @@ contains
     if (.not. status%ok()) return
     mode = auto_mode_spec(text)
     if (len(mode) > 0) then
+        if (set_auto_mode_0(mode, keep, status)) return
+        if (.not. status%ok()) return
+    end if
+    ! If we didn't, look for an interpreter specified in the first line.
+    ! As a special case, allow for things like "#!/bin/env perl", which
+    ! finds the interpreter anywhere in $PATH.
+    call interpreter_mode(mode, status)
+    if (.not. status%ok()) return
+    if (len(mode) > 0) then
+        ! If we found an interpreter mode to use, invoke it now.
         if (set_auto_mode_0(mode, keep, status)) return
         if (.not. status%ok()) return
     end if

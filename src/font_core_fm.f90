@@ -57,9 +57,11 @@ module font_core_fm
     use commands_fm, only: commands
     use textprop_fm, only: remove_list_of_text_properties
     use editfns_fm, only: widen, narrow_to_region, point_min, point_max
+    use syntax_fm, only: parse_state_type
     implicit none(type, external)
     private
 
+    public :: font_lock_keywords_function_proc, font_lock_syntactic_face_proc
     public :: syms_of_font_core, font_lock_mode, global_font_lock_mode, turn_on_font_lock, &
               turn_on_font_lock_if_desired, font_lock_change_mode, font_lock_defontify, font_lock_default_function, &
               font_lock_keywords_level, font_lock_mode_enabled, font_lock_face_proc, font_lock_matcher_proc, &
@@ -154,9 +156,32 @@ module font_core_fm
         type(font_lock_highlight_type), allocatable :: highlights(:)
     end type font_lock_keyword_type
 
-    !> The keywords of one decoration level (one keyword list).
+    abstract interface
+        !> A function giving the keywords of a decoration level (a
+        !> function in KEYWORDS of `font_lock_defaults', which
+        !> font-lock-eval-keywords calls when the keywords are set up).
+        subroutine font_lock_keywords_function_proc(keywords)
+            import :: font_lock_keyword_type
+            implicit none(type, external)
+            type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
+        end subroutine font_lock_keywords_function_proc
+
+        !> `font_lock_syntactic_face_function': FACE gets the name of the
+        !> face to give the string or comment whose parse state (at its
+        !> start) is STATE ("" for none).
+        subroutine font_lock_syntactic_face_proc(state, face)
+            import :: parse_state_type
+            implicit none(type, external)
+            type(parse_state_type), intent(in) :: state
+            character(len=:), allocatable, intent(out) :: face
+        end subroutine font_lock_syntactic_face_proc
+    end interface
+
+    !> The keywords of one decoration level (one keyword list), or the
+    !> function computing them when Font Lock sets up (`function').
     type, public :: font_lock_keywords_type
         type(font_lock_keyword_type), allocatable :: keywords(:)
+        procedure(font_lock_keywords_function_proc), pointer, nopass :: function => null()
     end type font_lock_keywords_type
 
     !> One entry of SYNTAX-ALIST in `font_lock_defaults': the syntax
@@ -187,6 +212,9 @@ module font_core_fm
         logical :: keywords_only = .false.
         logical :: case_fold = .false.
         type(font_lock_syntax_entry_type), allocatable :: syntax_alist(:)
+        !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'
+        !> (null leaves it alone).
+        procedure(font_lock_syntactic_face_proc), pointer, nopass :: syntactic_face_function => null()
     end type font_lock_defaults_type
 
     !> One buffer's `font_lock_defaults' (and whether it has one).
@@ -385,7 +413,7 @@ contains
         k = n + 1
     end function defaults_index
 
-    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_alist)
+    subroutine defaults_set_local(self, keywords, levels, keywords_only, case_fold, syntax_alist, syntactic_face_function)
         class(font_lock_defaults_setting), intent(inout) :: self
         !> The keywords, for a mode with one decoration level.
         type(font_lock_keyword_type), intent(in), optional :: keywords(:)
@@ -393,6 +421,8 @@ contains
         type(font_lock_keywords_type), intent(in), optional :: levels(:)
         logical, intent(in), optional :: keywords_only, case_fold
         type(font_lock_syntax_entry_type), intent(in), optional :: syntax_alist(:)
+        !> OTHER-VARS: the buffer's `font_lock_syntactic_face_function'.
+        procedure(font_lock_syntactic_face_proc), optional :: syntactic_face_function
         integer :: k
         k = defaults_index(self, .true.)
         if (k == 0) return
@@ -417,6 +447,7 @@ contains
         else
             allocate (self%entries(k)%value%syntax_alist(0))
         end if
+        if (present(syntactic_face_function)) self%entries(k)%value%syntactic_face_function => syntactic_face_function
     end subroutine defaults_set_local
 
     logical function defaults_present_p(self) result(p)

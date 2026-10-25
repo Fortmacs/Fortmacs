@@ -452,6 +452,26 @@ module fortmacs
                       F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
                       F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
     use smie_fm, only: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions
+    use sh_script_fm, only: sh_ancestor_alist, sh_alias_alist, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
+                            sh_shell_arg, sh_assignment_regexp, sh_remember_variable_min, sh_beginning_of_command, &
+                            sh_end_of_command, sh_here_document_word, sh_builtins, sh_indent_statement_after_and, &
+                            sh_leading_keywords, sh_other_keywords, sh_variables, sh_font_lock_keywords_var, &
+                            sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, sh_set_shell_hook, sh_mode_hook, &
+                            sh_base_mode_hook, sh_basic_offset, sh_indent_for_fi, sh_indent_for_done, sh_indent_after_else, &
+                            sh_indent_after_if, sh_indent_for_then, sh_indent_for_do, sh_indent_after_do, &
+                            sh_indent_after_loop_construct, sh_indent_after_done, sh_indent_for_case_label, &
+                            sh_indent_for_case_alt, sh_indent_for_continuation, sh_indent_after_open, &
+                            sh_indent_after_function, sh_indent_after_switch, sh_indent_after_case, sh_backslash_column, &
+                            sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
+                            sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
+                            sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
+                            SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
+                            SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+    use executable_fm, only: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
+                             executable_prefix_env, executable_chmod, executable_self_display, &
+                             executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
+                             EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
+    use files_fm, only: before_save_hook, after_save_hook
     use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
     private
@@ -736,5 +756,25 @@ module fortmacs
               F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
               F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
     public :: smie_indent_basic, smie_blink_matching_inners, smie_indent_functions, forward_sexp_function
+    public :: sh_ancestor_alist, sh_alias_alist, sh_ancestor_type, sh_alias_type, sh_shell_file, sh_shell, &
+              sh_shell_arg, sh_assignment_regexp, sh_remember_variable_min, sh_beginning_of_command, &
+              sh_end_of_command, sh_here_document_word, sh_builtins, sh_indent_statement_after_and, &
+              sh_leading_keywords, sh_other_keywords, sh_variables, sh_font_lock_keywords_var, &
+              sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, sh_set_shell_hook, sh_mode_hook, &
+              sh_base_mode_hook, sh_basic_offset, sh_indent_for_fi, sh_indent_for_done, sh_indent_after_else, &
+              sh_indent_after_if, sh_indent_for_then, sh_indent_for_do, sh_indent_after_do, &
+              sh_indent_after_loop_construct, sh_indent_after_done, sh_indent_for_case_label, &
+              sh_indent_for_case_alt, sh_indent_for_continuation, sh_indent_after_open, &
+              sh_indent_after_function, sh_indent_after_switch, sh_indent_after_case, sh_backslash_column, &
+              sh_backslash_align, sh_indent_supported, sh_make_vars_local, sh_indent_after_continuation, &
+              sh_mode_map, sh_base_mode_map, sh_mode_syntax_table, sh_mode_abbrev_table, &
+              sh_strings_feature_type, sh_keywords_feature_type, sh_string_feature_type, sh_string_type, &
+              SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, SH_CONTINUATION_NIL, &
+              SH_CONTINUATION_T, SH_CONTINUATION_ALWAYS
+    public :: executable_insert, executable_query, executable_magicless_file_regexp, executable_prefix, &
+              executable_prefix_env, executable_chmod, executable_self_display, &
+              executable_font_lock_keywords, executable_make_buffer_file_executable_if_script_p, &
+              EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, EXECUTABLE_CHMOD_NIL
+    public :: before_save_hook, after_save_hook
     public :: fill_paragraph_function, fill_paragraph_handle_comment
 end module fortmacs

@@ -20,11 +20,14 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> `run_mode_hooks' and `delay_mode_hooks': a submodule because they use
+!> syntax_propertize_fm (which uses subr_fm) and
 !> the buffers.  `delay_mode_hooks' (permanent-local) and
 !> `delayed_mode_hooks' (buffer-local) are kept per buffer, by the
 !> buffer's serial number.
 submodule(subr_fm) subr_hooks_fm
     use buffer_fm, only: buffers, cur
+    use syntax_fm, only: parse_sexp_lookup_properties
+    use syntax_propertize_fm, only: syntax_propertize_function
     implicit none(type, external)
 
     !> A pointer to a hook.
@@ -139,6 +142,13 @@ contains
     ! Normal case, just run the hook as before plus any delayed hooks.
     call move_alloc(delays(k)%delayed, delayed)
     allocate (delays(k)%delayed(0))
+    ! `syntax_propertize' sets `parse_sexp_lookup_properties' for us, but
+    ! in order for the sexp primitives to automatically call
+    ! `syntax_propertize' we need `parse_sexp_lookup_properties' to be
+    ! set first.
+    if (associated(syntax_propertize_function%get()) .and. .not. parse_sexp_lookup_properties%local_p()) then
+        call parse_sexp_lookup_properties%set_local(.true.)
+    end if
     call change_major_mode_after_body_hook%run(status)
     if (.not. status%ok()) return
     do i = 1, size(delayed)

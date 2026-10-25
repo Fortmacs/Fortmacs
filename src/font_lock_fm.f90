@@ -87,6 +87,7 @@ module font_lock_fm
     use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
+    public :: font_lock_forget_defaults
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
@@ -163,6 +164,18 @@ module font_lock_fm
     !> font-lock.el:font-lock-keywords-alist.
     type(added_keywords_type), allocatable :: font_lock_keywords_alist(:)
 
+    abstract interface
+        !> `font_lock_syntactic_face_function': FACE gets the name of the
+        !> face to give the string or comment whose parse state (at its
+        !> start) is STATE ("" for none).
+        subroutine syntactic_face_iface(state, face)
+            import :: parse_state_type
+            implicit none(type, external)
+            type(parse_state_type), intent(in) :: state
+            character(len=:), allocatable, intent(out) :: face
+        end subroutine syntactic_face_iface
+    end interface
+
     !> The buffer-local variables of font-lock.el, by buffer.
     type :: locals_type
         integer(int64) :: serial = 0
@@ -187,21 +200,13 @@ module font_lock_fm
         !> `font_lock_ensure_function' and `font_lock_fontify_buffer_function'
         !> (font-lock-turn-on-thing-lock).
         logical :: jit_lock = .false.
+        !> The buffer's own `font_lock_syntactic_face_function' (from the
+        !> OTHER-VARS of `font_lock_defaults').
+        logical :: has_syntactic_face = .false.
+        procedure(syntactic_face_iface), pointer, nopass :: syntactic_face => null()
     end type locals_type
 
     type(locals_type), allocatable :: locals(:)
-
-    abstract interface
-        !> `font_lock_syntactic_face_function': FACE gets the name of the
-        !> face to give the string or comment whose parse state (at its
-        !> start) is STATE ("" for none).
-        subroutine syntactic_face_iface(state, face)
-            import :: parse_state_type
-            implicit none(type, external)
-            type(parse_state_type), intent(in) :: state
-            character(len=:), allocatable, intent(out) :: face
-        end subroutine syntactic_face_iface
-    end interface
 
     !> Function to determine which face to use when fontifying
     !> syntactically.  The function is called with a single parameter (the
@@ -695,9 +700,17 @@ contains
                 if (size(defaults%levels) > 0) then
                     level = min(font_lock_maximum_decoration, size(defaults%levels) - 1)
                     level = max(level, 0)
-                    if (allocated(defaults%levels(level + 1)%keywords)) keywords = defaults%levels(level + 1)%keywords
+                    if (associated(defaults%levels(level + 1)%function)) then
+                        ! (font-lock-eval-keywords: a function is called.)
+                        call defaults%levels(level + 1)%function(keywords)
+                    else if (allocated(defaults%levels(level + 1)%keywords)) then
+                        keywords = defaults%levels(level + 1)%keywords
+                    end if
                 end if
             end if
+            ! Variables are given buffer-local values if supplied.
+            locals(k)%has_syntactic_face = associated(defaults%syntactic_face_function)
+            locals(k)%syntactic_face => defaults%syntactic_face_function
             ! Syntactic fontification?
             locals(k)%keywords_only = defaults%keywords_only
             ! Case fold during regexp fontification?
@@ -741,6 +754,14 @@ contains
         end if
         call font_lock_flush(status)
     end subroutine font_lock_set_defaults
+
+    !> Make `font_lock_set_defaults' set the defaults up again in the
+    !> current buffer: (setq font-lock-set-defaults nil).
+    subroutine font_lock_forget_defaults()
+        integer :: k
+        k = local_index(.false.)
+        if (k > 0) locals(k)%set_defaults = .false.
+    end subroutine font_lock_forget_defaults
 
     !> Add KEYWORDS to the current buffer's `font_lock_keywords' as HOW
     !> says (the buffer part of font-lock-add-keywords).
@@ -1654,7 +1675,11 @@ contains
         ! Find each interesting place between here and `end'.
         do
             if (state%instring /= -1 .or. state%incomment /= 0) then
-                call font_lock_syntactic_face_function(state, face)
+                if (locals(k)%has_syntactic_face) then
+                    call locals(k)%syntactic_face(state, face)
+                else
+                    call font_lock_syntactic_face_function(state, face)
+                end if
                 beg = max(state%comstr_start, start)
                 call parse_partial_sexp(point(), end, next, status, oldstate=state, &
                                         commentstop=COMMENTSTOP_SYNTAX_TABLE)
