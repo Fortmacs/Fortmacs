@@ -111,6 +111,24 @@ contains
         syntax_of = iand(syntax_with_flags(c), 255)
     end function syntax_of
 
+    !> The syntax of character C at position POS with its flags:
+    !> SYNTAX_WITH_FLAGS after UPDATE_SYNTAX_TABLE (POS).
+    recursive integer function swf_at(c, pos)
+        integer, intent(in) :: c
+        integer(int64), intent(in) :: pos
+        type(syntax_descriptor_type) :: d
+        d = syntax_entry_at(c, pos)
+        swf_at = d%code
+    end function swf_at
+
+    !> The syntax class of character C at position POS: SYNTAX after
+    !> UPDATE_SYNTAX_TABLE (POS).
+    recursive integer function syn_at(c, pos)
+        integer, intent(in) :: c
+        integer(int64), intent(in) :: pos
+        syn_at = iand(swf_at(c, pos), 255)
+    end function syn_at
+
     logical function comstart_first(flags)
         integer, intent(in) :: flags
         comstart_first = btest(flags, 16)
@@ -161,13 +179,14 @@ contains
     end function comment_style
 
     !> Return syntax code of character C if C is an ASCII character or if
-    !> MULTIBYTE_SYMBOL_P is false.  Otherwise, return Ssymbol.  Port of
-    !> syntax.c:syntax_multibyte.
-    integer function syntax_multibyte(c, multibyte_symbol_p)
+    !> MULTIBYTE_SYMBOL_P is false.  Otherwise, return Ssymbol.  POS is the
+    !> position of C.  Port of syntax.c:syntax_multibyte.
+    recursive integer function syntax_multibyte(c, multibyte_symbol_p, pos)
         integer, intent(in) :: c
         logical, intent(in) :: multibyte_symbol_p
+        integer(int64), intent(in) :: pos
         if (c < 128 .or. .not. multibyte_symbol_p) then
-            syntax_multibyte = syntax_of(c)
+            syntax_multibyte = syn_at(c, pos)
         else
             syntax_multibyte = SSYMBOL
         end if
@@ -204,7 +223,7 @@ contains
     !> Return the bytepos one character before BYTEPOS.  We assume that
     !> BYTEPOS is not at the start of the buffer.  Port of
     !> syntax.c:dec_bytepos.
-    integer(int64) function dec_bytepos(bytepos)
+    recursive integer(int64) function dec_bytepos(bytepos)
         integer(int64), intent(in) :: bytepos
         if (buffers(cur)%multibyte) then
             dec_bytepos = bytepos - buf_prev_char_len(buffers(cur), bytepos)
@@ -216,7 +235,7 @@ contains
     !> Return true if the character at CHARPOS is quoted.  Port of
     !> syntax.c:char_quoted (here because gfortran drops syntax_fm's
     !> private copy from what the submodule can link to).
-    logical function char_quoted_at(charpos_in)
+    recursive logical function char_quoted_at(charpos_in)
         integer(int64), intent(in) :: charpos_in
         integer(int64) :: charpos, bytepos
         integer :: code
@@ -225,7 +244,7 @@ contains
         char_quoted_at = .false.
         do while (charpos > buffers(cur)%begv)
             call dec_both(charpos, bytepos)
-            code = syntax_of(fetch(bytepos))
+            code = syn_at(fetch(bytepos), charpos)
             if (code /= SCHARQUOTE .and. code /= SESCAPE) exit
             char_quoted_at = .not. char_quoted_at
         end do
@@ -261,7 +280,7 @@ contains
     !> We record the information about where the scan started and what its
     !> result was, so that another call in the same area can return the
     !> same value very quickly.  Port of syntax.c:find_defun_start.
-    integer(int64) function find_defun_start(pos, pos_byte) result(start)
+    recursive integer(int64) function find_defun_start(pos, pos_byte) result(start)
         integer(int64), intent(in) :: pos, pos_byte
         type(parse_state_type) :: ppss
         integer(int64) :: opoint, opoint_byte, pt, pt_byte
@@ -301,7 +320,11 @@ contains
                     ! Open-paren at start of line means we may have found
                     ! our defun-start.
                     c = fetch(b%pt_byte)
-                    if (syntax_of(c) == SOPEN) exit
+                    if (syntax_of(c) == SOPEN) then
+                        ! We accept only those `^\s(' which are good in
+                        ! global _and_ text-property syntax-tables.
+                        if (syn_at(c, b%pt) == SOPEN) exit
+                    end if
                     ! Move to beg of previous line.
                     pt = b%pt
                     pt_byte = b%pt_byte
@@ -327,13 +350,13 @@ contains
 
     !> Return the SYNTAX_COMEND_FIRST of the character before POS,
     !> POS_BYTE.  Port of syntax.c:prev_char_comend_first.
-    logical function prev_char_comend_first(pos_in, pos_byte_in)
+    recursive logical function prev_char_comend_first(pos_in, pos_byte_in)
         integer(int64), intent(in) :: pos_in, pos_byte_in
         integer(int64) :: pos, pos_byte
         pos = pos_in
         pos_byte = pos_byte_in
         call dec_both(pos, pos_byte)
-        prev_char_comend_first = comend_first(syntax_with_flags(fetch(pos_byte)))
+        prev_char_comend_first = comend_first(swf_at(fetch(pos_byte), pos))
     end function prev_char_comend_first
 
     !> Check whether charpos FROM is at the end of a comment.  FROM_BYTE
@@ -344,7 +367,7 @@ contains
     !> If successful, store the charpos of the comment's beginning into
     !> CHARPOS, and the bytepos into BYTEPOS.  Port of
     !> syntax.c:back_comment.
-    logical function back_comment(from_in, from_byte_in, stop, comnested, comstyle, charpos, bytepos) result(found)
+    recursive logical function back_comment(from_in, from_byte_in, stop, comnested, comstyle, charpos, bytepos) result(found)
         integer(int64), intent(in) :: from_in, from_byte_in, stop
         logical, intent(in) :: comnested
         integer, intent(in) :: comstyle
@@ -390,7 +413,7 @@ contains
             call dec_both(from, from_byte)
             prev_syntax = syntax
             c = fetch(from_byte)
-            syntax = syntax_with_flags(c)
+            syntax = swf_at(c, from)
             code = iand(syntax, 255)
             ! Check for 2-char comment markers.
             com2start = comstart_first(syntax) .and. comstart_second(prev_syntax) .and. &
@@ -405,7 +428,7 @@ contains
                 next = from
                 next_byte = from_byte
                 call dec_both(next, next_byte)
-                next_syntax = syntax_with_flags(fetch(next_byte))
+                next_syntax = swf_at(fetch(next_byte), next)
                 lose = (comstart .or. comnested) .and. comend_second(syntax) .and. comend_first(next_syntax)
                 if (.not. lose) then
                     lose = (com2end .or. comnested) .and. comstart_second(syntax) .and. &
@@ -587,8 +610,8 @@ contains
     !>
     !> The comment end is the last character of the comment rather than
     !> the character just after the comment.  Port of syntax.c:forw_comment.
-    logical function forw_comment(from_in, from_byte_in, stop, nesting_in, style, prev_syntax_in, charpos, &
-                                  bytepos, incomment, last_syntax) result(found)
+    recursive logical function forw_comment(from_in, from_byte_in, stop, nesting_in, style, prev_syntax_in, charpos, &
+                                            bytepos, incomment, last_syntax) result(found)
         integer(int64), intent(in) :: from_in, from_byte_in, stop, nesting_in
         integer, intent(in) :: style, prev_syntax_in
         integer(int64), intent(out) :: charpos, bytepos, incomment
@@ -624,7 +647,7 @@ contains
                 end if
                 c = fetch(from_byte)
                 prev_syntax = syntax
-                syntax = syntax_with_flags(c)
+                syntax = swf_at(c, from)
                 code = iand(syntax, 255)
                 if (code == SENDCOMMENT) then
                     if (comment_style(syntax, 0) == style) then
@@ -668,7 +691,7 @@ contains
             in_middle = .false.
             ! forw_incomment:
             if (from < stop .and. comend_first(syntax)) then
-                other_syntax = syntax_with_flags(fetch(from_byte))
+                other_syntax = swf_at(fetch(from_byte), from)
                 hit = comend_second(other_syntax)
                 if (hit) hit = comment_style(syntax, other_syntax) == style
                 if (hit) then
@@ -690,7 +713,7 @@ contains
                 end if
             end if
             if (nesting > 0 .and. from < stop .and. comstart_first(syntax)) then
-                other_syntax = syntax_with_flags(fetch(from_byte))
+                other_syntax = swf_at(fetch(from_byte), from)
                 hit = comment_style(other_syntax, syntax) == style .and. comstart_second(other_syntax)
                 if (hit) hit = comment_nested(syntax) .or. comment_nested(other_syntax)
                 if (hit) then
@@ -711,7 +734,7 @@ contains
     end function forw_comment
 
     module procedure forward_comment
-    integer(int64) :: from, from_byte, stop, count1, out_charpos, out_bytepos, dummy, ini, ini_byte
+    integer(int64) :: from, from_byte, stop, count1, out_charpos, out_bytepos, dummy, ini, ini_byte, c_pos
     integer :: c, c1, code, comstyle, syntax, other_syntax, dummy2
     logical :: comnested, comstart_first_p, quoted, fence_found, leave
     count1 = count
@@ -732,7 +755,7 @@ contains
                 return
             end if
             c = fetch(from_byte)
-            syntax = syntax_with_flags(c)
+            syntax = swf_at(c, from)
             code = iand(syntax, 255)
             comstart_first_p = comstart_first(syntax)
             comnested = comment_nested(syntax)
@@ -740,7 +763,7 @@ contains
             call inc_both(from, from_byte)
             if (from < stop .and. comstart_first_p) then
                 c1 = fetch(from_byte)
-                other_syntax = syntax_with_flags(c1)
+                other_syntax = swf_at(c1, from)
                 if (comstart_second(other_syntax)) then
                     ! We have encountered a comment start sequence and we
                     ! are ignoring all text inside comments.  We must record
@@ -789,7 +812,8 @@ contains
             call dec_both(from, from_byte)
             quoted = char_quoted_at(from)
             c = fetch(from_byte)
-            syntax = syntax_with_flags(c)
+            c_pos = from
+            syntax = swf_at(c, from)
             code = iand(syntax, 255)
             comstyle = 0
             comnested = comment_nested(syntax)
@@ -803,7 +827,7 @@ contains
                         call dec_both(from, from_byte)
                         code = SENDCOMMENT
                         c1 = fetch(from_byte)
-                        other_syntax = syntax_with_flags(c1)
+                        other_syntax = swf_at(c1, from)
                         comstyle = comment_style(other_syntax, syntax)
                         comnested = comnested .or. comment_nested(other_syntax)
                     end if
@@ -818,7 +842,7 @@ contains
                     do
                         call dec_both(from, from_byte)
                         c = fetch(from_byte)
-                        if (syntax_of(c) == SCOMMENT_FENCE) then
+                        if (syn_at(c, from) == SCOMMENT_FENCE) then
                             if (.not. char_quoted_at(from)) then
                                 fence_found = .true.
                                 exit
@@ -848,7 +872,7 @@ contains
                         ! Failure: we should go back to the end of this
                         ! not-quite-endcomment.
                         ! It was a two-char Sendcomment.
-                        if (syntax_of(c) /= code) call inc_both(from, from_byte)
+                        if (syn_at(c, c_pos) /= code) call inc_both(from, from_byte)
                         leave = .true.
                         exit
                     end if
@@ -880,7 +904,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Port of syntax.c:scan_lists (0 is nil).
-    integer(int64) function scan_lists_1(from0, count_in, depth_in, sexpflag, status) result(pos)
+    recursive integer(int64) function scan_lists_1(from0, count_in, depth_in, sexpflag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
         logical, intent(in) :: sexpflag
         type(status_type), intent(out) :: status
@@ -912,8 +936,8 @@ contains
             done = .false.
             forward: do while (from < stop)
                 c = fetch(from_byte)
-                syntax = syntax_with_flags(c)
-                code = syntax_multibyte(c, multibyte_symbol_p)
+                syntax = swf_at(c, from)
+                code = syntax_multibyte(c, multibyte_symbol_p, from)
                 comstart_first_p = comstart_first(syntax)
                 comnested = comment_nested(syntax)
                 comstyle = comment_style(syntax, 0)
@@ -922,7 +946,7 @@ contains
                 call inc_both(from, from_byte)
                 if (from < stop .and. comstart_first_p) then
                     c = fetch(from_byte)
-                    other_syntax = syntax_with_flags(c)
+                    other_syntax = swf_at(c, from)
                     if (comstart_second(other_syntax) .and. parse_sexp_ignore_comments%value) then
                         ! We have encountered a comment start sequence and
                         ! we are ignoring all text inside comments.  We must
@@ -982,7 +1006,7 @@ contains
                     ! This word counts as a sexp; return at end of it.
                     do while (from < stop)
                         c = fetch(from_byte)
-                        select case (syntax_multibyte(c, multibyte_symbol_p))
+                        select case (syntax_multibyte(c, multibyte_symbol_p, from))
                         case (SCHARQUOTE, SESCAPE)
                             call inc_both(from, from_byte)
                             if (from == stop) then
@@ -1038,7 +1062,7 @@ contains
                             return
                         end if
                         c = fetch(from_byte)
-                        c_code = syntax_multibyte(c, multibyte_symbol_p)
+                        c_code = syntax_multibyte(c, multibyte_symbol_p, from)
                         if (code == SSTRING) then
                             hit = c == stringterm .and. c_code == SSTRING
                         else
@@ -1071,8 +1095,8 @@ contains
             backward: do while (from > stop)
                 call dec_both(from, from_byte)
                 c = fetch(from_byte)
-                syntax = syntax_with_flags(c)
-                code = syntax_multibyte(c, multibyte_symbol_p)
+                syntax = swf_at(c, from)
+                code = syntax_multibyte(c, multibyte_symbol_p, from)
                 if (depth == min_depth) last_good = from
                 comstyle = 0
                 comnested = comment_nested(syntax)
@@ -1085,7 +1109,7 @@ contains
                         call dec_both(from, from_byte)
                         code = SENDCOMMENT
                         c2 = fetch(from_byte)
-                        other_syntax = syntax_with_flags(c2)
+                        other_syntax = swf_at(c2, from)
                         comstyle = comment_style(other_syntax, syntax)
                         comnested = comnested .or. comment_nested(other_syntax)
                     end if
@@ -1110,7 +1134,7 @@ contains
                         temp_pos = dec_bytepos(from_byte)
                         c1 = fetch(temp_pos)
                         ! Don't allow comment-end to be quoted.
-                        if (syntax_multibyte(c1, multibyte_symbol_p) == SENDCOMMENT) exit
+                        if (syntax_multibyte(c1, multibyte_symbol_p, from - 1) == SENDCOMMENT) exit
                         quoted = char_quoted_at(from - 1)
                         if (quoted) then
                             call dec_both(from, from_byte)
@@ -1118,7 +1142,7 @@ contains
                         end if
                         c1 = fetch(temp_pos)
                         if (.not. quoted) then
-                            select case (syntax_multibyte(c1, multibyte_symbol_p))
+                            select case (syntax_multibyte(c1, multibyte_symbol_p, from - 1))
                             case (SWORD, SSYMBOL, SQUOTE)
                                 continue
                             case default
@@ -1187,7 +1211,7 @@ contains
                         call dec_both(from, from_byte)
                         if (.not. char_quoted_at(from)) then
                             c = fetch(from_byte)
-                            if (syntax_multibyte(c, multibyte_symbol_p) == code) exit
+                            if (syntax_multibyte(c, multibyte_symbol_p, from) == code) exit
                         end if
                     end do
                     if (code == SSTRING_FENCE .and. depth == 0 .and. sexpflag) then
@@ -1204,7 +1228,7 @@ contains
                         call dec_both(from, from_byte)
                         if (.not. char_quoted_at(from)) then
                             c = fetch(from_byte)
-                            if (c == stringterm .and. syntax_multibyte(c, multibyte_symbol_p) == SSTRING) exit
+                            if (c == stringterm .and. syntax_multibyte(c, multibyte_symbol_p, from) == SSTRING) exit
                         end if
                     end do
                     if (depth == 0 .and. sexpflag) then
@@ -1228,7 +1252,7 @@ contains
 
     contains
 
-        subroutine lose()
+        recursive subroutine lose()
             pos = 0
             call scan_error(status, "Unbalanced parentheses", last_good, from)
         end subroutine lose
@@ -1249,14 +1273,14 @@ contains
     !> If the character at FROM_BYTE is the second part of a 2-character
     !> comment opener based on PREV_FROM_SYNTAX, update STATE and return
     !> true.  Port of syntax.c:in_2char_comment_start.
-    logical function in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)
+    recursive logical function in_2char_comment_start(state, prev_from_syntax, prev_from, from_byte)
         type(lisp_parse_state), intent(inout) :: state
         integer, intent(in) :: prev_from_syntax
         integer(int64), intent(in) :: prev_from, from_byte
         integer :: syntax
         in_2char_comment_start = .false.
         if (.not. comstart_first(prev_from_syntax)) return
-        syntax = syntax_with_flags(fetch(from_byte))
+        syntax = swf_at(fetch(from_byte), prev_from + 1)
         if (.not. comstart_second(syntax)) return
         ! Record the comment style we have entered so that only the
         ! comment-end sequence of the same style actually terminates the
@@ -1277,7 +1301,7 @@ contains
     !> is 1, stop at the start of a comment.  If COMMENTSTOP is -1, stop
     !> at the start or end of a comment, after the beginning of a string,
     !> or after the end of a string.  Port of syntax.c:scan_sexps_forward.
-    subroutine scan_sexps_forward(state, from_in, from_byte_in, end, targetdepth, stopbefore, commentstop)
+    recursive subroutine scan_sexps_forward(state, from_in, from_byte_in, end, targetdepth, stopbefore, commentstop)
         type(lisp_parse_state), intent(inout) :: state
         integer(int64), intent(in) :: from_in, from_byte_in, end, targetdepth
         logical, intent(in) :: stopbefore
@@ -1452,7 +1476,7 @@ contains
                         exit
                     end if
                     symchar = fetch(from_byte)
-                    select case (syntax_of(symchar))
+                    select case (syn_at(symchar, from))
                     case (SCHARQUOTE, SESCAPE)
                         call inc_from()
                         if (from == end) then
@@ -1525,7 +1549,7 @@ contains
                         exit
                     end if
                     c = fetch(from_byte)
-                    c_code = syntax_of(c)
+                    c_code = syn_at(c, from)
                     ! Check C_CODE here so that if the char has a
                     ! syntax-table property which says it is NOT a string
                     ! character, it does not end the string.
@@ -1585,13 +1609,13 @@ contains
     contains
 
         !> INC_FROM: use this instead of `from++'.
-        subroutine inc_from()
+        recursive subroutine inc_from()
             integer :: temp
             prev_from = from
             prev_from_byte = from_byte
             temp = fetch(prev_from_byte)
             prev_prev_from_syntax = prev_from_syntax
-            prev_from_syntax = syntax_with_flags(temp)
+            prev_from_syntax = swf_at(temp, prev_from)
             call inc_both(from, from_byte)
         end subroutine inc_from
     end subroutine scan_sexps_forward
@@ -1599,7 +1623,7 @@ contains
     !> Convert a parse state to the internal form used in
     !> scan_sexps_forward; an absent EXTERNAL is nil.  Port of
     !> syntax.c:internalize_parse_state.
-    subroutine internalize_parse_state(state, external)
+    recursive subroutine internalize_parse_state(state, external)
         type(lisp_parse_state), intent(out) :: state
         type(parse_state_type), intent(in), optional :: external
         allocate (state%levelstarts(0))
@@ -1683,6 +1707,10 @@ contains
 
     module procedure syntax_ppss
     type(status_type) :: status
+    if (associated(syntax_ppss_function)) then
+        call syntax_ppss_function(state, pos)
+        return
+    end if
     if (present(pos)) then
         call parse_partial_sexp(buffers(cur)%begv, pos, state, status)
     else

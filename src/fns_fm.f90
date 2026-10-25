@@ -30,7 +30,7 @@ module fns_fm
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
                        make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
-                       v_string, v_symbol, value_type, vtag, xsymbol
+                       v_string, v_symbol, v_syntax_table, value_type, vtag, xsymbol
     use lread_fm, only: ensure_obarray
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
@@ -130,7 +130,7 @@ contains
         case (V_STRING)
             eq = len(x%s) == len(y%s)
             if (eq) eq = x%s == y%s
-        case (V_BUFFER)
+        case (V_BUFFER, V_SYNTAX_TABLE)
             eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
         case (V_KEYMAP)
             ! A keymap is a list upstream: compare its contents.

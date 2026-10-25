@@ -117,7 +117,8 @@ module lisp_fm
     !> Value tags.
     integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
                                          V_STRING = 3, V_LIST = 4, &
-                                         V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7
+                                         V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
+                                         V_SYNTAX_TABLE = 8
 
     !> Ids of the predefined symbols.
     integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
@@ -129,7 +130,7 @@ module lisp_fm
         integer(int64) :: i = 0
         !> Atoms in this subtree, itself included (1 for scalars).
         integer(int64) :: span = 1
-        !> V_BUFFER, V_MARKER, V_KEYMAP: the object's handle.
+        !> V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE: the object's handle.
         type(handle_type) :: h
         !> V_STRING: text in the internal (multibyte) encoding.
         character(len=:), allocatable :: s
@@ -165,9 +166,9 @@ module lisp_fm
     integer(int64), public :: nsymbols = 0
 
     public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
-              make_buffer_ref, make_marker_ref, make_keymap_ref, make_list, list, cons
+              make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_list, list, cons
     public :: vtag, nilp, fixnump, symbolp, stringp, consp, listp, bufferp, &
-              markerp, keymap_ref_p
+              markerp, keymap_ref_p, syntax_table_ref_p
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
               list_elements, list_tail
 
@@ -259,6 +260,16 @@ contains
         atom%h = h
         v = scalar(atom)
     end function make_keymap_ref
+
+    !> A value referring to syntax table `h' (a char-table upstream).
+    pure function make_syntax_table_ref(h) result(v)
+        type(handle_type), intent(in) :: h
+        type(value_type) :: v
+        type(atom_type) :: atom
+        atom%tag = V_SYNTAX_TABLE
+        atom%h = h
+        v = scalar(atom)
+    end function make_syntax_table_ref
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
     !> V_NIL atom).
@@ -422,6 +433,12 @@ contains
         type(value_type), intent(in) :: v
         keymap_ref_p = vtag(v) == V_KEYMAP
     end function keymap_ref_p
+
+    !> Whether `v' refers to a syntax table.
+    elemental logical function syntax_table_ref_p(v)
+        type(value_type), intent(in) :: v
+        syntax_table_ref_p = vtag(v) == V_SYNTAX_TABLE
+    end function syntax_table_ref_p
 
     !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
