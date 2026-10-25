@@ -33,7 +33,7 @@
 !> `change_log_find_file', `change_log_goto_source') and next-error
 !> support, `change_log_font_lock_keywords', Change Log mode's
 !> filling, indentation, defun motion, `show_trailing_whitespace',
-!> `page_delimiter', `adaptive_fill_regexp', `comment_start' and
+!> `adaptive_fill_regexp', `comment_start' and
 !> `version_control' settings (those settings are not buffer-local
 !> yet), merging change logs, `add_log_mailing_address' as a list,
 !> `add_log_time_zone_rule', and the version number options.
@@ -55,7 +55,7 @@ module add_log_fm
     use buffer_fm, only: fill_column, left_margin
     use indent_fm, only: indent_tabs_mode
     use xdisp_fm, only: tab_width
-    use paragraphs_fm, only: paragraph_start, paragraph_separate
+    use paragraphs_fm, only: paragraph_start, paragraph_separate, page_delimiter
     implicit none(type, external)
     private
 
@@ -293,6 +293,7 @@ contains
         ! between entries for different files.
         call paragraph_start%set_local("\s *$\|"//achar(12)//"\|^\<")
         call paragraph_separate%set_local(paragraph_start%value)
+        call page_delimiter%set_local("^\<\|^"//achar(12))
         call major_modes%change_log_mode%finish(saved, status)
     end subroutine change_log_mode
 

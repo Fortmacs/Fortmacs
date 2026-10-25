@@ -37,6 +37,7 @@ module bindings_fm
                          define_key_range, use_global_map, set_keymap_parent, &
                          key_parse, keymap_live_p, free_keymap
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
+    use page_fm, only: syms_of_page
     use keyboard_fm, only: local_function_key_map, syms_of_macros
     use kmacro_fm, only: syms_of_kmacro, kmacro_keymap
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
@@ -427,6 +428,10 @@ contains
         call bind(global_map, "C-SPC", "set_mark_command")
         call bind(ctl_x_map, "C-x", "exchange_point_and_mark")
         call bind(ctl_x_map, "h", "mark_whole_buffer")
+        ! Pages (bindings.el).
+        call syms_of_page()
+        call bind(ctl_x_map, "[", "backward_page")
+        call bind(ctl_x_map, "]", "forward_page")
         ! Windows (window.el) and buffers (subr.el ctl-x-map).
         call bind(ctl_x_map, "0", "delete_window")
         call bind(ctl_x_map, "1", "delete_other_windows")

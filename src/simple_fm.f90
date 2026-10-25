@@ -86,7 +86,7 @@ module simple_fm
     use syntax_fm, only: forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          backward_prefix_chars
     use search_fm, only: looking_at, re_search_forward, re_search_backward, replace_match, regexp_quote, &
-                         SEARCH_NOERROR
+                         SEARCH_NOERROR, SEARCH_MOVE, match_beginning
     use fns_fm, only: value_equal
     use eval_fm, only: hook_type
     use abbrev_fm, only: abbrev_table_type
@@ -164,7 +164,7 @@ module simple_fm
     public :: shows_current_buffer, pos_visible_in_window_p
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
-              delete_all_space, just_one_space, cycle_spacing, transpose_chars, transpose_words, &
+              delete_all_space, just_one_space, rfc822_goto_eoh, cycle_spacing, transpose_chars, transpose_words, &
               transpose_lines, transpose_subr, transpose_subr_1, transpose_mover, back_to_indentation, &
               beginning_of_buffer, end_of_buffer
 
@@ -4194,6 +4194,20 @@ contains
         if (.not. status%ok()) return
         if (num > 0) call insert(repeat(" ", int(num)), status)
     end subroutine just_one_space
+
+    !> If the buffer starts with a mail header, move point to the header's end.
+    !> Otherwise, moves to `point_min'.
+    !> The end of the header is the start of the next line, if there is one,
+    !> else the end of the last line.  This function obeys RFC 822 (or later).
+    !> Port of simple.el:rfc822-goto-eoh.
+    recursive subroutine rfc822_goto_eoh(status)
+        type(status_type), intent(out) :: status
+        logical :: found
+        call goto_char(point_min())
+        call re_search_forward("^\([:"//achar(10)//"]\|[^: "//achar(9)//achar(10)//"]+[ "//achar(9)//achar(10)// &
+                               "]\)", found, status, noerror=SEARCH_MOVE)
+        if (found) call goto_char(match_beginning(0, status))
+    end subroutine rfc822_goto_eoh
 
     !> Manipulate whitespace around point in a smart way.
     !> Repeated calls perform the actions in `cycle_spacing_actions' one

@@ -24,15 +24,17 @@
 !> (`vc_exec_after', with a `vc_action_type' standing for the closure),
 !> `vc_parent_buffer', and bringing buffers back in sync with their files
 !> after a VC operation (`vc_resynch_buffer', `vc_buffer_sync',
-!> `vc_revert_buffer_internal').
+!> `vc_revert_buffer_internal'), and the log entry buffer of an operation
+!> such as a commit (`vc_start_logentry', `vc_log_edit',
+!> `vc_finish_logentry', in the submodule vc_dispatcher_log_fm).
 !>
 !> Deferred: `vc_filter_command_function' and `vc_edit_next_command'
 !> (C-x v !), `vc_post_command_functions', `vc_tor', the separate
 !> standard error of asynchronous commands (it is mixed with their
 !> output), `vc_do_async_command' and VC-Compilation mode (pulling and
 !> pushing), `vc_set_async_update', `vc_wait_for_process_before_save',
-!> the log entry functions (`vc_start_logentry', `vc_finish_logentry':
-!> Log Edit mode), and View mode's state after `vc_resynch_window'.
+!> asynchronous log operations (`vc_async_checkin'), and View mode's state
+!> after `vc_resynch_window'.
 module vc_dispatcher_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
@@ -58,13 +60,18 @@ module vc_dispatcher_fm
                         add_minor_mode_lighter
     use subr_fm, only: y_or_n_p
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops
+    use commands_fm, only: command_proc
+    use eval_fm, only: hook_type
+    use buffer_fm, only: buffer_serial_live
     implicit none(type, external)
     private
 
     public :: vc_action_type, vc_action_proc, vc_do_command, vc_setup_buffer, vc_exec_after, vc_process_filter, &
               vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_sync, &
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
-              vc_mode_line_hook_run, syms_of_vc_dispatcher
+              vc_mode_line_hook_run, syms_of_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
+              vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
+              set_vc_log_after_operation_hook, vc_dispatcher_browsing
     public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
 
@@ -164,6 +171,117 @@ module vc_dispatcher_fm
     !> `vc_mode_line_hook': run by `vc_resynch_window' (vc_fm sets it).
     procedure(vc_mode_line_hook_proc), pointer, public :: vc_mode_line_hook => null()
 
+    !> The operation of a log entry buffer (the ACTION of
+    !> `vc_start_logentry', upstream's closure): its procedure, given the
+    !> operation itself and so what it captured (a BACKEND, a revision
+    !> REV, a PATCH_STRING, files to REGISTER), and FILES and COMMENT.
+    type, public :: vc_log_operation_type
+        procedure(vc_log_operation_proc), pointer, nopass :: run => null()
+        integer :: backend = 0
+        character(len=:), allocatable :: rev, patch_string
+        type(vc_string_type), allocatable :: register(:)
+    end type vc_log_operation_type
+
+    abstract interface
+        recursive subroutine vc_log_operation_proc(operation, files, comment, status)
+            import :: vc_log_operation_type, vc_string_type, status_type
+            implicit none(type, external)
+            type(vc_log_operation_type), intent(in) :: operation
+            type(vc_string_type), intent(in) :: files(:)
+            character(len=*), intent(in) :: comment
+            type(status_type), intent(out) :: status
+        end subroutine vc_log_operation_proc
+    end interface
+    public :: vc_log_operation_proc
+
+    !> A log entry buffer's `vc_log_operation', `vc_log_fileset',
+    !> `vc_patch_string' and `vc_log_after_operation_hook', by serial
+    !> number.
+    type :: vc_log_local_type
+        integer(int64) :: serial = 0
+        logical :: has_operation = .false.
+        type(vc_log_operation_type) :: operation
+        logical :: has_fileset = .false.
+        type(vc_string_type), allocatable :: fileset(:)
+        character(len=:), allocatable :: patch_string
+        type(hook_type), pointer :: after_hook => null()
+    end type vc_log_local_type
+
+    type(vc_log_local_type), allocatable :: log_locals(:)
+
+    !> Normal hook run by `vc_finish_logentry'.
+    !> Use this to impose your own rules on the entry in addition to any the
+    !> dispatcher client wants to enforce.  Port of vc-dispatcher.el
+    !> vc-logentry-check-hook.
+    type(hook_type), target, public :: vc_logentry_check_hook = hook_type(name="vc_logentry_check_hook")
+
+    !> Hook run at the end of `vc_finish_logentry' (obsolete; use
+    !> `vc_log_after_operation_hook').  Port of vc-dispatcher.el
+    !> vc-finish-logentry-hook.
+    type(hook_type), target, public :: vc_finish_logentry_hook = hook_type(name="vc_finish_logentry_hook")
+
+    !> If true, delete the *vc-log* buffer and window after each logical action.
+    !> If false, bury that buffer instead.
+    !> This is most useful if you have multiple windows on a frame and would like to
+    !> preserve the setting.  Port of vc-dispatcher.el vc-delete-logbuf-window.
+    logical, public :: vc_delete_logbuf_window = .true.
+
+    interface
+        !> Accept a comment for an operation on FILES.
+        !> If COMMENT is absent, pop up a LOGBUF buffer, emit MSG, and set the
+        !> action on close to ACTION.  If COMMENT is a string and
+        !> INITIAL_CONTENTS is true, then COMMENT is used as the initial
+        !> contents of the log entry buffer.  If COMMENT is a string and
+        !> INITIAL_CONTENTS is false, do action immediately as if the user had
+        !> entered COMMENT.  If COMMENT_T (COMMENT t), also do action
+        !> immediately with an empty comment.  Remember the file's buffer in
+        !> `vc_parent_buffer' (current one if no file).  Puts the log-entry
+        !> buffer in major mode MODE, defaulting to `log_edit_mode' if MODE is absent.
+        !> AFTER_HOOK specifies the local value for `vc_log_after_operation_hook'.
+        !> BACKEND, if not 0, specifies a VC backend for the Log Edit buffer.
+        !> PATCH_STRING is a patch to check in.
+        !> DIFF_FUNCTION is `log_edit_diff_function' for the Log Edit buffer.
+        !> Port of vc-dispatcher.el:vc-start-logentry.  (In
+        !> vc_dispatcher_log_fm.)
+        recursive module subroutine vc_start_logentry(files, msg, logbuf, action, status, comment, comment_t, &
+                                                      initial_contents, mode, after_hook, backend, patch_string, &
+                                                      diff_function)
+            implicit none(type, external)
+            type(vc_string_type), intent(in) :: files(:)
+            character(len=*), intent(in) :: msg, logbuf
+            type(vc_log_operation_type), intent(in) :: action
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: comment, patch_string
+            logical, intent(in), optional :: comment_t, initial_contents
+            procedure(command_proc), optional :: mode, diff_function
+            type(hook_type), intent(in), target, optional :: after_hook
+            integer, intent(in), optional :: backend
+        end subroutine vc_start_logentry
+
+        !> Complete the operation implied by the current log entry.
+        !> Use the contents of the current buffer as a check-in or registration
+        !> comment.  If the optional arg NOCOMMENT is true, then don't check
+        !> the buffer contents as a comment.  Port of
+        !> vc-dispatcher.el:vc-finish-logentry (synchronous operations; the
+        !> asynchronous ones of `vc_async_checkin' are deferred).  (In
+        !> vc_dispatcher_log_fm.)
+        recursive module subroutine vc_finish_logentry(status, nocomment)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: nocomment
+        end subroutine vc_finish_logentry
+
+        !> Set up `log_edit' for use on FILESET.  Port of
+        !> vc-dispatcher.el:vc-log-edit.  (In vc_dispatcher_log_fm.)
+        recursive module subroutine vc_log_edit(fileset, status, mode, backend, diff_function)
+            implicit none(type, external)
+            type(vc_string_type), intent(in) :: fileset(:)
+            type(status_type), intent(out) :: status
+            procedure(command_proc), optional :: mode, diff_function
+            integer, intent(in), optional :: backend
+        end subroutine vc_log_edit
+    end interface
+
 contains
 
     ! ------------------------------------------------------------------
@@ -230,8 +348,120 @@ contains
     !> Show `vc_parent_buffer_name' in the mode line of buffers with a
     !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
     subroutine syms_of_vc_dispatcher()
+        use data_fm, only: add_local_variables_killer
         call add_minor_mode_lighter("vc_parent_buffer", "", text=parent_name_of, first=.true.)
+        call add_local_variables_killer(kill_log_locals)
     end subroutine syms_of_vc_dispatcher
+
+    ! ------------------------------------------------------------------
+    ! The log entry buffer's variables
+    ! ------------------------------------------------------------------
+
+    ! The index of the current buffer's entry in `log_locals', made if
+    ! MAKE (0 if none).
+    integer function log_local_index(make) result(k)
+        logical, intent(in) :: make
+        type(vc_log_local_type), allocatable :: grown(:)
+        integer :: i, n
+        k = 0
+        if (cur == 0) return
+        if (.not. allocated(log_locals)) allocate (log_locals(0))
+        do k = 1, size(log_locals)
+            if (log_locals(k)%serial == buffers(cur)%serial) return
+        end do
+        k = 0
+        if (.not. make) return
+        do k = 1, size(log_locals)
+            if (.not. buffer_serial_live(log_locals(k)%serial)) then
+                log_locals(k) = vc_log_local_type(serial=buffers(cur)%serial)
+                return
+            end if
+        end do
+        n = size(log_locals)
+        allocate (grown(n + 1))
+        do i = 1, n
+            grown(i) = log_locals(i)
+        end do
+        grown(n + 1)%serial = buffers(cur)%serial
+        call move_alloc(grown, log_locals)
+        k = n + 1
+    end function log_local_index
+
+    ! kill-all-local-variables: forget the current buffer's values.
+    subroutine kill_log_locals()
+        integer :: k
+        k = log_local_index(.false.)
+        if (k > 0) log_locals(k) = vc_log_local_type()
+    end subroutine kill_log_locals
+
+    !> The current buffer's `vc_log_fileset' (FOUND false if it has none):
+    !> the files of the log entry.
+    subroutine vc_log_fileset(files, found)
+        type(vc_string_type), allocatable, intent(out) :: files(:)
+        logical, intent(out) :: found
+        integer :: k
+        found = .false.
+        k = log_local_index(.false.)
+        if (k > 0) found = log_locals(k)%has_fileset
+        if (found) then
+            files = log_locals(k)%fileset
+        else
+            allocate (files(0))
+        end if
+    end subroutine vc_log_fileset
+
+    !> Set the current buffer's `vc_log_fileset' to FILES.
+    subroutine set_vc_log_fileset(files)
+        type(vc_string_type), intent(in) :: files(:)
+        integer :: k
+        k = log_local_index(.true.)
+        log_locals(k)%has_fileset = .true.
+        log_locals(k)%fileset = files
+    end subroutine set_vc_log_fileset
+
+    !> The current buffer's `vc_patch_string' (unallocated for nil).
+    subroutine vc_patch_string(patch)
+        character(len=:), allocatable, intent(out) :: patch
+        integer :: k
+        k = log_local_index(.false.)
+        if (k == 0) return
+        if (allocated(log_locals(k)%patch_string)) patch = log_locals(k)%patch_string
+    end subroutine vc_patch_string
+
+    !> Set the current buffer's `vc_patch_string' to PATCH (nil if absent).
+    subroutine set_vc_patch_string(patch)
+        character(len=*), intent(in), optional :: patch
+        integer :: k
+        k = log_local_index(.true.)
+        if (allocated(log_locals(k)%patch_string)) deallocate (log_locals(k)%patch_string)
+        if (present(patch)) log_locals(k)%patch_string = patch
+    end subroutine set_vc_patch_string
+
+    !> Set the current buffer's `vc_log_operation' to OPERATION.
+    subroutine set_vc_log_operation(operation)
+        type(vc_log_operation_type), intent(in) :: operation
+        integer :: k
+        k = log_local_index(.true.)
+        log_locals(k)%has_operation = .true.
+        log_locals(k)%operation = operation
+    end subroutine set_vc_log_operation
+
+    !> Set the current buffer's `vc_log_after_operation_hook' to HOOK (nil
+    !> if absent).
+    subroutine set_vc_log_after_operation_hook(hook)
+        type(hook_type), intent(in), target, optional :: hook
+        integer :: k
+        k = log_local_index(.true.)
+        log_locals(k)%after_hook => null()
+        if (present(hook)) log_locals(k)%after_hook => hook
+    end subroutine set_vc_log_after_operation_hook
+
+    !> Are we in a directory browser buffer?  Port of
+    !> vc-dispatcher.el:vc-dispatcher-browsing.
+    logical function vc_dispatcher_browsing() result(browsing)
+        use derived_fm, only: derived_mode_p
+        browsing = derived_mode_p([character(len=13) :: "vc_dir_mode", "dired_mode", "diff_mode", "log_view_mode"])
+    end function vc_dispatcher_browsing
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
     !> `vc_parent_buffer_name' to NAME.

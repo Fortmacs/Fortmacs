@@ -65,7 +65,7 @@ module editfns_fm
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
     public :: insert_char_n, narrow_to_region, widen, buffer_narrowed_p, current_time_string, validate_region, subst_char_in_region
-    public :: buffer_substring, buffer_string, delete_region, &
+    public :: buffer_substring, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
@@ -710,6 +710,47 @@ contains
         character(len=:), allocatable :: text
         text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
     end function buffer_string
+
+    !> Insert before point a substring of the contents of BUFFER.
+    !> BUFFER may be a buffer or a buffer name.
+    !> Arguments START and END are character positions specifying the substring.
+    !> They default to the values of (point-min) and (point-max) in BUFFER.
+    !>
+    !> Point and before-insertion markers move forward to end up after the
+    !> inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is multibyte and BUFFER is unibyte, or vice
+    !> versa, strings are converted from unibyte to multibyte or vice versa
+    !> using `string_make_multibyte' or `string_make_unibyte', which see.
+    !> Port of editfns.c:Finsert_buffer_substring (text properties pending,
+    !> as for `buffer_substring'; both buffers multibyte).
+    recursive subroutine insert_buffer_substring(buffer, status, start, end)
+        use buffer_fm, only: set_buffer, buffer_live_p
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start, end
+        type(handle_type) :: old
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        integer(int64) :: b, e
+        status = status_type()
+        if (.not. buffer_live_p(buffer)) then
+            call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+            return
+        end if
+        old = current_buffer()
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
+        b = point_min()
+        e = point_max()
+        if (present(start)) b = start
+        if (present(end)) e = end
+        call buffer_substring(b, e, text, status)
+        call set_buffer(old, st)
+        if (.not. status%ok()) return
+        call insert(text, status)
+    end subroutine insert_buffer_substring
 
     !> Delete the text between `start' and `end' (either order).
     !> Port of editfns.c:Fdelete_region.
