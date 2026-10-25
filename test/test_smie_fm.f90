@@ -32,6 +32,7 @@ module test_smie_fm
     use bindings_fm, only: init_bindings
     use lisp_cmds_fm, only: forward_sexp
     use indent_fm, only: indent_region
+    use newcomment_fm, only: comment_start
     use smie_fm, only: smie_bnf_type, smie_precs_type, smie_prec2_type, smie_grammar_type, smie_rule_result_type, &
                        smie_precs_to_prec2, smie_bnf_to_prec2, smie_prec2_to_grammar, smie_setup, &
                        smie_forward_sexp_command, smie_close_block, smie_grammar_token, smie_toklevels_type, &
@@ -103,6 +104,9 @@ contains
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
+        ! A mode using SMIE defines its comment syntax (smie-indent-fixindent
+        ! normalizes it, prompting otherwise).
+        call comment_start%set_local("# ")
         call make_grammar(st)
         call smie_setup(pascal_grammar, no_rules)
     end subroutine temp_buffer
