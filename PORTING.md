@@ -739,6 +739,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-25 — Theme switch knob (`theme-knob`): the syntax page's switch knob is yellow on the sun (light) and blue on the moon (dark), with a black icon; the sun icon itself is no longer yellow.
 - 2026-10-25 — Theme colors (`theme-colors`): in light mode the syntax page highlights in purple (with cream text) and its sun is yellow; the progress pie shows the unported rest in black and MELPA in gray, with cream edges on the dark pie so the black slice shows on GitHub's dark background. These came after #107 was merged.
 - 2026-10-25 — Syntax page fix (`syntax-let`): the `let` note now says its closing parenthesis is the first of the three on the final line (it said second-to-last).
 - 2026-10-25 — Dark mode for the README pie and the syntax page (`pie-dark`): `tools/progress.sh` also draws `docs/progress/pie-dark.svg` with cream labels, which the README shows through `<picture>` to dark-theme readers; docs/syntax.html follows the reader's light or dark preference in the logo colors (white and plum, black and blue). Also carries the README wording and syntax-page commits that #101 was merged without.
