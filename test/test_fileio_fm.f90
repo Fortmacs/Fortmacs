@@ -420,7 +420,9 @@ contains
         write (u) bytes
         close (u)
         call insert_file_contents(testdir//"/f3", .true., inserted, st)
-        call check(error, st%ok() .and. inserted == 6, "a, two raw bytes, raw byte, b, euro")
+        ! Neither UTF-8 nor Latin-1: raw text, eight raw-byte characters (GNU
+        ! Emacs detects emacs-mule, which is Deferred).
+        call check(error, st%ok() .and. inserted == 8 .and. buffers(cur)%multibyte, "8 raw bytes")
         if (allocated(error)) return
         call write_region(testdir//"/f4", .true., st)
         allocate (character(len=len(bytes)) :: back)
@@ -441,7 +443,7 @@ contains
         integer(int64) :: inserted
         call setup(buf)
         call insert_file_contents(testdir//"/missing", .true., inserted, st)
-        call check(error, st%code == FM_FILE_MISSING .and. condition_matches(st%code, FM_FILE_ERROR))
+        call check(error, st%code == FM_FILE_MISSING .and. condition_matches(st%code, FM_FILE_ERROR), format_error(st))
         if (allocated(error)) return
         call check(error, format_error(st) == "Opening input file: No such file or directory, "// &
                    file_name_as_directory(emacs_wd)//testdir//"/missing", format_error(st))
@@ -454,7 +456,7 @@ contains
         call teardown(buf)
         call new_buffer(buf)
         call insert_file_contents(testdir//"/missing", .false., inserted, st)
-        call check(error, st%code == FM_FILE_MISSING .and. .not. allocated(buffers(cur)%filename))
+        call check(error, st%code == FM_FILE_MISSING .and. .not. allocated(buffers(cur)%filename), format_error(st))
         call teardown(buf)
     end subroutine test_visit_nonexistent
 

@@ -168,7 +168,9 @@ module commands_fm
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
+        type(command_type) :: describe_current_coding_system
         type(command_type) :: describe_function
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
@@ -433,6 +435,7 @@ module commands_fm
         type(command_type) :: pop_to_mark_command
         type(command_type) :: posix_search_backward
         type(command_type) :: posix_search_forward
+        type(command_type) :: prefer_coding_system
         type(command_type) :: prepend_to_register
         type(command_type) :: previous_buffer
         type(command_type) :: previous_error
@@ -457,6 +460,7 @@ module commands_fm
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
+        type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: right_char
         type(command_type) :: right_word
         type(command_type) :: rotate_yank_pointer
@@ -472,6 +476,7 @@ module commands_fm
         type(command_type) :: search_backward
         type(command_type) :: search_forward
         type(command_type) :: self_insert_command
+        type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
@@ -567,7 +572,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(529) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(534) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -704,7 +709,9 @@ module commands_fm
                                                                  "delete_whitespace_rectangle", &
                                                                  "delete_window", &
                                                                  "describe_bindings", &
+                                                                 "describe_coding_system", &
                                                                  "describe_command", &
+                                                                 "describe_current_coding_system", &
                                                                  "describe_function", &
                                                                  "describe_key", &
                                                                  "describe_key_briefly", &
@@ -969,6 +976,7 @@ module commands_fm
                                                                  "pop_to_mark_command", &
                                                                  "posix_search_backward", &
                                                                  "posix_search_forward", &
+                                                                 "prefer_coding_system", &
                                                                  "prepend_to_register", &
                                                                  "previous_buffer", &
                                                                  "previous_error", &
@@ -993,6 +1001,7 @@ module commands_fm
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "revert_buffer", &
+                                                                 "revert_buffer_with_coding_system", &
                                                                  "right_char", &
                                                                  "right_word", &
                                                                  "rotate_yank_pointer", &
@@ -1008,6 +1017,7 @@ module commands_fm
                                                                  "search_backward", &
                                                                  "search_forward", &
                                                                  "self_insert_command", &
+                                                                 "set_buffer_file_coding_system", &
                                                                  "set_fill_column", &
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
@@ -1379,8 +1389,12 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_coding_system")
+            p => commands%describe_coding_system
         case ("describe_command")
             p => commands%describe_command
+        case ("describe_current_coding_system")
+            p => commands%describe_current_coding_system
         case ("describe_function")
             p => commands%describe_function
         case ("describe_key")
@@ -1909,6 +1923,8 @@ contains
             p => commands%posix_search_backward
         case ("posix_search_forward")
             p => commands%posix_search_forward
+        case ("prefer_coding_system")
+            p => commands%prefer_coding_system
         case ("prepend_to_register")
             p => commands%prepend_to_register
         case ("previous_buffer")
@@ -1957,6 +1973,8 @@ contains
             p => commands%replace_string
         case ("revert_buffer")
             p => commands%revert_buffer
+        case ("revert_buffer_with_coding_system")
+            p => commands%revert_buffer_with_coding_system
         case ("right_char")
             p => commands%right_char
         case ("right_word")
@@ -1987,6 +2005,8 @@ contains
             p => commands%search_forward
         case ("self_insert_command")
             p => commands%self_insert_command
+        case ("set_buffer_file_coding_system")
+            p => commands%set_buffer_file_coding_system
         case ("set_fill_column")
             p => commands%set_fill_column
         case ("set_fill_prefix")

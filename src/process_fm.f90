@@ -43,9 +43,9 @@
 !>
 !> Not ported yet (Deferred): network, serial and pipe processes
 !> (`make_network_process', `make_pipe_process', `make_serial_process')
-!> and `:stderr'; a `:connection_type' of the form (INPUT . OUTPUT); coding
-!> systems (`:coding', `set_process_coding_system'; output is UTF-8,
-!> input is sent as UTF-8); `exec_path' (PATH is searched) and
+!> and `:stderr'; a `:connection_type' of the form (INPUT . OUTPUT);
+!> `process_coding_system_alist' and the coding systems of
+!> `find_operation_coding_system' for processes; `exec_path' (PATH is searched) and
 !> `process_environment' (the editor's environment is passed); remote
 !> directories and file name handlers; stopped processes (`stop_process',
 !> `continue_process', `stop' statuses); `set_process_filter' with t
@@ -74,6 +74,9 @@ module process_fm
     use insdel_fm, only: insert, insert_before_markers
     use editfns_fm, only: goto_char, widen, narrow_to_region, set_point_from_marker
     use character_fm, only: str_as_multibyte, str_as_unibyte
+    use coding_fm, only: default_process_coding_system, coding_system_for_read, coding_system_for_write, &
+                         last_coding_system_used, check_coding_system, coding_system_type, coding_system_eol_type, &
+                         decode_coding_bytes, encode_coding_text, EOL_DOS
     use fileio_fm, only: file_directory_p, report_file_errno, expand_file_name
     use callproc_fm, only: get_current_directory, locate_program, init_callproc
     use sysdep_fm, only: sys_string_type, emacs_spawn_async, emacs_kill, ignore_sigpipe, emacs_full_write, &
@@ -93,7 +96,8 @@ module process_fm
               set_process_filter, set_process_sentinel, process_tty_name, set_process_query_on_exit_flag, &
               process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, kill_process, quit_process, signal_process, &
-              process_send_string, process_send_region, process_send_eof, accept_process_output, &
+              process_send_string, set_process_coding_system, &
+              process_coding_system, process_send_region, process_send_eof, accept_process_output, &
               internal_default_process_filter, internal_default_process_sentinel, kill_buffer_processes, &
               status_message, syms_of_process, process_shutdown, dispatch_process_output, num_processors
     public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY
@@ -181,6 +185,9 @@ module process_fm
         !> Bytes of an incomplete UTF-8 sequence at the end of the last read
         !> (p->decoding_carryover).
         character(len=:), allocatable :: carryover
+        !> The coding systems for decoding the output and encoding the
+        !> input (p->decode_coding_system, p->encode_coding_system).
+        character(len=:), allocatable :: decode_coding_system, encode_coding_system
     end type process_type
 
     type(slot_table_type) :: table
@@ -263,6 +270,8 @@ contains
         call make_marker(procs(i)%mark)
         procs(i)%tty_name = ""
         procs(i)%carryover = ""
+        procs(i)%decode_coding_system = trim(default_process_coding_system(1))
+        procs(i)%encode_coding_system = trim(default_process_coding_system(2))
         allocate (procs(i)%command(0))
         call alist_push(h)
         procs(i)%listed = .true.
@@ -729,7 +738,7 @@ contains
     !> Port of process.c:Fmake_process and create_process (PATH stands
     !> for `exec_path').
     subroutine make_process(name, command, process, status, buffer, noquery, connection_type, filter, sentinel, &
-                            environment)
+                            environment, coding)
         character(len=*), intent(in) :: name
         type(process_arg_type), intent(in) :: command(:)
         type(handle_type), intent(out) :: process
@@ -740,6 +749,9 @@ contains
         procedure(process_filter_proc), optional :: filter
         procedure(process_sentinel_proc), optional :: sentinel
         type(process_arg_type), intent(in), optional :: environment(:)
+        !> :coding: the coding systems for decoding and encoding (each ""
+        !> for the default).
+        character(len=*), intent(in), optional :: coding(2)
         character(len=:), allocatable :: current_dir, path, tty_name
         type(sys_string_type), allocatable :: argv(:), env(:)
         integer(int64) :: i, k
@@ -760,8 +772,23 @@ contains
             call set_error(status, FM_GENERIC_ERROR, "Starting a process without a program is not supported yet")
             return
         end if
+        if (present(coding)) then
+            do k = 1, 2
+                call check_coding_system(trim(coding(k)), status)
+                if (.not. status%ok()) return
+            end do
+        end if
         call new_process(name, process)
         i = process%index
+        ! Setup coding systems for communicating with the process:
+        ! :coding, else coding-system-for-read and -write, else
+        ! default-process-coding-system.
+        if (allocated(coding_system_for_read%value)) procs(i)%decode_coding_system = coding_system_for_read%value
+        if (allocated(coding_system_for_write%value)) procs(i)%encode_coding_system = coding_system_for_write%value
+        if (present(coding)) then
+            if (len_trim(coding(1)) > 0) procs(i)%decode_coding_system = trim(coding(1))
+            if (len_trim(coding(2)) > 0) procs(i)%encode_coding_system = trim(coding(2))
+        end if
         if (present(buffer)) procs(i)%buffer = buffer
         if (present(filter)) procs(i)%filter => filter
         if (present(sentinel)) procs(i)%sentinel => sentinel
@@ -955,7 +982,7 @@ contains
         integer(int64), intent(in) :: i
         character(len=*), intent(in) :: bytes
         logical, intent(in) :: last
-        character(len=:), allocatable :: chars, text
+        character(len=:), allocatable :: chars, text, used
         type(handle_type) :: old, proc
         type(status_type) :: st
         logical :: odeactivate
@@ -963,14 +990,31 @@ contains
         chars = procs(i)%carryover//bytes
         procs(i)%carryover = ""
         if (.not. last) then
-            n = complete_utf8_length(chars)
+            ! Keep what the decoder could not decode yet: an incomplete
+            ! UTF-8 sequence, the odd byte of UTF-16, or a CR that may
+            ! start a CRLF.
+            select case (coding_system_type(procs(i)%decode_coding_system))
+            case ("utf-8", "undecided")
+                n = complete_utf8_length(chars)
+            case ("utf-16")
+                n = len(chars, kind=int64) - mod(len(chars, kind=int64), 2_int64)
+            case default
+                n = len(chars, kind=int64)
+            end select
+            if (coding_system_eol_type(procs(i)%decode_coding_system) == EOL_DOS .and. n > 0) then
+                if (chars(n:n) == achar(13)) n = n - 1
+            end if
             if (n < len(chars, kind=int64)) then
                 procs(i)%carryover = chars(n + 1:)
                 chars = chars(1:n)
             end if
         end if
         if (len(chars) == 0) return
-        call str_as_multibyte(chars, text)
+        call decode_coding_bytes(chars, procs(i)%decode_coding_system, text, used, st)
+        if (.not. st%ok()) call decode_coding_bytes(chars, "raw-text", text, used, st)
+        ! A detected coding system stays the process's.
+        if (used /= procs(i)%decode_coding_system) procs(i)%decode_coding_system = used
+        last_coding_system_used = used
         odeactivate = vdeactivate_mark
         old = current_buffer()
         proc = table%handle_of(i)
@@ -1462,7 +1506,7 @@ contains
         integer(int64) :: i
         call get_process_arg(i, status, process)
         if (.not. status%ok()) return
-        call send_process(i, str_as_unibyte(string), status)
+        call send_process(i, encode_for_process(i, string, status), status)
     end subroutine process_send_string
 
     !> Send current contents of region as input to PROCESS.
@@ -1479,8 +1523,58 @@ contains
         if (.not. status%ok()) return
         call buffer_substring(start, end, text, status)
         if (.not. status%ok()) return
-        call send_process(i, str_as_unibyte(text), status)
+        call send_process(i, encode_for_process(i, text, status), status)
     end subroutine process_send_region
+
+    !> TEXT encoded by process I's coding system for encoding.
+    function encode_for_process(i, text, status) result(bytes)
+        integer(int64), intent(in) :: i
+        character(len=*), intent(in) :: text
+        type(status_type), intent(inout) :: status
+        character(len=:), allocatable :: bytes, used
+        type(status_type) :: st
+        call encode_coding_text(text, procs(i)%encode_coding_system, bytes, used, st)
+        if (.not. st%ok()) bytes = str_as_unibyte(text)
+        last_coding_system_used = used
+        if (.not. status%ok()) return
+    end function encode_for_process
+
+    !> Set coding systems of PROCESS to DECODING and ENCODING.
+    !> DECODING will be used to decode subprocess output and ENCODING to
+    !> encode subprocess input.  Port of process.c:Fset_process_coding_system
+    !> ("" for nil, which is no conversion).
+    subroutine set_process_coding_system(process, decoding, encoding, status)
+        type(handle_type), intent(in) :: process
+        character(len=*), intent(in) :: decoding, encoding
+        type(status_type), intent(out) :: status
+        integer(int64) :: i
+        call get_process_arg(i, status, process)
+        if (.not. status%ok()) return
+        call check_coding_system(decoding, status)
+        if (.not. status%ok()) return
+        call check_coding_system(encoding, status)
+        if (.not. status%ok()) return
+        procs(i)%decode_coding_system = decoding
+        if (len(decoding) == 0) procs(i)%decode_coding_system = "no-conversion"
+        procs(i)%encode_coding_system = encoding
+        if (len(encoding) == 0) procs(i)%encode_coding_system = "no-conversion"
+    end subroutine set_process_coding_system
+
+    !> Return the coding systems for decoding the output of PROCESS
+    !> (DECODING) and for encoding its input (ENCODING).  Port of
+    !> process.c:Fprocess_coding_system.
+    subroutine process_coding_system(process, decoding, encoding, status)
+        type(handle_type), intent(in) :: process
+        character(len=:), allocatable, intent(out) :: decoding, encoding
+        type(status_type), intent(out) :: status
+        integer(int64) :: i
+        decoding = ""
+        encoding = ""
+        call get_process_arg(i, status, process)
+        if (.not. status%ok()) return
+        decoding = procs(i)%decode_coding_system
+        encoding = procs(i)%encode_coding_system
+    end subroutine process_coding_system
 
     !> Write `bytes' to process `i'.  Port of process.c:send_process
     !> (writes block until done).
