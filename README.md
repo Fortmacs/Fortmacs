@@ -12,7 +12,10 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
 <img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.20% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+</picture>
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
@@ -82,11 +85,6 @@ running. Each generation is kept with the `init.f90` it was built from in
    shows their current values and jumps to their source. Fortmacs aims to
    bring that to Fortran: help shows Fortran names, values and source files,
    so exploring and configuring the editor feels like working in Fortran.
-   A language server such as fortls supports editing Fortran code; this is
-   about the editor itself being inspectable in Fortran.
-
-The trade-off: you can't evaluate code in a running session. Changing the
-configuration means rebuilding.
 
 ## Differences from Emacs
 
@@ -96,7 +94,8 @@ otherwise:
 - Names use underscores: `M-x find_file`, `C-h v fill_column`,
   `text_mode_hook`. Keys and mode-line text are unchanged.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
-  `ielm`, and `*scratch*` starts in Fundamental mode.
+  `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
+  configuration means rebuilding.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
 - Configuration and packages are Fortran modules compiled into the binary;
@@ -112,6 +111,9 @@ niche project, and one person or a handful of porters could never keep up;
 it would become an endless race over which packages matter most. Emacs
 already works, so Emacs in Fortran would likely never happen. This is for
 fun. Let's see where it goes.
+
+Fortmacs is written with [Claude Code](https://claude.com/claude-code),
+Anthropic's coding agent, running on one of Claude's most capable models.
 
 Telling an assistant to "rewrite Emacs in Fortran" doesn't produce a working
 program by itself: a faithful port takes constant direction. Left alone, it

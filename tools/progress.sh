@@ -37,8 +37,8 @@
 # Usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]
 #   (no option)       print the counts
 #   --readme          print the README's progress block (Markdown)
-#   --update-readme   replace that block in README.md (and redraw its pie,
-#                     docs/progress/pie.svg)
+#   --update-readme   replace that block in README.md (and redraw its pies,
+#                     docs/progress/pie.svg and pie-dark.svg)
 #   --fetch-packages  recount the archives' packages into
 #                     tools/package-totals (needs curl and network access)
 # Needs upstream/emacs (see fetch-upstream.sh) except for --fetch-packages.
@@ -140,15 +140,17 @@ melpa_total=$(pkg_total melpa); melpa_done=$(pkg_done melpa)
 p_total=$((gnu_total + nongnu_total + melpa_total))
 p_done=$((gnu_done + nongnu_done + melpa_done))
 
-# The pie is an SVG image, docs/progress/pie.svg (GitHub strips colors
+# The pie is an SVG image, docs/progress/NAME.svg (GitHub strips colors
 # from HTML in Markdown): the whole pie is everything to port, each colored
 # slice the ported part of one kind, to scale (a share too small to see
 # still shows a sliver), and the dark gray slice what is still to port.
 # A legend on the right gives each kind's share and count.  The colors are
-# the logo's: purple and blue first, then red, tan and black.
-# Arguments: lines of LABEL|COLOR|DONE|TOTAL.
+# the logo's: purple and blue first, then red, tan and black.  The labels
+# are TEXT and the lines between slices EDGE: gray and cream for GitHub's
+# light theme, cream and black for its dark one.
+# Arguments: NAME TEXT EDGE and lines of LABEL|COLOR|DONE|TOTAL.
 pie_svg() {
-    printf '%s\n' "$1" | awk -F'|' '
+    printf '%s\n' "$4" | awk -F'|' -v text="$2" -v edge="$3" '
         function commas(n,   s) {
             s = sprintf("%d", n)
             while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
@@ -166,12 +168,12 @@ pie_svg() {
             pi = atan2(0, -1)
             x1 = 90 + 80 * sin(2 * pi * a); y1 = 90 - 80 * cos(2 * pi * a)
             x2 = 90 + 80 * sin(2 * pi * b); y2 = 90 - 80 * cos(2 * pi * b)
-            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"#ffffff\" stroke-width=\"1\"/>\n", \
-                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill
+            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
+                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, edge
         }
         { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
         END {
-            rest = "#4B423E"; text = "#4B423E"
+            rest = "#4B423E"
             printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"180\" viewBox=\"0 0 520 180\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
             at = 0
             for (i = 1; i <= n; i++) {
@@ -191,7 +193,7 @@ pie_svg() {
                 printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
             }
             printf "</svg>\n"
-        }' > "$root/docs/progress/pie.svg"
+        }' > "$root/docs/progress/$1.svg"
 }
 
 # "DONE<br>of TOTAL" with thousands separators, and the share rounded to
@@ -218,15 +220,20 @@ figure() {
 # The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    pie_svg "C|#543A57|$c_done|$c_total
+    parts="C|#543A57|$c_done|$c_total
 Elisp|#1F747A|$l_done|$l_total
 GNU ELPA|#963E2C|$gnu_done|$gnu_total
 NonGNU ELPA|#B08866|$nongnu_done|$nongnu_total
 MELPA|#13110B|$melpa_done|$melpa_total"
+    pie_svg pie "#4B423E" "#DFD6D1" "$parts"
+    pie_svg pie-dark "#DFD6D1" "#13110B" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
+    echo "<picture>"
+    echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
     echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"180\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
+    echo "</picture>"
 }
 
 case "$mode" in
