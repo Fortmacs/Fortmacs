@@ -33,6 +33,7 @@
 module files_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_fm, only: commands
+    use eval_fm, only: hook_type
     use error_fm, only: format_message, status_type, set_error, condition_matches, format_error, FM_GENERIC_ERROR, &
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
@@ -68,6 +69,23 @@ module files_fm
     private
 
     public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file
+
+    !> Normal hook that is run before a buffer is saved to its file.
+    !> Only used by `save_buffer'.  Port of files.el before-save-hook.
+    type(hook_type), target, public :: before_save_hook = hook_type(name="before_save_hook")
+
+    !> Normal hook that is run after a buffer is saved to its file.
+    !> Only used by `save_buffer'.  Port of files.el after-save-hook.
+    type(hook_type), target, public :: after_save_hook = hook_type(name="after_save_hook")
+
+    !> Regexp matching interpreters, for file mode determination.
+    !> This regular expression is matched against the first line of a file
+    !> to determine the file's mode in `set_auto_mode'.  If it matches, the file
+    !> is assumed to be interpreted by the interpreter matched by the second group
+    !> of the regular expression.  The mode is then determined as the mode
+    !> associated with that interpreter in interpreter-mode-alist.  Port of
+    !> files.el auto-mode-interpreter-regexp.
+    character(len=:), allocatable, public :: auto_mode_interpreter_regexp
     public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
@@ -258,14 +276,15 @@ module files_fm
         !> Select major mode appropriate for current buffer.
         !>
         !> To find the right major mode, this function checks for a -*- mode tag,
+        !> checks if it uses an interpreter listed in interpreter-mode-alist,
         !> then compares the file name against the entries in `auto_mode_alist'
         !> (case-sensitively first, then ignoring case, as `auto_mode_case_fold').
         !>
         !> If the optional argument KEEP_MODE_IF_SAME is true, then we
         !> set the major mode only if that would change it.  Port of
-        !> files.el:set-auto-mode (only the first mode of a -*- line; no
-        !> interpreter-mode-alist or magic-mode-alist yet).  (In
-        !> files_mode_fm.)
+        !> files.el:set-auto-mode (only the first mode of a -*- line; the
+        !> interpreter of a #! line through interpreter-mode-alist; no
+        !> magic-mode-alist yet).  (In files_mode_fm.)
         recursive module subroutine set_auto_mode(status, keep_mode_if_same)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -1135,6 +1154,9 @@ contains
         end if
         call final_newline_on_save(status)
         if (.not. status%ok()) return
+        ! Don't let errors prevent saving the buffer.
+        call before_save_hook%run(st)
+        if (.not. st%ok()) call message("Before-save hook error: "//format_error(st))
         ! If buffer has no file name, ask user for one.
         if (.not. allocated(buffers(cur)%filename)) then
             call expand_file_name(buffers(cur)%name, dir, status)
@@ -1216,6 +1238,7 @@ contains
         ! saving by binding it locally.
         if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
         call message(wrote)
+        call after_save_hook%run(status)
     end subroutine basic_save_buffer
 
     !> Add a newline at the end of the current buffer if
@@ -1760,6 +1783,23 @@ contains
         type(status_type) :: status
         if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
         if (.not. allocated(directory_listing_before_filename_regexp)) call init_directory_listing_regexp()
+        if (.not. allocated(auto_mode_interpreter_regexp)) then
+            auto_mode_interpreter_regexp = "#![ "//achar(9)//"]*" &
+                                           ! Optional group 1: env(1) invocation.
+                                           //"\("//"[^ "//achar(9)//achar(10)//"]*/bin/env[ "//achar(9)//"]*" &
+                                           ! Within group 1: possible -S/--split-string and environment
+                                           ! adjustments.
+                                           //"\(?:" &
+                                           ! -S/--split-string
+                                           //"\(?:-[0a-z]*S[ "//achar(9)//"]*\|--split-string=\)" &
+                                           ! More env arguments.
+                                           //"\(?:-[^ "//achar(9)//achar(10)//"]+[ "//achar(9)//"]+\)*" &
+                                           ! Interpreter environment modifications.
+                                           //"\(?:[^ "//achar(9)//achar(10)//"]+=[^ "//achar(9)//achar(10)//"]*[ " &
+                                           //achar(9)//"]+\)*"//"\)?"//"\)?" &
+                                           ! Group 2: interpreter.
+                                           //"\([^ "//achar(9)//achar(10)//"]+\)"
+        end if
         commands%find_file%run => cmd_find_file
         commands%find_file_other_window%run => cmd_find_file_other_window
         commands%revert_buffer%run => cmd_revert_buffer

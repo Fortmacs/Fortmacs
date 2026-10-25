@@ -44,6 +44,8 @@ module bindings_fm
     use syntax_fm, only: syms_of_syntax, forward_word
     use syntax_propertize_fm, only: syms_of_syntax_propertize
     use smie_fm, only: syms_of_smie
+    use executable_fm, only: syms_of_executable
+    use sh_script_fm, only: syms_of_sh_script
     use paragraphs_fm, only: syms_of_paragraphs
     use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
@@ -250,6 +252,8 @@ contains
         call syms_of_syntax()
         call syms_of_syntax_propertize()
         call syms_of_smie()
+        call syms_of_executable()
+        call syms_of_sh_script()
         call syms_of_paragraphs()
         call syms_of_lisp_cmds()
         call syms_of_search()

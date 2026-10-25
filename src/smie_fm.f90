@@ -104,7 +104,8 @@ module smie_fm
               smie_indent_close, smie_indent_comment, smie_indent_comment_continue, smie_indent_comment_close, &
               smie_indent_comment_inside, smie_indent_inside_string, smie_indent_after_keyword, &
               smie_indent_empty_line, smie_indent_exps, smie_auto_fill, smie_setup, smie_next_indent_change, &
-              smie_parent, smie_parent_level, syms_of_smie
+              smie_parent, smie_parent_level, syms_of_smie, smie_default_hanging_eolp, smie_set_hanging_eolp_function, &
+              smie_indent_proc, smie_token_proc, smie_rules_proc, smie_hanging_eolp_proc
 
     !> Precedence classes (ASSOCIATIVITY of a precs table).
     integer, parameter, public :: SMIE_LEFT = 1, SMIE_RIGHT = 2, SMIE_ASSOC = 3, SMIE_NONASSOC = 4
@@ -151,6 +152,8 @@ module smie_fm
         type(smie_nonterminal_type), allocatable :: rules(:)
     contains
         procedure :: add => bnf_add
+        !> Add the nonterminal NT with no right-hand sides, (NT).
+        procedure :: add_nonterminal => bnf_add_nonterminal
     end type smie_bnf_type
 
     !> One precedence class (ASSOCIATIVITY OP ...).
@@ -257,6 +260,12 @@ module smie_fm
             type(status_type), intent(out) :: status
         end subroutine smie_rules_proc
 
+        !> smie--hanging-eolp-function: move over what may follow a
+        !> hanging token and tell whether the line ends there.
+        logical function smie_hanging_eolp_proc()
+            implicit none(type, external)
+        end function smie_hanging_eolp_proc
+
         !> A function of `smie_indent_functions': the column point should
         !> be indented to, or nil, or `noindent'.  It shouldn't move point.
         subroutine smie_indent_proc(indent, status)
@@ -318,6 +327,8 @@ module smie_fm
         procedure(command_proc), pointer, nopass :: auto_fill => null()
         logical :: has_paren_data = .false., paren_data_local = .false.
         procedure(show_paren_data_proc), pointer, nopass :: paren_data => null()
+        ! smie--hanging-eolp-function, when advised in the buffer.
+        procedure(smie_hanging_eolp_proc), pointer, nopass :: hanging_eolp => null()
     end type smie_local_type
 
     !> List of token parsing info.
@@ -470,6 +481,23 @@ contains
         call make_items(items, grown(n + 1)%rhs(1))
         call move_alloc(grown, self%rules)
     end subroutine bnf_add
+
+    subroutine bnf_add_nonterminal(self, nt)
+        class(smie_bnf_type), intent(inout) :: self
+        character(len=*), intent(in) :: nt
+        type(smie_nonterminal_type), allocatable :: grown(:)
+        integer :: n, i
+        if (.not. allocated(self%rules)) allocate (self%rules(0))
+        n = size(self%rules)
+        allocate (grown(n + 1))
+        do i = 1, n
+            call move_alloc(self%rules(i)%nt, grown(i)%nt)
+            call move_alloc(self%rules(i)%rhs, grown(i)%rhs)
+        end do
+        grown(n + 1)%nt = nt
+        allocate (grown(n + 1)%rhs(0))
+        call move_alloc(grown, self%rules)
+    end subroutine bnf_add_nonterminal
 
     subroutine make_items(items, rhs)
         character(len=*), intent(in) :: items(:)
@@ -2656,16 +2684,41 @@ contains
     ! The indentation engine
     ! ------------------------------------------------------------------
 
-    ! smie--hanging-eolp-function: skip blanks; at the end of a line (or a
-    ! comment up to it).
+    ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
+    ! the default.
     recursive logical function hanging_eolp()
+        integer :: k
+        k = local_index(.false.)
+        if (k > 0) then
+            if (associated(locals(k)%hanging_eolp)) then
+                hanging_eolp = locals(k)%hanging_eolp()
+                return
+            end if
+        end if
+        hanging_eolp = smie_default_hanging_eolp()
+    end function hanging_eolp
+
+    !> The default smie--hanging-eolp-function: skip blanks; true at the
+    !> end of a line (or a comment up to it).  (A quick hack upstream,
+    !> undocumented there.)
+    recursive logical function smie_default_hanging_eolp() result(eol)
         type(status_type) :: st
         integer(int64) :: moved
         moved = skip_chars_forward(" "//achar(9), st)
-        hanging_eolp = eolp()
+        eol = eolp()
         ! (looking-at comment-start-skip) ;(bug#16041).
-        if (.not. hanging_eolp) hanging_eolp = forward_comment(point_max())
-    end function hanging_eolp
+        if (.not. eol) eol = forward_comment(point_max())
+    end function smie_default_hanging_eolp
+
+    !> Advise smie--hanging-eolp-function in the current buffer with FN
+    !> (add-function :around (local ...)): FN calls
+    !> `smie_default_hanging_eolp' for the original.
+    subroutine smie_set_hanging_eolp_function(fn)
+        procedure(smie_hanging_eolp_proc) :: fn
+        integer :: k
+        k = local_index(.true.)
+        if (k > 0) locals(k)%hanging_eolp => fn
+    end subroutine smie_set_hanging_eolp_function
 
     !> Return true if the current token is "hanging".
     !> A hanging keyword is one that's at the end of a line except it's not at
@@ -4159,11 +4212,14 @@ contains
         locals(k)%rules => rules_function
         locals(k)%grammar => grammar_in
         call indent_line_function%set_local(smie_indent_line)
-        ! (add-function :around (local 'normal-auto-fill-function) #'smie-auto-fill)
-        locals(k)%has_auto_fill = .true.
-        locals(k)%auto_fill_local = normal_auto_fill_function%local_p()
-        locals(k)%auto_fill => normal_auto_fill_function%value
-        call normal_auto_fill_function%set_local(smie_auto_fill_function)
+        ! (add-function :around (local 'normal-auto-fill-function) #'smie-auto-fill),
+        ! which does nothing when the advice is already there.
+        if (.not. locals(k)%has_auto_fill) then
+            locals(k)%has_auto_fill = .true.
+            locals(k)%auto_fill_local = normal_auto_fill_function%local_p()
+            locals(k)%auto_fill => normal_auto_fill_function%value
+            call normal_auto_fill_function%set_local(smie_auto_fill_function)
+        end if
         call forward_sexp_function%set_local(smie_forward_sexp_command)
         if (present(forward_token)) locals(k)%forward_token => forward_token
         if (present(backward_token)) locals(k)%backward_token => backward_token
@@ -4173,10 +4229,12 @@ contains
         call set_local_blink_matching_check_function(smie_blink_matching_check)
         call post_self_insert_hook%add(smie_blink_matching_open, depth=90, local=.true.)
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
-        locals(k)%has_paren_data = .true.
-        locals(k)%paren_data_local = show_paren_data_function_local_p()
-        locals(k)%paren_data => current_show_paren_data_function()
-        call set_local_show_paren_data_function(smie_paren_data_function)
+        if (.not. locals(k)%has_paren_data) then
+            locals(k)%has_paren_data = .true.
+            locals(k)%paren_data_local = show_paren_data_function_local_p()
+            locals(k)%paren_data => current_show_paren_data_function()
+            call set_local_show_paren_data_function(smie_paren_data_function)
+        end if
         ! Setup smie-blink-matching-triggers.  Rather than wait for SPC to
         ! blink, try to blink as soon as we type the last char of a block ender.
         closers = grammar_in%closers
