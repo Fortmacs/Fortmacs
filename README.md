@@ -15,9 +15,9 @@ missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 <table>
 <tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
 <tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆3.10%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆3.49%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆10.04%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆2.33%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">1,983<br>of 63,999</td><td align="center">1,983<br>of 56,864</td><td align="center">858<br>of 8,547</td><td align="center">1,125<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆3.10%</td><td align="center">≆3.49%</td><td align="center">≆10.04%</td><td align="center">≆2.33%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
+<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆3.15%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆3.55%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆10.04%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆2.40%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
+<tr><td align="center">2,017<br>of 63,999</td><td align="center">2,017<br>of 56,864</td><td align="center">858<br>of 8,547</td><td align="center">1,159<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
+<tr><td align="center">≆3.15%</td><td align="center">≆3.55%</td><td align="center">≆10.04%</td><td align="center">≆2.40%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
 </table>
 
 Total is Emacs (its C functions and Elisp definitions) and the packages
@@ -147,9 +147,9 @@ What an assistant changes:
    expectations.
 4. **It works in parallel.** Up to eight agents port separate modules at
    once; one lead session reviews and combines their work.
-5. **It is faster.** About 158,000 lines of Fortran and tests, not
-   counting generated tables, in the first four days and eight hours
-   (roughly 1,500 an hour), where a person porting by hand might manage a few hundred a day.
+5. **It is faster.** About 65,000 lines of Fortran and tests, not
+   counting generated tables, in the first three days (roughly 850 an
+   hour), where a person porting by hand might manage a few hundred a day.
    Review steers it through suggestions and directions; what limits the
    pace is token usage and its cost.
 6. **The safeguards stay human.** Every change is built, tested and checked

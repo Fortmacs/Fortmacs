@@ -175,6 +175,16 @@ module docstrings_fm
                              read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
                        mule_keymap, select_safe_coding_system_accept_default_p
+    use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
+                             comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NIL, &
+                             COMMENT_EMPTY_LINES_T, COMMENT_EMPTY_LINES_EOL, comment_end, comment_end_skip, &
+                             comment_fill_column, comment_indent_function, comment_inline_offset, &
+                             comment_insert_comment_function, comment_multi_line, comment_padding, comment_quote_nested, &
+                             comment_start, comment_start_skip, comment_style, COMMENT_STYLE_PLAIN, &
+                             COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, COMMENT_STYLE_ALIGNED, &
+                             COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
+                             COMMENT_STYLE_BOX_MULTI, comment_use_global_state, comment_use_syntax, &
+                             COMMENT_USE_SYNTAX_NIL, COMMENT_USE_SYNTAX_T, COMMENT_USE_SYNTAX_UNDECIDED
     use novice_fm, only: disabled_command_function_p
     use paragraphs_fm, only: page_delimiter, paragraph_ignore_fill_prefix, paragraph_separate, &
                              paragraph_start, sentence_end, sentence_end_base, sentence_end_double_space, &
@@ -272,7 +282,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(727) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(737) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -305,16 +315,18 @@ module docstrings_fm
                                              "comint_previous_prompt", "comint_quit_subjob", "comint_restore_input", "comint_run", &
                                           "comint_send_eof", "comint_send_input", "comint_send_string", "comint_set_process_mark", &
                                                         "comint_show_maximum_output", "comint_show_output", "comint_strip_ctrl_m", &
-                                                     "comint_truncate_buffer", "comint_write_output", "compilation_display_error", &
-                                                           "compilation_minor_mode", "compilation_mode", "compilation_next_error", &
-                                         "compilation_next_error_function", "compilation_next_file", "compilation_previous_error", &
-                                                                   "compilation_previous_file", "compilation_set_skip_threshold", &
-                                             "compilation_shell_minor_mode", "compilation_start", "compile", "compile_goto_error", &
-                                                             "complete_symbol", "completion_at_point", "completion_help_at_point", &
-                                                  "completion_in_region_mode", "copy_abbrev_table", "copy_directory", "copy_file", &
-                                                    "copy_rectangle_as_kill", "copy_rectangle_to_register", "copy_region_as_kill", &
-                                                         "copy_syntax_table", "copy_to_register", "count_lines", "current_buffer", &
-                                                               "current_fill_column", "current_global_map", "current_indentation", &
+                                                   "comint_truncate_buffer", "comint_write_output", "comment_box", "comment_dwim", &
+                                                      "comment_indent", "comment_indent_new_line", "comment_kill", "comment_line", &
+                                                            "comment_or_uncomment_region", "comment_region", "comment_set_column", &
+                                                        "compilation_display_error", "compilation_minor_mode", "compilation_mode", &
+                                             "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
+                                                                   "compilation_previous_error", "compilation_previous_file", &
+                                            "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
+                                                        "compile", "compile_goto_error", "complete_symbol", "completion_at_point", &
+                                                     "completion_help_at_point", "completion_in_region_mode", "copy_abbrev_table", &
+                                            "copy_directory", "copy_file", "copy_rectangle_as_kill", "copy_rectangle_to_register", &
+                                                    "copy_region_as_kill", "copy_syntax_table", "copy_to_register", "count_lines", &
+                                             "current_buffer", "current_fill_column", "current_global_map", "current_indentation", &
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
                                              "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
                                                         "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
@@ -463,8 +475,8 @@ module docstrings_fm
                                                "tab_to_tab_stop", "text_mode", "timerp", "transient_mark_mode", "transpose_chars", &
                                               "transpose_lines", "transpose_paragraphs", "transpose_sentences", "transpose_words", &
                                                                    "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_font_lock", &
-                                                "turn_on_font_lock_if_desired", "undefined", "undo", "undo_boundary", "undo_only", &
-                                                         "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
                                                        "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
                                                       "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                                    "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
@@ -482,7 +494,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(469) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(489) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -509,30 +521,36 @@ module docstrings_fm
                                             "comint_output_filter_functions", "comint_pager", "comint_preoutput_filter_functions", &
                                                        "comint_process_echoes", "comint_prompt_read_only", "comint_prompt_regexp", &
                                                                   "comint_scroll_show_maximum_output", "comint_terminfo_terminal", &
-                                                             "comint_use_prompt_regexp", "commands", "comment_end_can_be_escaped", &
-                                               "comment_use_syntax_ppss", "compilation_always_kill", "compilation_ask_about_save", &
-                                                  "compilation_column_face", "compilation_context_lines", "compilation_directory", &
-                                                                   "compilation_directory_matcher", "compilation_disable_input", &
-                                                         "compilation_enter_directory_face", "compilation_error_case_fold_search", &
-                                                                   "compilation_error_face", "compilation_error_regexp_alist", &
-                                                       "compilation_error_regexp_alist_alist", "compilation_error_screen_columns", &
-                                                "compilation_filter_hook", "compilation_filter_start", "compilation_first_column", &
-                                             "compilation_info_face", "compilation_leave_directory_face", "compilation_line_face", &
-                                          "compilation_message_face", "compilation_minor_mode_hook", "compilation_minor_mode_map", &
-                                                  "compilation_mode_hook", "compilation_mode_map", "compilation_num_errors_found", &
-                                                                  "compilation_num_infos_found", "compilation_num_warnings_found", &
-                                                                   "compilation_read_command", "compilation_scroll_output", &
-                                                        "compilation_search_all_directories", "compilation_shell_minor_mode_hook", &
-                                                                 "compilation_shell_minor_mode_map", "compilation_skip_threshold", &
-                                                                  "compilation_skip_to_next_location", "compilation_skip_visited", &
-                                          "compilation_transform_file_match_alist", "compilation_warning_face", "compile_command", &
-                                          "completion_at_point_functions", "completion_auto_help", "completion_category_defaults", &
-                                         "completion_category_overrides", "completion_fail_discreetly", "completion_flex_nospace", &
-                                                                   "completion_ignore_case", "completion_ignored_extensions", &
-                                                               "completion_in_region_mode_map", "completion_pcm_leading_wildcard", &
-                                             "completion_pcm_word_delimiters", "completion_show_inline_help", "completion_styles", &
-                                             "completions_max_height", "copy_directory_create_symlink", "copy_region_blink_delay", &
-                                                      "current_prefix_arg", "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
+                                         "comint_use_prompt_regexp", "commands", "comment_add", "comment_auto_fill_only_comments", &
+                                                             "comment_column", "comment_combine_change_calls", "comment_continue", &
+                                           "comment_empty_lines", "comment_end", "comment_end_can_be_escaped", "comment_end_skip", &
+                                                        "comment_fill_column", "comment_indent_function", "comment_inline_offset", &
+                                                       "comment_insert_comment_function", "comment_multi_line", "comment_padding", &
+                                                   "comment_quote_nested", "comment_start", "comment_start_skip", "comment_style", &
+                                                      "comment_use_global_state", "comment_use_syntax", "comment_use_syntax_ppss", &
+                                               "compilation_always_kill", "compilation_ask_about_save", "compilation_column_face", &
+                                            "compilation_context_lines", "compilation_directory", "compilation_directory_matcher", &
+                                                                  "compilation_disable_input", "compilation_enter_directory_face", &
+                                                                   "compilation_error_case_fold_search", "compilation_error_face", &
+                                                         "compilation_error_regexp_alist", "compilation_error_regexp_alist_alist", &
+                                                                   "compilation_error_screen_columns", "compilation_filter_hook", &
+                                                  "compilation_filter_start", "compilation_first_column", "compilation_info_face", &
+                                          "compilation_leave_directory_face", "compilation_line_face", "compilation_message_face", &
+                                             "compilation_minor_mode_hook", "compilation_minor_mode_map", "compilation_mode_hook", &
+                                            "compilation_mode_map", "compilation_num_errors_found", "compilation_num_infos_found", &
+                                                                   "compilation_num_warnings_found", "compilation_read_command", &
+                                                                "compilation_scroll_output", "compilation_search_all_directories", &
+                                                          "compilation_shell_minor_mode_hook", "compilation_shell_minor_mode_map", &
+                                                                "compilation_skip_threshold", "compilation_skip_to_next_location", &
+                                                             "compilation_skip_visited", "compilation_transform_file_match_alist", &
+                                                   "compilation_warning_face", "compile_command", "completion_at_point_functions", &
+                                          "completion_auto_help", "completion_category_defaults", "completion_category_overrides", &
+                                                "completion_fail_discreetly", "completion_flex_nospace", "completion_ignore_case", &
+                                                                 "completion_ignored_extensions", "completion_in_region_mode_map", &
+                                                              "completion_pcm_leading_wildcard", "completion_pcm_word_delimiters", &
+                                                     "completion_show_inline_help", "completion_styles", "completions_max_height", &
+                                                 "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
+                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
                                          "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
@@ -1770,6 +1788,74 @@ contains
             entry%doc = "The command: read the file name."//LF// &
                         ""//LF// &
                         "Write output from interpreter since last input to FILENAME."
+        case ("comment_box")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Comment out the BEG .. END region, putting it inside a box."//LF// &
+                        "The numeric prefix ARG specifies how many characters to add to begin- and"//LF// &
+                        "end- comment markers additionally to what variable `comment_add' already"//LF// &
+                        "specifies."
+        case ("comment_dwim")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "`comment_dwim' as a command."
+        case ("comment_indent")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "`comment_indent' as a command."
+        case ("comment_indent_new_line")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Break line at point and indent, continuing comment if within one."//LF// &
+                        "(the command: `indent_new_comment_line')."
+        case ("comment_kill")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the first comment on this line, if any."//LF// &
+                        "With prefix ARG, kill comments on that many lines starting with this"//LF// &
+                        "one."
+        case ("comment_line")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Comment or uncomment current line and leave point after it."//LF// &
+                        "With positive prefix, apply to N lines including current one."//LF// &
+                        "With negative prefix, apply to -N lines above.  Also, further"//LF// &
+                        "consecutive invocations of this command will inherit the negative"//LF// &
+                        "argument."//LF// &
+                        ""//LF// &
+                        "If region is active, comment lines in active region instead."//LF// &
+                        "Unlike `comment_dwim', this always comments whole lines."
+        case ("comment_or_uncomment_region")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Call `comment_region', unless the region only consists of comments,"//LF// &
+                        "in which case call `uncomment_region'.  If a prefix arg is given, it"//LF// &
+                        "is passed on to the respective function."
+        case ("comment_region")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Comment or uncomment each line in the region."//LF// &
+                        "With just \[universal_argument] prefix arg, uncomment each line in region BEG .. END."//LF// &
+                        "Numeric prefix ARG means use ARG comment characters."//LF// &
+                        "If ARG is negative, delete that many comment characters instead."//LF// &
+                        ""//LF// &
+                        "The strings used as comment starts are built from `comment_start'"//LF// &
+                        "and `comment_padding'; the strings used as comment ends are built"//LF// &
+                        "from `comment_end' and `comment_padding'."//LF// &
+                        ""//LF// &
+                        "By default, the `comment_start' markers are inserted at the"//LF// &
+                        "current indentation of the region, and comments are terminated on"//LF// &
+                        "each line (even for syntaxes in which newline does not end the"//LF// &
+                        "comment and blank lines do not get comments).  This can be"//LF// &
+                        "changed with `comment_style'."
+        case ("comment_set_column")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the comment column based on point."//LF// &
+                        "With no ARG, set the comment column to the current column."//LF// &
+                        "With just minus as arg, kill any comment on this line."//LF// &
+                        "With any other arg, set comment column to indentation of the previous comment"//LF// &
+                        " and then align or create a comment on this line at that column."
         case ("compilation_display_error")
             entry%file = "compile_fm.f90"
             entry%interactive = .true.
@@ -2150,13 +2236,15 @@ contains
                         "different from CODING-SYSTEM (e.g. if CODING-SYSTEM is `undecided')."
         case ("default_indent_new_line")
             entry%file = "simple_fm.f90"
-            entry%fortran = "call default_indent_new_line(status, soft)"
+            entry%fortran = "call default_indent_new_line(status, soft, force)"
             entry%interactive = .true.
             entry%doc = "Break line at point and indent."//LF// &
                         "If a comment syntax is defined, call `comment_line_break_function'."//LF// &
                         ""//LF// &
                         "The inserted newline is marked hard if variable `use_hard_newlines' is true,"//LF// &
-                        "unless optional argument SOFT is true."
+                        "unless optional argument SOFT is true.  FORCE (an interactive call)"//LF// &
+                        "breaks the line even where `comment_auto_fill_only_comments' is"//LF// &
+                        "true."
         case ("define_coding_system_alias")
             entry%file = "coding_fm.f90"
             entry%fortran = "call define_coding_system_alias(alias, coding_system)"
@@ -7070,6 +7158,12 @@ contains
             entry%file = "font_core_fm.f90"
             entry%doc = "Turn on Font Lock mode if the major mode is one of"//LF// &
                         "`font_lock_global_modes'."
+        case ("uncomment_region")
+            entry%file = "newcomment_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Uncomment each line in the BEG .. END region."//LF// &
+                        "The numeric prefix ARG can specify a number of chars to remove from the"//LF// &
+                        "comment delimiters."
         case ("undefined")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -8556,12 +8650,262 @@ contains
             entry%file = "commands_fm.f90"
             entry%fortran = "commands"
             entry%doc = "The built-in commands."
+        case ("comment_add")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_add"
+            entry%original = "0"
+            entry%value = repr(comment_add%value)
+            entry%doc = "How many more comment chars should be inserted by `comment_region'."//LF// &
+                        "This determines the default value of the numeric argument of `comment_region'."//LF// &
+                        "The `plain' comment style doubles this value."//LF// &
+                        ""//LF// &
+                        "This should generally stay 0, except for a few modes like Lisp where"//LF// &
+                        "it is 1 so that regions are commented with two or three semi-colons."
+        case ("comment_auto_fill_only_comments")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_auto_fill_only_comments"
+            entry%original = ".false."
+            entry%value = repr(comment_auto_fill_only_comments%value)
+            entry%doc = "True means to only auto-fill inside comments."//LF// &
+                        "This has no effect in modes that do not define a comment syntax."
+        case ("comment_column")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_column"
+            entry%original = "32"
+            entry%value = repr(comment_column%value)
+            entry%doc = "Column to indent right-margin comments to."//LF// &
+                        "Each mode may establish a different default value for this variable; you"//LF// &
+                        "can set the value for a particular mode using that mode's hook."//LF// &
+                        "Comments might be indented to a different value in order not to go beyond"//LF// &
+                        "`comment_fill_column' or in order to align them with surrounding comments."
+        case ("comment_combine_change_calls")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_combine_change_calls"
+            entry%original = ".true."
+            entry%value = repr(comment_combine_change_calls%value)
+            entry%doc = "If true (the default), use `combine_change_calls' around"//LF// &
+                        "calls of `comment_region_function' and"//LF// &
+                        "`uncomment_region_function'.  This Substitutes a single call to"//LF// &
+                        "each of the hooks `before_change_functions' and"//LF// &
+                        "`after_change_functions' in place of those hooks being called"//LF// &
+                        "for each individual buffer change."
+        case ("comment_continue")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_continue"
+            if (allocated(comment_continue%value)) then
+                entry%value = repr(comment_continue%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Continuation string to insert for multiline comments."//LF// &
+                        "This string will be added at the beginning of each line except the very"//LF// &
+                        "first one when commenting a region with a commenting style that allows"//LF// &
+                        "comments to span several lines."//LF// &
+                        "It should generally have the same length as `comment_start' in order to"//LF// &
+                        "preserve indentation."//LF// &
+                        "If it is unallocated a value will be automatically derived from"//LF// &
+                        "`comment_start' by replacing its first character with a space."
+        case ("comment_empty_lines")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_empty_lines"
+            entry%original = "COMMENT_EMPTY_LINES_NIL"
+            select case (comment_empty_lines%value)
+            case (COMMENT_EMPTY_LINES_NIL)
+                entry%value = "COMMENT_EMPTY_LINES_NIL"
+            case (COMMENT_EMPTY_LINES_T)
+                entry%value = "COMMENT_EMPTY_LINES_T"
+            case (COMMENT_EMPTY_LINES_EOL)
+                entry%value = "COMMENT_EMPTY_LINES_EOL"
+            case default
+                entry%value = repr(comment_empty_lines%value)
+            end select
+            entry%doc = "If COMMENT_EMPTY_LINES_NIL, `comment_region' does not comment out"//LF// &
+                        "empty lines.  If COMMENT_EMPTY_LINES_T, it always comments out empty"//LF// &
+                        "lines.  If COMMENT_EMPTY_LINES_EOL, it only comments out empty lines"//LF// &
+                        "if comments are terminated by the end of line (i.e., `comment_end'"//LF// &
+                        "is empty)."
+        case ("comment_end")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_end"
+            if (allocated(comment_end%value)) then
+                entry%value = repr(comment_end%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String to insert to end a new comment."//LF// &
+                        "Should be an empty string if comments are terminated by end-of-line."
         case ("comment_end_can_be_escaped")
             entry%file = "syntax_fm.f90"
             entry%fortran = "comment_end_can_be_escaped"
             entry%original = ".false."
             entry%value = repr(comment_end_can_be_escaped%value)
             entry%doc = "True means an escaped ender inside a comment doesn't end the comment."
+        case ("comment_end_skip")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_end_skip"
+            if (allocated(comment_end_skip%value)) then
+                entry%value = repr(comment_end_skip%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match the end of a comment plus everything back to its"//LF// &
+                        "body."
+        case ("comment_fill_column")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_fill_column"
+            entry%original = "-1"
+            entry%value = repr(comment_fill_column%value)
+            entry%doc = "Column to use for `comment_indent'.  If negative (nil), use"//LF// &
+                        "`fill_column' instead."
+        case ("comment_indent_function")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_indent_function"
+            entry%doc = "Function to compute desired indentation for a comment."//LF// &
+                        "This function is called with no args with point at the beginning"//LF// &
+                        "of the comment's starting delimiter and should return either the"//LF// &
+                        "desired column indentation, a range of acceptable"//LF// &
+                        "indentation (MIN . MAX), or nil."//LF// &
+                        "If nil is returned, indentation is delegated to"//LF// &
+                        "`indent_according_to_mode'."
+        case ("comment_inline_offset")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_inline_offset"
+            entry%original = "1"
+            entry%value = repr(comment_inline_offset%value)
+            entry%doc = "Inline comments have to be preceded by at least this many spaces."//LF// &
+                        "This is useful when style-conventions require a certain minimal offset."//LF// &
+                        "Python's PEP8 for example recommends two spaces, so you could do:"//LF// &
+                        ""//LF// &
+                        "    call comment_inline_offset%set_local(2)"//LF// &
+                        ""//LF// &
+                        "in a procedure added to `python_mode_hook'."//LF// &
+                        ""//LF// &
+                        "See `comment_padding' for whole-line comments."
+        case ("comment_insert_comment_function")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_insert_comment_function"
+            if (associated(comment_insert_comment_function%value)) then
+                entry%value = command_name_of(comment_insert_comment_function%value)
+            else
+                entry%value = "null()"
+            end if
+            entry%doc = "Function to insert a comment when a line doesn't contain one."//LF// &
+                        "The function has no args."//LF// &
+                        ""//LF// &
+                        "Applicable at least in modes for languages like fixed-format Fortran where"//LF// &
+                        "comments always start in column zero."
+        case ("comment_multi_line")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_multi_line"
+            entry%original = ".false."
+            entry%value = repr(comment_multi_line%value)
+            entry%doc = "True means `comment_indent_new_line' continues comments."//LF// &
+                        "That is, it inserts no new terminator or starter."//LF// &
+                        "This affects `auto_fill_mode', which is the main reason to"//LF// &
+                        "customize this variable."//LF// &
+                        ""//LF// &
+                        "It also affects \[indent_new_comment_line].  However, if you want this"//LF// &
+                        "behavior for explicit filling, you might as well use \[newline_and_indent]."
+        case ("comment_padding")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_padding"
+            if (allocated(comment_padding%value)) then
+                entry%value = repr(comment_padding%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Padding string that `comment_region' puts between comment chars and text."//LF// &
+                        "Can also be an integer which will be automatically turned into a string"//LF// &
+                        "of the corresponding number of spaces."//LF// &
+                        ""//LF// &
+                        "Extra spacing between the comment characters and the comment text"//LF// &
+                        "makes the comment easier to read.  Default is 1.  An empty string"//LF// &
+                        "means 0."
+        case ("comment_quote_nested")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_quote_nested"
+            entry%original = ".true."
+            entry%value = repr(comment_quote_nested%value)
+            entry%doc = "True if nested comments should be quoted."//LF// &
+                        "This should be locally set by each major mode if needed."
+        case ("comment_start")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_start"
+            if (allocated(comment_start%value)) then
+                entry%value = repr(comment_start%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String to insert to start a new comment, or unallocated if no comment"//LF// &
+                        "syntax."
+        case ("comment_start_skip")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_start_skip"
+            if (allocated(comment_start_skip%value)) then
+                entry%value = repr(comment_start_skip%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to match the start of a comment plus everything up to its body."//LF// &
+                        "If there are any \(...\) pairs and `comment_use_syntax' is nil,"//LF// &
+                        "the comment delimiter text is held to begin at the place matched"//LF// &
+                        "by the close of the first pair."
+        case ("comment_style")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_style"
+            entry%original = "COMMENT_STYLE_INDENT"
+            select case (comment_style%value)
+            case (COMMENT_STYLE_PLAIN)
+                entry%value = "COMMENT_STYLE_PLAIN"
+            case (COMMENT_STYLE_INDENT_OR_TRIPLE)
+                entry%value = "COMMENT_STYLE_INDENT_OR_TRIPLE"
+            case (COMMENT_STYLE_INDENT)
+                entry%value = "COMMENT_STYLE_INDENT"
+            case (COMMENT_STYLE_ALIGNED)
+                entry%value = "COMMENT_STYLE_ALIGNED"
+            case (COMMENT_STYLE_BOX)
+                entry%value = "COMMENT_STYLE_BOX"
+            case (COMMENT_STYLE_EXTRA_LINE)
+                entry%value = "COMMENT_STYLE_EXTRA_LINE"
+            case (COMMENT_STYLE_MULTI_LINE)
+                entry%value = "COMMENT_STYLE_MULTI_LINE"
+            case (COMMENT_STYLE_BOX_MULTI)
+                entry%value = "COMMENT_STYLE_BOX_MULTI"
+            case default
+                entry%value = repr(comment_style%value)
+            end select
+            entry%doc = "Style to be used for `comment_region'."//LF// &
+                        "See `comment_styles' for a list of available styles."
+        case ("comment_use_global_state")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_use_global_state"
+            entry%original = ".true."
+            entry%value = repr(comment_use_global_state)
+            entry%doc = "True means that the global syntactic context is used."//LF// &
+                        "More specifically, it means that `syntax_ppss' is used to find out whether"//LF// &
+                        "point is within a string or not.  Major modes whose syntax is not faithfully"//LF// &
+                        "described by the syntax-tables (or where `font_lock_syntax_table' is radically"//LF// &
+                        "different from the main syntax table) can set this to false,"//LF// &
+                        "then `syntax_ppss' cache won't be used in comment-related routines."
+        case ("comment_use_syntax")
+            entry%file = "newcomment_fm.f90"
+            entry%fortran = "comment_use_syntax"
+            entry%original = "COMMENT_USE_SYNTAX_UNDECIDED"
+            select case (comment_use_syntax%value)
+            case (COMMENT_USE_SYNTAX_NIL)
+                entry%value = "COMMENT_USE_SYNTAX_NIL"
+            case (COMMENT_USE_SYNTAX_T)
+                entry%value = "COMMENT_USE_SYNTAX_T"
+            case (COMMENT_USE_SYNTAX_UNDECIDED)
+                entry%value = "COMMENT_USE_SYNTAX_UNDECIDED"
+            case default
+                entry%value = repr(comment_use_syntax%value)
+            end select
+            entry%doc = "Non-nil if syntax-tables can be used instead of regexps."//LF// &
+                        "Can also be `undecided' which means that a somewhat expensive test will"//LF// &
+                        "be used to try to determine whether syntax-tables should be trusted"//LF// &
+                        "to understand comments or not in the given buffer."//LF// &
+                        "Major modes should set this variable."
         case ("comment_use_syntax_ppss")
             entry%file = "syntax_fm.f90"
             entry%fortran = "comment_use_syntax_ppss"
