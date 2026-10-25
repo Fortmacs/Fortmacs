@@ -389,6 +389,16 @@ contains
         call other_window(prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_other_window
 
+    !> Select another window in the reverse cyclic ordering of windows.
+    !> COUNT specifies the number of windows to skip, (by default) backward,
+    !> starting with the selected window, before making the selection.  Like
+    !> `other_window', but moves in the opposite direction.  Port of
+    !> window.el:other-window-backward (the command; one frame).
+    subroutine cmd_other_window_backward(status)
+        type(status_type), intent(out) :: status
+        call other_window(-prefix_numeric_value(current_prefix_arg), status)
+    end subroutine cmd_other_window_backward
+
     !> Whether buffer `b' is shown in a window of the frame.
     logical function buffer_visible_p(b)
         type(handle_type), intent(in) :: b
@@ -650,6 +660,7 @@ contains
         commands%delete_window%run => cmd_delete_window
         commands%delete_other_windows%run => cmd_delete_other_windows
         commands%other_window%run => cmd_other_window
+        commands%other_window_backward%run => cmd_other_window_backward
         commands%switch_to_buffer%run => cmd_switch_to_buffer
         commands%kill_buffer%run => cmd_kill_buffer
     end subroutine syms_of_window_cmds

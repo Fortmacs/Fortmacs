@@ -57,7 +57,7 @@ module isearch_fm
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, define_key_range, key_parse, &
                          lookup_key, keymap_live_p, free_keymap, overriding_terminal_local_map
     use keyboard_fm, only: this_command, last_command, last_command_event, this_command_keys, &
-                           pre_command_hook, redisplay_proc, discard_input, input_pending_p, &
+                           pre_command_hook, discard_input, input_pending_p, &
                            read_event, sit_for
     use callint_fm, only: commandp, current_prefix_arg, prefix_numeric_value
     use subr_fm, only: add_to_history, history_delete_duplicates, defvar_nil
@@ -193,7 +193,6 @@ module isearch_fm
     !> isearch--saved-local-map and isearch--saved-overriding-local-map.
     type(handle_type) :: saved_local_map, saved_overriding_local_map
     !> The pre-command hook isearch-mode replaced.
-    procedure(redisplay_proc), pointer :: saved_pre_command_hook => null()
 
 contains
 
@@ -624,10 +623,7 @@ contains
         saved_overriding_local_map = overriding_terminal_local_map
         call isearch_push_state()
         call isearch_update()
-        if (.not. associated(pre_command_hook, isearch_pre_command_hook)) then
-            saved_pre_command_hook => pre_command_hook
-            pre_command_hook => isearch_pre_command_hook
-        end if
+        call pre_command_hook%add(isearch_pre_command_hook)
     end subroutine isearch_mode
 
     logical function same_handle(a, b)
@@ -654,10 +650,7 @@ contains
     !> Port of isearch.el:isearch-done (no intangible text or hooks).
     subroutine isearch_done(nopush, edit)
         logical, intent(in), optional :: nopush, edit
-        if (associated(pre_command_hook, isearch_pre_command_hook)) then
-            pre_command_hook => saved_pre_command_hook
-            saved_pre_command_hook => null()
-        end if
+        call pre_command_hook%remove(isearch_pre_command_hook)
         overriding_terminal_local_map = saved_local_map
         saved_local_map = null_handle()
         isearch_active = .false.
@@ -742,9 +735,11 @@ contains
     !> `search_exit_option' is t) before the command is executed globally
     !> with terminated Isearch.  Port of isearch.el:isearch-pre-command-hook
     !> (isearch-allow-prefix t, no scrolling or motion).
-    subroutine isearch_pre_command_hook()
+    recursive subroutine isearch_pre_command_hook(hook_status)
+        type(status_type), intent(out) :: hook_status
         type(value_type) :: binding
         type(status_type) :: status
+        hook_status = status_type()
         ! Don't exit Isearch if we're in the middle of some
         ! `set_transient_map' thingy like `universal_argument__mode'.
         if (.not. same_handle(overriding_terminal_local_map, saved_overriding_local_map)) return

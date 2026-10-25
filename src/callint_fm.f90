@@ -52,6 +52,19 @@ module callint_fm
     !> or more C-u's, or .false. if no argument has been specified.  Port
     !> of callint.c current-prefix-arg.
     type(value_type), public :: current_prefix_arg
+
+    !> The command now being executed.
+    !> The command can set this variable; whatever is put here
+    !> will be in `last_command' during the following command.  Port of
+    !> keyboard.c this-command (kept here for `call_interactively').
+    type(value_type), public :: this_command
+
+    !> This is like `this_command', but bound recursively.
+    !> Code running from (for instance) a minibuffer hook can check this variable
+    !> to see what command invoked the current minibuffer.  Port of
+    !> keyboard.c current-minibuffer-command (bound by
+    !> callint.c:Fcall_interactively).
+    type(value_type), public :: current_minibuffer_command
     !> keyboard.c KVAR prefix_arg: the raw prefix argument for the next
     !> command (set by universal-argument and friends).
     type(value_type), public :: prefix_arg
@@ -174,6 +187,7 @@ contains
         type(value_type), intent(in) :: cmd
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
+        type(value_type) :: saved
         p => symbol_command(cmd)
         if (associated(p)) then
             if (.not. p%interactive) p => null()
@@ -186,7 +200,10 @@ contains
             end if
             return
         end if
+        saved = current_minibuffer_command
+        current_minibuffer_command = this_command
         call p%run(status)
+        current_minibuffer_command = saved
     end subroutine call_interactively
 
     !> Call function FN with no arguments.  Port of eval.c:Ffuncall (no

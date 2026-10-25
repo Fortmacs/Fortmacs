@@ -67,7 +67,7 @@ module keyboard_fm
                          key_description, parse_modifiers, apply_modifiers, &
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping
     use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
-                          prefix_numeric_value
+                          prefix_numeric_value, this_command
     use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
@@ -87,6 +87,7 @@ module keyboard_fm
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
+    public :: exit_transient_map
     public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, special_events_pending_p, &
               read_fd_proc, special_event_proc
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
@@ -111,11 +112,23 @@ module keyboard_fm
     !> keyboard.c:Vkey_translation_map.
     type(handle_type), public :: key_translation_map
 
-    !> keyboard.c:last_command_event, Vthis_command, KVAR last_command and
-    !> friends.
-    type(value_type), public :: last_command_event, this_command, &
+    !> keyboard.c:last_command_event, KVAR last_command and friends
+    !> (Vthis_command is callint_fm's `this_command').
+    type(value_type), public :: last_command_event, &
                                 real_this_command, last_command, &
                                 real_last_command, last_prefix_arg
+    public :: this_command
+    !> Last command that may be repeated.
+    !> The last command executed that was not bound to an input event.
+    !> This is the command `repeat' will try to repeat.
+    !> Taken from a previous value of `real_this_command'.  Port of
+    !> keyboard.c last-repeatable-command.
+    type(value_type), public :: last_repeatable_command
+    !> Number of complete key sequences read as input so far.
+    !> This includes key sequences read from keyboard macros.
+    !> The number is effectively the number of interactive command
+    !> invocations.  Port of keyboard.c num-input-keys.
+    integer(int64), public :: num_input_keys = 0
     !> keyboard.c:Vthis_command_keys_shift_translated.
     logical, public :: this_command_keys_shift_translated = .false.
     !> The keys of the command being run (this-command-keys).
@@ -274,10 +287,11 @@ module keyboard_fm
     !> post-command-hook.
     type(hook_type), target, public :: post_command_hook = hook_type(name="post_command_hook")
 
-    !> Run before each command, after its keys are read and `this_command'
-    !> is set (keyboard.c's pre-command-hook, with one function); null
-    !> for none.
-    procedure(redisplay_proc), pointer, public :: pre_command_hook => null()
+    !> Normal hook run before each command is executed.  (An error in one
+    !> of its functions ends the run; safe_run_hooks's message and removal
+    !> of the function are deferred.)  Port of keyboard.c
+    !> pre-command-hook.
+    type(hook_type), target, public :: pre_command_hook = hook_type(name="pre_command_hook")
 
     !> Ring the bell of the selected frame's terminal (terminal.c:
     !> ring_bell's FRAME_TERMINAL (f)->ring_bell_hook); set by the
@@ -1140,6 +1154,7 @@ contains
         if (keymapp(binding)) binding = nil()
         allocate (keys(t))
         keys = keybuf(1:t)
+        if (.not. eof) num_input_keys = num_input_keys + 1
     end subroutine read_key_sequence
 
     ! ------------------------------------------------------------------
@@ -1192,6 +1207,18 @@ contains
         if (at > 0) transient_message = transient_message(1:at - 1)//keys//transient_message(at + 2:)
         last_message = transient_message
     end subroutine set_transient_map
+
+    !> Deactivate transient map KM if it is still the active one: the
+    !> exitfun that subr.el:set-transient-map returns.
+    subroutine exit_transient_map(km)
+        type(handle_type), intent(in) :: km
+        type(value_type) :: none(0)
+        if (.not. transient_active) return
+        if (overriding_terminal_local_map%index /= km%index .or. &
+            overriding_terminal_local_map%generation /= km%generation) return
+        transient_keep = .false.
+        call clear_transient_map(none)
+    end subroutine exit_transient_map
 
     !> The pre-command-hook function of the active transient map: keep it
     !> (repeating its message) when KEEP_PRED is t and the command is the
@@ -1528,12 +1555,10 @@ contains
         ! pre-command-hook: a transient map lasts for one key sequence,
         ! unless KEEP-PRED keeps it.
         if (transient_active) call clear_transient_map(keys)
-        if (associated(pre_command_hook)) then
-            call pre_command_hook()
-            ! The hook may have changed the command (command-execute runs
-            ! this-command).
-            cmd = this_command
-        end if
+        call pre_command_hook%run(hook_status)
+        ! The hook may have changed the command (command-execute runs
+        ! this-command).
+        cmd = this_command
         ! By default, we adjust point to a boundary of a region that has
         ! such a property that should be treated intangible (e.g.
         ! composition, display).  But, some commands will set this
@@ -1578,6 +1603,7 @@ contains
             call cmd_error(status)
             last_command = this_command
             real_last_command = real_this_command
+            if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
             call post_command_hook%run(hook_status)
             done = eof
             return
@@ -1585,6 +1611,7 @@ contains
         last_prefix_arg = current_prefix_arg
         last_command = this_command
         real_last_command = real_this_command
+        if (vtag(last_command_event) /= V_LIST) last_repeatable_command = real_this_command
         ! post-command-hook
         call post_command_hook%run(hook_status)
         ! A command that changed the buffer (or asked to) ends an active
