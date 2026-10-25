@@ -56,6 +56,8 @@ module modes_fm
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: prog_mode
+        type(major_mode_type) :: sh_base_mode
+        type(major_mode_type) :: sh_mode
         type(major_mode_type) :: shell_command_mode
         type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
@@ -77,6 +79,7 @@ module modes_fm
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: sh_electric_here_document_mode
         type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode
         type(minor_mode_type) :: show_paren_mode

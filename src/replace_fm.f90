@@ -81,7 +81,8 @@ module replace_fm
     public :: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, replace_regexp
     public :: query_replace_descr, query_replace_read_from, query_replace_read_to, query_replace_read_args, &
               query_replace_compile_replacement, replace_expand_count, syms_of_replace
-    public :: replacement_function, read_regexp, read_regexp_suggestions, query_replace_read_from_suggestions
+    public :: replacement_function, read_regexp, read_regexp_suggestions, query_replace_read_from_suggestions, &
+              format_prompt
 
     !> A FROM_STRING and TO_STRING pair of `query_replace_defaults'.
     type, public :: replace_pair_type
