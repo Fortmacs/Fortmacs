@@ -82,7 +82,8 @@ module comint_fm
                          SEARCH_NOERROR
     use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, match_string
     use eval_fm, only: hook_type, string_hook_type, string_filter_hook_type
-    use keymap_fm, only: keymap_set, lookup_key, key_description, command_remapping, current_global_map
+    use keymap_fm, only: keymap_set, lookup_key, key_description, command_remapping, current_global_map, &
+                         make_sparse_keymap, keymap_live_p, set_repeat_map
     use modes_fm, only: major_modes
     use simple_fm, only: kill_region, copy_region_as_kill, push_mark, kill_whole_line
     use process_fm, only: process_arg_type, make_process, get_buffer_process, process_status, process_mark, &
@@ -435,6 +436,10 @@ module comint_fm
     !> Keymap for Comint mode.  Port of comint.el comint-mode-map (the
     !> keys of ported commands).
     type(handle_type), public :: comint_mode_map
+
+    !> Keymap to repeat comint key sequences.  Used in `repeat_mode'.
+    !> Port of comint.el comint-repeat-map.
+    type(handle_type), public :: comint_repeat_map
 
     !> Face to use to highlight user input: the face `comint_highlight_input'
     !> (the variable of that name is the setting).  Port of
@@ -3439,6 +3444,12 @@ contains
         call keymap_set(comint_mode_map, "C-c C-e", "comint_show_maximum_output", st)
         call keymap_set(comint_mode_map, "C-c C-n", "comint_next_prompt", st)
         call keymap_set(comint_mode_map, "C-c C-p", "comint_previous_prompt", st)
+        if (.not. keymap_live_p(comint_repeat_map)) then
+            call make_sparse_keymap(comint_repeat_map)
+            call keymap_set(comint_repeat_map, "C-n", "comint_next_prompt", st)
+            call keymap_set(comint_repeat_map, "C-p", "comint_previous_prompt", st)
+            call set_repeat_map(comint_repeat_map)
+        end if
         call keymap_set(comint_mode_map, "C-c C-d", "comint_send_eof", st)
         call keymap_set(comint_mode_map, "C-c C-s", "comint_write_output", st)
         commands%comint_mode%run => comint_mode

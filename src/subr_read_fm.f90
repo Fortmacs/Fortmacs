@@ -500,6 +500,14 @@ contains
         call sit_for(2000)
     end subroutine y_or_n_p_insert_other
 
+    !> Ignore ARGUMENTS, do nothing, and return nil.
+    !> This function accepts any number of arguments in ARGUMENTS.
+    !> Also see `always'.  Port of subr.el:ignore (no arguments).
+    recursive subroutine ignore(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+    end subroutine ignore
+
     !> Abort the command that requested this recursive edit or minibuffer input.
     !> Port of keyboard.c:abort-recursive-edit.
     subroutine cmd_abort_recursive_edit(status)
@@ -510,6 +518,7 @@ contains
     module procedure syms_of_subr
     type(status_type) :: st
     commands%undefined%run => undefined
+    commands%ignore%run => ignore
     commands%y_or_n_p_insert_y%run => y_or_n_p_insert_y
     commands%y_or_n_p_insert_n%run => y_or_n_p_insert_n
     commands%y_or_n_p_insert_other%run => y_or_n_p_insert_other

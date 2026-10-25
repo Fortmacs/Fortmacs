@@ -88,6 +88,7 @@ module modes_fm
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode
+        type(minor_mode_type) :: repeat_mode
         type(minor_mode_type) :: sh_electric_here_document_mode
         type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode

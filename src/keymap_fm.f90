@@ -80,7 +80,7 @@ module keymap_fm
     public :: parse_modifiers, apply_modifiers
     public :: key_parse, key_description, single_key_description, &
               push_key_description
-    public :: key_valid_p, keymap_set, keymap_global_set
+    public :: key_valid_p, keymap_set, keymap_global_set, set_repeat_map
     public :: where_is_internal, keymap_events, command_remapping
     public :: accessible_keymaps, map_keymap_items, current_minor_maps, push_minor_mode_overriding_map, &
               remove_minor_mode_overriding_map
@@ -2341,6 +2341,43 @@ contains
             end do
         end function cycle_p
     end subroutine where_is_internal
+
+    !> Give the commands MAP binds (other than those named in EXIT) MAP
+    !> as their `repeat_map', so that Repeat mode repeats them with its
+    !> keys.  Port of the :repeat t (and :exit) part of
+    !> keymap.el:defvar-keymap.
+    subroutine set_repeat_map(map, exit)
+        type(handle_type), intent(in) :: map
+        character(len=*), intent(in), optional :: exit(:)
+        call set_repeat_map_of(map, map, exit)
+    end subroutine set_repeat_map
+
+    !> `set_repeat_map' for the bindings of prefix map SUB of MAP.
+    recursive subroutine set_repeat_map_of(sub, map, exit)
+        type(handle_type), intent(in) :: sub, map
+        character(len=*), intent(in), optional :: exit(:)
+        type(value_type), allocatable :: events(:)
+        type(value_type) :: binding
+        type(command_type), pointer :: p
+        character(len=:), allocatable :: name
+        integer :: k
+        call keymap_events(sub, events)
+        do k = 1, size(events)
+            binding = access_keymap(make_keymap_ref(sub), events(k), .false., .false.)
+            if (keymap_ref_p(binding)) then
+                call set_repeat_map_of(xhandle(binding), map, exit)
+                cycle
+            end if
+            if (vtag(binding) /= V_SYMBOL) cycle
+            name = trim(symbols(xsymbol(binding))%name)
+            if (present(exit)) then
+                if (any(exit == name)) cycle
+            end if
+            p => defined_command(name)
+            if (.not. associated(p)) p => builtin_command(name)
+            if (associated(p)) p%repeat_map = map
+        end do
+    end subroutine set_repeat_map_of
 
     !> The `advertised_binding' of the command named `name' as events;
     !> none if it has none (or it doesn't parse).

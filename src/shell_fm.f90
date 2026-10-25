@@ -61,7 +61,7 @@ module shell_fm
                          directory_file_name, insert_file_contents
     use eval_fm, only: hook_type
     use modes_fm, only: major_modes, minor_modes
-    use keymap_fm, only: keymap_set
+    use keymap_fm, only: keymap_set, make_sparse_keymap, keymap_live_p, set_repeat_map
     use paragraphs_fm, only: paragraph_start, paragraph_separate
     use font_core_fm, only: font_lock_defaults, font_lock_keyword_type
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
@@ -228,6 +228,10 @@ module shell_fm
     !> Keymap for `shell_mode'.  Port of shell.el shell-mode-map (the keys
     !> of ported commands).
     type(handle_type), public :: shell_mode_map
+
+    !> Keymap to repeat shell key sequences.  Used in `repeat_mode'.  Port
+    !> of shell.el shell-repeat-map.
+    type(handle_type), public :: shell_repeat_map
 
     !> Keymap for `shell_command_mode'.
     type(handle_type), public :: shell_command_mode_map
@@ -1439,6 +1443,12 @@ contains
         call add_local_variables_killer(kill_shell_locals)
         call keymap_set(shell_mode_map, "C-c C-f", "shell_forward_command", st)
         call keymap_set(shell_mode_map, "C-c C-b", "shell_backward_command", st)
+        if (.not. keymap_live_p(shell_repeat_map)) then
+            call make_sparse_keymap(shell_repeat_map)
+            call keymap_set(shell_repeat_map, "C-f", "shell_forward_command", st)
+            call keymap_set(shell_repeat_map, "C-b", "shell_backward_command", st)
+            call set_repeat_map(shell_repeat_map)
+        end if
         call keymap_set(shell_mode_map, "C-x n d", "shell_narrow_to_prompt", st)
         commands%shell%run => cmd_shell
         commands%shell_mode%run => shell_mode

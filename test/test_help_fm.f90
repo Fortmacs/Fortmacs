@@ -559,9 +559,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         call fresh_scratch()
-        call type_keys("C-h k C-x z")
+        call type_keys("C-h k C-x y")
         call command_loop(st)
-        call check(error, last_message == "C-x z is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
+        call check(error, last_message == "C-x y is undefined" .and. buffers(cur)%name == "*scratch*", last_message)
         if (allocated(error)) return
         ! A key bound to `undefined' is undefined too
         ! (help--binding-undefined-p).
@@ -975,11 +975,11 @@ contains
         call check(error, window_count() == 2, "*Messages* is displayed")
         if (allocated(error)) return
         ! Errors are logged too.
-        call type_keys("C-x z")
+        call type_keys("C-x y")
         call command_loop(st)
         call message("After")
         text = buf_text("*Messages*")
-        call check(error, index(text, LF//"C-x z is undefined"//LF//"After"//LF) > 0, text)
+        call check(error, index(text, LF//"C-x y is undefined"//LF//"After"//LF) > 0, text)
         call fresh_scratch()
     end subroutine test_view_messages
 

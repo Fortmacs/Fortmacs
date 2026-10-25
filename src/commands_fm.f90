@@ -374,6 +374,7 @@ module commands_fm
         type(command_type) :: help_form_show
         type(command_type) :: help_mode
         type(command_type) :: help_quit
+        type(command_type) :: ignore
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
         type(command_type) :: indent_for_tab_command
@@ -538,6 +539,7 @@ module commands_fm
         type(command_type) :: open_line
         type(command_type) :: open_rectangle
         type(command_type) :: other_window
+        type(command_type) :: other_window_backward
         type(command_type) :: point_to_register
         type(command_type) :: pop_to_mark_command
         type(command_type) :: posix_search_backward
@@ -565,6 +567,9 @@ module commands_fm
         type(command_type) :: recompile
         type(command_type) :: rectangle_number_lines
         type(command_type) :: reindent_then_newline_and_indent
+        type(command_type) :: repeat
+        type(command_type) :: repeat_exit
+        type(command_type) :: repeat_mode
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
@@ -747,7 +752,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(709) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(714) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1090,6 +1095,7 @@ module commands_fm
                                                                  "help_form_show", &
                                                                  "help_mode", &
                                                                  "help_quit", &
+                                                                 "ignore", &
                                                                  "increment_register", &
                                                                  "indent_according_to_mode", &
                                                                  "indent_for_tab_command", &
@@ -1254,6 +1260,7 @@ module commands_fm
                                                                  "open_line", &
                                                                  "open_rectangle", &
                                                                  "other_window", &
+                                                                 "other_window_backward", &
                                                                  "point_to_register", &
                                                                  "pop_to_mark_command", &
                                                                  "posix_search_backward", &
@@ -1281,6 +1288,9 @@ module commands_fm
                                                                  "recompile", &
                                                                  "rectangle_number_lines", &
                                                                  "reindent_then_newline_and_indent", &
+                                                                 "repeat", &
+                                                                 "repeat_exit", &
+                                                                 "repeat_mode", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "revert_buffer", &
@@ -2151,6 +2161,8 @@ contains
             p => commands%help_mode
         case ("help_quit")
             p => commands%help_quit
+        case ("ignore")
+            p => commands%ignore
         case ("increment_register")
             p => commands%increment_register
         case ("indent_according_to_mode")
@@ -2479,6 +2491,8 @@ contains
             p => commands%open_rectangle
         case ("other_window")
             p => commands%other_window
+        case ("other_window_backward")
+            p => commands%other_window_backward
         case ("point_to_register")
             p => commands%point_to_register
         case ("pop_to_mark_command")
@@ -2533,6 +2547,12 @@ contains
             p => commands%rectangle_number_lines
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
+        case ("repeat")
+            p => commands%repeat
+        case ("repeat_exit")
+            p => commands%repeat_exit
+        case ("repeat_mode")
+            p => commands%repeat_mode
         case ("replace_regexp")
             p => commands%replace_regexp
         case ("replace_string")

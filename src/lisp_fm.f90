@@ -69,6 +69,9 @@ module lisp_fm
         end subroutine command_proc
     end interface
 
+    !> Values of a command property that is unset (nil), t, or `no'.
+    integer, parameter, public :: PROPERTY_UNSET = 0, PROPERTY_TRUE = 1, PROPERTY_NO = 2
+
     !> A named function: what upstream keeps in a symbol's function cell,
     !> its interactive spec (`interactive': a command) and its `disabled'
     !> property.  Built-in ones are the components of `commands'
@@ -97,6 +100,27 @@ module lisp_fm
         !> one key to show in menus and docstrings (the
         !> `:advertised-binding' property; one key here).
         character(len=:), allocatable :: advertised_binding
+        !> The keymap of single keys that repeat this command in Repeat
+        !> mode (the `repeat-map' property; the null handle for none).
+        type(handle_type) :: repeat_map
+        !> Whether the command continues the current repeating sequence
+        !> whatever its map (the `repeat-continue' property t), or the
+        !> repeat maps whose sequences it continues (a list of keymaps).
+        logical :: repeat_continue_all = .false.
+        type(handle_type), allocatable :: repeat_continue(:)
+        !> Whether Repeat mode checks that the last key is in the repeat
+        !> map (the `repeat-check-key' property): PROPERTY_UNSET to use
+        !> `repeat_check_key', PROPERTY_TRUE, or PROPERTY_NO.
+        integer :: repeat_check_key = PROPERTY_UNSET
+        !> The idle time after which the repeating sequence ends (the
+        !> `repeat-exit-timeout' property; negative to use
+        !> `repeat_exit_timeout'), or no timeout (`repeat_exit_timeout_no',
+        !> the value `no').
+        real :: repeat_exit_timeout = -1.0
+        logical :: repeat_exit_timeout_no = .false.
+        !> A hint shown by Repeat mode for the command's key (the
+        !> `repeat-hint' property); unallocated for none.
+        character(len=:), allocatable :: repeat_hint
     contains
         !> Make this command known by its name, to M-x, keymaps and the
         !> help commands (upstream's defun).

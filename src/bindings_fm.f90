@@ -35,7 +35,7 @@ module bindings_fm
     use character_fm, only: MAX_CHAR, CHAR_CTL, CHAR_META
     use keymap_fm, only: make_keymap, make_sparse_keymap, define_key, &
                          define_key_range, use_global_map, set_keymap_parent, &
-                         key_parse, keymap_live_p, free_keymap
+                         key_parse, keymap_live_p, free_keymap, set_repeat_map
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, intern_command_names
     use page_fm, only: syms_of_page
     use keyboard_fm, only: local_function_key_map, syms_of_macros
@@ -64,6 +64,7 @@ module bindings_fm
     use log_view_fm, only: syms_of_log_view
     use vc_dir_fm, only: syms_of_vc_dir
     use autorevert_fm, only: syms_of_autorevert
+    use repeat_fm, only: syms_of_repeat
     use help_fm, only: syms_of_help, register_keymap_name, help_map
     use mule_fm, only: syms_of_mule
     use isearch_fm, only: isearch_mode_map
@@ -120,6 +121,15 @@ module bindings_fm
 
     !> bindings.el:abbrev-map (keymap for abbrev commands).
     type(handle_type), public :: abbrev_map
+
+    !> The repeat maps (keymaps to repeat commands in `repeat_mode'):
+    !> bindings.el:undo-repeat-map (`undo'), buffer-navigation-repeat-map
+    !> (`next_buffer', `previous_buffer'), next-error-repeat-map
+    !> (`next_error', `previous_error'), page-navigation-repeat-map
+    !> (`forward_page', `backward_page'); window.el:other-window-repeat-map
+    !> (`other_window', `other_window_backward').
+    type(handle_type), public :: undo_repeat_map, buffer_navigation_repeat_map, next_error_repeat_map, &
+                                 page_navigation_repeat_map, other_window_repeat_map
 
 contains
 
@@ -246,6 +256,11 @@ contains
         if (keymap_live_p(function_key_map)) call free_keymap(function_key_map, status)
         if (keymap_live_p(goto_map)) call free_keymap(goto_map, status)
         if (keymap_live_p(abbrev_map)) call free_keymap(abbrev_map, status)
+        if (keymap_live_p(undo_repeat_map)) call free_keymap(undo_repeat_map, status)
+        if (keymap_live_p(buffer_navigation_repeat_map)) call free_keymap(buffer_navigation_repeat_map, status)
+        if (keymap_live_p(next_error_repeat_map)) call free_keymap(next_error_repeat_map, status)
+        if (keymap_live_p(page_navigation_repeat_map)) call free_keymap(page_navigation_repeat_map, status)
+        if (keymap_live_p(other_window_repeat_map)) call free_keymap(other_window_repeat_map, status)
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
         call syms_of_abbrev()
         call syms_of_cmds()
@@ -369,6 +384,9 @@ contains
         call bind(global_map, "C-_", "undo")
         call bind(global_map, "C-/", "undo")
         call bind(ctl_x_map, "u", "undo")
+        call make_sparse_keymap(undo_repeat_map)
+        call bind(undo_repeat_map, "u", "undo")
+        call set_repeat_map(undo_repeat_map)
         ! bindings.el: ctl-x-x-map.
         call make_sparse_keymap(ctl_x_x_map)
         call bind(ctl_x_x_map, "f", "font_lock_update")
@@ -439,12 +457,20 @@ contains
         call syms_of_page()
         call bind(ctl_x_map, "[", "backward_page")
         call bind(ctl_x_map, "]", "forward_page")
+        call make_sparse_keymap(page_navigation_repeat_map)
+        call bind(page_navigation_repeat_map, "]", "forward_page")
+        call bind(page_navigation_repeat_map, "[", "backward_page")
+        call set_repeat_map(page_navigation_repeat_map)
         ! Windows (window.el) and buffers (subr.el ctl-x-map).
         call bind(ctl_x_map, "0", "delete_window")
         call bind(ctl_x_map, "1", "delete_other_windows")
         call bind(ctl_x_map, "2", "split_window_below")
         call bind(ctl_x_map, "3", "split_window_right")
         call bind(ctl_x_map, "o", "other_window")
+        call make_sparse_keymap(other_window_repeat_map)
+        call bind(other_window_repeat_map, "o", "other_window")
+        call bind(other_window_repeat_map, "O", "other_window_backward")
+        call set_repeat_map(other_window_repeat_map)
         call bind(ctl_x_map, "b", "switch_to_buffer")
         call bind(ctl_x_map, "<right>", "next_buffer")
         call bind(ctl_x_map, "C-<right>", "next_buffer")
@@ -452,6 +478,10 @@ contains
         call bind(ctl_x_map, "<left>", "previous_buffer")
         call bind(ctl_x_map, "C-<left>", "previous_buffer")
         call bind(global_map, "<XF86Back>", "previous_buffer")
+        call make_sparse_keymap(buffer_navigation_repeat_map)
+        call bind(buffer_navigation_repeat_map, "<right>", "next_buffer")
+        call bind(buffer_navigation_repeat_map, "<left>", "previous_buffer")
+        call set_repeat_map(buffer_navigation_repeat_map)
         call bind(ctl_x_map, "k", "kill_buffer")
         call bind(global_map, "C-w", "kill_region")
         call bind(esc_map, "w", "kill_ring_save")
@@ -513,6 +543,14 @@ contains
         call bind(esc_map, "|", "shell_command_on_region")
         call bind(esc_map, "&", "async_shell_command")
         call bind(ctl_x_map, "`", "next_error")
+        call make_sparse_keymap(next_error_repeat_map)
+        call bind(next_error_repeat_map, "n", "next_error")
+        call bind(next_error_repeat_map, "M-n", "next_error")
+        call bind(next_error_repeat_map, "p", "previous_error")
+        call bind(next_error_repeat_map, "M-p", "previous_error")
+        call set_repeat_map(next_error_repeat_map)
+        ! bindings.el: (define-key ctl-x-map "z" 'repeat)
+        call bind(ctl_x_map, "z", "repeat")
         ! bindings.el: goto-map (the keys of ported commands).
         call make_sparse_keymap(goto_map)
         call bind(goto_map, "n", "next_error")
@@ -558,6 +596,7 @@ contains
         call syms_of_log_view()
         call syms_of_vc_dir()
         call syms_of_autorevert()
+        call syms_of_repeat()
         call syms_of_vc_git()
         call syms_of_view()
         call syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
