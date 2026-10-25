@@ -60,7 +60,7 @@ module vc_git_fm
 
     public :: syms_of_vc_git, vc_git_registered, vc_git_state, vc_git_working_revision, vc_git_mode_line_string, &
               vc_git_root, vc_git_command, vc_git_previous_revision, vc_git_revision_table, vc_git_symbolic_commit, &
-              vc_git_status_to_vc_state
+              vc_git_status_to_vc_state, vc_git_parse_program_version, vc_git_program_version
 
     !> String or list of strings specifying switches for Git diff under VC.
     !> If nil, use the value of `vc_diff_switches'.  If t, use no switches.
@@ -279,8 +279,7 @@ contains
             call call_process(vc_git_program, result, status, destination=t_value(), args=make_list(argv), &
                               error_file="/dev/null", environment=make_list(envv))
         else
-            call call_process(vc_git_program, result, status, destination=nil(), args=make_list(argv), &
-                              environment=make_list(envv))
+            call call_process(vc_git_program, result, status, args=make_list(argv), environment=make_list(envv))
         end if
         if (.not. status%ok()) return
         if (fixnump(result)) code = int(xfixnum(result))
@@ -368,36 +367,41 @@ contains
     end function vc_git_empty_db_p
 
     !> The version of Git, "0" if unknown.  Port of
-    !> vc-git.el:vc-git--program-version.
+    !> vc-git.el:vc-git--program-version (the parsing is
+    !> `vc_git_parse_program_version').
     function vc_git_program_version() result(version)
         character(len=:), allocatable :: version
         character(len=:), allocatable :: s
-        type(status_type) :: st
         logical :: ok
-        integer :: k
         if (allocated(program_version)) then
             version = program_version
             return
         end if
         call vc_git_run_command_string(strings("version"), s, ok)
-        version = "0"
-        ! Some Git versions append additional strings to the numerical
-        ! version string. E.g., Git for Windows appends ".windows.N", while
-        ! Git for Mac appends " (Apple Git-N)". Capture numerical version
-        ! and ignore the rest.
-        if (ok) then
-            if (string_match("git version \([0-9][0-9.]+\)", s, st) > 0) then
-                version = match_string(1, s)
-                k = len(version)
-                do while (k > 0)
-                    if (version(k:k) /= ".") exit
-                    k = k - 1
-                end do
-                version = version(1:k)
-            end if
-        end if
+        if (.not. ok) s = ""
+        version = vc_git_parse_program_version(s)
         program_version = version
     end function vc_git_program_version
+
+    !> The version in VERSION_STRING, the output of `git version' ("0" if
+    !> none).  Some Git versions append additional strings to the
+    !> numerical version string. E.g., Git for Windows appends
+    !> ".windows.N", while Git for Mac appends " (Apple Git-N)". Capture
+    !> numerical version and ignore the rest.  Part of
+    !> vc-git.el:vc-git--program-version.
+    function vc_git_parse_program_version(version_string) result(version)
+        character(len=*), intent(in) :: version_string
+        character(len=:), allocatable :: version
+        type(status_type) :: st
+        integer :: k
+        version = "0"
+        if (string_match("git version \([0-9][0-9.]+\)", version_string, st) > 0) then
+            version = match_string(1, version_string)
+            ! (string-trim-right ... "\\."): one trailing dot.
+            k = len(version)
+            if (version(k:k) == ".") version = version(1:k - 1)
+        end if
+    end function vc_git_parse_program_version
 
     !> Whether version A is lower than or equal to B (version<=, for
     !> versions of numbers and dots).

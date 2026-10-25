@@ -54,7 +54,8 @@ module vc_dispatcher_fm
                           process_exit_status, process_buffer, process_mark, set_process_filter, &
                           set_process_sentinel, accept_process_output, PROCESS_CONNECTION_PIPE
     use window_fm, only: pop_to_buffer, shrink_window_if_larger_than_buffer
-    use xdisp_fm, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type
+    use xdisp_fm, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
+                        add_minor_mode_lighter
     use subr_fm, only: y_or_n_p
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops
     implicit none(type, external)
@@ -63,7 +64,7 @@ module vc_dispatcher_fm
     public :: vc_action_type, vc_action_proc, vc_do_command, vc_setup_buffer, vc_exec_after, vc_process_filter, &
               vc_delistify, vc_resynch_window, vc_resynch_buffer, vc_resynch_buffers_in_directory, vc_buffer_sync, &
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
-              vc_mode_line_hook_run
+              vc_mode_line_hook_run, syms_of_vc_dispatcher
     public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
 
@@ -209,6 +210,29 @@ contains
         if (k == 0) return
         if (allocated(parents(k)%name)) name = parents(k)%name
     end function vc_parent_buffer_name
+
+    !> The `vc_parent_buffer_name' of buffer slot BI, shown in the mode
+    !> line while it has a `vc_parent_buffer' (vc.el's minor-mode-alist
+    !> entry (vc-parent-buffer vc-parent-buffer-name)).
+    function parent_name_of(bi) result(text)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable :: text
+        integer :: k
+        text = ""
+        if (.not. allocated(parents)) return
+        do k = 1, size(parents)
+            if (parents(k)%serial /= buffers(bi)%serial) cycle
+            if (parents(k)%parent%index == 0) return
+            if (allocated(parents(k)%name)) text = parents(k)%name
+            return
+        end do
+    end function parent_name_of
+
+    !> Show `vc_parent_buffer_name' in the mode line of buffers with a
+    !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
+    subroutine syms_of_vc_dispatcher()
+        call add_minor_mode_lighter("vc_parent_buffer", "", text=parent_name_of, first=.true.)
+    end subroutine syms_of_vc_dispatcher
 
     !> Set the current buffer's `vc_parent_buffer' to PARENT and its
     !> `vc_parent_buffer_name' to NAME.
@@ -608,12 +632,10 @@ contains
         else
             ! Run synchronously
             call vc_command_message("Running in foreground: "//full_command)
-            if (to_buffer) then
-                dest = t_value()
-            else
-                dest = nil()
-            end if
-            if (mix .or. .not. to_buffer) then
+            dest = t_value()
+            if (.not. to_buffer) then
+                call call_process(cmd, result, status, args=make_list(argv), environment=make_list(envv))
+            else if (mix) then
                 call call_process(cmd, result, status, destination=dest, args=make_list(argv), &
                                   environment=make_list(envv))
             else

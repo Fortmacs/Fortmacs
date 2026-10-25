@@ -20,7 +20,8 @@
 !> Helpers shared by the test suites.
 module test_support
     use error_fm, only: status_type
-    use buffer_fm, only: current_buffer
+    use buffer_fm, only: current_buffer, set_buffer
+    use handle_fm, only: handle_type
     use frame_fm, only: selected_frame, ensure_frame_windows
     use window_fm, only: windows, delete_other_windows, resize_window_tree, set_window_buffer
     implicit none(type, external)
@@ -35,12 +36,17 @@ contains
     !> window's buffer current.
     subroutine show_alone()
         type(status_type) :: st
+        type(handle_type) :: buffer
+        ! Deleting the other windows makes the selected window's buffer
+        ! current: keep this one.
+        buffer = current_buffer()
         call ensure_frame_windows()
         selected_frame%minibuffer_selected = .false.
         call delete_other_windows(selected_frame%selected_window, st)
         if (windows(selected_frame%root_window%index)%total_lines == 0) then
             call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         end if
-        call set_window_buffer(selected_frame%selected_window, current_buffer(), st)
+        call set_window_buffer(selected_frame%selected_window, buffer, st)
+        call set_buffer(buffer, st)
     end subroutine show_alone
 end module test_support

@@ -88,7 +88,7 @@ module vc_fm
                            VC_BACKEND_NONE, VC_PROP_BACKEND, VC_PROP_STATE, VC_PROP_CHECKOUT_TIME
     use vc_dispatcher_fm, only: vc_action_type, vc_setup_buffer, vc_exec_after, vc_delistify, vc_resynch_buffer, &
                                 vc_buffer_sync, vc_parent_buffer, set_vc_parent_buffer, vc_mode_line_hook, &
-                                vc_do_command, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_T
+                                vc_do_command, syms_of_vc_dispatcher, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_T
     use process_fm, only: get_buffer_process
     implicit none(type, external)
     private
@@ -1520,9 +1520,10 @@ contains
             msg2 = msg2//"workfile"
         end if
         old = current_buffer()
+        ! (vc-setup-buffer leaves BUF current, so the backend's commands
+        ! insert there without setting it up again.)
         call vc_setup_buffer(buf, status)
         if (.not. status%ok()) return
-        call set_buffer(old, st)
         call message(msg1)
         ! Many backends don't handle well the case of a file that has been
         ! added but not yet committed to the repo (notably CVS and Subversion).
@@ -1573,7 +1574,6 @@ contains
         end if
         call remember_diff_args(async, fs, verb, rev1, rev2)
         call revert_buffer_function%set_local(vc_diff_revert)
-        call set_buffer(old, st)
         if (.not. associated(vc_backends(fs%backend)%diff)) then
             call vc_not_supported(status, "diff", fs%backend)
             return
@@ -2800,5 +2800,6 @@ contains
         commands%vc_clear_context%run => cmd_vc_clear_context
         vc_mode_line_hook => mode_line_hook
         call add_local_variables_killer(kill_vc_locals)
+        call syms_of_vc_dispatcher()
     end subroutine syms_of_vc
 end module vc_fm

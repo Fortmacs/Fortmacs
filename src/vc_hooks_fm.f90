@@ -412,7 +412,8 @@ contains
 
     !> Make the backend named NAME known to VC (as loading vc-BACKEND.el
     !> does): B is its index in `vc_backends', whose operations the
-    !> backend module then sets.  A backend of the same name is reset.
+    !> backend module then sets.  A backend of the same name keeps its
+    !> entry, which the module sets again.
     subroutine register_vc_backend(name, b)
         character(len=*), intent(in) :: name
         integer, intent(out) :: b
@@ -421,7 +422,6 @@ contains
         if (.not. allocated(vc_backends)) allocate (vc_backends(0))
         do k = 1, size(vc_backends)
             if (vc_backends(k)%name == name) then
-                vc_backends(k) = vc_backend_type(name=name)
                 b = k
                 return
             end if
@@ -708,9 +708,11 @@ contains
     subroutine vc_file_clearprops(file)
         character(len=*), intent(in) :: file
         integer :: k
+        type(vc_props_type) :: fresh
         k = prop_index(file, .false.)
         if (k == 0) return
-        props(k) = vc_props_type(file=props(k)%file)
+        call move_alloc(props(k)%file, fresh%file)
+        props(k) = fresh
     end subroutine vc_file_clearprops
 
     !> Clear all cached file properties.  Port of vc.el:vc-clear-context.

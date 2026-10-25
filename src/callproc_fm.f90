@@ -153,7 +153,10 @@ contains
         ! The destination: a buffer, or nothing.
         discard = .true.
         if (present(destination)) then
-            if (fixnump(destination)) then
+            if (nilp(destination)) then
+                ! nil: discard the output.
+                discard = .true.
+            else if (fixnump(destination)) then
                 call set_error(status, FM_GENERIC_ERROR, &
                                "call-process with DESTINATION 0 (not waiting) is not supported yet")
                 return

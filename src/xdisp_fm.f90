@@ -205,9 +205,17 @@ module xdisp_fm
         logical function lighter_active_proc()
             implicit none(type, external)
         end function lighter_active_proc
+        !> The text a minor-mode-alist entry shows for buffer slot BI, whose
+        !> variable holds the text itself ("" when it is nil).
+        function lighter_text_proc(bi) result(text)
+            import :: int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: bi
+            character(len=:), allocatable :: text
+        end function lighter_text_proc
     end interface
 
-    public :: lighter_active_proc
+    public :: lighter_active_proc, lighter_text_proc
 
     !> An entry of minor-mode-alist: VARIABLE and its LIGHTER, shown in
     !> FACE (none if empty); ACTIVE, if associated, tells whether the
@@ -215,6 +223,7 @@ module xdisp_fm
     type :: lighter_type
         character(len=:), allocatable :: variable, lighter, face
         procedure(lighter_active_proc), pointer, nopass :: active => null()
+        procedure(lighter_text_proc), pointer, nopass :: text => null()
     end type lighter_type
 
     !> A part of a mode line shown in another face: characters FIRST to
@@ -2189,12 +2198,17 @@ contains
     !> Show LIGHTER in the mode line while VARIABLE is non-nil (replacing
     !> VARIABLE's earlier lighter), in FACE if present (a propertized
     !> lighter).  ACTIVE, if present, tells whether VARIABLE is true (a
-    !> variable kept in Fortran).  Port of the mode-line part of
+    !> variable kept in Fortran).  TEXT, if present, gives the text for
+    !> an entry (VARIABLE VARIABLE) whose variable holds the text (a
+    !> Fortran-kept string, "" for nil).  With FIRST, a new entry goes in
+    !> front (consed onto minor-mode-alist).  Port of the mode-line part of
     !> subr.el:add-minor-mode (minor-mode-alist).
-    subroutine add_minor_mode_lighter(variable, lighter, face, active)
+    subroutine add_minor_mode_lighter(variable, lighter, face, active, text, first)
         character(len=*), intent(in) :: variable, lighter
         character(len=*), intent(in), optional :: face
         procedure(lighter_active_proc), optional :: active
+        procedure(lighter_text_proc), optional :: text
+        logical, intent(in), optional :: first
         type(lighter_type), allocatable :: grown(:)
         integer :: i, k
         k = 0
@@ -2213,6 +2227,14 @@ contains
             end if
             n_lighters = n_lighters + 1
             k = n_lighters
+            if (present(first)) then
+                if (first) then
+                    do i = n_lighters, 2, -1
+                        lighters(i) = lighters(i - 1)
+                    end do
+                    k = 1
+                end if
+            end if
             lighters(k)%variable = variable
         end if
         lighters(k)%lighter = lighter
@@ -2220,6 +2242,8 @@ contains
         if (present(face)) lighters(k)%face = face
         lighters(k)%active => null()
         if (present(active)) lighters(k)%active => active
+        lighters(k)%text => null()
+        if (present(text)) lighters(k)%text => text
     end subroutine add_minor_mode_lighter
 
     !> The entry of buffer slot BI in `process_entries' (0 for none).
@@ -2383,6 +2407,7 @@ contains
         integer :: i, n, nchars, before
         logical :: on
         type(mode_line_part_type), allocatable :: parts(:)
+        character(len=:), allocatable :: text
         integer :: e
         if (allocated(buffers(bi)%mode_name)) then
             modes = buffers(bi)%mode_name
@@ -2410,6 +2435,11 @@ contains
         end do
         if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) modes = modes//" Narrow"
         do i = 1, n_lighters
+            if (associated(lighters(i)%text)) then
+                text = lighters(i)%text(bi)
+                if (len(text) > 0) modes = modes//text
+                cycle
+            end if
             if (associated(lighters(i)%active)) then
                 on = lighters(i)%active()
             else
