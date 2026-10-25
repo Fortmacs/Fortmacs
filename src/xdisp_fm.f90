@@ -205,14 +205,17 @@ module xdisp_fm
         logical function lighter_active_proc()
             implicit none(type, external)
         end function lighter_active_proc
-        !> The text a minor-mode-alist entry shows for buffer slot BI, whose
-        !> variable holds the text itself ("" when it is nil).
-        function lighter_text_proc(bi) result(text)
+        !> The TEXT a minor-mode-alist entry shows for buffer slot BI, whose
+        !> variable holds the text itself ("" when it is nil).  (A
+        !> subroutine: gfortran frees the target of a procedure pointer
+        !> component returning an allocatable string when an array of the
+        !> type is deallocated.)
+        subroutine lighter_text_proc(bi, text)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: bi
-            character(len=:), allocatable :: text
-        end function lighter_text_proc
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine lighter_text_proc
     end interface
 
     public :: lighter_active_proc, lighter_text_proc
@@ -2436,7 +2439,7 @@ contains
         if (buffers(bi)%begv > 1 .or. buffers(bi)%zv < buffers(bi)%text%z) modes = modes//" Narrow"
         do i = 1, n_lighters
             if (associated(lighters(i)%text)) then
-                text = lighters(i)%text(bi)
+                call lighters(i)%text(bi, text)
                 if (len(text) > 0) modes = modes//text
                 cycle
             end if

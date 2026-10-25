@@ -57,7 +57,12 @@ module sysdep_fm
                             c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                             TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                             TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
-                            VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time
+                            VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
+                            c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
+                            IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
+                            IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
+                            IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
+                            IN_ALL_EVENTS, IN_MOVE, IN_CLOSE
     implicit none(type, external)
     private
 
@@ -94,6 +99,23 @@ module sysdep_fm
     public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
               set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
               emacs_localtime_wday
+    public :: inotify_raw_event_type, emacs_inotify_init, emacs_inotify_add_watch, emacs_inotify_rm_watch, &
+              emacs_inotify_read
+    public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
+              IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
+              IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ALL_EVENTS, &
+              IN_MOVE, IN_CLOSE
+
+    !> One event read from an inotify instance (struct inotify_event):
+    !> the watch descriptor, the event mask, the cookie that pairs the two
+    !> halves of a rename, and the name of the file in a watched directory
+    !> ("" for the watched file itself).
+    type :: inotify_raw_event_type
+        integer(int32) :: wd = -1
+        integer(int32) :: mask = 0
+        integer(int32) :: cookie = 0
+        character(len=:), allocatable :: name
+    end type inotify_raw_event_type
 
     !> A string of any length, for argument vectors.
     type :: sys_string_type
@@ -1777,4 +1799,100 @@ contains
         free = buf%f_bfree*buf%f_frsize
         avail = buf%f_bavail*buf%f_frsize
     end function emacs_statvfs
+
+    ! ------------------------------------------------------------------
+    ! inotify
+    ! ------------------------------------------------------------------
+
+    !> A new inotify instance, non-blocking and close-on-exec, in FD.
+    !> The result is 0 or errno.
+    integer(int32) function emacs_inotify_init(fd) result(err)
+        integer(int32), intent(out) :: fd
+        err = 0
+        fd = c_inotify_init1(ior(O_NONBLOCK, O_CLOEXEC))
+        if (fd < 0) err = errno()
+    end function emacs_inotify_init
+
+    !> Watch FILE for the events in MASK on inotify instance FD, giving
+    !> the watch descriptor in WD.  The result is 0 or errno.
+    integer(int32) function emacs_inotify_add_watch(fd, file, mask, wd) result(err)
+        integer(int32), intent(in) :: fd, mask
+        character(len=*), intent(in) :: file
+        integer(int32), intent(out) :: wd
+        err = 0
+        wd = c_inotify_add_watch(fd, c_path(file), mask)
+        if (wd < 0) err = errno()
+    end function emacs_inotify_add_watch
+
+    !> Remove watch WD from inotify instance FD.  The result is 0 or errno.
+    integer(int32) function emacs_inotify_rm_watch(fd, wd) result(err)
+        integer(int32), intent(in) :: fd, wd
+        err = 0
+        if (c_inotify_rm_watch(fd, wd) /= 0) err = errno()
+    end function emacs_inotify_rm_watch
+
+    !> Read the events waiting on inotify instance FD, oldest first,
+    !> without blocking.  ERR is 0 or errno.
+    subroutine emacs_inotify_read(fd, events, err)
+        integer(int32), intent(in) :: fd
+        type(inotify_raw_event_type), allocatable, intent(out) :: events(:)
+        integer(int32), intent(out) :: err
+        integer, parameter :: HEADER = 16, BUFSIZE = 65536
+        character(kind=c_char), allocatable :: buf(:)
+        character(len=:), allocatable :: bytes, chunk
+        type(inotify_raw_event_type), allocatable :: grown(:)
+        integer(c_long) :: n
+        integer :: i, k, count, namelen, nul
+        err = 0
+        allocate (events(0), buf(BUFSIZE))
+        bytes = ""
+        do
+            n = c_read(fd, buf, int(BUFSIZE, c_size_t))
+            if (n < 0) then
+                if (errno() == EINTR) cycle
+                if (errno() /= EAGAIN) err = errno()
+                exit
+            end if
+            if (n == 0) exit
+            allocate (character(len=int(n)) :: chunk)
+            do k = 1, int(n)
+                chunk(k:k) = buf(k)
+            end do
+            bytes = bytes//chunk
+            deallocate (chunk)
+        end do
+        count = 0
+        i = 1
+        do while (i + HEADER - 1 <= len(bytes))
+            if (count == size(events)) then
+                allocate (grown(max(8, 2*count)))
+                do k = 1, count
+                    grown(k)%wd = events(k)%wd
+                    grown(k)%mask = events(k)%mask
+                    grown(k)%cookie = events(k)%cookie
+                    call move_alloc(events(k)%name, grown(k)%name)
+                end do
+                call move_alloc(grown, events)
+            end if
+            count = count + 1
+            events(count)%wd = transfer(bytes(i:i + 3), 0_int32)
+            events(count)%mask = transfer(bytes(i + 4:i + 7), 0_int32)
+            events(count)%cookie = transfer(bytes(i + 8:i + 11), 0_int32)
+            namelen = transfer(bytes(i + 12:i + 15), 0_int32)
+            events(count)%name = bytes(i + HEADER:min(len(bytes), i + HEADER + namelen - 1))
+            nul = index(events(count)%name, c_null_char)
+            if (nul > 0) events(count)%name = events(count)%name(1:nul - 1)
+            i = i + HEADER + namelen
+        end do
+        if (count < size(events)) then
+            allocate (grown(count))
+            do k = 1, count
+                grown(k)%wd = events(k)%wd
+                grown(k)%mask = events(k)%mask
+                grown(k)%cookie = events(k)%cookie
+                call move_alloc(events(k)%name, grown(k)%name)
+            end do
+            call move_alloc(grown, events)
+        end if
+    end subroutine emacs_inotify_read
 end module sysdep_fm

@@ -48,6 +48,10 @@
 !>   SIG_BLOCK and SIG_SETMASK: asm-generic/signal-defs.h
 !> - pidfd_open: glibc 2.36 sys/pidfd.h (Linux 5.3);  TIOCSCTTY:
 !>   asm-generic/ioctls.h
+!> - inotify: linux/inotify.h (struct inotify_event is four 32-bit fields,
+!>   wd, mask, cookie and len, then LEN bytes of NUL-padded name; the IN_*
+!>   masks and IN_NONBLOCK = O_NONBLOCK, IN_CLOEXEC = O_CLOEXEC are the same
+!>   on both)
 !>
 !> Variadic functions (`open', `ioctl') are bound with fixed arguments.
 !> That is safe on both targets: aarch64 Linux (standard AAPCS64, unlike
@@ -145,6 +149,15 @@ module sys_linux_fm
     integer(c_int), parameter, public :: O_NOCTTY = int(o'0000400', c_int)
     integer(c_int), parameter, public :: O_NONBLOCK = int(o'0004000', c_int)
     integer(c_int), parameter, public :: O_CLOEXEC = int(o'2000000', c_int)
+    ! inotify event masks and watch flags (linux/inotify.h)
+    integer(c_int32_t), parameter, public :: IN_ACCESS = 1, IN_MODIFY = 2, IN_ATTRIB = 4, IN_CLOSE_WRITE = 8, &
+                                             IN_CLOSE_NOWRITE = 16, IN_OPEN = 32, IN_MOVED_FROM = 64, &
+                                             IN_MOVED_TO = 128, IN_CREATE = 256, IN_DELETE = 512, &
+                                             IN_DELETE_SELF = 1024, IN_MOVE_SELF = 2048, IN_UNMOUNT = 8192, &
+                                             IN_Q_OVERFLOW = 16384, IN_IGNORED = 32768, IN_ONLYDIR = 16777216, &
+                                             IN_DONT_FOLLOW = 33554432, IN_EXCL_UNLINK = 67108864, &
+                                             IN_MASK_ADD = 536870912, IN_ISDIR = 1073741824, &
+                                             IN_ALL_EVENTS = 4095, IN_MOVE = 192, IN_CLOSE = 24
     integer(c_int), parameter, public :: O_CREAT = int(o'0000100', c_int)
     integer(c_int), parameter, public :: O_EXCL = int(o'0000200', c_int)
     integer(c_int), parameter, public :: O_TRUNC = int(o'0001000', c_int)
@@ -266,6 +279,7 @@ module sys_linux_fm
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
               c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
     public :: c_statvfs
+    public :: c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
               c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time
@@ -755,6 +769,29 @@ module sys_linux_fm
             import :: c_int32_t
             implicit none(type, external)
         end function c_setsid
+
+        !> inotify_init1(flags): a new inotify instance.
+        integer(c_int) function c_inotify_init1(flags) bind(C, name="inotify_init1")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: flags
+        end function c_inotify_init1
+
+        !> inotify_add_watch(fd, path, mask): a watch descriptor for PATH.
+        integer(c_int) function c_inotify_add_watch(fd, path, mask) bind(C, name="inotify_add_watch")
+            import :: c_int, c_char, c_int32_t
+            implicit none(type, external)
+            integer(c_int), value :: fd
+            character(kind=c_char), intent(in) :: path(*)
+            integer(c_int32_t), value :: mask
+        end function c_inotify_add_watch
+
+        !> inotify_rm_watch(fd, wd).
+        integer(c_int) function c_inotify_rm_watch(fd, wd) bind(C, name="inotify_rm_watch")
+            import :: c_int
+            implicit none(type, external)
+            integer(c_int), value :: fd, wd
+        end function c_inotify_rm_watch
 
         !> pidfd_open(pid, flags): a descriptor that becomes readable when
         !> child `pid' terminates.

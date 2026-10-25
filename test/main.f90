@@ -112,6 +112,9 @@ program tester
     use test_vc_fm, only: collect_vc_fm
     use test_log_edit_fm, only: collect_log_edit_fm
     use test_ewoc_fm, only: collect_ewoc_fm
+    use test_inotify_fm, only: collect_inotify_fm
+    use test_filenotify_fm, only: collect_filenotify_fm
+    use test_autorevert_fm, only: collect_autorevert_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -207,7 +210,10 @@ program tester
                  new_testsuite("simple_electric_fm", collect_simple_electric_fm), &
                  new_testsuite("vc_fm", collect_vc_fm), &
                  new_testsuite("log_edit_fm", collect_log_edit_fm), &
-                 new_testsuite("ewoc_fm", collect_ewoc_fm) &
+                 new_testsuite("ewoc_fm", collect_ewoc_fm), &
+                 new_testsuite("inotify_fm", collect_inotify_fm), &
+                 new_testsuite("filenotify_fm", collect_filenotify_fm), &
+                 new_testsuite("autorevert_fm", collect_autorevert_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

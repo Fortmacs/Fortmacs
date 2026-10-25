@@ -87,6 +87,8 @@ module keyboard_fm
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, exit_requested_p, set_transient_map, recursive_edit_1, &
               throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
+    public :: add_read_fd, delete_read_fd, insert_special_event, run_special_events, special_events_pending_p, &
+              read_fd_proc, special_event_proc
     public :: execute_kbd_macro, ring_bell, bitch_at_user, executing_kbd_macro_p
     public :: start_kbd_macro, end_kbd_macro, call_last_kbd_macro, store_kbd_macro_char, store_kbd_macro_event, &
               finalize_kbd_macro_chars, cancel_kbd_macro_events, finish_kbd_macro, defining_kbd_macro_p, &
@@ -179,7 +181,43 @@ module keyboard_fm
             logical, intent(out) :: handled
             type(status_type), intent(out) :: status
         end subroutine disabled_command_proc
+
+        !> Run when descriptor FD, given to `add_read_fd', is readable.
+        recursive subroutine read_fd_proc(fd)
+            import :: int32
+            implicit none(type, external)
+            integer(int32), intent(in) :: fd
+        end subroutine read_fd_proc
+
+        !> Handle the special event ARG (as `insert_special_event' was
+        !> given it).
+        recursive subroutine special_event_proc(arg, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: arg
+            type(status_type), intent(out) :: status
+        end subroutine special_event_proc
     end interface
+
+    !> Other descriptors watched while waiting for input, with the
+    !> procedure run when one is readable (process.c:add_read_fd's
+    !> fd_callback_info, used by inotify).
+    type :: read_fd_type
+        integer(int32) :: fd = -1
+        procedure(read_fd_proc), pointer, nopass :: callback => null()
+    end type read_fd_type
+    type(read_fd_type), allocatable :: read_fds(:)
+
+    !> Special events not handled yet (the kbd_buffer events that
+    !> `special_event_map' binds, such as file-notify events): a handler
+    !> and an argument identifying the event's data for the module that
+    !> queued it.
+    type :: special_event_type
+        procedure(special_event_proc), pointer, nopass :: handler => null()
+        integer(int64) :: arg = 0
+    end type special_event_type
+    type(special_event_type), allocatable :: special_events(:)
+    integer :: n_special_events = 0
 
     !> Checks for disabled commands (simple.el:command-execute's `disabled'
     !> property test and `disabled_command_function'), set by novice_fm;
@@ -638,13 +676,17 @@ contains
     !> terminal; otherwise `have' is false when the queue is empty (end of
     !> input).  The event becomes `last_input_event' and, unless it comes
     !> from a keyboard macro being executed, goes into the keyboard macro
-    !> being defined.  The core of keyboard.c:read_char, with the macro
-    !> part of record_char.
-    recursive subroutine read_event(ev, have, status)
+    !> being defined.  With SECONDS, wait at most that long (also without
+    !> a terminal), handling special events, timers and subprocess output
+    !> meanwhile; `have' is then false on a timeout (read-event's
+    !> SECONDS).  The core of keyboard.c:read_char, with the macro part of
+    !> record_char.
+    recursive subroutine read_event(ev, have, status, seconds)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
-        call read_event_1(ev, have, status)
+        real, intent(in), optional :: seconds
+        call read_event_1(ev, have, status, seconds)
         if (.not. have) return
         ! Now that we have read an event, Emacs is not idle.
         call timer_stop_idle()
@@ -705,13 +747,17 @@ contains
     end function lossage_size
 
     !> The next input event (read_event without recording it).
-    recursive subroutine read_event_1(ev, have, status)
+    recursive subroutine read_event_1(ev, have, status, seconds)
         type(value_type), intent(out) :: ev
         logical, intent(out) :: have
         type(status_type), intent(out) :: status
-        integer(int64) :: nread
+        real, intent(in), optional :: seconds
+        integer(int64) :: nread, start, now, rate
+        integer(int32) :: timeout
         have = .false.
+        call system_clock(start, rate)
         reading: do
+            call run_special_events()
             if (nunread > 0) then
                 ev = unread(1)
                 unread(1:nunread - 1) = unread(2:nunread)
@@ -746,7 +792,13 @@ contains
                 have = .true.
                 return
             end if
-            if (input_fd < 0) return
+            if (input_fd < 0) then
+                if (.not. present(seconds)) return
+                ! Wait for the other descriptors and the timers only.
+                if (time_left(timeout) < 0) return
+                if (wait_for_input(timeout)) cycle reading
+                cycle reading
+            end if
             ! C-g on the terminal arrives as SIGINT; while waiting for
             ! input it reads as the quit character (keyboard.c:
             ! handle_interrupt's quit_throw_to_read_char).
@@ -766,7 +818,12 @@ contains
             ! timer_check).
             call timer_start_idle()
             waiting: do
-                if (wait_for_input(run_timers())) exit waiting
+                if (present(seconds)) then
+                    if (time_left(timeout) < 0) return
+                    if (wait_for_input(timeout)) exit waiting
+                else
+                    if (wait_for_input(run_timers())) exit waiting
+                end if
                 ! A timer or subprocess may have queued events, or C-g came.
                 if (nunread > 0 .or. tail >= head) cycle reading
                 if (interrupt_pending()) then
@@ -780,6 +837,19 @@ contains
             ! End of file: the terminal went away.
             if (nread == 0) return
         end do reading
+    contains
+        !> The milliseconds left until SECONDS have passed (negative when
+        !> they have), and in MS how long to wait: until then or until
+        !> the next timer, after running the ripe timers.
+        recursive integer(int64) function time_left(ms) result(left)
+            integer(int32), intent(out) :: ms
+            integer(int32) :: next_timer
+            call system_clock(now)
+            left = int(seconds*1000, int64) - (now - start)*1000/max(rate, 1_int64)
+            ms = int(max(left, 0_int64), int32)
+            next_timer = run_timers()
+            if (next_timer >= 0) ms = min(ms, next_timer)
+        end function time_left
     end subroutine read_event_1
 
     ! ------------------------------------------------------------------
@@ -1169,56 +1239,151 @@ contains
     end function run_timers
 
     !> Redisplay, then wait `ms' milliseconds or until input arrives,
-    !> taking subprocess output and running the ordinary timers
-    !> meanwhile.  Port of subr.el:sit-for (for a terminal; without one,
-    !> only subprocess output is waited for).
+    !> taking subprocess output, handling special events and running the
+    !> ordinary timers meanwhile.  Port of subr.el:sit-for (for a
+    !> terminal; without one, only subprocess output and the other
+    !> descriptors are waited for).
     recursive subroutine sit_for(ms)
         integer(int32), intent(in) :: ms
         integer(int64) :: start, now, rate, left
         integer(int32) :: timeout, next_timer
-        logical :: ready(2)
-        integer(int32) :: fds(2)
         if (associated(redisplay_hook)) call redisplay_hook()
         if (input_fd >= 0) then
             if (input_pending_p()) return
         end if
         call system_clock(start, rate)
         do
+            call run_special_events()
             call system_clock(now)
             left = int(ms, int64) - (now - start)*1000/max(rate, 1_int64)
             if (left < 0) return
-            fds = [input_fd, -1_int32]
-            if (associated(process_output_hook)) fds(2) = process_wake_fd
-            if (all(fds < 0)) return
+            if (input_fd < 0 .and. .not. associated(process_output_hook) .and. n_read_fds() == 0) return
             timeout = int(left, int32)
             next_timer = run_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
-            call inputs_available(fds, timeout, ready)
-            if (ready(1)) return
-            if (ready(2)) then
-                call process_output_hook()
-                if (associated(redisplay_hook)) call redisplay_hook()
-            end if
+            if (wait_for_input(timeout)) return
         end do
     end subroutine sit_for
 
     !> Wait up to `timeout' milliseconds (negative: no limit) for terminal
-    !> input, taking subprocess output if it arrives first (then
-    !> redisplaying and returning false, as for a timeout).
-    logical function wait_for_input(timeout) result(ready)
+    !> input, taking subprocess output and running the callbacks of the
+    !> other descriptors if they are ready first (then redisplaying and
+    !> returning false, as for a timeout).
+    recursive logical function wait_for_input(timeout) result(ready)
         integer(int32), intent(in) :: timeout
-        logical :: got(2)
-        if (process_wake_fd < 0 .or. .not. associated(process_output_hook)) then
+        integer(int32), allocatable :: fds(:)
+        logical, allocatable :: got(:)
+        integer :: k, n
+        n = n_read_fds()
+        if (n == 0 .and. (process_wake_fd < 0 .or. .not. associated(process_output_hook))) then
             ready = input_available(input_fd, timeout)
             return
         end if
-        call inputs_available([input_fd, process_wake_fd], timeout, got)
+        allocate (fds(2 + n), got(2 + n))
+        fds(1) = input_fd
+        fds(2) = -1
+        if (associated(process_output_hook)) fds(2) = process_wake_fd
+        do k = 1, n
+            fds(2 + k) = read_fds(k)%fd
+        end do
+        call inputs_available(fds, timeout, got)
         ready = got(1)
-        if (got(2) .and. .not. ready) then
-            call process_output_hook()
-            if (associated(redisplay_hook)) call redisplay_hook()
-        end if
+        if (ready) return
+        if (got(2)) call process_output_hook()
+        do k = 1, n
+            if (.not. got(2 + k)) cycle
+            ! A callback may have removed descriptors.
+            if (k > n_read_fds()) exit
+            if (read_fds(k)%fd /= fds(2 + k)) cycle
+            call read_fds(k)%callback(fds(2 + k))
+        end do
+        call run_special_events()
+        if (any(got) .and. associated(redisplay_hook)) call redisplay_hook()
     end function wait_for_input
+
+    !> The number of descriptors given to `add_read_fd'.
+    integer function n_read_fds()
+        n_read_fds = 0
+        if (allocated(read_fds)) n_read_fds = size(read_fds)
+    end function n_read_fds
+
+    !> Add file descriptor FD to be watched while waiting for input, with
+    !> CALLBACK run when it is readable (replacing any callback FD had).
+    !> Port of process.c:add_read_fd.
+    subroutine add_read_fd(fd, callback)
+        integer(int32), intent(in) :: fd
+        procedure(read_fd_proc) :: callback
+        type(read_fd_type), allocatable :: grown(:)
+        integer :: k, n
+        if (.not. allocated(read_fds)) allocate (read_fds(0))
+        n = size(read_fds)
+        do k = 1, n
+            if (read_fds(k)%fd == fd) then
+                read_fds(k)%callback => callback
+                return
+            end if
+        end do
+        allocate (grown(n + 1))
+        grown(1:n) = read_fds
+        grown(n + 1)%fd = fd
+        grown(n + 1)%callback => callback
+        call move_alloc(grown, read_fds)
+    end subroutine add_read_fd
+
+    !> Stop watching file descriptor FD.  Port of process.c:delete_read_fd.
+    subroutine delete_read_fd(fd)
+        integer(int32), intent(in) :: fd
+        type(read_fd_type), allocatable :: kept(:)
+        integer :: k, j
+        if (.not. allocated(read_fds)) return
+        allocate (kept(count(read_fds%fd /= fd)))
+        j = 0
+        do k = 1, size(read_fds)
+            if (read_fds(k)%fd == fd) cycle
+            j = j + 1
+            kept(j) = read_fds(k)
+        end do
+        call move_alloc(kept, read_fds)
+    end subroutine delete_read_fd
+
+    !> Queue a special event: HANDLER is called with ARG the next time
+    !> events are read, as `special_event_map' bindings are run by
+    !> read_char.  Port of keyboard.c:kbd_buffer_store_event for special
+    !> events, and of subr.el:insert-special-event.
+    subroutine insert_special_event(handler, arg)
+        procedure(special_event_proc) :: handler
+        integer(int64), intent(in) :: arg
+        type(special_event_type), allocatable :: grown(:)
+        if (.not. allocated(special_events)) allocate (special_events(8))
+        if (n_special_events == size(special_events)) then
+            allocate (grown(2*n_special_events))
+            grown(1:n_special_events) = special_events
+            call move_alloc(grown, special_events)
+        end if
+        n_special_events = n_special_events + 1
+        special_events(n_special_events)%handler => handler
+        special_events(n_special_events)%arg = arg
+    end subroutine insert_special_event
+
+    !> Whether special events are waiting to be handled.
+    logical function special_events_pending_p()
+        special_events_pending_p = n_special_events > 0
+    end function special_events_pending_p
+
+    !> Handle the queued special events, oldest first, including those
+    !> queued meanwhile; an error is reported as the command loop does.
+    !> Part of keyboard.c:read_char.
+    recursive subroutine run_special_events()
+        type(special_event_type) :: ev
+        type(status_type) :: st
+        do while (n_special_events > 0)
+            ev = special_events(1)
+            special_events(1:n_special_events - 1) = special_events(2:n_special_events)
+            n_special_events = n_special_events - 1
+            call ev%handler(ev%arg, st)
+            if (.not. st%ok()) call cmd_error(st)
+        end do
+    end subroutine run_special_events
 
     !> Make `command_loop' return after the current command.
     subroutine request_exit()

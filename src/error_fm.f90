@@ -87,7 +87,11 @@ module error_fm
     !> implement (its data: the method and the backend).
     integer(int32), parameter, public :: FM_VC_NOT_SUPPORTED = 30
 
-    integer(int32), parameter :: last_code = FM_VC_NOT_SUPPORTED
+    !> fileio.c's `file-notify-error' (a `file-error'): file notification
+    !> failed (report_file_notify_error).
+    integer(int32), parameter, public :: FM_FILE_NOTIFY_ERROR = 31
+
+    integer(int32), parameter :: last_code = FM_FILE_NOTIFY_ERROR
     integer, parameter :: name_len = 24, msg_len = 40
 
     !> `error_conditions' symbol names, indexed by code.
@@ -103,7 +107,8 @@ module error_fm
                                                                 "file_already_exists", "mark_inactive", "search_failed", &
                                                                 "invalid_regexp", "permission_denied", "scan_error", &
                                                                 "file_date_error", "end_of_file", "invalid_read_syntax", &
-                                                                "coding_system_error", "vc_not_supported"]
+                                                                "coding_system_error", "vc_not_supported", &
+                                                                "file_notify_error"]
 
     !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -123,7 +128,8 @@ module error_fm
                                                                   "Invalid regexp", "Cannot access file or directory", &
                                                                "Scan error", "Cannot set file date", "End of file during parsing", &
                                                                   "Invalid read syntax", "Invalid coding system", &
-                                                                  "VC method not implemented for backend"]
+                                                                  "VC method not implemented for backend", &
+                                                                  "File notification error"]
 
     !> Parent condition of each code (the next element of its
     !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
@@ -138,7 +144,7 @@ module error_fm
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
-                                 FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR]
+                                 FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR]
 
     !> Outcome of a fallible operation.  `detail' plays the role of the
     !> signal's DATA (e.g. the offending arguments).

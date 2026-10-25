@@ -74,6 +74,8 @@ module modes_fm
     type :: minor_mode_table_type
         type(minor_mode_type) :: abbrev_mode
         type(minor_mode_type) :: auto_fill_mode
+        type(minor_mode_type) :: auto_revert_mode
+        type(minor_mode_type) :: auto_revert_tail_mode
         type(minor_mode_type) :: compilation_minor_mode
         type(minor_mode_type) :: compilation_shell_minor_mode
         type(minor_mode_type) :: completion_in_region_mode
@@ -82,6 +84,7 @@ module modes_fm
         type(minor_mode_type) :: electric_pair_local_mode
         type(minor_mode_type) :: electric_pair_mode
         type(minor_mode_type) :: font_lock_mode
+        type(minor_mode_type) :: global_auto_revert_mode
         type(minor_mode_type) :: global_font_lock_mode
         type(minor_mode_type) :: indent_tabs_mode
         type(minor_mode_type) :: read_only_mode

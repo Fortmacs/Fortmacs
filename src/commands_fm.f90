@@ -50,6 +50,9 @@ module commands_fm
         type(command_type) :: apropos_variable
         type(command_type) :: async_shell_command
         type(command_type) :: auto_fill_mode
+        type(command_type) :: auto_revert_mode
+        type(command_type) :: auto_revert_set_timer
+        type(command_type) :: auto_revert_tail_mode
         type(command_type) :: back_to_indentation
         type(command_type) :: backward_char
         type(command_type) :: backward_delete_char_untabify
@@ -364,6 +367,7 @@ module commands_fm
         type(command_type) :: forward_sexp
         type(command_type) :: forward_word
         type(command_type) :: fundamental_mode
+        type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
         type(command_type) :: help_for_help
@@ -743,7 +747,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(705) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(709) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -762,6 +766,9 @@ module commands_fm
                                                                  "apropos_variable", &
                                                                  "async_shell_command", &
                                                                  "auto_fill_mode", &
+                                                                 "auto_revert_mode", &
+                                                                 "auto_revert_set_timer", &
+                                                                 "auto_revert_tail_mode", &
                                                                  "back_to_indentation", &
                                                                  "backward_char", &
                                                                  "backward_delete_char_untabify", &
@@ -1076,6 +1083,7 @@ module commands_fm
                                                                  "forward_sexp", &
                                                                  "forward_word", &
                                                                  "fundamental_mode", &
+                                                                 "global_auto_revert_mode", &
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
                                                                  "help_for_help", &
@@ -1495,6 +1503,12 @@ contains
             p => commands%async_shell_command
         case ("auto_fill_mode")
             p => commands%auto_fill_mode
+        case ("auto_revert_mode")
+            p => commands%auto_revert_mode
+        case ("auto_revert_set_timer")
+            p => commands%auto_revert_set_timer
+        case ("auto_revert_tail_mode")
+            p => commands%auto_revert_tail_mode
         case ("back_to_indentation")
             p => commands%back_to_indentation
         case ("backward_char")
@@ -2123,6 +2137,8 @@ contains
             p => commands%forward_word
         case ("fundamental_mode")
             p => commands%fundamental_mode
+        case ("global_auto_revert_mode")
+            p => commands%global_auto_revert_mode
         case ("global_font_lock_mode")
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")

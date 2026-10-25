@@ -1298,14 +1298,17 @@ contains
     !> portion of the buffer is replaced instead, keeping the text the file
     !> shares with it at both ends, so that point and markers stay where
     !> they are; a file that is not regular replaces it all.  Port of
-    !> fileio.c:Finsert_file_contents (no BEG or END; decoding as described
-    !> in the module documentation).
-    subroutine insert_file_contents(filename, visit, inserted, status, replace)
+    !> fileio.c:Finsert_file_contents (decoding as described
+    !> in the module documentation).  BEG_BYTE and END_BYTE (BEG and END),
+    !> if given, are byte offsets: only the bytes from offset BEG_BYTE up
+    !> to END_BYTE are read.
+    subroutine insert_file_contents(filename, visit, inserted, status, replace, beg_byte, end_byte)
         character(len=*), intent(in) :: filename
         logical, intent(in) :: visit
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: replace
+        integer(int64), intent(in), optional :: beg_byte, end_byte
         character(len=:), allocatable :: absname, data, text, coding, encoding, head, used
         type(file_stat_type) :: st
         type(status_type) :: cst
@@ -1322,6 +1325,10 @@ contains
         if (.not. status%ok()) return
         if (visit .and. buffers(cur)%text%z > BEG .and. .not. repl) then
             call set_error(status, FM_GENERIC_ERROR, "Cannot do file visiting in a non-empty buffer")
+            return
+        end if
+        if (visit .and. (present(beg_byte) .or. present(end_byte))) then
+            call set_error(status, FM_GENERIC_ERROR, "Attempt to visit less than an entire file")
             return
         end if
         call read_file(absname, "Opening input file", data, status, st, opened)
@@ -1387,6 +1394,15 @@ contains
         end if
         ! When we visit a file by raw-text, we change the buffer to unibyte.
         if (visit .and. coding_system_for_unibyte_p(coding)) buffers(cur)%multibyte = .false.
+        if (present(beg_byte) .or. present(end_byte)) then
+            k = len(data, kind=int64)
+            if (present(end_byte)) k = min(k, end_byte)
+            if (present(beg_byte)) then
+                data = data(min(beg_byte, k) + 1:k)
+            else
+                data = data(1:k)
+            end if
+        end if
         call decode_coding_bytes(data, coding, text, used, status, src_multibyte=.false., &
                                  dst_multibyte=buffers(cur)%multibyte)
         if (.not. status%ok()) return
