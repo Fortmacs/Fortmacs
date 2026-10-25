@@ -1485,6 +1485,9 @@ contains
             ! multibyte character boundary.
             if (buffers(cur)%multibyte) then
                 do while (same_at_start > begv_byte)
+                    ! The byte at the end of the text reads as a character
+                    ! head (FETCH_BYTE at ZV_BYTE).
+                    if (same_at_start - begv_byte + 1 > len(old)) exit
                     if (char_head_p(ichar(old(same_at_start - begv_byte + 1:same_at_start - begv_byte + 1), int32))) exit
                     same_at_start = same_at_start - 1
                 end do
