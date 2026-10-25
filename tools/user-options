@@ -106,6 +106,14 @@ dabbrev_upcase_means_case_search
 default_justification
 delete_active_region
 delete_exited_processes
+diff_advance_after_apply_hunk
+diff_ask_before_revert_and_kill_hunk
+diff_command
+diff_default_read_only
+diff_entire_buffers
+diff_jump_to_old_file
+diff_mode_hook
+diff_switches
 dired_after_readin_hook
 dired_always_read_filesystem
 dired_auto_revert_buffer

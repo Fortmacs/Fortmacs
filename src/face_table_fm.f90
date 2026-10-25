@@ -41,6 +41,21 @@ module face_table_fm
     use compile_fm, only: compilation_warning
     use faces_fm, only: cursor
     use faces_fm, only: default
+    use diff_mode_fm, only: diff_added
+    use diff_mode_fm, only: diff_changed
+    use diff_mode_fm, only: diff_changed_unspecified
+    use diff_mode_fm, only: diff_context
+    use diff_mode_fm, only: diff_error
+    use diff_mode_fm, only: diff_file_header
+    use diff_mode_fm, only: diff_function
+    use diff_mode_fm, only: diff_header
+    use diff_mode_fm, only: diff_hunk_header
+    use diff_mode_fm, only: diff_index
+    use diff_mode_fm, only: diff_indicator_added
+    use diff_mode_fm, only: diff_indicator_changed
+    use diff_mode_fm, only: diff_indicator_removed
+    use diff_mode_fm, only: diff_nonexistent
+    use diff_mode_fm, only: diff_removed
     use dired_mode_fm, only: dired_broken_symlink
     use dired_mode_fm, only: dired_directory
     use dired_mode_fm, only: dired_flagged
@@ -165,6 +180,21 @@ module face_table_fm
         type(named_face_type), pointer :: compilation_warning => compilation_warning
         type(named_face_type), pointer :: cursor => cursor
         type(named_face_type), pointer :: default => default
+        type(named_face_type), pointer :: diff_added => diff_added
+        type(named_face_type), pointer :: diff_changed => diff_changed
+        type(named_face_type), pointer :: diff_changed_unspecified => diff_changed_unspecified
+        type(named_face_type), pointer :: diff_context => diff_context
+        type(named_face_type), pointer :: diff_error => diff_error
+        type(named_face_type), pointer :: diff_file_header => diff_file_header
+        type(named_face_type), pointer :: diff_function => diff_function
+        type(named_face_type), pointer :: diff_header => diff_header
+        type(named_face_type), pointer :: diff_hunk_header => diff_hunk_header
+        type(named_face_type), pointer :: diff_index => diff_index
+        type(named_face_type), pointer :: diff_indicator_added => diff_indicator_added
+        type(named_face_type), pointer :: diff_indicator_changed => diff_indicator_changed
+        type(named_face_type), pointer :: diff_indicator_removed => diff_indicator_removed
+        type(named_face_type), pointer :: diff_nonexistent => diff_nonexistent
+        type(named_face_type), pointer :: diff_removed => diff_removed
         type(named_face_type), pointer :: dired_broken_symlink => dired_broken_symlink
         type(named_face_type), pointer :: dired_directory => dired_directory
         type(named_face_type), pointer :: dired_flagged => dired_flagged

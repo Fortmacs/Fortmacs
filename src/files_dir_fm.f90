@@ -26,7 +26,7 @@
 !> `revert_buffer': a submodule because they use callproc_fm and dired_fm,
 !> which use files_fm.
 submodule(files_fm) files_dir_fm
-    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value
+    use lisp_fm, only: make_string, make_list, list_elements, xstring, t_value, nil
     use lread_fm, only: read_string_literal
     use callproc_fm, only: call_process, shell_file_name, init_callproc
     use dired_fm, only: directory_files
@@ -60,10 +60,7 @@ contains
     ! Listing directories
     ! ------------------------------------------------------------------
 
-    !> A new empty file in `temporary_file_directory' whose name starts
-    !> with PREFIX.  Port of files.el:make-temp-file (no DIR-FLAG, SUFFIX
-    !> or TEXT).
-    subroutine make_temp_file(prefix, file, status)
+    module subroutine make_temp_file(prefix, file, status)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
@@ -762,4 +759,66 @@ contains
         revert_buffer_in_progress = saved_in_progress
         revert_buffer_preserve_modes = saved_preserve
     end subroutine revert_buffer
+    module procedure file_backup_file_names
+    use dired_fm, only: file_name_all_completions
+    use fileio_fm, only: file_directory_p, file_newer_than_file_p, expand_file_name, file_name_directory, &
+                         file_name_nondirectory
+    character(len=:), allocatable :: name, expanded, dir, candidate, tmp
+    type(value_type) :: all
+    type(value_type), allocatable :: elts(:)
+    character(len=:), allocatable :: s1
+    type :: name_box
+        character(len=:), allocatable :: s
+    end type name_box
+    type(name_box), allocatable :: kept(:)
+    type(status_type) :: st
+    integer :: k, n, i, j
+    names = nil()
+    ! `make-backup-file-name' will get us the right directory for
+    ! ordinary or numeric backups.
+    call expand_file_name(filename, expanded, st)
+    if (.not. st%ok()) return
+    name = file_name_sans_versions(make_backup_file_name(expanded))
+    dir = file_name_directory(name)
+    if (.not. file_directory_p(dir)) return
+    call file_name_all_completions(file_name_nondirectory(name), dir, all, st)
+    if (.not. st%ok()) return
+    call list_elements(all, elts)
+    allocate (kept(size(elts)))
+    n = 0
+    do k = 1, size(elts)
+        candidate = dir//xstring(elts(k))
+        if (.not. backup_file_name_p(candidate)) cycle
+        s1 = file_name_sans_versions(candidate)
+        if (s1 /= name .or. len(s1) /= len(name)) cycle
+        n = n + 1
+        kept(n)%s = candidate
+    end do
+    ! (sort ... #'file-newer-than-file-p), stably.
+    do i = 2, n
+        tmp = kept(i)%s
+        j = i - 1
+        do while (j >= 1)
+            if (.not. file_newer_than_file_p(tmp, kept(j)%s)) exit
+            kept(j + 1)%s = kept(j)%s
+            j = j - 1
+        end do
+        kept(j + 1)%s = tmp
+    end do
+    deallocate (elts)
+    allocate (elts(n))
+    do k = 1, n
+        elts(k) = make_string(kept(k)%s)
+    end do
+    names = make_list(elts)
+    end procedure file_backup_file_names
+
+    module procedure file_newest_backup
+    type(value_type) :: names
+    type(value_type), allocatable :: elts(:)
+    call file_backup_file_names(filename, names)
+    call list_elements(names, elts)
+    found = size(elts) > 0
+    if (found) backup = xstring(elts(1))
+    end procedure file_newest_backup
 end submodule files_dir_fm

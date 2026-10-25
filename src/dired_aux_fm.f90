@@ -29,15 +29,15 @@
 !> R, H, S, Y and their `%' regexp forms, `% u', `% l') through
 !> `dired_create_files' with the overwrite query (`dired_query'), changing
 !> modes, owners, groups and times (M, O, G, T), compressing (Z, c),
-!> viewing (v, dired.el's `dired_view_file') and file types (y).  A
+!> viewing (v, dired.el's `dired_view_file'), file types (y) and diffs (=, `dired_backup_diff').  A
 !> submodule of dired_mode_fm, whose procedures they use and which uses
 !> them; dired-aux.el's options are declared in dired_mode_fm.
 !>
 !> Deferred: shell commands (`!', `&', `X', `dired_do_shell_command',
 !> `dired_do_async_shell_command', the guessing of commands,
 !> `dired_do_open' and `E': the guessing of commands needs mailcap.el and
-!> xdg.el, asynchronous shell commands are not ported), printing (`P'), diffs (`=',
-!> `dired_backup_diff', `dired_compare_directories': diff.el), searching
+!> xdg.el, asynchronous shell commands are not ported), printing (`P'),
+!> `dired_compare_directories' (Lisp predicates), searching
 !> and replacing in marked files (`A', `Q', `dired_do_search',
 !> `dired_do_query_replace_regexp', `dired_do_isearch': xref and
 !> fileloop), `dired_clean_directory' (`.': numbered backups),
@@ -69,6 +69,11 @@ submodule(dired_mode_fm) dired_aux_fm
     use view_fm, only: view_file
     use keyboard_fm, only: sit_for
     use print_fm, only: fortran_repr
+    use diff_fm, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
+    use minibuffer_fm, only: REQUIRE_MATCH_T
+    use editfns_fm, only: mark_position
+    use buffer_fm, only: transient_mark_mode
+    use files_fm, only: file_name_sans_versions
     implicit none(type, external)
 
     !> File names `dired_create_files' records as failing (and
@@ -549,6 +554,8 @@ contains
         commands%dired_create_empty_file%run => cmd_dired_create_empty_file
         commands%dired_view_file%run => cmd_dired_view_file
         commands%dired_show_file_type%run => cmd_dired_show_file_type
+        commands%dired_diff%run => cmd_dired_diff
+        commands%dired_backup_diff%run => cmd_dired_backup_diff
         call init_dired_aux_options()
     end subroutine syms_of_dired_aux
     ! ------------------------------------------------------------------
@@ -3270,6 +3277,149 @@ contains
         call dired_show_file_type(file,.not. nilp(current_prefix_arg), status)
     end subroutine cmd_dired_show_file_type
 
+    !> Compare file at point with FILE using `diff'.
+    !> If called interactively, prompt for FILE.
+    !> If the mark is active in Transient Mark mode, use the file at the mark
+    !> as the default for FILE.  (That's the mark set by C-SPC,
+    !> not by Dired's m command.)
+    !> If the file at point has a backup file, use that as the default FILE.
+    !> If the file at point is a backup file, use its original, if that exists
+    !> and can be found.  Note that customizations of `backup_directory_alist'
+    !> and `make_backup_file_name_function' change where this function searches
+    !> for the backup file, and affect its ability to find the original of a
+    !> backup file.
+    !>
+    !> FILE is the first argument given to the `diff' function.  The file at
+    !> point is the second argument given to `diff'.
+    !>
+    !> With prefix arg, prompt for second argument SWITCHES, which is
+    !> the string of command switches used as the third argument of `diff'.
+    !> Port of dired-aux.el:dired-diff (the M-n defaults of the prompt are
+    !> deferred: `read_file_name' takes one default).
+    recursive subroutine cmd_dired_diff(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: current, oldf, file_at_mark, default_file, default, target_dir, file, sw, prompt
+        integer(int64) :: opoint, m
+        logical :: found, have_oldf, separate_dir, have_default
+        type(diff_operand_type) :: a, b
+        type(status_type) :: st
+        call dired_get_filename(current, found, status, DIRED_LOCALP_T)
+        if (.not. status%ok()) return
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "No file on this line")
+            return
+        end if
+        ! Get the latest existing backup file or its original.
+        if (backup_file_name_p(current)) then
+            oldf = file_name_sans_versions(current)
+            have_oldf = .true.
+        else
+            call diff_latest_backup_file(current, oldf, have_oldf)
+        end if
+        ! Get the file at the mark.
+        file_at_mark = ""
+        m = mark_position()
+        if (transient_mark_mode%value .and. buffers(cur)%mark_active .and. m /= 0) then
+            opoint = point()
+            call goto_char(m)
+            call dired_get_filename(file_at_mark, found, st, DIRED_LOCALP_T, no_error_if_not_filep=.true.)
+            if (.not. found) file_at_mark = ""
+            call goto_char(opoint)
+        end if
+        separate_dir = .false.
+        if (have_oldf) separate_dir = aux_default_directory() /= file_name_directory(oldf)
+        default_file = file_at_mark
+        if (len(default_file) == 0 .and. have_oldf) then
+            ! If the file with which to compare doesn't exist, or we cannot
+            ! intuit it, we forget that name and don't show it as the
+            ! default, as an indication to the user that she should type
+            ! the file name.
+            if (file_readable_p(oldf)) then
+                if (separate_dir) then
+                    default_file = file_relative_name(oldf)
+                else
+                    default_file = file_name_nondirectory(oldf)
+                end if
+            end if
+        end if
+        ! Use it as default if it's not the same as the current file, and
+        ! the target dir is current or there is a default file.
+        have_default = default_file /= current .and. &
+                       (dired_dwim_target_directory() == dired_current_directory(st) .or. len(default_file) > 0)
+        default = ""
+        if (have_default) default = default_file
+        if (have_default) then
+            if (separate_dir) then
+                target_dir = file_name_directory(default)
+            else
+                target_dir = dired_current_directory(st)
+            end if
+        else
+            target_dir = dired_dwim_target_directory()
+        end if
+        prompt = "Diff "//current//" with"
+        if (have_default) prompt = prompt//" (default "//default//")"
+        prompt = prompt//": "
+        ! A relative backup's directory is nil: `default_directory'.
+        if (len(target_dir) == 0) target_dir = aux_default_directory()
+        if (have_default) then
+            call read_file_name(prompt, file, status, dir=target_dir, default_filename=default, mustmatch=REQUIRE_MATCH_T)
+        else
+            call read_file_name(prompt, file, status, dir=target_dir, mustmatch=REQUIRE_MATCH_T)
+        end if
+        if (.not. status%ok()) return
+        have_default = .not. nilp(current_prefix_arg)
+        if (have_default) then
+            call read_string("Options for diff: ", sw, status, initial=diff_switches)
+            if (.not. status%ok()) return
+        end if
+        if (aux_expand(file) == aux_expand(current) .or. &
+            (file_directory_p(file) .and. aux_expand_in(current, file) == aux_expand(current))) then
+            call set_error(status, FM_GENERIC_ERROR, "Attempt to compare the file to itself")
+            return
+        end if
+        if (backup_file_name_p(current) .and. file == file_name_sans_versions(current)) then
+            a%file = current
+            b%file = file
+        else
+            a%file = file
+            b%file = current
+        end if
+        if (have_default) then
+            call diff(a, b, status, sw)
+        else
+            call diff(a, b, status)
+        end if
+    end subroutine cmd_dired_diff
+
+    !> Diff this file with its backup file or vice versa.
+    !> Uses the latest backup, if there are several numerical backups.
+    !> If this file is a backup, diff it with its original.
+    !> The backup file is the first file given to `diff'.
+    !> With prefix arg, prompt for argument SWITCHES which is options for `diff'.
+    !> Port of dired-aux.el:dired-backup-diff.
+    recursive subroutine cmd_dired_backup_diff(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: sw, file
+        logical :: given, found
+        given = .not. nilp(current_prefix_arg)
+        if (given) then
+            call read_string("Options for diff: ", sw, status, initial=diff_switches)
+            if (.not. status%ok()) return
+        end if
+        call dired_get_filename(file, found, status)
+        if (.not. status%ok()) return
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "No file on this line")
+            return
+        end if
+        if (given) then
+            call diff_backup(file, status, sw)
+        else
+            call diff_backup(file, status)
+        end if
+    end subroutine cmd_dired_backup_diff
+
     !> The first program named NAME on PATH (as executable-find finds it
     !> with `exec_path' from $PATH), or "" if none.
     function find_on_path(name) result(path)
@@ -3420,6 +3570,7 @@ contains
     call aux_bind("k", "dired_do_kill_lines")
     call aux_bind("v", "dired_view_file")
     call aux_bind("y", "dired_show_file_type")
+    call aux_bind("=", "dired_diff")
     end procedure dired_aux_keys
 
     !> Append S to the strings LIST.
