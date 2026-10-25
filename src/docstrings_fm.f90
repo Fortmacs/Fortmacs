@@ -261,7 +261,11 @@ module docstrings_fm
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
                          multibyte_syntax_as_symbol, open_paren_in_column_0_is_defun_start, &
-                         parse_sexp_ignore_comments, words_include_escapes
+                         parse_sexp_ignore_comments, parse_sexp_lookup_properties, syntax_propertize__done, &
+                         words_include_escapes
+    use syntax_propertize_fm, only: syntax_ppss_max_span, syntax_ppss_table, &
+                                    syntax_propertize_chunk_size, syntax_propertize_chunks, &
+                                    syntax_propertize_extend_region_functions, syntax_propertize_function, syntax_wholeline_max
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
                             text_mode_syntax_table, text_mode_variant
@@ -532,7 +536,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(561) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(570) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -686,12 +690,12 @@ module docstrings_fm
                                                    "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
                                                  "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
-                                         "parse_sexp_ignore_comments", "pending_undo_list", "pop_up_windows", "post_command_hook", &
-                                                     "post_self_insert_hook", "process_connection_type", "prog_mode_abbrev_table", &
-                                                                   "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
-                                                         "query_replace_from_history_variable", "query_replace_from_to_separator", &
-                                                                 "query_replace_show_replacement", "query_replace_skip_read_only", &
-                                                                   "query_replace_to_history_variable", "read_answer_short", &
+                                                "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", "pending_undo_list", &
+                                                                   "pop_up_windows", "post_command_hook", "post_self_insert_hook", &
+                                           "process_connection_type", "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", &
+                                                                  "query_replace_defaults", "query_replace_from_history_variable", &
+                                                              "query_replace_from_to_separator", "query_replace_show_replacement", &
+                                         "query_replace_skip_read_only", "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
                                                         "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
@@ -720,10 +724,13 @@ module docstrings_fm
                                                        "show_paren_when_point_in_periphery", "show_paren_when_point_inside_paren", &
                                                              "special_mode_abbrev_table", "special_mode_hook", "special_mode_map", &
                                             "split_height_threshold", "split_width_threshold", "split_window_preferred_direction", &
-                                                  "standard_indent", "suggest_key_bindings", "tab_always_indent", "tab_stop_list", &
-                                                         "tab_width", "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", &
-                                                               "text_mode_syntax_table", "text_mode_variant", "timer_max_repeats", &
-                                              "transient_mark_mode", "transient_mark_mode_hook", "truncate_partial_width_windows", &
+                                           "standard_indent", "suggest_key_bindings", "syntax_ppss_max_span", "syntax_ppss_table", &
+                                            "syntax_propertize__done", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
+                                                        "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
+                                                        "syntax_wholeline_max", "tab_always_indent", "tab_stop_list", "tab_width", &
+                                            "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
+                                                                  "text_mode_variant", "timer_max_repeats", "transient_mark_mode", &
+                                                                   "transient_mark_mode_hook", "truncate_partial_width_windows", &
                                                        "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
                                                           "use_short_answers", "user_init_file", "view_exits_all_viewing_windows", &
                                                                    "view_inhibit_help_message", "view_mode_hook", "view_mode_map", &
@@ -12816,6 +12823,14 @@ contains
             entry%original = ".false."
             entry%value = repr(parse_sexp_ignore_comments%value)
             entry%doc = "True means `forward_sexp', etc., should treat comments as whitespace."
+        case ("parse_sexp_lookup_properties")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "parse_sexp_lookup_properties"
+            entry%original = ".false."
+            entry%value = repr(parse_sexp_lookup_properties%value)
+            entry%doc = "True means `forward_sexp', etc., obey `syntax_table' property."//LF// &
+                        "Ignoring the `syntax_table' property may result in faster syntax"//LF// &
+                        "scanning when this variable is false."
         case ("pending_undo_list")
             entry%file = "simple_fm.f90"
             entry%fortran = "pending_undo_list"
@@ -13758,6 +13773,82 @@ contains
             entry%doc = "True means show the equivalent keybinding when M-x has one."//LF// &
                         "(A length of time is not supported, nor the timer: the suggestion"//LF// &
                         "shows at once if the echo area is empty, until the next command.)"
+        case ("syntax_ppss_max_span")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_ppss_max_span"
+            entry%original = "20000"
+            entry%value = repr(syntax_ppss_max_span)
+            entry%doc = "Threshold below which cache info is deemed unnecessary."//LF// &
+                        "We try to make sure that cache entries are at least this far apart"//LF// &
+                        "from each other, to avoid keeping too much useless info."
+        case ("syntax_ppss_table")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_ppss_table"
+            entry%doc = "Syntax-table to use during `syntax_ppss', if any."
+        case ("syntax_propertize__done")
+            entry%file = "syntax_fm.f90"
+            entry%fortran = "syntax_propertize__done"
+            entry%original = "-1"
+            entry%value = repr(syntax_propertize__done%value)
+            entry%doc = "Position up to which syntax-table properties have been set."
+        case ("syntax_propertize_chunk_size")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_propertize_chunk_size"
+            entry%original = "500"
+            entry%value = repr(syntax_propertize_chunk_size)
+            entry%doc = "How far `syntax_propertize' goes at least."
+        case ("syntax_propertize_chunks")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_propertize_chunks"
+            entry%original = "2000"
+            entry%value = repr(syntax_propertize_chunks)
+            entry%doc = "How far ahead of the position the syntax scanner needs"//LF// &
+                        "`internal_syntax_propertize_function' propertizes."
+        case ("syntax_propertize_extend_region_functions")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_propertize_extend_region_functions"
+            entry%doc = "Special hook run just before proceeding to propertize a region."//LF// &
+                        "This is used to allow major modes to help `syntax_propertize' find safe buffer"//LF// &
+                        "positions as beginning and end of the propertized region.  Its most common use"//LF// &
+                        "is to solve the problem of /identification/ of multiline elements by providing"//LF// &
+                        "a function that tries to find such elements and move the boundaries such that"//LF// &
+                        "they do not fall in the middle of one."//LF// &
+                        "Each function is called with two arguments (START and END) and it should return"//LF// &
+                        "the new start and end (START and END themselves if no adjustment should be made)."//LF// &
+                        "These functions are run in turn repeatedly until they all return no change."//LF// &
+                        "Put first the functions more likely to cause a change and cheaper to compute."
+        case ("syntax_propertize_function")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_propertize_function"
+            entry%doc = "Mode-specific function to apply `syntax_table' text properties."//LF// &
+                        "It is the work horse of `syntax_propertize', which is called by things like"//LF// &
+                        "Font-Lock and indentation."//LF// &
+                        ""//LF// &
+                        "It is given two arguments, START and END: the start and end of the text to"//LF// &
+                        "which `syntax_table' might need to be applied.  Major modes can use this to"//LF// &
+                        "override the buffer's syntax table for special syntactic constructs that"//LF// &
+                        "cannot be handled just by the buffer's syntax-table."//LF// &
+                        ""//LF// &
+                        "The specified function may call `syntax_ppss' on any position"//LF// &
+                        "before END, but if it calls `syntax_ppss' on some"//LF// &
+                        "position and later modifies the buffer on some earlier position,"//LF// &
+                        "then it is its responsibility to call `syntax_ppss_flush_cache' to flush"//LF// &
+                        "the now obsolete ppss info from the cache."//LF// &
+                        ""//LF// &
+                        "Note: When this variable is a function, it must apply _all_ the"//LF// &
+                        "`syntax_table' properties needed in the given text interval."//LF// &
+                        "Using both this function and other means to apply these"//LF// &
+                        "properties won't work properly."
+        case ("syntax_wholeline_max")
+            entry%file = "syntax_propertize_fm.f90"
+            entry%fortran = "syntax_wholeline_max"
+            entry%original = "10000"
+            entry%value = repr(syntax_wholeline_max)
+            entry%doc = "Maximum line length for syntax operations."//LF// &
+                        "If lines are longer than that, syntax operations will treat them as chunks"//LF// &
+                        "of this size.  Misfontification may then occur."//LF// &
+                        "This is a tradeoff between correctly applying the syntax rules,"//LF// &
+                        "and avoiding major slowdown on pathologically long lines."
         case ("tab_always_indent")
             entry%file = "indent_fm.f90"
             entry%fortran = "tab_always_indent"

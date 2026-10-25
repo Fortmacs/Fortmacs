@@ -22,21 +22,21 @@
 !> `regexp_opt' returns a regexp matching any of a list of strings,
 !> merging common prefixes and suffixes so the regexp matcher need not
 !> backtrack; `regexp_opt_charset' a regexp matching any of a set of
-!> characters.  Deferred: `regexp_opt_depth' (needs subr.el's
-!> subregexp-context-p).
+!> characters; `regexp_opt_depth' the number of groups of a regexp.
 !>
 !> The strings are given as a character array whose elements' trailing
 !> blanks are not part of the strings (a string cannot end with a space).
 !> PAREN is one of the REGEXP_OPT_* constants, or the string OPEN.
 module regexp_opt_fm
-    use, intrinsic :: iso_fortran_env, only: int32
+    use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
-    use search_fm, only: regexp_quote
+    use search_fm, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
+    use subr_fm, only: subregexp_context_p
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     implicit none(type, external)
     private
 
-    public :: regexp_opt, regexp_opt_charset
+    public :: regexp_opt, regexp_opt_charset, regexp_opt_depth
 
     !> PAREN of `regexp_opt': nil (a shy group if a postfix operator
     !> needs one), t (a group), `words' (\<\( ... \)\>) and `symbols'
@@ -53,6 +53,51 @@ module regexp_opt_fm
     end type str_type
 
 contains
+
+    !> Return the depth of REGEXP.
+    !> This means the number of non-shy regexp grouping constructs
+    !> (parenthesized expressions) in REGEXP.  Port of
+    !> regexp-opt.el:regexp-opt-depth.
+    recursive integer function regexp_opt_depth(regexp, status) result(count)
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        integer(int64), allocatable :: saved(:)
+        integer(int64) :: start, last, idx, mb
+        logical :: context
+        count = 0
+        ! save-match-data
+        saved = match_data()
+        ! Hack to signal an error if REGEXP does not have balanced parentheses.
+        idx = string_match(regexp, "", status)
+        if (.not. status%ok()) return
+        ! Count the number of open parentheses in REGEXP.
+        start = 1
+        last = 0
+        do
+            idx = string_match("\\(\(\?[0-9]*:\)?", regexp, status, start)
+            if (.not. status%ok()) exit
+            if (idx == 0) exit
+            ! Start of next search.
+            start = match_end(0, status)
+            if (match_beginning(1, status) == 0) then
+                mb = match_beginning(0, status)
+                if (last > 0) then
+                    context = subregexp_context_p(regexp, mb, status, last)
+                else
+                    context = subregexp_context_p(regexp, mb, status)
+                end if
+                if (.not. status%ok()) exit
+                ! It's not a shy group and it's not inside brackets or after
+                ! a backslash: it's really a group-open marker.
+                if (context) then
+                    ! Speed up next regexp-opt-re-context-p.
+                    last = start
+                    count = count + 1
+                end if
+            end if
+        end do
+        call set_match_data(saved)
+    end function regexp_opt_depth
 
     !> Return a regexp to match a string in the list STRINGS.
     !> Each member of STRINGS is treated as a fixed string, not as a regexp.

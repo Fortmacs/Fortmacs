@@ -32,7 +32,7 @@
 !> `font_lock_keyword_type' values (font_core_fm), built with
 !> `font_lock_keyword', `font_lock_highlight' and `font_lock_anchored'.
 !>
-!> Deferred: font-lock-syntactic-keywords and syntax-propertize,
+!> Deferred: font-lock-syntactic-keywords,
 !> font-lock-multiline, the OTHER-VARS of `font_lock_defaults' and the
 !> function variables a mode would set with them
 !> (font-lock-fontify-region-function and its companions, which are always
@@ -84,6 +84,7 @@ module font_lock_fm
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use xdisp_fm, only: message
+    use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
@@ -1041,16 +1042,9 @@ contains
         integer(int64), intent(inout) :: beg, end
         logical, intent(out) :: changed
         integer(int64) :: pt, new_beg, new_end
-        integer(int64) :: shortage
+        type(status_type) :: st
         pt = point()
-        call goto_char(beg)
-        new_beg = line_beginning_position()
-        call goto_char(end)
-        new_end = end
-        if (point() /= line_beginning_position()) then
-            shortage = forward_line(1_int64)
-            new_end = point()
-        end if
+        call syntax_propertize_wholelines(beg, end, new_beg, new_end, st)
         call goto_char(pt)
         changed = .false.
         if (new_beg /= beg .or. new_end /= end) then
@@ -1216,7 +1210,6 @@ contains
         type(value_type) :: prev, new_value
         integer(int64) :: start, next
         logical :: found
-        integer :: i
         status = status_type()
         ! A single face (a plist of face attributes, or a name) or a list
         ! of faces.
@@ -1608,11 +1601,32 @@ contains
 
     !> Put proper face on each string and comment between START and END.
     !> START should be at the beginning of a line.  Port of
-    !> font-lock.el:font-lock-default-fontify-syntactically
-    !> (syntax-propertize is deferred).
+    !> font-lock.el:font-lock-default-fontify-syntactically.
     subroutine font_lock_default_fontify_syntactically(start, end, loudly, status)
         integer(int64), intent(in) :: start, end
         logical, intent(in) :: loudly
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old_table, table
+        type(status_type) :: st
+        logical :: has_ppss_table
+        ! Apply any needed syntax-table properties.
+        call syntax_propertize(end, status)
+        if (.not. status%ok()) return
+        old_table = syntax_table()
+        call syntax_ppss_table%get(table, has_ppss_table)
+        if (has_ppss_table) then
+            call set_syntax_table(table, st)
+            if (.not. st%ok()) has_ppss_table = .false.
+        end if
+        call fontify_syntactically(start, end, loudly, has_ppss_table, status)
+        call set_syntax_table(old_table, st)
+    end subroutine font_lock_default_fontify_syntactically
+
+    ! The body of font-lock-default-fontify-syntactically, in
+    ! (with-syntax-table (or syntax-ppss-table (syntax-table)) ...).
+    subroutine fontify_syntactically(start, end, loudly, has_ppss_table, status)
+        integer(int64), intent(in) :: start, end
+        logical, intent(in) :: loudly, has_ppss_table
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state, next
         character(len=:), allocatable :: face
@@ -1625,9 +1639,12 @@ contains
         end if
         k = local_index(.true.)
         ! Find the `start' state.
-        if (locals(k)%syntax_table_affects_ppss) then
-            ! syntax-ppss would use the fontification syntax table and
-            ! pollute its cache: parse from the beginning instead.
+        if (locals(k)%syntax_table_affects_ppss .and. .not. has_ppss_table) then
+            ! If `syntax_ppss' doesn't have its own syntax-table and
+            ! we have installed our own syntax-table which
+            ! differs from the standard one in ways which affects PPSS,
+            ! then we can't use `syntax_ppss' since that would pollute
+            ! and be polluted by its cache.
             call parse_partial_sexp(point_min(), start, state, status)
             if (.not. status%ok()) return
         else
@@ -1653,7 +1670,7 @@ contains
             if (.not. status%ok()) return
             state = next
         end do
-    end subroutine font_lock_default_fontify_syntactically
+    end subroutine fontify_syntactically
 
     !> Find the delimiters of the comment from BEG to point and give them
     !> `font_lock_comment_delimiter_face' (in
@@ -1767,6 +1784,8 @@ contains
         ! Make font-lock recalculate all the mode-specific data.
         k = local_index(.true.)
         if (k > 0) locals(k)%major_mode = ""
+        ! Make the syntax machinery discard all information.
+        call syntax_ppss_flush_cache(-1_int64)
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
         pt = point()
