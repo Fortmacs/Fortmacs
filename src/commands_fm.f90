@@ -482,6 +482,23 @@ module commands_fm
         type(command_type) :: log_edit_previous_comment
         type(command_type) :: log_edit_show_diff
         type(command_type) :: log_edit_show_files
+        type(command_type) :: log_view_copy_revision_as_kill
+        type(command_type) :: log_view_diff
+        type(command_type) :: log_view_diff_changeset
+        type(command_type) :: log_view_display_entry_and_diff
+        type(command_type) :: log_view_file_next
+        type(command_type) :: log_view_file_prev
+        type(command_type) :: log_view_find_revision
+        type(command_type) :: log_view_mark_entry
+        type(command_type) :: log_view_mode
+        type(command_type) :: log_view_msg_and_diff_next
+        type(command_type) :: log_view_msg_and_diff_prev
+        type(command_type) :: log_view_msg_next
+        type(command_type) :: log_view_msg_prev
+        type(command_type) :: log_view_toggle_entry_display
+        type(command_type) :: log_view_toggle_mark_entry
+        type(command_type) :: log_view_unmark_all_entries
+        type(command_type) :: log_view_unmark_entry
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
         type(command_type) :: mark_paragraph
@@ -638,8 +655,11 @@ module commands_fm
         type(command_type) :: vc_git_log_edit_mode
         type(command_type) :: vc_git_log_edit_toggle_no_verify
         type(command_type) :: vc_git_log_edit_toggle_signoff
+        type(command_type) :: vc_git_log_view_mode
         type(command_type) :: vc_ignore
         type(command_type) :: vc_next_action
+        type(command_type) :: vc_print_log
+        type(command_type) :: vc_print_root_log
         type(command_type) :: vc_refresh_state
         type(command_type) :: vc_register
         type(command_type) :: vc_rename_file
@@ -696,7 +716,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(658) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(678) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1147,6 +1167,23 @@ module commands_fm
                                                                  "log_edit_previous_comment", &
                                                                  "log_edit_show_diff", &
                                                                  "log_edit_show_files", &
+                                                                 "log_view_copy_revision_as_kill", &
+                                                                 "log_view_diff", &
+                                                                 "log_view_diff_changeset", &
+                                                                 "log_view_display_entry_and_diff", &
+                                                                 "log_view_file_next", &
+                                                                 "log_view_file_prev", &
+                                                                 "log_view_find_revision", &
+                                                                 "log_view_mark_entry", &
+                                                                 "log_view_mode", &
+                                                                 "log_view_msg_and_diff_next", &
+                                                                 "log_view_msg_and_diff_prev", &
+                                                                 "log_view_msg_next", &
+                                                                 "log_view_msg_prev", &
+                                                                 "log_view_toggle_entry_display", &
+                                                                 "log_view_toggle_mark_entry", &
+                                                                 "log_view_unmark_all_entries", &
+                                                                 "log_view_unmark_entry", &
                                                                  "map_query_replace_regexp", &
                                                                  "mark_end_of_sentence", &
                                                                  "mark_paragraph", &
@@ -1303,8 +1340,11 @@ module commands_fm
                                                                  "vc_git_log_edit_mode", &
                                                                  "vc_git_log_edit_toggle_no_verify", &
                                                                  "vc_git_log_edit_toggle_signoff", &
+                                                                 "vc_git_log_view_mode", &
                                                                  "vc_ignore", &
                                                                  "vc_next_action", &
+                                                                 "vc_print_log", &
+                                                                 "vc_print_root_log", &
                                                                  "vc_refresh_state", &
                                                                  "vc_register", &
                                                                  "vc_rename_file", &
@@ -2265,6 +2305,40 @@ contains
             p => commands%log_edit_show_diff
         case ("log_edit_show_files")
             p => commands%log_edit_show_files
+        case ("log_view_copy_revision_as_kill")
+            p => commands%log_view_copy_revision_as_kill
+        case ("log_view_diff")
+            p => commands%log_view_diff
+        case ("log_view_diff_changeset")
+            p => commands%log_view_diff_changeset
+        case ("log_view_display_entry_and_diff")
+            p => commands%log_view_display_entry_and_diff
+        case ("log_view_file_next")
+            p => commands%log_view_file_next
+        case ("log_view_file_prev")
+            p => commands%log_view_file_prev
+        case ("log_view_find_revision")
+            p => commands%log_view_find_revision
+        case ("log_view_mark_entry")
+            p => commands%log_view_mark_entry
+        case ("log_view_mode")
+            p => commands%log_view_mode
+        case ("log_view_msg_and_diff_next")
+            p => commands%log_view_msg_and_diff_next
+        case ("log_view_msg_and_diff_prev")
+            p => commands%log_view_msg_and_diff_prev
+        case ("log_view_msg_next")
+            p => commands%log_view_msg_next
+        case ("log_view_msg_prev")
+            p => commands%log_view_msg_prev
+        case ("log_view_toggle_entry_display")
+            p => commands%log_view_toggle_entry_display
+        case ("log_view_toggle_mark_entry")
+            p => commands%log_view_toggle_mark_entry
+        case ("log_view_unmark_all_entries")
+            p => commands%log_view_unmark_all_entries
+        case ("log_view_unmark_entry")
+            p => commands%log_view_unmark_entry
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
         case ("mark_end_of_sentence")
@@ -2577,10 +2651,16 @@ contains
             p => commands%vc_git_log_edit_toggle_no_verify
         case ("vc_git_log_edit_toggle_signoff")
             p => commands%vc_git_log_edit_toggle_signoff
+        case ("vc_git_log_view_mode")
+            p => commands%vc_git_log_view_mode
         case ("vc_ignore")
             p => commands%vc_ignore
         case ("vc_next_action")
             p => commands%vc_next_action
+        case ("vc_print_log")
+            p => commands%vc_print_log
+        case ("vc_print_root_log")
+            p => commands%vc_print_root_log
         case ("vc_refresh_state")
             p => commands%vc_refresh_state
         case ("vc_register")

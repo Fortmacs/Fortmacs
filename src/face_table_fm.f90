@@ -131,6 +131,9 @@ module face_table_fm
     use log_edit_fm, only: log_edit_headers_separator
     use log_edit_fm, only: log_edit_summary
     use log_edit_fm, only: log_edit_unknown_header
+    use log_view_fm, only: log_view_commit_body
+    use log_view_fm, only: log_view_file_face
+    use log_view_fm, only: log_view_message_face
     use faces_fm, only: margin
     use faces_fm, only: menu
     use faces_fm, only: minibuffer_prompt
@@ -297,6 +300,9 @@ module face_table_fm
         type(named_face_type), pointer :: log_edit_headers_separator => log_edit_headers_separator
         type(named_face_type), pointer :: log_edit_summary => log_edit_summary
         type(named_face_type), pointer :: log_edit_unknown_header => log_edit_unknown_header
+        type(named_face_type), pointer :: log_view_commit_body => log_view_commit_body
+        type(named_face_type), pointer :: log_view_file => log_view_file_face
+        type(named_face_type), pointer :: log_view_message => log_view_message_face
         type(named_face_type), pointer :: margin => margin
         type(named_face_type), pointer :: menu => menu
         type(named_face_type), pointer :: minibuffer_prompt => minibuffer_prompt

@@ -55,7 +55,8 @@ module vc_git_fm
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
                            vc_state, vc_mode_line_state, vc_working_revision, vc_file_get_git_symbolic_ref, &
                            vc_file_set_git_symbolic_ref, vc_display_status, vc_use_short_revision, &
-                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_T, VC_SWITCHES_NIL, VC_UP_TO_DATE, VC_EDITED, &
+                           VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_T, VC_SWITCHES_NIL, VC_SWITCHES_LIST, &
+                           VC_UP_TO_DATE, VC_EDITED, &
                            VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
                            VC_MODEL_IMPLICIT
     use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_NIL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
@@ -94,6 +95,50 @@ module vc_git_fm
     !> included in the completions.  Port of vc-git.el
     !> vc-git-revision-complete-only-branches.
     logical, public :: vc_git_revision_complete_only_branches = .false.
+
+    !> If true, use the flag `--follow' when producing single file logs.
+    !>
+    !> A true value will make the printed log automatically follow
+    !> the file renames.  The downsides is that the log produced this
+    !> way may omit certain (merge) commits, and that `log_view_diff'
+    !> fails on commits that used the previous name, in that log buffer.
+    !>
+    !> When this variable is false, and the log ends with a rename, there is a
+    !> button which you can press to show the log for the file name before the
+    !> rename.  Port of vc-git.el vc-git-print-log-follow.
+    logical, public :: vc_git_print_log_follow = .false.
+
+    !> String or list of strings giving Git log switches for non-shortlogs.
+    !> Port of vc-git.el vc-git-log-switches.
+    type(vc_switches_type), public :: vc_git_log_switches
+
+    !> String or list of strings giving Git log switches for shortlogs.
+    !> Port of vc-git.el vc-git-shortlog-switches.
+    type(vc_switches_type), public :: vc_git_shortlog_switches
+
+    !> The value of `vc_git_root_log_format': a format string (which is
+    !> passed to "git log" via the argument "--pretty=tformat:FORMAT"), a
+    !> regular expression matching the resulting Git log output, and the
+    !> highlights of its match for the Log View buffer.
+    type, public :: vc_git_root_log_format_type
+        character(len=:), allocatable :: format, regexp
+        type(font_lock_highlight_type), allocatable :: highlights(:)
+    end type vc_git_root_log_format_type
+
+    !> Git log format for `vc_print_root_log'.
+    !> This should be a FORMAT, a REGEXP and KEYWORDS, where FORMAT is a
+    !> format string (which is passed to "git log" via the argument
+    !> "--pretty=tformat:FORMAT"), REGEXP is a regular expression
+    !> matching the resulting Git log output, and KEYWORDS is a list of
+    !> `font_lock_keywords' for highlighting the Log View buffer.  Port of
+    !> vc-git.el vc-git-root-log-format.
+    type(vc_git_root_log_format_type), public :: vc_git_root_log_format
+
+    !> Hook run after entering Git-Log-View mode.
+    type(hook_type), target, public :: vc_git_log_view_mode_hook = hook_type(name="vc_git_log_view_mode_hook")
+
+    !> The keymap of `vc_git_log_view_mode'.
+    type(handle_type), public :: vc_git_log_view_mode_map
 
     !> True to treat pathspecs in commands literally.
     !> Good example of file name that needs this: "test[56].xx".  Port of
@@ -1293,11 +1338,275 @@ contains
         call set_buffer_directory(saved)
     end subroutine vc_git_checkin_1
 
+    ! ------------------------------------------------------------------
+    ! History functions
+    ! ------------------------------------------------------------------
+
+    ! (ensure-list SWITCHES) appended to FLAGS.
+    subroutine append_switches(flags, switches)
+        type(vc_string_type), allocatable, intent(inout) :: flags(:)
+        type(vc_switches_type), intent(in) :: switches
+        if (switches%kind == VC_SWITCHES_LIST) then
+            if (allocated(switches%list)) call append(flags, switches%list)
+        end if
+    end subroutine append_switches
+
+    !> Print commit log associated with FILES into specified BUFFER.
+    !> If SHORTLOG is true, use a short format based on `vc_git_root_log_format'.
+    !> (This requires at least Git version 1.5.6, for the --graph option.)
+    !> If START_REVISION is not "", it is the newest revision to show.
+    !> If LIMIT is a number, show no more than this many entries.
+    !> If LIMIT is a non-empty string, use it as a base revision.  Port of
+    !> vc-git.el:vc-git-print-log.
+    recursive subroutine vc_git_print_log(files, buffer, shortlog, start_revision, limit, status, limit_unsupported)
+        use vc_dispatcher_fm, only: vc_setup_buffer
+        use vc_fm, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF
+        use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
+        use fileio_fm, only: file_directory_p
+        use lisp_fm, only: value_type, t_value
+        use lread_fm, only: sym
+        use data_fm, only: symbol_value, set
+        type(vc_string_type), intent(in) :: files(:)
+        type(handle_type), intent(in) :: buffer
+        logical, intent(in) :: shortlog
+        character(len=*), intent(in) :: start_revision
+        type(vc_log_limit_type), intent(in) :: limit
+        type(status_type), intent(out) :: status
+        logical, intent(out) :: limit_unsupported
+        type(vc_string_type), allocatable :: flags(:)
+        type(handle_type) :: old
+        type(value_type) :: saved
+        type(status_type) :: st
+        character(len=:), allocatable :: start, range
+        character(len=24) :: buf
+        limit_unsupported = .false.
+        ! `vc-do-command' creates the buffer, but we need it before running
+        ! the command.
+        call vc_setup_buffer(buffer, status)
+        if (.not. status%ok()) return
+        ! If the buffer exists from a previous invocation it might be
+        ! read-only.
+        call symbol_value(sym("inhibit_read_only"), saved, st)
+        call set(sym("inhibit_read_only"), t_value(), st)
+        ! In some parts of Git's revision and revision range
+        ! notation, an empty string is equivalent to "HEAD", but not
+        ! everywhere.  For simplicity we'll always be explicit.
+        start = start_revision
+        if (len(start) == 0) start = "HEAD"
+        old = current_buffer()
+        call set_buffer(buffer, st)
+        flags = strings("log", "--no-color")
+        if (vc_git_print_log_follow .and. size(files) == 1) then
+            ! "--follow" on directories or multiple files is broken
+            ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=8756
+            ! https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16422
+            if (.not. file_directory_p(files(1)%s)) call push(flags, "--follow")
+        end if
+        if (shortlog) then
+            call append(flags, strings("--graph", "--decorate", "--date=short", &
+                                       "--pretty=tformat:"//vc_git_root_log_format%format, "--abbrev-commit"))
+            call append_switches(flags, vc_git_shortlog_switches)
+        else
+            call append_switches(flags, vc_git_log_switches)
+        end if
+        if (limit%kind == VC_LIMIT_NUMBER) then
+            write (buf, "(i0)") limit%n
+            call append(flags, strings("-n", trim(buf)))
+        end if
+        if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call push(flags, "-p")
+        ! An empty string LIMIT doesn't make sense given the
+        ! specification of this VC backend function, and is tricky to
+        ! deal with in combination with Git's double-dot notation for
+        ! specifying revision ranges.  So discard it right away.
+        range = start
+        if (limit%kind == VC_LIMIT_REVISION) then
+            if (len(limit%revision) > 0) range = limit%revision//".."//start
+        end if
+        call push(flags, range)
+        call push(flags, "--")
+        call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
+        call set_buffer(old, st)
+        call set(sym("inhibit_read_only"), saved, st)
+    end subroutine vc_git_print_log
+
+    !> Major mode for Git logs.  Port of vc-git.el:vc-git-log-view-mode.
+    recursive subroutine vc_git_log_view_mode(status)
+        use vc_fm, only: vc_log_view_type, vc_shortlog, VC_LOG_VIEW_LOG_UNINTEGRATED, VC_LOG_VIEW_LONG, &
+                         VC_LOG_VIEW_LOG_SEARCH, VC_LOG_VIEW_WITH_DIFF, VC_LOG_VIEW_SHORT, VC_LOG_VIEW_LOG_OUTGOING, &
+                         VC_LOG_VIEW_LOG_INCOMING, VC_LOG_VIEW_MERGEBASE
+        use log_view_fm, only: set_log_view_file_re, set_log_view_message_re, set_log_view_per_file_logs, &
+                               set_log_view_expanded_log_entry_function, set_log_view_font_lock_keywords
+        type(status_type), intent(out) :: status
+        type(font_lock_keyword_type), allocatable :: keywords(:)
+        character(len=*), parameter :: TAB = achar(9)
+        character(len=*), parameter :: EMAIL = "[A-Za-z0-9_.+-]+@[A-Za-z0-9_.-]+"
+        character(len=:), allocatable :: message_re
+        logical :: saved, short, expand
+        integer :: view
+        if (.not. associated(major_modes%vc_git_log_view_mode%run)) call define_log_view_mode()
+        call major_modes%vc_git_log_view_mode%begin(saved, status)
+        if (.not. status%ok()) return
+        view = vc_log_view_type()
+        ! Don't have file markers, so use impossible regexp.
+        call set_log_view_file_re("\`a\`")
+        call set_log_view_per_file_logs(.false.)
+        if (view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
+            short = vc_shortlog()
+        else
+            short = .not. (view == VC_LOG_VIEW_LONG .or. view == VC_LOG_VIEW_LOG_SEARCH .or. view == VC_LOG_VIEW_WITH_DIFF)
+        end if
+        if (short) then
+            message_re = vc_git_root_log_format%regexp
+        else
+            message_re = "^commit +\([0-9a-z]+\)"
+        end if
+        call set_log_view_message_re(message_re)
+        ! Allow expanding short log entries.
+        if (view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
+            expand = vc_shortlog()
+        else
+            expand = view == VC_LOG_VIEW_SHORT .or. view == VC_LOG_VIEW_LOG_OUTGOING .or. &
+                     view == VC_LOG_VIEW_LOG_INCOMING .or. view == VC_LOG_VIEW_MERGEBASE
+        end if
+        ! (setq truncate-lines t): `truncate_lines' is not ported.
+        if (expand) call set_log_view_expanded_log_entry_function(vc_git_expanded_log_entry)
+        if (short) then
+            allocate (keywords(1))
+            keywords(1) = font_lock_keyword(vc_git_root_log_format%regexp, highlights=vc_git_root_log_format%highlights)
+        else
+            allocate (keywords(8))
+            keywords(1) = font_lock_keyword(message_re, face="change_log_acknowledgment", subexp=1)
+            ! Handle the case:
+            ! user: foo@bar
+            keywords(2) = font_lock_keyword("^\(?:Author\|Commit\):[ "//TAB//"]+\("//EMAIL//"\)", &
+                                            face="change_log_email", subexp=1)
+            ! Handle the case:
+            ! user: FirstName LastName <foo@bar>
+            keywords(3) = font_lock_keyword("^\(?:Author\|Commit\):[ "//TAB//"]+\([^<(]+?\)[ "//TAB//"]*[(<]\(" &
+                                            //EMAIL//"\)[>)]", highlights=two("change_log_name", "change_log_email"))
+            keywords(4) = font_lock_keyword("^ +\(?:\(?:[Aa]cked\|[Ss]igned-[Oo]ff\)-[Bb]y:\)[ "//TAB//"]+\(" &
+                                            //EMAIL//"\)", face="change_log_name", subexp=1)
+            keywords(5) = font_lock_keyword("^ +\(?:\(?:[Aa]cked\|[Ss]igned-[Oo]ff\)-[Bb]y:\)[ "//TAB//"]+\([^<(]+?\)[ " &
+                                            //TAB//"]*[(<]\("//EMAIL//"\)[>)]", &
+                                            highlights=two("change_log_name", "change_log_email"))
+            keywords(6) = font_lock_keyword("^Merge: \([0-9a-z]+\) \([0-9a-z]+\)", &
+                                            highlights=two("change_log_acknowledgment", "change_log_acknowledgment"))
+            keywords(7) = font_lock_keyword("^\(?:Date:   \|AuthorDate: \|CommitDate: \)\(.+\)", &
+                                            face="change_log_date", subexp=1)
+            keywords(8) = font_lock_keyword("^summary:[ "//TAB//"]+\(.+\)", face="log_view_message", subexp=1)
+        end if
+        call set_log_view_font_lock_keywords(keywords)
+        call major_modes%vc_git_log_view_mode%finish(saved, status)
+    contains
+        ! The highlights (1 'FACE1) (2 'FACE2).
+        function two(face1, face2) result(h)
+            character(len=*), intent(in) :: face1, face2
+            type(font_lock_highlight_type) :: h(2)
+            h(1) = font_lock_highlight(1, face=face1)
+            h(2) = font_lock_highlight(2, face=face2)
+        end function two
+    end subroutine vc_git_log_view_mode
+
+    !> Move to the log entry for REVISION.
+    !> REVISION may have the form BRANCH, BRANCH~N,
+    !> or BRANCH^ (where "^" can be repeated).  Port of
+    !> vc-git.el:vc-git-show-log-entry.
+    recursive subroutine vc_git_show_log_entry(revision)
+        use search_fm, only: search_forward, string_match, match_end_in_string => match_end, &
+                             match_beginning_in_string => match_beginning
+        use cmds_fm, only: beginning_of_line
+        character(len=*), intent(in) :: revision
+        integer(int64) :: found, count
+        type(status_type) :: st
+        call goto_char(point_min())
+        if (len(revision) > 0) then
+            count = 0
+            if (string_match("~\([0-9]\)\'", revision, st) > 0) then
+                count = 1 + (iachar(revision(len(revision):len(revision))) - iachar("0"))
+            else if (string_match("\^+\'", revision, st) > 0) then
+                count = 1 + (match_end_in_string(0, st) - match_beginning_in_string(0, st))
+            end if
+            if (count > 0) then
+                call search_forward(LF//"commit "//revision, found, st, noerror=SEARCH_NOERROR, count=count)
+            else
+                call search_forward(LF//"commit "//revision, found, st, noerror=SEARCH_NOERROR)
+            end if
+        end if
+        call beginning_of_line()
+    end subroutine vc_git_show_log_entry
+
+    !> The expanded log entry of REVISION: its full log message.  Port of
+    !> vc-git.el:vc-git-expanded-log-entry.
+    recursive subroutine vc_git_expanded_log_entry(revision, text, found)
+        use search_fm, only: replace_match
+        use cmds_fm, only: forward_line
+        use editfns_fm, only: eobp, buffer_string
+        character(len=*), intent(in) :: revision
+        character(len=:), allocatable, intent(out) :: text
+        logical, intent(out) :: found
+        type(vc_string_type), allocatable :: flags(:)
+        type(vc_string_type) :: none(0)
+        type(handle_type) :: old, tmp
+        type(status_type) :: st
+        integer(int64) :: pos, shortage
+        found = .false.
+        text = ""
+        call temp_begin(old, tmp)
+        flags = strings("log", revision, "-1", "--no-color")
+        call append_switches(flags, vc_git_log_switches)
+        call push(flags, "--")
+        call vc_git_command(VC_OKSTATUS_NIL, none, flags, st, current=.true.)
+        call goto_char(point_min())
+        if (.not. eobp()) then
+            ! Indent the expanded log entry.
+            do
+                call re_search_forward("^  ", pos, st, noerror=SEARCH_NOERROR)
+                if (pos == 0) exit
+                call replace_match("", st)
+                shortage = forward_line(1_int64)
+            end do
+            text = buffer_string()
+            found = .true.
+        end if
+        call temp_end(old, tmp)
+    end subroutine vc_git_expanded_log_entry
+
+    ! Define Git's Log View mode.
+    subroutine define_log_view_mode()
+        use log_view_fm, only: syms_of_log_view
+        use add_log_fm, only: syms_of_add_log
+        ! (require 'add-log): we need the faces of add-log.
+        if (.not. associated(major_modes%change_log_mode%run)) call syms_of_add_log()
+        if (.not. associated(major_modes%log_view_mode%run)) call syms_of_log_view()
+        call major_modes%vc_git_log_view_mode%define("vc_git_log_view_mode", "Git-Log-View", vc_git_log_view_mode, &
+                                                     vc_git_log_view_mode_hook, parent=major_modes%log_view_mode)
+        vc_git_log_view_mode_map = major_modes%vc_git_log_view_mode%map
+        commands%vc_git_log_view_mode%run => vc_git_log_view_mode
+    end subroutine define_log_view_mode
+
+    ! The default `vc_git_root_log_format'.
+    subroutine init_root_log_format()
+        if (allocated(vc_git_root_log_format%format)) return
+        vc_git_root_log_format%format = "%d%h..: %an %ad %s"
+        ! The first shy group matches the characters drawn by --graph.
+        ! We use numbered groups because `log-view-message-re' wants the
+        ! revision number to be group 1.
+        vc_git_root_log_format%regexp = "^\(?:[*/\| ]+ \)?\(?2: ([^)]+)\)?\(?1:[0-9a-z]+\)\.\.: " &
+                                        //"\(?3:.*?\)[ "//achar(9)//"]+\(?4:[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
+        allocate (vc_git_root_log_format%highlights(4))
+        vc_git_root_log_format%highlights(1) = font_lock_highlight(1, face="log_view_message")
+        vc_git_root_log_format%highlights(2) = font_lock_highlight(2, face="change_log_list", laxmatch=.true.)
+        vc_git_root_log_format%highlights(3) = font_lock_highlight(3, face="change_log_name")
+        vc_git_root_log_format%highlights(4) = font_lock_highlight(4, face="change_log_date")
+    end subroutine init_root_log_format
+
     !> Make the Git backend known to VC.
     subroutine syms_of_vc_git()
         integer :: k
         if (.not. allocated(vc_git_program)) vc_git_program = "git"
         call define_log_edit_mode()
+        call init_root_log_format()
+        call define_log_view_mode()
         call register_vc_backend("Git", k)
         associate (b => vc_backends(k))
             b%checkin => vc_git_checkin
@@ -1327,6 +1636,9 @@ contains
             b%mark_resolved => vc_git_mark_resolved
             b%create_repo => vc_git_create_repo
             b%diff_switches => vc_git_diff_switches
+            b%print_log => vc_git_print_log
+            b%log_view_mode => vc_git_log_view_mode
+            b%show_log_entry => vc_git_show_log_entry
         end associate
     end subroutine syms_of_vc_git
 end module vc_git_fm

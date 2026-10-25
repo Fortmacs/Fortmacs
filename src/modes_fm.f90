@@ -56,6 +56,7 @@ module modes_fm
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: log_edit_mode
+        type(major_mode_type) :: log_view_mode
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: prog_mode
         type(major_mode_type) :: sh_base_mode
@@ -65,6 +66,7 @@ module modes_fm
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: text_mode
         type(major_mode_type) :: vc_git_log_edit_mode
+        type(major_mode_type) :: vc_git_log_view_mode
     end type major_mode_table_type
 
     !> One component per built-in minor mode.

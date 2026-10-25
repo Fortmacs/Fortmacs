@@ -180,6 +180,17 @@ module vc_hooks_fm
     ! Backends
     ! ------------------------------------------------------------------
 
+    !> Kinds of a log's LIMIT: none (nil, unlimited), a number of entries,
+    !> or a revision before which to stop.
+    integer, parameter, public :: VC_LIMIT_NONE = 0, VC_LIMIT_NUMBER = 1, VC_LIMIT_REVISION = 2
+
+    !> The LIMIT of the log commands: nil, a number or a revision string.
+    type, public :: vc_log_limit_type
+        integer :: kind = VC_LIMIT_NONE
+        integer(int64) :: n = 0
+        character(len=:), allocatable :: revision
+    end type vc_log_limit_type
+
     abstract interface
         !> A backend's `registered': whether FILE is registered.
         logical function vc_file_predicate(file)
@@ -304,6 +315,27 @@ module vc_hooks_fm
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine vc_status_proc
+        !> A backend's `print_log': insert the log of FILES into BUFFER (a
+        !> short log with SHORTLOG), starting at START_REVISION ("" for the
+        !> current one), with LIMIT.  LIMIT_UNSUPPORTED is the return value
+        !> `limit-unsupported'.
+        recursive subroutine vc_print_log_proc(files, buffer, shortlog, start_revision, limit, status, &
+                                               limit_unsupported)
+            import :: vc_string_type, handle_type, vc_log_limit_type, status_type
+            implicit none(type, external)
+            type(vc_string_type), intent(in) :: files(:)
+            type(handle_type), intent(in) :: buffer
+            logical, intent(in) :: shortlog
+            character(len=*), intent(in) :: start_revision
+            type(vc_log_limit_type), intent(in) :: limit
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: limit_unsupported
+        end subroutine vc_print_log_proc
+        !> A backend's `show_log_entry': move to the log entry for REVISION.
+        recursive subroutine vc_show_log_entry_proc(revision)
+            implicit none(type, external)
+            character(len=*), intent(in) :: revision
+        end subroutine vc_show_log_entry_proc
         !> A backend's `checkin' of FILES with COMMENT (REV, the new
         !> revision, for the backends that take one).
         recursive subroutine vc_checkin_proc(files, comment, status, rev)
@@ -350,6 +382,11 @@ module vc_hooks_fm
         !> The backend's Log Edit mode (vc-default-log-edit-mode is
         !> `log_edit_mode').
         procedure(vc_status_proc), pointer, nopass :: log_edit_mode => null()
+        procedure(vc_print_log_proc), pointer, nopass :: print_log => null()
+        !> The backend's Log View mode (vc-default-log-view-mode is
+        !> `log_view_mode').
+        procedure(vc_status_proc), pointer, nopass :: log_view_mode => null()
+        procedure(vc_show_log_entry_proc), pointer, nopass :: show_log_entry => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
@@ -1545,6 +1582,8 @@ contains
         call keymap_set(vc_prefix_map, "v", "vc_next_action", st)
         call keymap_set(vc_prefix_map, "=", "vc_diff", st)
         call keymap_set(vc_prefix_map, "D", "vc_root_diff", st)
+        call keymap_set(vc_prefix_map, "l", "vc_print_log", st)
+        call keymap_set(vc_prefix_map, "L", "vc_print_root_log", st)
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)
         call keymap_set(vc_prefix_map, "R", "vc_rename_file", st)
         call keymap_set(vc_prefix_map, "x", "vc_delete_file", st)
