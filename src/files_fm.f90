@@ -649,14 +649,6 @@ module files_fm
     !> See `kill_buffer'.  Port of files.el kill-buffer-hook.
     type(hook_type), target, public :: kill_buffer_hook = hook_type(name="kill_buffer_hook")
 
-    !> Normal hook that is run before a buffer is saved to its file.
-    !> Used only by `save_buffer'.  Port of files.el before-save-hook.
-    type(hook_type), target, public :: before_save_hook = hook_type(name="before_save_hook")
-
-    !> Normal hook that is run after a buffer is saved to its file.
-    !> Used only by `save_buffer'.  Port of files.el after-save-hook.
-    type(hook_type), target, public :: after_save_hook = hook_type(name="after_save_hook")
-
     !> A procedure of the current buffer (vc-hooks.el's `vc_before_save'
     !> and `vc_after_save', which `basic_save_buffer' calls directly).
     abstract interface
@@ -903,6 +895,8 @@ contains
         do while (have_file .and. .not. found)
             if (string_match(stopre, f, st) > 0) exit
             f = file_name_directory(f)
+            ! (file-name-directory F) is nil: no directory to look in.
+            if (len(f) == 0) exit
             call expand_file_name(name, try, st, f)
             if (st%ok() .and. file_exists_p(try)) then
                 found = .true.
