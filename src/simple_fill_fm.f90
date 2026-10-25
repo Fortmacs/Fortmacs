@@ -41,6 +41,7 @@ submodule(simple_fm) simple_fill_fm
     use insdel_fm, only: insert_before_markers
     use modes_fm, only: minor_modes
     use abbrev_fm, only: abbrev_mode
+    use newcomment_fm, only: comment_start, comment_auto_fill_only_comments
     implicit none(type, external)
 
     ! The state newline_postproc works from: where point was before the
@@ -177,8 +178,18 @@ contains
 
     module procedure default_indent_new_line
     integer(int64) :: opoint
-    logical :: noindent
+    logical :: noindent, saved
     status = status_type()
+    if (allocated(comment_start%value) .and. associated(comment_line_break_function)) then
+        saved = comment_auto_fill_only_comments%value
+        ! Force breaking the line when called interactively.
+        if (present(force)) then
+            if (force) comment_auto_fill_only_comments%value = .false.
+        end if
+        call comment_line_break_function(status, soft)
+        comment_auto_fill_only_comments%value = saved
+        return
+    end if
     ! Insert the newline before removing empty space so that markers get
     ! preserved better.
     if (present(soft)) then
@@ -385,7 +396,7 @@ contains
     subroutine cmd_default_indent_new_line(status)
         type(status_type), intent(out) :: status
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call default_indent_new_line(status)
+        if (status%ok()) call default_indent_new_line(status, force=.true.)
     end subroutine cmd_default_indent_new_line
 
     !> auto-fill-mode's :variable setter: set `auto_fill_function'
@@ -397,8 +408,8 @@ contains
         call auto_fill_function%make_local()
         if (.not. enable) then
             auto_fill_function%value => null()
-        else if (associated(normal_auto_fill_function)) then
-            auto_fill_function%value => normal_auto_fill_function
+        else if (associated(normal_auto_fill_function%value)) then
+            auto_fill_function%value => normal_auto_fill_function%value
         else
             auto_fill_function%value => do_auto_fill
         end if

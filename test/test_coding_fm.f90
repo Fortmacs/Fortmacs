@@ -90,13 +90,14 @@ contains
     !> The work directory (coding-tests-workdir), as a directory name.
     function tdir() result(d)
         character(len=:), allocatable :: d
-        d = file_name_as_directory(emacs_wd)//"test-coding-workdir/"
+        d = file_name_as_directory(emacs_wd)//"build/test-coding-workdir/"
     end function tdir
 
     subroutine setup()
         type(status_type) :: st
         call init_fileio()
         call init_bindings()
+        call make_directory_internal(file_name_as_directory(emacs_wd)//"build", st)
         call make_directory_internal(tdir(), st)
     end subroutine setup
 
@@ -107,6 +108,8 @@ contains
         integer :: k
         do k = 1, size(names)
             call delete_file_internal(tdir()//trim(names(k)), st)
+            ! Saving made backups of some.
+            call delete_file_internal(tdir()//trim(names(k))//"~", st)
         end do
         call delete_directory_internal(tdir(), st)
     end subroutine remove_files

@@ -427,6 +427,31 @@ module fortmacs
                             electric_pair_skip_whitespace_function, electric_pair_text_syntax_table, &
                             electric_pair_string_bound_function, electric_pair_position_proc, electric_pair_mode_hook, &
                             electric_pair_local_mode_hook, electric_pair_delete_pair
+    use newcomment_fm, only: comment_use_syntax, comment_fill_column, comment_column, comment_start, comment_start_skip, &
+                             comment_end_skip, comment_end, comment_indent_function, comment_indent_type, &
+                             comment_insert_comment_function, comment_region_function, uncomment_region_function, &
+                             comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
+                             comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
+                             comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
+                             COMMENT_USE_SYNTAX_NIL, COMMENT_USE_SYNTAX_T, COMMENT_USE_SYNTAX_UNDECIDED, &
+                             COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
+                             COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
+                             COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NIL, COMMENT_EMPTY_LINES_T, &
+                             COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
+    use conf_mode_fm, only: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
+                            conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
+                            conf_unix_mode_syntax_table, conf_space_keywords_alist, conf_space_keywords_entry_type, &
+                            conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
+                            conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
+                            conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    use f90_fm, only: f90_do_indent, f90_if_indent, f90_type_indent, f90_program_indent, f90_associate_indent, &
+                      f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
+                      f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &
+                      f90_break_delimiters, f90_break_before_delimiters, f90_auto_keyword_case, f90_leave_line_no, &
+                      f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
+                      F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
+                      F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
+    use fill_fm, only: fill_paragraph_function, fill_paragraph_handle_comment
     implicit none(type, external)
     private
 
@@ -685,4 +710,29 @@ module fortmacs
               set_file_modes, set_file_times, read_only_mode, read_only_mode_hook, what_line, view_mode, view_mode_map, &
               view_mode_hook, view_file, view_file_other_window, view_buffer, view_buffer_other_window, &
               view_scroll_auto_exit, view_exits_all_viewing_windows, view_inhibit_help_message, view_no_disable_on_exit
+    public :: comment_use_syntax, comment_fill_column, comment_column, comment_start, comment_start_skip, &
+              comment_end_skip, comment_end, comment_indent_function, comment_indent_type, &
+              comment_insert_comment_function, comment_region_function, uncomment_region_function, &
+              comment_quote_nested, comment_quote_nested_function, comment_continue, comment_add, &
+              comment_style, comment_padding, comment_inline_offset, comment_multi_line, &
+              comment_empty_lines, comment_setup_function, comment_auto_fill_only_comments, &
+              COMMENT_USE_SYNTAX_NIL, COMMENT_USE_SYNTAX_T, COMMENT_USE_SYNTAX_UNDECIDED, &
+              COMMENT_STYLE_PLAIN, COMMENT_STYLE_INDENT_OR_TRIPLE, COMMENT_STYLE_INDENT, &
+              COMMENT_STYLE_ALIGNED, COMMENT_STYLE_BOX, COMMENT_STYLE_EXTRA_LINE, COMMENT_STYLE_MULTI_LINE, &
+              COMMENT_STYLE_BOX_MULTI, COMMENT_EMPTY_LINES_NIL, COMMENT_EMPTY_LINES_T, &
+              COMMENT_EMPTY_LINES_EOL, COMMENT_INDENT_NONE, COMMENT_INDENT_COLUMN, COMMENT_INDENT_RANGE
+    public :: conf_assignment_column, conf_javaprop_assignment_column, conf_colon_assignment_column, &
+              conf_assignment_space, conf_colon_assignment_space, conf_mode_map, conf_mode_syntax_table, &
+              conf_unix_mode_syntax_table, conf_space_keywords_alist, conf_space_keywords_entry_type, &
+              conf_mode_hook, conf_unix_mode_hook, conf_windows_mode_hook, conf_javaprop_mode_hook, &
+              conf_space_mode_hook, conf_colon_mode_hook, conf_ppd_mode_hook, conf_xdefaults_mode_hook, &
+              conf_toml_mode_hook, conf_desktop_mode_hook, conf_npmrc_mode_hook
+    public :: f90_do_indent, f90_if_indent, f90_type_indent, f90_program_indent, f90_associate_indent, &
+              f90_critical_indent, f90_continuation_indent, f90_comment_region, f90_indented_comment_re, &
+              f90_directive_comment_re, f90_beginning_ampersand, f90_smart_end, f90_smart_end_names, &
+              f90_break_delimiters, f90_break_before_delimiters, f90_auto_keyword_case, f90_leave_line_no, &
+              f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_mode_abbrev_table, F90_SMART_END_NIL, &
+              F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, F90_KEYWORD_CASE_NIL, F90_KEYWORD_CASE_DOWNCASE_WORD, &
+              F90_KEYWORD_CASE_UPCASE_WORD, F90_KEYWORD_CASE_CAPITALIZE_WORD
+    public :: fill_paragraph_function, fill_paragraph_handle_comment
 end module fortmacs

@@ -42,6 +42,7 @@ module bindings_fm
     use cmds_fm, only: syms_of_cmds, forward_char, backward_char
     use simple_fm, only: syms_of_simple, backward_word
     use syntax_fm, only: syms_of_syntax, forward_word
+    use syntax_propertize_fm, only: syms_of_syntax_propertize
     use paragraphs_fm, only: syms_of_paragraphs
     use lisp_cmds_fm, only: syms_of_lisp_cmds
     use search_fm, only: syms_of_search
@@ -70,6 +71,8 @@ module bindings_fm
     use minibuffer_fm, only: syms_of_minibuffer, completion_at_point
     use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
+    use conf_mode_fm, only: syms_of_conf_mode
+    use f90_fm, only: syms_of_f90
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
     use font_lock_fm, only: syms_of_font_lock
@@ -89,6 +92,7 @@ module bindings_fm
     use paren_fm, only: syms_of_paren
     use electric_fm, only: syms_of_electric
     use elec_pair_fm, only: syms_of_elec_pair
+    use newcomment_fm, only: syms_of_newcomment
     use modes_fm, only: minor_modes
     implicit none(type, external)
     private
@@ -246,6 +250,7 @@ contains
         commands%right_word%run => cmd_right_word
         commands%left_word%run => cmd_left_word
         call syms_of_syntax()
+        call syms_of_syntax_propertize()
         call syms_of_paragraphs()
         call syms_of_lisp_cmds()
         call syms_of_search()
@@ -253,8 +258,11 @@ contains
         call syms_of_casefiddle()
         call syms_of_indent()
         call syms_of_fill()
+        call syms_of_newcomment()
         call syms_of_novice()
         call syms_of_text_mode()
+        call syms_of_conf_mode()
+        call syms_of_f90()
         call syms_of_prog_mode()
         call syms_of_jit_lock()
         call syms_of_font_core()
@@ -444,6 +452,9 @@ contains
         call bind(esc_map, "d", "kill_word")
         call bind(esc_map, "DEL", "backward_kill_word")
         call bind(global_map, "M-<right>", "right_word")
+        call bind(global_map, "M-;", "comment_dwim")
+        call bind(global_map, "C-x ;", "comment_set_column")
+        call bind(global_map, "C-x C-;", "comment_line")
         call bind(esc_map, "<right>", "forward_word")
         call bind(global_map, "M-<left>", "left_word")
         call bind(esc_map, "<left>", "backward_word")

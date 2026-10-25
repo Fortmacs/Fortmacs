@@ -95,7 +95,7 @@ module search_fm
 
     interface
         !> Port of search.c:looking_at_1.  (In search_regexp_fm.)
-        module function looking_at_1(regexp, posix, modify_data, status) result(matched)
+        recursive module function looking_at_1(regexp, posix, modify_data, status) result(matched)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp
             logical, intent(in) :: posix, modify_data
@@ -104,7 +104,7 @@ module search_fm
         end function looking_at_1
 
         !> Port of search.c:string_match_1.  (In search_regexp_fm.)
-        module function string_match_1(regexp, string, start, posix, modify_data, status) result(idx)
+        recursive module function string_match_1(regexp, string, start, posix, modify_data, status) result(idx)
             implicit none(type, external)
             character(len=*), intent(in) :: regexp, string
             integer(int64), intent(in), optional :: start
@@ -115,7 +115,7 @@ module search_fm
 
         !> Regexp search for `search_buffer'.  Port of
         !> search.c:search_buffer_re.  (In search_regexp_fm.)
-        module function search_buffer_re(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
+        recursive module function search_buffer_re(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
             result(np)
             implicit none(type, external)
             character(len=*), intent(in) :: string
@@ -435,7 +435,7 @@ contains
     !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Flooking_at.
-    logical function looking_at(regexp, status, inhibit_modify) result(matched)
+    recursive logical function looking_at(regexp, status, inhibit_modify) result(matched)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
@@ -450,7 +450,7 @@ contains
     !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Fposix_looking_at.
-    logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
+    recursive logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
@@ -480,7 +480,7 @@ contains
     !> Indices are 1-based character indices, as Fortran's `index' (Emacs
     !> counts from 0); a negative START counts from the end.  Port of
     !> search.c:Fstring_match.
-    integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(idx)
+    recursive integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(idx)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
@@ -501,7 +501,7 @@ contains
     !> `match_string' to extract the substrings matched by the parenthesis
     !> constructions in REGEXP.  For index of first char beyond the match,
     !> use `match_end(0)'.  Port of search.c:Fposix_string_match.
-    integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
+    recursive integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(idx)
         character(len=*), intent(in) :: regexp, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
@@ -543,7 +543,7 @@ contains
     !>
     !> See also the functions `match_beginning', `match_end', `match_string',
     !> and `replace_match'.  Port of search.c:Fsearch_forward.
-    subroutine search_forward(string, found, status, bound, noerror, count)
+    recursive subroutine search_forward(string, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -557,7 +557,7 @@ contains
     !> by default it searches backward instead of forward, and the sign of
     !> COUNT also indicates exactly the opposite searching direction.
     !> See `search_forward' for details.  Port of search.c:Fsearch_backward.
-    subroutine search_backward(string, found, status, bound, noerror, count)
+    recursive subroutine search_backward(string, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -590,7 +590,7 @@ contains
     !>
     !> See also the functions `match_beginning', `match_end', `match_string',
     !> and `replace_match'.  Port of search.c:Fre_search_forward.
-    subroutine re_search_forward(regexp, found, status, bound, noerror, count)
+    recursive subroutine re_search_forward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -608,7 +608,7 @@ contains
     !> Note that searching backwards may give a shorter match than expected,
     !> because REGEXP is still matched in the forward direction.  Port of
     !> search.c:Fre_search_backward.
-    subroutine re_search_backward(regexp, found, status, bound, noerror, count)
+    recursive subroutine re_search_backward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -622,7 +622,7 @@ contains
     !> Set point to the end of the occurrence found, and return point.
     !> BOUND, NOERROR and COUNT are as for `re_search_forward'.  Port of
     !> search.c:Fposix_search_forward.
-    subroutine posix_search_forward(regexp, found, status, bound, noerror, count)
+    recursive subroutine posix_search_forward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -638,7 +638,7 @@ contains
     !> instead of forward, and the sign of COUNT also indicates exactly the
     !> opposite searching direction.  Port of
     !> search.c:Fposix_search_backward.
-    subroutine posix_search_backward(regexp, found, status, bound, noerror, count)
+    recursive subroutine posix_search_backward(regexp, found, status, bound, noerror, count)
         character(len=*), intent(in) :: regexp
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
@@ -648,7 +648,7 @@ contains
     end subroutine posix_search_backward
 
     !> Port of search.c:search_command.
-    subroutine search_command(string, direction, re, posix, found, status, bound, noerror, count)
+    recursive subroutine search_command(string, direction, re, posix, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: direction
         logical, intent(in) :: re, posix
@@ -736,7 +736,7 @@ contains
     !> of its start (backward), or -M when M matches remained to be found.
     !> Port of search.c:search_buffer and search_buffer_non_re (no
     !> Boyer-Moore: simple_search, which works for any pattern).
-    integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, re, posix) &
+    recursive integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, re, posix) &
         result(np)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: pos, pos_byte, lim, lim_byte, n

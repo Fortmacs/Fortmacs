@@ -72,7 +72,7 @@ module diff_mode_fm
                          free_keymap
     use faces_fm, only: named_face_type, display_when, face_attrs, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                         FACE_BACKGROUND_DARK
-    use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, FONT_LOCK_OVERRIDE_PREPEND
+    use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_fm, only: font_lock_keyword, font_lock_highlight
     use modes_fm, only: major_modes
     use easy_mmode_fm, only: easy_mmode_next, easy_mmode_prev
@@ -1824,43 +1824,49 @@ contains
     !> prettifying or refinement).
     subroutine diff_font_lock_keywords(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
+        ! (Highlights go through these variables: gfortran leaks a
+        ! function result inside an array constructor of this type.)
+        type(font_lock_highlight_type) :: h1(1), h2(2)
         allocate (keywords(20))
-        keywords(1) = font_lock_keyword("\("//diff_hunk_header_re_unified//"\)\(.*\)$", &
-                                        [font_lock_highlight(1, face="diff_hunk_header"), &
-                                         font_lock_highlight(6, face="diff_function")])
+        h2(1) = font_lock_highlight(1, face="diff_hunk_header")
+        h2(2) = font_lock_highlight(6, face="diff_function")
+        keywords(1) = font_lock_keyword("\("//diff_hunk_header_re_unified//"\)\(.*\)$", h2)
         ! context
-        keywords(2) = font_lock_keyword("^\(\*\{15\}\)\(.*\)$", [font_lock_highlight(1, face="diff_hunk_header"), &
-                                                                 font_lock_highlight(2, face="diff_function")])
+        h2(1) = font_lock_highlight(1, face="diff_hunk_header")
+        h2(2) = font_lock_highlight(2, face="diff_function")
+        keywords(2) = font_lock_keyword("^\(\*\{15\}\)\(.*\)$", h2)
         keywords(3) = font_lock_keyword("^\*\*\* .+ \*\*\*\*", face="diff_hunk_header")
         keywords(4) = font_lock_keyword(diff_context_mid_hunk_header_re, face="diff_hunk_header")
         ! normal
         keywords(5) = font_lock_keyword("^[0-9,]+[acd][0-9,]+$", face="diff_hunk_header")
         keywords(6) = font_lock_keyword("^---$", face="diff_hunk_header")
+        h2(1) = font_lock_highlight(0, face="diff_header")
+        h2(2) = font_lock_highlight(2, face_function=file_header_name_face, override=FONT_LOCK_OVERRIDE_PREPEND)
         keywords(7) = font_lock_keyword("^\(---\|\+\+\+\|\*\*\*\) \([^"//TAB//LF//"]+?\)\(?:"//TAB// &
-                                        ".*\| \(\*\*\*\*\|----\)\)?"//LF, &
-                                        [font_lock_highlight(0, face="diff_header"), &
-                                         font_lock_highlight(2, face_function=file_header_name_face, &
-                                                             override=FONT_LOCK_OVERRIDE_PREPEND)])
-        keywords(8) = font_lock_keyword(matcher=indicator_removed_matcher, &
-                                        highlights=[font_lock_highlight(1, face="diff_indicator_removed"), &
-                                                    font_lock_highlight(2, face="diff_removed")])
-        keywords(9) = font_lock_keyword(matcher=indicator_added_matcher, &
-                                        highlights=[font_lock_highlight(1, face="diff_indicator_added"), &
-                                                    font_lock_highlight(2, face="diff_added")])
-        keywords(10) = font_lock_keyword("^\(!\)\(.*"//LF//"\)", &
-                                         [font_lock_highlight(1, face_function=bang_indicator_face), &
-                                          font_lock_highlight(2, face_function=bang_line_face)])
-        keywords(11) = font_lock_keyword("^\(?:Index\|revno\): \(.+\).*"//LF, &
-                                         [font_lock_highlight(0, face="diff_header"), &
-                                          font_lock_highlight(1, face="diff_index", override=FONT_LOCK_OVERRIDE_PREPEND)])
+                                        ".*\| \(\*\*\*\*\|----\)\)?"//LF, h2)
+        h2(1) = font_lock_highlight(1, face="diff_indicator_removed")
+        h2(2) = font_lock_highlight(2, face="diff_removed")
+        keywords(8) = font_lock_keyword(matcher=indicator_removed_matcher, highlights=h2)
+        h2(1) = font_lock_highlight(1, face="diff_indicator_added")
+        h2(2) = font_lock_highlight(2, face="diff_added")
+        keywords(9) = font_lock_keyword(matcher=indicator_added_matcher, highlights=h2)
+        h2(1) = font_lock_highlight(1, face_function=bang_indicator_face)
+        h2(2) = font_lock_highlight(2, face_function=bang_line_face)
+        keywords(10) = font_lock_keyword("^\(!\)\(.*"//LF//"\)", h2)
+        h2(1) = font_lock_highlight(0, face="diff_header")
+        h2(2) = font_lock_highlight(1, face="diff_index", override=FONT_LOCK_OVERRIDE_PREPEND)
+        keywords(11) = font_lock_keyword("^\(?:Index\|revno\): \(.+\).*"//LF, h2)
         keywords(12) = font_lock_keyword("^\(?:index .*\.\.\|diff \).*"//LF, face="diff_header")
         keywords(13) = font_lock_keyword("^\(?:new\|deleted\) file mode .*"//LF, face="diff_header")
         keywords(14) = font_lock_keyword("^Only in .*"//LF, face="diff_nonexistent")
         keywords(15) = font_lock_keyword("^Binary files .* differ"//LF, face="diff_file_header")
-        keywords(16) = font_lock_keyword("^\(#\)\(.*\)", [font_lock_highlight(1, face="font_lock_comment_delimiter_face"), &
-                                                          font_lock_highlight(2, face="font_lock_comment_face")])
-        keywords(17) = font_lock_keyword("^diff: .*", [font_lock_highlight(0, face="diff_error")])
-        keywords(18) = font_lock_keyword("^[^-=+*!<>#].*"//LF, [font_lock_highlight(0, face="diff_context")])
+        h2(1) = font_lock_highlight(1, face="font_lock_comment_delimiter_face")
+        h2(2) = font_lock_highlight(2, face="font_lock_comment_face")
+        keywords(16) = font_lock_keyword("^\(#\)\(.*\)", h2)
+        h1(1) = font_lock_highlight(0, face="diff_error")
+        keywords(17) = font_lock_keyword("^diff: .*", h1)
+        h1(1) = font_lock_highlight(0, face="diff_context")
+        keywords(18) = font_lock_keyword("^[^-=+*!<>#].*"//LF, h1)
         keywords = keywords(1:18)
     end subroutine diff_font_lock_keywords
 

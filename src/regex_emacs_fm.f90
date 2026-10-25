@@ -33,8 +33,9 @@
 !> - Patterns and text are always multibyte (Emacs's internal encoding), so
 !>   the unibyte paths are left out.
 !> - Case folding (`translate') is the case canon table of casetab_fm.
-!> - Syntax comes from the current buffer's syntax table (there are no
-!>   `syntax_table' text properties yet), categories from characters_fm.
+!> - Syntax comes from the current buffer's syntax table and, for \b, \<,
+!>   \>, \_<, \_> and \s, its `syntax_table' properties (as upstream);
+!>   categories come from characters_fm.
 !> - Errors are returned as a status of `invalid_regexp'; a matcher that
 !>   runs out of failure stack returns -2.
 module regex_emacs_fm
@@ -47,11 +48,12 @@ module regex_emacs_fm
                             MAX_MULTIBYTE_LEADING_CODE, alphabeticp, alphanumericp, graphicp, printablep, blankp, &
                             char_hexdigit
     use casetab_fm, only: case_canon, uppercasep, lowercasep
-    use syntax_fm, only: char_syntax_class, word_boundary_p, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
+    use syntax_fm, only: char_syntax_class, syntax_class_at, word_boundary_p, SWHITESPACE, SPUNCT, SWORD, SSYMBOL, SOPEN, &
                          SCLOSE, SQUOTE, SSTRING, SMATH, SESCAPE, SCHARQUOTE, SCOMMENT, SENDCOMMENT, SINHERIT, &
                          SCOMMENT_FENCE, SSTRING_FENCE
     use characters_fm, only: char_has_category
     use buffer_fm, only: buffers, cur
+    use marker_fm, only: byte_to_char
     implicit none(type, external)
     private
 
@@ -234,6 +236,21 @@ contains
         end do
         call schar(s, dtemp, c, length)
     end function schar_before
+
+    !> The syntax class of C, the character at offset D of the subject (SHIFT
+    !> 0) or the one before it (SHIFT -1): SYNTAX after UPDATE_SYNTAX_TABLE
+    !> at its position, which consults `syntax_table' properties in a buffer
+    !> (strings carry no text properties).
+    recursive integer function subject_syntax(s, d, shift, c) result(code)
+        type(re_subject_type), intent(in) :: s
+        integer(int64), intent(in) :: d, shift
+        integer(int32), intent(in) :: c
+        if (s%is_buffer) then
+            code = syntax_class_at(int(c), byte_to_char(s%base + d) + shift)
+        else
+            code = char_syntax_class(int(c))
+        end if
+    end function subject_syntax
 
     !> The character of the compiled pattern at `p' and its length.
     subroutine pchar(buf, p, c, length)
@@ -2161,7 +2178,7 @@ contains
     !> position at which the match was found, -1 if none, or -2 if the
     !> failure stack overflowed.  In REGS, return where the groups matched.
     !> Port of regex-emacs.c:re_search_2.
-    integer(int64) function re_search(bufp, subj, startpos_in, range_in, regs, stop) result(val)
+    recursive integer(int64) function re_search(bufp, subj, startpos_in, range_in, regs, stop) result(val)
         type(re_pattern_buffer_type), intent(inout) :: bufp
         type(re_subject_type), intent(in) :: subj
         integer(int64), intent(in) :: startpos_in, range_in, stop
@@ -2273,7 +2290,7 @@ contains
     !> STOP.  Return the length of the match, -1 if none, or -2 if the
     !> failure stack overflowed.  In REGS, return where the groups
     !> matched.  Port of regex-emacs.c:re_match_2.
-    integer(int64) function re_match(bufp, subj, pos, regs, stop)
+    recursive integer(int64) function re_match(bufp, subj, pos, regs, stop)
         type(re_pattern_buffer_type), intent(inout) :: bufp
         type(re_subject_type), intent(in) :: subj
         integer(int64), intent(in) :: pos, stop
@@ -2283,7 +2300,7 @@ contains
 
     !> The backtracking matcher.  Port of
     !> regex-emacs.c:re_match_2_internal.
-    integer(int64) function re_match_2_internal(bufp, subj, pos, regs, stop) result(retval)
+    recursive integer(int64) function re_match_2_internal(bufp, subj, pos, regs, stop) result(retval)
         type(re_pattern_buffer_type), intent(inout) :: bufp
         type(re_subject_type), intent(in) :: subj
         integer(int64), intent(in) :: pos, stop
@@ -2576,9 +2593,9 @@ contains
                         ! C1, C2 is the character at D, and S2 is the
                         ! syntax of C2.
                         c1 = schar_before(subj, d)
-                        s1 = char_syntax_class(c1)
+                        s1 = subject_syntax(subj, d, -1_int64, c1)
                         call schar(subj, d, c2, len2)
-                        s2 = char_syntax_class(c2)
+                        s2 = subject_syntax(subj, d, 0_int64, c2)
                         ! Case 2: Only one of S1 and S2 is Sword.  Case 3:
                         ! Both are Sword, and WORD_BOUNDARY_P.
                         if ((s1 == SWORD) .neqv. (s2 == SWORD)) then
@@ -2594,7 +2611,7 @@ contains
                         do_fail = .true.
                     else
                         call schar(subj, d, c2, len2)
-                        s2 = char_syntax_class(c2)
+                        s2 = subject_syntax(subj, d, 0_int64, c2)
                         ! Case 2: S2 is not Sword.
                         if (s2 /= SWORD) then
                             do_fail = .true.
@@ -2602,7 +2619,7 @@ contains
                             ! Case 3: D is not at the beginning of string
                             ! and S1 is Sword, and not WORD_BOUNDARY_P.
                             c1 = schar_before(subj, d)
-                            s1 = char_syntax_class(c1)
+                            s1 = subject_syntax(subj, d, -1_int64, c1)
                             if (s1 == SWORD) then
                                 if (.not. word_boundary_p(c1, c2)) do_fail = .true.
                             end if
@@ -2614,7 +2631,7 @@ contains
                         do_fail = .true.
                     else
                         c1 = schar_before(subj, d)
-                        s1 = char_syntax_class(c1)
+                        s1 = subject_syntax(subj, d, -1_int64, c1)
                         ! Case 2: S1 is not Sword.
                         if (s1 /= SWORD) then
                             do_fail = .true.
@@ -2622,7 +2639,7 @@ contains
                             ! Case 3: D is not at the end of string, S2 is
                             ! Sword, and not WORD_BOUNDARY_P.
                             call schar(subj, d, c2, len2)
-                            s2 = char_syntax_class(c2)
+                            s2 = subject_syntax(subj, d, 0_int64, c2)
                             if (s2 == SWORD) then
                                 if (.not. word_boundary_p(c1, c2)) do_fail = .true.
                             end if
@@ -2634,7 +2651,7 @@ contains
                         do_fail = .true.
                     else
                         call schar(subj, d, c2, len2)
-                        s2 = char_syntax_class(c2)
+                        s2 = subject_syntax(subj, d, 0_int64, c2)
                         ! Case 2: S2 is neither Sword nor Ssymbol.
                         if (s2 /= SWORD .and. s2 /= SSYMBOL) then
                             do_fail = .true.
@@ -2642,7 +2659,7 @@ contains
                             ! Case 3: D is not at the beginning of string
                             ! and S1 is Sword or Ssymbol.
                             c1 = schar_before(subj, d)
-                            s1 = char_syntax_class(c1)
+                            s1 = subject_syntax(subj, d, -1_int64, c1)
                             if (s1 == SWORD .or. s1 == SSYMBOL) do_fail = .true.
                         end if
                     end if
@@ -2652,7 +2669,7 @@ contains
                         do_fail = .true.
                     else
                         c1 = schar_before(subj, d)
-                        s1 = char_syntax_class(c1)
+                        s1 = subject_syntax(subj, d, -1_int64, c1)
                         ! Case 2: S1 is neither Ssymbol nor Sword.
                         if (s1 /= SWORD .and. s1 /= SSYMBOL) then
                             do_fail = .true.
@@ -2660,7 +2677,7 @@ contains
                             ! Case 3: D is not at the end of string and S2
                             ! is Sword or Ssymbol.
                             call schar(subj, d, c2, len2)
-                            s2 = char_syntax_class(c2)
+                            s2 = subject_syntax(subj, d, 0_int64, c2)
                             if (s2 == SWORD .or. s2 == SSYMBOL) do_fail = .true.
                         end if
                     end if
@@ -2672,7 +2689,7 @@ contains
                         do_fail = .true.
                     else
                         call schar(subj, d, c, len1)
-                        if ((char_syntax_class(c) /= mcnt) .neqv. inverted) then
+                        if ((subject_syntax(subj, d, 0_int64, c) /= mcnt) .neqv. inverted) then
                             do_fail = .true.
                         else
                             d = d + len1

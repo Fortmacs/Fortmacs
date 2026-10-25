@@ -32,10 +32,8 @@
 !> `font_lock_keyword_type' values (font_core_fm), built with
 !> `font_lock_keyword', `font_lock_highlight' and `font_lock_anchored'.
 !>
-!> Deferred: font-lock-syntactic-keywords and syntax-propertize,
-!> font-lock-multiline, comment delimiters in
-!> `font_lock_comment_delimiter_face' (needs newcomment.el's
-!> comment-start-skip), the OTHER-VARS of `font_lock_defaults' and the
+!> Deferred: font-lock-syntactic-keywords,
+!> font-lock-multiline, the OTHER-VARS of `font_lock_defaults' and the
 !> function variables a mode would set with them
 !> (font-lock-fontify-region-function and its companions, which are always
 !> the defaults here, font-lock-extend-region-functions,
@@ -59,6 +57,7 @@ module font_lock_fm
                           line_end_position
     use cmds_fm, only: forward_line, forward_char
     use search_fm, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, case_fold_search, &
+                         looking_at, &
                          SEARCH_NOERROR
     use textprop_fm, only: put_text_property, get_text_property, next_single_property_change, &
                            remove_list_of_text_properties, text_property_any, text_property_not_all
@@ -73,7 +72,9 @@ module font_lock_fm
                             FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_APPEND, &
                             font_lock_face_proc, font_lock_matcher_proc, font_lock_form_proc, major_mode_of_current
     use syntax_fm, only: parse_state_type, parse_partial_sexp, syntax_ppss, COMMENTSTOP_SYNTAX_TABLE
-    use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
+    use subr_fm, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, looking_back
+    use data_fm, only: string_setting, forward_setting
+    use newcomment_fm, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_vars
     use insdel_fm, only: after_change_functions
     use jit_lock_fm, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
                            jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, jit_lock_mode_p
@@ -83,6 +84,7 @@ module font_lock_fm
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use xdisp_fm, only: message
+    use syntax_propertize_fm, only: syntax_propertize, syntax_ppss_table, syntax_propertize_wholelines, syntax_ppss_flush_cache
     implicit none(type, external)
     private
     public :: syms_of_font_lock, font_lock_specified_p, font_lock_mode_internal, font_lock_set_defaults, &
@@ -92,7 +94,7 @@ module font_lock_fm
               font_lock_add_keywords, font_lock_refresh_defaults, font_lock_prepend_text_property, &
               font_lock_append_text_property, font_lock_fillin_text_property, &
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
-              font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer
+              font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
     !> `font_lock_maximum_decoration' for the maximum decoration available
     !> (upstream's t).
@@ -208,6 +210,14 @@ module font_lock_fm
     !> normally set via `font_lock_defaults'.  Port of
     !> font-lock.el:font-lock-syntactic-face-function.
     procedure(syntactic_face_iface), pointer, public :: font_lock_syntactic_face_function => null()
+
+    !> If set, Font Lock mode uses this instead of `comment_start_skip'.
+    !> Port of font-lock.el font-lock-comment-start-skip.
+    type(string_setting), target, public :: font_lock_comment_start_skip = string_setting(name="font_lock_comment_start_skip")
+
+    !> If set, Font Lock mode uses this instead of `comment_end_skip'.
+    !> Port of font-lock.el font-lock-comment-end-skip.
+    type(string_setting), target, public :: font_lock_comment_end_skip = string_setting(name="font_lock_comment_end_skip")
 
     !> Font Lock mode face used to highlight comments.  Port of
     !> font-lock.el:font-lock-comment-face.
@@ -448,6 +458,19 @@ contains
         if (k == 0) return
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
     end function font_lock_keywords_of_buffer
+
+    !> Make KEYWORDS the current buffer's `font_lock_keywords' (setq
+    !> font-lock-keywords).
+    subroutine set_font_lock_keywords(keywords)
+        type(font_lock_keyword_type), intent(in) :: keywords(:)
+        integer :: k
+        k = local_index(.true.)
+        if (k == 0) return
+        if (allocated(locals(k)%keywords)) deallocate (locals(k)%keywords)
+        allocate (locals(k)%keywords(size(keywords)))
+        locals(k)%keywords(:) = keywords(:)
+        locals(k)%keywords_set = .true.
+    end subroutine set_font_lock_keywords
 
     ! ------------------------------------------------------------------
     ! Turning Font Lock on and off
@@ -1019,16 +1042,9 @@ contains
         integer(int64), intent(inout) :: beg, end
         logical, intent(out) :: changed
         integer(int64) :: pt, new_beg, new_end
-        integer(int64) :: shortage
+        type(status_type) :: st
         pt = point()
-        call goto_char(beg)
-        new_beg = line_beginning_position()
-        call goto_char(end)
-        new_end = end
-        if (point() /= line_beginning_position()) then
-            shortage = forward_line(1_int64)
-            new_end = point()
-        end if
+        call syntax_propertize_wholelines(beg, end, new_beg, new_end, st)
         call goto_char(pt)
         changed = .false.
         if (new_beg /= beg .or. new_end /= end) then
@@ -1194,7 +1210,6 @@ contains
         type(value_type) :: prev, new_value
         integer(int64) :: start, next
         logical :: found
-        integer :: i
         status = status_type()
         ! A single face (a plist of face attributes, or a name) or a list
         ! of faces.
@@ -1388,7 +1403,7 @@ contains
         status = status_type()
         start = match_beginning(highlight%subexp, st)
         end = match_end(highlight%subexp, st)
-        if (start < 0 .or. .not. st%ok()) then
+        if (start <= 0 .or. .not. st%ok()) then
             ! No match but we might not signal an error.
             if (.not. highlight%laxmatch) then
                 write (buf, "(i0)") highlight%subexp
@@ -1586,23 +1601,50 @@ contains
 
     !> Put proper face on each string and comment between START and END.
     !> START should be at the beginning of a line.  Port of
-    !> font-lock.el:font-lock-default-fontify-syntactically
-    !> (syntax-propertize, comment-start-skip and comment-end-skip with
-    !> font-lock-comment-delimiter-face are deferred).
+    !> font-lock.el:font-lock-default-fontify-syntactically.
     subroutine font_lock_default_fontify_syntactically(start, end, loudly, status)
         integer(int64), intent(in) :: start, end
         logical, intent(in) :: loudly
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old_table, table
+        type(status_type) :: st
+        logical :: has_ppss_table
+        ! Apply any needed syntax-table properties.
+        call syntax_propertize(end, status)
+        if (.not. status%ok()) return
+        old_table = syntax_table()
+        call syntax_ppss_table%get(table, has_ppss_table)
+        if (has_ppss_table) then
+            call set_syntax_table(table, st)
+            if (.not. st%ok()) has_ppss_table = .false.
+        end if
+        call fontify_syntactically(start, end, loudly, has_ppss_table, status)
+        call set_syntax_table(old_table, st)
+    end subroutine font_lock_default_fontify_syntactically
+
+    ! The body of font-lock-default-fontify-syntactically, in
+    ! (with-syntax-table (or syntax-ppss-table (syntax-table)) ...).
+    subroutine fontify_syntactically(start, end, loudly, has_ppss_table, status)
+        integer(int64), intent(in) :: start, end
+        logical, intent(in) :: loudly, has_ppss_table
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state, next
         character(len=:), allocatable :: face
         integer(int64) :: beg
         integer :: k
         status = status_type()
+        if (allocated(comment_start%value) .and. .not. allocated(comment_end_skip%value)) then
+            call comment_normalize_vars(status)
+            if (.not. status%ok()) return
+        end if
         k = local_index(.true.)
         ! Find the `start' state.
-        if (locals(k)%syntax_table_affects_ppss) then
-            ! syntax-ppss would use the fontification syntax table and
-            ! pollute its cache: parse from the beginning instead.
+        if (locals(k)%syntax_table_affects_ppss .and. .not. has_ppss_table) then
+            ! If `syntax_ppss' doesn't have its own syntax-table and
+            ! we have installed our own syntax-table which
+            ! differs from the standard one in ways which affects PPSS,
+            ! then we can't use `syntax_ppss' since that would pollute
+            ! and be polluted by its cache.
             call parse_partial_sexp(point_min(), start, state, status)
             if (.not. status%ok()) return
         else
@@ -1620,13 +1662,54 @@ contains
                 state = next
                 if (len(face) > 0) call put_text_property(beg, point(), sym("face"), sym(face), status)
                 if (.not. status%ok()) return
+                if (face == "font_lock_comment_face") call comment_delimiters(beg, status)
+                if (.not. status%ok()) return
             end if
             if (point() >= end) exit
             call parse_partial_sexp(point(), end, next, status, oldstate=state, commentstop=COMMENTSTOP_SYNTAX_TABLE)
             if (.not. status%ok()) return
             state = next
         end do
-    end subroutine font_lock_default_fontify_syntactically
+    end subroutine fontify_syntactically
+
+    !> Find the delimiters of the comment from BEG to point and give them
+    !> `font_lock_comment_delimiter_face' (in
+    !> font-lock-default-fontify-syntactically).
+    subroutine comment_delimiters(beg, status)
+        integer(int64), intent(in) :: beg
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: skip
+        integer(int64) :: pt, mb, me
+        type(status_type) :: st
+        status = status_type()
+        skip = ""
+        if (allocated(font_lock_comment_start_skip%value)) then
+            skip = font_lock_comment_start_skip%value
+        else if (allocated(comment_start_skip%value)) then
+            skip = comment_start_skip%value
+        else
+            return
+        end if
+        pt = point()
+        call goto_char(beg)
+        if (looking_at(skip, st)) then
+            me = match_end(0, st)
+            call put_text_property(beg, me, sym("face"), sym("font_lock_comment_delimiter_face"), status)
+        end if
+        call goto_char(pt)
+        if (.not. status%ok()) return
+        skip = ""
+        if (allocated(font_lock_comment_end_skip%value)) then
+            skip = font_lock_comment_end_skip%value
+        else if (allocated(comment_end_skip%value)) then
+            skip = comment_end_skip%value
+        end if
+        if (len(skip) == 0) return
+        if (looking_back(skip, st, line_beginning_position(), .true.)) then
+            mb = match_beginning(0, st)
+            call put_text_property(mb, pt, sym("face"), sym("font_lock_comment_delimiter_face"), status)
+        end if
+    end subroutine comment_delimiters
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -1638,6 +1721,8 @@ contains
         ! (faces.el is loaded before font-lock.el.)
         call init_faces()
         call init_font_lock_faces()
+        call forward_setting(font_lock_comment_start_skip)
+        call forward_setting(font_lock_comment_end_skip)
         font_lock_mode_internal_proc => font_lock_mode_internal
         font_lock_specified_p_proc => font_lock_specified_p
         font_lock_initial_fontify_proc => font_lock_initial_fontify
@@ -1699,6 +1784,8 @@ contains
         ! Make font-lock recalculate all the mode-specific data.
         k = local_index(.true.)
         if (k > 0) locals(k)%major_mode = ""
+        ! Make the syntax machinery discard all information.
+        call syntax_ppss_flush_cache(-1_int64)
         call font_lock_set_defaults(status)
         if (.not. status%ok()) return
         pt = point()

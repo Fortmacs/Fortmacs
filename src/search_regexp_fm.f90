@@ -56,6 +56,9 @@ submodule(search_fm) search_regexp_fm
         !> that used a syntax table when any syntax entry changes.
         integer(int64) :: syntax_modiff = 0
         integer(int64) :: used_at = 0
+        !> In use by a match in progress, which a nested search (from
+        !> syntax-propertize) must not recompile.
+        logical :: busy = .false.
         type(re_pattern_buffer_type) :: buf
     end type regexp_cache_type
 
@@ -81,6 +84,7 @@ contains
         do i = 1, REGEXP_CACHE_SIZE
             associate (cp => searchbufs(i))
                 if (.not. cp%valid) cycle
+                if (cp%busy) cycle
                 if (cp%regexp /= pattern .or. len(cp%regexp) /= len(pattern)) cycle
                 if ((cp%buf%translate .neqv. translate) .or. (cp%posix .neqv. posix)) cycle
                 if (cp%buf%used_syntax) then
@@ -97,8 +101,12 @@ contains
                 return
             end associate
         end do
-        ! Compile into the least recently used entry.
-        k = minloc(searchbufs%used_at, 1)
+        ! Compile into the least recently used entry that is not busy.
+        k = minloc(searchbufs%used_at, 1, mask=.not. searchbufs%busy)
+        if (k == 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Too much matching reentrancy")
+            return
+        end if
         associate (cp => searchbufs(k))
             cp%valid = .false.
             cp%used_at = clock
@@ -169,7 +177,9 @@ contains
     if (.not. status%ok()) return
     subj = subject_from_buffer()
     associate (b => buffers(cur))
+        searchbufs(k)%busy = .true.
         i = re_match(searchbufs(k)%buf, subj, b%pt_byte - b%begv_byte, regs, b%zv_byte - b%begv_byte)
+        searchbufs(k)%busy = .false.
     end associate
     if (i == -2) then
         call matcher_overflow(status)
@@ -205,8 +215,10 @@ contains
     call compile_pattern(regexp, case_fold_search%value, posix, k, status)
     if (.not. status%ok()) return
     subj = subject_from_string(string)
+    searchbufs(k)%busy = .true.
     val = re_search(searchbufs(k)%buf, subj, pos_byte, len(string, kind=int64) - pos_byte, regs, &
                     len(string, kind=int64))
+    searchbufs(k)%busy = .false.
     if (val == -2) then
         call matcher_overflow(status)
         return
@@ -233,8 +245,10 @@ contains
     pos_byte = pos_byte_in
     do while (n < 0)
         ! Don't allow match past current point.
+        searchbufs(k)%busy = .true.
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         pos_byte - begv_byte)
+        searchbufs(k)%busy = .false.
         if (val == -2) then
             call matcher_overflow(status)
             return
@@ -250,8 +264,10 @@ contains
         n = n + 1
     end do
     do while (n > 0)
+        searchbufs(k)%busy = .true.
         val = re_search(searchbufs(k)%buf, subj, pos_byte - begv_byte, lim_byte - pos_byte, regs, &
                         lim_byte - begv_byte)
+        searchbufs(k)%busy = .false.
         if (val == -2) then
             call matcher_overflow(status)
             return
@@ -275,7 +291,7 @@ contains
     module procedure replace_match
     integer, parameter :: NOCHANGE = 0, ALL_CAPS = 1, CAP_INITIAL = 2
     integer :: case_action, sub, num_regs, idx, k
-    integer(int64) :: sub_start, sub_end, pos, last, opoint, newpoint, nchars, inschars
+    integer(int64) :: sub_start, sub_end, opoint, newpoint, nchars, inschars
     integer(int32) :: c, prevc, clen
     logical :: is_literal, some_multiletter_word, some_lowercase, some_uppercase, some_nonuppercase_initial
     character(len=:), allocatable :: text, piece, before, after, buftext
