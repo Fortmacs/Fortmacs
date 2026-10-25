@@ -33,13 +33,16 @@
 !> No garbage collector frees overlays: `free_overlay' deletes an overlay
 !> and releases its handle.
 !>
+!> Redisplay (xdisp_fm) also shows their `invisible', `display',
+!> `before_string' and `after_string' properties, and textprop_fm's
+!> `get_char_property' family looks at them.
+!>
 !> Deferred: indirect buffers, overlay modification hooks
 !> (`modification_hooks', `insert_in_front_hooks', `insert_behind_hooks'),
-!> the display-related properties redisplay would use (`invisible',
-!> `display', `before_string', `after_string', `window', `mouse_face',
-!> `intangible'), priorities given as (PRIMARY . SECONDARY) pairs (no
-!> dotted pairs), `overlay_lists', `overlay_recenter', `remove_overlays'
-!> (subr.el), `copy_overlay' and the `get_char_property' family.
+!> the `window', `mouse_face' and `intangible' properties, priorities
+!> given as (PRIMARY . SECONDARY) pairs (no dotted pairs),
+!> `overlay_lists', `overlay_recenter', `remove_overlays' (subr.el) and
+!> `copy_overlay'.
 module itree_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
@@ -54,7 +57,8 @@ module itree_fm
     private
 
     public :: make_overlay, move_overlay, delete_overlay, free_overlay, delete_all_overlays, overlayp, &
-              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_put, overlay_properties, &
+              overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_prop, overlay_advance, overlay_put, &
+              overlay_properties, &
               overlays_at, overlays_in, next_overlay_change, previous_overlay_change, sort_overlays, &
               adjust_overlays_for_insert, adjust_overlays_for_delete, buffer_has_overlays, overlay_priority, &
               compare_overlays
@@ -416,6 +420,28 @@ contains
         if (.not. overlayp(overlay)) return
         val = textget(overlays(overlay%index)%plist, sym(prop))
     end function overlay_get
+
+    !> Whether text inserted at OVERLAY's start goes outside it
+    !> (front-advance), and at its end inside (rear-advance).  Port of
+    !> buffer.h:OVERLAY_FRONT_ADVANCE_P and OVERLAY_REAR_ADVANCE_P.
+    subroutine overlay_advance(overlay, front_advance, rear_advance)
+        type(handle_type), intent(in) :: overlay
+        logical, intent(out) :: front_advance, rear_advance
+        front_advance = .false.
+        rear_advance = .false.
+        if (.not. overlayp(overlay)) return
+        front_advance = overlays(overlay%index)%front_advance
+        rear_advance = overlays(overlay%index)%rear_advance
+    end subroutine overlay_advance
+
+    !> `overlay_get' with the property given as a symbol value.
+    function overlay_get_prop(overlay, prop) result(val)
+        type(handle_type), intent(in) :: overlay
+        type(value_type), intent(in) :: prop
+        type(value_type) :: val
+        if (.not. overlayp(overlay)) return
+        val = textget(overlays(overlay%index)%plist, prop)
+    end function overlay_get_prop
 
     !> Set one property of overlay OVERLAY: give property PROP value VALUE.
     !> Port of buffer.c:Foverlay_put.

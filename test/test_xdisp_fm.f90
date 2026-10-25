@@ -47,6 +47,12 @@ module test_xdisp_fm
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
     use emacs_fm, only: emacs_main
+    use lisp_fm, only: make_string, list, t_value
+    use lread_fm, only: sym
+    use lisp_fm, only: make_fixnum
+    use textprop_fm, only: put_text_property
+    use itree_fm, only: make_overlay, overlay_put, free_overlay
+    use subr_fm, only: add_to_invisibility_spec
     implicit none(type, external)
     private
 
@@ -71,6 +77,12 @@ contains
                     new_unittest("mode-line-text", test_mode_line), &
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("redisplay-split-windows", test_split_redisplay), &
+                    new_unittest("overlay-strings", test_overlay_strings), &
+                    new_unittest("invisible-ellipsis", test_invisible_ellipsis), &
+                    new_unittest("invisible-text", test_invisible), &
+                    new_unittest("invisible-newline", test_invisible_newline), &
+                    new_unittest("display-string", test_display_string), &
+                    new_unittest("display-space-align-to", test_display_space), &
                     new_unittest("emacs-main-on-a-pty", test_emacs_main) &
                     ]
     end subroutine collect_xdisp_fm
@@ -118,6 +130,175 @@ contains
         end do
         call layout_window(bi, start, pt, width, rows, crow, ccol, end_pos, at_end)
     end subroutine layout
+
+    !> The text, cursor row and column of one-row layout of buffer BI with
+    !> point at PT, 30 columns wide.
+    subroutine layout1(bi, pt, text, ccol)
+        integer(int64), intent(in) :: bi, pt
+        character(len=:), allocatable, intent(out) :: text
+        integer, intent(out) :: ccol
+        type(glyph_row_type), allocatable :: rows(:)
+        integer(int64) :: end_pos
+        integer :: crow
+        logical :: at_end
+        call layout(bi, 1_int64, pt, 30, 2, rows, crow, ccol, end_pos, at_end)
+        text = row_text(rows(1))
+        if (crow /= 0) ccol = -1
+    end subroutine layout1
+
+    !> Before-strings at an overlay's start, after-strings at its end,
+    !> and the cursor on the buffer text after them (as GNU Emacs shows
+    !> them).
+    subroutine test_overlay_strings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, ov, ov2
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-ov*", "abcdef", h, bi)
+        call make_overlay(ov, 3_int64, 5_int64, st)
+        call overlay_put(ov, "before_string", make_string("BS"), st)
+        call overlay_put(ov, "after_string", make_string("AS"), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "abBScdASef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 4, "cursor on c")
+        if (allocated(error)) return
+        call free_overlay(ov)
+        ! An after-string of an empty overlay at point.
+        call make_overlay(ov2, 3_int64, 3_int64, st)
+        call overlay_put(ov2, "after_string", make_string("AS"), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "abAScdef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 4, "cursor after the string")
+        call free_overlay(ov2)
+        call kill_buffer(h, st)
+    end subroutine test_overlay_strings
+
+    !> Invisible text whose spec asks for an ellipsis: the cursor of a
+    !> point in it is on the first period.
+    subroutine test_invisible_ellipsis(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-ellipsis*", "abcdef", h, bi)
+        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "a...ef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 1, "cursor on the ellipsis")
+        if (allocated(error)) return
+        call layout1(bi, 2_int64, text, ccol)
+        call check(error, ccol == 1, "at its start")
+        if (allocated(error)) return
+        call layout1(bi, 5_int64, text, ccol)
+        call check(error, ccol == 4, "after it")
+        call kill_buffer(h, st)
+    end subroutine test_invisible_ellipsis
+
+    !> Invisible text without an ellipsis, and a before-string at a
+    !> position in it.
+    subroutine test_invisible(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, ov
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-invisible*", "abcdef", h, bi)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "aef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 1, "cursor on e")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("abcdef", st)
+        call put_text_property(3_int64, 5_int64, sym("invisible"), t_value(), st)
+        call make_overlay(ov, 3_int64, 3_int64, st)
+        call overlay_put(ov, "before_string", make_string("BS"), st)
+        call layout1(bi, 4_int64, text, ccol)
+        call check(error, text == "abBSef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 4, "cursor after the before-string")
+        call free_overlay(ov)
+        call kill_buffer(h, st)
+    end subroutine test_invisible
+
+    !> An invisible newline joins two lines on one row.
+    subroutine test_invisible_newline(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-newline*", "ab"//achar(10)//"cd", h, bi)
+        call put_text_property(3_int64, 4_int64, sym("invisible"), t_value(), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "abcd", text)
+        if (allocated(error)) return
+        call check(error, ccol == 2, "cursor on c")
+        if (allocated(error)) return
+        call layout1(bi, 4_int64, text, ccol)
+        call check(error, ccol == 2, "point on c")
+        call kill_buffer(h, st)
+    end subroutine test_invisible_newline
+
+    !> A display string replaces its text: the cursor of a point at its
+    !> start is on the string, of a point inside after it; an empty
+    !> string hides the text.
+    subroutine test_display_string(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-display*", "abcdef", h, bi)
+        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "abXYef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 2, "at its start")
+        if (allocated(error)) return
+        call layout1(bi, 4_int64, text, ccol)
+        call check(error, ccol == 4, "inside")
+        if (allocated(error)) return
+        call layout1(bi, 5_int64, text, ccol)
+        call check(error, ccol == 4, "after")
+        if (allocated(error)) return
+        call put_text_property(3_int64, 5_int64, sym("display"), make_string(""), st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "abef", text)
+        if (allocated(error)) return
+        call check(error, ccol == 2, "empty string")
+        call kill_buffer(h, st)
+    end subroutine test_display_string
+
+    !> A `(space :align-to N)' display spec.
+    subroutine test_display_space(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: bi
+        character(len=:), allocatable :: text
+        integer :: ccol
+        call buffer_with("*xdisp-space*", "ab"//achar(9)//"cd", h, bi)
+        call put_text_property(3_int64, 4_int64, sym("display"), &
+                               list(sym("space"), sym(":align-to"), make_fixnum(10_int64)), st)
+        call layout1(bi, 4_int64, text, ccol)
+        call check(error, text == "ab        cd", text)
+        if (allocated(error)) return
+        call check(error, ccol == 10, "cursor on c")
+        call kill_buffer(h, st)
+    end subroutine test_display_space
 
     !> The region (here 2 to 6) is drawn in the region face, and a newline
     !> inside it extends the face to the end of the row.

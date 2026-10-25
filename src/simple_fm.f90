@@ -54,14 +54,17 @@ module simple_fm
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
     use marker_fm, only: set_marker, detach_marker, copy_marker_at, free_marker, marker_position
-    use xdisp_fm, only: message
+    use xdisp_fm, only: message, invisible_p
     use frame_fm, only: selected_frame, selected_window_ref
     use window_fm, only: window_type, window_start, window_body_lines, recenter
     use subr_fm, only: add_to_history, defvar_nil
     use editfns_fm, only: point, goto_char, point_max, line_beginning_position, line_end_position, &
                           bolp, constrain_to_field, pos_eol, point_min, bobp, eobp, buffer_substring, &
                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
-    use textprop_fm, only: get_text_property
+    use textprop_fm, only: get_text_property, get_char_property, next_char_property_change, &
+                           previous_char_property_change, previous_single_char_property_change, &
+                           next_single_property_change, previous_single_property_change
+    use itree_fm, only: next_overlay_change, previous_overlay_change
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
     use data_fm, only: symbol_value, set
@@ -1166,6 +1169,20 @@ module simple_fm
     !> A window that is horizontally scrolled also forces movement by logical
     !> lines.  Port of simple.el line-move-visual.
     logical, public :: line_move_visual = .true.
+
+    !> True means commands that move by lines ignore invisible newlines.
+    !> When this option is true, \[next_line], \[previous_line],
+    !> \[move_end_of_line], and \[move_beginning_of_line] behave as if
+    !> newlines that are invisible didn't exist, and count only visible
+    !> newlines.  Thus, moving across 2 newlines one of which is invisible
+    !> will be counted as a one-line move.  Also, a true value causes
+    !> invisible text to be ignored when counting columns for the
+    !> purposes of keeping point in the same column by \[next_line] and
+    !> \[previous_line].
+    !>
+    !> Outline mode sets this.  Port of simple.el
+    !> line-move-ignore-invisible.
+    logical, public :: line_move_ignore_invisible = .true.
     !> temporary-goal-column: the column vertical motion tries to keep;
     !> `tgc_visual' when it is a screen x (upstream's (X . HSCROLL) form)
     !> rather than a current-column.
@@ -1676,13 +1693,15 @@ contains
     end subroutine line_move_visual_1
 
     !> Port of simple.el:line-move-1: move by buffer lines to the goal
-    !> column (no invisible text or selective display yet).
+    !> column (no selective display or track-eol), ignoring invisible
+    !> lines when `line_move_ignore_invisible'.
     subroutine line_move_1(arg, noerror, status, done)
         integer(int64), intent(in) :: arg
         logical, intent(in) :: noerror
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
-        integer(int64) :: opoint, n, shortage, npoint, column
+        integer(int64) :: opoint, n, shortage, npoint, column, moved
+        logical :: stop
         opoint = point()
         if (tgc_visual) then
             ! (X . HSCROLL) becomes X + HSCROLL (no hscroll here).
@@ -1691,50 +1710,165 @@ contains
         if (.not. after_line_move()) temporary_goal_column = current_column()
         n = arg
         done = .false.
-        if (n > 0) then
-            if (n > 1) shortage = forward_line(n - 1)
-            call end_of_line()
-            if (forward_line(1_int64) == 0) then
-                n = 0
-                done = .true.
-            end if
-        else
-            if (forward_line(n) == 0) then
-                if (bolp()) then
-                    n = 0
-                    done = .true.
+        if (.not. line_move_ignore_invisible) then
+            ! Use just newline characters.  Set N to 0 if we move as many
+            ! lines as requested.
+            if (n > 0) then
+                if (n > 1) shortage = forward_line(n - 1)
+                ! This way of moving forward ARG lines verifies that we
+                ! have a newline after the last one.
+                call end_of_line()
+                if (forward_line(1_int64) == 0) n = 0
+            else
+                if (forward_line(n) == 0) then
+                    if (bolp()) n = 0
                 end if
             end if
+            if (n /= 0 .and. .not. noerror) call signal_end(status)
+        else
+            ! Move by arg lines, but ignore invisible ones.
+            stop = .false.
+            do while (n > 0 .and. .not. stop)
+                ! If the following character is currently invisible, skip
+                ! all characters with that same `invisible' property value.
+                do while (.not. eobp() .and. invisible_p(point()) /= 0)
+                    call goto_char(next_char_property_change(point()))
+                end do
+                ! Move a line.  We don't use `end-of-line', since we want
+                ! to escape from field boundaries occurring exactly at point.
+                call goto_char(constrain_to_field(pos_eol(), point(), .true., .true.))
+                ! If there's no invisibility here, move over the newline.
+                if (eobp()) then
+                    if (.not. noerror) call signal_end(status)
+                    stop = .true.
+                else if (n > 1 .and. invisible_p(point()) == 0) then
+                    ! We avoid vertical-motion when possible because that
+                    ! has to fontify.
+                    shortage = forward_line(1_int64)
+                else
+                    ! Otherwise move a more sophisticated way.
+                    call vertical_motion(1_int64, moved)
+                    if (moved == 0) then
+                        if (.not. noerror) call signal_end(status)
+                        stop = .true.
+                    end if
+                end if
+                if (.not. stop) n = n - 1
+            end do
+            ! The logic of this is the same as the loop above, it just
+            ! goes in the other direction.
+            do while (n < 0 .and. .not. stop)
+                call beginning_of_line()
+                if (bobp()) then
+                    if (.not. noerror) call signal_beginning(status)
+                    stop = .true.
+                else if (n < -1 .and. invisible_p(point() - 1) == 0) then
+                    shortage = forward_line(-1_int64)
+                else
+                    call vertical_motion(-1_int64, moved)
+                    if (moved == 0) then
+                        if (.not. noerror) call signal_beginning(status)
+                        stop = .true.
+                    end if
+                end if
+                if (.not. stop) then
+                    n = n + 1
+                    ! Don't move over previous invis lines if our target is
+                    ! the middle of this line.
+                    do while ((goal_or_temporary() == 0 .or. n < 0) .and. .not. bobp())
+                        if (invisible_p(point() - 1) == 0) exit
+                        call goto_char(previous_char_property_change(point()))
+                    end do
+                end if
+            end do
         end if
-        if (.not. done .and. .not. noerror) then
-            if (n < 0) then
-                call set_error(status, FM_BEGINNING_OF_BUFFER)
-            else
-                call set_error(status, FM_END_OF_BUFFER)
-            end if
-        end if
+        done = n == 0
         if (n > 0) then
+            ! If we did not move down as far as desired, at least go to
+            ! end of line.
             npoint = line_end_position()
             call goto_char(opoint)
             call goto_char(npoint)
         else if (n < 0) then
+            ! If we did not move up as far as desired, at least go to
+            ! beginning of line.
             npoint = line_beginning_position()
             call goto_char(opoint)
             call goto_char(npoint)
         else
-            column = temporary_goal_column
-            if (goal_column >= 0) column = goal_column
+            column = goal_or_temporary()
             call line_move_finish(column, opoint, arg > 0)
         end if
+    contains
+
+        integer(int64) function goal_or_temporary() result(c)
+            c = temporary_goal_column
+            if (goal_column >= 0) c = goal_column
+        end function goal_or_temporary
+
+        subroutine signal_end(st)
+            type(status_type), intent(out) :: st
+            if (n < 0) then
+                call set_error(st, FM_BEGINNING_OF_BUFFER)
+            else
+                call set_error(st, FM_END_OF_BUFFER)
+            end if
+        end subroutine signal_end
+
+        subroutine signal_beginning(st)
+            type(status_type), intent(out) :: st
+            call set_error(st, FM_BEGINNING_OF_BUFFER)
+        end subroutine signal_beginning
     end subroutine line_move_1
+
+    !> Try to find column COL, considering invisibility.
+    !> This function works only in certain cases, because what we really
+    !> need is for `move_to_column' and `current_column' to be able to
+    !> ignore invisible text.  Port of simple.el:line-move-to-column.
+    recursive subroutine line_move_to_column(col)
+        integer(int64), intent(in) :: col
+        integer(int64) :: reached, normal_location, normal_column, line_beg
+        if (col == 0) then
+            call beginning_of_line()
+        else
+            call move_to_column(col, reached)
+        end if
+        if (.not. line_move_ignore_invisible .or. bolp()) return
+        if (invisible_p(point() - 1) == 0) return
+        normal_location = point()
+        normal_column = current_column()
+        ! If the following character is currently invisible, skip all
+        ! characters with that same `invisible' property value.
+        do while (.not. eobp() .and. invisible_p(point()) /= 0)
+            call goto_char(next_char_property_change(point()))
+        end do
+        ! Have we advanced to a larger column position?
+        if (current_column() > normal_column) then
+            ! We have made some progress towards the desired column.  See
+            ! if we can make any further progress.
+            call line_move_to_column(current_column() + (col - normal_column))
+        else
+            ! Otherwise, go to the place we originally found and move back
+            ! over invisible text.  That will get us to the same place on
+            ! the screen but with a more reasonable buffer position.
+            call goto_char(normal_location)
+            ! We want the real line beginning, so it's consistent with
+            ! bolp below, otherwise we might infloop.
+            line_beg = pos_bol()
+            do while (.not. bolp())
+                if (invisible_p(point() - 1) == 0) exit
+                call goto_char(previous_char_property_change(point(), line_beg))
+            end do
+        end if
+    end subroutine line_move_to_column
 
     !> Go to `column' on the line reached, without moving backward when
     !> moving forward, and stay in the field of `opoint'.  Port of
-    !> simple.el:line-move-finish (no invisible text).
+    !> simple.el:line-move-finish.
     subroutine line_move_finish(column, opoint, forward)
         integer(int64), intent(in) :: column, opoint
         logical, intent(in) :: forward
-        integer(int64) :: old, new, line_beg, line_end, moved, reached
+        integer(int64) :: old, new, line_beg, line_end, moved
         type(value_type) :: new_field, old_field
         type(status_type) :: st
         logical :: repeat
@@ -1743,14 +1877,14 @@ contains
             repeat = .false.
             old = point()
             line_beg = line_beginning_position()
-            ! (skip-chars-forward "^\n"), ignoring fields
-            line_end = pos_eol()
+            ! Compute the end of the line ignoring effectively invisible
+            ! newlines (like end-of-line but ignores fields).
+            line_end = visible_line_end()
+            ! Move to the desired column.
             if (line_move_visual) then
                 call vertical_motion(0_int64, moved, int(column))
-            else if (column == 0) then
-                call beginning_of_line()
             else
-                call move_to_column(column, reached)
+                call line_move_to_column(column)
             end if
             if (forward .and. point() < old) call goto_char(old)
             new = point()
@@ -1769,8 +1903,11 @@ contains
                 end if
             end if
             call goto_char(opoint)
-            call get_text_property(new, sym("field"), new_field, st)
-            call get_text_property(opoint, sym("field"), old_field, st)
+            ! Ignore field boundaries if the initial and final positions
+            ! have the same `field' property, even if the fields are
+            ! non-contiguous.
+            new_field = get_char_property(new, sym("field"))
+            old_field = get_char_property(opoint, sym("field"))
             if (value_eq(new_field, old_field)) then
                 call goto_char(new)
             else
@@ -1778,6 +1915,20 @@ contains
             end if
             if (point() < line_beg .or. point() > line_end) repeat = .true.
         end do
+    contains
+
+        !> The end of the line from point, past invisible newlines.
+        integer(int64) function visible_line_end() result(pos)
+            integer(int64) :: saved
+            saved = point()
+            call goto_char(pos_eol())
+            do while (.not. eobp() .and. invisible_p(point()) /= 0)
+                call goto_char(next_char_property_change(point()))
+                call goto_char(pos_eol())
+            end do
+            pos = point()
+            call goto_char(saved)
+        end function visible_line_end
     end subroutine line_move_finish
 
     !> Move down `arg' lines (C-n, <down>).  Port of simple.el:next-line
@@ -1849,8 +2000,7 @@ contains
     !> property, set `inhibit_point_motion_hooks' to true.
     !> If there is an image in the current line, this function
     !> disregards newlines that are part of the text on which the image
-    !> rests.  Port of simple.el:move-end-of-line (invisible text is
-    !> deferred with the rest of invisibility).
+    !> rests.  Port of simple.el:move-end-of-line.
     subroutine move_end_of_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -1876,7 +2026,13 @@ contains
                 ! With bidi reordering, we may not be at bol, so make sure
                 ! we are.
                 call goto_char(pos_bol())
-                if (.not. bobp()) call goto_char(point() - 1)
+                if (.not. bobp()) then
+                    do while (.not. bobp())
+                        if (invisible_p(point() - 1) == 0) exit
+                        call goto_char(previous_single_char_property_change(point(), sym("invisible")))
+                    end do
+                    call goto_char(point() - 1)
+                end if
             end if
             newpos = point()
             goal_column = saved_goal
@@ -1918,8 +2074,7 @@ contains
     !>
     !> To ignore intangibility, set `inhibit_point_motion_hooks' to true.
     !> For motion by visual lines, see `beginning_of_visual_line'.  Port
-    !> of simple.el:move-beginning-of-line (invisible text is deferred
-    !> with the rest of invisibility).
+    !> of simple.el:move-beginning-of-line.
     subroutine move_beginning_of_line(arg, status)
         integer(int64), intent(in) :: arg
         type(status_type), intent(out) :: status
@@ -1935,8 +2090,18 @@ contains
             call line_move(arg - 1, st, noerror=.true.)
             line_move_visual = saved_visual
         end if
-        ! Move to beginning-of-line, ignoring fields.
+        ! Move to beginning-of-line, ignoring fields and invisible text.
         call goto_char(pos_bol())
+        do while (.not. bobp())
+            if (invisible_p(point() - 1) == 0) exit
+            call goto_char(previous_char_property_change(point()))
+            call goto_char(pos_bol())
+        end do
+        ! Now find first visible char in the line.
+        do while (point() < orig)
+            if (invisible_p(point()) == 0) exit
+            call goto_char(next_char_property_change(point(), orig))
+        end do
         first_vis = point()
         ! See if fields would stop us from reaching FIRST-VIS.
         first_vis_field_value = constrain_to_field(first_vis, orig, arg /= 1, .true.)
@@ -3145,19 +3310,40 @@ contains
         vdeactivate_mark = .true.
     end subroutine copy_region_as_kill
 
-    !> Move forward by ARG lines (back for a negative ARG, to the start of
-    !> the line for 0), stopping at the ends of the buffer.  Port of
-    !> simple.el:forward-visible-line (no invisible text yet).
+    !> Move forward by ARG lines, ignoring currently invisible newlines only.
+    !> If ARG is negative, move backward -ARG lines.
+    !> If ARG is zero, move to the beginning of the current line.  Port of
+    !> simple.el:forward-visible-line.
     subroutine forward_visible_line(arg)
         integer(int64), intent(in) :: arg
-        integer(int64) :: n
-        logical :: first
+        integer(int64) :: n, opoint, next
+        type(value_type) :: prop
+        type(status_type) :: st
+        logical :: first, found
         n = arg
         if (n > 0) then
             do while (n > 0)
                 if (forward_line(1_int64) /= 0) return
+                ! If the newline we just skipped is invisible, don't count
+                ! it.
+                if (invisible_p(point() - 1) /= 0) n = n + 1
                 n = n - 1
             end do
+            ! If invisible text follows, and it is a number of complete
+            ! lines, skip it.
+            opoint = point()
+            do while (.not. eobp())
+                if (invisible_p(point()) == 0) exit
+                call get_text_property(point(), sym("invisible"), prop, st)
+                if (.not. nilp(prop)) then
+                    call next_single_property_change(point(), sym("invisible"), next, found, st)
+                    if (.not. found) next = point_max()
+                    call goto_char(next)
+                else
+                    call goto_char(next_overlay_change(point()))
+                end if
+            end do
+            if (.not. bolp()) call goto_char(opoint)
         else
             first = .true.
             do while (first .or. n <= 0)
@@ -3166,9 +3352,28 @@ contains
                 else if (forward_line(-1_int64) /= 0) then
                     return
                 end if
-                if (point() > point_min()) n = n + 1
+                ! If the newline we just moved to is invisible, don't count
+                ! it.
+                if (.not. bobp()) then
+                    if (invisible_p(point() - 1) == 0) n = n + 1
+                end if
                 first = .false.
             end do
+            ! If invisible text follows, and it is a number of complete
+            ! lines, skip it.
+            opoint = point()
+            do while (.not. bobp())
+                if (invisible_p(point() - 1) == 0) exit
+                call get_text_property(point() - 1, sym("invisible"), prop, st)
+                if (.not. nilp(prop)) then
+                    call previous_single_property_change(point(), sym("invisible"), next, found, st)
+                    if (.not. found) next = point_min()
+                    call goto_char(next)
+                else
+                    call goto_char(previous_overlay_change(point()))
+                end if
+            end do
+            if (.not. bolp()) call goto_char(opoint)
         end if
     end subroutine forward_visible_line
 

@@ -29,10 +29,11 @@ module subr_fm
                        make_keymap_ref, symbolp, xsymbol, symbols, &
                        list_elements, make_list, stringp, xstring, t_value
     use lread_fm, only: sym
-    use data_fm, only: symbol_value, set
+    use data_fm, only: symbol_value, set, value_eq
     use fns_fm, only: get
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p
+    use buffer_fm, only: buffers, cur, current_buffer, buffer_modified_p, restore_buffer_modified_p, &
+                         invisibility_entry_type
     use insdel_fm, only: inhibit_modification_hooks
     use keyboard_fm, only: read_event, discard_input, this_command_keys
     use dispnew_fm, only: ding
@@ -55,6 +56,7 @@ module subr_fm
     public :: global_set_key, read_number, undefined, syms_of_subr, defvar_nil, forward_symbol, find_tag_default, &
               find_tag_default_as_regexp, find_tag_default_as_symbol_regexp
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
+    public :: add_to_invisibility_spec, remove_from_invisibility_spec
     public :: read_char_from_minibuffer, read_char_choice, shell_quote_argument
 
     !> A numerical progress reporter (`make_progress_reporter' with
@@ -349,6 +351,81 @@ module subr_fm
     end interface
 
 contains
+
+    !> Add ELEMENT to `buffer_invisibility_spec'.
+    !> See documentation for `buffer_invisibility_spec' for the kind of
+    !> elements that can be added: the atom ELEMENT, or (ELEMENT .
+    !> ELLIPSIS) when ELLIPSIS is present.
+    !>
+    !> If `buffer_invisibility_spec' isn't a list before calling this
+    !> function, `buffer_invisibility_spec' will afterwards be a list
+    !> with the value `(t ELEMENT)'.  This means that if text exists
+    !> that invisibility values that aren't either t or ELEMENT, that
+    !> text will become visible.  Port of subr.el:add-to-invisibility-spec.
+    subroutine add_to_invisibility_spec(element, ellipsis)
+        character(len=*), intent(in) :: element
+        logical, intent(in), optional :: ellipsis
+        type(invisibility_entry_type) :: e
+        type(invisibility_entry_type), allocatable :: grown(:)
+        integer :: n
+        if (cur == 0) return
+        associate (b => buffers(cur))
+            if (b%invisibility_spec_t) then
+                b%invisibility_spec_t = .false.
+                if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
+                allocate (b%invisibility_spec(1))
+                b%invisibility_spec(1)%atom = t_value()
+            end if
+            if (.not. allocated(b%invisibility_spec)) allocate (b%invisibility_spec(0))
+            e%atom = sym(element)
+            if (present(ellipsis)) then
+                e%cons = .true.
+                e%ellipsis = ellipsis
+            end if
+            n = size(b%invisibility_spec)
+            allocate (grown(n + 1))
+            grown(1) = e
+            grown(2:) = b%invisibility_spec
+            call move_alloc(grown, b%invisibility_spec)
+        end associate
+    end subroutine add_to_invisibility_spec
+
+    !> Remove ELEMENT from `buffer_invisibility_spec' (the atom ELEMENT,
+    !> or (ELEMENT . ELLIPSIS) when ELLIPSIS is present).
+    !> If `buffer_invisibility_spec' isn't a list before calling this
+    !> function, it will be made into a list containing just `t' as the
+    !> only list member.  This means that if text exists with non-t
+    !> invisibility values, that text will become visible.  Port of
+    !> subr.el:remove-from-invisibility-spec.
+    subroutine remove_from_invisibility_spec(element, ellipsis)
+        character(len=*), intent(in) :: element
+        logical, intent(in), optional :: ellipsis
+        logical, allocatable :: keep(:)
+        integer :: k
+        if (cur == 0) return
+        associate (b => buffers(cur))
+            if (b%invisibility_spec_t .or. .not. allocated(b%invisibility_spec)) then
+                b%invisibility_spec_t = .false.
+                if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
+                allocate (b%invisibility_spec(1))
+                b%invisibility_spec(1)%atom = t_value()
+                return
+            end if
+            ! (delete ELEMENT ...): `equal' elements.
+            allocate (keep(size(b%invisibility_spec)))
+            do k = 1, size(b%invisibility_spec)
+                keep(k) = .not. same_entry(b%invisibility_spec(k))
+            end do
+            b%invisibility_spec = pack(b%invisibility_spec, keep)
+        end associate
+    contains
+
+        logical function same_entry(e)
+            type(invisibility_entry_type), intent(in) :: e
+            same_entry = value_eq(e%atom, sym(element)) .and. (e%cons .eqv. present(ellipsis))
+            if (same_entry .and. present(ellipsis)) same_entry = e%ellipsis .eqv. ellipsis
+        end function same_entry
+    end subroutine remove_from_invisibility_spec
 
     !> Quote ARGUMENT for passing as argument to an inferior shell.
     !>

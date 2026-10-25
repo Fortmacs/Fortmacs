@@ -164,8 +164,9 @@ module docstrings_fm
                           search_whitespace_regexp
     use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T, &
-                           DEFINING_KBD_MACRO_APPEND, kbd_macro_termination_hook, last_input_event, last_kbd_macro, &
-                           minibuffer_message_timeout, post_command_hook
+                           DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, global_disable_point_adjustment, &
+                           kbd_macro_termination_hook, last_input_event, last_kbd_macro, minibuffer_message_timeout, &
+                           post_command_hook
     use kmacro_fm, only: kmacro_call_repeat_key, KMACRO_CALL_REPEAT_DISABLED, &
                          KMACRO_CALL_REPEAT_LAST_KEY, kmacro_call_repeat_with_arg, kmacro_counter, &
                          kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
@@ -234,14 +235,14 @@ module docstrings_fm
                          blink_matching_paren_on_screen, copy_region_blink_delay, cycle_spacing_actions, &
                          delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
                          kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, kill_whole_line_option, &
-                         line_move_visual, mark_ring_max, messages_buffer_mode_hook, messages_buffer_mode_map, &
-                         minibuffer_local_shell_command_map, next_error_hook, next_error_last_buffer, &
-                         next_error_verbose, pending_undo_list, read_only_mode_hook, read_quoted_char_radix, &
-                         shell_command_default_error_buffer, shell_command_dont_erase_buffer, DONT_ERASE_NIL, &
-                         DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, &
-                         shell_command_prompt_show_cwd, shell_command_switch, special_mode_abbrev_table, &
-                         special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
-                         undo_in_progress, undo_no_redo
+                         line_move_ignore_invisible, line_move_visual, mark_ring_max, messages_buffer_mode_hook, &
+                         messages_buffer_mode_map, minibuffer_local_shell_command_map, next_error_hook, &
+                         next_error_last_buffer, next_error_verbose, pending_undo_list, read_only_mode_hook, &
+                         read_quoted_char_radix, shell_command_default_error_buffer, shell_command_dont_erase_buffer, &
+                         DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, &
+                         DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, shell_command_switch, &
+                         special_mode_abbrev_table, special_mode_hook, special_mode_map, suggest_key_bindings, &
+                         transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
@@ -507,7 +508,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(514) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(517) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -601,12 +602,12 @@ module docstrings_fm
                                                  "dired_recursive_deletes", "dired_set_id", "dired_sort_inhibit", "dired_special", &
                                                              "dired_switches_in_mode_line", "dired_symlink", "dired_symlink_face", &
                                           "dired_touch_program", "dired_trivial_filenames", "dired_use_ls_dired", "dired_warning", &
-                                               "dired_warning_face", "disabled_command_function", "display_buffer_mark_dedicated", &
-                                              "edit_abbrevs_mode_abbrev_table", "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", &
-                                                                   "edmacro_eight_bits", "electric_indent_chars", &
-                                                          "electric_indent_functions_without_reindent", "electric_indent_inhibit", &
-                                                                   "electric_indent_local_mode_hook", "electric_indent_mode_hook", &
-                                                                   "electric_pair_local_mode_hook", "electric_pair_mode_hook", &
+                                                    "dired_warning_face", "disable_point_adjustment", "disabled_command_function", &
+                                                                "display_buffer_mark_dedicated", "edit_abbrevs_mode_abbrev_table", &
+                                                          "edit_abbrevs_mode_hook", "edit_abbrevs_mode_map", "edmacro_eight_bits", &
+                                                            "electric_indent_chars", "electric_indent_functions_without_reindent", &
+                                                                   "electric_indent_inhibit", "electric_indent_local_mode_hook", &
+                                          "electric_indent_mode_hook", "electric_pair_local_mode_hook", "electric_pair_mode_hook", &
                                                                 "electric_pair_open_newline_between_pairs", "electric_pair_pairs", &
                                                                 "electric_pair_preserve_balance", "electric_pair_skip_whitespace", &
                                                                 "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
@@ -620,10 +621,10 @@ module docstrings_fm
                                                                    "font_lock_extra_managed_props", "font_lock_global_modes", &
                                                   "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
                                                   "font_lock_verbose", "fontification_functions", "fundamental_mode_abbrev_table", &
-                                                   "global_abbrev_table", "global_font_lock_mode_hook", "goal_column", "help_map", &
-                                             "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_add_new_input", &
-                                                            "history_delete_duplicates", "history_length", "indent_line_function", &
-                                                                 "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
+                                           "global_abbrev_table", "global_disable_point_adjustment", "global_font_lock_mode_hook", &
+                                           "goal_column", "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
+                                                           "history_add_new_input", "history_delete_duplicates", "history_length", &
+                                         "indent_line_function", "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
                                             "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
@@ -636,12 +637,13 @@ module docstrings_fm
                                                "kmacro_last_counter", "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", &
                                                                    "last_abbrev", "last_abbrev_location", "last_abbrev_text", &
                                                     "last_coding_system_specified", "last_coding_system_used", "last_input_event", &
-                                                    "last_kbd_macro", "left_margin", "line_move_visual", "list_buffers_directory", &
-                                            "locale_coding_system", "make_backup_files", "mark_even_if_inactive", "mark_ring_max", &
-                                                       "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
-                                                          "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
-                                           "minibuffer_message_timeout", "minibuffer_scroll_window", "mode_require_final_newline", &
-                                         "mule_keymap", "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
+                                                "last_kbd_macro", "left_margin", "line_move_ignore_invisible", "line_move_visual", &
+                                                            "list_buffers_directory", "locale_coding_system", "make_backup_files", &
+                                         "mark_even_if_inactive", "mark_ring_max", "message_log_max", "messages_buffer_mode_hook", &
+                                                                   "messages_buffer_mode_map", "minibuffer_completing_file_name", &
+                                                               "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
+                                                          "minibuffer_scroll_window", "mode_require_final_newline", "mule_keymap", &
+                                                        "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
                                                          "next_error_verbose", "next_screen_context_lines", "only_global_abbrevs", &
                                                                    "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
@@ -691,7 +693,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(258) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(259) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -852,6 +854,7 @@ module docstrings_fm
                                                                       "kmacro_repeat_no_prefix", &
                                                                       "kmacro_ring_max", &
                                                                       "left_margin", &
+                                                                      "line_move_ignore_invisible", &
                                                                       "line_move_visual", &
                                                                       "make_backup_files", &
                                                                       "mark_even_if_inactive", &
@@ -10901,6 +10904,20 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Face name used for a part of a buffer that needs user attention."
+        case ("disable_point_adjustment")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "disable_point_adjustment"
+            entry%original = ".false."
+            entry%value = repr(disable_point_adjustment)
+            entry%doc = "If true, suppress point adjustment after executing a command."//LF// &
+                        ""//LF// &
+                        "After a command is executed, if point moved into a region that has"//LF// &
+                        "special properties (e.g. composition, display), Emacs adjusts point"//LF// &
+                        "to the boundary of the region.  But when a command leaves this"//LF// &
+                        "variable at a true value, this point adjustment is suppressed."//LF// &
+                        ""//LF// &
+                        "This variable is set to false before reading a command, and is"//LF// &
+                        "checked just after executing the command."
         case ("disabled_command_function")
             entry%file = "novice_fm.f90"
             entry%fortran = "disabled_command_function_p"
@@ -11375,6 +11392,16 @@ contains
                         "Each buffer may also have a local abbrev table."//LF// &
                         "If it does, the local table overrides the global one"//LF// &
                         "for any particular abbrev defined in both."
+        case ("global_disable_point_adjustment")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "global_disable_point_adjustment"
+            entry%original = ".false."
+            entry%value = repr(global_disable_point_adjustment)
+            entry%doc = "If true, always suppress point adjustments."//LF// &
+                        ""//LF// &
+                        "The default value is false, in which case point adjustments are"//LF// &
+                        "suppressed only after special commands that leave"//LF// &
+                        "`disable_point_adjustment' (which see) at a true value."
         case ("global_font_lock_mode_hook")
             entry%file = "font_core_fm.f90"
             entry%fortran = "global_font_lock_mode_hook"
@@ -11837,6 +11864,23 @@ contains
             entry%value = repr(left_margin%value)
             entry%doc = "Column for the default `indent_line_function' to indent to."//LF// &
                         "Linefeed indents to this column in Fundamental mode."
+        case ("line_move_ignore_invisible")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "line_move_ignore_invisible"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(line_move_ignore_invisible)
+            entry%doc = "True means commands that move by lines ignore invisible newlines."//LF// &
+                        "When this option is true, \[next_line], \[previous_line],"//LF// &
+                        "\[move_end_of_line], and \[move_beginning_of_line] behave as if"//LF// &
+                        "newlines that are invisible didn't exist, and count only visible"//LF// &
+                        "newlines.  Thus, moving across 2 newlines one of which is invisible"//LF// &
+                        "will be counted as a one-line move.  Also, a true value causes"//LF// &
+                        "invisible text to be ignored when counting columns for the"//LF// &
+                        "purposes of keeping point in the same column by \[next_line] and"//LF// &
+                        "\[previous_line]."//LF// &
+                        ""//LF// &
+                        "Outline mode sets this."
         case ("line_move_visual")
             entry%file = "simple_fm.f90"
             entry%fortran = "line_move_visual"
@@ -13639,6 +13683,8 @@ contains
         case ("left_margin")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("line_move_ignore_invisible")
+            kind = OPTION_LOGICAL
         case ("line_move_visual")
             kind = OPTION_LOGICAL
         case ("make_backup_files")
@@ -14067,6 +14113,8 @@ contains
             kmacro_execute_before_append = v
         case ("kmacro_repeat_no_prefix")
             kmacro_repeat_no_prefix = v
+        case ("line_move_ignore_invisible")
+            line_move_ignore_invisible = v
         case ("line_move_visual")
             line_move_visual = v
         case ("make_backup_files")

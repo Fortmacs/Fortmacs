@@ -18,8 +18,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: indent-tests.el needs invisible text, and line-move has no
-!> ERT tests that run without a display.
+!> Ports indent-tests.el; the rest are own tests (line-move has no ERT
+!> tests that run without a display).
 module test_indent_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -85,7 +85,12 @@ contains
                     new_unittest("indent-rigidly-transient-map", test_indent_rigidly_map), &
                     new_unittest("indent-for-tab-noindent-fallback", test_noindent_fallback), &
                     new_unittest("indent-region-progress", test_indent_region_progress), &
-                    new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte) &
+                    new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte), &
+                    new_unittest("current-column-display-properties", test_column_display_props), &
+                    new_unittest("vertical-motion-invisible", test_vertical_motion_invisible), &
+                    new_unittest("indent-tests-move-to-column-invis-1tab", test_move_to_column_invis_1tab), &
+                    new_unittest("indent-tests-move-to-column-invis-2tabs", test_move_to_column_invis_2tabs), &
+                    new_unittest("indent-tests-move-to-column-invis-between-tabs", test_move_to_column_invis_between) &
                     ]
     end subroutine collect_indent_fm
 
@@ -504,4 +509,124 @@ contains
         buffers(cur)%multibyte = .true.
         call leave(h)
     end subroutine test_indentation_unibyte
+    !> current-column and move-to-column skip invisible text (not text
+    !> shown as an ellipsis) and count display strings and spaces, as GNU
+    !> Emacs does.
+    subroutine test_column_display_props(error)
+        use textprop_fm, only: put_text_property
+        use lread_fm, only: sym
+        use lisp_fm, only: t_value, make_string, list
+        use subr_fm, only: add_to_invisibility_spec
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: reached
+        call get_buffer_create("*column-props*", h, st)
+        call set_buffer(h, st)
+        call insert("abcdef", st)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), t_value(), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 2, "invisible")
+        if (allocated(error)) return
+        call goto_char(1_int64)
+        call move_to_column(2_int64, reached)
+        call check(error, point() == 6 .and. reached == 2, "move-to-column")
+        if (allocated(error)) return
+        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call put_text_property(2_int64, 5_int64, sym("invisible"), sym("foo"), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 5, "ellipsis")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("abcdef", st)
+        call put_text_property(3_int64, 5_int64, sym("display"), make_string("XY"), st)
+        call goto_char(6_int64)
+        call check(error, current_column() == 5, "display string")
+        if (allocated(error)) return
+        call erase_buffer(st)
+        call insert("ab"//achar(9)//"cd", st)
+        call put_text_property(3_int64, 4_int64, sym("display"), list(sym("space"), sym(":align-to"), &
+                                                                      make_fixnum(10_int64)), st)
+        call goto_char(5_int64)
+        call check(error, current_column() == 11, "space")
+        call kill_buffer(h, st)
+    end subroutine test_column_display_props
+
+    !> C-n moves by visible lines: a line made invisible is skipped.
+    subroutine test_vertical_motion_invisible(error)
+        use textprop_fm, only: put_text_property
+        use lread_fm, only: sym
+        use lisp_fm, only: t_value
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: moved
+        call get_buffer_create("*vmotion-props*", h, st)
+        call set_buffer(h, st)
+        call show_alone()
+        call insert("one"//achar(10)//"two"//achar(10)//"three", st)
+        ! "two\n" is invisible.
+        call put_text_property(5_int64, 9_int64, sym("invisible"), t_value(), st)
+        call goto_char(2_int64)
+        call vertical_motion(1_int64, moved, 1)
+        call check(error, moved == 1 .and. point() == 10, "to three")
+        if (allocated(error)) return
+        call vertical_motion(-1_int64, moved, 1)
+        call check(error, moved == -1 .and. point() == 2, "back to one")
+        call kill_buffer(h, st)
+    end subroutine test_vertical_motion_invisible
+    !> A temporary buffer holding TEXT with the text from each START(k)
+    !> to END(k) invisible, after (move-to-column COLUMN t) from its start:
+    !> its text from 1 to TO.
+    function move_to_column_invis(text, starts, ends, column, to) result(got)
+        use textprop_fm, only: put_text_property
+        use lread_fm, only: sym
+        use lisp_fm, only: t_value
+        use editfns_fm, only: buffer_substring
+        character(len=*), intent(in) :: text
+        integer(int64), intent(in) :: starts(:), ends(:), column, to
+        character(len=:), allocatable :: got
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: reached
+        integer :: k
+        call get_buffer_create(" *move-to-column-invis*", h, st)
+        call set_buffer(h, st)
+        call erase_buffer(st)
+        call insert(text, st)
+        do k = 1, size(starts)
+            call put_text_property(starts(k), ends(k), sym("invisible"), t_value(), st)
+        end do
+        call goto_char(1_int64)
+        call move_to_column(column, reached, force=.true.)
+        call buffer_substring(1_int64, to, got, st)
+        call kill_buffer(h, st)
+    end function move_to_column_invis
+
+    !> Test `move_to_column' when a TAB is followed by invisible text.
+    subroutine test_move_to_column_invis_1tab(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: got
+        got = move_to_column_invis(achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), [2_int64], &
+                                   [21_int64], 7_int64, 8_int64)
+        call check(error, got, "       ")
+    end subroutine test_move_to_column_invis_1tab
+
+    !> Test `move_to_column' when 2 TABs are followed by invisible text.
+    subroutine test_move_to_column_invis_2tabs(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: got
+        got = move_to_column_invis(achar(9)//achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), &
+                                   [3_int64], [22_int64], 12_int64, 11_int64)
+        call check(error, got, achar(9)//"    "//achar(9)//"Line")
+    end subroutine test_move_to_column_invis_2tabs
+
+    !> Test `move_to_column' when 2 TABs are mixed with invisible text.
+    subroutine test_move_to_column_invis_between(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: got
+        got = move_to_column_invis(achar(9)//"xxx"//achar(9)//"Line starting with INVISIBLE text after TAB"//achar(10), &
+                                   [6_int64, 2_int64], [25_int64, 5_int64], 12_int64, 14_int64)
+        call check(error, got, achar(9)//"xxx    "//achar(9)//"Line")
+    end subroutine test_move_to_column_invis_between
 end module test_indent_fm
