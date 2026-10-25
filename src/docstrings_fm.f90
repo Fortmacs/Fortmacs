@@ -377,7 +377,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(871) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(872) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -536,16 +536,17 @@ module docstrings_fm
                                            "kmacro_view_ring_2nd", "left_char", "left_word", "line_number_at_pos", "list_abbrevs", &
                                                        "list_registers", "local_abbrev_table", "log_edit_comment_search_backward", &
                                                       "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
-                                                                   "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
-                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
-                                           "log_edit_kill_buffer", "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
-                                           "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", "looking_at", &
-                                                                "looking_at_p", "looking_back", "major_mode_named", "make_comint", &
-                                                 "make_comint_in_buffer", "make_empty_file", "make_process", "make_symbolic_link", &
-                                                  "make_syntax_table", "map_query_replace_regexp", "mark", "mark_end_of_sentence", &
-                                               "mark_paragraph", "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", &
-                                                          "match_data", "match_end", "match_string", "match_string_no_properties", &
+                                                                   "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
+                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
+                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
+                                                      "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
+                                                       "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
+                                                        "log_edit_show_diff", "log_edit_show_files", "looking_at", "looking_at_p", &
+                                                       "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
+                                                     "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
+                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_paragraph", &
+                                                   "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", "match_data", &
+                                                                   "match_end", "match_string", "match_string_no_properties", &
                                          "match_substitute_replacement", "message", "messages_buffer_mode", "minibuffer_complete", &
                                          "minibuffer_complete_and_exit", "minibuffer_complete_word", "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", "minibuffer_recenter_top_bottom", &
@@ -5734,6 +5735,12 @@ contains
             entry%interactive = .true.
             entry%doc = "Finish editing the VC commit log message, and commit the files."//LF// &
                         "If you want to abort the commit, simply delete the buffer."
+        case ("log_edit_done_strip_cvs_lines")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Strip lines starting with ""CVS:"" from commit log message."//LF// &
+                        "When not called interactively do this only when the VC backend is CVS."//LF// &
+                        "This mimicks what CVS does when invoked as 'cvs commit [files...]'."
         case ("log_edit_insert_changelog")
             entry%file = "log_edit_fm.f90"
             entry%interactive = .true.

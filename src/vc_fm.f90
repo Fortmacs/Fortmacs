@@ -98,7 +98,7 @@ module vc_fm
 
     public :: syms_of_vc, vc_switches, vc_root_dir, vc_responsible_backend, vc_backend_for_registration, &
               vc_deduce_backend, vc_deduce_fileset, vc_ensure_vc_buffer, vc_next_action, vc_register, vc_ignore, &
-              vc_checkout, vc_mark_resolved, vc_diff_internal, vc_read_revision, vc_version_diff, &
+              vc_checkout, vc_mark_resolved, vc_diff_internal, vc_read_revision, vc_version_diff, vc_checkin, &
               vc_root_version_diff, vc_diff, vc_root_diff, vc_buffer_sync_fileset, vc_revision_other_window, &
               vc_find_revision, vc_revert, vc_revert_file, vc_revert_files, vc_delete_file, vc_rename_file, &
               vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, vc_version_backup_file

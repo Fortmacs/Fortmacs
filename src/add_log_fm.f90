@@ -24,7 +24,8 @@
 !> of a file (`find_change_log'), the buffer for it, or the
 !> `*changes to DIR*' buffer standing for one that doesn't exist
 !> (`add_log_find_changelog_buffer'), the options naming the user and the
-!> date in ChangeLog headers, and Change Log mode with its faces.
+!> date in ChangeLog headers, Change Log mode with its faces, and
+!> `change_log_read_defuns' (for `log_edit_fill_entry').
 !>
 !> Deferred: adding entries (`add_change_log_entry', C-x 4 a, and
 !> `add_change_log_entry_other_window', with `add_log_current_defun'
@@ -70,12 +71,12 @@ module add_log_fm
 
     !> Regexp matching the file names of unindented ChangeLog entries.
     !> Port of add-log.el change-log-unindented-file-names-re.
-    character(len=*), parameter, public :: change_log_unindented_file_names_re = "^[*] \([^ ,:([" // achar(10) // "]+\)"
+    character(len=*), parameter, public :: change_log_unindented_file_names_re = "^[*] \([^ ,:(["//achar(10)//"]+\)"
 
     !> Regexp matching a tag name in change log entries.  Port of
     !> add-log.el change-log-tag-re.
     character(len=*), parameter, public :: change_log_tag_re = &
-                                           "(\(\(?:\sw\|\s_\)+\(?:[, " // achar(9) // "]+\(?:\sw\|\s_\)+\)*\))"
+                                           "(\(\(?:\sw\|\s_\)+\(?:[, "//achar(9)//"]+\(?:\sw\|\s_\)+\)*\))"
 
     !> A function that returns the date for a ChangeLog header.
     abstract interface
@@ -214,7 +215,6 @@ contains
         end subroutine add
     end subroutine change_log_read_defuns
 
-
     !> Return the date in ISO 8601 form (YYYY-MM-DD), local time.  Port
     !> of add-log.el:add-log-iso8601-time-string (no
     !> `add_log_time_zone_rule').
@@ -285,13 +285,15 @@ contains
             else
                 file_name = buffers(cur)%directory
             end if
-            if (file_directory_p(file_name)) call expand_file_name(change_log_name(), file_name, st, file_name)
+            if (file_directory_p(file_name)) then
+                dir = file_name
+                call expand_file_name(change_log_name(), file_name, st, dir)
+            end if
             ! Chase links before visiting the file.
             ! This makes it easier to use a single change log file
             ! for several related directories.
             call file_chase_links(file_name, chased, st)
-            file_name = chased
-            call expand_file_name(file_name, file_name, st)
+            call expand_file_name(chased, file_name, st)
             cbase = file_name_nondirectory(change_log_name())
             ! locate-dominating-file with the predicate.
             dir = file_name_directory(abbreviate_file_name(file_name))
@@ -409,8 +411,9 @@ contains
     subroutine syms_of_add_log()
         type(status_type) :: st
         call define_faces()
-        if (.not. allocated(change_log_directory_files)) &
+        if (.not. allocated(change_log_directory_files)) then
             change_log_directory_files = [character(len=8) :: ".bzr", ".git", ".hg", ".svn"]
+        end if
         call forward_setting(change_log_default_name, local_if_set=.true.)
         if (change_log_mode_syntax_table%index == 0) then
             call make_syntax_table(change_log_mode_syntax_table, st)

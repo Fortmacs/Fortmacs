@@ -85,8 +85,7 @@ module log_edit_fm
     use buffer_fm, only: fill_column, get_file_buffer
     use window_fm, only: display_alist_type, shrink_window_if_larger_than_buffer, DISPLAY_ACTION_BELOW_SELECTED, &
                          display_buffer_mark_dedicated, DEDICATED_STRONG, display_buffer, get_buffer_window, &
-                         bury_buffer, quit_windows_on, delete_window, select_window
-    use frame_fm, only: selected_window
+                         bury_buffer, quit_windows_on, delete_window
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use callproc_fm, only: call_process
     use derived_fm, only: derived_mode_p
@@ -283,8 +282,8 @@ module log_edit_fm
     !> The first subexpression is the actual text of the field.  Port of
     !> log-edit.el log-edit-header-contents-regexp.
     character(len=*), parameter, public :: LOG_EDIT_HEADER_CONTENTS_REGEXP = "[ "//achar(9)//"]*\(.*\(" &
-                                                                          //achar(10)//"[ "//achar(9)//"].*\)*\)" &
-                                                                          //achar(10)//"?"
+                                           //achar(10)//"[ "//achar(9)//"].*\)*\)" &
+                                           //achar(10)//"?"
 
     !> Face for the summary in `log_edit_mode' buffers.  Port of
     !> log-edit.el log-edit-summary.
@@ -979,7 +978,7 @@ contains
     !> log-edit.el:log-edit-hide-buf.
     recursive subroutine log_edit_hide_buf(buf_in)
         type(handle_type), intent(in), optional :: buf_in
-        type(handle_type) :: buf, win, sw
+        type(handle_type) :: buf, win
         type(status_type) :: st
         if (present(buf_in)) then
             buf = buf_in
@@ -990,11 +989,9 @@ contains
         ! FIXME: Should use something like `quit-windows-on' here, but
         ! that function never deletes this buffer's window because it
         ! was created using `cvs-pop-to-buffer-same-frame'.
-        sw = selected_window()
         win = get_buffer_window(buf)
         if (win%index /= 0) call delete_window(win, st)
         call bury_buffer(st, buf)
-        call select_window(sw, st)
     end subroutine log_edit_hide_buf
 
     !> Remember COMMENT (the buffer's text if absent) in
@@ -1165,17 +1162,17 @@ contains
     !> Port of log-edit.el:log-edit-set-common-indentation.
     recursive subroutine log_edit_set_common_indentation(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: common, here, shortage
+        integer(int64) :: least, here, shortage
         here = point()
-        common = point_max()
+        least = point_max()
         call rfc822_goto_eoh(status)
         if (.not. status%ok()) return
         do while (point() < point_max())
-            if (.not. looking_at("^[ "//achar(9)//"]*$", status)) common = min(common, current_indentation())
+            if (.not. looking_at("^[ "//achar(9)//"]*$", status)) least = min(least, current_indentation())
             shortage = forward_line(1_int64)
         end do
         call rfc822_goto_eoh(status)
-        if (status%ok()) call indent_rigidly(point(), point_max(), log_edit_common_indent - common, status)
+        if (status%ok()) call indent_rigidly(point(), point_max(), log_edit_common_indent - least, status)
         call goto_char(here)
     end subroutine log_edit_set_common_indentation
 
@@ -1739,8 +1736,9 @@ contains
         if (buffer_live_p(visiting)) then
             old = current_buffer()
             call set_buffer(visiting, st)
-            if (change_log_default_name%local_p() .and. allocated(change_log_default_name%value)) &
+            if (change_log_default_name%local_p() .and. allocated(change_log_default_name%value)) then
                 changelog_file_name = change_log_default_name%value
+            end if
             call set_buffer(old, st)
         end if
         if (.not. allocated(changelog_file_name)) then
@@ -1892,7 +1890,7 @@ contains
         ! A log entry: ((LOGBUFFER ENTRYSTART ENTRYEND) FILE1 FILE2...).
         type :: log_entry_type
             type(handle_type) :: buffer
-            integer(int64) :: beg = 0, end = 0
+            integer(int64) :: beg, end
             type(log_edit_string_type), allocatable :: files(:)
         end type log_entry_type
         type(log_entry_type), allocatable :: log_entries(:), grown(:)
@@ -2542,7 +2540,6 @@ contains
         call flush_lines("^CVS:", count, status)
         case_fold_search%value = saved_fold
     end subroutine strip_cvs_lines
-
 
     !> Define Log Edit mode, its keymap, faces and hooks, and register the
     !> commands.

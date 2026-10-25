@@ -57,8 +57,7 @@ module sysdep_fm
                             c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
                             TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                             TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
-                            VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
-                            c_environ
+                            VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time
     implicit none(type, external)
     private
 
@@ -101,6 +100,14 @@ module sysdep_fm
         character(len=:), allocatable :: s
     end type sys_string_type
 
+    ! The editor's environment ("NAME=VALUE" entries, in order): read
+    ! from /proc/self/environ on first use and kept current by
+    ! `sys_setenv' and `sys_unsetenv' (as upstream keeps
+    ! `process-environment'; libc's `environ' is out of a Fortran
+    ! program's reach).
+    type(sys_string_type), allocatable :: environment(:)
+    integer :: environment_count = 0
+    logical :: environment_read = .false.
     !> A C argument vector: the strings, NUL-terminated, in `buf', and a
     !> null-terminated array of pointers to them.
     type :: c_argv_type
@@ -556,6 +563,10 @@ contains
         character(len=*), intent(in) :: name, value
         err = 0
         if (c_setenv(c_path(name), c_path(value), 1) /= 0) err = errno()
+        if (err == 0) then
+            if (.not. environment_read) call read_environment()
+            call environment_set(name//"="//value)
+        end if
     end function sys_setenv
 
     !> Remove environment variable `name'.
@@ -563,7 +574,69 @@ contains
         character(len=*), intent(in) :: name
         err = 0
         if (c_unsetenv(c_path(name)) /= 0) err = errno()
+        if (err == 0) then
+            if (.not. environment_read) call read_environment()
+            call environment_set(name)
+        end if
     end function sys_unsetenv
+
+    ! Read the environment the editor started with into `environment'.
+    subroutine read_environment()
+        character(len=1) :: c
+        character(len=:), allocatable :: entry
+        integer :: unit, ios
+        environment_read = .true.
+        allocate (environment(16))
+        environment_count = 0
+        open (newunit=unit, file="/proc/self/environ", access="stream", form="unformatted", action="read", &
+              status="old", iostat=ios)
+        if (ios /= 0) return
+        entry = ""
+        do
+            read (unit, iostat=ios) c
+            if (ios /= 0) exit
+            if (c == achar(0)) then
+                if (index(entry, "=") > 1) call environment_set(entry)
+                entry = ""
+            else
+                entry = entry//c
+            end if
+        end do
+        close (unit)
+    end subroutine read_environment
+
+    ! Put "NAME=VALUE" ENTRY in `environment', replacing NAME's entry;
+    ! a "NAME" without "=" removes it.
+    subroutine environment_set(entry)
+        character(len=*), intent(in) :: entry
+        type(sys_string_type), allocatable :: grown(:)
+        integer :: e, k, j
+        e = index(entry, "=")
+        if (e == 0) e = len(entry) + 1
+        do k = 1, environment_count
+            if (index(environment(k)%s, "=") /= e) cycle
+            if (environment(k)%s(1:e - 1) /= entry(1:e - 1)) cycle
+            if (e > len(entry)) then
+                do j = k, environment_count - 1
+                    call move_alloc(environment(j + 1)%s, environment(j)%s)
+                end do
+                environment_count = environment_count - 1
+            else
+                environment(k)%s = entry
+            end if
+            return
+        end do
+        if (e > len(entry)) return
+        if (environment_count == size(environment)) then
+            allocate (grown(2*environment_count))
+            do k = 1, environment_count
+                call move_alloc(environment(k)%s, grown(k)%s)
+            end do
+            call move_alloc(grown, environment)
+        end if
+        environment_count = environment_count + 1
+        environment(environment_count)%s = entry
+    end subroutine environment_set
 
     !> chmod(2).
     integer(int32) function sys_chmod(file, mode) result(err)
@@ -1032,9 +1105,8 @@ contains
     function environment_with(env) result(all)
         type(sys_string_type), intent(in) :: env(:)
         type(sys_string_type), allocatable :: all(:), grown(:)
-        type(c_ptr), pointer :: entries(:)
         character(len=:), allocatable :: entry
-        integer :: n, k, j, count
+        integer :: n, k, j
         logical :: shadowed
         allocate (all(size(env)))
         n = 0
@@ -1044,27 +1116,21 @@ contains
                 all(n)%s = env(k)%s
             end if
         end do
-        if (c_associated(c_environ)) then
-            count = 0
-            call c_f_pointer(c_environ, entries, [huge(0)])
-            do while (c_associated(entries(count + 1)))
-                count = count + 1
-            end do
-            do j = 1, count
-                entry = c_string_to_fortran(entries(j))
-                shadowed = already(all(1:n), entry)
-                if (shadowed) cycle
-                if (n == size(all)) then
-                    allocate (grown(max(16, 2*n)))
-                    do k = 1, n
-                        call move_alloc(all(k)%s, grown(k)%s)
-                    end do
-                    call move_alloc(grown, all)
-                end if
-                n = n + 1
-                all(n)%s = entry
-            end do
-        end if
+        if (.not. environment_read) call read_environment()
+        do j = 1, environment_count
+            entry = environment(j)%s
+            shadowed = already(all(1:n), entry)
+            if (shadowed) cycle
+            if (n == size(all)) then
+                allocate (grown(max(16, 2*n)))
+                do k = 1, n
+                    call move_alloc(all(k)%s, grown(k)%s)
+                end do
+                call move_alloc(grown, all)
+            end if
+            n = n + 1
+            all(n)%s = entry
+        end do
         ! Drop the entries that only name a variable to remove.
         j = 0
         do k = 1, n

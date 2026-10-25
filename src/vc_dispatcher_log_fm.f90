@@ -127,20 +127,20 @@ contains
     ! (set-buffer-modified-p nil)
     call restore_buffer_modified_p(.false.)
     if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
-    contains
-        recursive subroutine call_log_edit(diff)
-            procedure(command_proc) :: diff
-            integer :: b
-            b = 0
-            if (present(backend)) b = backend
-            if (present(mode)) then
-                call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
-                              diff_function=diff, vc_backend=b, set_params=set_params, mode=mode)
-            else
-                call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
-                              diff_function=diff, vc_backend=b, set_params=set_params)
-            end if
-        end subroutine call_log_edit
+contains
+    recursive subroutine call_log_edit(diff)
+        procedure(command_proc) :: diff
+        integer :: b
+        b = 0
+        if (present(backend)) b = backend
+        if (present(mode)) then
+            call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
+                          diff_function=diff, vc_backend=b, set_params=set_params, mode=mode)
+        else
+            call log_edit(vc_finish_logentry_command, status, setup=setup, listfun=log_listfun, &
+                          diff_function=diff, vc_backend=b, set_params=set_params)
+        end if
+    end subroutine call_log_edit
     end procedure vc_log_edit
 
     ! Whether the file lists A and B are equal.

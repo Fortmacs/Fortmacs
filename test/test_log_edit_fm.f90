@@ -123,7 +123,7 @@ contains
                             "(fun8): A longer description of a complicated change.  Spread over a"//LF// &
                             "couple of sentences.  Long enough to be filled for several lines."//LF// &
                             "(fun9): Etc.")
-        if (.not. allocated(error)) &
+        if (.not. allocated(error)) then
             call fill_and_check(error, 20, &
                                 "* dir/file.ext (fun1)"//LF// &
                                 "(fun2, fun3):"//LF// &
@@ -138,7 +138,8 @@ contains
                                 "enough to be filled"//LF// &
                                 "for several lines."//LF// &
                                 "(fun9): Etc.")
-        if (.not. allocated(error)) &
+        end if
+        if (.not. allocated(error)) then
             call fill_and_check(error, 40, &
                                 "* dir/file.ext (fun1, fun2, fun3):"//LF// &
                                 "* file2.txt (fun4, fun5, fun6, fun7):"//LF// &
@@ -148,6 +149,7 @@ contains
                                 "couple of sentences.  Long enough to be"//LF// &
                                 "filled for several lines."//LF// &
                                 "(fun9): Etc.")
+        end if
         call leave(h)
     end subroutine test_fill_entry
 

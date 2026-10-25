@@ -268,11 +268,8 @@ module sys_linux_fm
     public :: c_statvfs
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
-              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_environ
+              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time
     public :: errno, c_string_to_fortran
-
-    !> The environment (char **environ).
-    type(c_ptr), bind(C, name="environ") :: c_environ
 
     interface
         integer(c_int) function c_tcgetattr(fd, t) bind(C, name="tcgetattr")

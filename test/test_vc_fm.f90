@@ -91,6 +91,7 @@ contains
                     new_unittest("vc-test-git03-working-revision", test_working_revision), &
                     new_unittest("vc-test-git04-checkout-model", test_checkout_model), &
                     new_unittest("vc-test-git05-rename-file", test_rename_file), &
+                    new_unittest("vc-test-git06-version-diff", test_version_diff), &
                     new_unittest("vc-test-git10-rename-directory", test_rename_directory), &
                     new_unittest("vc-git-mode-line", test_mode_line), &
                     new_unittest("vc-git-diff", test_diff), &
@@ -698,6 +699,82 @@ contains
         end block body
         call teardown(h)
     end subroutine test_rename_file
+
+    !> Check the diff version of a repository.
+    subroutine test_version_diff(error)
+        use vc_fm, only: vc_checkin, vc_version_diff
+        use log_edit_fm, only: log_edit_done
+        use sysdep_fm, only: sys_setenv, sys_unsetenv
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: names(3) = [character(len=18) :: "EMAIL", "GIT_AUTHOR_NAME", &
+                                                                                                               "GIT_COMMITTER_NAME"]
+        character(len=*), parameter :: values(3) = [character(len=20) :: "joh.doe@example.com", "A", "C"]
+        type(handle_type) :: h, buff, diff
+        type(status_type) :: st
+        type(vc_fileset_type) :: fs
+        character(len=256) :: saved(3)
+        integer :: saved_status(3), k, err
+        character(len=:), allocatable :: tmp_name, rawtext
+        if (.not. have_git(error)) return
+        ! vc-test--with-author-identity: git tries various approaches to
+        ! guess a user name and email, which can fail depending on how the
+        ! system is configured.
+        do k = 1, 3
+            call get_environment_variable(trim(names(k)), saved(k), status=saved_status(k))
+            err = sys_setenv(trim(names(k)), trim(values(k)))
+
+        end do
+        call setup(h, st)
+        body: block
+            tmp_name = tdir()//"foo"
+            fs%backend = git_b()
+            fs%files = strings("foo")
+            ! Write and register a new file.
+            call write_file(tmp_name, "originaltext")
+            call vc_register(st, fs)
+            call find_file_noselect(tmp_name, buff, st)
+            call set_buffer(buff, st)
+            ! Checkin file.
+            call vc_checkin(fs%files, fs%backend, st)
+            call check(error, st%ok(), "checkin: "//format_error(st))
+            if (allocated(error)) exit body
+            call insert("Testing vc-version-diff", st)
+            call check(error, st%ok(), "insert: "//format_error(st))
+            if (allocated(error)) exit body
+            call log_edit_done(st)
+            call check(error, st%ok(), "log-edit-done: "//format_error(st))
+            if (allocated(error)) exit body
+            call set_buffer(h, st)
+            ! Modify file content.
+            call write_file(tmp_name, "updatedtext")
+            ! Check version diff.
+            call vc_version_diff("", "", st)
+            call check(error, st%ok(), "version-diff: "//format_error(st))
+            if (allocated(error)) exit body
+            diff = get_buffer("*vc-diff*")
+            call check(error, buffer_live_p(diff), "*vc-diff*")
+            if (allocated(error)) exit body
+            call set_buffer(diff, st)
+            rawtext = buffer_string()
+            call set_buffer(h, st)
+            call check(error, index(rawtext, "-originaltext") > 0, "-originaltext in: "//rawtext)
+            if (allocated(error)) exit body
+            call check(error, index(rawtext, "+updatedtext") > 0, "+updatedtext in: "//rawtext)
+        end block body
+        diff = get_buffer("*vc-diff*")
+        if (buffer_live_p(diff)) call kill_buffer(diff, st)
+        diff = get_buffer("*vc-log*")
+        if (buffer_live_p(diff)) call kill_buffer(diff, st)
+        if (buffer_live_p(buff)) call kill_buffer(buff, st)
+        call teardown(h)
+        do k = 1, 3
+            if (saved_status(k) == 0) then
+                err = sys_setenv(trim(names(k)), trim(saved(k)))
+            else
+                err = sys_unsetenv(trim(names(k)))
+            end if
+        end do
+    end subroutine test_version_diff
 
     !> Check the rename-file action for directories.
     subroutine test_rename_directory(error)

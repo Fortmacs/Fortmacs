@@ -922,7 +922,7 @@ contains
         character(len=:), allocatable, intent(out) :: newname
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: limit
-        character(len=:), allocatable :: tem, dir
+        character(len=:), allocatable :: tem, tem2, dir
         integer :: count, k
         status = status_type()
         newname = filename
@@ -950,7 +950,8 @@ contains
             do while (len(tem) >= 3)
                 if (tem(1:3) /= "../") exit
                 tem = tem(4:)
-                call expand_file_name(newname, newname, status)
+                tem2 = newname
+                call expand_file_name(tem2, newname, status)
                 if (.not. status%ok()) return
                 ! Chase links in the default dir of the symlink.
                 call file_chase_links(directory_file_name(file_name_directory(newname)), dir, status)

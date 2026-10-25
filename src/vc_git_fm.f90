@@ -1264,7 +1264,8 @@ contains
         only = size(files) > 1
         if (.not. only) only = root /= abbreviate_file_name(file1)
         saved = buffer_directory()
-        call expand_file_name(root, root, status)
+        file1 = root
+        call expand_file_name(file1, root, status)
         if (.not. status%ok()) return
         call set_buffer_directory(root)
         call log_edit_extract_headers_git(comment, msg, extracted, status)

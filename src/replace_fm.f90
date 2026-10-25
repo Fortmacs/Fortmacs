@@ -1707,8 +1707,9 @@ contains
             call set_marker(end_marker, point_max(), st)
         end if
         saved_fold = case_fold_search%value
-        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) &
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
             case_fold_search%value = isearch_no_upper_case_p(regexp, .true.)
+        end if
         call make_marker(opoint)
         call set_marker(opoint, point(), st)
         do
