@@ -32,14 +32,15 @@ module emacs_fm
     use error_fm, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
     use version_fm, only: version_string
     use handle_fm, only: handle_type, null_handle
-    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer
+    use buffer_fm, only: buffers, cur, get_buffer_create, set_buffer, current_buffer
     use editfns_fm, only: goto_char, point_min
     use cmds_fm, only: forward_line
     use fileio_fm, only: init_fileio, emacs_wd, file_name_as_directory, file_name_absolute_p, &
                          file_exists_p, file_executable_p, file_newer_than_file_p
     use files_fm, only: find_file_noselect
     use frame_fm, only: selected_frame
-    use window_fm, only: delete_window_tree, delete_window_object
+    use window_fm, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
+                         switch_to_buffer_other_window, other_window
     use sysdep_fm, only: install_interrupt_handler, emacs_isatty, sys_string_type, emacs_execv, emacs_strerror
     use term_fm, only: init_tty, delete_tty, tty_set_terminal_modes
     use termchar_fm, only: tty_flush
@@ -229,7 +230,9 @@ contains
         end function all_digits
     end function line_arg_p
 
-    !> Visit the files named in `args', leaving the last one current:
+    !> Visit the files named in `args', then display them: the first in
+    !> the selected window, a second in another window (the first
+    !> selected), more ones in the other window's previous buffers.
     !> "+LINE" puts point on that line of the next file, "--" makes the
     !> rest file names, and "-file", "-find-file" or "-visit" (or with
     !> "--") name a file.  Port of the file part of
@@ -238,9 +241,12 @@ contains
         type(arg_type), intent(in) :: args(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: argi, dir
+        type(handle_type), allocatable :: displayable(:)
+        type(handle_type) :: visited
         integer(int64) :: line, n, column, c
         integer :: k
         logical :: just_files
+        allocate (displayable(0))
         line = 0
         column = 0
         just_files = .false.
@@ -286,10 +292,48 @@ contains
             end if
             call visit(argi, dir, line, column, status)
             if (.not. status%ok()) return
+            ! `displayable-buffers' has the newest first.
+            visited = current_buffer()
+            displayable = [visited, displayable]
             line = 0
             column = 0
         end do
+        call display_buffers(displayable, status)
     end subroutine command_line_1
+
+    !> Display the first two buffers in DISPLAYABLE; the first one will
+    !> be focused.  Part of startup.el:command-line-1.
+    subroutine display_buffers(displayable, status)
+        type(handle_type), intent(in) :: displayable(:)
+        type(status_type), intent(out) :: status
+        integer :: k
+        status = status_type()
+        if (size(displayable) > 0) then
+            call switch_to_buffer(buffers(displayable(1)%index)%name, status)
+            if (.not. status%ok()) return
+        end if
+        if (size(displayable) == 2) then
+            ! Two buffers; display them both.
+            call switch_to_buffer_other_window(displayable(2), status)
+            if (.not. status%ok()) return
+            ! Focus on the first buffer.
+            call other_window(-1_int64, status)
+        else if (size(displayable) > 2) then
+            ! More than two buffers: Ensure that the buffer display order
+            ! reflects the order they were given on the command line.
+            ! (This will end up with a `next-buffer' order that's in
+            ! reverse order -- the final file is the focused one, and then
+            ! the rest are in `next-buffer' in descending order.
+            call switch_to_buffer_other_window(displayable(size(displayable)), status)
+            if (.not. status%ok()) return
+            do k = size(displayable) - 1, 2, -1
+                call switch_to_buffer(buffers(displayable(k)%index)%name, status, force_same_window=.true.)
+                if (.not. status%ok()) return
+            end do
+            ! Focus on the first buffer.
+            call other_window(-1_int64, status)
+        end if
+    end subroutine display_buffers
 
     !> Visit `name' (relative to `dir'), make its buffer current and go to
     !> line `line' if positive.
@@ -356,6 +400,8 @@ contains
         call install_interrupt_handler()
         call adjust_frame_glyphs(selected_frame)
         call init_frame_windows(selected_frame)
+        ! frame.c:make_frame: the root window shows the current buffer.
+        call set_window_buffer_internal(selected_frame%root_window, scratch, .false.)
         ! The faces of faces.el (defined when it is loaded), set up for
         ! the terminal (frame-set-background-mode).
         call init_faces()
