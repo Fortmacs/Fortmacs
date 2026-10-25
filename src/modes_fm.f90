@@ -65,6 +65,7 @@ module modes_fm
         type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: text_mode
+        type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
         type(major_mode_type) :: vc_git_log_view_mode
     end type major_mode_table_type

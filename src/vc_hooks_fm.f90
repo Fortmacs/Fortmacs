@@ -39,6 +39,7 @@ module vc_hooks_fm
     use commands_fm, only: commands
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_VC_NOT_SUPPORTED
     use handle_fm, only: handle_type
+    use ewoc_fm, only: ewoc_part_type
     use lisp_fm, only: make_keymap_ref
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_file_buffer, buffer_live_p
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
@@ -46,7 +47,7 @@ module vc_hooks_fm
                          user_real_uid
     use files_fm, only: locate_dominating_file, locate_dominating_stop_dir_regexp, find_file_hook, kill_buffer_hook, &
                         vc_before_save_proc, vc_after_save_proc, file_truename, find_file_noselect, &
-                        abbreviate_file_name, delete_file
+                        abbreviate_file_name, delete_file, after_revert_hook
     use search_fm, only: string_match
     use keymap_fm, only: make_sparse_keymap, keymap_set, define_key
     use xdisp_fm, only: message
@@ -66,7 +67,7 @@ module vc_hooks_fm
               vc_before_save, vc_after_save, vc_mode_line, vc_mode_line_state, vc_default_mode_line_string, &
               vc_refresh_state, vc_state_name, vc_call_root, vc_call_responsible_p, vc_call_make_version_backups_p, &
               vc_not_supported
-    public :: vc_string_type, vc_backend_type, vc_backends
+    public :: vc_string_type, vc_backend_type, vc_backends, vc_dir_update_proc
 
     !> A string in an array.
     type :: vc_string_type
@@ -190,6 +191,37 @@ module vc_hooks_fm
         integer(int64) :: n = 0
         character(len=:), allocatable :: revision
     end type vc_log_limit_type
+
+    !> Rename states of a file's backend-specific information: none, a copy
+    !> and a rename.
+    integer, parameter, public :: VC_RENAME_NIL = 0, VC_RENAME_COPY = 1, VC_RENAME_RENAME = 2
+
+    !> One (FILE STATE EXTRA) entry of a backend's `dir_status_files': the
+    !> file's name relative to the directory, its state, and the
+    !> backend-specific EXTRA information (Git's permissions and renames,
+    !> vc-git-extra-fileinfo).
+    type, public :: vc_dir_entry_type
+        character(len=:), allocatable :: name
+        integer :: state = 0
+        logical :: has_extra = .false.
+        integer :: old_perm = 0, new_perm = 0
+        integer :: rename_state = VC_RENAME_NIL
+        character(len=:), allocatable :: orig_name
+    end type vc_dir_entry_type
+
+    !> The information shown for a file or directory in a VC-Dir buffer
+    !> (vc-dir-fileinfo): NAME, STATE, EXTRA (as in `vc_dir_entry_type'),
+    !> MARKED, NEEDS_UPDATE (to keep track of not updated files during a
+    !> global refresh), DIRECTORY (allocated for directories, to
+    !> distinguish files and directories) and DISPLAY_STATE (a pseudo-state
+    !> for display only, allocated when set).
+    type, public :: vc_dir_fileinfo_type
+        type(vc_dir_entry_type) :: entry
+        logical :: marked = .false.
+        logical :: needs_update = .false.
+        character(len=:), allocatable :: directory
+        character(len=:), allocatable :: display_state
+    end type vc_dir_fileinfo_type
 
     abstract interface
         !> A backend's `registered': whether FILE is registered.
@@ -331,6 +363,48 @@ module vc_hooks_fm
             type(status_type), intent(out) :: status
             logical, intent(out) :: limit_unsupported
         end subroutine vc_print_log_proc
+        !> The UPDATE function given to a backend's `dir_status_files': add
+        !> ENTRIES to the VC-Dir buffer BUFFER; MORE_TO_COME is true when
+        !> more updates will come from the asynchronous process.
+        recursive subroutine vc_dir_update_proc(entries, buffer, more_to_come)
+            import :: vc_dir_entry_type, handle_type
+            implicit none(type, external)
+            type(vc_dir_entry_type), intent(in) :: entries(:)
+            type(handle_type), intent(in) :: buffer
+            logical, intent(in) :: more_to_come
+        end subroutine vc_dir_update_proc
+        !> A backend's `dir_status_files': compute the states of FILES (all
+        !> files when empty) in DIR asynchronously and pass them to UPDATE
+        !> for BUFFER.
+        recursive subroutine vc_dir_status_files_proc(dir, files, update, buffer, status)
+            import :: vc_string_type, handle_type, status_type, vc_dir_update_proc
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir
+            type(vc_string_type), intent(in) :: files(:)
+            procedure(vc_dir_update_proc) :: update
+            type(handle_type), intent(in) :: buffer
+            type(status_type), intent(out) :: status
+        end subroutine vc_dir_status_files_proc
+        !> A backend's `dir_extra_headers' of DIR, as the parts of the text.
+        recursive subroutine vc_dir_extra_headers_proc(dir, parts)
+            import :: ewoc_part_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: dir
+            type(ewoc_part_type), allocatable, intent(out) :: parts(:)
+        end subroutine vc_dir_extra_headers_proc
+        !> A backend's `dir_printer': insert INFO at point.
+        recursive subroutine vc_dir_printer_proc(info)
+            import :: vc_dir_fileinfo_type
+            implicit none(type, external)
+            type(vc_dir_fileinfo_type), intent(in) :: info
+        end subroutine vc_dir_printer_proc
+        !> A backend's `status_fileinfo_extra' of FILE, set in ENTRY.
+        recursive subroutine vc_status_fileinfo_extra_proc(file, entry)
+            import :: vc_dir_entry_type
+            implicit none(type, external)
+            character(len=*), intent(in) :: file
+            type(vc_dir_entry_type), intent(inout) :: entry
+        end subroutine vc_status_fileinfo_extra_proc
         !> A backend's `show_log_entry': move to the log entry for REVISION.
         recursive subroutine vc_show_log_entry_proc(revision)
             implicit none(type, external)
@@ -387,6 +461,10 @@ module vc_hooks_fm
         !> `log_view_mode').
         procedure(vc_status_proc), pointer, nopass :: log_view_mode => null()
         procedure(vc_show_log_entry_proc), pointer, nopass :: show_log_entry => null()
+        procedure(vc_dir_status_files_proc), pointer, nopass :: dir_status_files => null()
+        procedure(vc_dir_extra_headers_proc), pointer, nopass :: dir_extra_headers => null()
+        procedure(vc_dir_printer_proc), pointer, nopass :: dir_printer => null()
+        procedure(vc_status_fileinfo_extra_proc), pointer, nopass :: status_fileinfo_extra => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
@@ -402,6 +480,22 @@ module vc_hooks_fm
 
     ! The number of entries of `vc_backends' in use.
     integer :: n_vc_backends = 0
+
+    !> List of `vc_dir' buffers.  Port of vc-hooks.el vc-dir-buffers.
+    type(handle_type), allocatable, public :: vc_dir_buffers(:)
+
+    abstract interface
+        !> `vc_dir_resynch_file': update the entries for FNAME in any
+        !> directory buffers that list it.
+        recursive subroutine vc_dir_resynch_file_proc(fname)
+            implicit none(type, external)
+            character(len=*), intent(in) :: fname
+        end subroutine vc_dir_resynch_file_proc
+    end interface
+
+    !> vc-dir.el's `vc_dir_resynch_file', associated once VC-Dir is loaded
+    !> (vc_dir_fm), for vc-hooks.el, vc-dispatcher.el and vc.el.
+    procedure(vc_dir_resynch_file_proc), pointer, public :: vc_dir_resynch_file => null()
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -1250,9 +1344,10 @@ contains
         if (.not. allocated(buffers(cur)%filename)) return
         file = buffers(cur)%filename
         b = vc_backend(file)
-        if (b == 0) return
         files(1)%s = file
-        if (vc_checkout_model(b, files) == VC_MODEL_IMPLICIT) then
+        if (b == 0) then
+            continue
+        else if (vc_checkout_model(b, files) == VC_MODEL_IMPLICIT) then
             ! If the file was saved at the same time that it was
             ! checked out, clear the checkout-time to avoid confusion.
             call vc_file_get_checkout_time(file, sec, nsec, found)
@@ -1267,7 +1362,27 @@ contains
             ! file is not longer up-to-date.
             call vc_file_set_state(file, VC_STATE_NIL)
         end if
+        ! Resynch *vc-dir* buffers, if any are present.
+        if (vc_dir_buffers_p() .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
     end subroutine vc_after_save
+
+    !> Update VC-Dir contents after reverting a buffer from disk.  Port of
+    !> vc-hooks.el:vc-after-revert.
+    recursive subroutine vc_after_revert(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        if (.not. vc_dir_buffers_p()) return
+        if (cur == 0) return
+        if (.not. allocated(buffers(cur)%filename)) return
+        if (vc_backend(buffers(cur)%filename) == 0) return
+        if (associated(vc_dir_resynch_file)) call vc_dir_resynch_file(buffers(cur)%filename)
+    end subroutine vc_after_revert
+
+    !> Whether `vc_dir_buffers' is not empty.
+    logical function vc_dir_buffers_p()
+        vc_dir_buffers_p = .false.
+        if (allocated(vc_dir_buffers)) vc_dir_buffers_p = size(vc_dir_buffers) > 0
+    end function vc_dir_buffers_p
 
     ! ------------------------------------------------------------------
     ! The mode line
@@ -1574,6 +1689,7 @@ contains
         call kill_buffer_hook%add(vc_kill_buffer_hook)
         vc_before_save_proc => vc_before_save
         vc_after_save_proc => vc_after_save
+        if (.not. after_revert_hook%member(vc_after_revert)) call after_revert_hook%add(vc_after_revert)
         call make_sparse_keymap(vc_prefix_map)
         call keymap_set(vc_prefix_map, "G", "vc_ignore", st)
         call keymap_set(vc_prefix_map, "i", "vc_register", st)
@@ -1582,6 +1698,7 @@ contains
         call keymap_set(vc_prefix_map, "v", "vc_next_action", st)
         call keymap_set(vc_prefix_map, "=", "vc_diff", st)
         call keymap_set(vc_prefix_map, "D", "vc_root_diff", st)
+        call keymap_set(vc_prefix_map, "d", "vc_dir", st)
         call keymap_set(vc_prefix_map, "l", "vc_print_log", st)
         call keymap_set(vc_prefix_map, "L", "vc_print_root_log", st)
         call keymap_set(vc_prefix_map, "~", "vc_revision_other_window", st)

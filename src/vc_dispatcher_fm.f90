@@ -59,7 +59,7 @@ module vc_dispatcher_fm
     use xdisp_fm, only: message, set_mode_line_process, clear_mode_line_process, mode_line_part_type, &
                         add_minor_mode_lighter
     use subr_fm, only: y_or_n_p
-    use vc_hooks_fm, only: vc_string_type, vc_file_clearprops
+    use vc_hooks_fm, only: vc_string_type, vc_file_clearprops, vc_dir_buffers, vc_dir_resynch_file
     use lisp_fm, only: command_proc
     use eval_fm, only: hook_type
     use buffer_fm, only: buffer_serial_live
@@ -71,7 +71,8 @@ module vc_dispatcher_fm
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
               vc_mode_line_hook_run, syms_of_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
-              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index
+              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index, &
+              vc_set_mode_line_busy_indicator
     public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
 
@@ -1162,19 +1163,26 @@ contains
             if (allocated(buffers(cur)%filename)) here = buffers(cur)%filename == resynch_name(file, root)
         end if
         if (here) then
-            if (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified()) return
-            call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+            if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
+                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+            end if
         else if (file_directory_p(file)) then
             call vc_resynch_buffers_in_directory(file, root, status, keep, noquery, reset_vc_info)
         else
             buffer = get_file_buffer(resynch_name(file, root))
-            if (buffer%index == 0) return
-            old = current_buffer()
-            call set_buffer(buffer, st)
-            if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
-                call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+            if (buffer%index /= 0) then
+                old = current_buffer()
+                call set_buffer(buffer, st)
+                if (.not. (nq == VC_NOQUERY_UNLESS_MODIFIED .and. modified())) then
+                    call vc_resynch_window(file, root, status, keep, nq /= VC_NOQUERY_NIL, reset_vc_info)
+                end if
+                if (buffer_live_p(old)) call set_buffer(old, st)
             end if
-            if (buffer_live_p(old)) call set_buffer(old, st)
+        end if
+        ! Try to avoid unnecessary work, a *vc-dir* buffer is only present
+        ! if this is true.
+        if (allocated(vc_dir_buffers)) then
+            if (size(vc_dir_buffers) > 0 .and. associated(vc_dir_resynch_file)) call vc_dir_resynch_file(file)
         end if
     contains
 

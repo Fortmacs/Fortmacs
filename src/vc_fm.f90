@@ -89,7 +89,7 @@ module vc_fm
                            VC_BACKEND_NONE, VC_PROP_BACKEND, VC_PROP_STATE, VC_PROP_CHECKOUT_TIME
     use vc_hooks_fm, only: VC_PROP_WORKING_REVISION, vc_file_set_working_revision, vc_delete_automatic_version_backups
     use vc_hooks_fm, only: vc_log_limit_type, VC_LIMIT_NONE, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
-    use log_edit_fm, only: log_edit_mode
+    use log_edit_fm, only: log_edit_mode, log_edit_vc_backend
     use vc_dispatcher_fm, only: vc_action_type, vc_setup_buffer, vc_exec_after, vc_delistify, vc_resynch_buffer, &
                                 vc_buffer_sync, vc_parent_buffer, set_vc_parent_buffer, vc_mode_line_hook, &
                                 vc_do_command, syms_of_vc_dispatcher, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_T, &
@@ -105,7 +105,8 @@ module vc_fm
               vc_find_revision, vc_revert, vc_revert_file, vc_revert_files, vc_delete_file, vc_rename_file, &
               vc_file_tree_walk, vc_create_repo, vc_fileset_type, vc_buffer_revision, vc_version_backup_file, &
               vc_print_log_internal, vc_print_log, vc_print_root_log, vc_log_view_type, vc_shortlog, &
-              log_buffer_index, vc_shrink_buffer_window, with_backend_in_rootdir
+              log_buffer_index, vc_shrink_buffer_window, with_backend_in_rootdir, set_vc_buffer_overriding_fileset, &
+              vc_only_files_state_and_model, vc_ignore_base_dir
 
     !> What `vc_deduce_fileset' returns: (BACKEND FILESET
     !> FILESET-ONLY-FILES STATE CHECKOUT-MODEL), the last three only with
@@ -298,6 +299,42 @@ module vc_fm
     end type vc_log_buffer_type
 
     type(vc_log_buffer_type), allocatable :: log_buffers(:)
+
+    interface
+        !> The backend of a VC-Dir, Log View or Log Edit buffer (HANDLED
+        !> false in other buffers).  (In vc_deduce_fm.)
+        module subroutine mode_backend(b, handled)
+            implicit none(type, external)
+            integer, intent(out) :: b
+            logical, intent(out) :: handled
+        end subroutine mode_backend
+
+        !> The fileset of a VC-Dir buffer (HANDLED false in other
+        !> buffers).  (In vc_deduce_fm.)
+        recursive module subroutine vc_dir_fileset(fs, status, state_model_only_files, handled)
+            implicit none(type, external)
+            type(vc_fileset_type), intent(out) :: fs
+            type(status_type), intent(out) :: status
+            logical, intent(in) :: state_model_only_files
+            logical, intent(out) :: handled
+        end subroutine vc_dir_fileset
+
+        !> The fileset of a Log View buffer (HANDLED false in other
+        !> buffers).  (In vc_deduce_fm.)
+        module subroutine log_view_fileset(fs, handled)
+            implicit none(type, external)
+            type(vc_fileset_type), intent(out) :: fs
+            logical, intent(out) :: handled
+        end subroutine log_view_fileset
+
+        !> In a VC-Dir buffer, make the buffer visiting the file at point
+        !> current (HANDLED false in other buffers).  (In vc_deduce_fm.)
+        recursive module subroutine vc_dir_ensure_buffer(status, handled)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: handled
+        end subroutine vc_dir_ensure_buffer
+    end interface
 
     interface
         !> For specified BACKEND and FILES, show the VC log.
@@ -499,6 +536,16 @@ contains
         end do
         locals = pack(locals, keep)
     end subroutine kill_vc_locals
+
+    !> Set the current buffer's `vc_buffer_overriding_fileset' to FS, or
+    !> clear it (nil) when FS is absent: as binding it does upstream.
+    subroutine set_vc_buffer_overriding_fileset(fs)
+        type(vc_fileset_type), intent(in), optional :: fs
+        integer :: k
+        k = local_index(.true.)
+        locals(k)%has_override = present(fs)
+        if (present(fs)) locals(k)%override = fs
+    end subroutine set_vc_buffer_overriding_fileset
 
     !> The index of the current buffer's entry in `log_buffers', made if
     !> CREATE (0 if none).  (Public for vc_log_fm.)
@@ -775,6 +822,7 @@ contains
         type(status_type) :: st
         integer :: k
         logical :: nonvc
+        logical :: handled
         b = 0
         k = local_index(.false.)
         if (k > 0) then
@@ -783,6 +831,8 @@ contains
                 return
             end if
         end if
+        call mode_backend(b, handled)
+        if (handled) return
         if (derived_mode_p("diff_mode")) then
             b = vc_backend_named(diff_vc_backend())
             return
@@ -832,7 +882,7 @@ contains
     !> the returned list.
     !>
     !> BEWARE: this function may change the current buffer.  Port of
-    !> vc.el:vc-deduce-fileset (VC-Dir and Log View buffers are deferred).
+    !> vc.el:vc-deduce-fileset.
     recursive subroutine vc_deduce_fileset(fs, status, not_state_changing, allow_unregistered, state_model_only_files)
         type(vc_fileset_type), intent(out) :: fs
         type(status_type), intent(out) :: status
@@ -840,7 +890,7 @@ contains
         type(handle_type) :: parent
         type(status_type) :: st
         character(len=:), allocatable :: file
-        logical :: nsc, au, smo, ok
+        logical :: nsc, au, smo, ok, handled
         integer :: k, b
         status = status_type()
         nsc = .false.
@@ -856,6 +906,8 @@ contains
                 return
             end if
         end if
+        call vc_dir_fileset(fs, status, smo, handled)
+        if (handled) return
         file = buffer_file_name()
         if (derived_mode_p("dired_mode")) then
             call dired_vc_deduce_fileset(fs, status, smo, nsc)
@@ -877,12 +929,14 @@ contains
             end if
             return
         end if
+        call log_view_fileset(fs, handled)
+        if (handled) return
         parent = vc_parent_buffer()
         if (buffer_live_p(parent)) then
             ok = allocated(buffers(parent%index)%filename)
             if (.not. ok) then
                 call set_buffer(parent, st)
-                ok = derived_mode_p("dired_mode") .or. derived_mode_p("diff_mode")
+                ok = derived_mode_p("vc_dir_mode") .or. derived_mode_p("dired_mode") .or. derived_mode_p("diff_mode")
             end if
             if (ok) then
                 call set_buffer(parent, st)
@@ -1002,8 +1056,13 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file
         logical :: found
+        logical :: handled
         status = status_type()
-        if (derived_mode_p("dired_mode")) then
+        call vc_dir_ensure_buffer(status, handled)
+        if (.not. status%ok()) return
+        if (handled) then
+            continue
+        else if (derived_mode_p("dired_mode")) then
             call dired_get_filename(file, found, status)
             if (.not. status%ok()) return
             call find_file_noselect(file, buf, status)

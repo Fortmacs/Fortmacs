@@ -652,6 +652,33 @@ module commands_fm
         type(command_type) :: vc_create_repo
         type(command_type) :: vc_delete_file
         type(command_type) :: vc_diff
+        type(command_type) :: vc_dir
+        type(command_type) :: vc_dir_delete_file
+        type(command_type) :: vc_dir_display_file
+        type(command_type) :: vc_dir_find_file
+        type(command_type) :: vc_dir_find_file_other_window
+        type(command_type) :: vc_dir_hide_up_to_date
+        type(command_type) :: vc_dir_ignore
+        type(command_type) :: vc_dir_kill_dir_status_process
+        type(command_type) :: vc_dir_kill_line
+        type(command_type) :: vc_dir_mark
+        type(command_type) :: vc_dir_mark_all_files
+        type(command_type) :: vc_dir_mark_by_regexp
+        type(command_type) :: vc_dir_mark_registered_files
+        type(command_type) :: vc_dir_mark_unregistered_files
+        type(command_type) :: vc_dir_mode
+        type(command_type) :: vc_dir_next_directory
+        type(command_type) :: vc_dir_next_line
+        type(command_type) :: vc_dir_previous_directory
+        type(command_type) :: vc_dir_previous_line
+        type(command_type) :: vc_dir_refresh
+        type(command_type) :: vc_dir_root
+        type(command_type) :: vc_dir_root_next_action
+        type(command_type) :: vc_dir_show_fileentry
+        type(command_type) :: vc_dir_unmark
+        type(command_type) :: vc_dir_unmark_all_files
+        type(command_type) :: vc_dir_unmark_file_up
+        type(command_type) :: vc_dir_view_file
         type(command_type) :: vc_git_log_edit_mode
         type(command_type) :: vc_git_log_edit_toggle_no_verify
         type(command_type) :: vc_git_log_edit_toggle_signoff
@@ -716,7 +743,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(678) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(705) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1337,6 +1364,33 @@ module commands_fm
                                                                  "vc_create_repo", &
                                                                  "vc_delete_file", &
                                                                  "vc_diff", &
+                                                                 "vc_dir", &
+                                                                 "vc_dir_delete_file", &
+                                                                 "vc_dir_display_file", &
+                                                                 "vc_dir_find_file", &
+                                                                 "vc_dir_find_file_other_window", &
+                                                                 "vc_dir_hide_up_to_date", &
+                                                                 "vc_dir_ignore", &
+                                                                 "vc_dir_kill_dir_status_process", &
+                                                                 "vc_dir_kill_line", &
+                                                                 "vc_dir_mark", &
+                                                                 "vc_dir_mark_all_files", &
+                                                                 "vc_dir_mark_by_regexp", &
+                                                                 "vc_dir_mark_registered_files", &
+                                                                 "vc_dir_mark_unregistered_files", &
+                                                                 "vc_dir_mode", &
+                                                                 "vc_dir_next_directory", &
+                                                                 "vc_dir_next_line", &
+                                                                 "vc_dir_previous_directory", &
+                                                                 "vc_dir_previous_line", &
+                                                                 "vc_dir_refresh", &
+                                                                 "vc_dir_root", &
+                                                                 "vc_dir_root_next_action", &
+                                                                 "vc_dir_show_fileentry", &
+                                                                 "vc_dir_unmark", &
+                                                                 "vc_dir_unmark_all_files", &
+                                                                 "vc_dir_unmark_file_up", &
+                                                                 "vc_dir_view_file", &
                                                                  "vc_git_log_edit_mode", &
                                                                  "vc_git_log_edit_toggle_no_verify", &
                                                                  "vc_git_log_edit_toggle_signoff", &
@@ -2645,6 +2699,60 @@ contains
             p => commands%vc_delete_file
         case ("vc_diff")
             p => commands%vc_diff
+        case ("vc_dir")
+            p => commands%vc_dir
+        case ("vc_dir_delete_file")
+            p => commands%vc_dir_delete_file
+        case ("vc_dir_display_file")
+            p => commands%vc_dir_display_file
+        case ("vc_dir_find_file")
+            p => commands%vc_dir_find_file
+        case ("vc_dir_find_file_other_window")
+            p => commands%vc_dir_find_file_other_window
+        case ("vc_dir_hide_up_to_date")
+            p => commands%vc_dir_hide_up_to_date
+        case ("vc_dir_ignore")
+            p => commands%vc_dir_ignore
+        case ("vc_dir_kill_dir_status_process")
+            p => commands%vc_dir_kill_dir_status_process
+        case ("vc_dir_kill_line")
+            p => commands%vc_dir_kill_line
+        case ("vc_dir_mark")
+            p => commands%vc_dir_mark
+        case ("vc_dir_mark_all_files")
+            p => commands%vc_dir_mark_all_files
+        case ("vc_dir_mark_by_regexp")
+            p => commands%vc_dir_mark_by_regexp
+        case ("vc_dir_mark_registered_files")
+            p => commands%vc_dir_mark_registered_files
+        case ("vc_dir_mark_unregistered_files")
+            p => commands%vc_dir_mark_unregistered_files
+        case ("vc_dir_mode")
+            p => commands%vc_dir_mode
+        case ("vc_dir_next_directory")
+            p => commands%vc_dir_next_directory
+        case ("vc_dir_next_line")
+            p => commands%vc_dir_next_line
+        case ("vc_dir_previous_directory")
+            p => commands%vc_dir_previous_directory
+        case ("vc_dir_previous_line")
+            p => commands%vc_dir_previous_line
+        case ("vc_dir_refresh")
+            p => commands%vc_dir_refresh
+        case ("vc_dir_root")
+            p => commands%vc_dir_root
+        case ("vc_dir_root_next_action")
+            p => commands%vc_dir_root_next_action
+        case ("vc_dir_show_fileentry")
+            p => commands%vc_dir_show_fileentry
+        case ("vc_dir_unmark")
+            p => commands%vc_dir_unmark
+        case ("vc_dir_unmark_all_files")
+            p => commands%vc_dir_unmark_all_files
+        case ("vc_dir_unmark_file_up")
+            p => commands%vc_dir_unmark_file_up
+        case ("vc_dir_view_file")
+            p => commands%vc_dir_view_file
         case ("vc_git_log_edit_mode")
             p => commands%vc_git_log_edit_mode
         case ("vc_git_log_edit_toggle_no_verify")

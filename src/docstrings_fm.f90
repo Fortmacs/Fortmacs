@@ -321,6 +321,9 @@ module docstrings_fm
                             text_mode_syntax_table, text_mode_variant
     use timer_fm, only: timer_max_repeats
     use undo_fm, only: amalgamating_undo_limit, this_command_amalgamating
+    use vc_dir_fm, only: vc_dir_allow_mass_mark_changes, VC_DIR_MASS_MARK_NIL, VC_DIR_MASS_MARK_ASK, &
+                         VC_DIR_MASS_MARK_T, vc_dir_auto_hide_up_to_date, VC_DIR_AUTO_HIDE_NIL, VC_DIR_AUTO_HIDE_T, &
+                         VC_DIR_AUTO_HIDE_REVERT, vc_dir_mode_hook, vc_dir_save_some_buffers_on_revert
     use vc_dispatcher_fm, only: vc_command_messages, VC_COMMAND_MESSAGES_NIL, VC_COMMAND_MESSAGES_T, &
                                 VC_COMMAND_MESSAGES_LOG, vc_delete_logbuf_window, vc_display_failed_async_commands, &
                                 vc_finish_logentry_hook, vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
@@ -336,11 +339,11 @@ module docstrings_fm
                          vc_git_log_switches, vc_git_print_log_follow, vc_git_program, &
                          vc_git_revision_complete_only_branches, vc_git_root_log_format, vc_git_shortlog_switches, &
                          vc_git_use_literal_pathspecs
-    use vc_hooks_fm, only: vc_consult_headers, vc_directory_exclusion_list, vc_display_status, &
-                           VC_DISPLAY_STATUS_NIL, VC_DISPLAY_STATUS_T, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
-                           VC_FOLLOW_SYMLINKS_NIL, VC_FOLLOW_SYMLINKS_T, VC_FOLLOW_SYMLINKS_ASK, vc_handled_backends, &
-                           vc_ignore_dir_regexp, vc_make_backup_files, vc_prefix_map, vc_resolve_conflicts, &
-                           vc_state_base, vc_use_short_revision
+    use vc_hooks_fm, only: vc_consult_headers, vc_dir_buffers, vc_directory_exclusion_list, &
+                           vc_display_status, VC_DISPLAY_STATUS_NIL, VC_DISPLAY_STATUS_T, VC_DISPLAY_STATUS_NO_BACKEND, &
+                           vc_follow_symlinks, VC_FOLLOW_SYMLINKS_NIL, VC_FOLLOW_SYMLINKS_T, VC_FOLLOW_SYMLINKS_ASK, &
+                           vc_handled_backends, vc_ignore_dir_regexp, vc_make_backup_files, vc_prefix_map, &
+                           vc_resolve_conflicts, vc_state_base, vc_use_short_revision
     use view_fm, only: view_exits_all_viewing_windows, view_inhibit_help_message, view_mode_hook, &
                        view_mode_map, view_no_disable_on_exit, view_scroll_auto_exit
     use window_fm, only: display_buffer_mark_dedicated, DEDICATED_NONE, DEDICATED_WEAK, &
@@ -380,7 +383,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(892) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(919) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -616,7 +619,15 @@ module docstrings_fm
                                          "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
                                            "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                                "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", &
+                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
+                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
+                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
+                                                              "vc_dir_kill_dir_status_process", "vc_dir_kill_line", "vc_dir_mark", &
+                                                 "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
+                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
+                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
+                                              "vc_dir_refresh", "vc_dir_root", "vc_dir_root_next_action", "vc_dir_show_fileentry", &
+                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
                                                                    "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
                                           "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
                                          "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
@@ -637,7 +648,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(736) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(741) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -873,9 +884,11 @@ module docstrings_fm
                                              "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", &
                                                      "vc_command_messages", "vc_consult_headers", "vc_deduce_backend_nonvc_modes", &
                                                              "vc_delete_logbuf_window", "vc_diff_added_files", "vc_diff_switches", &
-                                           "vc_directory_exclusion_list", "vc_display_failed_async_commands", "vc_display_status", &
-                                                      "vc_find_revision_no_save", "vc_finish_logentry_hook", "vc_follow_symlinks", &
-                                            "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                                "vc_dir_allow_mass_mark_changes", "vc_dir_auto_hide_up_to_date", "vc_dir_buffers", &
+                                          "vc_dir_mode_hook", "vc_dir_save_some_buffers_on_revert", "vc_directory_exclusion_list", &
+                                              "vc_display_failed_async_commands", "vc_display_status", "vc_find_revision_no_save", &
+                                                          "vc_finish_logentry_hook", "vc_follow_symlinks", "vc_git_diff_switches", &
+                                                                   "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
                                                       "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_log_switches", &
                                             "vc_git_print_log_follow", "vc_git_program", "vc_git_revision_complete_only_branches", &
@@ -8722,6 +8735,189 @@ contains
                         "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
                         "saving the buffer."//LF// &
                         "Optional argument FILESET, if present, overrides the fileset."
+        case ("vc_dir")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show the VC status for ""interesting"" files in and below DIR."//LF// &
+                        "This allows you to mark files and perform VC operations on them."//LF// &
+                        "The list omits files which are up to date, with no changes in your copy"//LF// &
+                        "or the repository, if there is nothing in particular to say about them."//LF// &
+                        ""//LF// &
+                        "Preparing the list of file status takes time; when the buffer"//LF// &
+                        "first appears, it has only the first few lines of summary information."//LF// &
+                        "The file lines appear later."//LF// &
+                        ""//LF// &
+                        "Optional second argument BACKEND specifies the VC backend to use."//LF// &
+                        "Interactively, a prefix argument means to ask for the backend."//LF// &
+                        ""//LF// &
+                        "These are the commands available for use in the file status buffer:"//LF// &
+                        ""//LF// &
+                        "\{vc_dir_mode_map}"
+        case ("vc_dir_delete_file")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete the marked files, or the current file if no marks."//LF// &
+                        "The files will also be marked as deleted in the version control"//LF// &
+                        "system."
+        case ("vc_dir_display_file")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the file on the current line, in another window."
+        case ("vc_dir_find_file")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Find the file on the current line."
+        case ("vc_dir_find_file_other_window")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Find the file on the current line, in another window."//LF// &
+                        "If this command needs to split the current window, it by default obeys"//LF// &
+                        "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
+                        "when it decides whether to split the window horizontally or vertically."
+        case ("vc_dir_hide_up_to_date")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = ""
+        case ("vc_dir_ignore")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Ignore the current file."//LF// &
+                        "If a prefix argument is given, ignore all marked files."
+        case ("vc_dir_kill_dir_status_process")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the temporary buffer and associated process."
+        case ("vc_dir_kill_line")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove the current line from display."
+        case ("vc_dir_mark")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark the current file or all files in the region."//LF// &
+                        "If the region is active, mark all the files in the region."//LF// &
+                        "Otherwise mark the file on the current line and move to the next"//LF// &
+                        "line."
+        case ("vc_dir_mark_all_files")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all files with the same state as the current one."//LF// &
+                        "With prefix argument ARG, mark all files (not directories)."//LF// &
+                        "If the current entry is a directory, mark all child files."//LF// &
+                        ""//LF// &
+                        "The commands operate on files that are on the same state."//LF// &
+                        "This command is intended to make it easy to select all files that"//LF// &
+                        "share the same state."
+        case ("vc_dir_mark_by_regexp")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all files that match REGEXP."//LF// &
+                        "If UNMARK (interactively, the prefix), unmark instead."
+        case ("vc_dir_mark_registered_files")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark files that are in one of registered states: edited, added or"//LF// &
+                        "removed."
+        case ("vc_dir_mark_unregistered_files")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark files that are in unregistered state."
+        case ("vc_dir_mode")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for VC directory buffers."//LF// &
+                        "Marking/Unmarking key bindings and actions: \<vc_dir_mode_map>"//LF// &
+                        "\[vc_dir_mark] - mark a file/directory"//LF// &
+                        "  - if the region is active, mark all the files in region."//LF// &
+                        "    Restrictions: - a file cannot be marked if any parent directory is marked"//LF// &
+                        "                  - a directory cannot be marked if any child file or"//LF// &
+                        "                    directory is marked"//LF// &
+                        "\[vc_dir_unmark] - unmark a file/directory"//LF// &
+                        "  - if the region is active, unmark all the files in region."//LF// &
+                        "\[vc_dir_mark_all_files] - if the cursor is on a file: mark all the files with the same st"// &
+                        "ate as"//LF// &
+                        "      the current file"//LF// &
+                        "  - if the cursor is on a directory: mark all child files"//LF// &
+                        "  - with a prefix argument: mark all files"//LF// &
+                        "\[vc_dir_unmark_all_files] - if the cursor is on a file: unmark all the files with the sam"// &
+                        "e state"//LF// &
+                        "      as the current file"//LF// &
+                        "  - if the cursor is on a directory: unmark all child files"//LF// &
+                        "  - with a prefix argument: unmark all files"//LF// &
+                        ""//LF// &
+                        "VC commands"//LF// &
+                        "VC commands in the \[vc_prefix_map] prefix can be used."//LF// &
+                        "VC commands act on the marked entries.  If nothing is marked, VC"//LF// &
+                        "commands act on the current entry."//LF// &
+                        ""//LF// &
+                        "\{vc_dir_mode_map}"
+        case ("vc_dir_next_directory")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next directory."
+        case ("vc_dir_next_line")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the next line."//LF// &
+                        "With prefix argument ARG, move that many lines."
+        case ("vc_dir_previous_directory")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous directory."
+        case ("vc_dir_previous_line")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the previous line."//LF// &
+                        "With prefix argument ARG, move that many lines."
+        case ("vc_dir_refresh")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Refresh the contents of the *VC-Dir* buffer."//LF// &
+                        "Throw an error if another update process is in progress."
+        case ("vc_dir_root")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Run `vc_dir' in the repository root directory without prompt."//LF// &
+                        "If the default directory of the current buffer is"//LF// &
+                        "not under version control, prompt for a directory."
+        case ("vc_dir_root_next_action")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `vc_next_action' but for all files shown in the VC-Dir buffer."//LF// &
+                        "This command ignores VC-Dir marks and the position of point."//LF// &
+                        "When the VC-Dir's root directory is the repository root (as it usually"//LF// &
+                        "is), this command is useful to check in all local changes at once."
+        case ("vc_dir_show_fileentry")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert an entry for a specific file into the current *VC-Dir* listing."//LF// &
+                        "This is typically used if the file is up-to-date (or has been added"//LF// &
+                        "outside of VC) and one wants to do some operation on it."
+        case ("vc_dir_unmark")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark the current file or all files in the region."//LF// &
+                        "If the region is active, unmark all the files in the region."//LF// &
+                        "Otherwise unmark the file on the current line and move to the next"//LF// &
+                        "line."
+        case ("vc_dir_unmark_all_files")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Unmark all files with the same state as the current one."//LF// &
+                        "With prefix argument ARG, unmark all files."//LF// &
+                        "If the current entry is a directory, unmark all the child files."//LF// &
+                        ""//LF// &
+                        "The commands operate on files that are on the same state."//LF// &
+                        "This command is intended to make it easy to deselect all files"//LF// &
+                        "that share the same state."
+        case ("vc_dir_unmark_file_up")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move to the previous line and unmark the file."
+        case ("vc_dir_view_file")
+            entry%file = "vc_dir_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Examine a file on the current line in view mode."
         case ("vc_git_log_edit_mode")
             entry%file = "vc_git_fm.f90"
             entry%interactive = .true.
@@ -16408,6 +16604,87 @@ contains
                         "the value t to mean no switches at all.  `vc_diff_switches'"//LF// &
                         "should contain switches that are specific to version control, but"//LF// &
                         "not specific to any particular backend."
+        case ("vc_dir_allow_mass_mark_changes")
+            entry%file = "vc_dir_fm.f90"
+            entry%fortran = "vc_dir_allow_mass_mark_changes"
+            entry%original = "VC_DIR_MASS_MARK_ASK"
+            select case (vc_dir_allow_mass_mark_changes)
+            case (VC_DIR_MASS_MARK_NIL)
+                entry%value = "VC_DIR_MASS_MARK_NIL"
+            case (VC_DIR_MASS_MARK_ASK)
+                entry%value = "VC_DIR_MASS_MARK_ASK"
+            case (VC_DIR_MASS_MARK_T)
+                entry%value = "VC_DIR_MASS_MARK_T"
+            case default
+                entry%value = repr(vc_dir_allow_mass_mark_changes)
+            end select
+            entry%doc = "If true, VC-Dir commands may mark or unmark many items at once."//LF// &
+                        ""//LF// &
+                        "When a directory in VC-Dir is marked, then for most VCS, this means that"//LF// &
+                        "all files within it are implicitly marked as well."//LF// &
+                        "For consistency, the mark and unmark commands"//LF// &
+                        "(principally \<vc_dir_mode_map>\[vc_dir_mark] and \[vc_dir_unmark]) will"//LF// &
+                        "not explicitly mark or unmark entries if doing so would result in a"//LF// &
+                        "situation where both a directory and a file or directory within it are"//LF// &
+                        "both marked."//LF// &
+                        ""//LF// &
+                        "With the default value of this variable, VC_DIR_MASS_MARK_ASK, if you"//LF// &
+                        "attempt to mark or unmark a particular item and doing so consistent"//LF// &
+                        "with these restrictions would require other items to be marked or"//LF// &
+                        "unmarked too, Fortmacs will prompt you to confirm that you do mean"//LF// &
+                        "for the other items to be marked or unmarked."//LF// &
+                        ""//LF// &
+                        "If this variable is VC_DIR_MASS_MARK_NIL, the commands will refuse to"//LF// &
+                        "do anything if they would need to mark or unmark other entries too."//LF// &
+                        "If this variable is VC_DIR_MASS_MARK_T, the commands will always"//LF// &
+                        "proceed to mark and unmark other entries, without asking."
+        case ("vc_dir_auto_hide_up_to_date")
+            entry%file = "vc_dir_fm.f90"
+            entry%fortran = "vc_dir_auto_hide_up_to_date"
+            entry%original = "VC_DIR_AUTO_HIDE_NIL"
+            select case (vc_dir_auto_hide_up_to_date)
+            case (VC_DIR_AUTO_HIDE_NIL)
+                entry%value = "VC_DIR_AUTO_HIDE_NIL"
+            case (VC_DIR_AUTO_HIDE_T)
+                entry%value = "VC_DIR_AUTO_HIDE_T"
+            case (VC_DIR_AUTO_HIDE_REVERT)
+                entry%value = "VC_DIR_AUTO_HIDE_REVERT"
+            case default
+                entry%value = repr(vc_dir_auto_hide_up_to_date)
+            end select
+            entry%doc = "Whether VC-Dir auto-removes `up-to-date'/`ignored' files from display."//LF// &
+                        ""//LF// &
+                        "If the value is VC_DIR_AUTO_HIDE_NIL, files shown in the VC-Dir buffer"//LF// &
+                        "will remain on display if they become `up-to-date' or `ignored'."//LF// &
+                        "If the value is VC_DIR_AUTO_HIDE_T, files are automatically removed"//LF// &
+                        "from display when they become `up-to-date' or `ignored'."//LF// &
+                        "If the value is VC_DIR_AUTO_HIDE_REVERT, any displayed files that"//LF// &
+                        "are `up-to-date' or `ignored' are removed from display"//LF// &
+                        "by \<vc_dir_mode_map>\[revert_buffer], but they are not automatically removed"//LF// &
+                        "when they become `up-to-date' or `ignored'.  That is,"//LF// &
+                        "refreshing the VC-Dir buffer hides `up-to-date' and `ignored'"//LF// &
+                        "files when the value is VC_DIR_AUTO_HIDE_REVERT."//LF// &
+                        ""//LF// &
+                        "VC-Dir never shows `up-to-date' and `ignored' files when the"//LF// &
+                        "directory is first displayed."//LF// &
+                        ""//LF// &
+                        "You can still use `vc_dir_show_fileentry' to manually add an entry for"//LF// &
+                        "an `up-to-date' or `ignored' file."
+        case ("vc_dir_buffers")
+            entry%file = "vc_hooks_fm.f90"
+            entry%fortran = "vc_dir_buffers"
+            entry%doc = "List of `vc_dir' buffers."
+        case ("vc_dir_mode_hook")
+            entry%file = "vc_dir_fm.f90"
+            entry%fortran = "vc_dir_mode_hook"
+            entry%doc = "Normal hook run by `vc_dir_mode'."//LF// &
+                        "See `run_mode_hooks'."
+        case ("vc_dir_save_some_buffers_on_revert")
+            entry%file = "vc_dir_fm.f90"
+            entry%fortran = "vc_dir_save_some_buffers_on_revert"
+            entry%original = ".false."
+            entry%value = repr(vc_dir_save_some_buffers_on_revert)
+            entry%doc = "If true, first offer to save relevant buffers when refreshing VC-Dir."
         case ("vc_directory_exclusion_list")
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_directory_exclusion_list"
