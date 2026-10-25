@@ -1929,6 +1929,15 @@ contains
         s = s//coding_system_eol_type_mnemonic(cs)
     end function mode_line_mule_info
 
+    !> The `vc_mode' of buffer BI, "" when its file is not under version
+    !> control (nil).
+    function buffer_vc_mode(bi) result(vc)
+        integer(int64), intent(in) :: bi
+        character(len=:), allocatable :: vc
+        vc = ""
+        if (allocated(buffers(bi)%vc_mode)) vc = buffers(bi)%vc_mode
+    end function buffer_vc_mode
+
     !> The default mode line of a buffer named NAME on a text terminal,
     !> before it is cut to the window: bindings.el's
     !> standard-mode-line-format as xdisp.c:display_mode_element and
@@ -1937,7 +1946,8 @@ contains
     !> mode-line-modified "%1*%1+", mode-line-remote "%1@",
     !> mode-line-frame-identification " %F  ", "%12b", "   ",
     !> mode-line-position: (-3 "%p") and (6 " L%l"), "  ",
-    !> mode-line-modes "%[(" MODES ")%] ", mode-line-end-spaces "-%-").
+    !> (vc-mode vc-mode) VC, "  ", mode-line-modes "%[(" MODES ")%] ",
+    !> mode-line-end-spaces "-%-").
     !> POSITION is what %p gives (`All', `Top', `Bottom' or ` 5%'), LINE
     !> what %l gives, MODES the text in parentheses (mode_line_modes,
     !> default "Fundamental").  The dashes of %- are WIDTH long.
@@ -1948,7 +1958,7 @@ contains
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
     !> before its "(".
-    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule) result(s)
+    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule, vc) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -1957,6 +1967,8 @@ contains
         !> The elements of `mode_line_modes' before its "(" (mode_line_modes_prefix).
         character(len=*), intent(in), optional :: prefix
         character(len=*), intent(in), optional :: mule
+        !> The buffer's `vc_mode' ((vc-mode vc-mode), after the position).
+        character(len=*), intent(in), optional :: vc
         character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
@@ -1986,7 +1998,9 @@ contains
         else
             s = "-"//coding//star//plus//"-"//" F1  "
         end if
-        s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)//"  "
+        s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)
+        if (present(vc)) s = s//vc
+        s = s//"  "
         if (present(prefix)) s = s//prefix
         s = s//"("
         if (present(modes)) then
@@ -2451,7 +2465,7 @@ contains
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix(), mule)
+                              mode_line_modes_prefix(), mule, buffer_vc_mode(bi))
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
         id_face = merge_faces(f, "mode_line_buffer_id", 0_int32, face_id)

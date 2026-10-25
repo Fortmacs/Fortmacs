@@ -80,7 +80,7 @@ module sysdep_fm
               sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
               sys_unsetenv, emacs_get_current_dir_name, &
               passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
-              emacs_geteuid, emacs_getegid, emacs_strerror
+              emacs_geteuid, emacs_getuid, emacs_getegid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
@@ -694,6 +694,11 @@ contains
         emacs_geteuid = c_geteuid()
     end function emacs_geteuid
 
+    !> The real user id (editfns.c:Fuser_real_uid).
+    integer(int32) function emacs_getuid()
+        emacs_getuid = c_getuid()
+    end function emacs_getuid
+
     !> The effective group id (editfns.c:Fgroup_gid).
     integer(int32) function emacs_getegid()
         emacs_getegid = c_getegid()
@@ -740,19 +745,23 @@ contains
     !> The caller checks that `path', `infile' and `dir' can be used first;
     !> if the child still fails to start, it exits with status 127.  Port
     !> of callproc.c:emacs_spawn (the fork path, without a pty).
-    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file) result(err)
+    integer(int32) function emacs_spawn(path, args, infile, out_fd, dir, pid, err_file, env) result(err)
         character(len=*), intent(in) :: path, infile, dir
         type(sys_string_type), intent(in) :: args(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
         character(len=*), intent(in), optional :: err_file
-        type(c_argv_type), target :: argv
+        !> "NAME=VALUE" entries put first in the child's environment (as
+        !> `environment_with' combines them).
+        type(sys_string_type), intent(in), optional :: env(:)
+        type(c_argv_type), target :: argv, envv
         character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
         integer(c_int) :: fd, r
         logical :: separate_err
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
         call make_argv(args, argv)
+        if (present(env)) call make_argv(environment_with(env), envv)
         c_file = c_path(path)
         c_infile = c_path(infile)
         c_null = c_path("/dev/null")
@@ -789,7 +798,11 @@ contains
         if (len(dir) > 0) then
             if (c_chdir(c_dir) /= 0) call c_exit(127)
         end if
-        r = c_execv(c_file, argv%ptrs)
+        if (present(env)) then
+            r = c_execve(c_file, argv%ptrs, envv%ptrs)
+        else
+            r = c_execv(c_file, argv%ptrs)
+        end if
         call c_exit(127)
     end function emacs_spawn
 
@@ -1004,7 +1017,8 @@ contains
     end function emacs_pipe
 
     !> The editor's environment with the "NAME=VALUE" entries `env' first,
-    !> replacing the variables they name (earlier entries win).  Cf.
+    !> replacing the variables they name (earlier entries win); an entry
+    !> "NAME" without "=" removes the variable.  Cf.
     !> callproc.c:make_environment_block.
     function environment_with(env) result(all)
         type(sys_string_type), intent(in) :: env(:)
@@ -1042,19 +1056,29 @@ contains
                 all(n)%s = entry
             end do
         end if
-        all = all(1:n)
+        ! Drop the entries that only name a variable to remove.
+        j = 0
+        do k = 1, n
+            if (index(all(k)%s, "=") == 0) cycle
+            j = j + 1
+            if (j /= k) call move_alloc(all(k)%s, all(j)%s)
+        end do
+        all = all(1:j)
     contains
 
         !> Whether a variable of `list' has the name of `entry'.
         logical function already(list, entry)
             type(sys_string_type), intent(in) :: list(:)
             character(len=*), intent(in) :: entry
-            integer :: i, e
+            integer :: i, e, f
             e = index(entry, "=")
             if (e == 0) e = len(entry) + 1
             already = .false.
             do i = 1, size(list)
-                if (index(list(i)%s, entry(1:e - 1)//"=") == 1) then
+                f = index(list(i)%s, "=")
+                if (f == 0) f = len(list(i)%s) + 1
+                if (f /= e) cycle
+                if (list(i)%s(1:f - 1) == entry(1:e - 1)) then
                     already = .true.
                     return
                 end if

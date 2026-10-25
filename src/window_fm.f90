@@ -37,6 +37,7 @@ module window_fm
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
               switch_to_prev_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
+              shrink_window_if_larger_than_buffer, &
               switch_to_buffer_other_window, window_in_direction_below, &
               temp_buffer_window_show, scroll_window, get_buffer_window, get_lru_window, get_mru_window, get_largest_window, &
               split_window_and_copy, copy_quit_restore, window_resize, syms_of_window_display, &
@@ -49,7 +50,7 @@ module window_fm
     public :: scroll_up, scroll_down, recenter, move_to_window_line, &
               scroll_up_command, scroll_down_command, recenter_top_bottom, &
               pos_visible_in_window_p, other_window_for_scrolling, scroll_other_window, scroll_other_window_down, &
-              move_to_window_line_top_bottom, quit_window, syms_of_window
+              move_to_window_line_top_bottom, quit_window, quit_windows_on, syms_of_window
     public :: window_min_size
     public :: select_window, split_window, delete_window, delete_other_windows, other_window, other_buffer, &
               replace_buffer_in_windows, switch_to_buffer, syms_of_window_cmds
@@ -656,6 +657,22 @@ module window_fm
             type(status_type), intent(out) :: status
         end subroutine quit_restore_window
 
+        !> Quit all windows showing BUFFER.
+        !> KILL true means to kill BUFFER.  KILL false means to bury
+        !> BUFFER.
+        !>
+        !> This function calls `quit_restore_window' on all candidate windows
+        !> showing BUFFER.  In addition, it removes the buffer
+        !> from all window-local buffer lists.  Port of
+        !> window.el:quit-windows-on (the selected frame; no
+        !> `quit_window_hook').  (In window_display_fm.)
+        module subroutine quit_windows_on(buffer, kill, status)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+            logical, intent(in) :: kill
+            type(status_type), intent(out) :: status
+        end subroutine quit_windows_on
+
         !> Quit WINDOW (the selected one by default) and bury its buffer, or
         !> with KILL kill it.  Port of window.el:quit-window.
         module subroutine quit_window(kill, status, window)
@@ -760,6 +777,23 @@ module window_fm
             type(handle_type), intent(in) :: window
             integer, intent(in), optional :: max_height
         end subroutine fit_window_to_buffer
+
+        !> Shrink height of WINDOW if its buffer doesn't need so many lines.
+        !> More precisely, shrink WINDOW vertically to be as small as
+        !> possible, while still showing the full contents of its buffer.
+        !> WINDOW must be a live window and defaults to the selected one.
+        !>
+        !> Do not shrink WINDOW to less than `window_min_height' lines.  Do
+        !> nothing if the buffer contains more lines than the present window
+        !> height, or if some of the window's contents are scrolled out of
+        !> view, or if shrinking this window would also shrink another
+        !> window, or if the window is the only window of its frame.  Port
+        !> of window.el:shrink-window-if-larger-than-buffer.
+        !> (In window_display_fm.)
+        module subroutine shrink_window_if_larger_than_buffer(window)
+            implicit none(type, external)
+            type(handle_type), intent(in), optional :: window
+        end subroutine shrink_window_if_larger_than_buffer
 
         !> Show temporary buffer BUFFER in a window: unmodified, read-only
         !> and at its beginning, displayed with ACTIONS and ALIST.  WINDOW

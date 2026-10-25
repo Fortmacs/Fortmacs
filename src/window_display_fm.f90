@@ -1015,6 +1015,37 @@ contains
         end if
     end subroutine replace_buffer_in_windows
 
+    module subroutine quit_windows_on(buffer, kill, status)
+        type(handle_type), intent(in) :: buffer
+        logical, intent(in) :: kill
+        type(status_type), intent(out) :: status
+        type(handle_type), allocatable :: list(:)
+        type(status_type) :: st
+        integer :: k
+        status = status_type()
+        if (.not. window_valid_p(selected_frame%root_window)) return
+        list = window_list_from()
+        do k = 1, size(list)
+            if (.not. window_live_p(list(k))) cycle
+            if (same_handle(windows(list(k)%index)%buffer, buffer)) then
+                if (kill) then
+                    call quit_restore_window(list(k), BK_KILLING, st)
+                else
+                    call quit_restore_window(list(k), BK_BURYING, st)
+                end if
+            end if
+            ! Unrecord BUFFER in this window.
+            if (window_live_p(list(k))) call unrecord_window_buffer(list(k), buffer, .true.)
+        end do
+        ! Deal with BUFFER-OR-NAME.
+        if (.not. buffer_live_p(buffer)) return
+        if (kill) then
+            call kill_buffer(buffer, status)
+        else
+            call bury_buffer_internal(buffer)
+        end if
+    end subroutine quit_windows_on
+
     !> Put BUFFER_OR_NAME at the end of the list of all buffers.
     !> There it is the least likely candidate for `other_buffer' to
     !> return; thus, the least likely buffer for \[switch_to_buffer] to
@@ -1768,6 +1799,27 @@ contains
         height = max(min_height, min(max_h, height))
         if (height /= total_height) call window_resize(window, height - total_height, .false., status)
     end subroutine fit_window_to_buffer
+
+    module subroutine shrink_window_if_larger_than_buffer(window)
+        type(handle_type), intent(in), optional :: window
+        type(handle_type) :: w
+        type(status_type) :: status
+        integer(int64) :: b
+        if (present(window)) then
+            w = window
+        else
+            w = selected_window()
+        end if
+        if (.not. window_live_p(w)) return
+        ! Make sure that WINDOW is vertically combined and `point-min' is
+        ! visible (for whatever reason that's needed).  The remaining issues
+        ! should be taken care of by `fit-window-to-buffer'.
+        if (.not. window_combined_p(w, .false.)) return
+        call resolve_buffer(windows(w%index)%buffer, b, status)
+        if (.not. status%ok()) return
+        if (window_start(windows(w%index)) > buffers(b)%begv) return
+        call fit_window_to_buffer(w, windows(w%index)%total_lines)
+    end subroutine shrink_window_if_larger_than_buffer
 
     !> Show temporary buffer BUFFER in a window: unmodified, read-only and
     !> at its beginning.  Return the window showing BUFFER.  Port of

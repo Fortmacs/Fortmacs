@@ -43,6 +43,24 @@ contains
         logical :: was_current
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
+        ! Run hooks with the buffer to be killed as the current buffer.
+        if (associated(run_kill_buffer_hook)) then
+            other = current_buffer()
+            call set_buffer_internal(i)
+            call run_kill_buffer_hook(h)
+            call resolve_buffer(other, k, ignore)
+            if (ignore%ok()) then
+                call set_buffer_internal(k)
+            else
+                call set_buffer_internal(i)
+            end if
+            ! The hook may have killed the buffer.
+            call resolve_buffer(h, i, status)
+            if (.not. status%ok()) then
+                status = status_type()
+                return
+            end if
+        end if
         ! Make this buffer not be displayed.
         if (associated(replace_buffer_in_windows_hook)) call replace_buffer_in_windows_hook(h)
         ! Kill the processes of this buffer.

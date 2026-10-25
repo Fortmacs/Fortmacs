@@ -54,7 +54,7 @@ module fileio_fm
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
                          passwd_home_of_user, emacs_strerror, emacs_read, emacs_full_write, &
-                         close_fd, emacs_geteuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
+                         close_fd, emacs_geteuid, emacs_getuid, emacs_getegid, ENOENT, EISDIR, EEXIST, EACCES, F_OK, R_OK, &
                          W_OK, X_OK, S_IFMT, S_IFDIR, S_IFREG, S_IFLNK, sys_symlink, EEXIST, emacs_statvfs, &
                          ENOTDIR, emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, &
                          emacs_umask, sys_fchmod, sys_chmod_at, sys_fchown, emacs_readlink, O_WRONLY, O_CREAT, O_EXCL, &
@@ -170,7 +170,7 @@ module fileio_fm
               file_executable_p, file_newer_than_file_p, &
               make_symbolic_link, &
               rename_file, copy_file, report_file_errno, file_regular_p, file_symlink_p, &
-              user_uid, group_gid, make_directory_internal, delete_directory_internal, &
+              user_uid, user_real_uid, group_gid, make_directory_internal, delete_directory_internal, &
               delete_file_internal, file_system_info
     public :: insert_file_contents, write_region, verify_visited_file_modtime, &
               set_visited_file_modtime
@@ -691,6 +691,11 @@ contains
     integer(int32) function user_uid()
         user_uid = emacs_geteuid()
     end function user_uid
+
+    !> The real user id.  Port of editfns.c:Fuser_real_uid.
+    integer(int32) function user_real_uid()
+        user_real_uid = emacs_getuid()
+    end function user_real_uid
 
     !> The effective group id.  Port of editfns.c:Fgroup_gid.
     integer(int32) function group_gid()

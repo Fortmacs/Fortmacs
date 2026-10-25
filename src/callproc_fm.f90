@@ -34,7 +34,8 @@
 !> (discarding standard error), DISPLAY,
 !> quitting (killing the process on C-g), coding systems (output is
 !> decoded as UTF-8), `exec_path' (PATH is searched), `process_environment'
-!> (the editor's environment is passed), remote directories, executable
+!> as a variable (the editor's environment is passed, with the entries
+!> given as `environment' first), remote directories, executable
 !> suffixes.
 module callproc_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -116,13 +117,17 @@ contains
     !>
     !> The process runs in `default_directory'.  Port of
     !> callproc.c:Fcall_process and call_process.
-    subroutine call_process(program, result, status, infile, destination, args, error_file)
+    subroutine call_process(program, result, status, infile, destination, args, error_file, environment)
         character(len=*), intent(in) :: program
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: infile, error_file
         type(value_type), intent(in), optional :: destination, args
-        type(sys_string_type), allocatable :: argv(:)
+        !> "NAME=VALUE" strings put first in the program's environment, as
+        !> binding `process_environment' to a list starting with them does
+        !> (a "NAME" without "=" removes the variable).
+        type(value_type), intent(in), optional :: environment
+        type(sys_string_type), allocatable :: argv(:), env(:)
         type(value_type), allocatable :: elems(:)
         type(handle_type) :: buffer, old
         character(len=:), allocatable :: dir, input, output, path, errpath
@@ -194,6 +199,15 @@ contains
             if (.not. status%ok()) return
             argv(k + 1)%s = xstring(elems(k))
         end do
+        if (present(environment)) then
+            call list_elements(environment, elems)
+            allocate (env(size(elems)))
+            do k = 1, size(elems, kind=int64)
+                call check_string(elems(k), status)
+                if (.not. status%ok()) return
+                env(k)%s = xstring(elems(k))
+            end do
+        end if
         fds = -1
         if (.not. discard) then
             err = emacs_pipe(fds)
@@ -209,7 +223,13 @@ contains
                 if (.not. discard) call close_fd(fds(2))
                 return
             end if
-            err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath)
+            if (present(environment)) then
+                err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath, env)
+            else
+                err = emacs_spawn(path, argv, input, fds(2), dir, pid, errpath)
+            end if
+        else if (present(environment)) then
+            err = emacs_spawn(path, argv, input, fds(2), dir, pid, env=env)
         else
             err = emacs_spawn(path, argv, input, fds(2), dir, pid)
         end if
