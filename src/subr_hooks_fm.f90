@@ -146,8 +146,9 @@ contains
     ! in order for the sexp primitives to automatically call
     ! `syntax_propertize' we need `parse_sexp_lookup_properties' to be
     ! set first.
-    if (associated(syntax_propertize_function%get()) .and. .not. parse_sexp_lookup_properties%local_p()) &
+    if (associated(syntax_propertize_function%get()) .and. .not. parse_sexp_lookup_properties%local_p()) then
         call parse_sexp_lookup_properties%set_local(.true.)
+    end if
     call change_major_mode_after_body_hook%run(status)
     if (.not. status%ok()) return
     do i = 1, size(delayed)
