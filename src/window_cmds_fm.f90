@@ -407,19 +407,23 @@ contains
         end do
     end function buffer_visible_p
 
-    module function other_buffer(buffer) result(h)
+    module function other_buffer(buffer, visible_ok) result(h)
         type(handle_type), intent(in) :: buffer
+        logical, intent(in), optional :: visible_ok
         type(handle_type) :: h
         type(handle_type), allocatable :: seen(:), all(:)
         type(handle_type) :: notsogood
         type(status_type) :: status
         integer :: k
+        logical :: vok
+        vok = .false.
+        if (present(visible_ok)) vok = visible_ok
         notsogood = null_handle()
         ! Consider buffers that have been seen in the frame first.
         seen = frame_seen_buffers()
         do k = 1, size(seen)
             if (.not. candidate_buffer(seen(k), buffer)) cycle
-            if (.not. buffer_visible_p(seen(k))) then
+            if (vok .or. .not. buffer_visible_p(seen(k))) then
                 h = seen(k)
                 return
             else if (notsogood%index == 0) then
@@ -430,7 +434,7 @@ contains
         all = buffer_list()
         do k = 1, size(all)
             if (.not. candidate_buffer(all(k), buffer)) cycle
-            if (.not. buffer_visible_p(all(k))) then
+            if (vok .or. .not. buffer_visible_p(all(k))) then
                 h = all(k)
                 return
             else if (notsogood%index == 0) then

@@ -43,13 +43,35 @@ module easy_mmode_fm
     use keyboard_fm, only: last_message
     use xdisp_fm, only: message, add_minor_mode_lighter
     use subr_fm, only: after_hook_proc, add_delayed_after_hook, delaying_mode_hooks
+    use error_fm, only: set_error, FM_USER_ERROR
+    use lisp_fm, only: make_list, make_fixnum
+    use buffer_fm, only: current_buffer
+    use editfns_fm, only: point, goto_char, widen, buffer_narrowed_p
+    use search_fm, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
+    use frame_fm, only: frame_selected_window_ref, selected_window
+    use window_fm, only: window_type, window_start, set_window_start, pos_visible_in_window_p, recenter
     implicit none(type, external)
     private
 
+    public :: easy_mmode_next, easy_mmode_prev, navigation_end_proc, navigation_narrow_proc
     public :: minor_mode_body_proc, minor_mode_getter_proc, easy_mmode_pretty_mode_name, minor_mode_named, minor_mode_index, &
               minor_mode_at, minor_mode_count
 
     abstract interface
+        !> ENDFUN of `easy_mmode_next': the end position of the entry at
+        !> point (with or without moving point).
+        recursive integer(int64) function navigation_end_proc()
+            import :: int64
+            implicit none(type, external)
+        end function navigation_end_proc
+
+        !> NARROWFUN of `easy_mmode_next': narrow again after moving.
+        recursive subroutine navigation_narrow_proc(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine navigation_narrow_proc
+
         !> The body of a minor mode, run after its state is set: `enable'
         !> is the new state.  A mode whose state is another variable
         !> (upstream's :variable with a setter) sets that variable here.
@@ -130,6 +152,139 @@ module easy_mmode_fm
     ! Characters of whitespace syntax in the standard syntax table.
     character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)//achar(12)//achar(13)
 contains
+
+    !> Go to the next COUNT'th occurrence of RE.
+    !>
+    !> If none, error with NAME.
+    !>
+    !> ENDFUN and NARROWFUN are treated like in
+    !> `easy-mmode-define-navigation': ENDFUN gives the end of the entry
+    !> (to make sure all of it is visible, when INTERACTIVE), NARROWFUN,
+    !> if present, means to widen before moving and call it after.  Port
+    !> of easy-mmode.el:easy-mmode--next.
+    recursive subroutine easy_mmode_next(re, name, count, status, endfun, narrowfun, interactive)
+        character(len=*), intent(in) :: re, name
+        integer(int64), intent(in) :: count
+        type(status_type), intent(out) :: status
+        procedure(navigation_end_proc), optional :: endfun
+        procedure(navigation_narrow_proc), optional :: narrowfun
+        logical, intent(in), optional :: interactive
+        integer(int64) :: n, found, endpt, ws, saved
+        logical :: re_narrow, inter
+        type(status_type) :: st
+        type(window_type), pointer :: w
+        status = status_type()
+        if (count < 0) then
+            call easy_mmode_prev(re, name, -count, status, endfun, narrowfun)
+            return
+        end if
+        inter = .false.
+        if (present(interactive)) inter = interactive
+        n = count
+        if (looking_at(re, st)) n = n + 1
+        re_narrow = .false.
+        if (present(narrowfun)) then
+            re_narrow = buffer_narrowed_p()
+            call widen()
+        end if
+        call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+        if (found == 0) then
+            if (looking_at(re, st)) then
+                endpt = buffers(cur)%zv
+                if (present(endfun)) endpt = endfun()
+                call goto_char(endpt)
+            else
+                call set_error(status, FM_USER_ERROR, "No next "//name)
+                return
+            end if
+        else
+            call goto_char(match_beginning(0, st))
+            w => frame_selected_window_ref()
+            if (inter .and. w%buffer%index == current_buffer_index()) then
+                saved = point()
+                if (present(endfun)) then
+                    endpt = endfun()
+                else
+                    call re_search_forward(re, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
+                end if
+                call goto_char(saved)
+                if (endpt == 0) endpt = buffers(cur)%zv
+                if (.not. pos_visible_in_window_p(endpt, selected_window())) then
+                    ws = window_start(w)
+                    call recenter(make_list([make_fixnum(0_int64)]), .false., st)
+                    ! recenter scrolled in the wrong direction!
+                    if (window_start(w) < ws) call set_window_start(w, ws, st)
+                end if
+            end if
+        end if
+        if (re_narrow) call narrowfun(status)
+    contains
+
+        integer function current_buffer_index() result(k)
+            type(handle_type) :: b
+            b = current_buffer()
+            k = b%index
+        end function current_buffer_index
+    end subroutine easy_mmode_next
+
+    !> Go to the COUNT'th previous occurrence of RE.
+    !>
+    !> If none, error with NAME.
+    !>
+    !> ENDFUN and NARROWFUN are treated like in
+    !> `easy-mmode-define-navigation'.  Port of
+    !> easy-mmode.el:easy-mmode--prev.
+    recursive subroutine easy_mmode_prev(re, name, count, status, endfun, narrowfun)
+        character(len=*), intent(in) :: re, name
+        integer(int64), intent(in) :: count
+        type(status_type), intent(out) :: status
+        procedure(navigation_end_proc), optional :: endfun
+        procedure(navigation_narrow_proc), optional :: narrowfun
+        integer(int64) :: n, found, saved, mb, me
+        logical :: re_narrow, inside
+        type(status_type) :: st
+        status = status_type()
+        if (count < 0) then
+            call easy_mmode_next(re, name, -count, status, endfun, narrowfun)
+            return
+        end if
+        n = count
+        re_narrow = .false.
+        if (present(narrowfun)) then
+            re_narrow = buffer_narrowed_p()
+            call widen()
+        end if
+        ! If point is inside a match for RE, move to its beginning like
+        ! `backward-sexp' and other movement commands.
+        if (n /= 0) then
+            saved = point()
+            ! Make sure we're out of the current match if any.
+            call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            if (found /= 0) then
+                call goto_char(match_end(0, st))
+            else
+                call goto_char(buffers(cur)%begv)
+            end if
+            call re_search_forward(re, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            inside = .false.
+            if (found /= 0) then
+                mb = match_beginning(0, st)
+                me = match_end(0, st)
+                inside = mb < saved .and. saved < me
+            end if
+            call goto_char(saved)
+            if (inside) then
+                call goto_char(mb)
+                n = n - 1
+            end if
+        end if
+        call re_search_backward(re, found, st, noerror=SEARCH_NOERROR, count=n)
+        if (found == 0 .and. n > 0) then
+            call set_error(status, FM_USER_ERROR, "No previous "//name)
+            return
+        end if
+        if (re_narrow) call narrowfun(status)
+    end subroutine easy_mmode_prev
 
     !> Turn the symbol MODE into a string intended for the user.
     !> If provided, LIGHTER will be used to help choose capitalization by,

@@ -70,7 +70,7 @@ module dired_mode_fm
     use marker_fm, only: make_marker, free_marker, set_marker, marker_position, marker_buffer, char_to_byte, &
                          set_marker_insertion_type
     use insdel_fm, only: insert, inhibit_modification_hooks
-    use editfns_fm, only: point, point_min, point_max, goto_char, char_after, char_before, following_char, &
+    use editfns_fm, only: current_time_string, point, point_min, point_max, goto_char, char_after, char_before, following_char, &
                           preceding_char, bobp, eobp, bolp, eolp, buffer_substring, delete_region, &
                           line_beginning_position, line_end_position, widen, subst_char_in_region, &
                           region_beginning, region_end, insert_char_n, narrow_to_region
@@ -5962,29 +5962,6 @@ contains
             call goto_char(point_min())
         end if
     end subroutine backward_page
-
-    !> The current local time as `current_time_string' gives it:
-    !> "Sun Sep 16 01:03:52 1973".  Port of editfns.c:Fcurrent_time_string.
-    function current_time_string() result(s)
-        character(len=:), allocatable :: s
-        character(len=3), parameter :: days(0:6) = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        character(len=3), parameter :: months(12) = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", &
-                                                     "Sep", "Oct", "Nov", "Dec"]
-        integer :: v(8), y, m, d, w
-        character(len=32) :: buf
-        call date_and_time(values=v)
-        y = v(1)
-        m = v(2)
-        d = v(3)
-        ! Zeller's congruence (Sunday = 0)
-        if (m < 3) then
-            w = mod(d + (13*(m + 13))/5 + (y - 1) + (y - 1)/4 - (y - 1)/100 + (y - 1)/400 + 6, 7)
-        else
-            w = mod(d + (13*(m + 1))/5 + y + y/4 - y/100 + y/400 + 6, 7)
-        end if
-        write (buf, "(a3,1x,a3,1x,i2,1x,i2.2,':',i2.2,':',i2.2,1x,i4)") days(w), months(m), d, v(5), v(6), v(7), y
-        s = trim(buf)
-    end function current_time_string
 
     !> State a summary of a command's failures, in echo area and log buffer.
     !> STRING is an overall summary of the failures.

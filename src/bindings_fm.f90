@@ -77,6 +77,8 @@ module bindings_fm
     use view_fm, only: syms_of_view
     use process_fm, only: syms_of_process
     use compile_fm, only: syms_of_compile, compilation_mode_map
+    use diff_mode_fm, only: syms_of_diff_mode
+    use diff_fm, only: syms_of_diff
     use comint_fm, only: syms_of_comint, comint_mode_map
     use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
@@ -264,6 +266,8 @@ contains
         call syms_of_comint()
         call syms_of_shell()
         call syms_of_compile()
+        call syms_of_diff_mode()
+        call syms_of_diff()
         call syms_of_rect()
         call syms_of_register()
         call syms_of_macros()
