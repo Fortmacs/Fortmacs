@@ -148,10 +148,43 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `before-string` and `after-string` on overlays and text.
    30. Major modes: Outline mode, f90-mode, sh-script, conf-mode.
    31. diff.el, Diff mode and VC with vc-git (Dired's `=`, VC renames).
+       About 20,000 lines upstream, so three PRs: 31a diff.el and
+       diff-mode.el (`diff`, `diff-buffer-with-file`, Diff mode's hunk and
+       file motion, `diff-apply-hunk`, `diff-goto-source`, Dired's `=`);
+       31b vc-hooks.el, vc-dispatcher.el, vc.el and vc-git.el (the mode
+       line, `vc-next-action` C-x v v, `vc-diff`, `vc-revert`,
+       `vc-rename-file`, `vc-print-log`'s output, `vc-annotate`);
+       31c log-view.el, log-edit.el and vc-dir.el.
    32. Auto-revert, with file notifications through inotify in src/sys.
    33. Small everyday packages: bookmarks, recentf, savehist, saveplace,
        `repeat-mode`, `rectangle-mark-mode`.
    34. The Info reader (C-h i and the manual commands of help).
+   35. Grep (grep.el: `grep`, `lgrep`, `rgrep`, `grep-find`, Grep mode on
+       compile_fm and next-error).
+   36. Buffer lists: `list-buffers` (C-x C-b, buff-menu.el) and Ibuffer.
+   37. Occur (`occur`, `multi-occur`, Occur mode and its edit mode).
+   38. Comint and shell, the rest: history expansion and M-r,
+       completion (`comint-completion-at-point`, file names through
+       `completion-table-with-quoting`, the `:exit-function` property,
+       shell's completion functions; moved here from step 28), password
+       prompts, `ansi-color`, C-c C-z,
+       `list-processes` and the process menu.
+   39. The command loop's wrapper commands and C-x RET c
+       (`universal-coding-system-argument`), with the process, terminal
+       and keyboard coding system commands (C-x RET p, t, k).
+   40. More major modes: `sh-mode` beyond step 30, `makefile-mode`,
+       `python-mode`, `js-mode`, `css-mode`, `sgml-mode`/`html-mode`.
+   41. Charsets and the other coding systems: charset maps (ISO-8859-x,
+       Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
+       language environments (C-x RET l) and input methods (`C-\`).
+   42. Spelling: `ispell` and `flyspell` over an external speller process.
+   43. Terminal frames: several frames on one terminal (C-x 5), and
+       `tab-bar-mode`/`tab-line-mode`.
+   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+       `window-divider` and side windows.
+   45. Calendar and diary.
+   46. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+       HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
 rendering, then Wayland) comes after the bulk of Emacs is ported; its
@@ -634,6 +667,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-24 — Roadmap steps 35–46 (deferred parts of steps 18–27 first, then larger areas, the GUI last). Lanes as for 25–34: session_01QDZcHmpSKFnvYKAGB3eDAc takes 36, 40, 42, 43, 45; session_01JGaKkfcr9sr1gmwgRQK6TQ takes 35, 37, 38, 39, 41, 44; 46 is decided when it comes. Coordination stays on issue #85.
 - 2026-10-24 — Coding systems (`coding`, roadmap step 27): `coding_fm` (coding.c with mule-conf.el's fundamental coding systems: undecided, prefer-utf-8, no-conversion, raw-text, iso-latin-1, us-ascii, the UTF-8 and UTF-16 families, aliases and -unix/-dos/-mac subsidiaries; categories with reset-language-environment's priorities; detection, decoding and encoding as upstream, checked against GNU Emacs 29 on sample bytes; the string and region functions, check-coding-systems-region), `mule_fm` (set-auto-coding with coding: tags, local variables and the auto-coding alists; after-insert-file-set-coding; select-safe-coding-system with its *Warning* buffer; C-x RET f, C-x RET r, prefer-coding-system, C-h C), fileio decoding on read and encoding on write (choose_write_coding_system), basic-save-buffer keeping the coding system used, per-process coding systems in process_fm, the mode line's mule info ("UUU:", "-UU-\" for an ASCII DOS file, "U:" on a window-system frame), error `coding-system-error`. Ports coding-tests.el and find-auto-coding--bug27391. Next: step 28, completion.
 
 - 2026-10-24 — Faces in the config API (`faces-api`, roadmap step 25): tools/gen-faces.sh generates src/face_table_fm.f90, `faces` with one pointer component per face (initialized to the face object, named after the face), checked by tools/check.sh like commands_fm; faces_fm gains `face_underline` and `face_box` (the property-list forms of `:underline` and `:box`), `FACE_BOX_*` style constants and assigning a color to a box; `fortmacs` exports them instead of individual face objects; test_faces_fm config-faces. Next: step 26, Customize.
