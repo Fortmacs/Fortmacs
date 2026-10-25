@@ -35,7 +35,7 @@ submodule(indent_fm) indent_cmds_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: nil, nilp, fixnump, xfixnum, make_keymap_ref
     use lread_fm, only: sym
-    use data_fm, only: value_eq, default_value
+    use data_fm, only: value_eq, default_value, add_local_variables_killer
     use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
@@ -621,6 +621,7 @@ contains
     !> Port of indent.el:indent-region (no progress reporter).
     module procedure indent_region
     type(handle_type) :: end_marker, opoint_marker
+    procedure(indent_region_proc), pointer :: region_fn
     type(status_type) :: st
     integer(int64) :: opoint, endpos, shortage, moved, from, col, savedb, savedz
     character(len=:), allocatable :: regexp
@@ -671,8 +672,9 @@ contains
         savedb = buffers(cur)%begv
         savedz = buffers(cur)%text%z - buffers(cur)%zv
         call widen()
-        if (associated(indent_region_function)) then
-            call indent_region_function(start, end, status)
+        region_fn => indent_region_function%get()
+        if (associated(region_fn)) then
+            call region_fn(start, end, status)
         else
             call indent_region_line_by_line(start, end, status)
         end if
@@ -1057,6 +1059,7 @@ contains
     module procedure syms_of_indent
     type(value_type), allocatable :: key(:)
     type(status_type) :: st
+    call add_local_variables_killer(kill_indent_locals)
     commands%indent_for_tab_command%run => cmd_indent_for_tab_command
     commands%indent_according_to_mode%run => cmd_indent_according_to_mode
     commands%indent_rigidly%run => cmd_indent_rigidly

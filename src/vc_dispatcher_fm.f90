@@ -449,7 +449,7 @@ contains
         pstatus = process_status(proc)
         if (pstatus /= "exit" .and. pstatus /= "signal") return
         call move_alloc(pending(k)%actions, actions)
-        pending = [pending(1:k - 1), pending(k + 1:)]
+        call drop_pending(k)
         buf = process_buffer(proc)
         ! Impatient users sometime kill "slow" buffers; check liveness to
         ! avoid "error in process sentinel: Selecting deleted buffer".
@@ -478,6 +478,21 @@ contains
         end do
         call set_buffer(old, st)
     end subroutine vc_sentinel
+
+    ! Remove PENDING(K) (without an emptying array constructor).
+    subroutine drop_pending(k)
+        integer, intent(in) :: k
+        type(vc_pending_type), allocatable :: rest(:)
+        integer :: i, j
+        allocate (rest(size(pending) - 1))
+        j = 0
+        do i = 1, size(pending)
+            if (i == k) cycle
+            j = j + 1
+            rest(j) = pending(i)
+        end do
+        call move_alloc(rest, pending)
+    end subroutine drop_pending
 
     !> Smash a FILELIST into a file list string suitable for info messages.
     !> Port of vc-dispatcher.el:vc-delistify.

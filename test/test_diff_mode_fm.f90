@@ -28,7 +28,7 @@
 !> diff-mode-test-find-file-name-create (`read_file_name_function').
 module test_diff_mode_fm
     use, intrinsic :: iso_fortran_env, only: int64
-    use testdrive, only: new_unittest, unittest_type, error_type, check
+    use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support, only: show_alone
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
@@ -120,6 +120,54 @@ module test_diff_mode_fm
                                    "2.40.0"//LF
 
 contains
+
+    !> Whether `diff_command' and the shell can be run, skipping the test
+    !> if not ((skip-unless (executable-find diff-command))).
+    logical function have_diff(error)
+        use diff_fm, only: diff_command
+        use callproc_fm, only: shell_file_name
+        type(error_type), allocatable, intent(out) :: error
+        character(len=:), allocatable :: shell, command
+        command = "diff"
+        if (allocated(diff_command)) command = diff_command
+        have_diff = on_path(command)
+        if (have_diff) then
+            shell = "/bin/sh"
+            if (allocated(shell_file_name%value)) shell = shell_file_name%value
+            have_diff = on_path(shell)
+        end if
+        if (.not. have_diff) call skip_test(error, "no "//command//" or shell")
+    end function have_diff
+
+    !> Whether PROGRAM is an executable file in a directory of PATH (or
+    !> an absolute file name).
+    logical function on_path(program) result(found)
+        character(len=*), intent(in) :: program
+        character(len=:), allocatable :: path, dir
+        integer :: n, st, k
+        found = .false.
+        if (index(program, "/") == 1) then
+            inquire (file=program, exist=found)
+            return
+        end if
+        call get_environment_variable("PATH", length=n, status=st)
+        if (st /= 0) return
+        allocate (character(len=n) :: path)
+        call get_environment_variable("PATH", path)
+        do while (len(path) > 0)
+            k = index(path, ":")
+            if (k == 0) k = len(path) + 1
+            dir = path(1:k - 1)
+            if (k > len(path)) then
+                path = ""
+            else
+                path = path(k + 1:)
+            end if
+            if (len(dir) == 0) cycle
+            inquire (file=dir//"/"//program, exist=found)
+            if (found) return
+        end do
+    end function on_path
 
     subroutine collect_diff_mode_fm(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
@@ -531,6 +579,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: diff_beg
+        if (.not. have_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
@@ -566,6 +615,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: diff_beg
+        if (.not. have_diff(error)) return
         call init_bindings()
         call init_fileio()
         call scratch()
@@ -790,6 +840,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+        if (.not. have_diff(error)) return
         call setup()
         call make_file("old.txt", "one"//LF//"two"//LF)
         call make_file("new.txt", "one"//LF//"three"//LF)
@@ -821,6 +872,7 @@ contains
         type(status_type) :: st
         integer(int64) :: p
         character(len=:), allocatable :: text
+        if (.not. have_diff(error)) return
         call setup()
         call make_file("a.txt", "alpha2"//LF)
         call make_file("a.txt~", "alpha"//LF)

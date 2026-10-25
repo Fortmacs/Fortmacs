@@ -44,10 +44,11 @@ module simple_fm
     use lisp_fm, only: value_type, nil, make_fixnum, list, fixnump, consp, &
                        nilp, xfixnum, list_elt, t_value, make_string, make_list, list_elements, command_proc
     use lread_fm, only: sym
-    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting
+    use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
+                       add_local_variables_killer
     use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
     use casetab_fm, only: downcase
-    use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE
+    use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE, buffer_serial_live
     use marker_fm, only: char_to_byte
     use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
                          inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
@@ -113,12 +114,14 @@ module simple_fm
               next_error, next_error_internal, next_error_found, syms_of_simple_next_error
     public :: fundamental_mode, special_mode, syms_of_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable
-    public :: read_only_mode, what_line
+    public :: read_only_mode, what_line, what_line_text
     public :: read_shell_command, shell_command, shell_command_on_region, display_message_or_buffer, &
               syms_of_simple_shell
     public :: blink_matching_open, blink_matching_check_mismatch, blink_paren_open_paren_line_string, &
               blink_paren_post_self_insert_function, newline_and_indent, syms_of_simple_electric, &
-              backward_delete_char_untabify, blink_matching_check_proc
+              backward_delete_char_untabify, blink_matching_check_proc, reindent_then_newline_and_indent
+    public :: set_local_blink_matching_check_function, current_blink_matching_check_function, &
+              blink_matching_check_function_local_p, kill_local_blink_matching_check_function
 
     !> True means show the equivalent keybinding when M-x has one.
     !> (A length of time is not supported, nor the timer: the suggestion
@@ -168,6 +171,22 @@ module simple_fm
     !> String for filling to insert at front of new line, or unallocated
     !> for none.  Port of simple.el fill-prefix.
     type(string_setting), public :: fill_prefix = string_setting(name="fill_prefix")
+
+    abstract interface
+        !> A `comment_line_break_function': break the line at point (SOFT: the
+        !> newline is soft).
+        subroutine line_break_proc(status, soft)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(in), optional :: soft
+        end subroutine line_break_proc
+    end interface
+
+    !> Mode-specific function that breaks a line in a comment (newcomment_fm
+    !> sets `comment_indent_new_line's).  Port of simple.el
+    !> comment-line-break-function.
+    procedure(line_break_proc), pointer, public :: comment_line_break_function => null()
 
     !> The actions of `cycle_spacing' (the symbols of
     !> `cycle_spacing_actions').
@@ -252,7 +271,8 @@ module simple_fm
     !> The function to use for `auto_fill_function' if Auto Fill mode is turned on.
     !> Some major modes set this.  Port of simple.el
     !> normal-auto-fill-function (null is `do_auto_fill').
-    procedure(auto_fill_proc), pointer, public :: normal_auto_fill_function => null()
+    type(function_setting), target, public :: normal_auto_fill_function = &
+                                              function_setting(name="normal_auto_fill_function")
 
     !> Hook run after entering Special mode (`special_mode_hook').
     type(hook_type), target, public :: special_mode_hook = hook_type(name="special_mode_hook")
@@ -296,13 +316,15 @@ module simple_fm
         !> If a comment syntax is defined, call `comment_line_break_function'.
         !>
         !> The inserted newline is marked hard if variable `use_hard_newlines' is true,
-        !> unless optional argument SOFT is true.  Port of
-        !> simple.el:default-indent-new-line (no comments or hard
+        !> unless optional argument SOFT is true.  FORCE (an interactive call)
+        !> breaks the line even where `comment_auto_fill_only_comments' is
+        !> true.  Port of simple.el:default-indent-new-line (no hard
         !> newlines).  (In simple_fill_fm.)
-        module subroutine default_indent_new_line(status, soft)
+        module subroutine default_indent_new_line(status, soft, force)
             implicit none(type, external)
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: soft
+            logical, intent(in), optional :: force
         end subroutine default_indent_new_line
 
         !> The function called by `self_insert_command' to perform auto-filling.
@@ -517,6 +539,13 @@ module simple_fm
             type(status_type), intent(out) :: status
         end subroutine what_line
 
+        !> `what_line's message, shown and returned as TEXT (upstream's
+        !> return value).  (In simple_view_fm.)
+        module subroutine what_line_text(text)
+            implicit none(type, external)
+            character(len=:), allocatable, intent(out) :: text
+        end subroutine what_line_text
+
         !> Define `read_only_mode' and `what_line'.  (In simple_view_fm.)
         module subroutine syms_of_simple_view()
             implicit none(type, external)
@@ -708,6 +737,19 @@ module simple_fm
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: arg
         end subroutine newline_and_indent
+
+        !> Reindent current line, insert newline, then indent the new line.
+        !> Indentation of both lines is done according to the current major mode,
+        !> which means calling the current value of `indent_line_function'.
+        !> In programming language modes, this is the same as TAB.
+        !> In some text modes, where TAB inserts a tab, this indents to the
+        !> column specified by the function `current_left_margin'.  Port of
+        !> simple.el:reindent-then-newline-and-indent.  (In
+        !> simple_electric_fm.)
+        recursive module subroutine reindent_then_newline_and_indent(status)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine reindent_then_newline_and_indent
 
         !> Register the commands of simple_electric_fm and put
         !> `blink_paren_post_self_insert_function' on `post_self_insert_hook'
@@ -1100,8 +1142,19 @@ module simple_fm
     !> position just before the opening token and END is the position right after.
     !> START can be 0, if it was not found.
     !> The function should return true if the two tokens do not match.
-    !> Port of simple.el blink-matching-check-function.
+    !> Port of simple.el blink-matching-check-function (the default
+    !> value; `set_local_blink_matching_check_function' gives a buffer
+    !> its own).
     procedure(blink_matching_check_proc), pointer, public :: blink_matching_check_function => null()
+
+    ! A buffer's own `blink_matching_check_function' (FN null is nil).
+    type :: check_entry_type
+        integer(int64) :: serial = 0
+        procedure(blink_matching_check_proc), pointer, nopass :: fn => null()
+    end type check_entry_type
+
+    ! Buffers' own values of `blink_matching_check_function'.
+    type(check_entry_type), allocatable :: check_locals(:)
 
     !> Function called, if set, whenever a close parenthesis is inserted.
     !> More precisely, a char with closeparen syntax is self-inserted.
@@ -1174,6 +1227,76 @@ module simple_fm
     type(handle_type) :: uarg_map
 
 contains
+
+    ! The index in `check_locals' of the current buffer's entry, 0 if none.
+    integer function check_local_index() result(i)
+        i = 0
+        if (cur == 0 .or. .not. allocated(check_locals)) return
+        do i = 1, size(check_locals)
+            if (check_locals(i)%serial == buffers(cur)%serial) return
+        end do
+        i = 0
+    end function check_local_index
+
+    !> Give the current buffer its own `blink_matching_check_function'
+    !> FN (setq-local); absent is nil.
+    subroutine set_local_blink_matching_check_function(fn)
+        procedure(blink_matching_check_proc), optional :: fn
+        type(check_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(check_locals)) allocate (check_locals(0))
+        i = check_local_index()
+        if (i == 0) then
+            do i = 1, size(check_locals)
+                if (.not. buffer_serial_live(check_locals(i)%serial)) exit
+            end do
+            if (i > size(check_locals)) then
+                n = size(check_locals)
+                allocate (grown(n + 1))
+                do i = 1, n
+                    grown(i)%serial = check_locals(i)%serial
+                    grown(i)%fn => check_locals(i)%fn
+                end do
+                call move_alloc(grown, check_locals)
+                i = n + 1
+            end if
+            check_locals(i)%serial = buffers(cur)%serial
+        end if
+        if (present(fn)) then
+            check_locals(i)%fn => fn
+        else
+            check_locals(i)%fn => null()
+        end if
+    end subroutine set_local_blink_matching_check_function
+
+    !> The value of `blink_matching_check_function' in the current buffer
+    !> (null for nil).
+    function current_blink_matching_check_function() result(fn)
+        procedure(blink_matching_check_proc), pointer :: fn
+        integer :: i
+        i = check_local_index()
+        if (i > 0) then
+            fn => check_locals(i)%fn
+        else
+            fn => blink_matching_check_function
+        end if
+    end function current_blink_matching_check_function
+
+    !> Whether the current buffer has its own `blink_matching_check_function'.
+    logical function blink_matching_check_function_local_p()
+        blink_matching_check_function_local_p = check_local_index() > 0
+    end function blink_matching_check_function_local_p
+
+    !> Make the current buffer use the default `blink_matching_check_function'
+    !> (also what `kill_all_local_variables' does to it).
+    subroutine kill_local_blink_matching_check_function()
+        integer :: i
+        i = check_local_index()
+        if (i == 0) return
+        check_locals(i)%serial = 0
+        check_locals(i)%fn => null()
+    end subroutine kill_local_blink_matching_check_function
 
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)
@@ -2497,6 +2620,8 @@ contains
 
     subroutine syms_of_simple()
         call defvar_nil("kill_ring")
+        call forward_setting(normal_auto_fill_function)
+        call add_local_variables_killer(kill_local_blink_matching_check_function)
         ! (<up> and <down> run previous/next-line-or-history-element
         ! upstream, which in a one-line minibuffer are these.)
         commands%execute_extended_command%run => cmd_execute_extended_command

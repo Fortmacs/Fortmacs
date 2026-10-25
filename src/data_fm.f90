@@ -38,7 +38,7 @@ module data_fm
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT
     use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, nil, stringp, symbolp, symbols, &
-                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, value_type, &
+                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, v_syntax_table, value_type, &
                        vtag, xsymbol
     use lread_fm, only: ensure_obarray, sym
     use lisp_fm, only: command_proc
@@ -157,6 +157,7 @@ module data_fm
     public :: symbol_name, keywordp, boundp, symbol_value, set, makunbound
     public :: make_local_variable, make_variable_buffer_local, kill_local_variable, kill_all_local_variables, &
               local_variable_p, local_variable_if_set_p, automatically_local_p, forwarded_variable_p, default_value, &
+              function_setting_default, &
               set_default, default_boundp, buffer_local_value, buffer_local_variables, setq_local
 
     interface
@@ -305,6 +306,15 @@ module data_fm
             implicit none(type, external)
             type(value_type), intent(in) :: variable
         end function forwarded_variable_p
+
+        !> The default value of the forwarded function setting S (its value
+        !> in buffers without their own), in FN.  Not a port: what
+        !> default-value gives for such a variable.  (In data_buffer_fm.)
+        module subroutine function_setting_default(s, fn)
+            implicit none(type, external)
+            type(function_setting), intent(in) :: s
+            procedure(command_proc), pointer, intent(out) :: fn
+        end subroutine function_setting_default
 
         !> Return SYMBOL's default value.
         !> This is the value that is seen in buffers that do not have their own values
@@ -601,7 +611,7 @@ contains
             value_eq = .true.
         case (V_INT, V_SYMBOL)
             value_eq = a%a(1)%i == b%a(1)%i
-        case (V_BUFFER, V_MARKER, V_KEYMAP)
+        case (V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE)
             value_eq = a%a(1)%h%index == b%a(1)%h%index .and. &
                        a%a(1)%h%generation == b%a(1)%h%generation
         case default

@@ -110,6 +110,15 @@ module commands_fm
         type(command_type) :: comint_strip_ctrl_m
         type(command_type) :: comint_truncate_buffer
         type(command_type) :: comint_write_output
+        type(command_type) :: comment_box
+        type(command_type) :: comment_dwim
+        type(command_type) :: comment_indent
+        type(command_type) :: comment_indent_new_line
+        type(command_type) :: comment_kill
+        type(command_type) :: comment_line
+        type(command_type) :: comment_or_uncomment_region
+        type(command_type) :: comment_region
+        type(command_type) :: comment_set_column
         type(command_type) :: compilation_display_error
         type(command_type) :: compilation_minor_mode
         type(command_type) :: compilation_mode
@@ -126,6 +135,21 @@ module commands_fm
         type(command_type) :: completion_at_point
         type(command_type) :: completion_help_at_point
         type(command_type) :: completion_in_region_mode
+        type(command_type) :: conf_align_assignments
+        type(command_type) :: conf_colon_mode
+        type(command_type) :: conf_desktop_mode
+        type(command_type) :: conf_javaprop_mode
+        type(command_type) :: conf_mode
+        type(command_type) :: conf_mode_maybe
+        type(command_type) :: conf_npmrc_mode
+        type(command_type) :: conf_ppd_mode
+        type(command_type) :: conf_quote_normal
+        type(command_type) :: conf_space_keywords
+        type(command_type) :: conf_space_mode
+        type(command_type) :: conf_toml_mode
+        type(command_type) :: conf_unix_mode
+        type(command_type) :: conf_windows_mode
+        type(command_type) :: conf_xdefaults_mode
         type(command_type) :: copy_rectangle_as_kill
         type(command_type) :: copy_rectangle_to_register
         type(command_type) :: copy_region_as_kill
@@ -273,6 +297,42 @@ module commands_fm
         type(command_type) :: exit_minibuffer
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
+        type(command_type) :: f90_abbrev_help
+        type(command_type) :: f90_abbrev_start
+        type(command_type) :: f90_beginning_of_block
+        type(command_type) :: f90_beginning_of_subprogram
+        type(command_type) :: f90_break_line
+        type(command_type) :: f90_calculate_indent
+        type(command_type) :: f90_capitalize_keywords
+        type(command_type) :: f90_capitalize_region_keywords
+        type(command_type) :: f90_comment_region
+        type(command_type) :: f90_do_auto_fill
+        type(command_type) :: f90_downcase_keywords
+        type(command_type) :: f90_downcase_region_keywords
+        type(command_type) :: f90_electric_insert
+        type(command_type) :: f90_end_of_block
+        type(command_type) :: f90_end_of_subprogram
+        type(command_type) :: f90_fill_paragraph
+        type(command_type) :: f90_fill_region
+        type(command_type) :: f90_font_lock_1
+        type(command_type) :: f90_font_lock_2
+        type(command_type) :: f90_font_lock_3
+        type(command_type) :: f90_font_lock_4
+        type(command_type) :: f90_indent_line
+        type(command_type) :: f90_indent_new_line
+        type(command_type) :: f90_indent_region
+        type(command_type) :: f90_indent_subprogram
+        type(command_type) :: f90_insert_end
+        type(command_type) :: f90_join_lines
+        type(command_type) :: f90_mark_subprogram
+        type(command_type) :: f90_match_end
+        type(command_type) :: f90_mode
+        type(command_type) :: f90_next_block
+        type(command_type) :: f90_next_statement
+        type(command_type) :: f90_previous_block
+        type(command_type) :: f90_previous_statement
+        type(command_type) :: f90_upcase_keywords
+        type(command_type) :: f90_upcase_region_keywords
         type(command_type) :: file_to_register
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
@@ -461,6 +521,7 @@ module commands_fm
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recompile
         type(command_type) :: rectangle_number_lines
+        type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
@@ -496,6 +557,11 @@ module commands_fm
         type(command_type) :: shell_narrow_to_prompt
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
+        type(command_type) :: smie__next_indent_change
+        type(command_type) :: smie_backward_sexp_command
+        type(command_type) :: smie_close_block
+        type(command_type) :: smie_down_list
+        type(command_type) :: smie_forward_sexp_command
         type(command_type) :: special_mode
         type(command_type) :: split_window_below
         type(command_type) :: split_window_right
@@ -515,6 +581,7 @@ module commands_fm
         type(command_type) :: turn_on_auto_fill
         type(command_type) :: turn_on_font_lock
         type(command_type) :: turn_on_font_lock_if_desired
+        type(command_type) :: uncomment_region
         type(command_type) :: undefined
         type(command_type) :: undo
         type(command_type) :: undo_only
@@ -590,7 +657,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(552) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(619) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -669,6 +736,15 @@ module commands_fm
                                                                  "comint_strip_ctrl_m", &
                                                                  "comint_truncate_buffer", &
                                                                  "comint_write_output", &
+                                                                 "comment_box", &
+                                                                 "comment_dwim", &
+                                                                 "comment_indent", &
+                                                                 "comment_indent_new_line", &
+                                                                 "comment_kill", &
+                                                                 "comment_line", &
+                                                                 "comment_or_uncomment_region", &
+                                                                 "comment_region", &
+                                                                 "comment_set_column", &
                                                                  "compilation_display_error", &
                                                                  "compilation_minor_mode", &
                                                                  "compilation_mode", &
@@ -685,6 +761,21 @@ module commands_fm
                                                                  "completion_at_point", &
                                                                  "completion_help_at_point", &
                                                                  "completion_in_region_mode", &
+                                                                 "conf_align_assignments", &
+                                                                 "conf_colon_mode", &
+                                                                 "conf_desktop_mode", &
+                                                                 "conf_javaprop_mode", &
+                                                                 "conf_mode", &
+                                                                 "conf_mode_maybe", &
+                                                                 "conf_npmrc_mode", &
+                                                                 "conf_ppd_mode", &
+                                                                 "conf_quote_normal", &
+                                                                 "conf_space_keywords", &
+                                                                 "conf_space_mode", &
+                                                                 "conf_toml_mode", &
+                                                                 "conf_unix_mode", &
+                                                                 "conf_windows_mode", &
+                                                                 "conf_xdefaults_mode", &
                                                                  "copy_rectangle_as_kill", &
                                                                  "copy_rectangle_to_register", &
                                                                  "copy_region_as_kill", &
@@ -832,6 +923,42 @@ module commands_fm
                                                                  "exit_minibuffer", &
                                                                  "expand_abbrev", &
                                                                  "expand_region_abbrevs", &
+                                                                 "f90_abbrev_help", &
+                                                                 "f90_abbrev_start", &
+                                                                 "f90_beginning_of_block", &
+                                                                 "f90_beginning_of_subprogram", &
+                                                                 "f90_break_line", &
+                                                                 "f90_calculate_indent", &
+                                                                 "f90_capitalize_keywords", &
+                                                                 "f90_capitalize_region_keywords", &
+                                                                 "f90_comment_region", &
+                                                                 "f90_do_auto_fill", &
+                                                                 "f90_downcase_keywords", &
+                                                                 "f90_downcase_region_keywords", &
+                                                                 "f90_electric_insert", &
+                                                                 "f90_end_of_block", &
+                                                                 "f90_end_of_subprogram", &
+                                                                 "f90_fill_paragraph", &
+                                                                 "f90_fill_region", &
+                                                                 "f90_font_lock_1", &
+                                                                 "f90_font_lock_2", &
+                                                                 "f90_font_lock_3", &
+                                                                 "f90_font_lock_4", &
+                                                                 "f90_indent_line", &
+                                                                 "f90_indent_new_line", &
+                                                                 "f90_indent_region", &
+                                                                 "f90_indent_subprogram", &
+                                                                 "f90_insert_end", &
+                                                                 "f90_join_lines", &
+                                                                 "f90_mark_subprogram", &
+                                                                 "f90_match_end", &
+                                                                 "f90_mode", &
+                                                                 "f90_next_block", &
+                                                                 "f90_next_statement", &
+                                                                 "f90_previous_block", &
+                                                                 "f90_previous_statement", &
+                                                                 "f90_upcase_keywords", &
+                                                                 "f90_upcase_region_keywords", &
                                                                  "file_to_register", &
                                                                  "fill_paragraph", &
                                                                  "fill_region", &
@@ -1020,6 +1147,7 @@ module commands_fm
                                                                  "recenter_top_bottom", &
                                                                  "recompile", &
                                                                  "rectangle_number_lines", &
+                                                                 "reindent_then_newline_and_indent", &
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "revert_buffer", &
@@ -1055,6 +1183,11 @@ module commands_fm
                                                                  "shell_narrow_to_prompt", &
                                                                  "show_paren_local_mode", &
                                                                  "show_paren_mode", &
+                                                                 "smie__next_indent_change", &
+                                                                 "smie_backward_sexp_command", &
+                                                                 "smie_close_block", &
+                                                                 "smie_down_list", &
+                                                                 "smie_forward_sexp_command", &
                                                                  "special_mode", &
                                                                  "split_window_below", &
                                                                  "split_window_right", &
@@ -1074,6 +1207,7 @@ module commands_fm
                                                                  "turn_on_auto_fill", &
                                                                  "turn_on_font_lock", &
                                                                  "turn_on_font_lock_if_desired", &
+                                                                 "uncomment_region", &
                                                                  "undefined", &
                                                                  "undo", &
                                                                  "undo_only", &
@@ -1309,6 +1443,24 @@ contains
             p => commands%comint_truncate_buffer
         case ("comint_write_output")
             p => commands%comint_write_output
+        case ("comment_box")
+            p => commands%comment_box
+        case ("comment_dwim")
+            p => commands%comment_dwim
+        case ("comment_indent")
+            p => commands%comment_indent
+        case ("comment_indent_new_line")
+            p => commands%comment_indent_new_line
+        case ("comment_kill")
+            p => commands%comment_kill
+        case ("comment_line")
+            p => commands%comment_line
+        case ("comment_or_uncomment_region")
+            p => commands%comment_or_uncomment_region
+        case ("comment_region")
+            p => commands%comment_region
+        case ("comment_set_column")
+            p => commands%comment_set_column
         case ("compilation_display_error")
             p => commands%compilation_display_error
         case ("compilation_minor_mode")
@@ -1341,6 +1493,36 @@ contains
             p => commands%completion_help_at_point
         case ("completion_in_region_mode")
             p => commands%completion_in_region_mode
+        case ("conf_align_assignments")
+            p => commands%conf_align_assignments
+        case ("conf_colon_mode")
+            p => commands%conf_colon_mode
+        case ("conf_desktop_mode")
+            p => commands%conf_desktop_mode
+        case ("conf_javaprop_mode")
+            p => commands%conf_javaprop_mode
+        case ("conf_mode")
+            p => commands%conf_mode
+        case ("conf_mode_maybe")
+            p => commands%conf_mode_maybe
+        case ("conf_npmrc_mode")
+            p => commands%conf_npmrc_mode
+        case ("conf_ppd_mode")
+            p => commands%conf_ppd_mode
+        case ("conf_quote_normal")
+            p => commands%conf_quote_normal
+        case ("conf_space_keywords")
+            p => commands%conf_space_keywords
+        case ("conf_space_mode")
+            p => commands%conf_space_mode
+        case ("conf_toml_mode")
+            p => commands%conf_toml_mode
+        case ("conf_unix_mode")
+            p => commands%conf_unix_mode
+        case ("conf_windows_mode")
+            p => commands%conf_windows_mode
+        case ("conf_xdefaults_mode")
+            p => commands%conf_xdefaults_mode
         case ("copy_rectangle_as_kill")
             p => commands%copy_rectangle_as_kill
         case ("copy_rectangle_to_register")
@@ -1635,6 +1817,78 @@ contains
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
             p => commands%expand_region_abbrevs
+        case ("f90_abbrev_help")
+            p => commands%f90_abbrev_help
+        case ("f90_abbrev_start")
+            p => commands%f90_abbrev_start
+        case ("f90_beginning_of_block")
+            p => commands%f90_beginning_of_block
+        case ("f90_beginning_of_subprogram")
+            p => commands%f90_beginning_of_subprogram
+        case ("f90_break_line")
+            p => commands%f90_break_line
+        case ("f90_calculate_indent")
+            p => commands%f90_calculate_indent
+        case ("f90_capitalize_keywords")
+            p => commands%f90_capitalize_keywords
+        case ("f90_capitalize_region_keywords")
+            p => commands%f90_capitalize_region_keywords
+        case ("f90_comment_region")
+            p => commands%f90_comment_region
+        case ("f90_do_auto_fill")
+            p => commands%f90_do_auto_fill
+        case ("f90_downcase_keywords")
+            p => commands%f90_downcase_keywords
+        case ("f90_downcase_region_keywords")
+            p => commands%f90_downcase_region_keywords
+        case ("f90_electric_insert")
+            p => commands%f90_electric_insert
+        case ("f90_end_of_block")
+            p => commands%f90_end_of_block
+        case ("f90_end_of_subprogram")
+            p => commands%f90_end_of_subprogram
+        case ("f90_fill_paragraph")
+            p => commands%f90_fill_paragraph
+        case ("f90_fill_region")
+            p => commands%f90_fill_region
+        case ("f90_font_lock_1")
+            p => commands%f90_font_lock_1
+        case ("f90_font_lock_2")
+            p => commands%f90_font_lock_2
+        case ("f90_font_lock_3")
+            p => commands%f90_font_lock_3
+        case ("f90_font_lock_4")
+            p => commands%f90_font_lock_4
+        case ("f90_indent_line")
+            p => commands%f90_indent_line
+        case ("f90_indent_new_line")
+            p => commands%f90_indent_new_line
+        case ("f90_indent_region")
+            p => commands%f90_indent_region
+        case ("f90_indent_subprogram")
+            p => commands%f90_indent_subprogram
+        case ("f90_insert_end")
+            p => commands%f90_insert_end
+        case ("f90_join_lines")
+            p => commands%f90_join_lines
+        case ("f90_mark_subprogram")
+            p => commands%f90_mark_subprogram
+        case ("f90_match_end")
+            p => commands%f90_match_end
+        case ("f90_mode")
+            p => commands%f90_mode
+        case ("f90_next_block")
+            p => commands%f90_next_block
+        case ("f90_next_statement")
+            p => commands%f90_next_statement
+        case ("f90_previous_block")
+            p => commands%f90_previous_block
+        case ("f90_previous_statement")
+            p => commands%f90_previous_statement
+        case ("f90_upcase_keywords")
+            p => commands%f90_upcase_keywords
+        case ("f90_upcase_region_keywords")
+            p => commands%f90_upcase_region_keywords
         case ("file_to_register")
             p => commands%file_to_register
         case ("fill_paragraph")
@@ -2011,6 +2265,8 @@ contains
             p => commands%recompile
         case ("rectangle_number_lines")
             p => commands%rectangle_number_lines
+        case ("reindent_then_newline_and_indent")
+            p => commands%reindent_then_newline_and_indent
         case ("replace_regexp")
             p => commands%replace_regexp
         case ("replace_string")
@@ -2081,6 +2337,16 @@ contains
             p => commands%show_paren_local_mode
         case ("show_paren_mode")
             p => commands%show_paren_mode
+        case ("smie__next_indent_change")
+            p => commands%smie__next_indent_change
+        case ("smie_backward_sexp_command")
+            p => commands%smie_backward_sexp_command
+        case ("smie_close_block")
+            p => commands%smie_close_block
+        case ("smie_down_list")
+            p => commands%smie_down_list
+        case ("smie_forward_sexp_command")
+            p => commands%smie_forward_sexp_command
         case ("special_mode")
             p => commands%special_mode
         case ("split_window_below")
@@ -2119,6 +2385,8 @@ contains
             p => commands%turn_on_font_lock
         case ("turn_on_font_lock_if_desired")
             p => commands%turn_on_font_lock_if_desired
+        case ("uncomment_region")
+            p => commands%uncomment_region
         case ("undefined")
             p => commands%undefined
         case ("undo")

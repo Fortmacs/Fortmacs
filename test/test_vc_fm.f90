@@ -193,23 +193,36 @@ contains
     subroutine git(a1, a2, a3, a4, a5, a6)
         character(len=*), intent(in) :: a1
         character(len=*), intent(in), optional :: a2, a3, a4, a5, a6
-        type(value_type), allocatable :: args(:)
+        type(value_type) :: args(10)
         type(value_type) :: result
         type(handle_type) :: old, h
         type(status_type) :: st
-        args = [make_string("-c"), make_string("user.name=t"), make_string("-c"), make_string("user.email=t@t"), &
-                make_string(a1)]
-        if (present(a2)) args = [args, make_string(a2)]
-        if (present(a3)) args = [args, make_string(a3)]
-        if (present(a4)) args = [args, make_string(a4)]
-        if (present(a5)) args = [args, make_string(a5)]
-        if (present(a6)) args = [args, make_string(a6)]
+        integer :: n
+        ! One element at a time: function results in an array constructor
+        ! of value_type leak.
+        args(1) = make_string("-c")
+        args(2) = make_string("user.name=t")
+        args(3) = make_string("-c")
+        args(4) = make_string("user.email=t@t")
+        args(5) = make_string(a1)
+        n = 5
+        if (present(a2)) call push(a2)
+        if (present(a3)) call push(a3)
+        if (present(a4)) call push(a4)
+        if (present(a5)) call push(a5)
+        if (present(a6)) call push(a6)
         old = current_buffer()
         call temp_buffer(h)
         buffers(cur)%directory = tdir()
-        call call_process("git", result, st, args=make_list(args))
+        call call_process("git", result, st, args=make_list(args(1:n)))
         call kill_buffer(h, st)
         call set_buffer(old, st)
+    contains
+        subroutine push(a)
+            character(len=*), intent(in) :: a
+            n = n + 1
+            args(n) = make_string(a)
+        end subroutine push
     end subroutine git
 
     !> The Git backend's index.
