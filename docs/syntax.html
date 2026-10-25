@@ -15,8 +15,10 @@
     --muted: #4b423e;
     --rule: #4b423e;
     --accent: #543a57;
-    --mark: #b08866;
+    --mark: #543a57;
     --mark-edge: #543a57;
+    --mark-fg: #dfd6d1;
+    --sun: #b08866;
     --dimmed: #4b423e;
     --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
     --font-body: "IBM Plex Sans", system-ui, sans-serif;
@@ -32,6 +34,8 @@
       --accent: #1f747a;
       --mark: #1f747a;
       --mark-edge: #b08866;
+      --mark-fg: #dfd6d1;
+      --sun: #13110b;
       --dimmed: #4b423e;
       color-scheme: dark;
     }
@@ -45,6 +49,8 @@
     --accent: #1f747a;
     --mark: #1f747a;
     --mark-edge: #b08866;
+    --mark-fg: #dfd6d1;
+    --sun: #13110b;
     --dimmed: #4b423e;
     color-scheme: dark;
   }
@@ -100,6 +106,7 @@
   .theme[aria-checked="true"]::before { transform: translateX(28px); }
   .theme svg { position: relative; width: 16px; height: 16px; justify-self: center; }
   .theme svg.on { color: var(--bg); }
+  .theme #sun.on { color: var(--sun); }
   .theme:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   h1 {
     font: 600 clamp(1.7rem, 4vw, 2.4rem)/1.1 var(--font-display);
@@ -151,7 +158,7 @@
   .t:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .versions.focused .t { color: var(--dimmed); }
   .versions.focused .t.on {
-    color: var(--fg);
+    color: var(--mark-fg);
     background: var(--mark);
     box-shadow: 0 0 0 1px var(--mark-edge);
   }
