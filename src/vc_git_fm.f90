@@ -43,13 +43,13 @@ module vc_git_fm
     use handle_fm, only: handle_type, null_handle
     use lisp_fm, only: value_type, nil, t_value, make_string, make_list, fixnump, xfixnum
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, kill_buffer, &
-                         generate_new_buffer_name
+                         generate_new_buffer_name, erase_buffer, buffer_live_p
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_string, bolp, bobp, pos_eol, &
                           buffer_substring
     use cmds_fm, only: forward_line
     use search_fm, only: string_match, re_search_forward, looking_at, SEARCH_NOERROR
     use subr_fm, only: match_string
-    use fileio_fm, only: expand_file_name, file_directory_p, directory_name_p
+    use fileio_fm, only: expand_file_name, file_directory_p, directory_name_p, file_exists_p
     use files_fm, only: file_relative_name, executable_find, revert_buffer_in_progress
     use callproc_fm, only: call_process
     use vc_hooks_fm, only: vc_backends, vc_string_type, vc_switches_type, register_vc_backend, vc_find_root, &
@@ -58,8 +58,10 @@ module vc_git_fm
                            VC_DISPLAY_STATUS_NO_BACKEND, VC_SWITCHES_T, VC_SWITCHES_NIL, VC_SWITCHES_LIST, &
                            VC_UP_TO_DATE, VC_EDITED, &
                            VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, &
-                           VC_MODEL_IMPLICIT
+                           VC_MODEL_IMPLICIT, VC_STATE_NIL, vc_state_name, vc_dir_entry_type, vc_dir_fileinfo_type, &
+                           vc_dir_update_proc
     use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_NIL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
+    use ewoc_fm, only: ewoc_part_type
     use vc_fm, only: vc_switches
     use eval_fm, only: hook_type
     use commands_fm, only: commands
@@ -139,6 +141,28 @@ module vc_git_fm
 
     !> The keymap of `vc_git_log_view_mode'.
     type(handle_type), public :: vc_git_log_view_mode_map
+
+    ! The stages of `vc_git_dir_status_files'.
+    integer, parameter :: STAGE_NIL = 0, STAGE_UPDATE_INDEX = 1, STAGE_LS_FILES_ADDED = 2, &
+                          STAGE_LS_FILES_UP_TO_DATE = 3, STAGE_LS_FILES_CONFLICT = 4, STAGE_LS_FILES_MISSING = 5, &
+                          STAGE_LS_FILES_UNKNOWN = 6, STAGE_LS_FILES_IGNORED = 7, STAGE_DIFF_INDEX = 8
+
+    ! The state of a `dir_status_files' computation: its stage, the files
+    ! still to be processed, the update function and its VC-Dir buffer,
+    ! and the entries computed so far.  Port of vc-git.el
+    ! vc-git-dir-status-state.
+    type :: dir_status_state_type
+        logical :: live = .false.
+        integer :: stage = 0
+        type(vc_string_type), allocatable :: files(:)
+        procedure(vc_dir_update_proc), pointer, nopass :: update_function => null()
+        type(handle_type) :: buffer
+        type(vc_dir_entry_type), allocatable :: hash(:)
+        integer :: n = 0
+    end type dir_status_state_type
+
+    ! The computations of `vc_git_dir_status_files' in progress.
+    type(dir_status_state_type), allocatable :: dir_states(:)
 
     !> True to treat pathspecs in commands literally.
     !> Good example of file name that needs this: "test[56].xx".  Port of
@@ -1600,6 +1624,752 @@ contains
         vc_git_root_log_format%highlights(4) = font_lock_highlight(4, face="change_log_date")
     end subroutine init_root_log_format
 
+    ! ------------------------------------------------------------------
+    ! VC-Dir
+    ! ------------------------------------------------------------------
+
+    !> Escape filename NAME if necessary.  Port of
+    !> vc-git.el:vc-git-escape-file-name.
+    function vc_git_escape_file_name(name) result(escaped)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: escaped
+        integer :: k
+        if (scan(name, LF//achar(9)//'"\') == 0) then
+            escaped = name
+            return
+        end if
+        escaped = '"'
+        do k = 1, len(name)
+            select case (name(k:k))
+            case (LF)
+                escaped = escaped//"\n"
+            case (achar(9))
+                escaped = escaped//"\t"
+            case ("\")
+                escaped = escaped//"\\"
+            case ('"')
+                escaped = escaped//'\"'
+            case default
+                escaped = escaped//name(k:k)
+            end select
+        end do
+        escaped = escaped//'"'
+    end function vc_git_escape_file_name
+
+    !> Return a string describing the file type based on its permissions,
+    !> and its face.  Port of vc-git.el:vc-git-file-type-as-string.
+    subroutine vc_git_file_type_as_string(old_perm, new_perm, str, face)
+        integer, intent(in) :: old_perm, new_perm
+        character(len=:), allocatable, intent(out) :: str, face
+        character(len=12) :: buf
+        integer :: old_type, new_type
+        old_type = ishft(old_perm, -9)
+        new_type = ishft(new_perm, -9)
+        str = ""
+        select case (new_type)
+        case (64)  ! File.
+            select case (old_type)
+            case (80)
+                str = "   (type change symlink -> file)"
+            case (112)
+                str = "   (type change subproject -> file)"
+            case default
+                continue
+            end select
+        case (80)  ! Symlink.
+            select case (old_type)
+            case (64)
+                str = "   (type change file -> symlink)"
+            case (112)
+                str = "   (type change subproject -> symlink)"
+            case default
+                str = "   (symlink)"
+            end select
+        case (112)  ! Subproject.
+            select case (old_type)
+            case (64)
+                str = "   (type change file -> subproject)"
+            case (80)
+                str = "   (type change symlink -> subproject)"
+            case default
+                str = "   (subproject)"
+            end select
+        case (72)  ! Directory (internal, not a real git state).
+            continue
+        case (0)  ! Deleted or unknown.
+            select case (old_type)
+            case (80)
+                str = "   (symlink)"
+            case (112)
+                str = "   (subproject)"
+            case default
+                continue
+            end select
+        case default
+            write (buf, "(o0)") new_type
+            str = "   (unknown type "//trim(buf)//")"
+        end select
+        if (len(str) > 0) then
+            face = "font_lock_comment_face"
+        else if (new_type == 72) then
+            str = "/"
+            face = ""
+        else
+            face = ""
+        end if
+    end subroutine vc_git_file_type_as_string
+
+    !> Return a string describing the copy or rename associated with an
+    !> entry of state STATE, or an empty string if none.  Port of
+    !> vc-git.el:vc-git-rename-as-string.
+    function vc_git_rename_as_string(state, extra) result(str)
+        use vc_hooks_fm, only: VC_RENAME_NIL, VC_RENAME_COPY
+        integer, intent(in) :: state
+        type(vc_dir_entry_type), intent(in) :: extra
+        character(len=:), allocatable :: str
+        str = ""
+        if (.not. extra%has_extra .or. extra%rename_state == VC_RENAME_NIL) return
+        if (extra%rename_state == VC_RENAME_COPY) then
+            str = "   (copied from "
+        else if (state == VC_ADDED) then
+            str = "   (renamed from "
+        else
+            str = "   (renamed to "
+        end if
+        str = str//vc_git_escape_file_name(extra%orig_name)//")"
+    end function vc_git_rename_as_string
+
+    !> Format a permission change as string.  Port of
+    !> vc-git.el:vc-git-permissions-as-string.
+    function vc_git_permissions_as_string(old_perm, new_perm, has) result(str)
+        integer, intent(in) :: old_perm, new_perm
+        logical, intent(in) :: has
+        character(len=:), allocatable :: str
+        if (.not. has .or. iand(73, ieor(old_perm, new_perm)) == 0) then
+            str = "  "
+        else if (iand(73, old_perm) == 0) then
+            str = "+x"
+        else
+            str = "-x"
+        end if
+    end function vc_git_permissions_as_string
+
+    !> Pretty-printer for the vc-dir-fileinfo structure.  Port of
+    !> vc-git.el:vc-git-dir-printer (without the mouse maps and help
+    !> echoes).
+    recursive subroutine vc_git_dir_printer(info)
+        use vc_dir_fm, only: insert_with_face
+        type(vc_dir_fileinfo_type), intent(in) :: info
+        character(len=:), allocatable :: display_state, face, type_str, type_face
+        character(len=12) :: padded
+        logical :: isdir
+        integer :: state, old_perm, new_perm
+        isdir = allocated(info%directory)
+        state = info%entry%state
+        if (isdir) then
+            display_state = ""
+        else if (allocated(info%display_state)) then
+            display_state = info%display_state
+        else
+            display_state = vc_state_name(state)
+        end if
+        old_perm = 0
+        new_perm = 0
+        if (info%entry%has_extra) then
+            old_perm = info%entry%old_perm
+            new_perm = info%entry%new_perm
+        end if
+        call insert_with_face("  ", "")
+        if (info%marked) then
+            call insert_with_face("*", "vc_dir_mark_indicator")
+        else
+            call insert_with_face(" ", "vc_dir_mark_indicator")
+        end if
+        call insert_with_face("  ", "")
+        if (display_state == "up-to-date") then
+            face = "vc_dir_status_up_to_date"
+        else if (display_state == "missing" .or. display_state == "conflict" .or. display_state == "committing") then
+            face = "vc_dir_status_warning"
+        else if (display_state == "ignored") then
+            face = "vc_dir_status_ignored"
+        else
+            face = "vc_dir_status_edited"
+        end if
+        if (len(display_state) >= 12) then
+            call insert_with_face(display_state, face)
+        else
+            padded = display_state
+            call insert_with_face(padded, face)
+        end if
+        call insert_with_face("  ", "")
+        call insert_with_face(vc_git_permissions_as_string(old_perm, new_perm, info%entry%has_extra), "vc_dir_header")
+        call insert_with_face("    ", "")
+        if (isdir) then
+            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_dir_directory")
+        else
+            call insert_with_face(vc_git_escape_file_name(info%entry%name), "vc_dir_file")
+        end if
+        call vc_git_file_type_as_string(old_perm, new_perm, type_str, type_face)
+        call insert_with_face(type_str, type_face)
+        if (isdir) then
+            call insert_with_face(vc_git_rename_as_string(VC_STATE_NIL, info%entry), "font_lock_comment_face")
+        else
+            call insert_with_face(vc_git_rename_as_string(state, info%entry), "font_lock_comment_face")
+        end if
+    end subroutine vc_git_dir_printer
+
+    ! Update FILENAME of the computation K to FILE_STATE, with FILE_INFO.
+    ! Port of vc-git.el:vc-git-dir-status-update-file.
+    subroutine dir_status_update_file(k, filename, file_state, file_info)
+        integer, intent(in) :: k
+        character(len=*), intent(in) :: filename
+        integer, intent(in) :: file_state
+        type(vc_dir_entry_type), intent(in) :: file_info
+        type(vc_dir_entry_type), allocatable :: grown(:)
+        integer :: j, i
+        associate (s => dir_states(k))
+            do j = 1, s%n
+                if (s%hash(j)%name == filename) exit
+            end do
+            if (j > s%n) then
+                if (.not. allocated(s%hash)) allocate (s%hash(16))
+                if (s%n == size(s%hash)) then
+                    allocate (grown(2*s%n))
+                    do i = 1, s%n
+                        grown(i) = s%hash(i)
+                    end do
+                    call move_alloc(grown, s%hash)
+                end if
+                s%n = s%n + 1
+                j = s%n
+            end if
+            s%hash(j) = file_info
+            s%hash(j)%name = filename
+            s%hash(j)%state = file_state
+            ! (delete filename files)
+            if (allocated(s%files)) then
+                s%files = pack(s%files, [(s%files(i)%s /= filename, i=1, size(s%files))])
+            end if
+        end associate
+    end subroutine dir_status_update_file
+
+    ! (vc-git-create-extra-fileinfo OLD-PERM NEW-PERM RENAME-STATE ORIG-NAME).
+    function extra_fileinfo(old_perm, new_perm, rename_state, orig_name) result(info)
+        use vc_hooks_fm, only: VC_RENAME_NIL
+        integer, intent(in) :: old_perm, new_perm
+        integer, intent(in), optional :: rename_state
+        character(len=*), intent(in), optional :: orig_name
+        type(vc_dir_entry_type) :: info
+        info%has_extra = .true.
+        info%old_perm = old_perm
+        info%new_perm = new_perm
+        info%rename_state = VC_RENAME_NIL
+        if (present(rename_state)) info%rename_state = rename_state
+        if (present(orig_name)) info%orig_name = orig_name
+    end function extra_fileinfo
+
+    ! (string-to-number S 8).
+    integer function octal(s)
+        character(len=*), intent(in) :: s
+        integer :: ios
+        read (s, "(o12)", iostat=ios) octal
+        if (ios /= 0) octal = 0
+    end function octal
+
+    !> Process sentinel for the various dir-status stages.  Port of
+    !> vc-git.el:vc-git-after-dir-status-stage.
+    recursive subroutine vc_git_after_dir_status_stage(action, status)
+        use vc_dispatcher_fm, only: vc_action_type
+        use vc_hooks_fm, only: VC_RENAME_COPY, VC_RENAME_RENAME
+        type(vc_action_type), intent(in) :: action
+        type(status_type), intent(out) :: status
+        type(vc_string_type), allocatable :: files(:)
+        type(vc_dir_entry_type), allocatable :: result(:)
+        type(handle_type) :: old
+        character(len=:), allocatable :: name, state, new_name
+        integer(int64) :: found
+        type(status_type) :: st
+        integer :: k, next_stage, perm, old_perm, new_perm, j, s
+        logical :: had_files
+        status = status_type()
+        k = action%n
+        if (.not. buffer_live_p(action%buffer)) then
+            dir_states(k)%live = .false.
+            return
+        end if
+        old = current_buffer()
+        call set_buffer(action%buffer, st)
+        files = dir_states(k)%files
+        had_files = size(files) > 0
+        next_stage = STAGE_NIL
+        ! First stage is always update-index.
+        !   After that, if no commits yet, ls-files-added.
+        !   Otherwise (there are commits), diff-index then ls-files-missing.
+        !     After ls-files-missing, if FILES non-nil, ls-files-up-to-date.
+        !     After ls-files-missing, if FILES     nil, ls-files-conflict.
+        ! Then always ls-files-unknown.
+        ! Finally, if FILES non-nil, ls-files-ignored.
+        call goto_char(point_min())
+        select case (dir_states(k)%stage)
+        case (STAGE_UPDATE_INDEX)
+            if (vc_git_empty_db_p()) then
+                next_stage = STAGE_LS_FILES_ADDED
+            else
+                next_stage = STAGE_DIFF_INDEX
+            end if
+        case (STAGE_LS_FILES_ADDED)
+            next_stage = STAGE_LS_FILES_UNKNOWN
+            do
+                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 0"//achar(9)//"\([^"//NUL//"]+\)"//NUL, found, &
+                                       st, noerror=SEARCH_NOERROR)
+                if (found == 0) exit
+                new_perm = octal(match_in_buffer(1))
+                name = match_in_buffer(2)
+                call dir_status_update_file(k, name, VC_ADDED, extra_fileinfo(0, new_perm))
+            end do
+        case (STAGE_LS_FILES_UP_TO_DATE)
+            next_stage = STAGE_LS_FILES_UNKNOWN
+            do
+                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} \([0-3]\)"//achar(9)//"\([^"//NUL//"]+\)"//NUL, &
+                                       found, st, noerror=SEARCH_NOERROR)
+                if (found == 0) exit
+                perm = octal(match_in_buffer(1))
+                state = match_in_buffer(2)
+                name = match_in_buffer(3)
+                if (state == "0") then
+                    if (.not. in_hash(k, name)) then
+                        ! `diff-index' stage has not produced a more precise info.
+                        call dir_status_update_file(k, name, VC_UP_TO_DATE, extra_fileinfo(perm, perm))
+                    end if
+                else
+                    ! `diff-index' assigns `edited' status to conflicted
+                    ! files, so we can't do the above in both cases.
+                    call dir_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(perm, perm))
+                end if
+            end do
+        case (STAGE_LS_FILES_CONFLICT)
+            next_stage = STAGE_LS_FILES_UNKNOWN
+            ! It's enough to look for "3" to notice a conflict.
+            do
+                call re_search_forward("\([0-7]\{6\}\) [0-9a-f]\{40\} 3"//achar(9)//"\([^"//NUL//"]+\)"//NUL, found, &
+                                       st, noerror=SEARCH_NOERROR)
+                if (found == 0) exit
+                perm = octal(match_in_buffer(1))
+                name = match_in_buffer(2)
+                call dir_status_update_file(k, name, VC_CONFLICT, extra_fileinfo(perm, perm))
+            end do
+        case (STAGE_LS_FILES_MISSING)
+            if (had_files) then
+                next_stage = STAGE_LS_FILES_UP_TO_DATE
+            else
+                next_stage = STAGE_LS_FILES_CONFLICT
+            end if
+            call nul_separated(VC_MISSING)
+        case (STAGE_LS_FILES_UNKNOWN)
+            if (had_files) next_stage = STAGE_LS_FILES_IGNORED
+            call nul_separated(VC_UNREGISTERED)
+        case (STAGE_LS_FILES_IGNORED)
+            call nul_separated(VC_IGNORED)
+        case default
+            continue
+        case (STAGE_DIFF_INDEX)
+            ! This is output from 'git diff-index' without --cached.
+            ! Therefore this stage compares HEAD and the working tree and
+            ! ignores the index (cf. git-diff-index(1) "RAW OUTPUT FORMAT").
+            ! In particular that means it cannot distinguish between
+            ! `removed' (deletion staged) and `missing' (deleted only in
+            ! working tree).  Set them all to `removed' and then do
+            ! `ls-files-missing' as the next stage to possibly change some
+            ! of those just set to `removed', to `missing'.
+            next_stage = STAGE_LS_FILES_MISSING
+            do
+                call re_search_forward(":\([0-7]\{6\}\) \([0-7]\{6\}\) [0-9a-f]\{40\} [0-9a-f]\{40\} " &
+                                       //"\(\([ADMUT]\)"//NUL//"\([^"//NUL//"]+\)\|\([CR]\)[0-9]*"//NUL//"\([^" &
+                                       //NUL//"]+\)"//NUL//"\([^"//NUL//"]+\)\)"//NUL, found, st, &
+                                       noerror=SEARCH_NOERROR)
+                if (found == 0) exit
+                old_perm = octal(match_in_buffer(1))
+                new_perm = octal(match_in_buffer(2))
+                state = match_in_buffer(4)
+                if (len(state) == 0) state = match_in_buffer(6)
+                name = match_in_buffer(5)
+                if (len(name) == 0) name = match_in_buffer(7)
+                new_name = match_in_buffer(8)
+                if (len(new_name) > 0) then
+                    ! Copy or rename.
+                    if (state(1:1) == "C") then
+                        call dir_status_update_file(k, new_name, VC_ADDED, &
+                                                    extra_fileinfo(old_perm, new_perm, VC_RENAME_COPY, name))
+                    else
+                        call dir_status_update_file(k, name, VC_REMOVED, extra_fileinfo(0, 0, VC_RENAME_RENAME, new_name))
+                        call dir_status_update_file(k, new_name, VC_ADDED, &
+                                                    extra_fileinfo(old_perm, new_perm, VC_RENAME_RENAME, name))
+                    end if
+                else
+                    select case (state(1:1))
+                    case ("M")
+                        s = VC_EDITED
+                    case ("A", "C")
+                        s = VC_ADDED
+                    case ("D")
+                        s = VC_REMOVED
+                    case default  ! U and T: FIXME
+                        s = VC_EDITED
+                    end select
+                    call dir_status_update_file(k, name, s, extra_fileinfo(old_perm, new_perm))
+                end if
+            end do
+        end select
+        ! If we had files but now we don't, it's time to stop.
+        if (had_files) then
+            if (size(dir_states(k)%files) == 0) next_stage = STAGE_NIL
+        end if
+        dir_states(k)%stage = next_stage
+        dir_states(k)%files = files
+        if (next_stage /= STAGE_NIL) then
+            call vc_git_dir_status_goto_stage(k, status)
+            call set_buffer(old, st)
+        else
+            ! (maphash (lambda (key value) (push (cons key value) result)))
+            allocate (result(dir_states(k)%n))
+            do j = 1, dir_states(k)%n
+                result(dir_states(k)%n + 1 - j) = dir_states(k)%hash(j)
+            end do
+            dir_states(k)%live = .false.
+            call set_buffer(old, st)
+            call dir_states(k)%update_function(result, dir_states(k)%buffer, .false.)
+        end if
+    contains
+        ! Every "NAME\0" of the output, with STATE.
+        subroutine nul_separated(state)
+            integer, intent(in) :: state
+            do
+                call re_search_forward("\([^"//NUL//"]*?\)"//NUL, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+                if (found == 0) exit
+                call dir_status_update_file(k, match_in_buffer(1), state, extra_fileinfo(0, 0))
+            end do
+        end subroutine nul_separated
+
+        logical function in_hash(k, name)
+            integer, intent(in) :: k
+            character(len=*), intent(in) :: name
+            integer :: j
+            in_hash = .false.
+            do j = 1, dir_states(k)%n
+                if (dir_states(k)%hash(j)%name == name) then
+                    in_hash = .true.
+                    return
+                end if
+            end do
+        end function in_hash
+    end subroutine vc_git_after_dir_status_stage
+
+    ! Run the command of the current stage of the computation K in the
+    ! current buffer, then `vc_git_after_dir_status_stage'.  Port of
+    ! vc-git.el:vc-git-dir-status-goto-stage.
+    recursive subroutine vc_git_dir_status_goto_stage(k, status)
+        use vc_dispatcher_fm, only: vc_action_type, vc_exec_after
+        integer, intent(in) :: k
+        type(status_type), intent(out) :: status
+        type(vc_string_type), allocatable :: files(:), flags(:)
+        type(vc_string_type) :: none(0)
+        type(vc_action_type) :: action
+        type(status_type) :: st
+        integer :: allowed_exit
+        ! TODO: Look into reimplementing this using `git status --porcelain=v2'.
+        files = dir_states(k)%files
+        allowed_exit = 1
+        call erase_buffer(st)
+        select case (dir_states(k)%stage)
+        case (STAGE_UPDATE_INDEX)
+            if (size(files) > 0) then
+                call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("add", "--refresh", "--"), status, &
+                                    current=.true.)
+                ! git-add exits 128 if some of FILES are untracked;
+                ! we can ignore that (bug#79999).
+                allowed_exit = 128
+            else
+                call vc_git_command(VC_OKSTATUS_ASYNC, none, strings("update-index", "--refresh"), status, &
+                                    current=.true.)
+            end if
+        case (STAGE_LS_FILES_ADDED, STAGE_LS_FILES_UP_TO_DATE)
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("ls-files", "-z", "-c", "-s", "--"), status, &
+                                current=.true.)
+        case (STAGE_LS_FILES_CONFLICT)
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("ls-files", "-z", "-u", "--"), status, current=.true.)
+        case (STAGE_LS_FILES_MISSING)
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("ls-files", "-z", "-d", "--"), status, current=.true.)
+        case (STAGE_LS_FILES_UNKNOWN)
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("ls-files", "-z", "-o", "--exclude-standard", "--"), &
+                                status, current=.true.)
+        case (STAGE_LS_FILES_IGNORED)
+            flags = strings("ls-files", "-z", "-o", "-i", "--directory", "--no-empty-directory", "--exclude-standard")
+            call push(flags, "--")
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, flags, status, current=.true.)
+        case (STAGE_DIFF_INDEX)
+            ! --relative added in Git 1.5.5.
+            call vc_git_command(VC_OKSTATUS_ASYNC, files, strings("diff-index", "--relative", "-z", "-M", "HEAD", "--"), &
+                                status, current=.true.)
+        case default
+            continue
+        end select
+        if (.not. status%ok()) return
+        ! (vc-run-delayed-success ALLOWED-EXIT ...)
+        action%run => vc_git_after_dir_status_stage
+        action%n = k
+        action%buffer = current_buffer()
+        action%okstatus = allowed_exit
+        call vc_exec_after(action, status)
+    end subroutine vc_git_dir_status_goto_stage
+
+    !> Return a list of (FILE STATE EXTRA) entries for DIR.  Port of
+    !> vc-git.el:vc-git-dir-status-files.
+    recursive subroutine vc_git_dir_status_files(dir, files, update, buffer, status)
+        character(len=*), intent(in) :: dir
+        type(vc_string_type), intent(in) :: files(:)
+        procedure(vc_dir_update_proc) :: update
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        type(dir_status_state_type), allocatable :: grown(:)
+        integer :: k, n
+        ! Further things that would have to be fixed later:
+        ! - how to handle unregistered directories
+        ! - how to support vc-dir on a subdir of the project tree
+        if (len(dir) < 0) return
+        if (.not. allocated(dir_states)) allocate (dir_states(0))
+        do k = 1, size(dir_states)
+            if (.not. dir_states(k)%live) exit
+        end do
+        if (k > size(dir_states)) then
+            n = size(dir_states)
+            allocate (grown(n + 1))
+            do k = 1, n
+                grown(k)%live = dir_states(k)%live
+                grown(k)%stage = dir_states(k)%stage
+                if (allocated(dir_states(k)%files)) call move_alloc(dir_states(k)%files, grown(k)%files)
+                grown(k)%update_function => dir_states(k)%update_function
+                grown(k)%buffer = dir_states(k)%buffer
+                if (allocated(dir_states(k)%hash)) call move_alloc(dir_states(k)%hash, grown(k)%hash)
+                grown(k)%n = dir_states(k)%n
+            end do
+            call move_alloc(grown, dir_states)
+            k = n + 1
+        end if
+        dir_states(k)%live = .true.
+        dir_states(k)%stage = STAGE_UPDATE_INDEX
+        dir_states(k)%files = files
+        dir_states(k)%update_function => update
+        dir_states(k)%buffer = buffer
+        dir_states(k)%n = 0
+        if (allocated(dir_states(k)%hash)) deallocate (dir_states(k)%hash)
+        call vc_git_dir_status_goto_stage(k, status)
+    end subroutine vc_git_dir_status_files
+
+    !> Return the name of the current branch (FOUND false if HEAD is
+    !> detached).  Port of vc-git.el:vc-git-working-branch.
+    subroutine vc_git_working_branch(branch, found)
+        character(len=:), allocatable, intent(out) :: branch
+        logical, intent(out) :: found
+        call vc_git_out_match(strings("symbolic-ref", "HEAD"), "^\(refs/heads/\)?\(.+\)$", 2, branch, found)
+    end subroutine vc_git_working_branch
+
+    !> Run `git ARGS...' and return match for group number GROUP of REGEXP.
+    !> FOUND is false if the output does not match.  The exit status is
+    !> ignored.  Port of vc-git.el:vc-git--out-match.
+    subroutine vc_git_out_match(args, regexp, group, match, found)
+        type(vc_string_type), intent(in) :: args(:)
+        character(len=*), intent(in) :: regexp
+        integer, intent(in) :: group
+        character(len=:), allocatable, intent(out) :: match
+        logical, intent(out) :: found
+        type(vc_string_type), allocatable :: rest(:)
+        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: out
+        type(status_type) :: st
+        logical :: ok
+        integer :: k
+        allocate (rest(0))
+        do k = 2, size(args)
+            call push(rest, args(k)%s)
+        end do
+        call temp_begin(old, tmp)
+        ok = vc_git_out_ok(args(1)%s, rest)
+        out = buffer_string()
+        call temp_end(old, tmp)
+        match = ""
+        found = string_match(regexp, out, st) > 0
+        if (found) match = match_string(group, out)
+    end subroutine vc_git_out_match
+
+    !> The URL of the remote REMOTE_NAME ("origin" by default) of the
+    !> repository of FILE_OR_DIR.  Port of vc-git.el:vc-git-repository-url.
+    subroutine vc_git_repository_url(file_or_dir, url, remote_name)
+        character(len=*), intent(in) :: file_or_dir
+        character(len=:), allocatable, intent(out) :: url
+        character(len=*), intent(in), optional :: remote_name
+        type(vc_string_type) :: none(0)
+        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: root, opt_name, saved
+        type(status_type) :: st
+        logical :: found
+        call vc_git_root(file_or_dir, root, found)
+        call temp_begin(old, tmp)
+        saved = buffer_directory()
+        if (found) call set_buffer_directory(root)
+        ! The "get-url" subcommand of "git remote" was new in git 2.7.0;
+        ! "git config" also works in older versions.  -- rgr, 15-Aug-23.
+        opt_name = "remote.origin.url"
+        if (present(remote_name)) opt_name = "remote."//remote_name//".url"
+        call vc_git_command(0, none, strings("config", "--get", opt_name), st, current=.true.)
+        url = buffer_string()
+        if (len(url) > 0) url = url(1:len(url) - 1)
+        call temp_end(old, tmp)
+    end subroutine vc_git_repository_url
+
+    ! Return headers for branch-related information.  Port of
+    ! vc-git.el:vc-git-dir--branch-headers.
+    subroutine vc_git_dir_branch_headers(parts)
+        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        character(len=:), allocatable :: branch, branch_merge, branch_remote, tracking, remote_url
+        logical :: found, has_merge, has_remote
+        call vc_git_working_branch(branch, found)
+        if (found) then
+            call vc_git_out_match(strings("config", "branch."//branch//".merge"), "^\(refs/heads/\)?\(.+\)$", 2, &
+                                  branch_merge, has_merge)
+            has_remote = .false.
+            if (has_merge) call vc_git_out_match(strings("config", "branch."//branch//".remote"), &
+                                                 "\([^"//LF//"]+\)", 1, branch_remote, has_remote)
+            if (has_merge .and. has_remote) then
+                if (branch_remote == ".") then
+                    tracking = branch_merge
+                    remote_url = "none (tracking local branch)"
+                else
+                    tracking = branch_remote//"/"//branch_merge
+                    call vc_git_repository_url(buffer_directory(), remote_url, branch_remote)
+                end if
+            end if
+        else
+            branch = "none (detached HEAD)"
+        end if
+        call fmt("Branch", branch)
+        if (allocated(tracking)) call fmt("Tracking", tracking)
+        if (allocated(remote_url)) call fmt("Remote", remote_url)
+    contains
+        subroutine fmt(key, value)
+            character(len=*), intent(in) :: key, value
+            character(len=11) :: padded
+            padded = key
+            call add_part(parts, padded//": ", "vc_dir_header")
+            call add_part(parts, value, "vc_dir_header_value")
+            call add_part(parts, LF, "")
+        end subroutine fmt
+    end subroutine vc_git_dir_branch_headers
+
+    ! Append TEXT with FACE to PARTS.
+    subroutine add_part(parts, text, face)
+        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        character(len=*), intent(in) :: text, face
+        type(ewoc_part_type), allocatable :: grown(:)
+        integer :: k, n
+        n = size(parts)
+        allocate (grown(n + 1))
+        do k = 1, n
+            call move_alloc(parts(k)%text, grown(k)%text)
+            call move_alloc(parts(k)%face, grown(k)%face)
+        end do
+        grown(n + 1)%text = text
+        grown(n + 1)%face = face
+        call move_alloc(grown, parts)
+    end subroutine add_part
+
+    !> Resolve .git/PATH for the current working tree (.git for none).
+    !> In particular, handle the case where this is a linked working
+    !> tree, such that .git is a plain file.
+    !>
+    !> See the --git-dir and --git-path options to git-rev-parse(1).  Port
+    !> of vc-git.el:vc-git--git-path.
+    function vc_git_git_path(path) result(full)
+        character(len=*), intent(in), optional :: path
+        character(len=:), allocatable :: full
+        character(len=:), allocatable :: out
+        type(status_type) :: st
+        logical :: ok
+        if (present(path)) then
+            if (len(path) > 0) then
+                ! Canonicalize in this branch because --git-dir always returns
+                ! an absolute file name.
+                call vc_git_run_command_string(strings("rev-parse", "--git-path", path), out, ok)
+                call expand_file_name(trim_right(out), full, st, buffer_directory())
+                return
+            end if
+        end if
+        call vc_git_run_command_string(strings("rev-parse", "--git-dir"), out, ok)
+        full = trim_right(out)//"/"
+    contains
+        ! (string-trim-right S): without the trailing whitespace.
+        function trim_right(s) result(t)
+            character(len=*), intent(in) :: s
+            character(len=:), allocatable :: t
+            integer :: n
+            n = len(s)
+            do while (n > 0)
+                if (scan(s(n:n), " "//achar(9)//LF//achar(13)) == 0) exit
+                n = n - 1
+            end do
+            t = s(1:n)
+        end function trim_right
+    end function vc_git_git_path
+
+    ! Return headers for Git commands in progress in this worktree.  Port
+    ! of vc-git.el:vc-git-dir--in-progress-headers with
+    ! vc-git--cmds-in-progress (the commands it shows).
+    subroutine vc_git_dir_in_progress_headers(parts)
+        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        character(len=:), allocatable :: gitdir, f
+        type(status_type) :: st
+        logical :: bisect, rebase
+        gitdir = vc_git_git_path()
+        ! See contrib/completion/git-prompt.sh in git.git.
+        call expand_file_name("rebase-merge", f, st, gitdir)
+        rebase = file_directory_p(f)
+        if (.not. rebase) then
+            call expand_file_name("rebase-apply/rebasing", f, st, gitdir)
+            rebase = file_exists_p(f)
+        end if
+        call expand_file_name("BISECT_START", f, st, gitdir)
+        bisect = file_exists_p(f)
+        ! For now just a heading, key bindings can be added
+        ! later for various bisect actions.
+        if (bisect) then
+            call add_part(parts, "Bisect     : in progress", "vc_dir_status_warning")
+            call add_part(parts, LF, "")
+        end if
+        if (rebase) then
+            call add_part(parts, "Rebase     : in progress", "vc_dir_status_warning")
+            call add_part(parts, LF, "")
+        end if
+    end subroutine vc_git_dir_in_progress_headers
+
+    !> The Git headers of a VC-Dir buffer: the branch, its tracking branch
+    !> and remote, and the commands in progress.  Port of
+    !> vc-git.el:vc-git-dir-extra-headers (the stash headers are deferred:
+    !> they need button.el).
+    recursive subroutine vc_git_dir_extra_headers(dir, parts)
+        character(len=*), intent(in) :: dir
+        type(ewoc_part_type), allocatable, intent(out) :: parts(:)
+        character(len=:), allocatable :: saved
+        allocate (parts(0))
+        saved = buffer_directory()
+        call set_buffer_directory(dir)
+        ! Each helper returns a list of headers.  Each header must be a
+        ! propertized string with no final newline.
+        call vc_git_dir_branch_headers(parts)
+        call vc_git_dir_in_progress_headers(parts)
+        call set_buffer_directory(saved)
+        ! (string-join ... "\n"): no newline after the last header.
+        if (size(parts) > 0) parts = parts(1:size(parts) - 1)
+    end subroutine vc_git_dir_extra_headers
+
     !> Make the Git backend known to VC.
     subroutine syms_of_vc_git()
         integer :: k
@@ -1639,6 +2409,9 @@ contains
             b%print_log => vc_git_print_log
             b%log_view_mode => vc_git_log_view_mode
             b%show_log_entry => vc_git_show_log_entry
+            b%dir_status_files => vc_git_dir_status_files
+            b%dir_extra_headers => vc_git_dir_extra_headers
+            b%dir_printer => vc_git_dir_printer
         end associate
     end subroutine syms_of_vc_git
 end module vc_git_fm

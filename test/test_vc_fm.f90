@@ -97,6 +97,7 @@ contains
                     new_unittest("vc-git-diff", test_diff), &
                     new_unittest("vc-git-print-log", test_print_log), &
                     new_unittest("vc-git-print-root-log", test_print_root_log), &
+                    new_unittest("vc-dir-git", test_vc_dir), &
                     new_unittest("vc-git-revert", test_revert) &
                     ]
     end subroutine collect_vc_fm
@@ -1092,6 +1093,158 @@ contains
         if (buffer_live_p(buf)) call kill_buffer(buf, st)
         call teardown(h)
     end subroutine test_print_root_log
+
+    !> Wait for the status process of the VC-Dir buffer BUF to finish.
+    subroutine wait_vc_dir(buf)
+        use vc_dir_fm, only: vc_dir_busy
+        type(handle_type), intent(in) :: buf
+        type(handle_type) :: old
+        type(status_type) :: st
+        logical :: got, busy
+        integer :: k
+        old = current_buffer()
+        do k = 1, 600
+            call set_buffer(buf, st)
+            busy = vc_dir_busy()
+            call set_buffer(old, st)
+            if (.not. busy) exit
+            call accept_process_output(got, st, seconds=0.05)
+        end do
+        call accept_process_output(got, st, seconds=0.05)
+    end subroutine wait_vc_dir
+
+    !> C-x v d lists the edited and unregistered files of a Git repository
+    !> under its headers; n moves to the files, m marks one, and the VC
+    !> commands then act on the marked files.
+    subroutine test_vc_dir(error)
+        use vc_dir_fm, only: vc_dir, vc_dir_next_line, vc_dir_mark, vc_dir_marked_files, vc_dir_deduce_fileset, &
+                             vc_dir_current_file, vc_dir_mark_all_files, vc_dir_unmark_all_files, vc_dir_hide_state
+        use vc_fm, only: vc_deduce_fileset
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buf, dir
+        type(status_type) :: st
+        type(vc_fileset_type) :: fs
+        type(vc_string_type), allocatable :: marked(:)
+        character(len=:), allocatable :: text, file
+        if (.not. have_git(error)) return
+        call committed_file(h, buf, st)
+        body: block
+            call check(error, st%ok(), "visit: "//format_error(st))
+            if (allocated(error)) exit body
+            call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
+            call write_file(tdir()//"b.txt", "b"//achar(10))
+            call make_directory_internal(tdir()//"sub", st)
+            call write_file(tdir()//"sub/c.txt", "c"//achar(10))
+            call set_buffer(h, st)
+            call vc_dir(tdir(), st)
+            call check(error, st%ok(), "vc-dir: "//format_error(st))
+            if (allocated(error)) exit body
+            dir = get_buffer("*vc-dir*")
+            call check(error, buffer_live_p(dir), "*vc-dir*")
+            if (allocated(error)) exit body
+            call wait_vc_dir(dir)
+            call set_buffer(dir, st)
+            text = buffer_string()
+            call check(error, buffers(cur)%major_mode, "vc_dir_mode")
+            if (allocated(error)) exit body
+            call check(error, index(text, "VC backend : Git"//achar(10)) == 1, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "Branch     : main"//achar(10)) > 0, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "     edited              a.txt") > 0, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "     unregistered        b.txt") > 0, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "                         sub/") > 0, text)
+            if (allocated(error)) exit body
+            call check(error, index(text, "     unregistered        sub/c.txt") > 0, text)
+            if (allocated(error)) exit body
+            ! n from the headers goes past "./" to a.txt.
+            call goto_char(point_min())
+            call vc_dir_next_line(1, st)
+            call vc_dir_current_file(file, st)
+            call check(error, st%ok() .and. file == tdir()//"a.txt", "n: "//file)
+            if (allocated(error)) exit body
+            ! m marks a.txt and moves to b.txt.
+            call vc_dir_mark(st)
+            call vc_dir_marked_files(marked)
+            call check(error, size(marked) == 1, "one marked")
+            if (allocated(error)) exit body
+            call check(error, marked(1)%s, tdir()//"a.txt")
+            if (allocated(error)) exit body
+            call vc_dir_current_file(file, st)
+            call check(error, file == tdir()//"b.txt", "m moves down: "//file)
+            if (allocated(error)) exit body
+            text = buffer_string()
+            call check(error, index(text, "  *  edited              a.txt") > 0, text)
+            if (allocated(error)) exit body
+            ! The VC commands act on the marked files.
+            call vc_deduce_fileset(fs, st, state_model_only_files=.true.)
+            call check(error, st%ok() .and. size(fs%files) == 1, "fileset: "//format_error(st))
+            if (allocated(error)) exit body
+            call check(error, fs%files(1)%s == tdir()//"a.txt" .and. fs%state == VC_EDITED, "fileset of a.txt")
+            if (allocated(error)) exit body
+            ! M marks the files in the state of the current one.
+            call vc_dir_mark_all_files(.false., st)
+            call vc_dir_marked_files(marked)
+            call check(error, st%ok() .and. size(marked) == 3, "M marks the unregistered files too")
+            if (allocated(error)) exit body
+            call vc_dir_unmark_all_files(.true.)
+            call vc_dir_marked_files(marked)
+            call check(error, size(marked) == 0, "C-u U unmarks all")
+            if (allocated(error)) exit body
+            ! v on a.txt commits it (with the author identity of
+            ! vc-test--with-author-identity), and VC-Dir then shows it
+            ! up-to-date; x hides it.
+            call goto_char(point_min())
+            call vc_dir_next_line(1, st)
+            call commit_from_vc_dir(st)
+            call check(error, st%ok(), "commit: "//format_error(st))
+            if (allocated(error)) exit body
+            call set_buffer(dir, st)
+            text = buffer_string()
+            call check(error, index(text, "     up-to-date          a.txt") > 0, text)
+            if (allocated(error)) exit body
+            call vc_dir_hide_state()
+            text = buffer_string()
+            call check(error, index(text, "a.txt") == 0 .and. index(text, "b.txt") > 0, text)
+            if (allocated(error)) exit body
+            call kill_buffer(dir, st)
+        end block body
+        if (buffer_live_p(buf)) call kill_buffer(buf, st)
+        call teardown(h)
+    end subroutine test_vc_dir
+
+    !> C-x v v in a VC-Dir buffer on an edited file, with a log message:
+    !> the commit, run with an author identity.
+    subroutine commit_from_vc_dir(status)
+        use vc_fm, only: vc_next_action
+        use log_edit_fm, only: log_edit_done
+        use sysdep_fm, only: sys_setenv, sys_unsetenv
+        type(status_type), intent(out) :: status
+        character(len=*), parameter :: names(3) = [character(len=18) :: "EMAIL", "GIT_AUTHOR_NAME", &
+                                                                                                               "GIT_COMMITTER_NAME"]
+        character(len=*), parameter :: values(3) = [character(len=20) :: "joh.doe@example.com", "A", "C"]
+        character(len=256) :: saved(3)
+        integer :: saved_status(3), k, err
+        type(status_type) :: st
+        do k = 1, 3
+            call get_environment_variable(trim(names(k)), saved(k), status=saved_status(k))
+            err = sys_setenv(trim(names(k)), trim(values(k)))
+        end do
+        call vc_next_action(.false., status)
+        if (status%ok()) then
+            call insert("Commit from VC-Dir", st)
+            call log_edit_done(status)
+        end if
+        do k = 1, 3
+            if (saved_status(k) == 0) then
+                err = sys_setenv(trim(names(k)), trim(saved(k)))
+            else
+                err = sys_unsetenv(trim(names(k)))
+            end if
+        end do
+    end subroutine commit_from_vc_dir
 
     !> `vc_revert_files' puts back the committed text of a file.
     subroutine test_revert(error)
