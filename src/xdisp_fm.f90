@@ -99,9 +99,11 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, nilp
+    use lisp_fm, only: value_type, nilp, stringp, xstring
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer
+    use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
+                         buffer_file_coding_system
     use buffer_fm, only: get_buffer, get_buffer_create, set_buffer, buffer_live_p, temp_set_point_both, BEG, BEG_BYTE
     use marker_fm, only: make_marker, set_marker, marker_position, free_marker
     use insdel_fm, only: insert_1_both, del_range_both, inhibit_modification_hooks
@@ -114,7 +116,7 @@ module xdisp_fm
     public :: set_mode_line_process, clear_mode_line_process, mode_line_process_text, add_mode_line_modes_entry, &
               mode_line_modes_prefix
     public :: redisplay, init_frame_windows, glyph_width, &
-              mode_line_text, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
+              mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
 
@@ -1315,6 +1317,41 @@ contains
         s = text(1:pos - 1)
     end function truncate_chars
 
+    !> What mode-line-mule-info shows for buffer BI: the "%z" construct
+    !> (on a text terminal the keyboard's and the terminal's coding system
+    !> mnemonics, UTF-8's "UU", then the mnemonic of the buffer's
+    !> `buffer_file_coding_system', or "-" while undecided, " " in a
+    !> unibyte buffer) and mode-line-eol-desc (its end-of-line mnemonic).
+    !> Port of xdisp.c:decode_mode_spec_coding and bindings.el's
+    !> mode-line-mule-info and mode-line-eol-desc (no input method).
+    function mode_line_mule_info(bi, graphic) result(s)
+        integer(int64), intent(in) :: bi
+        logical, intent(in) :: graphic
+        character(len=:), allocatable :: s, cs
+        type(value_type) :: v
+        type(status_type) :: st
+        s = ""
+        if (.not. graphic) s = "UU"
+        call syms_of_coding()
+        cs = ""
+        call buffer_local_value(sym("buffer_file_coding_system"), bi, v, st)
+        if (st%ok() .and. stringp(v)) then
+            cs = xstring(v)
+        else if (allocated(buffer_file_coding_system%value)) then
+            ! Not forwarded yet (mule_fm not set up): the default.
+            cs = buffer_file_coding_system%value
+        end if
+        if (.not. buffers(bi)%multibyte) then
+            s = s//" "
+        else if (.not. coding_system_p(cs) .or. len(cs) == 0) then
+            ! Not yet decided.
+            s = s//"-"
+        else
+            s = s//achar(coding_system_mnemonic(cs))
+        end if
+        s = s//coding_system_eol_type_mnemonic(cs)
+    end function mode_line_mule_info
+
     !> The default mode line of a buffer named NAME on a text terminal,
     !> before it is cut to the window: bindings.el's
     !> standard-mode-line-format as xdisp.c:display_mode_element and
@@ -1327,13 +1364,14 @@ contains
     !> POSITION is what %p gives (`All', `Top', `Bottom' or ` 5%'), LINE
     !> what %l gives, MODES the text in parentheses (mode_line_modes,
     !> default "Fundamental").  The dashes of %- are WIDTH long.
-    !> Simplified: all coding systems are UTF-8 with Unix line ends
-    !> (UUU:), the buffers are local (-) and the frame is F1.  On a
+    !> MULE is what mode-line-mule-info gives (`mode_line_mule_info'; by
+    !> default "UUU:", "U:" on a window-system frame).  Simplified: the
+    !> buffers are local (-) and the frame is F1.  On a
     !> window-system frame (`graphic', display-graphic-p) the front space
     !> is " ", the frame identification "  " (mode-line-frame-control) and
     !> there are no end dashes.  PREFIX is what `mode_line_modes' shows
     !> before its "(".
-    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix) result(s)
+    function mode_line_text(name, modified, read_only, position, line, width, modes, graphic, prefix, mule) result(s)
         character(len=*), intent(in) :: name, position, line
         logical, intent(in) :: modified, read_only
         integer, intent(in) :: width
@@ -1341,7 +1379,8 @@ contains
         logical, intent(in), optional :: graphic
         !> The elements of `mode_line_modes' before its "(" (mode_line_modes_prefix).
         character(len=*), intent(in), optional :: prefix
-        character(len=:), allocatable :: s
+        character(len=*), intent(in), optional :: mule
+        character(len=:), allocatable :: s, coding
         character(len=1) :: star, plus
         logical :: gui
         gui = .false.
@@ -1358,10 +1397,17 @@ contains
             star = "%"
             if (.not. modified) plus = "%"
         end if
-        if (gui) then
-            s = " UUU:"//star//plus//"-"//"  "
+        if (present(mule)) then
+            coding = mule
+        else if (gui) then
+            coding = "U:"
         else
-            s = "-UUU:"//star//plus//"-"//" F1  "
+            coding = "UUU:"
+        end if
+        if (gui) then
+            s = " "//coding//star//plus//"-"//"  "
+        else
+            s = "-"//coding//star//plus//"-"//" F1  "
         end if
         s = s//pad_chars(name, 12)//"   "//truncate_chars(position, 3)//pad_chars(" L"//line, 6)//"  "
         if (present(prefix)) s = s//prefix
@@ -1810,7 +1856,7 @@ contains
         type(window_type), intent(in) :: w
         integer(int64), intent(in) :: bi, start, pt
         logical, intent(in) :: selected
-        character(len=:), allocatable :: text, modes
+        character(len=:), allocatable :: text, modes, mule
         type(glyph_type), allocatable :: row(:)
         integer(int32), allocatable :: chars(:)
         type(face_span_type), allocatable :: spans(:)
@@ -1823,11 +1869,12 @@ contains
         call buffer_modified_p(w%buffer, modified, status)
         gui = frame_window_p(f)
         width = window_text_cols(w)
+        mule = mode_line_mule_info(bi, gui)
         call mode_line_modes_faces(bi, modes, spans, faces)
         text = mode_line_text(buffers(bi)%name, modified, buffers(bi)%read_only, &
                               mode_line_percent(bi, start, w%window_end_valid), &
                               mode_line_line(bi, start, pt, w%total_lines), width, modes, gui, &
-                              mode_line_modes_prefix())
+                              mode_line_modes_prefix(), mule)
         face_id = MODE_LINE_INACTIVE_FACE_ID
         if (selected) face_id = MODE_LINE_ACTIVE_FACE_ID
         id_face = merge_faces(f, "mode_line_buffer_id", 0_int32, face_id)
@@ -1845,13 +1892,13 @@ contains
             spans(k)%last = spans(k)%last + offset
             spans(k)%face_id = merge_faces(f, trim(faces(k)), 0_int32, face_id)
         end do
-        ! The buffer name, padded to 12, after "-UUU:**- F1  " (" UUU:**-  "
+        ! The buffer name, padded to 12, after "-UUU:**- F1  " (" U:**-  "
         ! on a window-system frame).
         call decode_string(buffers(bi)%name, chars, nname)
         if (gui) then
             ! A row spanning the whole window, the mode line's height off
             ! its bottom (compute_line_metrics).
-            name_at = 11
+            name_at = len(mule) + 7
             width = window_pixel_width(f, w)
             allocate (line%glyphs(width/max(1, f%smallest_char_width) + 4))
             call mode_line_row(text, width, line%glyphs, face_id, name_at, name_at - 1 + max(12, nname), id_face, &
@@ -1876,7 +1923,7 @@ contains
             return
         end if
         allocate (row(w%total_cols))
-        call mode_line_row(text, width, row, face_id, 14, 13 + max(12, nname), id_face, spans)
+        call mode_line_row(text, width, row, face_id, len(mule) + 10, len(mule) + 9 + max(12, nname), id_face, spans)
         if (width < w%total_cols) then
             row(width + 1:) = glyph_type(face_id=VERTICAL_BORDER_FACE_ID)
             row(w%total_cols)%ch = iachar("|")
