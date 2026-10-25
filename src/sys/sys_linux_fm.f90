@@ -262,7 +262,7 @@ module sys_linux_fm
               c_grantpt, c_unlockpt, c_ptsname, c_open
     public :: c_mkdir, c_rmdir, c_setenv, c_unsetenv
     public :: c_creat, c_access, c_rename, c_unlink, c_chmod, c_statx, c_getcwd, &
-              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror
+              c_getuid, c_geteuid, c_getegid, c_getpwnam, c_getpwuid, c_strerror, c_gethostname
     public :: c_fork, c_dup2, c_chdir, c_exit, c_pipe2, c_waitpid, c_readlink, c_execv, &
               c_strsignal, c_mkostemp, c_opendir, c_readdir, c_closedir, c_symlink, c_localtime_r
     public :: c_statvfs
@@ -473,6 +473,13 @@ module sys_linux_fm
             import :: c_int32_t
             implicit none(type, external)
         end function c_geteuid
+
+        integer(c_int) function c_gethostname(name, len) bind(C, name="gethostname")
+            import :: c_int, c_char, c_size_t
+            implicit none(type, external)
+            character(kind=c_char), intent(out) :: name(*)
+            integer(c_size_t), value :: len
+        end function c_gethostname
 
         integer(c_int32_t) function c_getegid() bind(C, name="getegid")
             import :: c_int32_t

@@ -41,7 +41,7 @@ module sysdep_fm
                             tabdly, tcsadrain, tcsaflush, termios_type, tiocgwinsz, tiocswinsz, &
                             vdiscard, vintr, vlnext, vmin, vquit, vreprint, vstart, vstop, vsusp, &
                             vtime, vwerase, winsize_type, c_creat, c_access, c_rename, c_unlink, &
-                            c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, &
+                            c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_gethostname, &
                             c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
                             c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
                             c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
@@ -80,6 +80,7 @@ module sysdep_fm
               sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
               sys_unsetenv, emacs_get_current_dir_name, &
               passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
+              passwd_entry_by_uid, passwd_entry_by_name, emacs_gethostname, &
               emacs_geteuid, emacs_getuid, emacs_getegid, emacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
@@ -1576,6 +1577,67 @@ contains
         call c_f_pointer(p, pw)
         name = c_string_to_fortran(pw%pw_name)
     end subroutine user_name_of_uid
+
+    !> The login name, gecos field and uid of user UID (getpwuid(3));
+    !> FOUND is false if it has no entry.
+    subroutine passwd_entry_by_uid(uid, name, gecos, found)
+        integer(int32), intent(in) :: uid
+        character(len=:), allocatable, intent(out) :: name, gecos
+        logical, intent(out) :: found
+        call passwd_entry(c_getpwuid(uid), name, gecos, found)
+    end subroutine passwd_entry_by_uid
+
+    !> The login name and gecos field of the user called LOGIN
+    !> (getpwnam(3)); FOUND is false if there is no such user.  UID is the
+    !> user's uid.
+    subroutine passwd_entry_by_name(login, name, gecos, uid, found)
+        character(len=*), intent(in) :: login
+        character(len=:), allocatable, intent(out) :: name, gecos
+        integer(int32), intent(out) :: uid
+        logical, intent(out) :: found
+        type(c_ptr) :: p
+        type(passwd_type), pointer :: pw
+        uid = -1
+        p = c_getpwnam(c_path(login))
+        call passwd_entry(p, name, gecos, found)
+        if (.not. found) return
+        call c_f_pointer(p, pw)
+        uid = pw%pw_uid
+    end subroutine passwd_entry_by_name
+
+    subroutine passwd_entry(p, name, gecos, found)
+        type(c_ptr), intent(in) :: p
+        character(len=:), allocatable, intent(out) :: name, gecos
+        logical, intent(out) :: found
+        type(passwd_type), pointer :: pw
+        found = c_associated(p)
+        name = ""
+        gecos = ""
+        if (.not. found) return
+        call c_f_pointer(p, pw)
+        name = c_string_to_fortran(pw%pw_name)
+        if (c_associated(pw%pw_gecos)) gecos = c_string_to_fortran(pw%pw_gecos)
+    end subroutine passwd_entry
+
+    !> The host name (gethostname(2)), growing the buffer until the name
+    !> fits, as sysdep.c:init_system_name does.
+    function emacs_gethostname() result(hostname)
+        character(len=:), allocatable :: hostname
+        character(kind=c_char, len=:), allocatable :: buf
+        integer :: size, n, err
+        size = 256
+        do
+            allocate (character(kind=c_char, len=size) :: buf)
+            buf = repeat(c_null_char, size)
+            err = c_gethostname(buf, int(size - 1, c_size_t))
+            n = index(buf, c_null_char) - 1
+            ! Was the buffer large enough for the '\0'?
+            if (n < size - 1 .or. size > 65536) exit
+            deallocate (buf)
+            size = 2*size
+        end do
+        hostname = buf(1:max(n, 0))
+    end function emacs_gethostname
 
     !> The login names of all users of the password database, in its
     !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.

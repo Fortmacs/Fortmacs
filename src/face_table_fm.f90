@@ -28,6 +28,14 @@ module face_table_fm
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
     use faces_fm, only: border
+    use add_log_fm, only: change_log_acknowledgment
+    use add_log_fm, only: change_log_conditionals
+    use add_log_fm, only: change_log_date
+    use add_log_fm, only: change_log_email
+    use add_log_fm, only: change_log_file
+    use add_log_fm, only: change_log_function
+    use add_log_fm, only: change_log_list
+    use add_log_fm, only: change_log_name_face
     use faces_fm, only: child_frame_border
     use comint_fm, only: comint_highlight_input_face
     use comint_fm, only: comint_highlight_prompt
@@ -177,6 +185,14 @@ module face_table_fm
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
         type(named_face_type), pointer :: border => border
+        type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
+        type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
+        type(named_face_type), pointer :: change_log_date => change_log_date
+        type(named_face_type), pointer :: change_log_email => change_log_email
+        type(named_face_type), pointer :: change_log_file => change_log_file
+        type(named_face_type), pointer :: change_log_function => change_log_function
+        type(named_face_type), pointer :: change_log_list => change_log_list
+        type(named_face_type), pointer :: change_log_name => change_log_name_face
         type(named_face_type), pointer :: child_frame_border => child_frame_border
         type(named_face_type), pointer :: comint_highlight_input => comint_highlight_input_face
         type(named_face_type), pointer :: comint_highlight_prompt => comint_highlight_prompt
