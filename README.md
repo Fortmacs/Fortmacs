@@ -12,16 +12,10 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
-<table>
-<tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
-<tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆3.21%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆3.61%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆10.30%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆2.43%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">2,055<br>of 63,999</td><td align="center">2,055<br>of 56,864</td><td align="center">880<br>of 8,547</td><td align="center">1,175<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆3.21%</td><td align="center">≆3.61%</td><td align="center">≆10.30%</td><td align="center">≆2.43%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
-</table>
-
-Total is Emacs (its C functions and Elisp definitions) and the packages
-together. A rough estimate from `tools/progress.sh`.
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
+<img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.21% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
+</picture>
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
@@ -91,11 +85,6 @@ running. Each generation is kept with the `init.f90` it was built from in
    shows their current values and jumps to their source. Fortmacs aims to
    bring that to Fortran: help shows Fortran names, values and source files,
    so exploring and configuring the editor feels like working in Fortran.
-   A language server such as fortls supports editing Fortran code; this is
-   about the editor itself being inspectable in Fortran.
-
-The trade-off: you can't evaluate code in a running session. Changing the
-configuration means rebuilding.
 
 ## Differences from Emacs
 
@@ -105,7 +94,8 @@ otherwise:
 - Names use underscores: `M-x find_file`, `C-h v fill_column`,
   `text_mode_hook`. Keys and mode-line text are unchanged.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
-  `ielm`, and `*scratch*` starts in Fundamental mode.
+  `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
+  configuration means rebuilding.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
 - Configuration and packages are Fortran modules compiled into the binary;
@@ -121,6 +111,9 @@ niche project, and one person or a handful of porters could never keep up;
 it would become an endless race over which packages matter most. Emacs
 already works, so Emacs in Fortran would likely never happen. This is for
 fun. Let's see where it goes.
+
+Fortmacs is written with [Claude Code](https://claude.com/claude-code),
+Anthropic's coding agent, running on one of Claude's most capable models.
 
 Telling an assistant to "rewrite Emacs in Fortran" doesn't produce a working
 program by itself: a faithful port takes constant direction. Left alone, it
