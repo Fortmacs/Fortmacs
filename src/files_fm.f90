@@ -69,7 +69,7 @@ module files_fm
     private
 
     public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file
-    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name
+    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
@@ -542,10 +542,12 @@ module files_fm
         !>
         !> This function calls the function that `revert_buffer_function'
         !> specifies to do the work, with arguments IGNORE_AUTO and
-        !> NOCONFIRM.  Port of files.el:revert-buffer
-        !> (`revert_buffer_restore_functions' and the default function,
-        !> which reverts a file-visiting buffer, are deferred).  (In
-        !> files_dir_fm.)
+        !> NOCONFIRM.  The default function runs the hooks
+        !> `before_revert_hook' and `after_revert_hook'.  Reverting keeps
+        !> the read-only state set by `read_only_mode'
+        !> (`revert_buffer_restore_functions' is fixed to
+        !> revert-buffer-restore-read-only).  Port of files.el:revert-buffer.
+        !> (In files_dir_fm.)
         recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
             implicit none(type, external)
             type(status_type), intent(out) :: status
@@ -784,6 +786,31 @@ module files_fm
     !> revert-buffer-preserve-modes.
     logical, public :: revert_buffer_preserve_modes = .false.
 
+    !> Specify which files should be reverted without query.
+    !> The value is a list of regular expressions.
+    !> If the file name matches one of these regular expressions,
+    !> then `revert_buffer' reverts the file without querying
+    !> if the file has changed on disk and you have not edited the buffer.
+    !> (Each is used without its trailing blanks.)  Port of files.el
+    !> revert-without-query.
+    character(len=:), allocatable, public :: revert_without_query(:)
+
+    !> Normal hook for `revert_buffer' to run before reverting.
+    !> The function `revert_buffer__default' runs this.
+    !> A customized `revert_buffer_function' need not run this hook.
+    !> Port of files.el before-revert-hook.
+    type(hook_type), target, public :: before_revert_hook = hook_type(name="before_revert_hook")
+
+    !> Normal hook for `revert_buffer' to run after reverting.
+    !> Note that the hook value that it runs is the value that was in effect
+    !> before reverting; that makes a difference if you have buffer-local
+    !> hook functions.
+    !>
+    !> The function `revert_buffer__default' runs this.
+    !> A customized `revert_buffer_function' need not run this hook.
+    !> Port of files.el after-revert-hook.
+    type(hook_type), target, public :: after_revert_hook = hook_type(name="after_revert_hook")
+
     !> True means allow `find_file' to visit directories.
     !> To visit the directory, `find_file' runs `find_directory_functions'.
     !> Port of files.el find-file-run-dired.
@@ -1021,10 +1048,12 @@ contains
 
     !> Set up the current buffer after visiting its file: read-only if the
     !> file can't be written, and a message about new or protected files
-    !> when `warn', then the major mode and `find_file_hook'.  Port of
-    !> files.el:after-find-file (no auto-save or local variables).
-    subroutine after_find_file(error, warn)
+    !> when `warn', then (unless `nomodes') the major mode and
+    !> `find_file_hook'.  Port of files.el:after-find-file (no auto-save or
+    !> local variables).
+    recursive subroutine after_find_file(error, warn, nomodes)
         logical, intent(in) :: error, warn
+        logical, intent(in), optional :: nomodes
         character(len=:), allocatable :: msg, file
         integer(int32) :: modes
         type(status_type) :: st
@@ -1055,6 +1084,9 @@ contains
             if (backup_file_name_p(file) .or. (modes >= 0 .and. iand(modes, int(o'222', int32)) == 0)) then
                 call set_buffer_read_only(current_buffer(), .true., st)
             end if
+        end if
+        if (present(nomodes)) then
+            if (nomodes) return
         end if
         call normal_mode(st, .true.)
         ! If requested, add a newline at the end of the file.

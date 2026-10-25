@@ -846,6 +846,7 @@ contains
             call set_buffer(chk, st)
             call check(error, buffer_string(), "one"//achar(10)//"two"//achar(10))
             call kill_buffer(chk, st)
+            call set_buffer(h, st)
             if (allocated(error)) exit body
             call check(error, vc_state(tdir()//"a.txt") == VC_UP_TO_DATE, "up to date")
         end block body

@@ -1136,8 +1136,9 @@ contains
         if (.not. st%ok()) return
         call list_elements(names, elts)
         do k = 1, size(elts)
-            if (string_match(re, file_name_nondirectory(xstring(elts(k))), mst) > 0) &
+            if (string_match(re, file_name_nondirectory(xstring(elts(k))), mst) > 0) then
                 call delete_file(xstring(elts(k)), st)
+            end if
         end do
     end subroutine vc_delete_automatic_version_backups
 
@@ -1503,11 +1504,13 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: st
         if (.not. allocated(vc_ignore_dir_regexp)) vc_ignore_dir_regexp = locate_dominating_stop_dir_regexp
-        if (.not. allocated(vc_handled_backends)) &
+        if (.not. allocated(vc_handled_backends)) then
             vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
-        if (.not. allocated(vc_directory_exclusion_list)) &
+        end if
+        if (.not. allocated(vc_directory_exclusion_list)) then
             vc_directory_exclusion_list = [character(len=8) :: "SCCS", "RCS", "CVS", "MCVS", ".src", ".svn", ".git", &
                                            ".hg", ".bzr", "_MTN", "_darcs", "{arch}", ".repo", ".jj"]
+        end if
         if (.not. allocated(props)) allocate (props(0))
         call define_faces()
         commands%vc_refresh_state%run => cmd_vc_refresh_state

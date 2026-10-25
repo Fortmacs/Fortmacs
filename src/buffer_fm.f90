@@ -138,6 +138,10 @@ module buffer_fm
         character(len=:), allocatable :: directory
         !> `buffer_backed_up': a backup was made since the file was visited.
         logical :: backed_up = .false.
+        !> `read_only_mode__state' (simple.el): the `buffer_read_only'
+        !> value last set by `read_only_mode' (or View mode), restored when
+        !> reverting; only when `read_only_mode_state_set' (bound locally).
+        logical :: read_only_mode_state = .false., read_only_mode_state_set = .false.
         !> `backup_inhibited' (files.el): true means don't make a backup,
         !> regardless of the other parameters.  Permanent-local; VC sets it
         !> for files under version control.

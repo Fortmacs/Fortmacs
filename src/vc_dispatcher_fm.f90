@@ -152,7 +152,6 @@ module vc_dispatcher_fm
         logical :: valid = .false.
     end type vc_context_type
 
-
     !> A procedure run with the visited file of a buffer resynched
     !> (vc-mode-line-hook; set by vc_fm to `vc_mode_line').
     abstract interface
@@ -647,7 +646,7 @@ contains
                 if (fixnump(result)) code = int(xfixnum(result))
                 if (present(exit_status)) exit_status = code
                 if (okstatus /= VC_OKSTATUS_T .and. (.not. fixnump(result) .or. &
-                                                    (okstatus >= 0 .and. okstatus < code))) then
+                                                     (okstatus >= 0 .and. okstatus < code))) then
                     if (buffers(cur)%name(1:min(1, len(buffers(cur)%name))) /= " ") then
                         call pop_to_buffer(current_buffer(), st)
                         call goto_char(point_min())
@@ -686,7 +685,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=16) :: buf
-        write (buf, '(i0)') n
+        write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
 

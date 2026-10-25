@@ -327,7 +327,7 @@ contains
         integer, intent(in) :: n
         character(len=:), allocatable :: s
         character(len=16) :: buf
-        write (buf, '(i0)') n
+        write (buf, "(i0)") n
         s = trim(buf)
     end function itoa
 
@@ -415,6 +415,8 @@ contains
                 sw = vc_register_switches
             case ("annotate")
                 sw = vc_annotate_switches
+            case default
+                ! Not an operation with switches options.
             end select
         end if
         if (sw%kind == VC_SWITCHES_NIL .and. op == "diff") then
@@ -954,7 +956,7 @@ contains
             names(k) = make_string(trim(vc_handled_backends(k)))
         end do
         call symbol_value(sym("completion_ignore_case"), saved, st)
-        call set(sym("completion_ignore_case"), make_list([value_type ::]), st)
+        call set(sym("completion_ignore_case"), nil(), st)
         call completing_read(prompt, completion_list_table(make_list(names)), answer, status, &
                              require_match=REQUIRE_MATCH_T)
         call set(sym("completion_ignore_case"), saved, st)
@@ -1386,8 +1388,9 @@ contains
                 all = buffer_list()
                 do j = 1, size(all)
                     if (.not. allocated(buffers(all(j)%index)%filename)) cycle
-                    if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) &
+                    if (index(buffers(all(j)%index)%filename, files(k)%s) == 1) then
                         call push(flist, buffers(all(j)%index)%filename)
+                    end if
                 end do
             else
                 call push(flist, files(k)%s)
@@ -2780,9 +2783,10 @@ contains
 
     !> Register VC's commands and options.
     subroutine syms_of_vc()
-        if (.not. allocated(vc_deduce_backend_nonvc_modes)) &
+        if (.not. allocated(vc_deduce_backend_nonvc_modes)) then
             vc_deduce_backend_nonvc_modes = [character(len=32) :: "dired_mode", "shell_mode", "eshell_mode", &
                                              "compilation_mode"]
+        end if
         if (.not. allocated(locals)) allocate (locals(0))
         commands%vc_next_action%run => cmd_vc_next_action
         commands%vc_register%run => cmd_vc_register
