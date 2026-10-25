@@ -739,6 +739,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-25 — Logo and theme switch (`logo-switch`): `ortmacs` in the logo is two cells taller (x-height 7 cells, bottom unchanged); the syntax page's light/dark switch moved from the title to the right, just below the code.
 - 2026-10-25 — Theme switch knob (`theme-knob`): the syntax page's switch knob is yellow on the sun (light) and blue on the moon (dark), with a black icon; the sun icon itself is no longer yellow.
 - 2026-10-25 — Theme colors (`theme-colors`): in light mode the syntax page highlights in purple (with cream text) and its sun is yellow; the progress pie shows the unported rest in black and MELPA in gray, with cream edges on the dark pie so the black slice shows on GitHub's dark background. These came after #107 was merged.
 - 2026-10-25 — Syntax page fix (`syntax-let`): the `let` note now says its closing parenthesis is the first of the three on the final line (it said second-to-last).
