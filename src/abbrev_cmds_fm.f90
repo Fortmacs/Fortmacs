@@ -27,7 +27,7 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use commands_fm, only: commands
     use error_fm, only: set_error, format_message, FM_GENERIC_ERROR
     use lisp_fm, only: nilp
-    use data_fm, only: add_local_variables_killer
+    use data_fm, only: add_local_variables_killer, forward_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, erase_buffer, kill_buffer, &
                          restore_buffer_modified_p, generate_new_buffer_name
     use marker_fm, only: copy_marker_at, marker_position, free_marker
@@ -648,7 +648,7 @@ contains
                 ! normally capitalize each word.
                 a = 0
                 b = 0
-                if (.not. abbrev_all_caps) then
+                if (.not. abbrev_all_caps%value) then
                     p0 = point()
                     call forward_word(-1_int64)
                     a = point()
@@ -657,7 +657,7 @@ contains
                     b = point()
                     call goto_char(p0)
                 end if
-                if (.not. abbrev_all_caps .and. a > b) then
+                if (.not. abbrev_all_caps%value .and. a > b) then
                     call upcase_initials_region(wstart, point(), status)
                 else
                     call upcase_region(wstart, point(), status)
@@ -1501,6 +1501,7 @@ contains
 
     module procedure syms_of_abbrev
     call ensure_tables()
+    call forward_setting(abbrev_all_caps)
     call minor_modes%abbrev_mode%define("abbrev_mode", " Abbrev")
     abbrev_mode => minor_modes%abbrev_mode%state
     commands%abbrev_mode%run => cmd_abbrev_mode

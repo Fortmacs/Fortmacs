@@ -22,10 +22,10 @@
 !> Filling: `fill_paragraph' (M-q), `fill_region',
 !> `fill_region_as_paragraph', `set_fill_prefix' (C-x .), adaptive fill
 !> prefixes, the no-break predicates, canonical spacing and
-!> justification (left, right, full, center).
+!> justification (left, right, full, center), `fill_paragraph_function' and
+!> comments (`fill_comment_paragraph', in the submodule fill_comment_fm).
 !>
-!> Not ported yet: comments (`fill_comment_paragraph'; no comment syntax
-!> yet), hard newlines, `fill_paragraph_function' and
+!> Not ported yet: comments in `fill_region' and auto-fill, hard newlines,
 !> `fill_region_as_paragraph_function', the semantic-linefeed variants,
 !> kinsoku (`fill_find_break_point'), invisible text,
 !> `fill_individual_paragraphs' and `set_justification'.
@@ -36,9 +36,9 @@ module fill_fm
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nil, nilp, fixnump, xfixnum, symbolp, make_string, stringp, xstring
     use lread_fm, only: sym
-    use data_fm, only: value_eq, symbol_name, logical_setting
+    use data_fm, only: value_eq, symbol_name, logical_setting, add_local_variables_killer
     use buffer_fm, only: buffers, cur, fill_column, transient_mark_mode, barf_if_buffer_read_only, &
-                         buffer_modified_p, restore_buffer_modified_p, current_buffer
+                         buffer_modified_p, restore_buffer_modified_p, current_buffer, buffer_serial_live
     use character_fm, only: string_char_and_length
     use characters_fm, only: char_has_category
     use charscript_fm, only: char_script, script_names
@@ -73,8 +73,8 @@ module fill_fm
               fill_single_char_nobreak_p, fill_nobreak_p, fill_delete_prefix, fill_delete_newlines, &
               fill_move_to_break_point, fill_newline, fill_indent_to_left_margin, fill_region_as_paragraph, &
               fill_paragraph, fill_region, unfill_paragraph, current_justification, justify_current_line, &
-              unjustify_current_line, unjustify_region, string_width, syms_of_fill
-    public :: fill_nobreak_predicate_proc
+              unjustify_current_line, unjustify_region, string_width, syms_of_fill, fill_comment_paragraph
+    public :: fill_nobreak_predicate_proc, fill_paragraph_proc
 
     !> Justification styles: the values of `default_justification' (and
     !> `none'), and t for "as `current_justification' says".
@@ -158,8 +158,81 @@ module fill_fm
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    ! fill-paragraph-function is t: fill_minibuffer_function is running.
-    logical :: filling_minibuffer = .false.
+    ! fill-paragraph-function is t: a fill-paragraph-function (or
+    ! fill_minibuffer_function) is running.
+    logical :: in_fill_paragraph_function = .false.
+
+    abstract interface
+        !> A `fill_paragraph_function': fill the paragraph at point (JUSTIFY
+        !> as in `fill_paragraph'); DONE false (upstream's nil) means
+        !> `fill_paragraph' should do its normal work.
+        subroutine fill_paragraph_proc(status, done, justify)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: done
+            integer, intent(in), optional :: justify
+        end subroutine fill_paragraph_proc
+    end interface
+
+    !> One buffer's `fill_paragraph_function'.
+    type :: fill_paragraph_entry_type
+        integer(int64) :: serial = 0
+        procedure(fill_paragraph_proc), pointer, nopass :: fn => null()
+    end type fill_paragraph_entry_type
+
+    !> The type of `fill_paragraph_function': a default `value' (assign
+    !> with `=>'; null is nil) and buffers' own (`set_local').
+    type, public :: fill_paragraph_function_type
+        procedure(fill_paragraph_proc), pointer, nopass :: value => null()
+        type(fill_paragraph_entry_type), allocatable :: entries(:)
+    contains
+        !> Make FN the current buffer's function (setq-local).
+        procedure :: set_local => fill_paragraph_set_local
+        !> The current buffer's function (null for nil).
+        procedure :: get => fill_paragraph_get
+        !> Make the current buffer use the default again.
+        procedure :: kill_local => fill_paragraph_kill_local
+    end type fill_paragraph_function_type
+
+    !> Mode-specific function to fill a paragraph, or null if there is none.
+    !> If the function returns false (DONE), then `fill_paragraph' does its
+    !> normal work.
+    !> Note: This only affects `fill_paragraph' and not `fill_region'
+    !> nor `auto_fill_mode', so it is often better to use some other hook,
+    !> such as `fill_forward_paragraph_function'.  Port of fill.el
+    !> fill-paragraph-function (its value t is internal).
+    type(fill_paragraph_function_type), public :: fill_paragraph_function
+
+    !> True means paragraph filling will try to pay attention to comments.
+    !> Port of fill.el fill-paragraph-handle-comment.
+    logical, public :: fill_paragraph_handle_comment = .true.
+
+    interface
+        !> Fill current comment.
+        !> If we're not in a comment, just return false (DONE) so that the
+        !> caller can take care of filling.  JUSTIFY is used as in
+        !> `fill_paragraph'.  Port of fill.el:fill-comment-paragraph.  (In
+        !> fill_comment_fm.)
+        recursive module subroutine fill_comment_paragraph(status, done, justify)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            logical, intent(out) :: done
+            integer, intent(in), optional :: justify
+        end subroutine fill_comment_paragraph
+
+        !> Whether `fill_paragraph' can fill comments (step 3): a comment
+        !> syntax ending at end of line.  (In fill_comment_fm.)
+        module logical function fill_comment_syntax_p()
+            implicit none(type, external)
+        end function fill_comment_syntax_p
+
+        !> `comment_start_skip', "" for nil.  (In fill_comment_fm.)
+        module function fill_comment_start_skip() result(skip)
+            implicit none(type, external)
+            character(len=:), allocatable :: skip
+        end function fill_comment_start_skip
+    end interface
 contains
 
     subroutine init_fill_variables()
@@ -1154,6 +1227,10 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: pfx
         integer :: how
+        procedure(fill_paragraph_proc), pointer :: fn
+        logical :: done, in_minibuffer, saved_handle
+        character(len=:), allocatable :: paragraph_start_orig, skip
+        integer(int64) :: shortage
         call init_fill_variables()
         status = status_type()
         how = JUSTIFY_T
@@ -1171,21 +1248,59 @@ contains
                 end if
             end if
         end if
-        ! 2. Try fill-paragraph-function (nil, and t while
-        ! fill-minibuffer-function runs): in the minibuffer, don't count
-        ! the width of the prompt.
-        if (.not. filling_minibuffer .and. minibufferp()) then
-            if (point_min() == 1) then
-                filling_minibuffer = .true.
-                call fill_minibuffer_function(status, justify, pfx)
-                filling_minibuffer = .false.
-                if (present(used)) used = pfx
-                return
+        ! 2. Try fill-paragraph-function.
+        if (.not. in_fill_paragraph_function) then
+            fn => fill_paragraph_function%get()
+            in_minibuffer = .false.
+            if (.not. associated(fn) .and. minibufferp()) in_minibuffer = point_min() == 1
+            if (associated(fn) .or. in_minibuffer) then
+                ! If fill-paragraph-function is set, it probably takes care
+                ! of comments and stuff.  If not, it will have to set
+                ! fill-paragraph-handle-comment back to t explicitly or
+                ! return nil.
+                saved_handle = fill_paragraph_handle_comment
+                fill_paragraph_handle_comment = .false.
+                in_fill_paragraph_function = .true.
+                if (associated(fn)) then
+                    call fn(status, done, justify)
+                else
+                    ! In the minibuffer, don't count the width of the
+                    ! prompt.
+                    call fill_minibuffer_function(status, justify, pfx)
+                    done = .true.
+                end if
+                in_fill_paragraph_function = .false.
+                fill_paragraph_handle_comment = saved_handle
+                if (done .or. .not. status%ok()) then
+                    if (present(used)) used = pfx
+                    return
+                end if
+            end if
+        end if
+        ! 3. Try our syntax-aware filling code.
+        if (fill_paragraph_handle_comment) then
+            ! Our code only handles \n-terminated comments right now.
+            if (fill_comment_syntax_p()) then
+                saved_handle = fill_paragraph_handle_comment
+                fill_paragraph_handle_comment = .false.
+                call fill_comment_paragraph(status, done, justify)
+                fill_paragraph_handle_comment = saved_handle
+                if (done .or. .not. status%ok()) then
+                    if (present(used)) used = pfx
+                    return
+                end if
             end if
         end if
         ! 4. If it all fails, default to the good ol' text paragraph
         ! filling.
         before = point()
+        call init_paragraph_variables()
+        paragraph_start_orig = paragraph_start%value
+        skip = ""
+        if (fill_paragraph_handle_comment) skip = fill_comment_start_skip()
+        ! Try to prevent code sections and comment sections from being
+        ! filled together.
+        if (len(skip) > 0) paragraph_start%value = paragraph_start_orig//"\|[ "//TAB//"]*\(?:"//skip//"\)"
         ! To make sure the return value of forward-paragraph is
         ! meaningful, we have to start from the beginning of line,
         ! otherwise skipping past the last few chars of a
@@ -1200,9 +1315,21 @@ contains
             end = point()
             if (forward_paragraph(-1_int64) /= 0) continue
             beg = point()
+            ! If the paragraph starts with a comment line preceding point
+            ! on a non-comment line, skip such comment lines, so they
+            ! are not filled together (bug#80449).
+            if (len(skip) > 0 .and. beg < before) then
+                call goto_char(beg)
+                if (looking_at(paragraph_start_orig, st)) call goto_char(match_end(0, st) + 1)
+                if (looking_at(skip, st)) then
+                    shortage = forward_line(1_int64)
+                    beg = point()
+                end if
+            end if
             call goto_char(before)
             call fill_region_as_paragraph(beg, end, status, how, used=pfx)
         end if
+        paragraph_start%value = paragraph_start_orig
         call restore_point(saved)
         if (present(used)) used = pfx
     end subroutine fill_paragraph_1
@@ -1681,8 +1808,74 @@ contains
     end subroutine cmd_justify_current_line
 
     !> Give the variables their defaults and register the commands.
+    subroutine fill_paragraph_set_local(self, fn)
+        class(fill_paragraph_function_type), intent(inout) :: self
+        procedure(fill_paragraph_proc) :: fn
+        type(fill_paragraph_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        ! Reuse the entry of a dead buffer.
+        do i = 1, size(self%entries)
+            if (.not. buffer_serial_live(self%entries(i)%serial)) then
+                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        n = size(self%entries)
+        allocate (grown(n + 1))
+        do i = 1, n
+            grown(i)%serial = self%entries(i)%serial
+            grown(i)%fn => self%entries(i)%fn
+        end do
+        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, self%entries)
+    end subroutine fill_paragraph_set_local
+
+    function fill_paragraph_get(self) result(fn)
+        class(fill_paragraph_function_type), intent(in) :: self
+        procedure(fill_paragraph_proc), pointer :: fn
+        integer :: i
+        fn => self%value
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
+            end if
+        end do
+    end function fill_paragraph_get
+
+    subroutine fill_paragraph_kill_local(self)
+        class(fill_paragraph_function_type), intent(inout) :: self
+        integer :: i
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%serial = 0
+                self%entries(i)%fn => null()
+            end if
+        end do
+    end subroutine fill_paragraph_kill_local
+
+    !> kill-all-local-variables: forget the current buffer's
+    !> `fill_paragraph_function'.
+    subroutine kill_fill_locals()
+        call fill_paragraph_function%kill_local()
+    end subroutine kill_fill_locals
+
     subroutine syms_of_fill()
         call init_fill_variables()
+        call add_local_variables_killer(kill_fill_locals)
         commands%fill_paragraph%run => cmd_fill_paragraph
         commands%fill_region%run => cmd_fill_region
         commands%fill_region_as_paragraph%run => cmd_fill_region_as_paragraph

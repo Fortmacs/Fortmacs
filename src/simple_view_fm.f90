@@ -64,23 +64,31 @@ contains
     end procedure read_only_mode
 
     module procedure what_line
+    character(len=:), allocatable :: text
+    status = status_type()
+    call what_line_text(text)
+    end procedure what_line
+
+    module procedure what_line_text
     integer(int64) :: start, n, begv, zv
     character(len=24) :: a, b
-    status = status_type()
+    type(status_type) :: status
     start = point_min()
     n = line_number_at_pos()
     write (a, "(i0)") n
     if (start == 1) then
-        call message("Line "//trim(a))
+        text = "Line "//trim(a)
+        call message(text)
     else
         begv = buffers(cur)%begv
         zv = buffers(cur)%zv
         call widen()
         write (b, "(i0)") n + line_number_at_pos(start) - 1
-        call message("line "//trim(b)//" (narrowed line "//trim(a)//")")
+        text = "line "//trim(b)//" (narrowed line "//trim(a)//")"
+        call message(text)
         call narrow_to_region(begv, zv, status)
     end if
-    end procedure what_line
+    end procedure what_line_text
 
     module procedure syms_of_simple_view
     call minor_modes%read_only_mode%define("read_only_mode", variable="buffer_read_only", hook=read_only_mode_hook, &

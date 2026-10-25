@@ -55,14 +55,14 @@ module newcomment_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, nilp, consp, fixnump, xfixnum
-    use data_fm, only: value_eq
+    use data_fm, only: value_eq, add_local_variables_killer
     use lread_fm, only: sym
     use data_fm, only: integer_setting, logical_setting, string_setting, function_setting, forward_setting
     use commands_fm, only: commands
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command, this_command
     use buffer_fm, only: buffers, cur, current_buffer, get_buffer_create, set_buffer, kill_buffer, &
-                         generate_new_buffer_name, barf_if_buffer_read_only, fill_column, buffer_live_p, buffer_handle
+                         generate_new_buffer_name, barf_if_buffer_read_only, fill_column, buffer_serial_live
     use insdel_fm, only: insert, insert_before_markers
     use marker_fm, only: copy_marker_at, marker_position, free_marker
     use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
@@ -166,6 +166,10 @@ module newcomment_fm
         procedure :: set_local => indent_function_set_local
         !> The current buffer's function.
         procedure :: get => indent_function_get
+        !> Whether the current buffer has its own function.
+        procedure :: local_p => indent_function_local_p
+        !> Make the current buffer use the default function again.
+        procedure :: kill_local => indent_function_kill_local
     end type comment_indent_function_type
 
     !> Non-nil if syntax-tables can be used instead of regexps.
@@ -412,6 +416,7 @@ contains
         call forward_setting(comment_auto_fill_only_comments)
         if (.not. allocated(comment_end%value)) comment_end = ""
         if (.not. allocated(comment_padding%value)) comment_padding = " "
+        call add_local_variables_killer(kill_newcomment_locals)
         if (.not. associated(comment_indent_function%value)) comment_indent_function%value => comment_indent_default
         if (.not. associated(comment_region_function)) comment_region_function => comment_region_default
         if (.not. associated(uncomment_region_function)) uncomment_region_function => uncomment_region_default
@@ -447,7 +452,7 @@ contains
         end do
         ! Reuse the entry of a dead buffer.
         do i = 1, size(self%entries)
-            if (.not. serial_live(self%entries(i)%serial)) then
+            if (.not. buffer_serial_live(self%entries(i)%serial)) then
                 self%entries(i)%serial = buffers(cur)%serial
                 self%entries(i)%fn => fn
                 return
@@ -478,18 +483,38 @@ contains
         end do
     end function indent_function_get
 
-    !> Whether a live buffer has serial number SERIAL.
-    logical function serial_live(serial)
-        integer(int64), intent(in) :: serial
-        integer(int64) :: k
-        serial_live = .false.
-        if (.not. allocated(buffers)) return
-        do k = 1, size(buffers, kind=int64)
-            if (buffers(k)%serial /= serial) cycle
-            serial_live = buffer_live_p(buffer_handle(k))
-            return
+    logical function indent_function_local_p(self) result(local)
+        class(comment_indent_function_type), intent(in) :: self
+        integer :: i
+        local = .false.
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                local = associated(self%entries(i)%fn)
+                return
+            end if
         end do
-    end function serial_live
+    end function indent_function_local_p
+
+    subroutine indent_function_kill_local(self)
+        class(comment_indent_function_type), intent(inout) :: self
+        integer :: i
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%serial = 0
+                self%entries(i)%fn => null()
+            end if
+        end do
+    end subroutine indent_function_kill_local
+
+    !> kill-all-local-variables: forget the current buffer's
+    !> `comment_indent_function'.
+    subroutine kill_newcomment_locals()
+        call comment_indent_function%kill_local()
+    end subroutine kill_newcomment_locals
 
     ! ------------------------------------------------------------------
     ! Small helpers.
@@ -2718,7 +2743,7 @@ contains
         logical, intent(in), optional :: soft, interactive
         integer(int64) :: compos, comin, opoint, pt, saved_column, col, endp
         character(len=:), allocatable :: comstart, comend, saved_start, saved_end, saved_continue, rest
-        logical :: soft_nl, inter, normalp, continuep, fwd, has_continue, noindent
+        logical :: soft_nl, inter, normalp, continuep, fwd, has_continue, noindent, own_line, had_local
         type(handle_type) :: cm
         procedure(comment_indent_proc), pointer :: saved_fn
         type(status_type) :: st
@@ -2822,16 +2847,17 @@ contains
         ! Important for modes like Python/Haskell where
         ! auto-indentation is unreliable.
         pt = skip_chars_backward(" "//TAB, st)
-        continuep = bolp()
+        own_line = bolp()
         call goto_char(opoint)
         saved_column = comment_column%value
         saved_fn => comment_indent_function%get()
+        had_local = comment_indent_function%local_p()
         saved_start = cstart()
         saved_end = cend()
         has_continue = allocated(comment_continue%value)
         if (has_continue) saved_continue = comment_continue%value
         comment_column%value = col
-        if (continuep) call comment_indent_function%set_local(own_line_indent)
+        if (own_line) call comment_indent_function%set_local(own_line_indent)
         comment_start%value = comstart
         comment_end%value = comend
         ! Recreate comment-continue from comment-start.
@@ -2844,7 +2870,13 @@ contains
         end if
         call comment_indent(status, continuep)
         comment_column%value = saved_column
-        call comment_indent_function%set_local(saved_fn)
+        if (own_line) then
+            if (had_local) then
+                call comment_indent_function%set_local(saved_fn)
+            else
+                call comment_indent_function%kill_local()
+            end if
+        end if
         comment_start%value = saved_start
         comment_end%value = saved_end
         if (has_continue) then

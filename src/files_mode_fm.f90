@@ -72,6 +72,12 @@ contains
         call append_auto_mode("\.te?xt\'", "text_mode")
         call append_auto_mode("\.article\'", "text_mode")
         call append_auto_mode("\.letter\'", "text_mode")
+        ! The Fortran standard does not say anything about file extensions.
+        ! .f90 was widely used for F90, now we seem to be trapped into
+        ! using a different extension for each language revision.
+        ! Anyway, the following extensions are supported by gfortran.
+        call append_auto_mode("\.f9[05]\'", "f90_mode")
+        call append_auto_mode("\.f0[38]\'", "f90_mode")
         call append_auto_mode("\`/tmp/Re", "text_mode")
         call append_auto_mode("/Message[0-9]*\'", "text_mode")
         call append_auto_mode("\`/tmp/fol/", "text_mode")

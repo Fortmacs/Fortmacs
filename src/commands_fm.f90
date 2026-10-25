@@ -274,6 +274,42 @@ module commands_fm
         type(command_type) :: exit_minibuffer
         type(command_type) :: expand_abbrev
         type(command_type) :: expand_region_abbrevs
+        type(command_type) :: f90_abbrev_help
+        type(command_type) :: f90_abbrev_start
+        type(command_type) :: f90_beginning_of_block
+        type(command_type) :: f90_beginning_of_subprogram
+        type(command_type) :: f90_break_line
+        type(command_type) :: f90_calculate_indent
+        type(command_type) :: f90_capitalize_keywords
+        type(command_type) :: f90_capitalize_region_keywords
+        type(command_type) :: f90_comment_region
+        type(command_type) :: f90_do_auto_fill
+        type(command_type) :: f90_downcase_keywords
+        type(command_type) :: f90_downcase_region_keywords
+        type(command_type) :: f90_electric_insert
+        type(command_type) :: f90_end_of_block
+        type(command_type) :: f90_end_of_subprogram
+        type(command_type) :: f90_fill_paragraph
+        type(command_type) :: f90_fill_region
+        type(command_type) :: f90_font_lock_1
+        type(command_type) :: f90_font_lock_2
+        type(command_type) :: f90_font_lock_3
+        type(command_type) :: f90_font_lock_4
+        type(command_type) :: f90_indent_line
+        type(command_type) :: f90_indent_new_line
+        type(command_type) :: f90_indent_region
+        type(command_type) :: f90_indent_subprogram
+        type(command_type) :: f90_insert_end
+        type(command_type) :: f90_join_lines
+        type(command_type) :: f90_mark_subprogram
+        type(command_type) :: f90_match_end
+        type(command_type) :: f90_mode
+        type(command_type) :: f90_next_block
+        type(command_type) :: f90_next_statement
+        type(command_type) :: f90_previous_block
+        type(command_type) :: f90_previous_statement
+        type(command_type) :: f90_upcase_keywords
+        type(command_type) :: f90_upcase_region_keywords
         type(command_type) :: file_to_register
         type(command_type) :: fill_paragraph
         type(command_type) :: fill_region
@@ -577,7 +613,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(539) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(575) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -820,6 +856,42 @@ module commands_fm
                                                                  "exit_minibuffer", &
                                                                  "expand_abbrev", &
                                                                  "expand_region_abbrevs", &
+                                                                 "f90_abbrev_help", &
+                                                                 "f90_abbrev_start", &
+                                                                 "f90_beginning_of_block", &
+                                                                 "f90_beginning_of_subprogram", &
+                                                                 "f90_break_line", &
+                                                                 "f90_calculate_indent", &
+                                                                 "f90_capitalize_keywords", &
+                                                                 "f90_capitalize_region_keywords", &
+                                                                 "f90_comment_region", &
+                                                                 "f90_do_auto_fill", &
+                                                                 "f90_downcase_keywords", &
+                                                                 "f90_downcase_region_keywords", &
+                                                                 "f90_electric_insert", &
+                                                                 "f90_end_of_block", &
+                                                                 "f90_end_of_subprogram", &
+                                                                 "f90_fill_paragraph", &
+                                                                 "f90_fill_region", &
+                                                                 "f90_font_lock_1", &
+                                                                 "f90_font_lock_2", &
+                                                                 "f90_font_lock_3", &
+                                                                 "f90_font_lock_4", &
+                                                                 "f90_indent_line", &
+                                                                 "f90_indent_new_line", &
+                                                                 "f90_indent_region", &
+                                                                 "f90_indent_subprogram", &
+                                                                 "f90_insert_end", &
+                                                                 "f90_join_lines", &
+                                                                 "f90_mark_subprogram", &
+                                                                 "f90_match_end", &
+                                                                 "f90_mode", &
+                                                                 "f90_next_block", &
+                                                                 "f90_next_statement", &
+                                                                 "f90_previous_block", &
+                                                                 "f90_previous_statement", &
+                                                                 "f90_upcase_keywords", &
+                                                                 "f90_upcase_region_keywords", &
                                                                  "file_to_register", &
                                                                  "fill_paragraph", &
                                                                  "fill_region", &
@@ -1611,6 +1683,78 @@ contains
             p => commands%expand_abbrev
         case ("expand_region_abbrevs")
             p => commands%expand_region_abbrevs
+        case ("f90_abbrev_help")
+            p => commands%f90_abbrev_help
+        case ("f90_abbrev_start")
+            p => commands%f90_abbrev_start
+        case ("f90_beginning_of_block")
+            p => commands%f90_beginning_of_block
+        case ("f90_beginning_of_subprogram")
+            p => commands%f90_beginning_of_subprogram
+        case ("f90_break_line")
+            p => commands%f90_break_line
+        case ("f90_calculate_indent")
+            p => commands%f90_calculate_indent
+        case ("f90_capitalize_keywords")
+            p => commands%f90_capitalize_keywords
+        case ("f90_capitalize_region_keywords")
+            p => commands%f90_capitalize_region_keywords
+        case ("f90_comment_region")
+            p => commands%f90_comment_region
+        case ("f90_do_auto_fill")
+            p => commands%f90_do_auto_fill
+        case ("f90_downcase_keywords")
+            p => commands%f90_downcase_keywords
+        case ("f90_downcase_region_keywords")
+            p => commands%f90_downcase_region_keywords
+        case ("f90_electric_insert")
+            p => commands%f90_electric_insert
+        case ("f90_end_of_block")
+            p => commands%f90_end_of_block
+        case ("f90_end_of_subprogram")
+            p => commands%f90_end_of_subprogram
+        case ("f90_fill_paragraph")
+            p => commands%f90_fill_paragraph
+        case ("f90_fill_region")
+            p => commands%f90_fill_region
+        case ("f90_font_lock_1")
+            p => commands%f90_font_lock_1
+        case ("f90_font_lock_2")
+            p => commands%f90_font_lock_2
+        case ("f90_font_lock_3")
+            p => commands%f90_font_lock_3
+        case ("f90_font_lock_4")
+            p => commands%f90_font_lock_4
+        case ("f90_indent_line")
+            p => commands%f90_indent_line
+        case ("f90_indent_new_line")
+            p => commands%f90_indent_new_line
+        case ("f90_indent_region")
+            p => commands%f90_indent_region
+        case ("f90_indent_subprogram")
+            p => commands%f90_indent_subprogram
+        case ("f90_insert_end")
+            p => commands%f90_insert_end
+        case ("f90_join_lines")
+            p => commands%f90_join_lines
+        case ("f90_mark_subprogram")
+            p => commands%f90_mark_subprogram
+        case ("f90_match_end")
+            p => commands%f90_match_end
+        case ("f90_mode")
+            p => commands%f90_mode
+        case ("f90_next_block")
+            p => commands%f90_next_block
+        case ("f90_next_statement")
+            p => commands%f90_next_statement
+        case ("f90_previous_block")
+            p => commands%f90_previous_block
+        case ("f90_previous_statement")
+            p => commands%f90_previous_statement
+        case ("f90_upcase_keywords")
+            p => commands%f90_upcase_keywords
+        case ("f90_upcase_region_keywords")
+            p => commands%f90_upcase_region_keywords
         case ("file_to_register")
             p => commands%file_to_register
         case ("fill_paragraph")

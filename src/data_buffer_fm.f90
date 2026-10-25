@@ -67,7 +67,7 @@ submodule(data_fm) data_buffer_fm
 
     !> Kinds of forwarded variable.
     integer, parameter :: K_INT64 = 1, K_INT = 2, K_BOOL = 3, K_STRING = 4, K_AUTO_FILL = 5, &
-                          K_INDENT_LINE = 6, K_SLOT = 7
+                          K_INDENT_LINE = 6, K_SLOT = 7, K_FUNCTION = 8
 
     !> The variables forwarded to Fortran settings; slot variables are
     !> per-buffer fields of buffer_type (always local, like buffer.c's
@@ -113,6 +113,18 @@ submodule(data_fm) data_buffer_fm
     type(procs_type) :: default_procs
     !> Indexed by buffer slot.
     type(procs_type), allocatable :: saved_procs(:)
+
+    !> A saved value of a function setting forwarded with
+    !> `forward_setting' (K): buffer B's local value while B is not
+    !> current, or (B 0) the default while the current buffer has a local
+    !> value.
+    type :: fn_store_type
+        integer(int64) :: b = -1
+        integer :: k = 0
+        type(function_setting) :: s
+    end type fn_store_type
+
+    type(fn_store_type), allocatable :: fn_store(:)
 
 contains
 
@@ -184,6 +196,8 @@ contains
                 kind = K_INT64
             type is (string_setting)
                 kind = K_STRING
+            type is (function_setting)
+                kind = K_FUNCTION
             class default
                 kind = K_BOOL
             end select
@@ -325,6 +339,8 @@ contains
                 call setting_value(p, bool_value(p%value), v, bound)
             type is (string_setting)
                 call setting_value(p, string_or_nil(p%value), v, bound)
+            type is (function_setting)
+                call setting_value(p, auto_fill_value(p%value), v, bound)
             class default
                 v = nil()
             end select
@@ -441,6 +457,8 @@ contains
                 call set_logical(p, v)
             type is (string_setting)
                 call set_string(p, v)
+            type is (function_setting)
+                call set_auto_fill(p, v)
             class default
             end select
             return
@@ -789,6 +807,72 @@ contains
         end if
     end subroutine ensure_saved_procs
 
+    !> The index in `fn_store' of (B, K), made if MAKE; 0 if none.
+    integer function fn_index(b, k, make) result(i)
+        integer(int64), intent(in) :: b
+        integer, intent(in) :: k
+        logical, intent(in) :: make
+        type(fn_store_type), allocatable :: grown(:)
+        integer :: j, n
+        i = 0
+        if (.not. allocated(fn_store)) allocate (fn_store(0))
+        do j = 1, size(fn_store)
+            if (fn_store(j)%b == b .and. fn_store(j)%k == k) then
+                i = j
+                return
+            end if
+        end do
+        if (.not. make) return
+        n = size(fn_store)
+        allocate (grown(n + 1))
+        do j = 1, n
+            grown(j) = fn_store(j)
+        end do
+        grown(n + 1)%b = b
+        grown(n + 1)%k = k
+        call move_alloc(grown, fn_store)
+        i = n + 1
+    end function fn_index
+
+    !> Save the current value of the forwarded function setting of symbol
+    !> ID as (B, its index).
+    subroutine fn_save(id, b)
+        integer(int64), intent(in) :: id, b
+        integer :: k, i
+        k = resolve(id)
+        i = fn_index(b, k, .true.)
+        select type (p => forwarded(k - EXT_BASE)%p)
+        type is (function_setting)
+            fn_store(i)%s = p
+        end select
+    end subroutine fn_save
+
+    !> Make the value saved as (B, the index of symbol ID) current, if any.
+    subroutine fn_restore(id, b)
+        integer(int64), intent(in) :: id, b
+        integer :: k, i
+        k = resolve(id)
+        i = fn_index(b, k, .false.)
+        if (i == 0) return
+        select type (p => forwarded(k - EXT_BASE)%p)
+        type is (function_setting)
+            p = fn_store(i)%s
+        end select
+    end subroutine fn_restore
+
+    !> The value saved as (B, the index of symbol ID).
+    subroutine fn_saved_value(id, b, v, bound)
+        integer(int64), intent(in) :: id, b
+        type(value_type), intent(out) :: v
+        logical, intent(out) :: bound
+        integer :: i
+        v = nil()
+        bound = .true.
+        i = fn_index(b, resolve(id), .false.)
+        if (i == 0) return
+        call setting_value(fn_store(i)%s, auto_fill_value(fn_store(i)%s%value), v, bound)
+    end subroutine fn_saved_value
+
     !> Swap out the local values of buffer OLD and swap in those of NEW.
     !> Port of data.c:swap_in_symval_forwarding, for all of a buffer's
     !> local variables at once.
@@ -806,6 +890,9 @@ contains
                 case (K_INDENT_LINE)
                     saved_procs(old)%indent_line = indent_line_function
                     indent_line_function = default_procs%indent_line
+                case (K_FUNCTION)
+                    call fn_save(id, old)
+                    call fn_restore(id, 0_int64)
                 case default
                     call get_current(id, buffers(old)%local_values(i), buffers(old)%local_bound(i))
                     call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
@@ -822,6 +909,9 @@ contains
                 case (K_INDENT_LINE)
                     default_procs%indent_line = indent_line_function
                     indent_line_function = saved_procs(new)%indent_line
+                case (K_FUNCTION)
+                    call fn_save(id, 0_int64)
+                    call fn_restore(id, new)
                 case default
                     call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
                     call put_current(id, buffers(new)%local_values(i), buffers(new)%local_bound(i))
@@ -842,6 +932,8 @@ contains
             auto_fill_function = default_procs%auto_fill
         case (K_INDENT_LINE)
             indent_line_function = default_procs%indent_line
+        case (K_FUNCTION)
+            call fn_restore(id, 0_int64)
         case default
             call put_current(id, symbols(id)%default_val, symbols(id)%default_bound)
         end select
@@ -912,6 +1004,8 @@ contains
     case (K_INDENT_LINE)
         call ensure_saved_procs(cur)
         default_procs%indent_line = indent_line_function
+    case (K_FUNCTION)
+        call fn_save(id, 0_int64)
     case default
         call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
     end select
@@ -1027,6 +1121,12 @@ contains
             else
                 call get_current(id, v, bound)
             end if
+        case (K_FUNCTION)
+            if (local_in_current(id)) then
+                call fn_saved_value(id, 0_int64, v, bound)
+            else
+                call get_current(id, v, bound)
+            end if
         case default
             if (local_in_current(id)) then
                 v = symbols(id)%default_val
@@ -1077,6 +1177,12 @@ contains
         call set_auto_fill(default_procs%auto_fill, v)
     case (K_INDENT_LINE)
         call set_indent_line(default_procs%indent_line, v)
+    case (K_FUNCTION)
+        block
+            integer :: i
+            i = fn_index(0_int64, resolve(id), .true.)
+            call set_auto_fill(fn_store(i)%s, v)
+        end block
     case (0)
         symbols(id)%default_val = v
         symbols(id)%default_bound = .true.
@@ -1129,6 +1235,8 @@ contains
             case (K_INDENT_LINE)
                 call setting_value(saved_procs(buffer)%indent_line, &
                                    indent_line_value(saved_procs(buffer)%indent_line%value), v, bound)
+            case (K_FUNCTION)
+                call fn_saved_value(id, buffer, v, bound)
             case default
                 v = buffers(buffer)%local_values(i)
                 bound = buffers(buffer)%local_bound(i)

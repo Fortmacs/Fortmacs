@@ -77,7 +77,7 @@ module docstrings_fm
                             conf_assignment_space, conf_colon_assignment_column, conf_colon_assignment_space, &
                             conf_colon_font_lock_keywords, conf_desktop_font_lock_keywords, conf_font_lock_keywords, &
                             conf_javaprop_assignment_column, conf_javaprop_font_lock_keywords, &
-                            conf_javaprop_mode_syntax_table, conf_mode_map, conf_mode_syntax_table, &
+                            conf_javaprop_mode_syntax_table, conf_mode_hook, conf_mode_map, conf_mode_syntax_table, &
                             conf_npmrc_mode_syntax_table, conf_ppd_mode_syntax_table, conf_space_font_lock_keywords, &
                             conf_space_keywords, conf_space_keywords_alist, conf_toml_font_lock_keywords, &
                             conf_toml_mode_syntax_table, conf_unix_mode_syntax_table, conf_xdefaults_mode_syntax_table
@@ -132,6 +132,19 @@ module docstrings_fm
     use electric_fm, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                            electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
     use eval_fm, only: change_major_mode_hook
+    use f90_fm, only: f90_associate_indent, f90_auto_keyword_case, F90_KEYWORD_CASE_NIL, &
+                      F90_KEYWORD_CASE_DOWNCASE_WORD, F90_KEYWORD_CASE_UPCASE_WORD, &
+                      F90_KEYWORD_CASE_CAPITALIZE_WORD, f90_beginning_ampersand, f90_blocks_re, &
+                      f90_break_before_delimiters, f90_break_delimiters, f90_cache_position, f90_comment_region, &
+                      f90_constants_re, f90_continuation_indent, f90_critical_indent, f90_directive_comment_re, &
+                      f90_do_indent, f90_end_block_re, f90_end_if_re, f90_font_lock_keywords, &
+                      f90_font_lock_keywords_1, f90_font_lock_keywords_2, f90_font_lock_keywords_3, &
+                      f90_font_lock_keywords_4, f90_hpf_keywords_re, f90_if_indent, f90_indented_comment_re, &
+                      f90_keywords_level_3_re, f90_keywords_re, f90_leave_line_no, f90_mode_abbrev_table, &
+                      f90_mode_hook, f90_mode_map, f90_mode_syntax_table, f90_no_break_re, f90_operators_re, &
+                      f90_procedures_re, f90_program_block_re, f90_program_indent, f90_smart_end, &
+                      F90_SMART_END_NIL, F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, f90_smart_end_names, &
+                      f90_start_block_re, f90_type_indent
     use face_table_fm, only: faces
     use files_fm, only: change_major_mode_with_file_name, copy_directory_create_symlink, &
                         directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
@@ -144,7 +157,8 @@ module docstrings_fm
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
-                       fill_nobreak_predicate, fill_separate_heterogeneous_words_with_space
+                       fill_nobreak_predicate, fill_paragraph_function, fill_paragraph_handle_comment, &
+                       fill_separate_heterogeneous_words_with_space
     use fns_fm, only: use_short_answers, yes_or_no_prompt
     use font_core_fm, only: font_lock_defaults, font_lock_global_modes, font_lock_mode_hook, &
                             global_font_lock_mode_hook
@@ -154,8 +168,8 @@ module docstrings_fm
                             FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
-    use indent_fm, only: indent_line_function, indent_line_function_name, indent_tabs_mode, &
-                         standard_indent, tab_always_indent, tab_stop_list
+    use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
+                         indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
@@ -237,12 +251,12 @@ module docstrings_fm
                          kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, kill_whole_line_option, &
                          line_move_ignore_invisible, line_move_visual, mark_ring_max, messages_buffer_mode_hook, &
                          messages_buffer_mode_map, minibuffer_local_shell_command_map, next_error_hook, &
-                         next_error_last_buffer, next_error_verbose, pending_undo_list, read_only_mode_hook, &
-                         read_quoted_char_radix, shell_command_default_error_buffer, shell_command_dont_erase_buffer, &
-                         DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, &
-                         DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, shell_command_switch, &
-                         special_mode_abbrev_table, special_mode_hook, special_mode_map, suggest_key_bindings, &
-                         transient_mark_mode_hook, undo_in_progress, undo_no_redo
+                         next_error_last_buffer, next_error_verbose, normal_auto_fill_function, pending_undo_list, &
+                         read_only_mode_hook, read_quoted_char_radix, shell_command_default_error_buffer, &
+                         shell_command_dont_erase_buffer, DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, &
+                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
+                         shell_command_switch, special_mode_abbrev_table, special_mode_hook, special_mode_map, &
+                         suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
@@ -292,7 +306,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(752) = [character(len=41) :: &
+    character(len=41), parameter, public :: function_names(788) = [character(len=41) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -383,7 +397,17 @@ module docstrings_fm
                                                  "encode_coding_region", "encode_coding_string", "end_kbd_macro", "end_of_buffer", &
                                              "end_of_line", "eobp", "eolp", "exchange_point_and_mark", "execute_extended_command", &
                                                  "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", "extract_rectangle", &
-                                                                   "extract_rectangle_bounds", "face_box", "face_underline", &
+                                                                "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
+                                                        "f90_beginning_of_block", "f90_beginning_of_subprogram", "f90_break_line", &
+                                              "f90_calculate_indent", "f90_capitalize_keywords", "f90_capitalize_region_keywords", &
+                                                                "f90_comment_region", "f90_do_auto_fill", "f90_downcase_keywords", &
+                                                        "f90_downcase_region_keywords", "f90_electric_insert", "f90_end_of_block", &
+                                              "f90_end_of_subprogram", "f90_fill_paragraph", "f90_fill_region", "f90_font_lock_1", &
+                                                       "f90_font_lock_2", "f90_font_lock_3", "f90_font_lock_4", "f90_indent_line", &
+                                            "f90_indent_new_line", "f90_indent_region", "f90_indent_subprogram", "f90_insert_end", &
+                                           "f90_join_lines", "f90_mark_subprogram", "f90_match_end", "f90_mode", "f90_next_block", &
+                                                             "f90_next_statement", "f90_previous_block", "f90_previous_statement", &
+                                                "f90_upcase_keywords", "f90_upcase_region_keywords", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "fill_french_nobreak_p", "fill_paragraph", &
                                                                "fill_polish_nobreak_p", "fill_region", "fill_region_as_paragraph", &
@@ -508,7 +532,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(517) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(561) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -567,28 +591,29 @@ module docstrings_fm
                                            "conf_assignment_space", "conf_colon_assignment_column", "conf_colon_assignment_space", &
                                                                "conf_colon_font_lock_keywords", "conf_desktop_font_lock_keywords", &
                                                                    "conf_font_lock_keywords", "conf_javaprop_assignment_column", &
-                                           "conf_javaprop_font_lock_keywords", "conf_javaprop_mode_syntax_table", "conf_mode_map", &
-                                           "conf_mode_syntax_table", "conf_npmrc_mode_syntax_table", "conf_ppd_mode_syntax_table", &
-                                              "conf_space_font_lock_keywords", "conf_space_keywords", "conf_space_keywords_alist", &
-                                                                   "conf_toml_font_lock_keywords", "conf_toml_mode_syntax_table", &
-                                                                "conf_unix_mode_syntax_table", "conf_xdefaults_mode_syntax_table", &
-                                                 "copy_directory_create_symlink", "copy_region_blink_delay", "current_prefix_arg", &
-                                                                   "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
-                                                                   "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
-                                                   "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
-                                         "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
-                                                                   "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
-                                           "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
-                                                                   "dabbrev_upcase_means_case_search", "default_justification", &
-                                                    "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
-                                                            "delete_exited_processes", "directory_listing_before_filename_regexp", &
-                                                      "dired__ls_error_buffer", "dired__ls_error_file", "dired_after_readin_hook", &
-                                           "dired_always_read_filesystem", "dired_auto_revert_buffer", "dired_before_readin_hook", &
-                                                            "dired_broken_symlink", "dired_check_symlinks", "dired_chown_program", &
-                                                           "dired_compress_directory_default_suffix", "dired_compress_file_alist", &
-                                                             "dired_compress_file_default_suffix", "dired_compress_file_suffixes", &
-                                               "dired_compress_files_alist", "dired_copy_dereference", "dired_copy_preserve_time", &
-                                              "dired_create_destination_dirs", "dired_create_destination_dirs_on_trailing_dirsep", &
+                                          "conf_javaprop_font_lock_keywords", "conf_javaprop_mode_syntax_table", "conf_mode_hook", &
+                                                        "conf_mode_map", "conf_mode_syntax_table", "conf_npmrc_mode_syntax_table", &
+                                             "conf_ppd_mode_syntax_table", "conf_space_font_lock_keywords", "conf_space_keywords", &
+                                                                   "conf_space_keywords_alist", "conf_toml_font_lock_keywords", &
+                                                                   "conf_toml_mode_syntax_table", "conf_unix_mode_syntax_table", &
+                                                              "conf_xdefaults_mode_syntax_table", "copy_directory_create_symlink", &
+                                                         "copy_region_blink_delay", "current_prefix_arg", "cycle_spacing_actions", &
+                                                               "dabbrev_abbrev_char_regexp", "dabbrev_abbrev_skip_leading_regexp", &
+                                                  "dabbrev_backward_only", "dabbrev_case_distinction", "dabbrev_case_fold_search", &
+                                               "dabbrev_case_replace", "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", &
+                                                                   "dabbrev_eliminate_newlines", "dabbrev_ignored_buffer_modes", &
+                                                "dabbrev_ignored_buffer_names", "dabbrev_ignored_buffer_regexps", "dabbrev_limit", &
+                                                          "dabbrev_search_these_buffers_only", "dabbrev_upcase_means_case_search", &
+                                                   "default_justification", "default_process_coding_system", "defining_kbd_macro", &
+                                                                   "delete_active_region", "delete_exited_processes", &
+                                                             "directory_listing_before_filename_regexp", "dired__ls_error_buffer", &
+                                                "dired__ls_error_file", "dired_after_readin_hook", "dired_always_read_filesystem", &
+                                                   "dired_auto_revert_buffer", "dired_before_readin_hook", "dired_broken_symlink", &
+                                         "dired_check_symlinks", "dired_chown_program", "dired_compress_directory_default_suffix", &
+                                                                "dired_compress_file_alist", "dired_compress_file_default_suffix", &
+                                           "dired_compress_file_suffixes", "dired_compress_files_alist", "dired_copy_dereference", &
+                                                                   "dired_copy_preserve_time", "dired_create_destination_dirs", &
+                                                                   "dired_create_destination_dirs_on_trailing_dirsep", &
                                             "dired_create_empty_file_in_current_directory", "dired_del_marker", "dired_directory", &
                                            "dired_directory_face", "dired_do_revert_buffer", "dired_dwim_target", "dired_flagged", &
                                            "dired_flagged_face", "dired_free_space", "dired_garbage_files_regexp", "dired_header", &
@@ -613,19 +638,33 @@ module docstrings_fm
                                                                 "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
                                             "electric_pair_text_syntax_table", "enable_recursive_minibuffers", "eol_mnemonic_dos", &
                                            "eol_mnemonic_mac", "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", &
-                                                   "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", "faces", &
-                                                       "file_coding_system_alist", "fill_column", "fill_indent_according_to_mode", &
-                                          "fill_nobreak_predicate", "fill_prefix", "fill_separate_heterogeneous_words_with_space", &
-                                                         "find_file_run_dired", "first_change_hook", "font_lock_comment_end_skip", &
-                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
-                                                                   "font_lock_extra_managed_props", "font_lock_global_modes", &
-                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
-                                                  "font_lock_verbose", "fontification_functions", "fundamental_mode_abbrev_table", &
-                                           "global_abbrev_table", "global_disable_point_adjustment", "global_font_lock_mode_hook", &
-                                           "goal_column", "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
+                                                            "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", &
+                                                       "f90_associate_indent", "f90_auto_keyword_case", "f90_beginning_ampersand", &
+                                                           "f90_blocks_re", "f90_break_before_delimiters", "f90_break_delimiters", &
+                                                                   "f90_cache_position", "f90_comment_region", "f90_constants_re", &
+                                                     "f90_continuation_indent", "f90_critical_indent", "f90_directive_comment_re", &
+                                                   "f90_do_indent", "f90_end_block_re", "f90_end_if_re", "f90_font_lock_keywords", &
+                                               "f90_font_lock_keywords_1", "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", &
+                                                               "f90_font_lock_keywords_4", "f90_hpf_keywords_re", "f90_if_indent", &
+                                                          "f90_indented_comment_re", "f90_keywords_level_3_re", "f90_keywords_re", &
+                                                    "f90_leave_line_no", "f90_mode_abbrev_table", "f90_mode_hook", "f90_mode_map", &
+                                              "f90_mode_syntax_table", "f90_no_break_re", "f90_operators_re", "f90_procedures_re", &
+                                             "f90_program_block_re", "f90_program_indent", "f90_smart_end", "f90_smart_end_names", &
+                                                     "f90_start_block_re", "f90_type_indent", "faces", "file_coding_system_alist", &
+                                                         "fill_column", "fill_indent_according_to_mode", "fill_nobreak_predicate", &
+                                                        "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
+                                                            "fill_separate_heterogeneous_words_with_space", "find_file_run_dired", &
+                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
+                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
+                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
+                                                         "font_lock_support_mode", "font_lock_verbose", "fontification_functions", &
+                                                                   "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                                   "global_disable_point_adjustment", "global_font_lock_mode_hook", "goal_column", &
+                                                          "help_map", "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", &
                                                            "history_add_new_input", "history_delete_duplicates", "history_length", &
-                                         "indent_line_function", "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
-                                            "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
+                                                             "indent_line_function", "indent_region_function", "indent_tabs_mode", &
+                                                           "indent_tabs_mode_hook", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                                                   "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
@@ -644,8 +683,8 @@ module docstrings_fm
                                                                "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
                                                           "minibuffer_scroll_window", "mode_require_final_newline", "mule_keymap", &
                                                         "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
-                                                         "next_error_verbose", "next_screen_context_lines", "only_global_abbrevs", &
-                                                                   "open_paren_in_column_0_is_defun_start", "page_delimiter", &
+                                                   "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
+                                                 "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
                                          "parse_sexp_ignore_comments", "pending_undo_list", "pop_up_windows", "post_command_hook", &
                                                      "post_self_insert_hook", "process_connection_type", "prog_mode_abbrev_table", &
@@ -693,7 +732,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(259) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(290) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -732,6 +771,14 @@ module docstrings_fm
                                                                       "comint_scroll_show_maximum_output", &
                                                                       "comint_terminfo_terminal", &
                                                                       "comint_use_prompt_regexp", &
+                                                                      "comment_auto_fill_only_comments", &
+                                                                      "comment_column", &
+                                                                      "comment_empty_lines", &
+                                                                      "comment_fill_column", &
+                                                                      "comment_inline_offset", &
+                                                                      "comment_multi_line", &
+                                                                      "comment_padding", &
+                                                                      "comment_style", &
                                                                       "compilation_always_kill", &
                                                                       "compilation_ask_about_save", &
                                                                       "compilation_context_lines", &
@@ -756,6 +803,11 @@ module docstrings_fm
                                                                       "completion_pcm_word_delimiters", &
                                                                       "completion_styles", &
                                                                       "completions_max_height", &
+                                                                      "conf_assignment_column", &
+                                                                      "conf_assignment_space", &
+                                                                      "conf_colon_assignment_column", &
+                                                                      "conf_colon_assignment_space", &
+                                                                      "conf_javaprop_assignment_column", &
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
                                                                       "cycle_spacing_actions", &
@@ -826,6 +878,24 @@ module docstrings_fm
                                                                       "explicit_bash_args", &
                                                                       "explicit_csh_args", &
                                                                       "explicit_shell_file_name", &
+                                                                      "f90_associate_indent", &
+                                                                      "f90_auto_keyword_case", &
+                                                                      "f90_beginning_ampersand", &
+                                                                      "f90_break_before_delimiters", &
+                                                                      "f90_break_delimiters", &
+                                                                      "f90_comment_region", &
+                                                                      "f90_continuation_indent", &
+                                                                      "f90_critical_indent", &
+                                                                      "f90_directive_comment_re", &
+                                                                      "f90_do_indent", &
+                                                                      "f90_if_indent", &
+                                                                      "f90_indented_comment_re", &
+                                                                      "f90_leave_line_no", &
+                                                                      "f90_mode_hook", &
+                                                                      "f90_program_indent", &
+                                                                      "f90_smart_end", &
+                                                                      "f90_smart_end_names", &
+                                                                      "f90_type_indent", &
                                                                       "file_coding_system_alist", &
                                                                       "fill_column", &
                                                                       "fill_nobreak_predicate", &
@@ -3492,6 +3562,224 @@ contains
             entry%doc = "Return the bounds of the rectangle with corners at START and END."//LF// &
                         "Return it as STARTS and ENDS, the start and end positions of each"//LF// &
                         "line of the rectangle."
+        case ("f90_abbrev_help")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "List the currently defined abbrevs in F90 mode."
+        case ("f90_abbrev_start")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Typing `\[help_command] or `? lists all the F90 abbrevs."//LF// &
+                        "Any other key combination is executed normally."
+        case ("f90_beginning_of_block")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point backwards to the start of the current code block (the"//LF// &
+                        "command)."
+        case ("f90_beginning_of_subprogram")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the beginning of the current subprogram (the command)."
+        case ("f90_break_line")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Break line at point, insert continuation marker(s) and indent (the"//LF// &
+                        "command)."
+        case ("f90_calculate_indent")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Calculate the indent column based on previous statements (the"//LF// &
+                        "command)."
+        case ("f90_capitalize_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Capitalize all F90 keywords in the buffer."
+        case ("f90_capitalize_region_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Capitalize all F90 keywords in the region."
+        case ("f90_comment_region")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Comment/uncomment every line in the region (the command)."
+        case ("f90_do_auto_fill")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Break line if non-white characters beyond `fill_column' (the"//LF// &
+                        "command)."
+        case ("f90_downcase_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Downcase all F90 keywords in the buffer."
+        case ("f90_downcase_region_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Downcase all F90 keywords in the region."
+        case ("f90_electric_insert")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change keyword case and auto-fill line as operators are inserted"//LF// &
+                        "(the command)."
+        case ("f90_end_of_block")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point forward to the end of the current code block (the"//LF// &
+                        "command)."
+        case ("f90_end_of_subprogram")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to the end of the current subprogram (the command)."
+        case ("f90_fill_paragraph")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "In a comment, fill it as a paragraph, else fill the current statement"//LF// &
+                        "(the command)."
+        case ("f90_fill_region")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Fill every line in region by forward parsing (the command)."
+        case ("f90_font_lock_1")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_1'."
+        case ("f90_font_lock_2")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_2'."
+        case ("f90_font_lock_3")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_3'."
+        case ("f90_font_lock_4")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set `font_lock_keywords' to `f90_font_lock_keywords_4'."
+        case ("f90_indent_line")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Indent current line as F90 code (the command)."
+        case ("f90_indent_new_line")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Re-indent current line, insert a newline and indent the newline (the"//LF// &
+                        "command)."
+        case ("f90_indent_region")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Indent every line in region by forward parsing (the command)."
+        case ("f90_indent_subprogram")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Properly indent the subprogram containing point (the command)."
+        case ("f90_insert_end")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert a complete end statement matching beginning of present block"//LF// &
+                        "(the command)."
+        case ("f90_join_lines")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Join current line to previous, fix whitespace, continuation, comments"//LF// &
+                        "(the command)."
+        case ("f90_mark_subprogram")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Put mark at end of F90 subprogram, point at beginning, push mark"//LF// &
+                        "(the command)."
+        case ("f90_match_end")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "From an end block statement, find the corresponding block and name"//LF// &
+                        "(the command)."
+        case ("f90_mode")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing Fortran 90,95 code in free format."//LF// &
+                        "For fixed format code, use `fortran_mode'."//LF// &
+                        ""//LF// &
+                        "\[f90_indent_line] indents the current line."//LF// &
+                        "\[f90_indent_new_line] indents current line and creates a new indented line."//LF// &
+                        "\[f90_indent_subprogram] indents the current subprogram."//LF// &
+                        ""//LF// &
+                        "Type `? or `\[help_command] to display a list of built-in abbrevs for F90 keywords."//LF// &
+                        ""//LF// &
+                        "Key definitions:"//LF// &
+                        "\{f90_mode_map}"//LF// &
+                        ""//LF// &
+                        "Variables controlling indentation style and extra features:"//LF// &
+                        ""//LF// &
+                        "`f90_do_indent'"//LF// &
+                        "  Extra indentation within do blocks (default 3)."//LF// &
+                        "`f90_if_indent'"//LF// &
+                        "  Extra indentation within if/select/where/forall blocks (default 3)."//LF// &
+                        "`f90_type_indent'"//LF// &
+                        "  Extra indentation within type/enum/interface/block-data blocks (default 3)."//LF// &
+                        "`f90_program_indent'"//LF// &
+                        "  Extra indentation within program/module/subroutine/function blocks"//LF// &
+                        "  (default 2)."//LF// &
+                        "`f90_associate_indent'"//LF// &
+                        "  Extra indentation within associate blocks (default 2)."//LF// &
+                        "`f90_critical_indent'"//LF// &
+                        "  Extra indentation within critical/block blocks (default 2)."//LF// &
+                        "`f90_continuation_indent'"//LF// &
+                        "  Extra indentation applied to continuation lines (default 5)."//LF// &
+                        "`f90_comment_region'"//LF// &
+                        "  String inserted by function \[f90_comment_region] at start of each"//LF// &
+                        "  line in region (default ""!!!$"")."//LF// &
+                        "`f90_indented_comment_re'"//LF// &
+                        "  Regexp determining the type of comment to be intended like code"//LF// &
+                        "  (default ""!"")."//LF// &
+                        "`f90_directive_comment_re'"//LF// &
+                        "  Regexp of comment-like directive like ""!HPF\\$"", not to be indented"//LF// &
+                        "  (default ""!hpf\\$"")."//LF// &
+                        "`f90_break_delimiters'"//LF// &
+                        "  Regexp holding list of delimiters at which lines may be broken"//LF// &
+                        "  (default ""[-+*/><=,% \t]"")."//LF// &
+                        "`f90_break_before_delimiters'"//LF// &
+                        "  True causes `f90_do_auto_fill' to break lines before delimiters"//LF// &
+                        "  (default .true.)."//LF// &
+                        "`f90_beginning_ampersand'"//LF// &
+                        "  Automatic insertion of `&' at beginning of continuation lines (default .true.)."//LF// &
+                        "`f90_smart_end'"//LF// &
+                        "  From an END statement, check and fill the end using matching block start."//LF// &
+                        "  Allowed values are F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, and"//LF// &
+                        "  F90_SMART_END_NIL, which determine whether to blink the matching"//LF// &
+                        "  beginning (default F90_SMART_END_BLINK)."//LF// &
+                        "`f90_auto_keyword_case'"//LF// &
+                        "  Automatic change of case of keywords (default F90_KEYWORD_CASE_NIL)."//LF// &
+                        "  The possibilities are F90_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,"//LF// &
+                        "  _CAPITALIZE_WORD."//LF// &
+                        "`f90_leave_line_no'"//LF// &
+                        "  Do not left-justify line numbers (default .false.)."//LF// &
+                        ""//LF// &
+                        "Turning on F90 mode calls the value of the variable `f90_mode_hook'"//LF// &
+                        "with no args, if that value is true."
+        case ("f90_next_block")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point forward to the next end or start of a code block (the"//LF// &
+                        "command)."
+        case ("f90_next_statement")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to beginning of the next F90 statement (the command)."
+        case ("f90_previous_block")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point backward to the previous end or start of a code block"//LF// &
+                        "(the command)."
+        case ("f90_previous_statement")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to beginning of the previous F90 statement (the command)."
+        case ("f90_upcase_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Upcase all F90 keywords in the buffer."
+        case ("f90_upcase_region_keywords")
+            entry%file = "f90_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Upcase all F90 keywords in the region."
         case ("face_box")
             entry%file = "faces_fm.f90"
             entry%fortran = "face_box(line_width, vertical_width, horizontal_width, color, style)"
@@ -7978,7 +8266,7 @@ contains
             entry%fortran = "abbrev_all_caps"
             entry%user_option = .true.
             entry%original = ".false."
-            entry%value = repr(abbrev_all_caps)
+            entry%value = repr(abbrev_all_caps%value)
             entry%doc = "True means expand multi-word abbrevs in all caps if the abbrev was so."
         case ("abbrev_file_name")
             entry%file = "abbrev_fm.f90"
@@ -8860,6 +9148,7 @@ contains
         case ("comment_auto_fill_only_comments")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_auto_fill_only_comments"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(comment_auto_fill_only_comments%value)
             entry%doc = "True means to only auto-fill inside comments."//LF// &
@@ -8867,6 +9156,7 @@ contains
         case ("comment_column")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_column"
+            entry%user_option = .true.
             entry%original = "32"
             entry%value = repr(comment_column%value)
             entry%doc = "Column to indent right-margin comments to."//LF// &
@@ -8904,6 +9194,7 @@ contains
         case ("comment_empty_lines")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_empty_lines"
+            entry%user_option = .true.
             entry%original = "COMMENT_EMPTY_LINES_NIL"
             select case (comment_empty_lines%value)
             case (COMMENT_EMPTY_LINES_NIL)
@@ -8949,6 +9240,7 @@ contains
         case ("comment_fill_column")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_fill_column"
+            entry%user_option = .true.
             entry%original = "-1"
             entry%value = repr(comment_fill_column%value)
             entry%doc = "Column to use for `comment_indent'.  If negative (nil), use"//LF// &
@@ -8966,6 +9258,7 @@ contains
         case ("comment_inline_offset")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_inline_offset"
+            entry%user_option = .true.
             entry%original = "1"
             entry%value = repr(comment_inline_offset%value)
             entry%doc = "Inline comments have to be preceded by at least this many spaces."//LF// &
@@ -8993,6 +9286,7 @@ contains
         case ("comment_multi_line")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_multi_line"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(comment_multi_line%value)
             entry%doc = "True means `comment_indent_new_line' continues comments."//LF// &
@@ -9005,6 +9299,7 @@ contains
         case ("comment_padding")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_padding"
+            entry%user_option = .true.
             if (allocated(comment_padding%value)) then
                 entry%value = repr(comment_padding%value)
             else
@@ -9049,6 +9344,7 @@ contains
         case ("comment_style")
             entry%file = "newcomment_fm.f90"
             entry%fortran = "comment_style"
+            entry%user_option = .true.
             entry%original = "COMMENT_STYLE_INDENT"
             select case (comment_style%value)
             case (COMMENT_STYLE_PLAIN)
@@ -9658,6 +9954,7 @@ contains
         case ("conf_assignment_column")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_assignment_column"
+            entry%user_option = .true.
             entry%original = "24"
             entry%value = repr(conf_assignment_column%value)
             entry%doc = "Align assignments to this column by default with \[conf_align_assignments]."//LF// &
@@ -9687,18 +9984,21 @@ contains
         case ("conf_assignment_space")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_assignment_space"
+            entry%user_option = .true.
             entry%original = ".true."
             entry%value = repr(conf_assignment_space%value)
             entry%doc = "Put at least one space around assignments when aligning."
         case ("conf_colon_assignment_column")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_colon_assignment_column"
+            entry%user_option = .true.
             entry%original = "-24"
             entry%value = repr(conf_colon_assignment_column%value)
             entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
         case ("conf_colon_assignment_space")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_colon_assignment_space"
+            entry%user_option = .true.
             entry%original = ".false."
             entry%value = repr(conf_colon_assignment_space%value)
             entry%doc = "Value for `conf_assignment_space' in colon style Conf mode buffers."
@@ -9717,6 +10017,7 @@ contains
         case ("conf_javaprop_assignment_column")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_javaprop_assignment_column"
+            entry%user_option = .true.
             entry%original = "32"
             entry%value = repr(conf_javaprop_assignment_column%value)
             entry%doc = "Value for `conf_assignment_column' in Java properties buffers."
@@ -9728,6 +10029,10 @@ contains
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_javaprop_mode_syntax_table"
             entry%doc = "Syntax table in use in Java properties buffers."
+        case ("conf_mode_hook")
+            entry%file = "conf_mode_fm.f90"
+            entry%fortran = "conf_mode_hook"
+            entry%doc = "Hooks run at the end of the modes."
         case ("conf_mode_map")
             entry%file = "conf_mode_fm.f90"
             entry%fortran = "conf_mode_map"
@@ -11207,6 +11512,340 @@ contains
                         "shells.  When unallocated, such interactive shell sessions fall back"//LF// &
                         "to using the shell specified in either the environment variable"//LF// &
                         """ESHELL"" or `shell_file_name'."
+        case ("f90_associate_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_associate_indent"
+            entry%user_option = .true.
+            entry%original = "2"
+            entry%value = repr(f90_associate_indent%value)
+            entry%doc = "Extra indentation applied to ASSOCIATE blocks."
+        case ("f90_auto_keyword_case")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_auto_keyword_case"
+            entry%user_option = .true.
+            entry%original = "F90_KEYWORD_CASE_NIL"
+            select case (f90_auto_keyword_case%value)
+            case (F90_KEYWORD_CASE_NIL)
+                entry%value = "F90_KEYWORD_CASE_NIL"
+            case (F90_KEYWORD_CASE_DOWNCASE_WORD)
+                entry%value = "F90_KEYWORD_CASE_DOWNCASE_WORD"
+            case (F90_KEYWORD_CASE_UPCASE_WORD)
+                entry%value = "F90_KEYWORD_CASE_UPCASE_WORD"
+            case (F90_KEYWORD_CASE_CAPITALIZE_WORD)
+                entry%value = "F90_KEYWORD_CASE_CAPITALIZE_WORD"
+            case default
+                entry%value = repr(f90_auto_keyword_case%value)
+            end select
+            entry%doc = "Automatic case conversion of keywords."//LF// &
+                        "The options are F90_KEYWORD_CASE_DOWNCASE_WORD, _UPCASE_WORD,"//LF// &
+                        "_CAPITALIZE_WORD and _NIL."
+        case ("f90_beginning_ampersand")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_beginning_ampersand"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(f90_beginning_ampersand%value)
+            entry%doc = "True gives automatic insertion of `&' at start of continuation line."
+        case ("f90_blocks_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_blocks_re"
+            if (allocated(f90_blocks_re)) then
+                entry%value = repr(f90_blocks_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp potentially indicating a ""block"" of F90 code."
+        case ("f90_break_before_delimiters")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_break_before_delimiters"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(f90_break_before_delimiters%value)
+            entry%doc = "True causes `f90_do_auto_fill' to break lines before delimiters."
+        case ("f90_break_delimiters")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_break_delimiters"
+            entry%user_option = .true.
+            if (allocated(f90_break_delimiters%value)) then
+                entry%value = repr(f90_break_delimiters%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching delimiter characters at which lines may be broken."//LF// &
+                        "There are some common two-character tokens where one or more of"//LF// &
+                        "the members matches this regexp.  Although Fortran allows breaks"//LF// &
+                        "within lexical tokens (provided the next line has a beginning ampersand),"//LF// &
+                        "the constant `f90_no_break_re' ensures that such tokens are not split."
+        case ("f90_cache_position")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_cache_position"
+            entry%original = "0"
+            entry%value = repr(f90_cache_position)
+            entry%doc = "Temporary position used to speed up region operations (0 for nil)."
+        case ("f90_comment_region")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_comment_region"
+            entry%user_option = .true.
+            if (allocated(f90_comment_region%value)) then
+                entry%value = repr(f90_comment_region%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String inserted by \[f90_comment_region] at start of each line in region."
+        case ("f90_constants_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_constants_re"
+            if (allocated(f90_constants_re)) then
+                entry%value = repr(f90_constants_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp for Fortran intrinsic constants."
+        case ("f90_continuation_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_continuation_indent"
+            entry%user_option = .true.
+            entry%original = "5"
+            entry%value = repr(f90_continuation_indent%value)
+            entry%doc = "Extra indentation applied to continuation lines."
+        case ("f90_critical_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_critical_indent"
+            entry%user_option = .true.
+            entry%original = "2"
+            entry%value = repr(f90_critical_indent%value)
+            entry%doc = "Extra indentation applied to BLOCK, CRITICAL blocks."
+        case ("f90_directive_comment_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_directive_comment_re"
+            entry%user_option = .true.
+            if (allocated(f90_directive_comment_re%value)) then
+                entry%value = repr(f90_directive_comment_re%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp of comment-like directive like ""!HPF\\$"", not to be indented."
+        case ("f90_do_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_do_indent"
+            entry%user_option = .true.
+            entry%original = "3"
+            entry%value = repr(f90_do_indent%value)
+            entry%doc = "Extra indentation applied to DO blocks."
+        case ("f90_end_block_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_end_block_re"
+            if (allocated(f90_end_block_re)) then
+                entry%value = repr(f90_end_block_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching the end of an F90 ""block"", from the line start."//LF// &
+                        "Used in the F90 entry in `hs_block_end_regexp'."
+        case ("f90_end_if_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_end_if_re"
+            if (allocated(f90_end_if_re)) then
+                entry%value = repr(f90_end_if_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching the end of an IF, SELECT, WHERE, FORALL block."
+        case ("f90_font_lock_keywords")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_font_lock_keywords"
+            entry%doc = "Default expressions to highlight in F90 mode."//LF// &
+                        "Can be overridden by the value of `font_lock_maximum_decoration'."
+        case ("f90_font_lock_keywords_1")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_font_lock_keywords_1"
+            entry%doc = "This does fairly subdued highlighting of comments and function calls."
+        case ("f90_font_lock_keywords_2")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_font_lock_keywords_2"
+            entry%doc = "Highlights declarations, do-loops and other constructs."
+        case ("f90_font_lock_keywords_3")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_font_lock_keywords_3"
+            entry%doc = "Highlights all F90 keywords and intrinsic procedures."
+        case ("f90_font_lock_keywords_4")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_font_lock_keywords_4"
+            entry%doc = "Highlights all F90 and HPF keywords and constants."
+        case ("f90_hpf_keywords_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_hpf_keywords_re"
+            if (allocated(f90_hpf_keywords_re)) then
+                entry%value = repr(f90_hpf_keywords_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp for all HPF keywords, procedures and directives."
+        case ("f90_if_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_if_indent"
+            entry%user_option = .true.
+            entry%original = "3"
+            entry%value = repr(f90_if_indent%value)
+            entry%doc = "Extra indentation applied to IF, SELECT CASE, WHERE and FORALL blocks."
+        case ("f90_indented_comment_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_indented_comment_re"
+            entry%user_option = .true.
+            if (allocated(f90_indented_comment_re%value)) then
+                entry%value = repr(f90_indented_comment_re%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching comments to indent as code."
+        case ("f90_keywords_level_3_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_keywords_level_3_re"
+            if (allocated(f90_keywords_level_3_re)) then
+                entry%value = repr(f90_keywords_level_3_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Keyword-regexp for font-lock level >= 3."
+        case ("f90_keywords_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_keywords_re"
+            if (allocated(f90_keywords_re)) then
+                entry%value = repr(f90_keywords_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp used by the function `f90_change_keywords'."
+        case ("f90_leave_line_no")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_leave_line_no"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(f90_leave_line_no%value)
+            entry%doc = "If true, line numbers are not left justified."
+        case ("f90_mode_abbrev_table")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_mode_abbrev_table"
+            entry%doc = "Abbrev table for F90 mode."
+        case ("f90_mode_hook")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run when entering F90 mode."
+        case ("f90_mode_map")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_mode_map"
+            entry%doc = "Keymap used in F90 mode."
+        case ("f90_mode_syntax_table")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_mode_syntax_table"
+            entry%doc = "Syntax table used in F90 mode."
+        case ("f90_no_break_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_no_break_re"
+            if (allocated(f90_no_break_re)) then
+                entry%value = repr(f90_no_break_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp specifying two-character tokens not to split when breaking lines."//LF// &
+                        "Each token has one or more of the characters from `f90_break_delimiters'."//LF// &
+                        "Note that if only one of the characters is from that variable,"//LF// &
+                        "then the presence of the token here allows a line-break before or"//LF// &
+                        "after the other character, where a break would not normally be"//LF// &
+                        "allowed.  This minor issue currently only affects ""(/"" and ""/)""."
+        case ("f90_operators_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_operators_re"
+            if (allocated(f90_operators_re)) then
+                entry%value = repr(f90_operators_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching intrinsic operators."
+        case ("f90_procedures_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_procedures_re"
+            if (allocated(f90_procedures_re)) then
+                entry%value = repr(f90_procedures_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp whose first part matches F90 intrinsic procedures."
+        case ("f90_program_block_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_program_block_re"
+            if (allocated(f90_program_block_re)) then
+                entry%value = repr(f90_program_block_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp used to locate the start/end of a ""subprogram""."
+        case ("f90_program_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_program_indent"
+            entry%user_option = .true.
+            entry%original = "2"
+            entry%value = repr(f90_program_indent%value)
+            entry%doc = "Extra indentation applied to PROGRAM, MODULE, SUBROUTINE, FUNCTION blocks."
+        case ("f90_smart_end")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_smart_end"
+            entry%user_option = .true.
+            entry%original = "F90_SMART_END_BLINK"
+            select case (f90_smart_end%value)
+            case (F90_SMART_END_NIL)
+                entry%value = "F90_SMART_END_NIL"
+            case (F90_SMART_END_BLINK)
+                entry%value = "F90_SMART_END_BLINK"
+            case (F90_SMART_END_NO_BLINK)
+                entry%value = "F90_SMART_END_NO_BLINK"
+            case default
+                entry%value = repr(f90_smart_end%value)
+            end select
+            entry%doc = "Qualification of END statements according to the matching block start."//LF// &
+                        "For example, change the END that closes an IF block to END IF."//LF// &
+                        "If the block has a label, add it as well (unless `f90_smart_end_names'"//LF// &
+                        "says not to).  Allowed values are F90_SMART_END_BLINK,"//LF// &
+                        "F90_SMART_END_NO_BLINK, and F90_SMART_END_NIL.  If nil,"//LF// &
+                        "nothing is done.  The other two settings have the same effect, but `blink'"//LF// &
+                        "additionally blinks the cursor to the start of the block."
+        case ("f90_smart_end_names")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_smart_end_names"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(f90_smart_end_names%value)
+            entry%doc = "Whether completion of END statements should insert optional block names."//LF// &
+                        "For example, when closing a ""PROGRAM PROGNAME"" block, ""PROGNAME"" is"//LF// &
+                        "optional in the ""END PROGRAM"" statement.  The same is true for modules,"//LF// &
+                        "functions, subroutines, and types.  Some people prefer to omit the name"//LF// &
+                        "from the END statement, since it makes it easier to change the name."//LF// &
+                        ""//LF// &
+                        "This does not apply to named DO, IF, etc. blocks.  If such blocks"//LF// &
+                        "start with a label, they must end with one."//LF// &
+                        ""//LF// &
+                        "If an end statement has a name that does not match the start, it is always"//LF// &
+                        "corrected, regardless of the value of this variable."
+        case ("f90_start_block_re")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_start_block_re"
+            if (allocated(f90_start_block_re)) then
+                entry%value = repr(f90_start_block_re)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching the start of an F90 ""block"", from the line start."//LF// &
+                        "A simple regexp cannot do this in fully correct fashion, so this"//LF// &
+                        "tries to strike a compromise between complexity and flexibility."//LF// &
+                        "Used in the F90 entry in `hs_block_start_regexp'."
+        case ("f90_type_indent")
+            entry%file = "f90_fm.f90"
+            entry%fortran = "f90_type_indent"
+            entry%user_option = .true.
+            entry%original = "3"
+            entry%value = repr(f90_type_indent%value)
+            entry%doc = "Extra indentation applied to TYPE, ENUM, INTERFACE and BLOCK DATA blocks."
         case ("faces")
             entry%file = "face_table_fm.f90"
             entry%fortran = "faces"
@@ -11245,6 +11884,21 @@ contains
                         "The predicates are called with no arguments, with point at the place to"//LF// &
                         "be tested.  If it returns true, fill commands do not break"//LF// &
                         "the line there."
+        case ("fill_paragraph_function")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_paragraph_function"
+            entry%doc = "Mode-specific function to fill a paragraph, or null if there is none."//LF// &
+                        "If the function returns false (DONE), then `fill_paragraph' does its"//LF// &
+                        "normal work."//LF// &
+                        "Note: This only affects `fill_paragraph' and not `fill_region'"//LF// &
+                        "nor `auto_fill_mode', so it is often better to use some other hook,"//LF// &
+                        "such as `fill_forward_paragraph_function'."
+        case ("fill_paragraph_handle_comment")
+            entry%file = "fill_fm.f90"
+            entry%fortran = "fill_paragraph_handle_comment"
+            entry%original = ".true."
+            entry%value = repr(fill_paragraph_handle_comment)
+            entry%doc = "True means paragraph filling will try to pay attention to comments."
         case ("fill_prefix")
             entry%file = "simple_fm.f90"
             entry%fortran = "fill_prefix"
@@ -11473,6 +12127,11 @@ contains
                         "should set its NOINDENT argument to true to signal that it didn't."//LF// &
                         "Setting this function is all you need to make TAB indent appropriately."//LF// &
                         "Don't rebind TAB unless you really need to."
+        case ("indent_region_function")
+            entry%file = "indent_fm.f90"
+            entry%fortran = "indent_region_function"
+            entry%doc = "Short cut function to indent region using `indent_according_to_mode'."//LF// &
+                        "Default is to really run `indent_according_to_mode' on each line."
         case ("indent_tabs_mode")
             entry%file = "indent_fm.f90"
             entry%fortran = "indent_tabs_mode"
@@ -12066,6 +12725,16 @@ contains
             entry%original = "2"
             entry%value = repr(next_screen_context_lines)
             entry%doc = "Number of lines of continuity when scrolling by screenfuls."
+        case ("normal_auto_fill_function")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "normal_auto_fill_function"
+            if (associated(normal_auto_fill_function%value)) then
+                entry%value = command_name_of(normal_auto_fill_function%value)
+            else
+                entry%value = "null()"
+            end if
+            entry%doc = "The function to use for `auto_fill_function' if Auto Fill mode is turned on."//LF// &
+                        "Some major modes set this."
         case ("only_global_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "only_global_abbrevs"
@@ -13381,6 +14050,7 @@ contains
         select case (name)
         case ("abbrev_all_caps")
             kind = OPTION_LOGICAL
+            setting = .true.
         case ("abbrev_file_name")
             kind = OPTION_STRING
         case ("abbrev_mode")
@@ -13468,6 +14138,30 @@ contains
         case ("comint_use_prompt_regexp")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("comment_auto_fill_only_comments")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("comment_column")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("comment_empty_lines")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("comment_fill_column")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("comment_inline_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("comment_multi_line")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("comment_padding")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("comment_style")
+            kind = OPTION_CHOICE
+            setting = .true.
         case ("compilation_always_kill")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -13514,6 +14208,21 @@ contains
             kind = OPTION_STRING
         case ("completions_max_height")
             kind = OPTION_INTEGER
+        case ("conf_assignment_column")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("conf_assignment_space")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("conf_colon_assignment_column")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("conf_colon_assignment_space")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("conf_javaprop_assignment_column")
+            kind = OPTION_INTEGER
+            setting = .true.
         case ("copy_directory_create_symlink")
             kind = OPTION_LOGICAL
         case ("copy_region_blink_delay")
@@ -13629,6 +14338,57 @@ contains
             kind = OPTION_LOGICAL
         case ("explicit_shell_file_name")
             kind = OPTION_STRING
+            setting = .true.
+        case ("f90_associate_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_auto_keyword_case")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("f90_beginning_ampersand")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("f90_break_before_delimiters")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("f90_break_delimiters")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("f90_comment_region")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("f90_continuation_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_critical_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_directive_comment_re")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("f90_do_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_if_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_indented_comment_re")
+            kind = OPTION_STRING
+            setting = .true.
+        case ("f90_leave_line_no")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("f90_program_indent")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("f90_smart_end")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("f90_smart_end_names")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("f90_type_indent")
+            kind = OPTION_INTEGER
             setting = .true.
         case ("fill_column")
             kind = OPTION_INTEGER
@@ -13910,7 +14670,11 @@ contains
         logical, intent(in) :: v, local
         select case (name)
         case ("abbrev_all_caps")
-            abbrev_all_caps = v
+            if (local) then
+                call abbrev_all_caps%set_local(v)
+            else
+                abbrev_all_caps = v
+            end if
         case ("abbrev_mode")
             if (local) then
                 call abbrev_mode%set_local(v)
@@ -13987,6 +14751,18 @@ contains
             else
                 comint_use_prompt_regexp = v
             end if
+        case ("comment_auto_fill_only_comments")
+            if (local) then
+                call comment_auto_fill_only_comments%set_local(v)
+            else
+                comment_auto_fill_only_comments = v
+            end if
+        case ("comment_multi_line")
+            if (local) then
+                call comment_multi_line%set_local(v)
+            else
+                comment_multi_line = v
+            end if
         case ("compilation_always_kill")
             if (local) then
                 call compilation_always_kill%set_local(v)
@@ -14035,6 +14811,18 @@ contains
             completion_flex_nospace = v
         case ("completion_pcm_leading_wildcard")
             completion_pcm_leading_wildcard = v
+        case ("conf_assignment_space")
+            if (local) then
+                call conf_assignment_space%set_local(v)
+            else
+                conf_assignment_space = v
+            end if
+        case ("conf_colon_assignment_space")
+            if (local) then
+                call conf_colon_assignment_space%set_local(v)
+            else
+                conf_colon_assignment_space = v
+            end if
         case ("copy_directory_create_symlink")
             copy_directory_create_symlink = v
         case ("dabbrev_backward_only")
@@ -14079,6 +14867,30 @@ contains
             enable_recursive_minibuffers = v
         case ("even_window_sizes")
             even_window_sizes = v
+        case ("f90_beginning_ampersand")
+            if (local) then
+                call f90_beginning_ampersand%set_local(v)
+            else
+                f90_beginning_ampersand = v
+            end if
+        case ("f90_break_before_delimiters")
+            if (local) then
+                call f90_break_before_delimiters%set_local(v)
+            else
+                f90_break_before_delimiters = v
+            end if
+        case ("f90_leave_line_no")
+            if (local) then
+                call f90_leave_line_no%set_local(v)
+            else
+                f90_leave_line_no = v
+            end if
+        case ("f90_smart_end_names")
+            if (local) then
+                call f90_smart_end_names%set_local(v)
+            else
+                f90_smart_end_names = v
+            end if
         case ("fill_separate_heterogeneous_words_with_space")
             fill_separate_heterogeneous_words_with_space = v
         case ("find_file_run_dired")
@@ -14287,6 +15099,24 @@ contains
             else
                 comint_input_ring_size = v
             end if
+        case ("comment_column")
+            if (local) then
+                call comment_column%set_local(v)
+            else
+                comment_column = v
+            end if
+        case ("comment_fill_column")
+            if (local) then
+                call comment_fill_column%set_local(v)
+            else
+                comment_fill_column = v
+            end if
+        case ("comment_inline_offset")
+            if (local) then
+                call comment_inline_offset%set_local(v)
+            else
+                comment_inline_offset = v
+            end if
         case ("compilation_skip_threshold")
             if (local) then
                 call compilation_skip_threshold%set_local(v)
@@ -14299,8 +15129,68 @@ contains
                 return
             end if
             completions_max_height = int(v)
+        case ("conf_assignment_column")
+            if (local) then
+                call conf_assignment_column%set_local(v)
+            else
+                conf_assignment_column = v
+            end if
+        case ("conf_colon_assignment_column")
+            if (local) then
+                call conf_colon_assignment_column%set_local(v)
+            else
+                conf_colon_assignment_column = v
+            end if
+        case ("conf_javaprop_assignment_column")
+            if (local) then
+                call conf_javaprop_assignment_column%set_local(v)
+            else
+                conf_javaprop_assignment_column = v
+            end if
         case ("dabbrev_limit")
             dabbrev_limit = v
+        case ("f90_associate_indent")
+            if (local) then
+                call f90_associate_indent%set_local(v)
+            else
+                f90_associate_indent = v
+            end if
+        case ("f90_continuation_indent")
+            if (local) then
+                call f90_continuation_indent%set_local(v)
+            else
+                f90_continuation_indent = v
+            end if
+        case ("f90_critical_indent")
+            if (local) then
+                call f90_critical_indent%set_local(v)
+            else
+                f90_critical_indent = v
+            end if
+        case ("f90_do_indent")
+            if (local) then
+                call f90_do_indent%set_local(v)
+            else
+                f90_do_indent = v
+            end if
+        case ("f90_if_indent")
+            if (local) then
+                call f90_if_indent%set_local(v)
+            else
+                f90_if_indent = v
+            end if
+        case ("f90_program_indent")
+            if (local) then
+                call f90_program_indent%set_local(v)
+            else
+                f90_program_indent = v
+            end if
+        case ("f90_type_indent")
+            if (local) then
+                call f90_type_indent%set_local(v)
+            else
+                f90_type_indent = v
+            end if
         case ("fill_column")
             if (local) then
                 call fill_column%set_local(v)
@@ -14468,6 +15358,12 @@ contains
             else
                 comint_terminfo_terminal = v
             end if
+        case ("comment_padding")
+            if (local) then
+                call comment_padding%set_local(v)
+            else
+                comment_padding = v
+            end if
         case ("compilation_message_face")
             if (local) then
                 call compilation_message_face%set_local(v)
@@ -14537,6 +15433,30 @@ contains
                 call explicit_shell_file_name%set_local(v)
             else
                 explicit_shell_file_name = v
+            end if
+        case ("f90_break_delimiters")
+            if (local) then
+                call f90_break_delimiters%set_local(v)
+            else
+                f90_break_delimiters = v
+            end if
+        case ("f90_comment_region")
+            if (local) then
+                call f90_comment_region%set_local(v)
+            else
+                f90_comment_region = v
+            end if
+        case ("f90_directive_comment_re")
+            if (local) then
+                call f90_directive_comment_re%set_local(v)
+            else
+                f90_directive_comment_re = v
+            end if
+        case ("f90_indented_comment_re")
+            if (local) then
+                call f90_indented_comment_re%set_local(v)
+            else
+                f90_indented_comment_re = v
             end if
         case ("fill_prefix")
             if (local) then
@@ -14763,6 +15683,82 @@ contains
                     call comint_move_point_for_output%set_local(COMINT_MOVE_OTHERS)
                 else
                     comint_move_point_for_output = COMINT_MOVE_OTHERS
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("comment_empty_lines")
+            select case (constant)
+            case ("COMMENT_EMPTY_LINES_NIL")
+                if (local) then
+                    call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_NIL)
+                else
+                    comment_empty_lines = COMMENT_EMPTY_LINES_NIL
+                end if
+            case ("COMMENT_EMPTY_LINES_T")
+                if (local) then
+                    call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_T)
+                else
+                    comment_empty_lines = COMMENT_EMPTY_LINES_T
+                end if
+            case ("COMMENT_EMPTY_LINES_EOL")
+                if (local) then
+                    call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_EOL)
+                else
+                    comment_empty_lines = COMMENT_EMPTY_LINES_EOL
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("comment_style")
+            select case (constant)
+            case ("COMMENT_STYLE_PLAIN")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_PLAIN)
+                else
+                    comment_style = COMMENT_STYLE_PLAIN
+                end if
+            case ("COMMENT_STYLE_INDENT_OR_TRIPLE")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_INDENT_OR_TRIPLE)
+                else
+                    comment_style = COMMENT_STYLE_INDENT_OR_TRIPLE
+                end if
+            case ("COMMENT_STYLE_INDENT")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_INDENT)
+                else
+                    comment_style = COMMENT_STYLE_INDENT
+                end if
+            case ("COMMENT_STYLE_ALIGNED")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_ALIGNED)
+                else
+                    comment_style = COMMENT_STYLE_ALIGNED
+                end if
+            case ("COMMENT_STYLE_BOX")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_BOX)
+                else
+                    comment_style = COMMENT_STYLE_BOX
+                end if
+            case ("COMMENT_STYLE_EXTRA_LINE")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_EXTRA_LINE)
+                else
+                    comment_style = COMMENT_STYLE_EXTRA_LINE
+                end if
+            case ("COMMENT_STYLE_MULTI_LINE")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_MULTI_LINE)
+                else
+                    comment_style = COMMENT_STYLE_MULTI_LINE
+                end if
+            case ("COMMENT_STYLE_BOX_MULTI")
+                if (local) then
+                    call comment_style%set_local(COMMENT_STYLE_BOX_MULTI)
+                else
+                    comment_style = COMMENT_STYLE_BOX_MULTI
                 end if
             case default
                 ok = .false.
@@ -14999,6 +15995,58 @@ contains
                 electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_T
             case ("ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP")
                 electric_pair_skip_whitespace = ELECTRIC_PAIR_SKIP_WHITESPACE_CHOMP
+            case default
+                ok = .false.
+            end select
+        case ("f90_auto_keyword_case")
+            select case (constant)
+            case ("F90_KEYWORD_CASE_NIL")
+                if (local) then
+                    call f90_auto_keyword_case%set_local(F90_KEYWORD_CASE_NIL)
+                else
+                    f90_auto_keyword_case = F90_KEYWORD_CASE_NIL
+                end if
+            case ("F90_KEYWORD_CASE_DOWNCASE_WORD")
+                if (local) then
+                    call f90_auto_keyword_case%set_local(F90_KEYWORD_CASE_DOWNCASE_WORD)
+                else
+                    f90_auto_keyword_case = F90_KEYWORD_CASE_DOWNCASE_WORD
+                end if
+            case ("F90_KEYWORD_CASE_UPCASE_WORD")
+                if (local) then
+                    call f90_auto_keyword_case%set_local(F90_KEYWORD_CASE_UPCASE_WORD)
+                else
+                    f90_auto_keyword_case = F90_KEYWORD_CASE_UPCASE_WORD
+                end if
+            case ("F90_KEYWORD_CASE_CAPITALIZE_WORD")
+                if (local) then
+                    call f90_auto_keyword_case%set_local(F90_KEYWORD_CASE_CAPITALIZE_WORD)
+                else
+                    f90_auto_keyword_case = F90_KEYWORD_CASE_CAPITALIZE_WORD
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("f90_smart_end")
+            select case (constant)
+            case ("F90_SMART_END_NIL")
+                if (local) then
+                    call f90_smart_end%set_local(F90_SMART_END_NIL)
+                else
+                    f90_smart_end = F90_SMART_END_NIL
+                end if
+            case ("F90_SMART_END_BLINK")
+                if (local) then
+                    call f90_smart_end%set_local(F90_SMART_END_BLINK)
+                else
+                    f90_smart_end = F90_SMART_END_BLINK
+                end if
+            case ("F90_SMART_END_NO_BLINK")
+                if (local) then
+                    call f90_smart_end%set_local(F90_SMART_END_NO_BLINK)
+                else
+                    f90_smart_end = F90_SMART_END_NO_BLINK
+                end if
             case default
                 ok = .false.
             end select
