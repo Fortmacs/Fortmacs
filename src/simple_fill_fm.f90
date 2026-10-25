@@ -244,7 +244,7 @@ contains
     ! Set last-command-event to tell self-insert what to insert.
     call init_paragraph_variables()
     newline_was_page_start = .false.
-    if (bolp()) newline_was_page_start = looking_at(page_delimiter, st)
+    if (bolp()) newline_was_page_start = looking_at(page_delimiter%value, st)
     newline_beforepos = point()
     saved_event = last_command_event
     last_command_event = make_fixnum(10_int64)

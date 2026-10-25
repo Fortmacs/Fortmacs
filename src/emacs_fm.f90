@@ -55,6 +55,7 @@ module emacs_fm
     use term_xterm_fm, only: terminal_init_xterm
     use tty_colors_fm, only: tty_register_colors
     use lread_fm, only: user_init_file
+    use startup_fm, only: init_user_mail_address
     use config_fm, only: install_prefix, running_executable, recompile, init_file_name, current_build_name, &
                          generation_of, current_generation, switch_generation, rollback, list_generations
     use indent_fm, only: move_to_column
@@ -429,6 +430,8 @@ contains
         if (opt_status%ok()) then
             if (init .and. present(configure)) then
                 call load_init_file(configure)
+                ! user-mail-address, unless the init file set it.
+                call init_user_mail_address()
                 ! The faces as the configuration set them
                 ! (tty-run-terminal-initialization after the init file).
                 call init_frame_faces(selected_frame, terminal_type)

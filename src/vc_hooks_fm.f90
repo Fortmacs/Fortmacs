@@ -304,6 +304,16 @@ module vc_hooks_fm
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine vc_status_proc
+        !> A backend's `checkin' of FILES with COMMENT (REV, the new
+        !> revision, for the backends that take one).
+        recursive subroutine vc_checkin_proc(files, comment, status, rev)
+            import :: vc_string_type, status_type
+            implicit none(type, external)
+            type(vc_string_type), intent(in) :: files(:)
+            character(len=*), intent(in) :: comment
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: rev
+        end subroutine vc_checkin_proc
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -336,12 +346,25 @@ module vc_hooks_fm
         procedure(vc_revision_table_proc), pointer, nopass :: revision_completion_table => null()
         procedure(vc_files_proc), pointer, nopass :: mark_resolved => null()
         procedure(vc_status_proc), pointer, nopass :: create_repo => null()
+        procedure(vc_checkin_proc), pointer, nopass :: checkin => null()
+        !> The backend's Log Edit mode (vc-default-log-edit-mode is
+        !> `log_edit_mode').
+        procedure(vc_status_proc), pointer, nopass :: log_edit_mode => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
 
+    !> The capacity of `vc_backends' (upstream's vc-handled-backends has 8).
+    integer, parameter, public :: MAX_VC_BACKENDS = 16
+
     !> The backends ported, registered by their modules (vc_git_fm).
-    type(vc_backend_type), allocatable, target :: vc_backends(:)
+    !> (A fixed array: gfortran 13 frees an associated procedure pointer
+    !> component whose function returns an allocatable string when an
+    !> array of this type is deallocated, aborting.)
+    type(vc_backend_type), target :: vc_backends(MAX_VC_BACKENDS)
+
+    ! The number of entries of `vc_backends' in use.
+    integer :: n_vc_backends = 0
 
     ! ------------------------------------------------------------------
     ! Per-file properties
@@ -411,27 +434,24 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make the backend named NAME known to VC (as loading vc-BACKEND.el
-    !> does): B is its index in `vc_backends', whose operations the
+    !> does): B is its index in `vc_backends' (0 when it is full), whose operations the
     !> backend module then sets.  A backend of the same name keeps its
     !> entry, which the module sets again.
     subroutine register_vc_backend(name, b)
         character(len=*), intent(in) :: name
         integer, intent(out) :: b
-        type(vc_backend_type), allocatable :: grown(:)
-        integer :: k, n
-        if (.not. allocated(vc_backends)) allocate (vc_backends(0))
-        do k = 1, size(vc_backends)
+        integer :: k
+        do k = 1, n_vc_backends
             if (vc_backends(k)%name == name) then
                 b = k
                 return
             end if
         end do
-        n = size(vc_backends)
-        allocate (grown(n + 1))
-        grown(1:n) = vc_backends
-        grown(n + 1)%name = name
-        call move_alloc(grown, vc_backends)
-        b = n + 1
+        b = 0
+        if (n_vc_backends == MAX_VC_BACKENDS) return
+        n_vc_backends = n_vc_backends + 1
+        vc_backends(n_vc_backends)%name = name
+        b = n_vc_backends
     end subroutine register_vc_backend
 
     !> The index in `vc_backends' of the backend named NAME (0 if none
@@ -440,8 +460,7 @@ contains
         character(len=*), intent(in) :: name
         integer :: k
         b = 0
-        if (.not. allocated(vc_backends)) return
-        do k = 1, size(vc_backends)
+        do k = 1, n_vc_backends
             if (vc_backends(k)%name == trim(name)) then
                 b = k
                 return

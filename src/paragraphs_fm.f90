@@ -131,7 +131,7 @@ module paragraphs_fm
     !> Regexp describing line-beginnings that separate pages.  Port of
     !> paragraphs.el page-delimiter (given its value by
     !> `init_paragraph_variables').
-    character(len=:), allocatable, public :: page_delimiter
+    type(string_setting), public :: page_delimiter = string_setting(name="page_delimiter")
 
     !> No-break space, which counts as a space in sentence ends.
     character(len=*), parameter :: NBSP = char(194)//char(160)
@@ -143,7 +143,7 @@ contains
         if (.not. allocated(paragraph_start%value)) paragraph_start = achar(FORMFEED)//"\|[ "//achar(TAB)//"]*$"
         if (.not. allocated(paragraph_separate%value)) paragraph_separate = "[ "//achar(TAB)//achar(FORMFEED)//"]*$"
         if (.not. allocated(sentence_end_without_space)) sentence_end_without_space = "。．？！"
-        if (.not. allocated(page_delimiter)) page_delimiter = "^"//achar(FORMFEED)
+        if (.not. allocated(page_delimiter%value)) page_delimiter = "^"//achar(FORMFEED)
         if (.not. allocated(sentence_end_base)) sentence_end_base = "[.?!…‽][]""'”’)}»›]*"
     end subroutine init_paragraph_variables
 

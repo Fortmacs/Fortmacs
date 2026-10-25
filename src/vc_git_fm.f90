@@ -25,9 +25,14 @@
 !> (cat-file), the previous revision, revision completion, the ignore
 !> file and creating a repository.
 !>
+!> Committing (`vc_git_checkin') and its Log Edit mode
+!> (`vc_git_log_edit_mode', with the Sign-Off and No-Verify headers).
+!>
 !> Deferred: the backend functions of the deferred VC commands (log,
-!> annotate, dir-status, checkin, tags and branches, pull and push,
-!> stashes, working trees, region history, patches), `vc_git_find_file_hook'
+!> annotate, dir-status, tags and branches, pull and push, stashes,
+!> working trees, region history, patches and checking in patches,
+!> asynchronous checkins, amending with \[vc_git_log_edit_toggle_amend]
+!> and the published-history checks it needs), `vc_git_find_file_hook'
 !> (Smerge mode for conflicts) and `vc_git_resolve_conflicts', the
 !> difftool path of `vc_git_diff' (`vc_git_diff_switches' nil), the
 !> coding systems of Git's output (UTF-8 is used), remote directories
@@ -55,6 +60,16 @@ module vc_git_fm
                            VC_MODEL_IMPLICIT
     use vc_dispatcher_fm, only: vc_do_command, VC_OKSTATUS_NIL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
     use vc_fm, only: vc_switches
+    use eval_fm, only: hook_type
+    use commands_fm, only: commands
+    use keymap_fm, only: keymap_set
+    use modes_fm, only: major_modes
+    use faces_fm, only: named_face_type, display_when, face_attrs
+    use font_core_fm, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
+                            FONT_LOCK_OVERRIDE_PREPEND
+    use font_lock_fm, only: font_lock_keyword, font_lock_highlight
+    use log_edit_fm, only: log_edit_toggle_header, log_edit_extract_headers, log_edit_font_lock_keywords, &
+                           log_edit_string_type, log_edit_header_type, syms_of_log_edit, LOG_EDIT_HEADER_FN
     implicit none(type, external)
     private
 
@@ -84,6 +99,49 @@ module vc_git_fm
     !> Good example of file name that needs this: "test[56].xx".  Port of
     !> vc-git.el vc-git-use-literal-pathspecs.
     logical, public :: vc_git_use_literal_pathspecs = .true.
+
+    !> Target length for Git commit summary lines.
+    !> If a number, characters in Summary: lines beyond this length are
+    !> displayed in the `vc_git_log_edit_summary_target_warning' face.
+    !> A negative value means no highlighting.
+    !>
+    !> By setting this to an integer around 50, you can improve the
+    !> compatibility of your commit messages with Git commands that
+    !> print the summary line in width-constrained contexts.  However,
+    !> many commit summaries will need to exceed this length.
+    !>
+    !> See also `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
+    !> vc-git-log-edit-summary-target-len (negative for nil).
+    integer, public :: vc_git_log_edit_summary_target_len = -1
+
+    !> Maximum length for Git commit summary lines.
+    !> If a number, characters in summary lines beyond this length are
+    !> displayed in the `vc_git_log_edit_summary_max_warning' face.
+    !> A negative value means no highlighting.
+    !>
+    !> It is good practice to avoid writing summary lines longer than
+    !> this because otherwise the summary line will be truncated in many
+    !> contexts in which Git commands display summary lines.
+    !>
+    !> See also `vc_git_log_edit_summary_target_len'.  Port of vc-git.el
+    !> vc-git-log-edit-summary-max-len.
+    integer, public :: vc_git_log_edit_summary_max_len = 68
+
+    !> Face for Git commit summary lines beyond the target length.
+    !> See `vc_git_log_edit_summary_target_len'.  Port of vc-git.el
+    !> vc-git-log-edit-summary-target-warning.
+    type(named_face_type), target, public :: vc_git_log_edit_summary_target_warning
+    !> Face for Git commit summary lines beyond the maximum length.
+    !> See `vc_git_log_edit_summary_max_len'.  Port of vc-git.el
+    !> vc-git-log-edit-summary-max-warning.
+    type(named_face_type), target, public :: vc_git_log_edit_summary_max_warning
+
+    !> Hook run by `vc_git_log_edit_mode'.
+    type(hook_type), target, public :: vc_git_log_edit_mode_hook = hook_type(name="vc_git_log_edit_mode_hook")
+
+    !> Keymap of `vc_git_log_edit_mode'.  Port of vc-git.el
+    !> vc-git-log-edit-mode-map.
+    type(handle_type), public :: vc_git_log_edit_mode_map
 
     !> Git object ID of the empty tree object.  Port of vc-git.el
     !> vc-git--empty-tree.
@@ -1018,12 +1076,232 @@ contains
         s = trim(buf)
     end function itoa
 
+    ! ------------------------------------------------------------------
+    ! Checking in
+    ! ------------------------------------------------------------------
+
+    !> Toggle whether to add the "Signed-off-by" line at the end of commit message.
+    !> Port of vc-git.el:vc-git-log-edit-toggle-signoff.
+    recursive subroutine vc_git_log_edit_toggle_signoff(status)
+        type(status_type), intent(out) :: status
+        logical :: on
+        on = log_edit_toggle_header("Sign-Off", "yes", status)
+    end subroutine vc_git_log_edit_toggle_signoff
+
+    !> Toggle whether to bypass the pre-commit and commit-msg hooks.  Port
+    !> of vc-git.el:vc-git-log-edit-toggle-no-verify.
+    recursive subroutine vc_git_log_edit_toggle_no_verify(status)
+        type(status_type), intent(out) :: status
+        logical :: on
+        on = log_edit_toggle_header("No-Verify", "yes", status)
+    end subroutine vc_git_log_edit_toggle_no_verify
+
+    ! Port of vc-git.el:vc-git--log-edit-summary-check.
+    subroutine log_edit_summary_check(limit, found, status)
+        integer(int64), intent(in) :: limit
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: regex
+        integer(int64) :: pos
+        found = .false.
+        call re_search_forward("^Summary: ", pos, status, bound=limit, noerror=SEARCH_NOERROR)
+        if (pos == 0 .or. .not. status%ok()) return
+        if (vc_git_log_edit_summary_max_len >= 0 .and. vc_git_log_edit_summary_target_len >= 0) then
+            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.\{,"// &
+                    itoa(vc_git_log_edit_summary_max_len - vc_git_log_edit_summary_target_len)//"\}\)\(.*\)"
+        else if (vc_git_log_edit_summary_max_len >= 0) then
+            regex = ".\{,"//itoa(vc_git_log_edit_summary_max_len)//"\}\(?2:.*\)"
+        else if (vc_git_log_edit_summary_target_len >= 0) then
+            regex = ".\{,"//itoa(vc_git_log_edit_summary_target_len)//"\}\(.*\)"
+        else
+            return
+        end if
+        call re_search_forward(regex, pos, status, bound=limit, noerror=SEARCH_NOERROR)
+        found = pos /= 0
+    end subroutine log_edit_summary_check
+
+    !> Major mode for editing Git log messages.
+    !> It is based on `log_edit_mode', and has Git-specific extensions.
+    !> Port of vc-git.el:vc-git-log-edit-mode (\[vc_git_log_edit_toggle_amend]
+    !> is deferred).
+    recursive subroutine vc_git_log_edit_mode(status)
+        type(status_type), intent(out) :: status
+        type(font_lock_keyword_type), allocatable :: keywords(:), more(:)
+        type(font_lock_highlight_type) :: h(2)
+        logical :: saved
+        if (.not. associated(major_modes%vc_git_log_edit_mode%run)) call define_log_edit_mode()
+        call major_modes%vc_git_log_edit_mode%begin(saved, status)
+        if (.not. status%ok()) return
+        call log_edit_font_lock_keywords(keywords)
+        h(1) = font_lock_highlight(1, face="vc_git_log_edit_summary_target_warning", override=FONT_LOCK_OVERRIDE_PREPEND, &
+                                   laxmatch=.true.)
+        h(2) = font_lock_highlight(2, face="vc_git_log_edit_summary_max_warning", override=FONT_LOCK_OVERRIDE_PREPEND, &
+                                   laxmatch=.true.)
+        allocate (more(1))
+        more(1) = font_lock_keyword(highlights=h, matcher=log_edit_summary_check)
+        keywords = [keywords, more]
+        call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
+        call major_modes%vc_git_log_edit_mode%finish(saved, status)
+    end subroutine vc_git_log_edit_mode
+
+    ! Define Git's Log Edit mode, its keymap and faces.
+    subroutine define_log_edit_mode()
+        type(named_face_type), pointer :: f
+        type(status_type) :: st
+        f => vc_git_log_edit_summary_target_warning
+        call f%define("vc_git_log_edit_summary_target_warning", &
+                      "Face for Git commit summary lines beyond the target length."//LF// &
+                      "See `vc_git_log_edit_summary_target_len'.")
+        call f%spec_entry(display_when(), face_attrs(inherit="warning"))
+        f => vc_git_log_edit_summary_max_warning
+        call f%define("vc_git_log_edit_summary_max_warning", &
+                      "Face for Git commit summary lines beyond the maximum length."//LF// &
+                      "See `vc_git_log_edit_summary_max_len'.")
+        call f%spec_entry(display_when(), face_attrs(inherit="error"))
+        if (.not. associated(major_modes%log_edit_mode%run)) call syms_of_log_edit()
+        call major_modes%vc_git_log_edit_mode%define("vc_git_log_edit_mode", "Log-Edit/git", vc_git_log_edit_mode, &
+                                                     vc_git_log_edit_mode_hook, parent=major_modes%log_edit_mode)
+        vc_git_log_edit_mode_map = major_modes%vc_git_log_edit_mode%map
+        commands%vc_git_log_edit_mode%run => vc_git_log_edit_mode
+        commands%vc_git_log_edit_toggle_signoff%run => vc_git_log_edit_toggle_signoff
+        commands%vc_git_log_edit_toggle_no_verify%run => vc_git_log_edit_toggle_no_verify
+        call keymap_set(vc_git_log_edit_mode_map, "C-c C-s", "vc_git_log_edit_toggle_signoff", st)
+        call keymap_set(vc_git_log_edit_mode_map, "C-c C-n", "vc_git_log_edit_toggle_no_verify", st)
+    end subroutine define_log_edit_mode
+
+    ! (boolean-arg-fn "--amend") and friends: the argument if the header's
+    ! value is "yes".
+    subroutine amend_arg(value, args)
+        character(len=*), intent(in) :: value
+        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        call boolean_arg(value, "--amend", args)
+    end subroutine amend_arg
+
+    subroutine no_verify_arg(value, args)
+        character(len=*), intent(in) :: value
+        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        call boolean_arg(value, "--no-verify", args)
+    end subroutine no_verify_arg
+
+    subroutine signoff_arg(value, args)
+        character(len=*), intent(in) :: value
+        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        call boolean_arg(value, "--signoff", args)
+    end subroutine signoff_arg
+
+    subroutine boolean_arg(value, argument, args)
+        character(len=*), intent(in) :: value, argument
+        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        if (value == "yes") then
+            allocate (args(1))
+            args(1)%s = argument
+        else
+            allocate (args(0))
+        end if
+    end subroutine boolean_arg
+
+    ! Port of vc-git.el:vc-git--log-edit-extract-headers: MSG and the
+    ! command line arguments ARGS.
+    recursive subroutine log_edit_extract_headers_git(comment, msg, args, status)
+        character(len=*), intent(in) :: comment
+        character(len=:), allocatable, intent(out) :: msg
+        type(log_edit_string_type), allocatable, intent(out) :: args(:)
+        type(status_type), intent(out) :: status
+        type(log_edit_header_type) :: headers(5)
+        headers(1)%name = "Author"
+        headers(1)%cmdarg = "--author"
+        headers(2)%name = "Date"
+        headers(2)%cmdarg = "--date"
+        headers(3)%name = "Amend"
+        headers(3)%kind = LOG_EDIT_HEADER_FN
+        headers(3)%fn => amend_arg
+        headers(4)%name = "No-Verify"
+        headers(4)%kind = LOG_EDIT_HEADER_FN
+        headers(4)%fn => no_verify_arg
+        headers(5)%name = "Sign-Off"
+        headers(5)%kind = LOG_EDIT_HEADER_FN
+        headers(5)%fn => signoff_arg
+        call log_edit_extract_headers(headers, comment, msg, args, status)
+    end subroutine log_edit_extract_headers_git
+
+    !> Git-specific version of `vc_backend_checkin'.
+    !> REV is ignored.  Port of vc-git.el:vc-git-checkin.
+    recursive subroutine vc_git_checkin(files, comment, status, rev)
+        type(vc_string_type), intent(in) :: files(:)
+        character(len=*), intent(in) :: comment
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: rev
+        if (present(rev)) continue
+        call vc_git_checkin_1(comment, files, status)
+    end subroutine vc_git_checkin
+
+    !> Workhorse routine for `vc_git_checkin'.
+    !> COMMENT is the commit message.  FILES is the list of files to check
+    !> in.  Port of vc-git.el:vc-git--checkin (checking in a patch, and the
+    !> asynchronous commit of `vc_async_checkin', are deferred; the message
+    !> goes on the command line, as on GNU/Linux).
+    recursive subroutine vc_git_checkin_1(comment, files, status)
+        use files_fm, only: abbreviate_file_name
+        character(len=*), intent(in) :: comment
+        type(vc_string_type), intent(in) :: files(:)
+        type(status_type), intent(out) :: status
+        type(log_edit_string_type), allocatable :: extracted(:)
+        type(vc_string_type), allocatable :: flags(:), fl(:)
+        character(len=:), allocatable :: file1, root, saved, msg
+        logical :: found, only
+        integer :: k
+        status = status_type()
+        if (size(files) > 0) then
+            file1 = files(1)%s
+        else
+            file1 = buffer_directory()
+        end if
+        call vc_git_root(file1, root, found)
+        if (.not. found) then
+            call set_error(status, FM_GENERIC_ERROR, "Invalid call to `vc_git_checkin'")
+            return
+        end if
+        only = size(files) > 1
+        if (.not. only) only = root /= abbreviate_file_name(file1)
+        saved = buffer_directory()
+        file1 = root
+        call expand_file_name(file1, root, status)
+        if (.not. status%ok()) return
+        call set_buffer_directory(root)
+        call log_edit_extract_headers_git(comment, msg, extracted, status)
+        if (status%ok()) then
+            allocate (flags(0))
+            call push(flags, "commit")
+            call push(flags, "-m")
+            call push(flags, msg)
+            do k = 1, size(extracted)
+                call push(flags, extracted(k)%s)
+            end do
+            ! When operating on the whole tree, better pass
+            ! "-a" than ".", since "."  fails when we're
+            ! committing a merge.
+            if (only) then
+                call push(flags, "--only")
+                call push(flags, "--")
+                fl = files
+            else
+                call push(flags, "-a")
+                allocate (fl(0))
+            end if
+            call vc_git_command(0, fl, flags, status)
+        end if
+        call set_buffer_directory(saved)
+    end subroutine vc_git_checkin_1
+
     !> Make the Git backend known to VC.
     subroutine syms_of_vc_git()
         integer :: k
         if (.not. allocated(vc_git_program)) vc_git_program = "git"
+        call define_log_edit_mode()
         call register_vc_backend("Git", k)
         associate (b => vc_backends(k))
+            b%checkin => vc_git_checkin
+            b%log_edit_mode => vc_git_log_edit_mode
             b%registered => vc_git_registered
             b%state => vc_git_state
             b%working_revision => vc_git_working_revision

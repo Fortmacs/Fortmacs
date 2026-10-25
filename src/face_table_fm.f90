@@ -28,6 +28,14 @@ module face_table_fm
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
     use faces_fm, only: border
+    use add_log_fm, only: change_log_acknowledgment
+    use add_log_fm, only: change_log_conditionals
+    use add_log_fm, only: change_log_date
+    use add_log_fm, only: change_log_email
+    use add_log_fm, only: change_log_file
+    use add_log_fm, only: change_log_function
+    use add_log_fm, only: change_log_list
+    use add_log_fm, only: change_log_name_face
     use faces_fm, only: child_frame_border
     use comint_fm, only: comint_highlight_input_face
     use comint_fm, only: comint_highlight_prompt
@@ -119,6 +127,10 @@ module face_table_fm
     use faces_fm, only: line_number_minor_tick
     use faces_fm, only: link
     use faces_fm, only: link_visited
+    use log_edit_fm, only: log_edit_header
+    use log_edit_fm, only: log_edit_headers_separator
+    use log_edit_fm, only: log_edit_summary
+    use log_edit_fm, only: log_edit_unknown_header
     use faces_fm, only: margin
     use faces_fm, only: menu
     use faces_fm, only: minibuffer_prompt
@@ -157,6 +169,8 @@ module face_table_fm
     use faces_fm, only: variable_pitch_text
     use vc_hooks_fm, only: vc_conflict_state
     use vc_hooks_fm, only: vc_edited_state
+    use vc_git_fm, only: vc_git_log_edit_summary_max_warning
+    use vc_git_fm, only: vc_git_log_edit_summary_target_warning
     use vc_hooks_fm, only: vc_ignored_state
     use vc_hooks_fm, only: vc_locally_added_state
     use vc_hooks_fm, only: vc_locked_state
@@ -180,6 +194,14 @@ module face_table_fm
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
         type(named_face_type), pointer :: border => border
+        type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
+        type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
+        type(named_face_type), pointer :: change_log_date => change_log_date
+        type(named_face_type), pointer :: change_log_email => change_log_email
+        type(named_face_type), pointer :: change_log_file => change_log_file
+        type(named_face_type), pointer :: change_log_function => change_log_function
+        type(named_face_type), pointer :: change_log_list => change_log_list
+        type(named_face_type), pointer :: change_log_name => change_log_name_face
         type(named_face_type), pointer :: child_frame_border => child_frame_border
         type(named_face_type), pointer :: comint_highlight_input => comint_highlight_input_face
         type(named_face_type), pointer :: comint_highlight_prompt => comint_highlight_prompt
@@ -271,6 +293,10 @@ module face_table_fm
         type(named_face_type), pointer :: line_number_minor_tick => line_number_minor_tick
         type(named_face_type), pointer :: link => link
         type(named_face_type), pointer :: link_visited => link_visited
+        type(named_face_type), pointer :: log_edit_header => log_edit_header
+        type(named_face_type), pointer :: log_edit_headers_separator => log_edit_headers_separator
+        type(named_face_type), pointer :: log_edit_summary => log_edit_summary
+        type(named_face_type), pointer :: log_edit_unknown_header => log_edit_unknown_header
         type(named_face_type), pointer :: margin => margin
         type(named_face_type), pointer :: menu => menu
         type(named_face_type), pointer :: minibuffer_prompt => minibuffer_prompt
@@ -309,6 +335,8 @@ module face_table_fm
         type(named_face_type), pointer :: variable_pitch_text => variable_pitch_text
         type(named_face_type), pointer :: vc_conflict_state => vc_conflict_state
         type(named_face_type), pointer :: vc_edited_state => vc_edited_state
+        type(named_face_type), pointer :: vc_git_log_edit_summary_max_warning => vc_git_log_edit_summary_max_warning
+        type(named_face_type), pointer :: vc_git_log_edit_summary_target_warning => vc_git_log_edit_summary_target_warning
         type(named_face_type), pointer :: vc_ignored_state => vc_ignored_state
         type(named_face_type), pointer :: vc_locally_added_state => vc_locally_added_state
         type(named_face_type), pointer :: vc_locked_state => vc_locked_state

@@ -87,7 +87,7 @@ module files_fm
     !> associated with that interpreter in interpreter-mode-alist.  Port of
     !> files.el auto-mode-interpreter-regexp.
     character(len=:), allocatable, public :: auto_mode_interpreter_regexp
-    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file
+    public :: find_file_noselect, find_file, create_file_buffer, abbreviate_file_name, after_find_file, file_chase_links
     public :: save_buffer, basic_save_buffer, backup_buffer, make_backup_file_name, &
               normal_backup_enable_predicate, file_ownership_preserved_p
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
@@ -909,6 +909,65 @@ contains
         end do
         if (found) root = file_name_as_directory(root)
     end subroutine locate_dominating_file
+
+    !> Chase links in FILENAME until a name that is not a link.
+    !> Unlike `file_truename', this does not check whether a parent
+    !> directory name is a symbolic link.
+    !> If the optional argument LIMIT is present,
+    !> it means chase no more than that many links and then stop.  Port
+    !> of files.el:file-chase-links.
+    recursive subroutine file_chase_links(filename, newname, status, limit)
+        use fileio_fm, only: file_symlink_target
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable, intent(out) :: newname
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: limit
+        character(len=:), allocatable :: tem, tem2, dir
+        integer :: count, k
+        status = status_type()
+        newname = filename
+        count = 0
+        do
+            if (present(limit)) then
+                if (count >= limit) exit
+            end if
+            tem = file_symlink_target(newname)
+            if (len(tem) == 0) exit
+            if (.not. present(limit) .and. count == 100) then
+                call set_error(status, FM_GENERIC_ERROR, "Apparent cycle of symbolic links for "//filename)
+                return
+            end if
+            ! In the context of a link, `//' doesn't mean what Emacs thinks.
+            k = index(tem, "//")
+            do while (k > 0)
+                tem = tem(1:k)//tem(k + 2:)
+                k = index(tem, "//")
+            end do
+            ! Handle `..' by hand, since it needs to work in the
+            ! target of any directory symlink.
+            ! This code is not quite complete; it does not handle
+            ! embedded .. in some cases such as ./../foo and foo/bar/../../../lose.
+            do while (len(tem) >= 3)
+                if (tem(1:3) /= "../") exit
+                tem = tem(4:)
+                tem2 = newname
+                call expand_file_name(tem2, newname, status)
+                if (.not. status%ok()) return
+                ! Chase links in the default dir of the symlink.
+                call file_chase_links(directory_file_name(file_name_directory(newname)), dir, status)
+                if (.not. status%ok()) return
+                ! Now find the parent of that dir.
+                newname = file_name_directory(dir)
+            end do
+            ! files--splice-dirname-file
+            if (index(tem, "/") == 1) then
+                newname = tem
+            else
+                newname = file_name_directory(newname)//tem
+            end if
+            count = count + 1
+        end do
+    end subroutine file_chase_links
 
     !> Search for COMMAND in `exec_path' and return the absolute file name
     !> in PATH ("" if COMMAND is not found anywhere in `exec_path').  Port of

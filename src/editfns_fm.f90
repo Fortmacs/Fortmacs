@@ -65,12 +65,17 @@ module editfns_fm
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
     public :: insert_char_n, narrow_to_region, widen, buffer_narrowed_p, current_time_string, validate_region, subst_char_in_region
-    public :: buffer_substring, buffer_string, delete_region, &
+    public :: buffer_substring, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region
     public :: pos_bol, pos_eol, line_beginning_position, line_end_position
     public :: get_pos_property, find_field, field_beginning, field_end, field_string, &
               delete_field, constrain_to_field
     public :: format_message
+    public :: user_login_name, user_real_login_name, user_full_name, system_name
+
+    !> The names editfns.c:init_editfns computes (Vuser_login_name,
+    !> Vuser_real_login_name, Vuser_full_name); unallocated until then.
+    character(len=:), allocatable :: vuser_login_name, vuser_real_login_name, vuser_full_name
 
     !> True means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
@@ -486,6 +491,164 @@ contains
         s = trim(buf)
     end function current_time_string
 
+    ! ------------------------------------------------------------------
+    ! User and system names
+    ! ------------------------------------------------------------------
+
+    !> Set up the user's names once, as editfns.c:init_editfns does: the
+    !> real login name from the passwd entry of the real uid, the login
+    !> name from LOGNAME or USER (else the effective uid's entry), and the
+    !> full name of that user (or NAME, or "unknown").
+    subroutine init_user_names()
+        use sysdep_fm, only: passwd_entry_by_uid, emacs_getuid, emacs_geteuid
+        character(len=:), allocatable :: name, gecos, user_name
+        integer :: length, stat
+        logical :: found
+        if (allocated(vuser_login_name)) return
+        call passwd_entry_by_uid(emacs_getuid(), name, gecos, found)
+        if (found) then
+            vuser_real_login_name = name
+        else
+            vuser_real_login_name = "unknown"
+        end if
+        ! Get the effective user name, by consulting environment variables,
+        ! or the effective uid if those are unset.
+        user_name = env("LOGNAME")
+        if (.not. allocated(user_name)) user_name = env("USER")
+        if (.not. allocated(user_name)) then
+            call passwd_entry_by_uid(emacs_geteuid(), name, gecos, found)
+            if (found) then
+                user_name = name
+            else
+                user_name = "unknown"
+            end if
+        end if
+        vuser_login_name = user_name
+        ! If the user name claimed in the environment vars differs from
+        ! the real uid, use the claimed name to find the full name.
+        if (vuser_login_name == vuser_real_login_name) then
+            call full_name_of(vuser_login_name, vuser_full_name, found)
+        else
+            call full_name_of_uid(emacs_geteuid(), vuser_full_name, found)
+        end if
+        call get_environment_variable("NAME", length=length, status=stat)
+        if (stat == 0) then
+            vuser_full_name = env("NAME")
+            if (.not. allocated(vuser_full_name)) vuser_full_name = ""
+        else if (.not. found) then
+            vuser_full_name = "unknown"
+        end if
+    contains
+
+        !> The value of the environment variable VAR, unallocated if unset.
+        function env(var) result(value)
+            character(len=*), intent(in) :: var
+            character(len=:), allocatable :: value
+            integer :: n, st
+            call get_environment_variable(var, length=n, status=st)
+            if (st /= 0) return
+            allocate (character(len=n) :: value)
+            if (n > 0) call get_environment_variable(var, value)
+        end function env
+    end subroutine init_user_names
+
+    !> The full name in the passwd entry of the user called LOGIN.
+    subroutine full_name_of(login, full, found)
+        use sysdep_fm, only: passwd_entry_by_name
+        character(len=*), intent(in) :: login
+        character(len=:), allocatable, intent(out) :: full
+        logical, intent(out) :: found
+        character(len=:), allocatable :: name, gecos
+        integer :: uid
+        call passwd_entry_by_name(login, name, gecos, uid, found)
+        full = ""
+        if (found) full = gecos_full_name(gecos, name)
+    end subroutine full_name_of
+
+    !> The full name in the passwd entry of user UID.
+    subroutine full_name_of_uid(uid, full, found)
+        use sysdep_fm, only: passwd_entry_by_uid
+        integer, intent(in) :: uid
+        character(len=:), allocatable, intent(out) :: full
+        logical, intent(out) :: found
+        character(len=:), allocatable :: name, gecos
+        call passwd_entry_by_uid(uid, name, gecos, found)
+        full = ""
+        if (found) full = gecos_full_name(gecos, name)
+    end subroutine full_name_of_uid
+
+    !> The full name in a gecos field: everything before the first comma,
+    !> with `&' replaced by the login name LOGIN, its first character
+    !> upcased (AMPERSAND_FULL_NAME).  Part of editfns.c:Fuser_full_name.
+    function gecos_full_name(gecos, login) result(full)
+        character(len=*), intent(in) :: gecos, login
+        character(len=:), allocatable :: full, sub
+        integer :: q
+        ! Chop off everything after the first comma, since `pw_gecos' is a
+        ! comma-separated list.
+        q = index(gecos, ",")
+        if (q > 0) then
+            full = gecos(1:q - 1)
+        else
+            full = gecos
+        end if
+        ! Substitute the login name for the &, upcasing the first character.
+        q = index(full, "&")
+        if (q > 0 .and. len(login) > 0) then
+            sub = login
+            if (sub(1:1) >= "a" .and. sub(1:1) <= "z") sub(1:1) = achar(iachar(sub(1:1)) - 32)
+            full = full(1:q - 1)//sub//full(q + 1:)
+        end if
+    end function gecos_full_name
+
+    !> Return the name under which the user logged in, as a string.
+    !> This is based on the effective uid, not the real uid.
+    !> Also, if the environment variables LOGNAME or USER are set,
+    !> that determines the value of this function.  Port of
+    !> editfns.c:Fuser_login_name (no UID argument).
+    function user_login_name() result(name)
+        character(len=:), allocatable :: name
+        call init_user_names()
+        name = vuser_login_name
+    end function user_login_name
+
+    !> Return the name of the user's real uid, as a string.
+    !> This ignores the environment variables LOGNAME and USER, so it differs from
+    !> `user_login_name' when running under `su'.  Port of
+    !> editfns.c:Fuser_real_login_name.
+    function user_real_login_name() result(name)
+        character(len=:), allocatable :: name
+        call init_user_names()
+        name = vuser_real_login_name
+    end function user_real_login_name
+
+    !> Return the full name of the user logged in, as a string.
+    !> If the full name corresponding to Emacs's userid is not known,
+    !> return "unknown".
+    !>
+    !> If the full name includes commas, remove everything starting with
+    !> the first comma, because the `gecos' field of the `/etc/passwd' file
+    !> is in general a comma-separated list.  Port of
+    !> editfns.c:Fuser_full_name (no UID argument).
+    function user_full_name() result(name)
+        character(len=:), allocatable :: name
+        call init_user_names()
+        name = vuser_full_name
+    end function user_full_name
+
+    !> Return the host name of the machine you are running on, as a string.
+    !> Port of editfns.c:Fsystem_name (sysdep.c:init_system_name: spaces
+    !> and tabs become dashes).
+    function system_name() result(name)
+        use sysdep_fm, only: emacs_gethostname
+        character(len=:), allocatable :: name
+        integer :: k
+        name = emacs_gethostname()
+        do k = 1, len(name)
+            if (name(k:k) == " " .or. name(k:k) == achar(9)) name(k:k) = "-"
+        end do
+    end function system_name
+
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
     logical function buffer_narrowed_p()
@@ -547,6 +710,47 @@ contains
         character(len=:), allocatable :: text
         text = buf_bytes(buffers(cur), buffers(cur)%begv_byte, buffers(cur)%zv_byte)
     end function buffer_string
+
+    !> Insert before point a substring of the contents of BUFFER.
+    !> BUFFER may be a buffer or a buffer name.
+    !> Arguments START and END are character positions specifying the substring.
+    !> They default to the values of (point-min) and (point-max) in BUFFER.
+    !>
+    !> Point and before-insertion markers move forward to end up after the
+    !> inserted text.
+    !> Any other markers at the point of insertion remain before the text.
+    !>
+    !> If the current buffer is multibyte and BUFFER is unibyte, or vice
+    !> versa, strings are converted from unibyte to multibyte or vice versa
+    !> using `string_make_multibyte' or `string_make_unibyte', which see.
+    !> Port of editfns.c:Finsert_buffer_substring (text properties pending,
+    !> as for `buffer_substring'; both buffers multibyte).
+    recursive subroutine insert_buffer_substring(buffer, status, start, end)
+        use buffer_fm, only: set_buffer, buffer_live_p
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: start, end
+        type(handle_type) :: old
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        integer(int64) :: b, e
+        status = status_type()
+        if (.not. buffer_live_p(buffer)) then
+            call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+            return
+        end if
+        old = current_buffer()
+        call set_buffer(buffer, status)
+        if (.not. status%ok()) return
+        b = point_min()
+        e = point_max()
+        if (present(start)) b = start
+        if (present(end)) e = end
+        call buffer_substring(b, e, text, status)
+        call set_buffer(old, st)
+        if (.not. status%ok()) return
+        call insert(text, status)
+    end subroutine insert_buffer_substring
 
     !> Delete the text between `start' and `end' (either order).
     !> Port of editfns.c:Fdelete_region.

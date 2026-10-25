@@ -35,6 +35,7 @@ module modes_fm
     !> One component per built-in major mode.
     type :: major_mode_table_type
         type(major_mode_type) :: apropos_mode
+        type(major_mode_type) :: change_log_mode
         type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode
         type(major_mode_type) :: conf_colon_mode
@@ -54,6 +55,7 @@ module modes_fm
         type(major_mode_type) :: f90_mode
         type(major_mode_type) :: fundamental_mode
         type(major_mode_type) :: help_mode
+        type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: messages_buffer_mode
         type(major_mode_type) :: prog_mode
         type(major_mode_type) :: sh_base_mode
@@ -62,6 +64,7 @@ module modes_fm
         type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
         type(major_mode_type) :: text_mode
+        type(major_mode_type) :: vc_git_log_edit_mode
     end type major_mode_table_type
 
     !> One component per built-in minor mode.

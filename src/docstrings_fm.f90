@@ -33,6 +33,10 @@ module docstrings_fm
                          fundamental_mode_abbrev_table, global_abbrev_table, last_abbrev, last_abbrev_location, &
                          last_abbrev_text, only_global_abbrevs, save_abbrevs, SAVE_ABBREVS_NEVER, SAVE_ABBREVS_ASK, &
                          SAVE_ABBREVS_SILENTLY
+    use add_log_fm, only: add_log_dont_create_changelog_file, add_log_full_name, &
+                          add_log_mailing_address, change_log_date, change_log_default_name, &
+                          change_log_directory_files, change_log_mode_hook, change_log_mode_map, &
+                          change_log_mode_syntax_table
     use apropos_fm, only: apropos_all_words_regexp, apropos_mode_hook, apropos_mode_map, &
                           apropos_pattern, apropos_regexp
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
@@ -199,6 +203,13 @@ module docstrings_fm
                          kmacro_default_counter_format, kmacro_execute_before_append, kmacro_initial_counter_value, &
                          kmacro_keymap, kmacro_last_counter, kmacro_repeat_no_prefix, kmacro_ring, kmacro_ring_max
     use lisp_cmds_fm, only: forward_sexp_function
+    use log_edit_fm, only: log_edit_changelog_full_paragraphs, log_edit_comment_ring, &
+                           log_edit_common_indent, log_edit_confirm, LOG_EDIT_CONFIRM_NIL, LOG_EDIT_CONFIRM_T, &
+                           LOG_EDIT_CONFIRM_CHANGED, log_edit_done_hook, log_edit_font_lock_gnu_style, log_edit_hook, &
+                           log_edit_keep_buffer, log_edit_mode_hook, log_edit_mode_map, log_edit_require_final_newline, &
+                           LOG_EDIT_FINAL_NEWLINE_NIL, LOG_EDIT_FINAL_NEWLINE_T, LOG_EDIT_FINAL_NEWLINE_ASK, &
+                           log_edit_rewrite_fixes_regexp, log_edit_rewrite_tiny_change, log_edit_setup_add_author, &
+                           log_edit_setup_invert, log_edit_strip_single_file_name, log_edit_summary
     use lread_fm, only: user_init_file
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
                           READ_ANSWER_SHORT_AUTO
@@ -295,6 +306,7 @@ module docstrings_fm
                          suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
     use smie_fm, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
+    use startup_fm, only: mail_host_address, user_mail_address
     use subr_fm, only: after_change_major_mode_hook, change_major_mode_after_body_hook, &
                        history_delete_duplicates, history_length, y_or_n_p_history_variable, y_or_n_p_use_read_key
     use syntax_fm, only: comment_end_can_be_escaped, comment_use_syntax_ppss, &
@@ -310,14 +322,16 @@ module docstrings_fm
     use timer_fm, only: timer_max_repeats
     use undo_fm, only: amalgamating_undo_limit, this_command_amalgamating
     use vc_dispatcher_fm, only: vc_command_messages, VC_COMMAND_MESSAGES_NIL, VC_COMMAND_MESSAGES_T, &
-                                VC_COMMAND_MESSAGES_LOG, vc_display_failed_async_commands, vc_sentinel_movepoint, &
-                                vc_suppress_confirm
+                                VC_COMMAND_MESSAGES_LOG, vc_delete_logbuf_window, vc_display_failed_async_commands, &
+                                vc_finish_logentry_hook, vc_logentry_check_hook, vc_sentinel_movepoint, vc_suppress_confirm
     use vc_fm, only: vc_allow_async_diff, vc_allow_async_revert, vc_annotate_switches, &
                      vc_before_checkin_hook, vc_checkin_hook, vc_checkin_switches, vc_checkout_hook, &
                      vc_checkout_switches, vc_deduce_backend_nonvc_modes, vc_diff_added_files, vc_diff_switches, &
                      vc_find_revision_no_save, vc_log_show_limit, vc_register_switches, vc_revert_show_diff, &
                      VC_REVERT_SHOW_DIFF_NIL, VC_REVERT_SHOW_DIFF_T, VC_REVERT_SHOW_DIFF_KILL
-    use vc_git_fm, only: vc_git_diff_switches, vc_git_program, &
+    use vc_git_fm, only: vc_git_diff_switches, vc_git_log_edit_mode_map, &
+                         vc_git_log_edit_summary_max_len, vc_git_log_edit_summary_max_warning, &
+                         vc_git_log_edit_summary_target_len, vc_git_log_edit_summary_target_warning, vc_git_program, &
                          vc_git_revision_complete_only_branches, vc_git_use_literal_pathspecs
     use vc_hooks_fm, only: vc_consult_headers, vc_directory_exclusion_list, vc_display_status, &
                            VC_DISPLAY_STATUS_NIL, VC_DISPLAY_STATUS_T, VC_DISPLAY_STATUS_NO_BACKEND, vc_follow_symlinks, &
@@ -363,7 +377,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(849) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(872) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -373,9 +387,9 @@ module docstrings_fm
                                                              "apropos_previous_symbol", "apropos_user_option", "apropos_variable", &
                                                   "async_shell_command", "auto_fill_mode", "back_to_indentation", "backward_char", &
                                              "backward_delete_char_untabify", "backward_kill_paragraph", "backward_kill_sentence", &
-                                                "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_paragraph", &
-                                                        "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
-                                                             "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
+                                                     "backward_kill_sexp", "backward_kill_word", "backward_list", "backward_page", &
+                                                   "backward_paragraph", "backward_sentence", "backward_sexp", "backward_up_list", &
+                                            "backward_word", "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
                                             "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", "buffer_name", &
                                                    "buffer_substring", "buffer_to_register", "bury_buffer", "call_last_kbd_macro", &
                                                     "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
@@ -483,7 +497,7 @@ module docstrings_fm
                                                      "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
                                                            "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
                                                  "font_lock_refresh_defaults", "font_lock_update", "format_error", "forward_char", &
-                                                           "forward_comment", "forward_line", "forward_list", "forward_paragraph", &
+                                           "forward_comment", "forward_line", "forward_list", "forward_page", "forward_paragraph", &
                                                  "forward_sentence", "forward_sexp", "forward_word", "free_process", "free_timer", &
                                                      "fundamental_mode", "get_buffer_create", "get_buffer_process", "get_process", &
                                                 "get_register", "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", &
@@ -520,28 +534,35 @@ module docstrings_fm
                                                 "kmacro_set_format", "kmacro_start_macro", "kmacro_start_macro_or_insert_counter", &
                                                               "kmacro_swap_ring", "kmacro_view_macro", "kmacro_view_macro_repeat", &
                                            "kmacro_view_ring_2nd", "left_char", "left_word", "line_number_at_pos", "list_abbrevs", &
-                                             "list_registers", "local_abbrev_table", "looking_at", "looking_at_p", "looking_back", &
-                                                    "major_mode_named", "make_comint", "make_comint_in_buffer", "make_empty_file", &
-                                            "make_process", "make_symbolic_link", "make_syntax_table", "map_query_replace_regexp", &
-                                               "mark", "mark_end_of_sentence", "mark_paragraph", "mark_sexp", "mark_whole_buffer", &
-                                                        "mark_word", "match_beginning", "match_data", "match_end", "match_string", &
-                                                          "match_string_no_properties", "match_substitute_replacement", "message", &
-                                                    "messages_buffer_mode", "minibuffer_complete", "minibuffer_complete_and_exit", &
-                                           "minibuffer_complete_word", "minibuffer_completion_exit", "minibuffer_completion_help", &
-                                                               "minibuffer_recenter_top_bottom", "minibuffer_scroll_down_command", &
-                                                  "minibuffer_scroll_up_command", "modify_syntax_entry", "move_beginning_of_line", &
-                                             "move_end_of_line", "move_to_left_margin", "move_to_tab_stop", "move_to_window_line", &
-                                           "move_to_window_line_top_bottom", "negative_argument", "newline", "newline_and_indent", &
-                                         "next_buffer", "next_error", "next_error_no_select", "next_history_element", "next_line", &
-                                            "next_line_or_history_element", "normal_mode", "num_processors", "number_to_register", &
-                                              "open_line", "open_rectangle", "other_buffer", "other_window", "parse_partial_sexp", &
-                                                    "point", "point_max", "point_min", "point_to_register", "pop_to_mark_command", &
-                                                              "posix_looking_at", "posix_search_backward", "posix_search_forward", &
-                                           "posix_string_match", "prefer_coding_system", "prepend_to_register", "previous_buffer", &
-                                                         "previous_error", "previous_error_no_select", "previous_history_element", &
-                                                            "previous_line", "previous_line_or_history_element", "process_buffer", &
-                                                  "process_coding_system", "process_command", "process_exit_status", "process_id", &
-                                                                 "process_list", "process_live_p", "process_mark", "process_name", &
+                                                       "list_registers", "local_abbrev_table", "log_edit_comment_search_backward", &
+                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
+                                                                   "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
+                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
+                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
+                                                      "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
+                                                       "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
+                                                        "log_edit_show_diff", "log_edit_show_files", "looking_at", "looking_at_p", &
+                                                       "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
+                                                     "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
+                                                     "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_paragraph", &
+                                                   "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", "match_data", &
+                                                                   "match_end", "match_string", "match_string_no_properties", &
+                                         "match_substitute_replacement", "message", "messages_buffer_mode", "minibuffer_complete", &
+                                         "minibuffer_complete_and_exit", "minibuffer_complete_word", "minibuffer_completion_exit", &
+                                                                   "minibuffer_completion_help", "minibuffer_recenter_top_bottom", &
+                                          "minibuffer_scroll_down_command", "minibuffer_scroll_up_command", "modify_syntax_entry", &
+                                          "move_beginning_of_line", "move_end_of_line", "move_to_left_margin", "move_to_tab_stop", &
+                                          "move_to_window_line", "move_to_window_line_top_bottom", "negative_argument", "newline", &
+                                                        "newline_and_indent", "next_buffer", "next_error", "next_error_no_select", &
+                                               "next_history_element", "next_line", "next_line_or_history_element", "normal_mode", &
+                                            "num_processors", "number_to_register", "open_line", "open_rectangle", "other_buffer", &
+                                                          "other_window", "parse_partial_sexp", "point", "point_max", "point_min", &
+                                          "point_to_register", "pop_to_mark_command", "posix_looking_at", "posix_search_backward", &
+                                                             "posix_search_forward", "posix_string_match", "prefer_coding_system", &
+                                           "prepend_to_register", "previous_buffer", "previous_error", "previous_error_no_select", &
+                                                  "previous_history_element", "previous_line", "previous_line_or_history_element", &
+                                              "process_buffer", "process_coding_system", "process_command", "process_exit_status", &
+                                                   "process_id", "process_list", "process_live_p", "process_mark", "process_name", &
                                                           "process_query_on_exit_flag", "process_send_eof", "process_send_region", &
                                              "process_send_string", "process_status", "process_tty_name", "processp", "prog_mode", &
                                                   "provided_mode_derived_p", "push_mark", "query_replace", "query_replace_regexp", &
@@ -586,28 +607,31 @@ module docstrings_fm
                                          "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
                                            "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
                                             "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                   "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_ignore", &
-                                              "vc_next_action", "vc_refresh_state", "vc_register", "vc_rename_file", "vc_restore", &
-                                                  "vc_revert", "vc_revision_other_window", "vc_root_diff", "vc_root_version_diff", &
-                                                "vc_version_diff", "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
-                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
-                                           "view_file_other_window", "view_goto_line", "view_goto_percent", "view_kill_and_leave", &
-                                         "view_leave", "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
-                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
-                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
-                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
-                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
-                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
-                                             "view_search_regexp_backward", "view_search_regexp_forward", "what_line", "where_is", &
+                                                                "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", &
+                                                                   "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
+                                              "vc_git_log_edit_toggle_signoff", "vc_ignore", "vc_next_action", "vc_refresh_state", &
+                                           "vc_register", "vc_rename_file", "vc_restore", "vc_revert", "vc_revision_other_window", &
+                                                   "vc_root_diff", "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", &
+                                                "view_buffer", "view_buffer_other_window", "view_echo_area_messages", "view_exit", &
+                                                    "view_exit_and_edit", "view_file", "view_file_other_window", "view_goto_line", &
+                                            "view_goto_percent", "view_kill_and_leave", "view_leave", "view_lossage", "view_mode", &
+                                                  "view_quit", "view_quit_all", "view_register", "view_scroll_half_page_backward", &
+                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
+                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
+                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
+                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
+                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
+                                                                   "view_search_regexp_forward", "what_line", "where_is", &
                                                 "window_configuration_to_register", "write_abbrev_file", "write_file", "y_or_n_p", &
                                             "y_or_n_p_insert_n", "y_or_n_p_insert_other", "y_or_n_p_insert_y", "yank", "yank_pop", &
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(694) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(730) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
+                                             "add_log_dont_create_changelog_file", "add_log_full_name", "add_log_mailing_address", &
                                                     "after_change_functions", "after_change_major_mode_hook", "after_revert_hook", &
                                                          "after_save_hook", "amalgamating_undo_limit", "apropos_all_words_regexp", &
                                                      "apropos_mode_hook", "apropos_mode_map", "apropos_pattern", "apropos_regexp", &
@@ -619,7 +643,9 @@ module docstrings_fm
                                                                "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
                                                 "blink_matching_paren_on_screen", "buffer_file_coding_system", "case_fold_search", &
-                                                     "case_replace", "case_symbols_as_words", "change_major_mode_after_body_hook", &
+                                            "case_replace", "case_symbols_as_words", "change_log_date", "change_log_default_name", &
+                                                      "change_log_directory_files", "change_log_mode_hook", "change_log_mode_map", &
+                                                              "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
                                            "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
                                                  "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
                                              "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
@@ -757,12 +783,18 @@ module docstrings_fm
                                                        "last_abbrev_location", "last_abbrev_text", "last_coding_system_specified", &
                                                    "last_coding_system_used", "last_input_event", "last_kbd_macro", "left_margin", &
                                                        "line_move_ignore_invisible", "line_move_visual", "list_buffers_directory", &
-                                                 "locale_coding_system", "locate_dominating_stop_dir_regexp", "make_backup_files", &
-                                         "mark_even_if_inactive", "mark_ring_max", "message_log_max", "messages_buffer_mode_hook", &
-                                                                   "messages_buffer_mode_map", "minibuffer_completing_file_name", &
-                                                               "minibuffer_local_shell_command_map", "minibuffer_message_timeout", &
-                                                          "minibuffer_scroll_window", "mode_require_final_newline", "mule_keymap", &
-                                                        "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
+                                                                   "locale_coding_system", "locate_dominating_stop_dir_regexp", &
+                                          "log_edit_changelog_full_paragraphs", "log_edit_comment_ring", "log_edit_common_indent", &
+                                                         "log_edit_confirm", "log_edit_done_hook", "log_edit_font_lock_gnu_style", &
+                                               "log_edit_hook", "log_edit_keep_buffer", "log_edit_mode_hook", "log_edit_mode_map", &
+                                                                   "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
+                                             "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
+                                                       "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
+                                                 "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "message_log_max", &
+                                                                   "messages_buffer_mode_hook", "messages_buffer_mode_map", &
+                                                          "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
+                                           "minibuffer_message_timeout", "minibuffer_scroll_window", "mode_require_final_newline", &
+                                         "mule_keymap", "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
                                                    "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
                                                  "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", "page_delimiter", &
                                                           "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
@@ -826,20 +858,24 @@ module docstrings_fm
                                                                   "text_mode_variant", "timer_max_repeats", "transient_mark_mode", &
                                                                    "transient_mark_mode_hook", "truncate_partial_width_windows", &
                                                        "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
-                                            "use_short_answers", "user_init_file", "vc_allow_async_diff", "vc_allow_async_revert", &
-                                                              "vc_annotate_switches", "vc_before_checkin_hook", "vc_checkin_hook", &
-                                         "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", "vc_command_messages", &
-                                                     "vc_consult_headers", "vc_deduce_backend_nonvc_modes", "vc_diff_added_files", &
-                                            "vc_diff_switches", "vc_directory_exclusion_list", "vc_display_failed_async_commands", &
-                                                            "vc_display_status", "vc_find_revision_no_save", "vc_follow_symlinks", &
-                                               "vc_git_diff_switches", "vc_git_program", "vc_git_revision_complete_only_branches", &
-                                                    "vc_git_use_literal_pathspecs", "vc_handled_backends", "vc_ignore_dir_regexp", &
-                                             "vc_log_show_limit", "vc_make_backup_files", "vc_prefix_map", "vc_register_switches", &
-                                          "vc_resolve_conflicts", "vc_revert_show_diff", "vc_sentinel_movepoint", "vc_state_base", &
-                                                 "vc_suppress_confirm", "vc_use_short_revision", "view_exits_all_viewing_windows", &
-                                                                   "view_inhibit_help_message", "view_mode_hook", "view_mode_map", &
-                                             "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", "visible_bell", &
-                                                                 "window_min_height", "window_min_width", "words_include_escapes", &
+                                                "use_short_answers", "user_init_file", "user_mail_address", "vc_allow_async_diff", &
+                                                        "vc_allow_async_revert", "vc_annotate_switches", "vc_before_checkin_hook", &
+                                             "vc_checkin_hook", "vc_checkin_switches", "vc_checkout_hook", "vc_checkout_switches", &
+                                                     "vc_command_messages", "vc_consult_headers", "vc_deduce_backend_nonvc_modes", &
+                                                             "vc_delete_logbuf_window", "vc_diff_added_files", "vc_diff_switches", &
+                                           "vc_directory_exclusion_list", "vc_display_failed_async_commands", "vc_display_status", &
+                                                      "vc_find_revision_no_save", "vc_finish_logentry_hook", "vc_follow_symlinks", &
+                                            "vc_git_diff_switches", "vc_git_log_edit_mode_map", "vc_git_log_edit_summary_max_len", &
+                                                      "vc_git_log_edit_summary_max_warning", "vc_git_log_edit_summary_target_len", &
+                                                                   "vc_git_log_edit_summary_target_warning", "vc_git_program", &
+                                                         "vc_git_revision_complete_only_branches", "vc_git_use_literal_pathspecs", &
+                                                               "vc_handled_backends", "vc_ignore_dir_regexp", "vc_log_show_limit", &
+                                                                "vc_logentry_check_hook", "vc_make_backup_files", "vc_prefix_map", &
+                                                            "vc_register_switches", "vc_resolve_conflicts", "vc_revert_show_diff", &
+                                         "vc_sentinel_movepoint", "vc_state_base", "vc_suppress_confirm", "vc_use_short_revision", &
+                                                  "view_exits_all_viewing_windows", "view_inhibit_help_message", "view_mode_hook", &
+                                            "view_mode_map", "view_no_disable_on_exit", "view_read_only", "view_scroll_auto_exit", &
+                                                 "visible_bell", "window_min_height", "window_min_width", "words_include_escapes", &
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
@@ -1564,6 +1600,10 @@ contains
                         "Uses `forward_list' to do the work."//LF// &
                         "If INTERACTIVE is true, as it is interactively,"//LF// &
                         "report errors as appropriate for this kind of usage."
+        case ("backward_page")
+            entry%file = "page_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move backward to page boundary (page-delimiter ""^\f"")."
         case ("backward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call backward_paragraph(arg)"
@@ -4626,6 +4666,12 @@ contains
                         "This command assumes point is not in a string or comment."//LF// &
                         "If INTERACTIVE is true, as it is interactively,"//LF// &
                         "report errors as appropriate for this kind of usage."
+        case ("forward_page")
+            entry%file = "page_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move forward to page boundary.  With arg, repeat, or go back if negative."//LF// &
+                        "A page boundary is any line whose beginning matches the regexp"//LF// &
+                        "`page_delimiter'."
         case ("forward_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "forward_paragraph(arg)"
@@ -5670,6 +5716,112 @@ contains
             entry%fortran = "local_abbrev_table()"
             entry%doc = "Local (mode-specific) abbrev table of current buffer (null for"//LF// &
                         "none)."
+        case ("log_edit_comment_search_backward")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search backwards through VC commit comment history for a match of STR."//LF// &
+                        "If the optional argument STRIDE is present, that is a step-width to use"//LF// &
+                        "when going through the comment ring, `log_edit_comment_ring'."
+        case ("log_edit_comment_search_forward")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Search forwards through VC commit comment history for a match of STR."
+        case ("log_edit_diff_fileset")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display diffs for the files to be committed."
+        case ("log_edit_done")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Finish editing the VC commit log message, and commit the files."//LF// &
+                        "If you want to abort the commit, simply delete the buffer."
+        case ("log_edit_done_strip_cvs_lines")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Strip lines starting with ""CVS:"" from commit log message."//LF// &
+                        "When not called interactively do this only when the VC backend is CVS."//LF// &
+                        "This mimicks what CVS does when invoked as 'cvs commit [files...]'."
+        case ("log_edit_insert_changelog")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert a VC commit log message by looking at the ChangeLog."//LF// &
+                        "The idea is to write your ChangeLog entries first, and then use this"//LF// &
+                        "command to commit your changes with that log."//LF// &
+                        ""//LF// &
+                        "To select default log text, this command:"//LF// &
+                        "- finds the ChangeLog entries for the files to be checked in;"//LF// &
+                        "- verifies that the top entry in the ChangeLog is on the current date"//LF// &
+                        "    and by the current user; if not, it doesn't provide any default text;"//LF// &
+                        "- searches the ChangeLog entry for paragraphs containing the names of"//LF// &
+                        "    the files to be checked in; and finally"//LF// &
+                        "- uses those paragraphs as the log text."//LF// &
+                        ""//LF// &
+                        "If the optional prefix arg USE_FIRST is given (via \[universal_argument]),"//LF// &
+                        "or if the command is repeated, use the first log entry regardless of user"//LF// &
+                        "name or time."
+        case ("log_edit_insert_cvs_rcstemplate")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the RCS commit log template from the CVS repository."//LF// &
+                        "This contacts the repository to get the rcstemplate file and"//LF// &
+                        "can thus take some time."
+        case ("log_edit_insert_cvs_template")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the commit log template specified by the CVS administrator, if any."//LF// &
+                        "This simply uses the local CVS/Template file."
+        case ("log_edit_insert_filenames")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the list of files that are to be committed."
+        case ("log_edit_insert_filenames_without_changelog")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the list of files that have no ChangeLog message."
+        case ("log_edit_insert_message_template")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the default VC commit log template with Summary and Author."//LF// &
+                        "INTERACTIVE is (called-interactively-p 'interactive)."
+        case ("log_edit_kill_buffer")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the current VC commit log buffer."//LF// &
+                        "This command saves the contents of the log buffer in the VC commit"//LF// &
+                        "comment history, see `log_edit_comment_ring', and hides `log_edit_files_buf'."
+        case ("log_edit_mode")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing version-control (VC) commit log messages."//LF// &
+                        "When done editing the log entry, type \[log_edit_done], which will"//LF// &
+                        "trigger the actual commit of the file(s)."//LF// &
+                        "Several other handy support commands are provided, and the package"//LF// &
+                        "from which this is used might also provide additional commands (under"//LF// &
+                        "the \[vc_prefix_map] prefix for VC commands, for example)."//LF// &
+                        ""//LF// &
+                        "\{log_edit_mode_map}"
+        case ("log_edit_mode_help")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Provide help for the `log_edit_mode_map'."
+        case ("log_edit_next_comment")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cycle forwards through VC commit comment history."//LF// &
+                        "With a numeric prefix ARG, go forward ARG comments."
+        case ("log_edit_previous_comment")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cycle backwards through VC commit comment history."//LF// &
+                        "With a numeric prefix ARG, go back ARG comments."
+        case ("log_edit_show_diff")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show diff for the changes to be committed."
+        case ("log_edit_show_files")
+            entry%file = "log_edit_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show the list of files to be committed."
         case ("looking_at")
             entry%file = "search_fm.f90"
             entry%fortran = "looking_at(regexp, status, inhibit_modify)"
@@ -8439,6 +8591,19 @@ contains
                         "Optional argument NOT_ESSENTIAL true means it is okay to say no to"//LF// &
                         "saving the buffer."//LF// &
                         "Optional argument FILESET, if present, overrides the fileset."
+        case ("vc_git_log_edit_mode")
+            entry%file = "vc_git_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing Git log messages."//LF// &
+                        "It is based on `log_edit_mode', and has Git-specific extensions."
+        case ("vc_git_log_edit_toggle_no_verify")
+            entry%file = "vc_git_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether to bypass the pre-commit and commit-msg hooks."
+        case ("vc_git_log_edit_toggle_signoff")
+            entry%file = "vc_git_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether to add the ""Signed-off-by"" line at the end of commit message."
         case ("vc_ignore")
             entry%file = "vc_fm.f90"
             entry%interactive = .true.
@@ -9150,6 +9315,34 @@ contains
                         "If the paragraph has just one line, the indentation is taken from that"//LF// &
                         "line, but in that case `adaptive_fill_first_line_regexp' also plays"//LF// &
                         "a role."
+        case ("add_log_dont_create_changelog_file")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "add_log_dont_create_changelog_file"
+            entry%original = ".true."
+            entry%value = repr(add_log_dont_create_changelog_file)
+            entry%doc = "If true, don't create ChangeLog files for log entries."//LF// &
+                        "If a ChangeLog file does not already exist, a true value"//LF// &
+                        "means to put log entries in a suitably named buffer."
+        case ("add_log_full_name")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "add_log_full_name"
+            if (allocated(add_log_full_name)) then
+                entry%value = repr(add_log_full_name)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Full name of user, for inclusion in ChangeLog daily headers."//LF// &
+                        "This defaults to the value returned by the function `user_full_name'."
+        case ("add_log_mailing_address")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "add_log_mailing_address"
+            if (allocated(add_log_mailing_address)) then
+                entry%value = repr(add_log_mailing_address)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Email addresses of user, for inclusion in ChangeLog headers."//LF// &
+                        "This defaults to the value of `user_mail_address'."
         case ("after_change_functions")
             entry%file = "insdel_fm.f90"
             entry%fortran = "after_change_functions"
@@ -9541,6 +9734,42 @@ contains
                         ""//LF// &
                         "This is useful for programming languages and styles where only the"//LF// &
                         "first letter of a symbol's name is ever capitalized."
+        case ("change_log_date")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_date"
+            entry%doc = "Face used to highlight dates in date lines."
+        case ("change_log_default_name")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_default_name"
+            if (allocated(change_log_default_name%value)) then
+                entry%value = repr(change_log_default_name%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Name of a change log file for \[add_change_log_entry]."
+        case ("change_log_directory_files")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_directory_files"
+            if (allocated(change_log_directory_files)) then
+                entry%value = repr(change_log_directory_files)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of files that cause `find_change_log' to stop in containing directory."//LF// &
+                        "This applies if no pre-existing ChangeLog is found.  If empty, then in such"//LF// &
+                        "a case simply use the directory containing the changed file."
+        case ("change_log_mode_hook")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_mode_hook"
+            entry%doc = "Normal hook run by `change_log_mode'."
+        case ("change_log_mode_map")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_mode_map"
+            entry%doc = "Keymap for Change Log major mode."
+        case ("change_log_mode_syntax_table")
+            entry%file = "add_log_fm.f90"
+            entry%fortran = "change_log_mode_syntax_table"
+            entry%doc = "Syntax table used while in `change_log_mode'."
         case ("change_major_mode_after_body_hook")
             entry%file = "subr_fm.f90"
             entry%fortran = "change_major_mode_after_body_hook"
@@ -13652,6 +13881,162 @@ contains
                         "The default regexp prevents fruitless and time-consuming attempts to find"//LF// &
                         "special files in directories in which file names are interpreted as host names,"//LF// &
                         "or mount points potentially requiring authentication as a different user."
+        case ("log_edit_changelog_full_paragraphs")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_changelog_full_paragraphs"
+            entry%original = ".true."
+            entry%value = repr(log_edit_changelog_full_paragraphs)
+            entry%doc = "If true, include full ChangeLog paragraphs in the log."//LF// &
+                        "This may be set in the ""local variables"" section of a ChangeLog, to"//LF// &
+                        "indicate the policy for that ChangeLog."//LF// &
+                        ""//LF// &
+                        "A ChangeLog paragraph is a bunch of log text containing no blank lines;"//LF// &
+                        "a paragraph usually describes a set of changes with a single purpose,"//LF// &
+                        "but perhaps spanning several functions in several files.  Changes in"//LF// &
+                        "different paragraphs are unrelated."//LF// &
+                        ""//LF// &
+                        "You could argue that the log entry for a file should contain the"//LF// &
+                        "full ChangeLog paragraph mentioning the change to the file, even though"//LF// &
+                        "it may mention other files, because that gives you the full context you"//LF// &
+                        "need to understand the change.  This is the behavior you get when this"//LF// &
+                        "variable is set to true."//LF// &
+                        ""//LF// &
+                        "On the other hand, you could argue that the log entry for a change"//LF// &
+                        "should contain only the text for the changes which occurred in that"//LF// &
+                        "file, because the log is per-file.  This is the behavior you get"//LF// &
+                        "when this variable is set to false."
+        case ("log_edit_comment_ring")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_comment_ring"
+            entry%doc = "The commit log comments."
+        case ("log_edit_common_indent")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_common_indent"
+            entry%original = "0"
+            entry%value = repr(log_edit_common_indent)
+            entry%doc = "Minimum indentation to use in `log_edit_set_common_indentation'."
+        case ("log_edit_confirm")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_confirm"
+            entry%original = "LOG_EDIT_CONFIRM_CHANGED"
+            select case (log_edit_confirm)
+            case (LOG_EDIT_CONFIRM_NIL)
+                entry%value = "LOG_EDIT_CONFIRM_NIL"
+            case (LOG_EDIT_CONFIRM_T)
+                entry%value = "LOG_EDIT_CONFIRM_T"
+            case (LOG_EDIT_CONFIRM_CHANGED)
+                entry%value = "LOG_EDIT_CONFIRM_CHANGED"
+            case default
+                entry%value = repr(log_edit_confirm)
+            end select
+            entry%doc = "If true, `log_edit_done' will request confirmation."//LF// &
+                        "If LOG_EDIT_CONFIRM_CHANGED, only request confirmation if the list"//LF// &
+                        "of files has changed since the beginning of the `log_edit' session."
+        case ("log_edit_done_hook")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_done_hook"
+            entry%doc = "Hook run before doing the actual commit."//LF// &
+                        "This hook can be used to cleanup the message, enforce various"//LF// &
+                        "conventions, or to allow recording the message in some other database,"//LF// &
+                        "such as a bug-tracking system.  The list of files about to be committed"//LF// &
+                        "can be obtained from `log_edit_files'."
+        case ("log_edit_font_lock_gnu_style")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_font_lock_gnu_style"
+            entry%original = ".false."
+            entry%value = repr(log_edit_font_lock_gnu_style)
+            entry%doc = "If true, highlight common failures to follow VC commit log conventions."//LF// &
+                        "The conventions checked are those described in the GNU coding standards"//LF// &
+                        "document."
+        case ("log_edit_hook")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_hook"
+            entry%doc = "Hook run at the end of `log_edit'."
+        case ("log_edit_keep_buffer")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_keep_buffer"
+            entry%original = ".false."
+            entry%value = repr(log_edit_keep_buffer)
+            entry%doc = "If true, don't hide the buffer after `log_edit_done'."
+        case ("log_edit_mode_hook")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_mode_hook"
+            entry%doc = "Hook run when entering `log_edit_mode'."
+        case ("log_edit_mode_map")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_mode_map"
+            entry%doc = "Keymap of `log_edit_mode'."
+        case ("log_edit_require_final_newline")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_require_final_newline"
+            entry%original = "LOG_EDIT_FINAL_NEWLINE_T"
+            select case (log_edit_require_final_newline)
+            case (LOG_EDIT_FINAL_NEWLINE_NIL)
+                entry%value = "LOG_EDIT_FINAL_NEWLINE_NIL"
+            case (LOG_EDIT_FINAL_NEWLINE_T)
+                entry%value = "LOG_EDIT_FINAL_NEWLINE_T"
+            case (LOG_EDIT_FINAL_NEWLINE_ASK)
+                entry%value = "LOG_EDIT_FINAL_NEWLINE_ASK"
+            case default
+                entry%value = repr(log_edit_require_final_newline)
+            end select
+            entry%doc = "Enforce a newline at the end of commit log messages."//LF// &
+                        "Enforce it silently if LOG_EDIT_FINAL_NEWLINE_T, query if"//LF// &
+                        "LOG_EDIT_FINAL_NEWLINE_ASK and don't do anything if"//LF// &
+                        "LOG_EDIT_FINAL_NEWLINE_NIL."
+        case ("log_edit_rewrite_fixes")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_rewrite_fixes_regexp"
+            if (allocated(log_edit_rewrite_fixes_regexp)) then
+                entry%value = repr(log_edit_rewrite_fixes_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Rule to rewrite bug numbers into Fixes: headers in commit log messages."//LF// &
+                        "The value should be of the form (REGEXP . REPLACEMENT)"//LF// &
+                        "where REGEXP should match the expression referring to a bug number"//LF// &
+                        "in the text, and REPLACEMENT is an expression to pass to `replace_match'"//LF// &
+                        "to build the Fixes: header."
+        case ("log_edit_rewrite_tiny_change")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_rewrite_tiny_change"
+            entry%original = ".true."
+            entry%value = repr(log_edit_rewrite_tiny_change)
+            entry%doc = "True means rewrite (tiny change)."
+        case ("log_edit_setup_add_author")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_setup_add_author"
+            entry%original = ".false."
+            entry%value = repr(log_edit_setup_add_author)
+            entry%doc = "True means `log_edit' may add the `Author:' header."//LF// &
+                        "This applies when its SETUP argument is true."
+        case ("log_edit_setup_invert")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_setup_invert"
+            entry%original = ".false."
+            entry%value = repr(log_edit_setup_invert)
+            entry%doc = "True means `log_edit' should invert the meaning of its SETUP arg."//LF// &
+                        "If SETUP is forced, this variable has no effect."
+        case ("log_edit_strip_single_file_name")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_strip_single_file_name"
+            entry%original = ".false."
+            entry%value = repr(log_edit_strip_single_file_name)
+            entry%doc = "If true, remove file name from single-file log entries."
+        case ("log_edit_summary")
+            entry%file = "log_edit_fm.f90"
+            entry%fortran = "log_edit_summary"
+            entry%doc = "Face for the summary in `log_edit_mode' buffers."
+        case ("mail_host_address")
+            entry%file = "startup_fm.f90"
+            entry%fortran = "mail_host_address"
+            if (allocated(mail_host_address)) then
+                entry%value = repr(mail_host_address)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The name of this machine, for use in constructing email addresses."//LF// &
+                        "If this is unallocated (nil), Emacs uses `system_name'."
         case ("make_backup_files")
             entry%file = "files_fm.f90"
             entry%fortran = "make_backup_files"
@@ -13831,8 +14216,8 @@ contains
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "page_delimiter"
             entry%user_option = .true.
-            if (allocated(page_delimiter)) then
-                entry%value = repr(page_delimiter)
+            if (allocated(page_delimiter%value)) then
+                entry%value = repr(page_delimiter%value)
             else
                 entry%value = "unallocated"
             end if
@@ -15731,6 +16116,18 @@ contains
             entry%doc = "File name, including directory, of user's initialization file."//LF// &
                         "While the init file's `configure' runs, value is the real name"//LF// &
                         "of the file."
+        case ("user_mail_address")
+            entry%file = "startup_fm.f90"
+            entry%fortran = "user_mail_address"
+            if (allocated(user_mail_address)) then
+                entry%value = repr(user_mail_address)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The email address of the current user."//LF// &
+                        "This defaults to either: the value of EMAIL environment variable; or"//LF// &
+                        "user@host, using `user_login_name' and `mail_host_address' (or"//LF// &
+                        "`system_name')."
         case ("vc_allow_async_diff")
             entry%file = "vc_fm.f90"
             entry%fortran = "vc_allow_async_diff"
@@ -15833,6 +16230,15 @@ contains
                         "In these modes the backend is deduced based on `default_directory'."//LF// &
                         "If `vc_deduce_backend_all_modes' is true, the backend is deduced in"//LF// &
                         "all modes."
+        case ("vc_delete_logbuf_window")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_delete_logbuf_window"
+            entry%original = ".true."
+            entry%value = repr(vc_delete_logbuf_window)
+            entry%doc = "If true, delete the *vc-log* buffer and window after each logical action."//LF// &
+                        "If false, bury that buffer instead."//LF// &
+                        "This is most useful if you have multiple windows on a frame and would like to"//LF// &
+                        "preserve the setting."
         case ("vc_diff_added_files")
             entry%file = "vc_fm.f90"
             entry%fortran = "vc_diff_added_files"
@@ -15896,6 +16302,11 @@ contains
             entry%original = ".false."
             entry%value = repr(vc_find_revision_no_save)
             entry%doc = "If true, `vc_find_revision' doesn't write the created buffer to file."
+        case ("vc_finish_logentry_hook")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_finish_logentry_hook"
+            entry%doc = "Hook run at the end of `vc_finish_logentry' (obsolete; use"//LF// &
+                        "`vc_log_after_operation_hook')."
         case ("vc_follow_symlinks")
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_follow_symlinks"
@@ -15925,6 +16336,51 @@ contains
             entry%user_option = .true.
             entry%doc = "String or list of strings specifying switches for Git diff under VC."//LF// &
                         "If nil, use the value of `vc_diff_switches'.  If t, use no switches."
+        case ("vc_git_log_edit_mode_map")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_edit_mode_map"
+            entry%doc = "Keymap of `vc_git_log_edit_mode'."
+        case ("vc_git_log_edit_summary_max_len")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_edit_summary_max_len"
+            entry%original = "68"
+            entry%value = repr(vc_git_log_edit_summary_max_len)
+            entry%doc = "Maximum length for Git commit summary lines."//LF// &
+                        "If a number, characters in summary lines beyond this length are"//LF// &
+                        "displayed in the `vc_git_log_edit_summary_max_warning' face."//LF// &
+                        "A negative value means no highlighting."//LF// &
+                        ""//LF// &
+                        "It is good practice to avoid writing summary lines longer than"//LF// &
+                        "this because otherwise the summary line will be truncated in many"//LF// &
+                        "contexts in which Git commands display summary lines."//LF// &
+                        ""//LF// &
+                        "See also `vc_git_log_edit_summary_target_len'."
+        case ("vc_git_log_edit_summary_max_warning")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_edit_summary_max_warning"
+            entry%doc = "Face for Git commit summary lines beyond the maximum length."//LF// &
+                        "See `vc_git_log_edit_summary_max_len'."
+        case ("vc_git_log_edit_summary_target_len")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_edit_summary_target_len"
+            entry%original = "-1"
+            entry%value = repr(vc_git_log_edit_summary_target_len)
+            entry%doc = "Target length for Git commit summary lines."//LF// &
+                        "If a number, characters in Summary: lines beyond this length are"//LF// &
+                        "displayed in the `vc_git_log_edit_summary_target_warning' face."//LF// &
+                        "A negative value means no highlighting."//LF// &
+                        ""//LF// &
+                        "By setting this to an integer around 50, you can improve the"//LF// &
+                        "compatibility of your commit messages with Git commands that"//LF// &
+                        "print the summary line in width-constrained contexts.  However,"//LF// &
+                        "many commit summaries will need to exceed this length."//LF// &
+                        ""//LF// &
+                        "See also `vc_git_log_edit_summary_max_len'."
+        case ("vc_git_log_edit_summary_target_warning")
+            entry%file = "vc_git_fm.f90"
+            entry%fortran = "vc_git_log_edit_summary_target_warning"
+            entry%doc = "Face for Git commit summary lines beyond the target length."//LF// &
+                        "See `vc_git_log_edit_summary_target_len'."
         case ("vc_git_program")
             entry%file = "vc_git_fm.f90"
             entry%fortran = "vc_git_program"
@@ -15991,6 +16447,12 @@ contains
             entry%doc = "Limit the number of items shown by the VC log commands."//LF// &
                         "Zero means unlimited."//LF// &
                         "Not all VC backends are able to support this feature."
+        case ("vc_logentry_check_hook")
+            entry%file = "vc_dispatcher_fm.f90"
+            entry%fortran = "vc_logentry_check_hook"
+            entry%doc = "Normal hook run by `vc_finish_logentry'."//LF// &
+                        "Use this to impose your own rules on the entry in addition to any the"//LF// &
+                        "dispatcher client wants to enforce."
         case ("vc_make_backup_files")
             entry%file = "vc_hooks_fm.f90"
             entry%fortran = "vc_make_backup_files"
@@ -16663,6 +17125,7 @@ contains
             kind = OPTION_LOGICAL
         case ("page_delimiter")
             kind = OPTION_STRING
+            setting = .true.
         case ("paragraph_ignore_fill_prefix")
             kind = OPTION_LOGICAL
         case ("paragraph_separate")
@@ -17881,7 +18344,11 @@ contains
         case ("insert_directory_program")
             insert_directory_program = v
         case ("page_delimiter")
-            page_delimiter = v
+            if (local) then
+                call page_delimiter%set_local(v)
+            else
+                page_delimiter = v
+            end if
         case ("paragraph_separate")
             if (local) then
                 call paragraph_separate%set_local(v)

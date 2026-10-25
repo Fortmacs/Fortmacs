@@ -2948,7 +2948,7 @@ contains
         if (.not. status%ok()) return
         call sh_shell_file%make_local()
         call sh_shell%make_local()
-        call paragraph_start%set_local(page_delimiter//"\|$")
+        call paragraph_start%set_local(page_delimiter%value//"\|$")
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+["//TAB//" ]*")

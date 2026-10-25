@@ -35,7 +35,8 @@
 !> - no highlighting (query-replace-highlight, lazy highlight), no
 !>   invisible-text or isearch-filter-predicate skipping, no character
 !>   folding, no noncontiguous regions, no multi-buffer answers and no
-!>   `diff' answer yet; `occur' is a later step.
+!>   `diff' answer yet; `occur' is a later step;
+!> - of the keep-lines family only `flush_lines' as a function (no command).
 module replace_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_fm, only: commands
@@ -77,7 +78,7 @@ module replace_fm
     implicit none(type, external)
     private
 
-    public :: perform_replace, replace_search, replace_match_maybe_edit, replace_quote
+    public :: perform_replace, replace_search, replace_match_maybe_edit, replace_quote, flush_lines
     public :: query_replace, query_replace_regexp, map_query_replace_regexp, replace_string, replace_regexp
     public :: query_replace_descr, query_replace_read_from, query_replace_read_to, query_replace_read_args, &
               query_replace_compile_replacement, replace_expand_count, syms_of_replace
@@ -1646,6 +1647,99 @@ contains
                              start=start, end=end, backward=backward, counted=counted, &
                              replacement_fn=replacement_fn)
     end subroutine replace_regexp
+
+    !> Delete lines containing matches for REGEXP.
+    !> When called from a program (and usually when called interactively as
+    !> well, see below), applies to the part of the buffer after point.
+    !> The line point is in is deleted if and only if it contains a
+    !> match for regexp starting after point.
+    !>
+    !> If REGEXP contains upper case characters (excluding those preceded by `\')
+    !> and `search_upper_case' is true, the matching is case-sensitive.
+    !>
+    !> Second and third arg RSTART and REND specify the region to operate on.
+    !> Lines partially contained in this region are deleted if and only if
+    !> they contain a match entirely contained in it.
+    !>
+    !> Interactively, in Transient Mark mode when the mark is active, operate
+    !> on the contents of the region.  Otherwise, operate from point to the
+    !> end of (the accessible portion of) the buffer.  When calling this function
+    !> from a program, you can pretend that it was called interactively by passing
+    !> a true INTERACTIVE argument.
+    !>
+    !> If a match is split across lines, all the lines it lies in are deleted.
+    !> They are deleted _before_ looking for the next match.  Hence, a match
+    !> starting on the same line at which another match ended is ignored.
+    !>
+    !> Return the number of deleted matching lines.  When called interactively,
+    !> also print the number.
+    !>
+    !> If you want to not just delete the lines, but also add them to
+    !> the kill ring, use the \[kill_matching_lines] command instead.
+    !> Port of replace.el:flush-lines (the command's argument reading is
+    !> Deferred).
+    recursive subroutine flush_lines(regexp, count, status, rstart, rend, interactive)
+        use cmds_fm, only: forward_line
+        use editfns_fm, only: delete_region
+        character(len=*), intent(in) :: regexp
+        integer(int64), intent(out) :: count
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: rstart, rend
+        logical, intent(in), optional :: interactive
+        type(handle_type) :: end_marker, opoint
+        integer(int64) :: limit, found, beg, shortage
+        logical :: inter, saved_fold
+        type(status_type) :: st
+        count = 0
+        status = status_type()
+        inter = .false.
+        if (present(interactive)) inter = interactive
+        call make_marker(end_marker)
+        if (present(rstart) .and. present(rend)) then
+            call goto_char(min(rstart, rend))
+            call set_marker(end_marker, max(rstart, rend), st)
+        else if (inter .and. use_region_p()) then
+            call region_end(limit, st)
+            call set_marker(end_marker, limit, st)
+            call region_beginning(limit, st)
+            call goto_char(limit)
+        else
+            call set_marker(end_marker, point_max(), st)
+        end if
+        saved_fold = case_fold_search%value
+        if (case_fold_search%value .and. search_upper_case /= UPPER_CASE_NIL) then
+            case_fold_search%value = isearch_no_upper_case_p(regexp, .true.)
+        end if
+        call make_marker(opoint)
+        call set_marker(opoint, point(), st)
+        do
+            call marker_position(end_marker, limit, st)
+            if (point() >= limit) exit
+            call re_search_forward(regexp, found, status, bound=limit, noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. found == 0) exit
+            call goto_char(match_beginning(0, st))
+            shortage = forward_line(0_int64)
+            beg = point()
+            call goto_char(match_end(0, st))
+            shortage = forward_line(1_int64)
+            call delete_region(beg, point(), status)
+            if (.not. status%ok()) exit
+            count = count + 1
+        end do
+        case_fold_search%value = saved_fold
+        call marker_position(opoint, beg, st)
+        call goto_char(beg)
+        call free_marker(opoint, st)
+        call free_marker(end_marker, st)
+        if (.not. status%ok()) return
+        if (inter) then
+            if (count == 1) then
+                call message("Deleted 1 matching line")
+            else
+                call message("Deleted "//number_to_string(count)//" matching lines")
+            end if
+        end if
+    end subroutine flush_lines
 
     !> The interactive prompt of a replace command: BASE, then " backward"
     !> or " word" for the prefix argument, then WHAT and " in region".
