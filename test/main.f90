@@ -94,6 +94,7 @@ program tester
     use test_kmacro_fm, only: collect_kmacro_fm
     use test_abbrev_fm, only: collect_abbrev_fm
     use test_dabbrev_fm, only: collect_dabbrev_fm
+    use test_coding_fm, only: collect_coding_fm
     use test_timer_fm, only: collect_timer_fm
     use test_itree_fm, only: collect_itree_fm
     use test_paren_fm, only: collect_paren_fm
@@ -178,6 +179,7 @@ program tester
                  new_testsuite("kmacro_fm", collect_kmacro_fm), &
                  new_testsuite("abbrev_fm", collect_abbrev_fm), &
                  new_testsuite("dabbrev_fm", collect_dabbrev_fm), &
+                 new_testsuite("coding_fm", collect_coding_fm), &
                  new_testsuite("timer_fm", collect_timer_fm), &
                  new_testsuite("itree_fm", collect_itree_fm), &
                  new_testsuite("paren_fm", collect_paren_fm), &

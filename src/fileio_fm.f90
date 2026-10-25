@@ -28,19 +28,28 @@
 !> return "" (a directory name is never empty).  There are no file name
 !> handlers (TRAMP and friends).
 !>
-!> Text is read as UTF-8 with invalid bytes kept as raw-byte characters
-!> and written back the same way, so any file survives a visit and save
-!> unchanged.  End-of-line conversion and other coding systems are not
-!> ported yet.
+!> Text is decoded on reading and encoded on writing by a coding system
+!> (coding_fm), chosen as upstream chooses it: `coding_system_for_read'
+!> or `coding_system_for_write', the coding system the file names in
+!> itself (`set_auto_coding_function'), `file_coding_system_alist', and
+!> `buffer_file_coding_system'; text that the chosen coding system cannot
+!> encode is checked by `select_safe_coding_system_function'.
 module fileio_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type, set_error, FM_FILE_ERROR, FM_FILE_MISSING, FM_FILE_ALREADY_EXISTS, &
                         FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_PERMISSION_DENIED, FM_FILE_DATE_ERROR
     use buffer_fm, only: buffers, cur, BEG, BEG_BYTE, buf_bytes, barf_if_buffer_read_only, vdeactivate_mark
-    use character_fm, only: str_as_multibyte, str_as_unibyte
     use marker_fm, only: char_to_byte
     use insdel_fm, only: insert, inhibit_modification_hooks
     use editfns_fm, only: point, goto_char, validate_region
+    use data_fm, only: default_value
+    use lisp_fm, only: value_type, stringp, xstring
+    use lread_fm, only: sym
+    use search_fm, only: string_match, case_fold_search
+    use coding_fm, only: coding_system_for_read, coding_system_for_write, last_coding_system_used, &
+                         buffer_file_coding_system, coding_system_require_warning, check_coding_system, &
+                         coding_system_type, coding_system_for_unibyte_p, raw_text_coding_system, &
+                         coding_inherit_eol_type, find_operation_coding_system, decode_coding_bytes, encode_coding_text
     use env_fm, only: substitute_env_vars
     use sysdep_fm, only: file_stat_type, emacs_open_read, emacs_creat, sys_access, sys_rename, &
                          sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_unlink, emacs_get_current_dir_name, passwd_home_by_name, &
@@ -56,6 +65,8 @@ module fileio_fm
     public :: add_name_to_file, set_file_times, default_file_modes, file_symlink_target
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_proc, &
               copy_directory_proc
+    public :: set_auto_coding_proc, after_insert_file_set_coding_proc, select_safe_coding_system_proc, &
+              choose_write_coding_system, file_name_match_p, read_file
 
     abstract interface
         !> files.el's `delete_file' (no trash) or `delete_directory' with
@@ -74,7 +85,71 @@ module fileio_fm
             character(len=*), intent(in) :: directory, newname
             type(status_type), intent(out) :: status
         end subroutine copy_directory_proc
+
+        !> mule.el's `set_auto_coding': the coding system FILENAME's text
+        !> HEAD (its first 1K and last 3K bytes, or all of a short file)
+        !> asks for, or "".
+        subroutine set_auto_coding_proc(filename, head, coding)
+            implicit none(type, external)
+            character(len=*), intent(in) :: filename, head
+            character(len=:), allocatable, intent(out) :: coding
+        end subroutine set_auto_coding_proc
+
+        !> mule.el's `after_insert_file_set_coding': set
+        !> `buffer_file_coding_system' after text is inserted (VISIT: a file
+        !> is being visited).
+        subroutine after_insert_file_set_coding_proc(inserted, visit)
+            import :: int64
+            implicit none(type, external)
+            integer(int64), intent(in) :: inserted
+            logical, intent(in) :: visit
+        end subroutine after_insert_file_set_coding_proc
+
+        !> mule-cmds.el's `select_safe_coding_system': confirm that
+        !> DEFAULT_CODING can encode the text between START and END of the
+        !> current buffer, or choose (asking) one that can; ACCEPT_DEFAULT
+        !> is upstream's ACCEPT-DEFAULT-P of t (for coding_system_for_write).
+        subroutine select_safe_coding_system_proc(start, end, default_coding, accept_default, filename, coding, &
+                                                  status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            character(len=*), intent(in) :: default_coding, filename
+            logical, intent(in) :: accept_default
+            character(len=:), allocatable, intent(out) :: coding
+            type(status_type), intent(out) :: status
+        end subroutine select_safe_coding_system_proc
     end interface
+
+    !> Function to call to decide a coding system of file.
+    !> Two arguments are passed to this function: the file name
+    !> and the length of a file contents following the point.
+    !> This function should return a coding system to decode the file contents.
+    !> It should check the file name against `auto_coding_alist'.
+    !> If no coding system is decided, it should check a coding system
+    !> specified in the heading lines with the format:
+    !>         -*- ... coding: CODING-SYSTEM; ... -*-
+    !> or local variable spec of the tailing lines with `coding:' tag.
+    !> Port of fileio.c set-auto-coding-function (null is nil; mule_fm
+    !> points it at `set_auto_coding').
+    procedure(set_auto_coding_proc), pointer, public :: set_auto_coding_function => null()
+
+    !> What fileio.c calls after inserting a file (mule.el's
+    !> after-insert-file-set-coding; null when not defined).
+    procedure(after_insert_file_set_coding_proc), pointer, public :: after_insert_file_set_coding => null()
+
+    !> Function to call to select safe coding system for encoding a text.
+    !>
+    !> If set, this function is called to force a user to select a proper
+    !> coding system which can encode the text in the case that a default
+    !> coding system used in each operation can't encode the text.  The
+    !> function should take care that the buffer is not modified while
+    !> the coding system is being selected.
+    !>
+    !> The default value is `select_safe_coding_system' (which see).  Port
+    !> of coding.c select-safe-coding-system-function (null is nil;
+    !> mule_cmds_fm points it there).
+    procedure(select_safe_coding_system_proc), pointer, public :: select_safe_coding_system_function => null()
 
     !> What `rename_file' calls (through Lisp upstream) to move a
     !> directory, or delete a file or a directory, across file systems;
@@ -1214,9 +1289,10 @@ contains
         logical, intent(in) :: visit
         integer(int64), intent(out) :: inserted
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: absname, data, text
+        character(len=:), allocatable :: absname, data, text, coding, encoding, head, used
         type(file_stat_type) :: st
-        integer(int64) :: opoint, nchars
+        type(status_type) :: cst
+        integer(int64) :: opoint, nchars, k
         logical :: opened, saved_inhibit
         inserted = 0
         if (buffers(cur)%read_only) then
@@ -1233,6 +1309,15 @@ contains
         if (.not. status%ok()) then
             ! notfound: a visit still records the file, as nonexistent.
             if (visit .and. .not. opened) then
+                if (allocated(coding_system_for_read%value)) then
+                    ! Don't let invalid values into buffer-file-coding-system.
+                    call check_coding_system(coding_system_for_read%value, cst)
+                    if (.not. cst%ok()) then
+                        status = cst
+                        return
+                    end if
+                    call buffer_file_coding_system%set_local(coding_system_for_read%value)
+                end if
                 buffers(cur)%modtime_known = .true.
                 buffers(cur)%modtime_sec = 0
                 buffers(cur)%modtime_nsec = NONEXISTENT_MODTIME_NSECS
@@ -1242,11 +1327,43 @@ contains
             end if
             return
         end if
-        if (buffers(cur)%multibyte) then
-            call str_as_multibyte(data, text, nchars)
+        ! Decide the coding system to use for reading the file.
+        coding = ""
+        if (allocated(coding_system_for_read%value)) then
+            coding = coding_system_for_read%value
         else
-            text = data
-            nchars = len(data, kind=int64)
+            ! Find a coding system specified in the heading two lines or
+            ! in the tailing several lines of the file, assuming that the
+            ! 1 KiB and 3 KiB for heading and tailing respectively are
+            ! sufficient for this purpose.
+            if (associated(set_auto_coding_function) .and. iand(st%mode, S_IFMT) == S_IFREG) then
+                if (len(data) <= 4*1024) then
+                    head = data
+                else
+                    k = len(data, kind=int64)
+                    head = data(1:1024)//data(k - 3*1024 + 1:k)
+                end if
+                call set_auto_coding_function(absname, head, coding)
+            end if
+            if (len(coding) == 0) call find_operation_coding_system(absname, file_name_match_p, coding, encoding)
+            if (len(coding) == 0) coding = "undecided"
+        end if
+        call check_coding_system(coding, status)
+        if (.not. status%ok()) return
+        ! We must suppress all character code conversion except for
+        ! end-of-line conversion in a unibyte buffer.
+        if (.not. allocated(coding_system_for_read%value) .and. .not. buffers(cur)%multibyte) then
+            coding = raw_text_coding_system(coding)
+        end if
+        ! When we visit a file by raw-text, we change the buffer to unibyte.
+        if (visit .and. coding_system_for_unibyte_p(coding)) buffers(cur)%multibyte = .false.
+        call decode_coding_bytes(data, coding, text, used, status, src_multibyte=.false., &
+                                 dst_multibyte=buffers(cur)%multibyte)
+        if (.not. status%ok()) return
+        if (buffers(cur)%multibyte) then
+            nchars = chars_in(text)
+        else
+            nchars = len(text, kind=int64)
         end if
         opoint = point()
         if (len(text) > 0) then
@@ -1269,6 +1386,8 @@ contains
             buffers(cur)%filename = absname
             buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
         end if
+        last_coding_system_used = used
+        if (associated(after_insert_file_set_coding)) call after_insert_file_set_coding(inserted, visit)
     end subroutine insert_file_contents
 
     !> Write the text between `start' and `end' (default: the whole
@@ -1283,7 +1402,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
         character(len=:), allocatable, intent(out), optional :: message
-        character(len=:), allocatable :: absname, text
+        character(len=:), allocatable :: absname, text, coding, bytes, used
         type(file_stat_type) :: st
         type(status_type) :: wst
         integer(int64) :: s, e, written
@@ -1297,16 +1416,22 @@ contains
             if (.not. status%ok()) return
             text = buf_bytes(buffers(cur), char_to_byte(s), char_to_byte(e))
         else
+            s = BEG
+            e = buffers(cur)%text%z
             text = buf_bytes(buffers(cur), BEG_BYTE, buffers(cur)%text%z_byte)
         end if
-        if (buffers(cur)%multibyte) text = str_as_unibyte(text)
+        call choose_write_coding_system(s, e, absname, coding, status)
+        if (.not. status%ok()) return
+        call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(cur)%multibyte)
+        if (.not. status%ok()) return
         err = emacs_creat(absname, int(o'666', int32), fd)
         if (err /= 0) then
             call report_file_errno("Opening output file", absname, err, status)
             return
         end if
-        call emacs_full_write(fd, text, written, wst, err)
+        call emacs_full_write(fd, bytes, written, wst, err)
         call close_fd(fd)
+        last_coding_system_used = used
         if (.not. wst%ok()) then
             call report_file_errno("Write error", absname, err, status)
             return
@@ -1325,6 +1450,108 @@ contains
         end if
         if (present(message)) message = "Wrote "//absname
     end subroutine write_region
+
+    !> The coding system for writing the text between START and END of
+    !> the current buffer to FILENAME: `coding_system_for_write', else
+    !> the buffer's own `buffer_file_coding_system', else
+    !> `file_coding_system_alist''s, else the default
+    !> `buffer_file_coding_system', confirmed by
+    !> `select_safe_coding_system_function' and given an end-of-line type.
+    !> Port of fileio.c:choose_write_coding_system (no auto-saving).
+    subroutine choose_write_coding_system(start, end, filename, coding, status)
+        integer(int64), intent(in) :: start, end
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable, intent(out) :: coding
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: val, decoding, encoding, dflt, chosen
+        logical :: using_default_coding, force_raw_text
+        type(value_type) :: v
+        type(status_type) :: vst
+        if (allocated(coding_system_for_write%value)) then
+            val = coding_system_for_write%value
+            if (coding_system_require_warning%value .and. associated(select_safe_coding_system_function)) then
+                ! Confirm that VAL can surely encode the current region.
+                call select_safe_coding_system_function(start, end, val, .true., filename, chosen, status)
+                if (.not. status%ok()) return
+                val = chosen
+            end if
+        else
+            ! If `buffer_file_coding_system' is set locally, the file was
+            ! read with some kind of code conversion or the variable was
+            ! set by the user: write it out with the same coding system
+            ! even in a unibyte buffer.
+            using_default_coding = .false.
+            force_raw_text = .false.
+            val = ""
+            if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
+                val = buffer_file_coding_system%value
+            else if (.not. buffers(cur)%multibyte) then
+                force_raw_text = .true.
+            end if
+            if (len(val) == 0) then
+                ! Check file-coding-system-alist.
+                call find_operation_coding_system(filename, file_name_match_p, decoding, encoding)
+                val = encoding
+            end if
+            if (len(val) == 0) then
+                ! If we still have not decided a coding system, use the
+                ! current buffer's value of buffer-file-coding-system.
+                if (allocated(buffer_file_coding_system%value)) val = buffer_file_coding_system%value
+                using_default_coding = .true.
+            end if
+            if (len(val) > 0 .and. .not. force_raw_text) then
+                call check_coding_system(val, status)
+                if (.not. status%ok()) return
+                if (coding_system_type(val) == "raw-text") force_raw_text = .true.
+            end if
+            if (.not. force_raw_text .and. associated(select_safe_coding_system_function)) then
+                ! Confirm that VAL can surely encode the current region.
+                call select_safe_coding_system_function(start, end, val, .false., filename, chosen, status)
+                if (.not. status%ok()) return
+                val = chosen
+                if (len(val) > 0) then
+                    call check_coding_system(val, status)
+                    if (.not. status%ok()) return
+                end if
+            end if
+            ! If the decided coding-system doesn't specify end-of-line
+            ! format, we use that of `buffer_file_coding_system'.
+            if (.not. using_default_coding) then
+                call default_value(sym("buffer_file_coding_system"), v, vst)
+                dflt = ""
+                if (stringp(v)) dflt = xstring(v)
+                if (len(dflt) > 0) val = coding_inherit_eol_type(val, dflt)
+            end if
+            ! If we decide not to encode text, use `raw-text' or one of
+            ! its subsidiaries.
+            if (force_raw_text) val = raw_text_coding_system(val)
+        end if
+        coding = coding_inherit_eol_type(val, "")
+    end subroutine choose_write_coding_system
+
+    !> Whether regexp PATTERN matches file name NAME, case-sensitively
+    !> (search.c:fast_string_match, as `find_operation_coding_system' and
+    !> the auto-coding alists match).
+    logical function file_name_match_p(pattern, name)
+        character(len=*), intent(in) :: pattern, name
+        type(status_type) :: st
+        logical :: saved
+        saved = case_fold_search%value
+        case_fold_search%value = .false.
+        file_name_match_p = string_match(pattern, name, st, inhibit_modify=.true.) > 0
+        case_fold_search%value = saved
+        if (.not. st%ok()) file_name_match_p = .false.
+    end function file_name_match_p
+
+    !> The number of characters in multibyte TEXT.
+    integer(int64) function chars_in(text) result(n)
+        character(len=*), intent(in) :: text
+        integer(int64) :: p
+        n = 0
+        do p = 1, len(text, kind=int64)
+            if (iand(iachar(text(p:p)), int(z'C0')) /= int(z'80')) n = n + 1
+        end do
+    end function chars_in
 
     !> Whether the current buffer's visited file is unchanged since it was
     !> last read or written (true if the buffer visits no file or the time
