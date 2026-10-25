@@ -60,7 +60,7 @@ module vc_dispatcher_fm
                         add_minor_mode_lighter
     use subr_fm, only: y_or_n_p
     use vc_hooks_fm, only: vc_string_type, vc_file_clearprops
-    use commands_fm, only: command_proc
+    use lisp_fm, only: command_proc
     use eval_fm, only: hook_type
     use buffer_fm, only: buffer_serial_live
     implicit none(type, external)
@@ -71,7 +71,7 @@ module vc_dispatcher_fm
               vc_revert_buffer_internal, vc_parent_buffer, set_vc_parent_buffer, vc_parent_buffer_name, &
               vc_mode_line_hook_run, syms_of_vc_dispatcher, vc_start_logentry, vc_finish_logentry, vc_log_edit, &
               vc_log_fileset, set_vc_log_fileset, vc_patch_string, set_vc_patch_string, set_vc_log_operation, &
-              set_vc_log_after_operation_hook, vc_dispatcher_browsing
+              set_vc_log_after_operation_hook, vc_dispatcher_browsing, log_local_index
     public :: VC_OKSTATUS_NIL, VC_OKSTATUS_T, VC_OKSTATUS_ASYNC, VC_DEST_DISCARD, VC_DEST_CURRENT, &
               VC_NOQUERY_NIL, VC_NOQUERY_T, VC_NOQUERY_UNLESS_MODIFIED
 

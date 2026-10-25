@@ -4202,11 +4202,11 @@ contains
     !> Port of simple.el:rfc822-goto-eoh.
     recursive subroutine rfc822_goto_eoh(status)
         type(status_type), intent(out) :: status
-        logical :: found
+        integer(int64) :: found
         call goto_char(point_min())
         call re_search_forward("^\([:"//achar(10)//"]\|[^: "//achar(9)//achar(10)//"]+[ "//achar(9)//achar(10)// &
                                "]\)", found, status, noerror=SEARCH_MOVE)
-        if (found) call goto_char(match_beginning(0, status))
+        if (found /= 0) call goto_char(match_beginning(0, status))
     end subroutine rfc822_goto_eoh
 
     !> Manipulate whitespace around point in a smart way.

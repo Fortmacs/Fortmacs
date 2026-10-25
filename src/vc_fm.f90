@@ -86,9 +86,12 @@ module vc_fm
                            VC_LOCKED, VC_NEEDS_UPDATE, VC_NEEDS_MERGE, VC_UNLOCKED_CHANGES, VC_ADDED, VC_REMOVED, &
                            VC_CONFLICT, VC_MISSING, VC_IGNORED, VC_UNREGISTERED, VC_MODEL_NIL, VC_MODEL_IMPLICIT, &
                            VC_BACKEND_NONE, VC_PROP_BACKEND, VC_PROP_STATE, VC_PROP_CHECKOUT_TIME
+    use vc_hooks_fm, only: VC_PROP_WORKING_REVISION, vc_file_set_working_revision, vc_delete_automatic_version_backups
+    use log_edit_fm, only: log_edit_mode
     use vc_dispatcher_fm, only: vc_action_type, vc_setup_buffer, vc_exec_after, vc_delistify, vc_resynch_buffer, &
                                 vc_buffer_sync, vc_parent_buffer, set_vc_parent_buffer, vc_mode_line_hook, &
-                                vc_do_command, syms_of_vc_dispatcher, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_T
+                                vc_do_command, syms_of_vc_dispatcher, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT, VC_NOQUERY_T, &
+                                vc_start_logentry, vc_log_operation_type, vc_dispatcher_browsing
     use process_fm, only: get_buffer_process
     implicit none(type, external)
     private
@@ -1076,7 +1079,7 @@ contains
             end if
         else if (state == VC_ADDED .or. state == VC_MISSING .or. state == VC_REMOVED .or. state == VC_EDITED) then
             ! Files have local changes
-            call checkin_deferred()
+            call commit()
         else if (state == VC_LOCKED) then
             call set_error(status, FM_GENERIC_ERROR, "Stealing locks (vc_steal_lock) is not ported yet")
         else if (state == VC_CONFLICT) then
@@ -1089,8 +1092,43 @@ contains
     contains
 
         subroutine checkin_deferred()
-            call set_error(status, FM_GENERIC_ERROR, "Committing (vc_checkin) needs Log Edit mode, which is not ported yet")
+            call set_error(status, FM_GENERIC_ERROR, "Checking in a patch (vc_checkin with a patch) is not ported yet")
         end subroutine checkin_deferred
+
+        ! Files have local changes: commit them (the RCS and SCCS
+        ! read-only check is deferred with those backends; the revert of
+        ! unchanged locked files never happens in this branch, as upstream
+        ! notes).
+        subroutine commit()
+            type(vc_string_type), allocatable :: register(:)
+            character(len=:), allocatable :: rev
+            integer :: i
+            ! Remaining files need to be committed
+            if (size(fs%files) == 0) then
+                call message("No files remain to be committed")
+                return
+            end if
+            ! In the case there actually are any unregistered files then
+            ! `vc-deduce-backend', via `vc-only-files-state-and-model',
+            ! has already prompted the user to approve registering them.
+            allocate (register(0))
+            if (allocated(fs%only_files)) then
+                do i = 1, size(fs%only_files)
+                    if (.not. vc_registered(fs%only_files(i)%s)) call push(register, fs%only_files(i)%s)
+                end do
+            end if
+            if (.not. verbose) then
+                call vc_checkin(fs%files, fs%backend, status, register=register)
+            else
+                call read_string("New revision or backend: ", rev, status)
+                if (.not. status%ok()) return
+                if (is_backend_name(rev)) then
+                    call set_error(status, FM_GENERIC_ERROR, "Transferring files between backends is not ported yet")
+                else
+                    call vc_checkin(fs%files, fs%backend, status, rev=rev, register=register)
+                end if
+            end if
+        end subroutine commit
 
         !> Whether S names a handled backend, ignoring case.
         logical function is_backend_name(s)
@@ -1103,6 +1141,176 @@ contains
             end do
         end function is_backend_name
     end subroutine vc_next_action
+
+    !> Check in FILES.
+    !>
+    !> There are three calling conventions for the COMMENT and INITIAL_CONTENTS
+    !> optional arguments:
+    !> - COMMENT a string, INITIAL_CONTENTS false means use that comment string
+    !>   without prompting the user to edit it.
+    !> - COMMENT a string, INITIAL_CONTENTS true means use that comment
+    !>   string as the initial contents of the log entry buffer but stop for
+    !>   editing.
+    !> - COMMENT_T (COMMENT t) means check in immediately with an empty comment, and ignore
+    !>   INITIAL_CONTENTS.
+    !>
+    !> The optional argument REV may be a string specifying the new revision
+    !> level (only supported for some older VCSes, like RCS and CVS).
+    !> If the optional argument REGISTER is present, it should be a list of
+    !> files to register before checking in; if any of these are already
+    !> registered the checkin will abort.
+    !>
+    !> Runs the normal hooks `vc_before_checkin_hook' and `vc_checkin_hook'.
+    !> Port of vc.el:vc-checkin (no PATCH_STRING: checking in patches is
+    !> deferred; `vc_async_checkin' is deferred, so checkins are synchronous).
+    recursive subroutine vc_checkin(files, b, status, comment, comment_t, initial_contents, rev, register)
+        type(vc_string_type), intent(in) :: files(:)
+        integer, intent(in) :: b
+        type(status_type), intent(out) :: status
+        character(len=*), intent(in), optional :: comment, rev
+        logical, intent(in), optional :: comment_t, initial_contents
+        type(vc_string_type), intent(in), optional :: register(:)
+        type(vc_log_operation_type) :: action
+        call vc_before_checkin_hook%run(status)
+        if (.not. status%ok()) return
+        action%run => checkin_operation
+        action%backend = b
+        if (present(rev)) action%rev = rev
+        if (present(register)) then
+            action%register = register
+        else
+            allocate (action%register(0))
+        end if
+        call vc_start_logentry(files, "Enter a change comment.", "*vc-log*", action, status, comment=comment, &
+                               comment_t=comment_t, initial_contents=initial_contents, mode=backend_log_edit_mode, &
+                               after_hook=vc_checkin_hook, backend=b)
+    contains
+        ! (lambda () (vc-call-backend backend 'log-edit-mode)).
+        recursive subroutine backend_log_edit_mode(st)
+            type(status_type), intent(out) :: st
+            if (associated(vc_backends(b)%log_edit_mode)) then
+                call vc_backends(b)%log_edit_mode(st)
+            else
+                ! vc-default-log-edit-mode.
+                call log_edit_mode(st)
+            end if
+        end subroutine backend_log_edit_mode
+    end subroutine vc_checkin
+
+    ! The log operation of `vc_checkin': (lambda (files comment) ...),
+    ! run in the parent buffer.
+    recursive subroutine checkin_operation(operation, files, comment_in, status)
+        use help_fm, only: substitute_command_keys
+        type(vc_log_operation_type), intent(in) :: operation
+        type(vc_string_type), intent(in) :: files(:)
+        character(len=*), intent(in) :: comment_in
+        type(status_type), intent(out) :: status
+        type(vc_fileset_type) :: fs, current
+        type(vc_string_type), allocatable :: flist(:)
+        type(file_stat_type) :: attr
+        type(status_type) :: st
+        character(len=:), allocatable :: comment, start_again, instructions
+        integer :: b, k
+        logical :: ok, found
+        status = status_type()
+        b = operation%backend
+        ! Check the user isn't likely to be surprised by what is included
+        ! in the checkin.  Once a log operation is started, the fileset
+        ! or patch string is locked in.  In particular, it's probably too
+        ! late to offer to change it now -- checks in hooks and/or the
+        ! backend's Log Edit derived mode have all already okayed the
+        ! checkin.  Restarting with the new fileset or patch is easy.
+        start_again = substitute_command_keys("\[vc_next_action] to check in again")
+        instructions = substitute_command_keys("type \<log_edit_mode_map>\[log_edit_kill_buffer] to cancel, "// &
+                                               start_again//", "// &
+                                               "\[log_edit_previous_comment] to recall your message")
+        if (vc_dispatcher_browsing()) then
+            ok = size(files) == 1 .and. .not. explicit_marks_p()
+            if (.not. ok) then
+                call vc_deduce_fileset(current, st)
+                if (st%ok()) ok = same_files(files, current%files)
+            end if
+            if (.not. ok) then
+                call yes_or_no_p("Selected file(s) in buffer """//buffers(cur)%name//""" have changed; "// &
+                                 "continue with old fileset?", ok, status)
+                if (.not. status%ok()) return
+            end if
+            if (.not. ok) then
+                call set_error(status, FM_USER_ERROR, "To use the new fileset "//instructions)
+                return
+            end if
+        end if
+        ! "This log message intentionally left almost blank".
+        ! RCS 5.7 gripes about whitespace-only comments too.
+        comment = comment_in
+        if (verify(comment, " "//achar(9)//achar(10)) == 0) comment = "*** empty log message ***"
+        ! Must not pass non-nil NOT-ESSENTIAL because we will shortly
+        ! call (in `vc-finish-logentry') `vc-resynch-buffer' with its
+        ! NOQUERY parameter t (unless `vc-async-checkin').
+        fs%backend = b
+        fs%files = files
+        call vc_buffer_sync_fileset(fs, status)
+        if (.not. status%ok()) return
+        if (size(operation%register) > 0) then
+            fs%files = operation%register
+            call vc_register(status, fs)
+            if (.not. status%ok()) return
+        end if
+        if (.not. associated(vc_backends(b)%checkin)) then
+            call vc_not_supported(status, "checkin", b)
+            return
+        end if
+        call message("Checking in "//vc_delistify(files)//"...")
+        call with_properties_begin(files, flist)
+        if (allocated(operation%rev)) then
+            call vc_backends(b)%checkin(files, comment, status, operation%rev)
+        else
+            call vc_backends(b)%checkin(files, comment, status)
+        end if
+        if (.not. status%ok()) return
+        do k = 1, size(files)
+            call vc_delete_automatic_version_backups(files(k)%s)
+        end do
+        do k = 1, size(flist)
+            if (.not. vc_touched(VC_PROP_STATE)) call vc_file_set_state(flist(k)%s, VC_UP_TO_DATE)
+            if (.not. vc_touched(VC_PROP_CHECKOUT_TIME)) then
+                call file_attributes(flist(k)%s, attr, found)
+                if (found) then
+                    call vc_file_set_checkout_time(flist(k)%s, attr%mtime_sec, attr%mtime_nsec)
+                else
+                    call vc_file_set_checkout_time(flist(k)%s)
+                end if
+            end if
+            if (.not. vc_touched(VC_PROP_WORKING_REVISION)) call vc_file_set_working_revision(flist(k)%s)
+        end do
+        call message("Checking in "//vc_delistify(files)//"...done")
+    contains
+        ! Are any files in the directory browser explicitly marked?  Port
+        ! of vc-dispatcher.el:vc-dispatcher--explicit-marks-p (VC-Dir is
+        ! not ported).
+        logical function explicit_marks_p()
+            type(dired_string_type), allocatable :: marked(:)
+            type(status_type) :: s
+            logical :: one
+            explicit_marks_p = .false.
+            if (.not. derived_mode_p("dired_mode")) return
+            one = .false.
+            call dired_get_marked_files(marked, s, distinguish_one_marked=.true., one_marked=one)
+            if (.not. s%ok()) return
+            explicit_marks_p = one .or. size(marked) > 1
+        end function explicit_marks_p
+
+        logical function same_files(a, c)
+            type(vc_string_type), intent(in) :: a(:), c(:)
+            integer :: i
+            same_files = .false.
+            if (size(a) /= size(c)) return
+            do i = 1, size(a)
+                if (a(i)%s /= c(i)%s) return
+            end do
+            same_files = .true.
+        end function same_files
+    end subroutine checkin_operation
 
     !> Create an empty repository in the current directory, with backend B.
     !> Port of vc.el:vc-create-repo.

@@ -27,7 +27,8 @@ submodule(vc_dispatcher_fm) vc_dispatcher_log_fm
                            log_edit_hook
     use vc_fm, only: vc_root_dir
     use window_fm, only: quit_windows_on
-    use buffer_fm, only: set_buffer_modified_p
+    use buffer_fm, only: restore_buffer_modified_p
+    use editfns_fm, only: buffer_string
     implicit none(type, external)
 
     ! The FILESET and BACKEND that `vc_log_edit' gives the Log Edit buffer
@@ -102,9 +103,11 @@ contains
 
     module procedure vc_log_edit
     type(vc_string_type), allocatable :: current(:)
+    type(handle_type) :: parent
     logical :: setup, has
     status = status_type()
-    buffers(cur)%directory = buffers(vc_parent_buffer()%index)%directory
+    parent = vc_parent_buffer()
+    buffers(cur)%directory = buffers(parent%index)%directory
     ! Setup a new log message if the log buffer is "empty",
     ! or was previously used for a different set of files.
     setup = log_edit_empty_buffer_p()
@@ -121,7 +124,8 @@ contains
         call call_log_edit(log_edit_diff_fileset)
     end if
     if (.not. status%ok()) return
-    call set_buffer_modified_p(.false., status)
+    ! (set-buffer-modified-p nil)
+    call restore_buffer_modified_p(.false.)
     if (allocated(buffers(cur)%filename)) deallocate (buffers(cur)%filename)
     contains
         recursive subroutine call_log_edit(diff)

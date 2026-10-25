@@ -58,6 +58,7 @@ module commands_fm
         type(command_type) :: backward_kill_sexp
         type(command_type) :: backward_kill_word
         type(command_type) :: backward_list
+        type(command_type) :: backward_page
         type(command_type) :: backward_paragraph
         type(command_type) :: backward_sentence
         type(command_type) :: backward_sexp
@@ -357,6 +358,7 @@ module commands_fm
         type(command_type) :: forward_char
         type(command_type) :: forward_line
         type(command_type) :: forward_list
+        type(command_type) :: forward_page
         type(command_type) :: forward_paragraph
         type(command_type) :: forward_sentence
         type(command_type) :: forward_sexp
@@ -462,6 +464,23 @@ module commands_fm
         type(command_type) :: left_word
         type(command_type) :: list_abbrevs
         type(command_type) :: list_registers
+        type(command_type) :: log_edit_comment_search_backward
+        type(command_type) :: log_edit_comment_search_forward
+        type(command_type) :: log_edit_diff_fileset
+        type(command_type) :: log_edit_done
+        type(command_type) :: log_edit_insert_changelog
+        type(command_type) :: log_edit_insert_cvs_rcstemplate
+        type(command_type) :: log_edit_insert_cvs_template
+        type(command_type) :: log_edit_insert_filenames
+        type(command_type) :: log_edit_insert_filenames_without_changelog
+        type(command_type) :: log_edit_insert_message_template
+        type(command_type) :: log_edit_kill_buffer
+        type(command_type) :: log_edit_mode
+        type(command_type) :: log_edit_mode_help
+        type(command_type) :: log_edit_next_comment
+        type(command_type) :: log_edit_previous_comment
+        type(command_type) :: log_edit_show_diff
+        type(command_type) :: log_edit_show_files
         type(command_type) :: map_query_replace_regexp
         type(command_type) :: mark_end_of_sentence
         type(command_type) :: mark_paragraph
@@ -615,6 +634,9 @@ module commands_fm
         type(command_type) :: vc_create_repo
         type(command_type) :: vc_delete_file
         type(command_type) :: vc_diff
+        type(command_type) :: vc_git_log_edit_mode
+        type(command_type) :: vc_git_log_edit_toggle_no_verify
+        type(command_type) :: vc_git_log_edit_toggle_signoff
         type(command_type) :: vc_ignore
         type(command_type) :: vc_next_action
         type(command_type) :: vc_refresh_state
@@ -673,7 +695,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(635) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(657) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -700,6 +722,7 @@ module commands_fm
                                                                  "backward_kill_sexp", &
                                                                  "backward_kill_word", &
                                                                  "backward_list", &
+                                                                 "backward_page", &
                                                                  "backward_paragraph", &
                                                                  "backward_sentence", &
                                                                  "backward_sexp", &
@@ -999,6 +1022,7 @@ module commands_fm
                                                                  "forward_char", &
                                                                  "forward_line", &
                                                                  "forward_list", &
+                                                                 "forward_page", &
                                                                  "forward_paragraph", &
                                                                  "forward_sentence", &
                                                                  "forward_sexp", &
@@ -1104,6 +1128,23 @@ module commands_fm
                                                                  "left_word", &
                                                                  "list_abbrevs", &
                                                                  "list_registers", &
+                                                                 "log_edit_comment_search_backward", &
+                                                                 "log_edit_comment_search_forward", &
+                                                                 "log_edit_diff_fileset", &
+                                                                 "log_edit_done", &
+                                                                 "log_edit_insert_changelog", &
+                                                                 "log_edit_insert_cvs_rcstemplate", &
+                                                                 "log_edit_insert_cvs_template", &
+                                                                 "log_edit_insert_filenames", &
+                                                                 "log_edit_insert_filenames_without_changelog", &
+                                                                 "log_edit_insert_message_template", &
+                                                                 "log_edit_kill_buffer", &
+                                                                 "log_edit_mode", &
+                                                                 "log_edit_mode_help", &
+                                                                 "log_edit_next_comment", &
+                                                                 "log_edit_previous_comment", &
+                                                                 "log_edit_show_diff", &
+                                                                 "log_edit_show_files", &
                                                                  "map_query_replace_regexp", &
                                                                  "mark_end_of_sentence", &
                                                                  "mark_paragraph", &
@@ -1257,6 +1298,9 @@ module commands_fm
                                                                  "vc_create_repo", &
                                                                  "vc_delete_file", &
                                                                  "vc_diff", &
+                                                                 "vc_git_log_edit_mode", &
+                                                                 "vc_git_log_edit_toggle_no_verify", &
+                                                                 "vc_git_log_edit_toggle_signoff", &
                                                                  "vc_ignore", &
                                                                  "vc_next_action", &
                                                                  "vc_refresh_state", &
@@ -1371,6 +1415,8 @@ contains
             p => commands%backward_kill_word
         case ("backward_list")
             p => commands%backward_list
+        case ("backward_page")
+            p => commands%backward_page
         case ("backward_paragraph")
             p => commands%backward_paragraph
         case ("backward_sentence")
@@ -1969,6 +2015,8 @@ contains
             p => commands%forward_line
         case ("forward_list")
             p => commands%forward_list
+        case ("forward_page")
+            p => commands%forward_page
         case ("forward_paragraph")
             p => commands%forward_paragraph
         case ("forward_sentence")
@@ -2179,6 +2227,40 @@ contains
             p => commands%list_abbrevs
         case ("list_registers")
             p => commands%list_registers
+        case ("log_edit_comment_search_backward")
+            p => commands%log_edit_comment_search_backward
+        case ("log_edit_comment_search_forward")
+            p => commands%log_edit_comment_search_forward
+        case ("log_edit_diff_fileset")
+            p => commands%log_edit_diff_fileset
+        case ("log_edit_done")
+            p => commands%log_edit_done
+        case ("log_edit_insert_changelog")
+            p => commands%log_edit_insert_changelog
+        case ("log_edit_insert_cvs_rcstemplate")
+            p => commands%log_edit_insert_cvs_rcstemplate
+        case ("log_edit_insert_cvs_template")
+            p => commands%log_edit_insert_cvs_template
+        case ("log_edit_insert_filenames")
+            p => commands%log_edit_insert_filenames
+        case ("log_edit_insert_filenames_without_changelog")
+            p => commands%log_edit_insert_filenames_without_changelog
+        case ("log_edit_insert_message_template")
+            p => commands%log_edit_insert_message_template
+        case ("log_edit_kill_buffer")
+            p => commands%log_edit_kill_buffer
+        case ("log_edit_mode")
+            p => commands%log_edit_mode
+        case ("log_edit_mode_help")
+            p => commands%log_edit_mode_help
+        case ("log_edit_next_comment")
+            p => commands%log_edit_next_comment
+        case ("log_edit_previous_comment")
+            p => commands%log_edit_previous_comment
+        case ("log_edit_show_diff")
+            p => commands%log_edit_show_diff
+        case ("log_edit_show_files")
+            p => commands%log_edit_show_files
         case ("map_query_replace_regexp")
             p => commands%map_query_replace_regexp
         case ("mark_end_of_sentence")
@@ -2485,6 +2567,12 @@ contains
             p => commands%vc_delete_file
         case ("vc_diff")
             p => commands%vc_diff
+        case ("vc_git_log_edit_mode")
+            p => commands%vc_git_log_edit_mode
+        case ("vc_git_log_edit_toggle_no_verify")
+            p => commands%vc_git_log_edit_toggle_no_verify
+        case ("vc_git_log_edit_toggle_signoff")
+            p => commands%vc_git_log_edit_toggle_signoff
         case ("vc_ignore")
             p => commands%vc_ignore
         case ("vc_next_action")

@@ -48,8 +48,8 @@ contains
     recursive subroutine forward_page(status, count)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: count
-        integer(int64) :: n, here, mb, me
-        logical :: found, at_delimiter
+        integer(int64) :: n, here, mb, me, found
+        logical :: at_delimiter
         status = status_type()
         call init_paragraph_variables()
         n = 1
@@ -70,7 +70,7 @@ contains
                 if (.not. status%ok()) return
                 call re_search_forward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
-                if (.not. found) call goto_char(point_max())
+                if (found == 0) call goto_char(point_max())
             end if
             n = n - 1
         end do
@@ -82,12 +82,12 @@ contains
             if (.not. status%ok()) return
             mb = 0
             me = 0
-            if (found) then
+            if (found /= 0) then
                 mb = match_beginning(0, status)
                 me = match_end(0, status)
             end if
             call goto_char(here)
-            if (found) then
+            if (found /= 0) then
                 if (me == point()) call goto_char(mb)
             end if
             if (.not. bobp()) then
@@ -95,7 +95,7 @@ contains
                 if (.not. status%ok()) return
                 call re_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
-                if (found) then
+                if (found /= 0) then
                     ! We found one--move to the end of it.
                     call goto_char(match_end(0, status))
                 else

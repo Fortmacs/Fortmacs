@@ -38,7 +38,9 @@
 !> `log_edit_fill_entry' as the `fill_paragraph_function' (needing
 !> `change_log_read_defuns'), `log_edit_done_strip_cvs_lines' (needing
 !> `flush_lines'), the BUFFER argument of `log_edit' (PCL-CVS) and so
-!> `log_edit_parent_buffer', the menu and the tool bar,
+!> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
+!> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
+!> the menu and the tool bar,
 !> `font_lock_extra_managed_props' and `jit_lock_contextually' as
 !> buffer-local values, the help-echo texts of the GNU-style keywords,
 !> and `hack_dir_local_variables_non_file_buffer' (directory-local
@@ -47,7 +49,8 @@ module log_edit_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, format_error
     use handle_fm, only: handle_type, null_handle
-    use commands_fm, only: commands, command_proc
+    use commands_fm, only: commands
+    use lisp_fm, only: command_proc
     use lisp_fm, only: value_type, t_value
     use lread_fm, only: sym
     use data_fm, only: value_eq, add_local_variables_killer
@@ -60,7 +63,8 @@ module log_edit_fm
                           insert_buffer_substring
     use cmds_fm, only: forward_line, end_of_line, forward_char, beginning_of_line
     use insdel_fm, only: insert
-    use search_fm, only: looking_at, re_search_forward, re_search_backward, search_forward, search_backward, &
+    use search_fm, only: looking_at, search_re_forward => re_search_forward, search_re_backward => re_search_backward, &
+                         search_fwd => search_forward, search_bwd => search_backward, &
                          match_beginning, match_end, replace_match, string_match, regexp_quote, set_match_data, &
                          case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
     use subr_fm, only: match_string, y_or_n_p, match_substitute_replacement
@@ -69,21 +73,18 @@ module log_edit_fm
     use fileio_fm, only: expand_file_name, file_name_directory, file_name_nondirectory, file_exists_p, &
                          file_readable_p, insert_file_contents
     use files_fm, only: file_relative_name, kill_buffer_hook
-    use register_fm, only: find_buffer_visiting
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use keyboard_fm, only: last_command
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use minibuf_fm, only: read_string
-    use mule_fm, only: format_prompt
     use help_fm, only: substitute_command_keys
-    use help_fns_fm, only: describe_function
     use simple_fm, only: rfc822_goto_eoh, push_mark, special_mode, delete_horizontal_space, do_auto_fill, &
                          normal_auto_fill_function
     use indent_fm, only: current_indentation, indent_rigidly
     use fill_fm, only: string_width
     use indent_fm, only: current_column
-    use buffer_fm, only: fill_column
+    use buffer_fm, only: fill_column, get_file_buffer
     use window_fm, only: display_alist_type, shrink_window_if_larger_than_buffer, DISPLAY_ACTION_BELOW_SELECTED, &
                          display_buffer_mark_dedicated, DEDICATED_STRONG, display_buffer, get_buffer_window, &
                          bury_buffer, quit_windows_on, delete_window, select_window
@@ -113,7 +114,7 @@ module log_edit_fm
               log_edit_remember_comment, log_edit_show_files, log_edit_show_diff, log_edit_insert_changelog, &
               log_edit_insert_message_template, log_edit_previous_comment, log_edit_next_comment, &
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
-              log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, log_edit_maybe_show_diff, &
+              log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
               syms_of_log_edit
 
     !> A string of a list (files, command line arguments).
@@ -131,7 +132,7 @@ module log_edit_fm
     !> Kinds of the entries of HEADERS for `log_edit_extract_headers': a
     !> command line option given the value (CMDARG), a function of the
     !> value, or the summary (t).
-    integer, parameter, public :: LOG_EDIT_HEADER_CMDARG = 0, LOG_EDIT_HEADER_FUNCTION = 1, &
+    integer, parameter, public :: LOG_EDIT_HEADER_CMDARG = 0, LOG_EDIT_HEADER_FN = 1, &
                                   LOG_EDIT_HEADER_SUMMARY = 2
 
     abstract interface
@@ -344,17 +345,12 @@ module log_edit_fm
             type(status_type), intent(out) :: status
         end subroutine log_edit_diff_fileset
 
-        !> Show diff for the changes to be committed without selecting its window.
-        !> This function is intended to be added to `log_edit_hook'.
-        !> It does nothing in the case that the commit was initiated from a
-        !> `diff_mode' buffer, i.e., when you are committing a patch.  This is
-        !> because in that case the existing `diff_mode' buffer normally remains
-        !> visible when the *vc-log* buffer pops up.  Port of
-        !> log-edit.el:log-edit-maybe-show-diff.  (In log_edit_vc_fm.)
-        recursive module subroutine log_edit_maybe_show_diff(status)
+        !> Provide help for the `log_edit_mode_map'.  Port of
+        !> log-edit.el:log-edit-mode-help.  (In log_edit_vc_fm.)
+        recursive module subroutine log_edit_mode_help(status)
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine log_edit_maybe_show_diff
+        end subroutine log_edit_mode_help
     end interface
 
 contains
@@ -455,6 +451,35 @@ contains
         call copy_marker_at(pos, m, it, st)
     end function marker_at
 
+    ! The position of marker M.
+    integer(int64) function mpos(m)
+        type(handle_type), intent(in) :: m
+        type(status_type) :: st
+        call marker_position(m, mpos, st)
+    end function mpos
+
+    ! The buffer visiting FILE, or the null handle (files.el
+    ! find-buffer-visiting without truenames).
+    function find_buffer_visiting(file) result(h)
+        character(len=*), intent(in) :: file
+        type(handle_type) :: h
+        character(len=:), allocatable :: expanded
+        type(status_type) :: st
+        h = null_handle()
+        call expand_file_name(file, expanded, st, buffers(cur)%directory)
+        if (st%ok()) h = get_file_buffer(expanded)
+    end function find_buffer_visiting
+
+    ! Format PROMPT with DEFAULT: "PROMPT (default DEFAULT): ", or
+    ! "PROMPT: " when DEFAULT is empty.  Port of minibuffer.el:format-prompt.
+    function format_prompt(prompt, default) result(full)
+        character(len=*), intent(in) :: prompt, default
+        character(len=:), allocatable :: full
+        full = prompt
+        if (len(default) > 0) full = full//" (default "//default//")"
+        full = full//": "
+    end function format_prompt
+
     ! The position of marker M, which is then freed.
     integer(int64) function release(m)
         type(handle_type), intent(in) :: m
@@ -462,6 +487,49 @@ contains
         call marker_position(m, release, st)
         call free_marker(m, st)
     end function release
+
+    ! The searches, telling whether they found a match (FOUND).
+    recursive subroutine re_search_forward(regexp, found, status, bound, noerror)
+        character(len=*), intent(in) :: regexp
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound
+        integer, intent(in), optional :: noerror
+        integer(int64) :: pos
+        call search_re_forward(regexp, pos, status, bound=bound, noerror=noerror)
+        found = pos /= 0 .and. status%ok()
+    end subroutine re_search_forward
+
+    recursive subroutine re_search_backward(regexp, found, status, bound, noerror)
+        character(len=*), intent(in) :: regexp
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: bound
+        integer, intent(in), optional :: noerror
+        integer(int64) :: pos
+        call search_re_backward(regexp, pos, status, bound=bound, noerror=noerror)
+        found = pos /= 0 .and. status%ok()
+    end subroutine re_search_backward
+
+    recursive subroutine search_forward(string, found, status, noerror)
+        character(len=*), intent(in) :: string
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: noerror
+        integer(int64) :: pos
+        call search_fwd(string, pos, status, noerror=noerror)
+        found = pos /= 0 .and. status%ok()
+    end subroutine search_forward
+
+    recursive subroutine search_backward(string, found, status, noerror)
+        character(len=*), intent(in) :: string
+        logical, intent(out) :: found
+        type(status_type), intent(out) :: status
+        integer, intent(in), optional :: noerror
+        integer(int64) :: pos
+        call search_bwd(string, pos, status, noerror=noerror)
+        found = pos /= 0 .and. status%ok()
+    end subroutine search_backward
 
     ! ------------------------------------------------------------------
     ! The comment ring
@@ -497,17 +565,17 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: item
         character(len=16) :: num
-        integer :: len, index
+        integer :: ring_len, index
         status = status_type()
-        len = log_edit_comment_ring%count()
-        if (len <= 0) then
+        ring_len = log_edit_comment_ring%count()
+        if (ring_len <= 0) then
             call message("Empty comment ring")
             call ding()
         else
             ! Don't use `erase-buffer' because we don't want to `widen'.
             call delete_region(point_min(), point_max(), status)
             if (.not. status%ok()) return
-            index = log_edit_new_comment_index(arg, len)
+            index = log_edit_new_comment_index(arg, ring_len)
             call set_ring_index(index)
             write (num, "(i0)") index + 1
             call message("Comment "//trim(num))
@@ -535,7 +603,7 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: stride
         character(len=:), allocatable :: str, item
-        integer :: step, len, n
+        integer :: step, ring_len, n
         status = status_type()
         step = 1
         if (present(stride)) step = stride
@@ -547,10 +615,10 @@ contains
             last_comment_match = str_in
         end if
         str = regexp_quote(str)
-        len = log_edit_comment_ring%count()
-        n = log_edit_new_comment_index(step, len)
+        ring_len = log_edit_comment_ring%count()
+        n = log_edit_new_comment_index(step, ring_len)
         do
-            if (n >= len .or. n < 0) then
+            if (n >= ring_len .or. n < 0) then
                 call set_error(status, FM_GENERIC_ERROR, "Not found")
                 return
             end if
@@ -707,7 +775,7 @@ contains
 
     ! The face of ("^(" (0 ...)) in log-edit-font-lock-gnu-keywords.
     subroutine gnu_punctuate_face(face)
-        use syntax_fm, only: char_syntax, SWORD
+        use syntax_fm, only: char_syntax
         character(len=:), allocatable, intent(out) :: face
         type(status_type) :: st
         integer(int64) :: beg
@@ -718,7 +786,7 @@ contains
         call put_text_property(beg, match_end(0, st), sym("font_lock_multiline"), t_value(), st)
         call char_after(c, found, beg)
         if (found) then
-            if (char_syntax(c) == SWORD) face = "font_lock_warning_face"
+            if (char_syntax(c) == "w") face = "font_lock_warning_face"
         end if
     end subroutine gnu_punctuate_face
 
@@ -739,7 +807,7 @@ contains
         anchors(1) = font_lock_anchored(inner, regexp="^\(\([[:alpha:]-]+\):\)"//LOG_EDIT_HEADER_CONTENTS_REGEXP, &
                                         pre_match_form=headers_pre_form)
         sep(1) = font_lock_highlight(0, face="log_edit_headers_separator", &
-                                     true_properties=[character(len=27) :: "display_line_numbers_disable", &
+                                     true_properties=[character(len=28) :: "display_line_numbers_disable", &
                                                       "rear_nonsticky"])
         anchors(2) = font_lock_anchored(sep, regexp="^"//achar(10), pre_match_form=separator_pre_form)
         keywords(1) = font_lock_keyword(highlights=anchors, matcher=log_edit_match_to_eoh)
@@ -797,6 +865,7 @@ contains
         logical, intent(in), optional :: setup, setup_force
         procedure(log_edit_listfun_proc), optional :: listfun
         procedure(command_proc), optional :: diff_function, set_params, mode
+        integer, intent(in), optional :: vc_backend
         logical :: do_setup
         integer :: k
         do_setup = .false.
@@ -1071,19 +1140,6 @@ contains
         if (allocated(files)) deallocate (files)
         allocate (files(0))
     end subroutine log_edit_files
-
-    !> Provide help for the `log_edit_mode_map'.  Port of
-    !> log-edit.el:log-edit-mode-help.
-    recursive subroutine log_edit_mode_help(status)
-        type(status_type), intent(out) :: status
-        status = status_type()
-        if (value_eq(last_command, sym("log_edit_mode_help"))) then
-            call describe_function(buffers(cur)%major_mode, status)
-        else
-            call message(substitute_command_keys("Type `\[log_edit_done]' to finish commit.  "// &
-                                                 "Try `\[describe_function] log_edit_done' for more help."))
-        end if
-    end subroutine log_edit_mode_help
 
     !> (Un)Indent the current buffer rigidly to `log_edit_common_indent'.
     !> Port of log-edit.el:log-edit-set-common-indentation.
@@ -1757,8 +1813,6 @@ contains
     !> BUFFER are expected to match the relative file names in the ChangeLog
     !> entry.  Port of log-edit.el:log-edit-changelog-insert-entries.
     recursive subroutine log_edit_changelog_insert_entries(buffer, beg, end, files, status)
-        use marker_fm, only: marker_position, free_marker
-        use editfns_fm, only: point_marker
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: beg, end
         type(log_edit_string_type), intent(in) :: files(:)
@@ -1779,7 +1833,7 @@ contains
             case_fold_search = saved_case
             return
         end if
-        bound = point_marker()
+        bound = marker_at(point())
         if (allocated(log_name)) then
             do k = 1, size(files)
                 ! FIXME: f can be a directory, a (possibly indirect) parent
@@ -1787,7 +1841,7 @@ contains
                 call goto_char(opoint)
                 call re_search_forward("\(^\|[ "//achar(9)//"]\)\("// &
                                        file_relative_name(files(k)%s, file_name_directory(log_name))// &
-                                       "\)[, :"//achar(10)//"]", found, status, bound=marker_position(bound), &
+                                       "\)[, :"//achar(10)//"]", found, status, bound=mpos(bound), &
                                        noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) exit
                 if (found) call replace_match(files(k)%s, status, fixedcase=.true., literal=.true., subexp=2)
@@ -1798,15 +1852,14 @@ contains
         if (status%ok()) then
             call goto_char(opoint)
             do
-                call re_search_forward("^\("//achar(9)//"+\)", found, status, bound=marker_position(bound), &
+                call re_search_forward("^\("//achar(9)//"+\)", found, status, bound=mpos(bound), &
                                        noerror=SEARCH_NOERROR)
                 if (.not. status%ok() .or. .not. found) exit
                 call replace_match("", status)
                 if (.not. status%ok()) exit
             end do
         end if
-        call goto_char(marker_position(bound))
-        call free_marker(bound)
+        call goto_char(release(bound))
         case_fold_search = saved_case
     end subroutine log_edit_changelog_insert_entries
 
@@ -2027,7 +2080,7 @@ contains
                     select case (all(k)%kind)
                     case (LOG_EDIT_HEADER_SUMMARY)
                         summary = txt
-                    case (LOG_EDIT_HEADER_FUNCTION)
+                    case (LOG_EDIT_HEADER_FN)
                         call all(k)%fn(txt, more)
                         res = [res, more]
                         deallocate (more)

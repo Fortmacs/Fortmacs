@@ -304,6 +304,16 @@ module vc_hooks_fm
             implicit none(type, external)
             type(status_type), intent(out) :: status
         end subroutine vc_status_proc
+        !> A backend's `checkin' of FILES with COMMENT (REV, the new
+        !> revision, for the backends that take one).
+        recursive subroutine vc_checkin_proc(files, comment, status, rev)
+            import :: vc_string_type, status_type
+            implicit none(type, external)
+            type(vc_string_type), intent(in) :: files(:)
+            character(len=*), intent(in) :: comment
+            type(status_type), intent(out) :: status
+            character(len=*), intent(in), optional :: rev
+        end subroutine vc_checkin_proc
     end interface
 
     !> A VC backend: its name (as in `vc_handled_backends') and the
@@ -336,6 +346,10 @@ module vc_hooks_fm
         procedure(vc_revision_table_proc), pointer, nopass :: revision_completion_table => null()
         procedure(vc_files_proc), pointer, nopass :: mark_resolved => null()
         procedure(vc_status_proc), pointer, nopass :: create_repo => null()
+        procedure(vc_checkin_proc), pointer, nopass :: checkin => null()
+        !> The backend's Log Edit mode (vc-default-log-edit-mode is
+        !> `log_edit_mode').
+        procedure(vc_status_proc), pointer, nopass :: log_edit_mode => null()
         !> vc-BACKEND-diff-switches, if the backend has it.
         type(vc_switches_type), pointer :: diff_switches => null()
     end type vc_backend_type
