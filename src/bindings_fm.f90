@@ -67,6 +67,7 @@ module bindings_fm
     use minibuffer_fm, only: syms_of_minibuffer, completion_at_point
     use subr_fm, only: syms_of_subr
     use text_mode_fm, only: syms_of_text_mode
+    use conf_mode_fm, only: syms_of_conf_mode
     use prog_mode_fm, only: syms_of_prog_mode
     use font_core_fm, only: syms_of_font_core
     use font_lock_fm, only: syms_of_font_lock
@@ -84,6 +85,7 @@ module bindings_fm
     use paren_fm, only: syms_of_paren
     use electric_fm, only: syms_of_electric
     use elec_pair_fm, only: syms_of_elec_pair
+    use newcomment_fm, only: syms_of_newcomment
     use modes_fm, only: minor_modes
     implicit none(type, external)
     private
@@ -248,8 +250,10 @@ contains
         call syms_of_casefiddle()
         call syms_of_indent()
         call syms_of_fill()
+        call syms_of_newcomment()
         call syms_of_novice()
         call syms_of_text_mode()
+        call syms_of_conf_mode()
         call syms_of_prog_mode()
         call syms_of_jit_lock()
         call syms_of_font_core()
@@ -437,6 +441,9 @@ contains
         call bind(esc_map, "d", "kill_word")
         call bind(esc_map, "DEL", "backward_kill_word")
         call bind(global_map, "M-<right>", "right_word")
+        call bind(global_map, "M-;", "comment_dwim")
+        call bind(global_map, "C-x ;", "comment_set_column")
+        call bind(global_map, "C-x C-;", "comment_line")
         call bind(esc_map, "<right>", "forward_word")
         call bind(global_map, "M-<left>", "left_word")
         call bind(esc_map, "<left>", "backward_word")
