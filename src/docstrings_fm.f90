@@ -42,9 +42,10 @@ module docstrings_fm
     use autorevert_fm, only: auto_revert_lockout_interval, auto_revert_avoid_polling, &
                              auto_revert_buffer_in_progress, auto_revert_check_vc_info, auto_revert_interval, &
                              auto_revert_mode_hook, auto_revert_mode_text, auto_revert_notify_exclude_dir_regexp, &
-                             auto_revert_remote_files, auto_revert_stop_on_user_input, auto_revert_tail_mode_text, &
-                             auto_revert_use_notify, auto_revert_verbose, global_auto_revert_ignore_buffer, &
-                             global_auto_revert_ignore_modes, global_auto_revert_mode_hook, global_auto_revert_mode_text, &
+                             auto_revert_remote_files, auto_revert_stop_on_user_input, auto_revert_tail_mode_hook, &
+                             auto_revert_tail_mode_text, auto_revert_use_notify, auto_revert_verbose, &
+                             global_auto_revert_ignore_buffer, global_auto_revert_ignore_modes, &
+                             global_auto_revert_mode_hook, global_auto_revert_mode_text, &
                              global_auto_revert_non_file_buffers
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_prefix_arg, mark_even_if_inactive
@@ -391,7 +392,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(923) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(925) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -625,10 +626,11 @@ module docstrings_fm
                                                      "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "text_mode", "timerp", &
                                               "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
                                               "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                             "turn_on_font_lock", "turn_on_font_lock_if_desired", "uncomment_region", "undefined", &
-                                         "undo", "undo_boundary", "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", &
-                                           "universal_argument", "universal_argument_minus", "universal_argument_more", "up_list", &
-                                            "upcase", "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
+                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
+                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
+                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
+                                                       "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
+                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
                                                       "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
                                                                   "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
                                                        "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
@@ -658,7 +660,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(763) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(764) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -674,9 +676,10 @@ module docstrings_fm
                                             "auto_revert_buffer_in_progress", "auto_revert_check_vc_info", "auto_revert_interval", &
                                                                    "auto_revert_mode_hook", "auto_revert_mode_text", &
                                                               "auto_revert_notify_exclude_dir_regexp", "auto_revert_remote_files", &
-                                         "auto_revert_stop_on_user_input", "auto_revert_tail_mode_text", "auto_revert_use_notify", &
-                                         "auto_revert_verbose", "backward_delete_char_untabify_method", "before_change_functions", &
-                                         "before_revert_hook", "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
+                                                                   "auto_revert_stop_on_user_input", "auto_revert_tail_mode_hook", &
+                                                    "auto_revert_tail_mode_text", "auto_revert_use_notify", "auto_revert_verbose", &
+                                          "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
+                                                               "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
                                                            "blink_matching_paren_on_screen", "buffer_auto_revert_by_notification", &
                                          "buffer_file_coding_system", "buffer_stale_function", "case_fold_search", "case_replace", &
@@ -1587,6 +1590,7 @@ contains
                         "argument enables it, and zero or a negative one disables it."
         case ("auto_revert_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call auto_revert_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle reverting buffer when the file changes (Auto-Revert Mode)."//LF// &
                         ""//LF// &
@@ -1610,6 +1614,7 @@ contains
             entry%doc = "The interactive form of `auto_revert_set_timer'."
         case ("auto_revert_tail_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call auto_revert_tail_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle reverting tail of buffer when the file grows."//LF// &
                         ""//LF// &
@@ -4862,6 +4867,7 @@ contains
                         "in VALUE belong to the register."
         case ("global_auto_revert_mode")
             entry%file = "autorevert_fm.f90"
+            entry%fortran = "call global_auto_revert_mode(status)"
             entry%interactive = .true.
             entry%doc = "Toggle Global Auto-Revert Mode."//LF// &
                         ""//LF// &
@@ -8656,6 +8662,20 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "call turn_on_auto_fill(status)"
             entry%doc = "Unconditionally turn on Auto Fill mode."
+        case ("turn_on_auto_revert_mode")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "call turn_on_auto_revert_mode(status)"
+            entry%doc = "Turn on Auto-Revert Mode."//LF// &
+                        ""//LF// &
+                        "This function is designed to be added to hooks, for example:"//LF// &
+                        "  call c_mode_hook%add(turn_on_auto_revert_mode)"
+        case ("turn_on_auto_revert_tail_mode")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "call turn_on_auto_revert_tail_mode(status)"
+            entry%doc = "Turn on Auto-Revert Tail Mode."//LF// &
+                        ""//LF// &
+                        "This function is designed to be added to hooks, for example:"//LF// &
+                        "  call my_logfile_mode_hook%add(turn_on_auto_revert_tail_mode)"
         case ("turn_on_font_lock")
             entry%file = "font_core_fm.f90"
             entry%fortran = "call turn_on_font_lock(status)"
@@ -10120,6 +10140,10 @@ contains
                         "When false, Auto-Revert Mode checks files and reverts buffers,"//LF// &
                         "with quitting disabled, without paying attention to user input."//LF// &
                         "Thus, with this setting, Emacs might be non-responsive at times."
+        case ("auto_revert_tail_mode_hook")
+            entry%file = "autorevert_fm.f90"
+            entry%fortran = "auto_revert_tail_mode_hook"
+            entry%doc = "Hook run after entering or leaving `auto_revert_tail_mode'."
         case ("auto_revert_tail_mode_text")
             entry%file = "autorevert_fm.f90"
             entry%fortran = "auto_revert_tail_mode_text"
