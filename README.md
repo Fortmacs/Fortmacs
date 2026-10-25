@@ -68,9 +68,6 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Why Fortran?
 
-It started as a fun way to learn the language, and Fortran turned out to
-suit an editor well:
-
 1. **Real parallel threads.** Emacs runs one thread at a time under a global
    lock. Fortmacs keeps one thread for buffers and the screen, as Emacs does,
    and will run heavy work (searching large files, file I/O, syntax parsing,
