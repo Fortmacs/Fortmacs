@@ -147,9 +147,9 @@ What an assistant changes:
    expectations.
 4. **It works in parallel.** Up to eight agents port separate modules at
    once; one lead session reviews and combines their work.
-5. **It is faster.** About 65,000 lines of Fortran and tests, not
-   counting generated tables, in the first three days (roughly 850 an
-   hour), where a person porting by hand might manage a few hundred a day.
+5. **It is faster.** About 158,000 lines of Fortran and tests, not
+   counting generated tables, in the first four days and eight hours
+   (roughly 1,500 an hour), where a person porting by hand might manage a few hundred a day.
    Review steers it through suggestions and directions; what limits the
    pace is token usage and its cost.
 6. **The safeguards stay human.** Every change is built, tested and checked

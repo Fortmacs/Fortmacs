@@ -135,8 +135,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    25. Faces in the config API: `faces%`, `face_underline`, `face_box` (the
        design decision of 2026-10-24). — done (a number as an underline's
        `:position` is Deferred with the GUI).
-   26. Customize (`customize-variable`, `customize-face`) writing Fortran
-       into init.f90, over tools/user-options and `faces%`.
+   26. Customize (custom.el, wid-edit.el, cus-edit.el: about 13,000 lines
+       upstream), in three PRs: 26a each user option's custom type (from its
+       defcustom) with `customize-set-variable`, `customize-save-variable`
+       and `custom-save-all` writing Fortran assignments into init.f90;
+       26b the widget library (wid-edit.el core); 26c the Customize
+       buffers (`customize`, `customize-variable`, `customize-face` saving
+       `faces%` assignments, groups). See open question 8.
    27. Coding systems (coding.c): decoding and encoding for files and
        processes, `buffer-file-coding-system`. — done (core: UTF-8,
        UTF-16, Latin-1, ASCII and raw text with their line ends; see
@@ -150,10 +155,43 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `before-string` and `after-string` on overlays and text.
    30. Major modes: Outline mode, f90-mode, sh-script, conf-mode.
    31. diff.el, Diff mode and VC with vc-git (Dired's `=`, VC renames).
+       About 20,000 lines upstream, so three PRs: 31a diff.el and
+       diff-mode.el (`diff`, `diff-buffer-with-file`, Diff mode's hunk and
+       file motion, `diff-apply-hunk`, `diff-goto-source`, Dired's `=`);
+       31b vc-hooks.el, vc-dispatcher.el, vc.el and vc-git.el (the mode
+       line, `vc-next-action` C-x v v, `vc-diff`, `vc-revert`,
+       `vc-rename-file`, `vc-print-log`'s output, `vc-annotate`);
+       31c log-view.el, log-edit.el and vc-dir.el.
    32. Auto-revert, with file notifications through inotify in src/sys.
    33. Small everyday packages: bookmarks, recentf, savehist, saveplace,
        `repeat-mode`, `rectangle-mark-mode`.
    34. The Info reader (C-h i and the manual commands of help).
+   35. Grep (grep.el: `grep`, `lgrep`, `rgrep`, `grep-find`, Grep mode on
+       compile_fm and next-error).
+   36. Buffer lists: `list-buffers` (C-x C-b, buff-menu.el) and Ibuffer.
+   37. Occur (`occur`, `multi-occur`, Occur mode and its edit mode).
+   38. Comint and shell, the rest: history expansion and M-r,
+       completion (`comint-completion-at-point`, file names through
+       `completion-table-with-quoting`, the `:exit-function` property,
+       shell's completion functions; moved here from step 28), password
+       prompts, `ansi-color`, C-c C-z,
+       `list-processes` and the process menu.
+   39. The command loop's wrapper commands and C-x RET c
+       (`universal-coding-system-argument`), with the process, terminal
+       and keyboard coding system commands (C-x RET p, t, k).
+   40. More major modes: `sh-mode` beyond step 30, `makefile-mode`,
+       `python-mode`, `js-mode`, `css-mode`, `sgml-mode`/`html-mode`.
+   41. Charsets and the other coding systems: charset maps (ISO-8859-x,
+       Windows code pages, KOI8), ISO-2022, Shift-JIS, Big5, emacs-mule,
+       language environments (C-x RET l) and input methods (`C-\`).
+   42. Spelling: `ispell` and `flyspell` over an external speller process.
+   43. Terminal frames: several frames on one terminal (C-x 5), and
+       `tab-bar-mode`/`tab-line-mode`.
+   44. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
+       `window-divider` and side windows.
+   45. Calendar and diary.
+   46. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
+       HarfBuzz fonts), then Wayland.
 
 The GUI (X11 protocol over a Unix socket from Fortran, our own font
 rendering, then Wayland) comes after the bulk of Emacs is ported; its
@@ -632,6 +670,24 @@ Each lists the default being used meanwhile.
    `buffer_file_coding_system = "utf-8-dos"` (the default is "utf-8-unix"),
    `coding_system_for_read = "latin-1"`, `call prefer_coding_system("utf-8", status)`.
    *Default (2026-10-24): keep upstream's names.*
+8. **Custom types (for step 26).** Customize depends on each user
+   option's custom `:type`: prompts name it (`[integer] Set fill-column
+   to value: `), values are read and checked by its widget (a boolean by
+   y-or-n-p, a string or regexp as raw text, an integer or symbol as a
+   read object, a `choice` by completing over its tags, then the chosen
+   alternative), and the Customize buffers build their widgets from it.
+   Fortmacs knows only each option's Fortran type, and the 245 user
+   options use about 40 distinct `:type` forms (boolean, regexp, natnum,
+   file, hook, `choice` of `const`s with `:tag`s, `repeat`, ...). Where an
+   option is enumerated in Fortran, its `choice` constants map to the
+   option's named constants; where Fortran encodes an upstream `nil` or
+   symbol another way (a negative number, an empty string), the mapping
+   is per option. *Default: record each option's type in
+   tools/user-options as a second column, in upstream's notation with
+   underscore names, plus, for each `const`, the Fortran value it maps to;
+   gen-docstrings generates the type tree (an internal derived type, not
+   part of the config API). `repeat`, `hook` and other types whose values
+   are arrays or procedures are Deferred, as for set_variable.*
 
 ## Session log
 
@@ -639,6 +695,8 @@ Resume point for the next working session, newest first.
 
 - 2026-10-24 — Completion (`completion`, roadmap step 28): the completion styles in the submodule minibuffer_styles_fm (emacs21, emacs22, basic, partial-completion, substring, flex with minibuf.c's Gotoh cost and *Completions* sorted by it, initials; `completion-styles` defaults to basic, partial-completion, emacs22), `completion-category-defaults`/`-overrides` with the buffer, file, symbol-help, command and dabbrev categories; `completion-at-point` (C-M-i, `complete-symbol`), `completion-help-at-point`, `completion-in-region` and `completion-in-region-mode` (minibuffer-complete goes through it, as upstream); `completion-at-point-functions` as eval_fm's `capf_hook_type` returning minibuf_table_fm's `capf_data_type`; `post-command-hook` is a hook; keymap_fm's buffer-local `minor-mode-overriding-map-alist`; `dabbrev-completion` (C-M-/) with `dabbrev-capf`. Ports the style tests of minibuffer-tests.el and dabbrev-completion-test(-with-argument). Comint and shell completion move to step 38. Next: step 29, display properties.
 
+- 2026-10-24 — Step 26 (Customize) split into 26a–c; open question 8 (custom types) records the analysis and the default. Step 32 (auto-revert) is taken up first in this lane.
+- 2026-10-24 — Roadmap steps 35–46 (deferred parts of steps 18–27 first, then larger areas, the GUI last). Lanes as for 25–34: session_01QDZcHmpSKFnvYKAGB3eDAc takes 36, 40, 42, 43, 45; session_01JGaKkfcr9sr1gmwgRQK6TQ takes 35, 37, 38, 39, 41, 44; 46 is decided when it comes. Coordination stays on issue #85.
 - 2026-10-24 — Coding systems (`coding`, roadmap step 27): `coding_fm` (coding.c with mule-conf.el's fundamental coding systems: undecided, prefer-utf-8, no-conversion, raw-text, iso-latin-1, us-ascii, the UTF-8 and UTF-16 families, aliases and -unix/-dos/-mac subsidiaries; categories with reset-language-environment's priorities; detection, decoding and encoding as upstream, checked against GNU Emacs 29 on sample bytes; the string and region functions, check-coding-systems-region), `mule_fm` (set-auto-coding with coding: tags, local variables and the auto-coding alists; after-insert-file-set-coding; select-safe-coding-system with its *Warning* buffer; C-x RET f, C-x RET r, prefer-coding-system, C-h C), fileio decoding on read and encoding on write (choose_write_coding_system), basic-save-buffer keeping the coding system used, per-process coding systems in process_fm, the mode line's mule info ("UUU:", "-UU-\" for an ASCII DOS file, "U:" on a window-system frame), error `coding-system-error`. Ports coding-tests.el and find-auto-coding--bug27391. Next: step 28, completion.
 
 - 2026-10-24 — Faces in the config API (`faces-api`, roadmap step 25): tools/gen-faces.sh generates src/face_table_fm.f90, `faces` with one pointer component per face (initialized to the face object, named after the face), checked by tools/check.sh like commands_fm; faces_fm gains `face_underline` and `face_box` (the property-list forms of `:underline` and `:box`), `FACE_BOX_*` style constants and assigning a color to a box; `fortmacs` exports them instead of individual face objects; test_faces_fm config-faces. Next: step 26, Customize.
