@@ -248,7 +248,7 @@ contains
         ! = 128: rows ab, cd, ef and four x's; then the mode line.
         call check(error, device%text_at(112), "x ", device%text_at(112))
         if (allocated(error)) return
-        call check(error, index(device%text_at(128), " UUU:") == 1, device%text_at(128))
+        call check(error, index(device%text_at(128), " U:") == 1, device%text_at(128))
         if (allocated(error)) return
         call check(error, windows(f%selected_window%index)%window_end_pos == 18_int64, "window end")
         call delete_frame_windows(f)
@@ -272,7 +272,7 @@ contains
         call fake_frame(f, device, driver, 60, 6, h)
         call redisplay(f, st)
         expected = mode_line_text("*fake-gui-ml*", .true., .false., "All", "1", 0, "Fundamental", graphic=.true.)
-        call check(error, expected, " UUU:**-  *fake-gui-ml*   All L1     (Fundamental) ")
+        call check(error, expected, " U:**-  *fake-gui-ml*   All L1     (Fundamental) ")
         if (allocated(error)) return
         expected = mode_line_text("*fake-gui-ml*", .true., .false., "All", "1", 0, mode_line_modes(bi), graphic=.true.)
         ! Rows 0 to 3 of text, the mode line at y 64.
@@ -284,8 +284,8 @@ contains
                    device%face(59*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID, "active face")
         if (allocated(error)) return
         ! The buffer name in mode_line_buffer_id merged in.
-        call check(error, device%face(10*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) /= MODE_LINE_ACTIVE_FACE_ID .and. &
-                   device%face(9*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID, "buffer id face")
+        call check(error, device%face(8*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) /= MODE_LINE_ACTIVE_FACE_ID .and. &
+                   device%face(7*FAKE_COLUMN_WIDTH, 4*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID, "buffer id face")
         call delete_frame_windows(f)
         call kill_buffer(h, st)
     end subroutine test_mode_line
@@ -325,8 +325,8 @@ contains
         call check(error, count(device%border) == 10*FAKE_LINE_HEIGHT, "one border")
         if (allocated(error)) return
         ! The mode lines: active on the left (selected), inactive on the right.
-        call check(error, index(device%text_at(10*FAKE_LINE_HEIGHT, 0, 320), " UUU:") == 1 .and. &
-                   index(device%text_at(10*FAKE_LINE_HEIGHT, 320, 640), " UUU:") == 1, "two mode lines")
+        call check(error, index(device%text_at(10*FAKE_LINE_HEIGHT, 0, 320), " U:") == 1 .and. &
+                   index(device%text_at(10*FAKE_LINE_HEIGHT, 320, 640), " U:") == 1, "two mode lines")
         if (allocated(error)) return
         x = 319
         call check(error, device%face(x, 10*FAKE_LINE_HEIGHT) == MODE_LINE_ACTIVE_FACE_ID .and. &

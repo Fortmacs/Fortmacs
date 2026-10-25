@@ -63,6 +63,7 @@ module files_fm
     use derived_fm, only: major_mode_type, major_mode_named
     use map_ynp_fm, only: map_y_or_n_p, YNP_SKIP, YNP_ASK
     use window_fm, only: pop_to_buffer_same_window, switch_to_buffer_other_window
+    use coding_fm, only: buffer_file_coding_system, last_coding_system_used
     implicit none(type, external)
     private
 
@@ -814,6 +815,9 @@ contains
         call set_buffer(buf, status)
         if (.not. status%ok()) return
         ! find-file-noselect-1
+        ! Needed in case we are re-visiting the file with a different
+        ! text representation.
+        call buffer_file_coding_system%kill_local()
         call erase_buffer(status)
         if (.not. status%ok()) return
         error = .false.
@@ -1177,6 +1181,10 @@ contains
         call write_region(file, .true., status, message=wrote)
         if (setmodes >= 0) call set_file_modes(file, setmodes, st)
         if (.not. status%ok()) return
+        ! Now we have saved the current buffer: make sure that
+        ! buffer-file-coding-system is fixed to what actually used for
+        ! saving by binding it locally.
+        if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
         call message(wrote)
     end subroutine basic_save_buffer
 

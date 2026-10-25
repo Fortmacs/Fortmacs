@@ -228,6 +228,9 @@ contains
         character(len=*), intent(in), optional :: open
         character(len=:), allocatable :: re
         character(len=:), allocatable :: open_group, close_group, open_charset, close_charset, prefix, xiffus, first
+        ! (Results of recursive calls go through these first: gfortran
+        ! garbles two such results in one concatenation.)
+        character(len=:), allocatable :: sub1, sub2
         type(str_type), allocatable :: rest(:), parts(:)
         integer(int32), allocatable :: letters(:)
         integer :: i, n, nl, nr, k
@@ -260,7 +263,8 @@ contains
             return
         end if
         if (len(strings(1)%s) == 0) then
-            re = open_charset//opt_group(strings(2:), .true., .true.)//"?"//close_charset
+            sub1 = opt_group(strings(2:), .true., .true.)
+            re = open_charset//sub1//"?"//close_charset
             return
         end if
         any_one = .false.
@@ -284,7 +288,8 @@ contains
             if (size(rest) > 0) then
                 ! several one-char strings: take them and recurse
                 ! on the rest (first so as to match the longest).
-                re = open_group//opt_group(rest, .false., .false.)//"\|"//regexp_opt_charset(letters)//close_group
+                sub1 = opt_group(rest, .false., .false.)
+                re = open_group//sub1//"\|"//regexp_opt_charset(letters)//close_group
             else
                 ! all are one-char strings: just return a character set.
                 re = open_charset//regexp_opt_charset(letters)//close_charset
@@ -299,7 +304,8 @@ contains
             do i = 1, size(strings)
                 parts(i)%s = strings(i)%s(n + 1:)
             end do
-            re = open_group//regexp_quote(prefix)//opt_group(parts, .true., .true.)//close_group
+            sub1 = opt_group(parts, .true., .true.)
+            re = open_group//regexp_quote(prefix)//sub1//close_group
             return
         end if
         n = common_suffix(strings)
@@ -312,7 +318,8 @@ contains
             end do
             ! Sorting is necessary in cases such as ("ad" "d").
             call sort_list(parts)
-            re = open_group//opt_group(parts, .true., .true.)//regexp_quote(xiffus)//close_group
+            sub1 = opt_group(parts, .true., .true.)
+            re = open_group//sub1//regexp_quote(xiffus)//close_group
             return
         end if
         ! Otherwise, divide the list into those that start with a
@@ -324,8 +331,9 @@ contains
             if (strings(i)%s(1:len(first)) /= first) exit
             k = i
         end do
-        re = open_group//opt_group(strings(1:k), .false., .false.)//"\|"//opt_group(strings(k + 1:), .false., .false.) &
-             //close_group
+        sub1 = opt_group(strings(1:k), .false., .false.)
+        sub2 = opt_group(strings(k + 1:), .false., .false.)
+        re = open_group//sub1//"\|"//sub2//close_group
     end function opt_group
 
     !> Sort LIST (string<), keeping duplicates.
@@ -439,12 +447,12 @@ contains
             if (c - 1 == end) then
                 end = c
             else
-                call flush()
+                call flush ()
                 start = c
                 end = c
             end if
         end do
-        call flush()
+        call flush ()
         all = bracket//charset//caret//dash
         if (len(all) == 0) then
             re = regexp_unmatchable
@@ -456,7 +464,7 @@ contains
             re = "["//all//"]"
         end if
     contains
-        subroutine flush()
+        subroutine flush ()
             if (end > start + 2) then
                 charset = charset//utf8(start)//"-"//utf8(end)
             else

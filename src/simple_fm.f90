@@ -2275,7 +2275,7 @@ contains
         ! Read a string, completing from and restricting to the set of all
         ! defined commands.  Save the command read on the extended-command
         ! history list.
-        call completing_read(prompt//"M-x ", completion_obarray_table(), name, status, commandp, &
+        call completing_read(prompt//"M-x ", completion_obarray_table("command"), name, status, commandp, &
                              require_match=REQUIRE_MATCH_T, history="extended_command_history")
     end subroutine read_extended_command
 

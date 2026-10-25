@@ -82,7 +82,8 @@ module keymap_fm
               push_key_description
     public :: key_valid_p, keymap_set, keymap_global_set
     public :: where_is_internal, keymap_events, command_remapping
-    public :: accessible_keymaps, map_keymap_items, current_minor_maps
+    public :: accessible_keymaps, map_keymap_items, current_minor_maps, push_minor_mode_overriding_map, &
+              remove_minor_mode_overriding_map
 
     !> Bind a key given as a `key_valid_p' string.  A character `command'
     !> names a command; otherwise it is any key definition.
@@ -154,6 +155,13 @@ module keymap_fm
     integer(int64), allocatable :: minor_mode_vars(:)
     type(handle_type), allocatable :: minor_mode_maps(:)
     integer :: n_minor_mode_maps = 0
+
+    !> minor-mode-overriding-map-alist (buffer-local): keymaps that
+    !> replace (and come before) the minor-mode-map-alist maps of their
+    !> variables in the buffer with serial number `overriding_serials',
+    !> the most recently pushed first.
+    integer(int64), allocatable :: overriding_vars(:), overriding_serials(:)
+    type(handle_type), allocatable :: overriding_maps(:)
 
     !> A key sequence and the keymap it leads to (where-is,
     !> `accessible_keymaps').
@@ -1162,6 +1170,77 @@ contains
         n_minor_mode_maps = n + 1
     end subroutine add_minor_mode_map
 
+    !> Make MAP the keymap of minor mode VARIABLE in the current buffer's
+    !> minor-mode-overriding-map-alist (pushed to the front, replacing an
+    !> earlier entry for VARIABLE).
+    subroutine push_minor_mode_overriding_map(variable, map)
+        character(len=*), intent(in) :: variable
+        type(handle_type), intent(in) :: map
+        integer(int64), allocatable :: vars(:), serials(:)
+        type(handle_type), allocatable :: maps(:)
+        integer :: n
+        if (cur == 0) return
+        call remove_minor_mode_overriding_map(variable)
+        n = size(overriding_vars)
+        allocate (vars(n + 1), serials(n + 1), maps(n + 1))
+        vars(1) = intern(variable)
+        serials(1) = buffers(cur)%serial
+        maps(1) = map
+        vars(2:) = overriding_vars
+        serials(2:) = overriding_serials
+        maps(2:) = overriding_maps
+        call move_alloc(vars, overriding_vars)
+        call move_alloc(serials, overriding_serials)
+        call move_alloc(maps, overriding_maps)
+    end subroutine push_minor_mode_overriding_map
+
+    !> Remove the entry of minor mode VARIABLE from the current buffer's
+    !> minor-mode-overriding-map-alist.
+    subroutine remove_minor_mode_overriding_map(variable)
+        character(len=*), intent(in) :: variable
+        logical, allocatable :: keep(:)
+        call init_overriding()
+        if (cur == 0) return
+        keep = overriding_vars /= intern(variable) .or. overriding_serials /= buffers(cur)%serial
+        overriding_vars = pack(overriding_vars, keep)
+        overriding_serials = pack(overriding_serials, keep)
+        overriding_maps = pack(overriding_maps, keep)
+    end subroutine remove_minor_mode_overriding_map
+
+    subroutine init_overriding()
+        if (.not. allocated(overriding_vars)) allocate (overriding_vars(0), overriding_serials(0), overriding_maps(0))
+    end subroutine init_overriding
+
+    !> The minor-mode keymaps in the order keymap.c:current_minor_maps
+    !> looks at them (the current buffer's minor-mode-overriding-map-alist,
+    !> then the minor-mode-map-alist maps of the other variables), with
+    !> their variables, whatever the variables' values.
+    subroutine minor_mode_entries(vars, maps)
+        integer(int64), allocatable, intent(out) :: vars(:)
+        type(handle_type), allocatable, intent(out) :: maps(:)
+        integer(int64) :: serial
+        integer :: i, n
+        call init_overriding()
+        serial = -1
+        if (cur /= 0) serial = buffers(cur)%serial
+        allocate (vars(size(overriding_vars) + n_minor_mode_maps), maps(size(overriding_vars) + n_minor_mode_maps))
+        n = 0
+        do i = 1, size(overriding_vars)
+            if (overriding_serials(i) /= serial) cycle
+            n = n + 1
+            vars(n) = overriding_vars(i)
+            maps(n) = overriding_maps(i)
+        end do
+        do i = 1, n_minor_mode_maps
+            if (any(vars(1:n) == minor_mode_vars(i))) cycle
+            n = n + 1
+            vars(n) = minor_mode_vars(i)
+            maps(n) = minor_mode_maps(i)
+        end do
+        vars = vars(1:n)
+        maps = maps(1:n)
+    end subroutine minor_mode_entries
+
     !> The variable of an enabled minor mode whose keymap (in
     !> minor-mode-map-alist) is `map'; "" if none.
     function active_minor_mode_of_map(map) result(variable)
@@ -1169,37 +1248,43 @@ contains
         character(len=:), allocatable :: variable
         type(value_type) :: v
         type(status_type) :: st
+        integer(int64), allocatable :: vars(:)
+        type(handle_type), allocatable :: maps(:)
         integer :: i
         variable = ""
-        do i = 1, n_minor_mode_maps
-            if (.not. same_handle(minor_mode_maps(i), map)) cycle
-            call symbol_value(make_symbol_ref(minor_mode_vars(i)), v, st)
+        call minor_mode_entries(vars, maps)
+        do i = 1, size(vars)
+            if (.not. same_handle(maps(i), map)) cycle
+            call symbol_value(make_symbol_ref(vars(i)), v, st)
             if (.not. st%ok()) cycle
             if (nilp(v)) cycle
-            variable = symbols(minor_mode_vars(i))%name
+            variable = symbols(vars(i))%name
             return
         end do
     end function active_minor_mode_of_map
 
     !> The keymaps of the enabled minor modes, in the order the active
     !> maps have them, and their variables.  Port of
-    !> keymap.c:current_minor_maps (minor-mode-map-alist only).
+    !> keymap.c:current_minor_maps (minor-mode-overriding-map-alist and minor-mode-map-alist).
     subroutine current_minor_maps(modes, maps)
         character(len=48), allocatable, intent(out) :: modes(:)
         type(handle_type), allocatable, intent(out) :: maps(:)
         type(value_type) :: v
         type(status_type) :: st
+        integer(int64), allocatable :: vars(:)
+        type(handle_type), allocatable :: all(:)
         integer :: i, n
-        allocate (modes(n_minor_mode_maps), maps(n_minor_mode_maps))
+        call minor_mode_entries(vars, all)
+        allocate (modes(size(vars)), maps(size(vars)))
         n = 0
-        do i = 1, n_minor_mode_maps
-            if (.not. table%is_live(minor_mode_maps(i))) cycle
-            call symbol_value(make_symbol_ref(minor_mode_vars(i)), v, st)
+        do i = 1, size(vars)
+            if (.not. table%is_live(all(i))) cycle
+            call symbol_value(make_symbol_ref(vars(i)), v, st)
             if (.not. st%ok()) cycle
             if (nilp(v)) cycle
             n = n + 1
-            modes(n) = symbols(minor_mode_vars(i))%name
-            maps(n) = minor_mode_maps(i)
+            modes(n) = symbols(vars(i))%name
+            maps(n) = all(i)
         end do
         modes = modes(1:n)
         maps = maps(1:n)
@@ -1359,8 +1444,11 @@ contains
         type(value_type) :: v
         type(handle_type) :: local
         type(status_type) :: st
+        character(len=48), allocatable :: modes(:)
+        type(handle_type), allocatable :: minor(:)
         integer :: n, i
-        allocate (elems(4 + n_minor_mode_maps))
+        call current_minor_maps(modes, minor)
+        allocate (elems(4 + size(minor)))
         n = 0
         if (table%is_live(overriding_terminal_local_map)) then
             n = n + 1
@@ -1370,13 +1458,9 @@ contains
             n = n + 1
             elems(n) = make_keymap_ref(pushed_terminal_local_map)
         end if
-        do i = 1, n_minor_mode_maps
-            if (.not. table%is_live(minor_mode_maps(i))) cycle
-            call symbol_value(make_symbol_ref(minor_mode_vars(i)), v, st)
-            if (.not. st%ok()) cycle
-            if (nilp(v)) cycle
+        do i = 1, size(minor)
             n = n + 1
-            elems(n) = make_keymap_ref(minor_mode_maps(i))
+            elems(n) = make_keymap_ref(minor(i))
         end do
         local = current_local_map()
         if (local%index /= 0) then

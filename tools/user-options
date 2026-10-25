@@ -19,6 +19,8 @@ adaptive_fill_regexp
 async_shell_command_buffer
 async_shell_command_display_buffer
 async_shell_command_width
+auto_coding_alist
+auto_coding_regexp_alist
 auto_fill_inhibit_regexp
 backward_delete_char_untabify_method
 blink_matching_delay
@@ -71,7 +73,12 @@ compilation_skip_visited
 compilation_transform_file_match_alist
 compile_command
 completion_auto_help
+completion_category_overrides
+completion_flex_nospace
 completion_ignored_extensions
+completion_pcm_leading_wildcard
+completion_pcm_word_delimiters
+completion_styles
 completions_max_height
 conf_assignment_column
 conf_assignment_space
@@ -140,6 +147,10 @@ electric_pair_skip_whitespace
 electric_pair_skip_whitespace_chars
 electric_pair_text_pairs
 enable_recursive_minibuffers
+eol_mnemonic_dos
+eol_mnemonic_mac
+eol_mnemonic_undecided
+eol_mnemonic_unix
 even_window_sizes
 explicit_bash_args
 explicit_csh_args
@@ -162,6 +173,7 @@ f90_program_indent
 f90_smart_end
 f90_smart_end_names
 f90_type_indent
+file_coding_system_alist
 fill_column
 fill_nobreak_predicate
 fill_prefix
@@ -175,6 +187,7 @@ help_mode_hook
 history_delete_duplicates
 history_length
 indent_tabs_mode
+inhibit_eol_conversion
 insert_default_directory
 insert_directory_program
 isearch_lax_whitespace

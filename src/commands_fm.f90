@@ -131,6 +131,10 @@ module commands_fm
         type(command_type) :: compilation_shell_minor_mode
         type(command_type) :: compile
         type(command_type) :: compile_goto_error
+        type(command_type) :: complete_symbol
+        type(command_type) :: completion_at_point
+        type(command_type) :: completion_help_at_point
+        type(command_type) :: completion_in_region_mode
         type(command_type) :: conf_align_assignments
         type(command_type) :: conf_colon_mode
         type(command_type) :: conf_desktop_mode
@@ -151,6 +155,7 @@ module commands_fm
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
         type(command_type) :: cycle_spacing
+        type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
         type(command_type) :: default_indent_new_line
         type(command_type) :: define_global_abbrev
@@ -168,7 +173,9 @@ module commands_fm
         type(command_type) :: delete_whitespace_rectangle
         type(command_type) :: delete_window
         type(command_type) :: describe_bindings
+        type(command_type) :: describe_coding_system
         type(command_type) :: describe_command
+        type(command_type) :: describe_current_coding_system
         type(command_type) :: describe_function
         type(command_type) :: describe_key
         type(command_type) :: describe_key_briefly
@@ -469,6 +476,7 @@ module commands_fm
         type(command_type) :: pop_to_mark_command
         type(command_type) :: posix_search_backward
         type(command_type) :: posix_search_forward
+        type(command_type) :: prefer_coding_system
         type(command_type) :: prepend_to_register
         type(command_type) :: previous_buffer
         type(command_type) :: previous_error
@@ -493,6 +501,7 @@ module commands_fm
         type(command_type) :: replace_regexp
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
+        type(command_type) :: revert_buffer_with_coding_system
         type(command_type) :: right_char
         type(command_type) :: right_word
         type(command_type) :: rotate_yank_pointer
@@ -508,6 +517,7 @@ module commands_fm
         type(command_type) :: search_backward
         type(command_type) :: search_forward
         type(command_type) :: self_insert_command
+        type(command_type) :: set_buffer_file_coding_system
         type(command_type) :: set_fill_column
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
@@ -603,7 +613,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(565) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(575) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -703,6 +713,10 @@ module commands_fm
                                                                  "compilation_shell_minor_mode", &
                                                                  "compile", &
                                                                  "compile_goto_error", &
+                                                                 "complete_symbol", &
+                                                                 "completion_at_point", &
+                                                                 "completion_help_at_point", &
+                                                                 "completion_in_region_mode", &
                                                                  "conf_align_assignments", &
                                                                  "conf_colon_mode", &
                                                                  "conf_desktop_mode", &
@@ -723,6 +737,7 @@ module commands_fm
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
                                                                  "cycle_spacing", &
+                                                                 "dabbrev_completion", &
                                                                  "dabbrev_expand", &
                                                                  "default_indent_new_line", &
                                                                  "define_global_abbrev", &
@@ -740,7 +755,9 @@ module commands_fm
                                                                  "delete_whitespace_rectangle", &
                                                                  "delete_window", &
                                                                  "describe_bindings", &
+                                                                 "describe_coding_system", &
                                                                  "describe_command", &
+                                                                 "describe_current_coding_system", &
                                                                  "describe_function", &
                                                                  "describe_key", &
                                                                  "describe_key_briefly", &
@@ -1041,6 +1058,7 @@ module commands_fm
                                                                  "pop_to_mark_command", &
                                                                  "posix_search_backward", &
                                                                  "posix_search_forward", &
+                                                                 "prefer_coding_system", &
                                                                  "prepend_to_register", &
                                                                  "previous_buffer", &
                                                                  "previous_error", &
@@ -1065,6 +1083,7 @@ module commands_fm
                                                                  "replace_regexp", &
                                                                  "replace_string", &
                                                                  "revert_buffer", &
+                                                                 "revert_buffer_with_coding_system", &
                                                                  "right_char", &
                                                                  "right_word", &
                                                                  "rotate_yank_pointer", &
@@ -1080,6 +1099,7 @@ module commands_fm
                                                                  "search_backward", &
                                                                  "search_forward", &
                                                                  "self_insert_command", &
+                                                                 "set_buffer_file_coding_system", &
                                                                  "set_fill_column", &
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
@@ -1377,6 +1397,14 @@ contains
             p => commands%compile
         case ("compile_goto_error")
             p => commands%compile_goto_error
+        case ("complete_symbol")
+            p => commands%complete_symbol
+        case ("completion_at_point")
+            p => commands%completion_at_point
+        case ("completion_help_at_point")
+            p => commands%completion_help_at_point
+        case ("completion_in_region_mode")
+            p => commands%completion_in_region_mode
         case ("conf_align_assignments")
             p => commands%conf_align_assignments
         case ("conf_colon_mode")
@@ -1417,6 +1445,8 @@ contains
             p => commands%copy_to_register
         case ("cycle_spacing")
             p => commands%cycle_spacing
+        case ("dabbrev_completion")
+            p => commands%dabbrev_completion
         case ("dabbrev_expand")
             p => commands%dabbrev_expand
         case ("default_indent_new_line")
@@ -1451,8 +1481,12 @@ contains
             p => commands%delete_window
         case ("describe_bindings")
             p => commands%describe_bindings
+        case ("describe_coding_system")
+            p => commands%describe_coding_system
         case ("describe_command")
             p => commands%describe_command
+        case ("describe_current_coding_system")
+            p => commands%describe_current_coding_system
         case ("describe_function")
             p => commands%describe_function
         case ("describe_key")
@@ -2053,6 +2087,8 @@ contains
             p => commands%posix_search_backward
         case ("posix_search_forward")
             p => commands%posix_search_forward
+        case ("prefer_coding_system")
+            p => commands%prefer_coding_system
         case ("prepend_to_register")
             p => commands%prepend_to_register
         case ("previous_buffer")
@@ -2101,6 +2137,8 @@ contains
             p => commands%replace_string
         case ("revert_buffer")
             p => commands%revert_buffer
+        case ("revert_buffer_with_coding_system")
+            p => commands%revert_buffer_with_coding_system
         case ("right_char")
             p => commands%right_char
         case ("right_word")
@@ -2131,6 +2169,8 @@ contains
             p => commands%search_forward
         case ("self_insert_command")
             p => commands%self_insert_command
+        case ("set_buffer_file_coding_system")
+            p => commands%set_buffer_file_coding_system
         case ("set_fill_column")
             p => commands%set_fill_column
         case ("set_fill_prefix")
