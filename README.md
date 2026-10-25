@@ -12,16 +12,10 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
-<table>
-<tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>
-<tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>
-<tr><td align="center"><img src="docs/progress/total.svg" width="28" height="120" alt="Total: ≆3.20%"></td><td align="center"><img src="docs/progress/emacs.svg" width="28" height="120" alt="All: ≆3.60%"></td><td align="center"><img src="docs/progress/c.svg" width="28" height="120" alt="C: ≆10.28%"></td><td align="center"><img src="docs/progress/elisp.svg" width="28" height="120" alt="Elisp: ≆2.42%"></td><td align="center"><img src="docs/progress/packages.svg" width="28" height="120" alt="All: 0.00%"></td><td align="center"><img src="docs/progress/gnu-elpa.svg" width="28" height="120" alt="GNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/nongnu-elpa.svg" width="28" height="120" alt="NonGNU ELPA: 0.00%"></td><td align="center"><img src="docs/progress/melpa.svg" width="28" height="120" alt="MELPA: 0.00%"></td></tr>
-<tr><td align="center">2,048<br>of 63,999</td><td align="center">2,048<br>of 56,864</td><td align="center">879<br>of 8,547</td><td align="center">1,169<br>of 48,317</td><td align="center">0<br>of 7,135</td><td align="center">0<br>of 509</td><td align="center">0<br>of 293</td><td align="center">0<br>of 6,333</td></tr>
-<tr><td align="center">≆3.20%</td><td align="center">≆3.60%</td><td align="center">≆10.28%</td><td align="center">≆2.42%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td><td align="center">0.00%</td></tr>
-</table>
+<img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.20% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
 
-Total is Emacs (its C functions and Elisp definitions) and the packages
-together. A rough estimate from `tools/progress.sh`.
+The pie is Emacs (its C functions and Elisp definitions) and the
+packages together. A rough estimate from `tools/progress.sh`.
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
