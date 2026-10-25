@@ -26,12 +26,13 @@
 !>
 !> Deferred: `blink_matching_paren_highlight_offscreen' and the face
 !> `blink_matching_paren_offscreen' (strings carry no text properties),
-!> the `shadow' face of "Matches " in the echo area,
-!> `syntax_propertize', and `noninteractive' (no batch mode).
+!> the `shadow' face of "Matches " in the echo area
+!> and `noninteractive' (no batch mode).
 submodule(simple_fm) simple_electric_fm
     use syntax_fm, only: syntax_entry, syntax_descriptor_type, skip_syntax_backward, parse_sexp_ignore_comments, &
                          char_syntax, SCLOSE, SQUOTE
     use lisp_cmds_fm, only: forward_sexp
+    use syntax_propertize_fm, only: syntax_propertize
     use editfns_fm, only: narrow_to_region, widen
     use window_fm, only: window_pos_visible_p => pos_visible_in_window_p
     use frame_fm, only: selected_window
@@ -54,6 +55,7 @@ contains
     module procedure syms_of_simple_electric
     commands%blink_matching_open%run => cmd_blink_matching_open
     commands%newline_and_indent%run => cmd_newline_and_indent
+    commands%reindent_then_newline_and_indent%run => cmd_reindent_then_newline_and_indent
     commands%backward_delete_char_untabify%run => cmd_backward_delete_char_untabify
     if (.not. associated(blink_matching_check_function)) blink_matching_check_function => blink_matching_check_mismatch
     if (.not. associated(blink_paren_function)) blink_paren_function => blink_matching_open
@@ -115,12 +117,14 @@ contains
     type(syntax_descriptor_type) :: code
     type(status_type) :: st
     logical :: saved_ignore, found, mismatch, visible
+    procedure(blink_matching_check_proc), pointer :: check
     status = status_type()
     if (bobp() .or. blink_matching_paren == BLINK_MATCHING_PAREN_NIL) return
     oldpos = point()
     ! (save-excursion (save-restriction ...))
     savedb = buffers(cur)%begv
     savedz = buffers(cur)%text%z - buffers(cur)%zv
+    call syntax_propertize(point(), st)
     if (blink_matching_paren_distance >= 0) then
         ! (point-min) unless minibuf.
         call narrow_to_region(max(minibuffer_prompt_end(), point() - blink_matching_paren_distance), oldpos, st)
@@ -146,7 +150,8 @@ contains
     call narrow_to_region(savedb, buffers(cur)%text%z - savedz, st)
     call goto_char(oldpos)
     mismatch = .false.
-    if (associated(blink_matching_check_function)) mismatch = blink_matching_check_function(blinkpos, oldpos)
+    check => current_blink_matching_check_function()
+    if (associated(check)) mismatch = check(blinkpos, oldpos)
     if (mismatch) then
         if (blinkpos /= 0) then
             if (minibufferp()) then
@@ -311,6 +316,61 @@ contains
     end do
     minor_modes%electric_indent_mode%state%value = saved
     end procedure newline_and_indent
+
+    module procedure reindent_then_newline_and_indent
+    type(handle_type) :: pos, pos2
+    type(status_type) :: st
+    integer(int64) :: opos
+    type(handle_type) :: here
+    logical :: saved
+    ! Use a marker because the call to `newline' below could insert some
+    ! text, e.g., if `abbrev_mode' is turned on.
+    call point_marker(pos)
+    saved = minor_modes%electric_indent_mode%state%value
+    minor_modes%electric_indent_mode%state%value = .false.
+    body: block
+        ! Be careful to insert the newline before indenting the line.
+        ! Otherwise, the indentation might be wrong.
+        call newline(status)
+        if (.not. status%ok()) exit body
+        ! (save-excursion ...)
+        call point_marker(here)
+        call marker_position(pos, opos, st)
+        call goto_char(opos)
+        ! We are at EOL before the call to indent-according-to-mode, and
+        ! after it we usually are as well, but not always.  We tried to
+        ! address it with `save-excursion' but that uses a normal marker
+        ! whereas we need `move after insertion', so we do the save/restore
+        ! by hand.
+        call copy_marker_at(opos, pos2, .true., st)
+        call indent_according_to_mode(status)
+        if (status%ok()) then
+            call marker_position(pos2, opos, st)
+            call goto_char(opos)
+            ! Remove the trailing white-space after indentation because
+            ! indentation may introduce the whitespace.
+            call delete_horizontal_space(.true., status)
+        end if
+        call free_marker(pos2, st)
+        call marker_position(here, opos, st)
+        call goto_char(opos)
+        call free_marker(here, st)
+        if (.not. status%ok()) exit body
+        call indent_according_to_mode(status)
+    end block body
+    minor_modes%electric_indent_mode%state%value = saved
+    call free_marker(pos, st)
+    end procedure reindent_then_newline_and_indent
+
+    !> Reindent current line, insert newline, then indent the new line.
+    !> Port of simple.el:reindent-then-newline-and-indent (the command,
+    !> "*").
+    subroutine cmd_reindent_then_newline_and_indent(status)
+        type(status_type), intent(out) :: status
+        call barf_if_buffer_read_only(status)
+        if (.not. status%ok()) return
+        call reindent_then_newline_and_indent(status)
+    end subroutine cmd_reindent_then_newline_and_indent
 
     !> Delete characters backward, changing tabs into spaces.
     !> The exact behavior depends on `backward_delete_char_untabify_method'.

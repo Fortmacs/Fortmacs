@@ -41,6 +41,7 @@ program tester
     use test_newcomment_fm, only: collect_newcomment_fm
     use test_conf_mode_fm, only: collect_conf_mode_fm
     use test_syntax_propertize_fm, only: collect_syntax_propertize_fm
+    use test_smie_fm, only: collect_smie_fm
     use test_f90_fm, only: collect_f90_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
@@ -180,6 +181,7 @@ program tester
                  new_testsuite("newcomment_fm", collect_newcomment_fm), &
                  new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
                  new_testsuite("syntax_propertize_fm", collect_syntax_propertize_fm), &
+                 new_testsuite("smie_fm", collect_smie_fm), &
                  new_testsuite("f90_fm", collect_f90_fm), &
                  new_testsuite("tty_colors_fm", collect_tty_colors_fm), &
                  new_testsuite("faces_fm", collect_faces_fm), &

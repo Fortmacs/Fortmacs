@@ -284,6 +284,8 @@ show_paren_ring_bell_on_mismatch
 show_paren_style
 show_paren_when_point_in_periphery
 show_paren_when_point_inside_paren
+smie_blink_matching_inners
+smie_indent_basic
 split_height_threshold
 split_width_threshold
 split_window_preferred_direction
