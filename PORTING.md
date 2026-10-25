@@ -739,6 +739,7 @@ Each lists the default being used meanwhile.
 
 Resume point for the next working session, newest first.
 
+- 2026-10-25 — Syntax page fix (`syntax-let`): the `let` note now says its closing parenthesis is the first of the three on the final line (it said second-to-last).
 - 2026-10-25 — Dark mode for the README pie and the syntax page (`pie-dark`): `tools/progress.sh` also draws `docs/progress/pie-dark.svg` with cream labels, which the README shows through `<picture>` to dark-theme readers; docs/syntax.html follows the reader's light or dark preference in the logo colors (white and plum, black and blue). Also carries the README wording and syntax-page commits that #101 was merged without.
 - 2026-10-25 — README progress as a pie (`progress-pie`): `tools/progress.sh --update-readme` draws `docs/progress/pie.svg`, the whole of Emacs's C functions and Elisp definitions and the packages, with the ported part of each kind as a slice in the logo colors (C plum, Elisp blue, then the archives) and the rest dark gray, and a legend of shares and counts. It replaces the table of bars (`docs/progress/*.svg` removed).
 - 2026-10-25 — Logo in the new palette: a plum `F` with a blue drop shadow, black `ortmacs` set one cell closer to the `F`, and a red `%` (Fortran's component selector, as in `commands%`) at the end, on #DFD6D1 (logo.svg, icon.svg, and icon.png and social.png rendered from them).
