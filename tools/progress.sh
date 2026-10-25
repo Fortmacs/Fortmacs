@@ -215,7 +215,7 @@ figure() {
         }'
 }
 
-# The progress block: the pie, with the caption under it.
+# The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
     pie_svg "C|#543A57|$c_done|$c_total
@@ -227,9 +227,6 @@ MELPA|#13110B|$melpa_done|$melpa_total"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
     echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"180\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
-    echo
-    echo "The pie is Emacs (its C functions and Elisp definitions) and the"
-    echo "packages together. A rough estimate from \`tools/progress.sh\`."
 }
 
 case "$mode" in

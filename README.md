@@ -13,9 +13,6 @@ back to, as in Guix.
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
 <img src="docs/progress/pie.svg" width="520" height="180" alt="Ported: ≆3.20% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA">
-
-The pie is Emacs (its C functions and Elisp definitions) and the
-packages together. A rough estimate from `tools/progress.sh`.
 <!-- progress:end -->
 
 The project is funded entirely by one person. Every agent run costs tokens,
