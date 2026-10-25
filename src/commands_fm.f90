@@ -293,6 +293,8 @@ module commands_fm
         type(command_type) :: end_of_buffer
         type(command_type) :: end_of_line
         type(command_type) :: exchange_point_and_mark
+        type(command_type) :: executable_self_display
+        type(command_type) :: executable_set_magic
         type(command_type) :: execute_extended_command
         type(command_type) :: exit_minibuffer
         type(command_type) :: expand_abbrev
@@ -546,6 +548,19 @@ module commands_fm
         type(command_type) :: set_fill_prefix
         type(command_type) :: set_mark_command
         type(command_type) :: set_variable
+        type(command_type) :: sh_add
+        type(command_type) :: sh_assignment
+        type(command_type) :: sh_backslash_region
+        type(command_type) :: sh_base_mode
+        type(command_type) :: sh_basic_indent_line
+        type(command_type) :: sh_beginning_of_command
+        type(command_type) :: sh_electric_here_document_mode
+        type(command_type) :: sh_end_of_command
+        type(command_type) :: sh_execute_region
+        type(command_type) :: sh_make_vars_local
+        type(command_type) :: sh_mode
+        type(command_type) :: sh_reset_indent_vars_to_global_values
+        type(command_type) :: sh_set_shell
         type(command_type) :: shell
         type(command_type) :: shell_backward_command
         type(command_type) :: shell_command
@@ -555,6 +570,7 @@ module commands_fm
         type(command_type) :: shell_forward_command
         type(command_type) :: shell_mode
         type(command_type) :: shell_narrow_to_prompt
+        type(command_type) :: shell_script_mode
         type(command_type) :: show_paren_local_mode
         type(command_type) :: show_paren_mode
         type(command_type) :: smie__next_indent_change
@@ -657,7 +673,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(619) = [character(len=41) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(635) = [character(len=41) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -919,6 +935,8 @@ module commands_fm
                                                                  "end_of_buffer", &
                                                                  "end_of_line", &
                                                                  "exchange_point_and_mark", &
+                                                                 "executable_self_display", &
+                                                                 "executable_set_magic", &
                                                                  "execute_extended_command", &
                                                                  "exit_minibuffer", &
                                                                  "expand_abbrev", &
@@ -1172,6 +1190,19 @@ module commands_fm
                                                                  "set_fill_prefix", &
                                                                  "set_mark_command", &
                                                                  "set_variable", &
+                                                                 "sh_add", &
+                                                                 "sh_assignment", &
+                                                                 "sh_backslash_region", &
+                                                                 "sh_base_mode", &
+                                                                 "sh_basic_indent_line", &
+                                                                 "sh_beginning_of_command", &
+                                                                 "sh_electric_here_document_mode", &
+                                                                 "sh_end_of_command", &
+                                                                 "sh_execute_region", &
+                                                                 "sh_make_vars_local", &
+                                                                 "sh_mode", &
+                                                                 "sh_reset_indent_vars_to_global_values", &
+                                                                 "sh_set_shell", &
                                                                  "shell", &
                                                                  "shell_backward_command", &
                                                                  "shell_command", &
@@ -1181,6 +1212,7 @@ module commands_fm
                                                                  "shell_forward_command", &
                                                                  "shell_mode", &
                                                                  "shell_narrow_to_prompt", &
+                                                                 "shell_script_mode", &
                                                                  "show_paren_local_mode", &
                                                                  "show_paren_mode", &
                                                                  "smie__next_indent_change", &
@@ -1809,6 +1841,10 @@ contains
             p => commands%end_of_line
         case ("exchange_point_and_mark")
             p => commands%exchange_point_and_mark
+        case ("executable_self_display")
+            p => commands%executable_self_display
+        case ("executable_set_magic")
+            p => commands%executable_set_magic
         case ("execute_extended_command")
             p => commands%execute_extended_command
         case ("exit_minibuffer")
@@ -2315,6 +2351,32 @@ contains
             p => commands%set_mark_command
         case ("set_variable")
             p => commands%set_variable
+        case ("sh_add")
+            p => commands%sh_add
+        case ("sh_assignment")
+            p => commands%sh_assignment
+        case ("sh_backslash_region")
+            p => commands%sh_backslash_region
+        case ("sh_base_mode")
+            p => commands%sh_base_mode
+        case ("sh_basic_indent_line")
+            p => commands%sh_basic_indent_line
+        case ("sh_beginning_of_command")
+            p => commands%sh_beginning_of_command
+        case ("sh_electric_here_document_mode")
+            p => commands%sh_electric_here_document_mode
+        case ("sh_end_of_command")
+            p => commands%sh_end_of_command
+        case ("sh_execute_region")
+            p => commands%sh_execute_region
+        case ("sh_make_vars_local")
+            p => commands%sh_make_vars_local
+        case ("sh_mode")
+            p => commands%sh_mode
+        case ("sh_reset_indent_vars_to_global_values")
+            p => commands%sh_reset_indent_vars_to_global_values
+        case ("sh_set_shell")
+            p => commands%sh_set_shell
         case ("shell")
             p => commands%shell
         case ("shell_backward_command")
@@ -2333,6 +2395,8 @@ contains
             p => commands%shell_mode
         case ("shell_narrow_to_prompt")
             p => commands%shell_narrow_to_prompt
+        case ("shell_script_mode")
+            p => commands%shell_script_mode
         case ("show_paren_local_mode")
             p => commands%show_paren_local_mode
         case ("show_paren_mode")

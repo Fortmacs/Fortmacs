@@ -138,6 +138,9 @@ module docstrings_fm
     use electric_fm, only: electric_indent_chars, electric_indent_functions_without_reindent, &
                            electric_indent_inhibit, electric_indent_local_mode_hook, electric_indent_mode_hook
     use eval_fm, only: change_major_mode_hook
+    use executable_fm, only: executable_chmod, executable_font_lock_keywords, executable_insert, &
+                             executable_magicless_file_regexp, executable_prefix, executable_prefix_env, executable_query, &
+                             EXECUTABLE_QUERY_NIL, EXECUTABLE_QUERY_FUNCTION, EXECUTABLE_QUERY_T, executable_self_display
     use f90_fm, only: f90_associate_indent, f90_auto_keyword_case, F90_KEYWORD_CASE_NIL, &
                       F90_KEYWORD_CASE_DOWNCASE_WORD, F90_KEYWORD_CASE_UPCASE_WORD, &
                       F90_KEYWORD_CASE_CAPITALIZE_WORD, f90_beginning_ampersand, f90_blocks_re, &
@@ -152,16 +155,17 @@ module docstrings_fm
                       F90_SMART_END_NIL, F90_SMART_END_BLINK, F90_SMART_END_NO_BLINK, f90_smart_end_names, &
                       f90_start_block_re, f90_type_indent
     use face_table_fm, only: faces
-    use files_fm, only: after_revert_hook, after_save_hook, before_revert_hook, before_save_hook, &
-                        change_major_mode_with_file_name, copy_directory_create_symlink, &
-                        directory_listing_before_filename_regexp, dired_ls_error_buffer, dired_ls_error_file, &
-                        find_file_hook, find_file_run_dired, insert_directory_program, kill_buffer_hook, &
-                        locate_dominating_stop_dir_regexp, make_backup_files, mode_require_final_newline, &
+    use files_fm, only: after_revert_hook, after_save_hook, auto_mode_interpreter_regexp, &
+                        before_revert_hook, before_save_hook, change_major_mode_with_file_name, &
+                        copy_directory_create_symlink, directory_listing_before_filename_regexp, &
+                        dired_ls_error_buffer, dired_ls_error_file, find_file_hook, find_file_run_dired, &
+                        insert_directory_program, kill_buffer_hook, locate_dominating_stop_dir_regexp, &
+                        make_backup_files, mode_require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
+                        FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, require_final_newline, &
                         FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, &
-                        FINAL_NEWLINE_ASK, require_final_newline, FINAL_NEWLINE_NEVER, FINAL_NEWLINE_SAVE, &
-                        FINAL_NEWLINE_VISIT, FINAL_NEWLINE_VISIT_SAVE, FINAL_NEWLINE_ASK, revert_buffer_function, &
-                        revert_buffer_in_progress, revert_buffer_preserve_modes, revert_without_query, &
-                        save_some_buffers_functions, view_read_only
+                        FINAL_NEWLINE_ASK, revert_buffer_function, revert_buffer_in_progress, &
+                        revert_buffer_preserve_modes, revert_without_query, save_some_buffers_functions, &
+                        view_read_only
     use fill_fm, only: adaptive_fill_first_line_regexp, adaptive_fill_mode, adaptive_fill_regexp, &
                        colon_double_space, default_justification, JUSTIFY_NONE, JUSTIFY_LEFT, JUSTIFY_RIGHT, &
                        JUSTIFY_FULL, JUSTIFY_CENTER, JUSTIFY_T, fill_indent_according_to_mode, &
@@ -240,6 +244,28 @@ module docstrings_fm
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
     use search_fm, only: case_fold_search, search_spaces_regexp
+    use sh_script_fm, only: sh_alias_alist, sh_ancestor_alist, sh_assignment_regexp, &
+                            sh_backslash_align, sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, &
+                            sh_basic_offset, sh_beginning_of_command, sh_builtins, sh_end_of_command, &
+                            sh_font_lock_keywords_var, sh_font_lock_keywords_var_1, sh_font_lock_keywords_var_2, &
+                            sh_here_document_word, sh_indent_after_case, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                            SH_STAR, SH_SLASH, sh_indent_after_continuation, SH_CONTINUATION_NIL, SH_CONTINUATION_T, &
+                            SH_CONTINUATION_ALWAYS, sh_indent_after_do, SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, &
+                            SH_STAR, SH_SLASH, sh_indent_after_done, sh_indent_after_else, SH_PLUS, SH_MINUS, &
+                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_function, SH_PLUS, SH_MINUS, &
+                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_if, SH_PLUS, SH_MINUS, &
+                            SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_loop_construct, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_open, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_after_switch, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_alt, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_case_label, SH_PLUS, &
+                            SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_continuation, &
+                            SH_PLUS, SH_MINUS, SH_PLUS_PLUS, SH_MINUS_MINUS, SH_STAR, SH_SLASH, sh_indent_for_do, &
+                            sh_indent_for_done, sh_indent_for_fi, sh_indent_for_then, sh_indent_statement_after_and, &
+                            sh_indent_supported, sh_leading_keywords, sh_make_vars_local, sh_mode_abbrev_table, &
+                            sh_mode_hook, sh_mode_map, sh_mode_syntax_table, sh_mode_syntax_table_input, &
+                            sh_other_keywords, sh_remember_variable_min, sh_set_shell_hook, sh_shell, sh_shell_arg, &
+                            sh_shell_file, sh_smie_rc_grammar, sh_smie_sh_grammar, sh_variables
     use shell_fm, only: explicit_bash_args, explicit_csh_args, explicit_shell_file_name, &
                         list_buffers_directory, shell_cd_regexp, shell_command_mode_hook, shell_command_mode_map, &
                         shell_command_regexp, shell_command_separator_regexp, shell_delimiter_argument_list, &
@@ -337,7 +363,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=41), parameter, public :: function_names(832) = [character(len=41) :: &
+    character(len=50), parameter, public :: function_names(849) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -432,18 +458,20 @@ module docstrings_fm
                                                     "electric_pair_delete_pair", "electric_pair_local_mode", "electric_pair_mode", &
                                                 "enable_command", "encode_coding_region", "encode_coding_string", "end_kbd_macro", &
                                                         "end_of_buffer", "end_of_line", "eobp", "eolp", "exchange_point_and_mark", &
-                                          "execute_extended_command", "exit_minibuffer", "expand_abbrev", "expand_region_abbrevs", &
-                                           "extract_rectangle", "extract_rectangle_bounds", "f90_abbrev_help", "f90_abbrev_start", &
-                                                        "f90_beginning_of_block", "f90_beginning_of_subprogram", "f90_break_line", &
-                                              "f90_calculate_indent", "f90_capitalize_keywords", "f90_capitalize_region_keywords", &
-                                                                "f90_comment_region", "f90_do_auto_fill", "f90_downcase_keywords", &
-                                                        "f90_downcase_region_keywords", "f90_electric_insert", "f90_end_of_block", &
-                                              "f90_end_of_subprogram", "f90_fill_paragraph", "f90_fill_region", "f90_font_lock_1", &
-                                                       "f90_font_lock_2", "f90_font_lock_3", "f90_font_lock_4", "f90_indent_line", &
-                                            "f90_indent_new_line", "f90_indent_region", "f90_indent_subprogram", "f90_insert_end", &
-                                           "f90_join_lines", "f90_mark_subprogram", "f90_match_end", "f90_mode", "f90_next_block", &
-                                                             "f90_next_statement", "f90_previous_block", "f90_previous_statement", &
-                                                "f90_upcase_keywords", "f90_upcase_region_keywords", "face_box", "face_underline", &
+                                                  "executable_make_buffer_file_executable_if_script_p", "executable_self_display", &
+                                           "executable_set_magic", "execute_extended_command", "exit_minibuffer", "expand_abbrev", &
+                                                         "expand_region_abbrevs", "extract_rectangle", "extract_rectangle_bounds", &
+                                                                  "f90_abbrev_help", "f90_abbrev_start", "f90_beginning_of_block", &
+                                                          "f90_beginning_of_subprogram", "f90_break_line", "f90_calculate_indent", &
+                                                "f90_capitalize_keywords", "f90_capitalize_region_keywords", "f90_comment_region", &
+                                                      "f90_do_auto_fill", "f90_downcase_keywords", "f90_downcase_region_keywords", &
+                                         "f90_electric_insert", "f90_end_of_block", "f90_end_of_subprogram", "f90_fill_paragraph", &
+                                                       "f90_fill_region", "f90_font_lock_1", "f90_font_lock_2", "f90_font_lock_3", &
+                                                 "f90_font_lock_4", "f90_indent_line", "f90_indent_new_line", "f90_indent_region", &
+                                               "f90_indent_subprogram", "f90_insert_end", "f90_join_lines", "f90_mark_subprogram", &
+                                                              "f90_match_end", "f90_mode", "f90_next_block", "f90_next_statement", &
+                                                            "f90_previous_block", "f90_previous_statement", "f90_upcase_keywords", &
+                                                                   "f90_upcase_region_keywords", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                          "file_name_sans_versions", "file_to_register", "fill_french_nobreak_p", "fill_paragraph", &
                                                                "fill_polish_nobreak_p", "fill_region", "fill_region_as_paragraph", &
@@ -537,9 +565,13 @@ module docstrings_fm
                                                        "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
                                           "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
                                                    "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
-                                            "set_register", "set_syntax_table", "set_variable", "shell", "shell_backward_command", &
-                                          "shell_command", "shell_command_mode", "shell_command_on_region", "shell_dirtrack_mode", &
-                                           "shell_forward_command", "shell_mode", "shell_narrow_to_prompt", "show_paren__default", &
+                                                    "set_register", "set_syntax_table", "set_variable", "sh_add", "sh_assignment", &
+                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
+                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
+                                         "sh_make_vars_local", "sh_mode", "sh_reset_indent_vars_to_global_values", "sh_set_shell", &
+                                                         "shell", "shell_backward_command", "shell_command", "shell_command_mode", &
+                                          "shell_command_on_region", "shell_dirtrack_mode", "shell_forward_command", "shell_mode", &
+                                                             "shell_narrow_to_prompt", "shell_script_mode", "show_paren__default", &
                                                        "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
                                                               "skip_chars_backward", "skip_chars_forward", "skip_syntax_backward", &
                                                   "skip_syntax_forward", "smie__next_indent_change", "smie_backward_sexp_command", &
@@ -572,7 +604,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(635) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(694) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -582,7 +614,7 @@ module docstrings_fm
                                                                "async_shell_command_buffer", "async_shell_command_display_buffer", &
                                                      "async_shell_command_mode", "async_shell_command_width", "auto_coding_alist", &
                                                               "auto_coding_regexp_alist", "auto_fill_chars", "auto_fill_function", &
-                                                                   "auto_fill_inhibit_regexp", "auto_fill_mode_hook", &
+                                                "auto_fill_inhibit_regexp", "auto_fill_mode_hook", "auto_mode_interpreter_regexp", &
                                           "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
                                                                "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
@@ -683,10 +715,12 @@ module docstrings_fm
                                                                 "electric_pair_skip_whitespace_chars", "electric_pair_text_pairs", &
                                             "electric_pair_text_syntax_table", "enable_recursive_minibuffers", "eol_mnemonic_dos", &
                                            "eol_mnemonic_mac", "eol_mnemonic_undecided", "eol_mnemonic_unix", "even_window_sizes", &
-                                                            "explicit_bash_args", "explicit_csh_args", "explicit_shell_file_name", &
-                                                       "f90_associate_indent", "f90_auto_keyword_case", "f90_beginning_ampersand", &
-                                                           "f90_blocks_re", "f90_break_before_delimiters", "f90_break_delimiters", &
-                                                                   "f90_cache_position", "f90_comment_region", "f90_constants_re", &
+                                                         "executable_chmod", "executable_font_lock_keywords", "executable_insert", &
+                                                 "executable_magicless_file_regexp", "executable_prefix", "executable_prefix_env", &
+                                         "executable_query", "executable_self_display", "explicit_bash_args", "explicit_csh_args", &
+                                                      "explicit_shell_file_name", "f90_associate_indent", "f90_auto_keyword_case", &
+                                                        "f90_beginning_ampersand", "f90_blocks_re", "f90_break_before_delimiters", &
+                                           "f90_break_delimiters", "f90_cache_position", "f90_comment_region", "f90_constants_re", &
                                                      "f90_continuation_indent", "f90_critical_indent", "f90_directive_comment_re", &
                                                    "f90_do_indent", "f90_end_block_re", "f90_end_if_re", "f90_font_lock_keywords", &
                                                "f90_font_lock_keywords_1", "f90_font_lock_keywords_2", "f90_font_lock_keywords_3", &
@@ -750,6 +784,21 @@ module docstrings_fm
                                                           "search_spaces_regexp", "search_upper_case", "search_whitespace_regexp", &
                                                 "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
                                          "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
+                                              "sh_alias_alist", "sh_ancestor_alist", "sh_assignment_regexp", "sh_backslash_align", &
+                                                "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
+                                                                   "sh_beginning_of_command", "sh_builtins", "sh_end_of_command", &
+                                                                   "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
+                                                   "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
+                                                     "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
+                                                         "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
+                                               "sh_indent_after_loop_construct", "sh_indent_after_open", "sh_indent_after_switch", &
+                                               "sh_indent_for_case_alt", "sh_indent_for_case_label", "sh_indent_for_continuation", &
+                                               "sh_indent_for_do", "sh_indent_for_done", "sh_indent_for_fi", "sh_indent_for_then", &
+                                                    "sh_indent_statement_after_and", "sh_indent_supported", "sh_leading_keywords", &
+                                                      "sh_make_vars_local", "sh_mode_abbrev_table", "sh_mode_hook", "sh_mode_map", &
+                                                        "sh_mode_syntax_table", "sh_mode_syntax_table_input", "sh_other_keywords", &
+                                                      "sh_remember_variable_min", "sh_set_shell_hook", "sh_shell", "sh_shell_arg", &
+                                                      "sh_shell_file", "sh_smie_rc_grammar", "sh_smie_sh_grammar", "sh_variables", &
                                                                    "shell_cd_regexp", "shell_command_default_error_buffer", &
                                            "shell_command_dont_erase_buffer", "shell_command_mode_hook", "shell_command_mode_map", &
                                                                    "shell_command_prompt_show_cwd", "shell_command_regexp", &
@@ -794,7 +843,7 @@ module docstrings_fm
                                                            "y_or_n_p_history_variable", "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(332) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(374) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -947,6 +996,13 @@ module docstrings_fm
                                                                       "eol_mnemonic_undecided", &
                                                                       "eol_mnemonic_unix", &
                                                                       "even_window_sizes", &
+                                                                      "executable_chmod", &
+                                                                      "executable_insert", &
+                                                                      "executable_magicless_file_regexp", &
+                                                                      "executable_prefix", &
+                                                                      "executable_prefix_env", &
+                                                                      "executable_query", &
+                                                                      "executable_self_display", &
                                                                       "explicit_bash_args", &
                                                                       "explicit_csh_args", &
                                                                       "explicit_shell_file_name", &
@@ -1044,6 +1100,41 @@ module docstrings_fm
                                                                       "sentence_end_double_space", &
                                                                       "sentence_end_without_period", &
                                                                       "sentence_end_without_space", &
+                                                                      "sh_alias_alist", &
+                                                                      "sh_ancestor_alist", &
+                                                                      "sh_assignment_regexp", &
+                                                                      "sh_backslash_align", &
+                                                                      "sh_backslash_column", &
+                                                                      "sh_basic_offset", &
+                                                                      "sh_beginning_of_command", &
+                                                                      "sh_builtins", &
+                                                                      "sh_end_of_command", &
+                                                                      "sh_here_document_word", &
+                                                                      "sh_indent_after_case", &
+                                                                      "sh_indent_after_continuation", &
+                                                                      "sh_indent_after_do", &
+                                                                      "sh_indent_after_done", &
+                                                                      "sh_indent_after_else", &
+                                                                      "sh_indent_after_function", &
+                                                                      "sh_indent_after_if", &
+                                                                      "sh_indent_after_loop_construct", &
+                                                                      "sh_indent_after_open", &
+                                                                      "sh_indent_after_switch", &
+                                                                      "sh_indent_for_case_alt", &
+                                                                      "sh_indent_for_case_label", &
+                                                                      "sh_indent_for_continuation", &
+                                                                      "sh_indent_for_do", &
+                                                                      "sh_indent_for_done", &
+                                                                      "sh_indent_for_fi", &
+                                                                      "sh_indent_for_then", &
+                                                                      "sh_indent_statement_after_and", &
+                                                                      "sh_leading_keywords", &
+                                                                      "sh_mode_hook", &
+                                                                      "sh_other_keywords", &
+                                                                      "sh_remember_variable_min", &
+                                                                      "sh_set_shell_hook", &
+                                                                      "sh_shell_arg", &
+                                                                      "sh_shell_file", &
                                                                       "shell_cd_regexp", &
                                                                       "shell_command_dont_erase_buffer", &
                                                                       "shell_command_prompt_show_cwd", &
@@ -3813,6 +3904,25 @@ contains
                         "reactivates the mark.  If Transient Mark mode is on, a prefix ARG"//LF// &
                         "deactivates the mark if it is active, and otherwise avoids"//LF// &
                         "reactivating it."
+        case ("executable_make_buffer_file_executable_if_script_p")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "call executable_make_buffer_file_executable_if_script_p(status)"
+            entry%doc = "Make file executable according to umask if not already executable."//LF// &
+                        "If file already has any execute bits set at all, do not change existing"//LF// &
+                        "file modes."
+        case ("executable_self_display")
+            entry%file = "executable_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Turn a text file into a self-displaying Un*x command."//LF// &
+                        "The magic number of such a command displays all lines but itself."
+        case ("executable_set_magic")
+            entry%file = "executable_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set this buffer's interpreter to INTERPRETER with optional ARGUMENT."//LF// &
+                        "The variables `executable_magicless_file_regexp', `executable_prefix_env',"//LF// &
+                        "`executable_insert', `executable_query' and `executable_chmod' control"//LF// &
+                        "when and how magic numbers are inserted or replaced and scripts made"//LF// &
+                        "executable.  The interpreter's file name is returned in RESULT."
         case ("execute_extended_command")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -7336,6 +7446,7 @@ contains
             entry%doc = "Select major mode appropriate for current buffer."//LF// &
                         ""//LF// &
                         "To find the right major mode, this function checks for a -*- mode tag,"//LF// &
+                        "checks if it uses an interpreter listed in interpreter-mode-alist,"//LF// &
                         "then compares the file name against the entries in `auto_mode_alist'"//LF// &
                         "(case-sensitively first, then ignoring case, as `auto_mode_case_fold')."//LF// &
                         ""//LF// &
@@ -7502,6 +7613,150 @@ contains
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
             entry%doc = "Set VARIABLE to VALUE, read in the minibuffer."
+        case ("sh_add")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert an addition of VAR and prefix DELTA for Bourne (type) shell."
+        case ("sh_assignment")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remember preceding identifier for future completion and do self-insert."
+        case ("sh_backslash_region")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert, align, or delete end-of-line backslashes on the lines in the region."//LF// &
+                        "With no argument, inserts backslashes and aligns existing backslashes."//LF// &
+                        "With an argument, deletes the backslashes."//LF// &
+                        ""//LF// &
+                        "This function does not modify the last line of the region if the region ends"//LF// &
+                        "right at the start of the following line; it does not modify blank lines"//LF// &
+                        "at the start of the region.  So you can put the region around an entire"//LF// &
+                        "shell command and conveniently use this command."
+        case ("sh_base_mode")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Generic major mode for editing shell scripts."//LF// &
+                        ""//LF// &
+                        "This is a generic major mode intended to be inherited by concrete"//LF// &
+                        "implementations.  Currently there are two: `sh_mode' and"//LF// &
+                        "`bash_ts_mode'."
+        case ("sh_basic_indent_line")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Indent a line for Sh mode (shell script mode)."//LF// &
+                        "Indent as far as preceding non-empty line, then by steps of `sh_basic_offset'."//LF// &
+                        "Lines containing only comments are considered empty."
+        case ("sh_beginning_of_command")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to successive beginnings of commands."
+        case ("sh_electric_here_document_mode")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make << insert a here document skeleton."
+        case ("sh_end_of_command")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move point to successive ends of commands."
+        case ("sh_execute_region")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Pass optional header and region to a subshell for noninteractive execution."//LF// &
+                        "The working directory is that of the buffer, and only environment variables"//LF// &
+                        "are already set which is why you can mark a header within the script."//LF// &
+                        ""//LF// &
+                        "The executed subshell is `sh_shell_file'."//LF// &
+                        ""//LF// &
+                        "With a positive prefix ARG, instead of sending region, define header from"//LF// &
+                        "beginning of buffer to point.  With a negative prefix ARG, instead of sending"//LF// &
+                        "region, clear header."
+        case ("sh_make_vars_local")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make the indentation variables local to this buffer."//LF// &
+                        "Normally they already are local.  This command is provided in case"//LF// &
+                        "variable `sh_make_vars_local' has been set to false."//LF// &
+                        ""//LF// &
+                        "To revert all these variables to the global values, use"//LF// &
+                        "command `sh_reset_indent_vars_to_global_values'."
+        case ("sh_mode")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing shell scripts."//LF// &
+                        "This mode works for many shells, since they all have roughly the same syntax,"//LF// &
+                        "as far as commands, arguments, variables, pipes, comments etc. are concerned."//LF// &
+                        "Unless the file's magic number indicates the shell, your usual shell is"//LF// &
+                        "assumed.  Since filenames rarely give a clue, they are not further analyzed."//LF// &
+                        ""//LF// &
+                        "This mode adapts to the variations between shells (see `sh_set_shell') by"//LF// &
+                        "means of an inheritance based feature lookup (see `sh_feature').  This"//LF// &
+                        "mechanism applies to all variables (including skeletons) that pertain to"//LF// &
+                        "shell-specific features.  Shell script files can use the `sh_shell' local"//LF// &
+                        "variable to indicate the shell variant to be used for the file."//LF// &
+                        ""//LF// &
+                        "The default style of this mode is that of Rosenblatt's Korn shell book."//LF// &
+                        "The syntax of the statements varies with the shell being used.  The"//LF// &
+                        "following commands are available, based on the current shell's syntax:"//LF// &
+                        "\<sh_mode_map>"//LF// &
+                        "\[sh_case]    case statement"//LF// &
+                        "\[sh_for]     for loop"//LF// &
+                        "\[sh_function]        function definition"//LF// &
+                        "\[sh_if]      if statement"//LF// &
+                        "\[sh_indexed_loop]    indexed loop from 1 to n"//LF// &
+                        "\[sh_while_getopts]   while getopts loop"//LF// &
+                        "\[sh_repeat]  repeat loop"//LF// &
+                        "\[sh_select]  select loop"//LF// &
+                        "\[sh_until]   until loop"//LF// &
+                        "\[sh_while]   while loop"//LF// &
+                        ""//LF// &
+                        "For sh and rc shells indentation commands are:"//LF// &
+                        "\[smie_config_show_indent]    Show the rules controlling this line's indentation."//LF// &
+                        "\[smie_config_set_indent]     Change the rules controlling this line's indentation."//LF// &
+                        "\[smie_config_guess]  Try to tweak the indentation rules so the"//LF// &
+                        "buffer indents as it currently is indented."//LF// &
+                        ""//LF// &
+                        ""//LF// &
+                        "\[backward_delete_char_untabify]      Delete backward one position, even if it was a tab."//LF// &
+                        "\[sh_end_of_command]  Go to end of successive commands."//LF// &
+                        "\[sh_beginning_of_command]    Go to beginning of successive commands."//LF// &
+                        "\[sh_set_shell]       Set this buffer's shell, and maybe its magic number."//LF// &
+                        "\[sh_execute_region]  Have optional header and region be executed in a subshell."//LF// &
+                        ""//LF// &
+                        "`sh_electric_here_document_mode' controls whether insertion of two"//LF// &
+                        "unquoted < insert a here document.  You can control this behavior by"//LF// &
+                        "modifying `sh_mode_hook'."//LF// &
+                        ""//LF// &
+                        "If you generally program a shell different from your login shell you can"//LF// &
+                        "set `sh_shell_file' accordingly.  If your shell's file name doesn't correctly"//LF// &
+                        "indicate what shell it is use `sh_alias_alist' to translate."//LF// &
+                        ""//LF// &
+                        "If your shell gives error messages with line numbers, you can use \[executable_interpret]"//LF// &
+                        "with your script for an edit-interpret-debug cycle."
+        case ("sh_reset_indent_vars_to_global_values")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Reset local indentation variables to the global values."//LF// &
+                        "Then, if variable `sh_make_vars_local' is true, make them local."
+        case ("sh_set_shell")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set this buffer's shell to SHELL (a string)."//LF// &
+                        "When used interactively, insert the proper starting #!-line,"//LF// &
+                        "and make the visited file executable via `executable_set_magic',"//LF// &
+                        "perhaps querying depending on the value of `executable_query'."//LF// &
+                        "(If given a prefix (i.e., \[universal_argument]) don't insert any starting #!"//LF// &
+                        "line.)"//LF// &
+                        ""//LF// &
+                        "When this function is called noninteractively, INSERT_FLAG (the third"//LF// &
+                        "argument) controls whether to insert a #!-line and think about making"//LF// &
+                        "the visited file executable, and NO_QUERY_FLAG (the second argument)"//LF// &
+                        "controls whether to query about making the visited file executable."//LF// &
+                        ""//LF// &
+                        "Calls the value of `sh_set_shell_hook' if set."//LF// &
+                        ""//LF// &
+                        "Shell script files can cause this function be called automatically"//LF// &
+                        "when the file is visited by having a `sh_shell' file-local variable"//LF// &
+                        "whose value is the shell name (don't quote it)."
         case ("shell")
             entry%file = "shell_fm.f90"
             entry%fortran = "call shell(result, status, buffer_name, file_name)"
@@ -7604,6 +7859,59 @@ contains
             entry%interactive = .true.
             entry%doc = "Narrow buffer to the command line (and any following command output)"//LF// &
                         "at point."
+        case ("shell_script_mode")
+            entry%file = "sh_script_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing shell scripts."//LF// &
+                        "This mode works for many shells, since they all have roughly the same syntax,"//LF// &
+                        "as far as commands, arguments, variables, pipes, comments etc. are concerned."//LF// &
+                        "Unless the file's magic number indicates the shell, your usual shell is"//LF// &
+                        "assumed.  Since filenames rarely give a clue, they are not further analyzed."//LF// &
+                        ""//LF// &
+                        "This mode adapts to the variations between shells (see `sh_set_shell') by"//LF// &
+                        "means of an inheritance based feature lookup (see `sh_feature').  This"//LF// &
+                        "mechanism applies to all variables (including skeletons) that pertain to"//LF// &
+                        "shell-specific features.  Shell script files can use the `sh_shell' local"//LF// &
+                        "variable to indicate the shell variant to be used for the file."//LF// &
+                        ""//LF// &
+                        "The default style of this mode is that of Rosenblatt's Korn shell book."//LF// &
+                        "The syntax of the statements varies with the shell being used.  The"//LF// &
+                        "following commands are available, based on the current shell's syntax:"//LF// &
+                        "\<sh_mode_map>"//LF// &
+                        "\[sh_case]    case statement"//LF// &
+                        "\[sh_for]     for loop"//LF// &
+                        "\[sh_function]        function definition"//LF// &
+                        "\[sh_if]      if statement"//LF// &
+                        "\[sh_indexed_loop]    indexed loop from 1 to n"//LF// &
+                        "\[sh_while_getopts]   while getopts loop"//LF// &
+                        "\[sh_repeat]  repeat loop"//LF// &
+                        "\[sh_select]  select loop"//LF// &
+                        "\[sh_until]   until loop"//LF// &
+                        "\[sh_while]   while loop"//LF// &
+                        ""//LF// &
+                        "For sh and rc shells indentation commands are:"//LF// &
+                        "\[smie_config_show_indent]    Show the rules controlling this line's indentation."//LF// &
+                        "\[smie_config_set_indent]     Change the rules controlling this line's indentation."//LF// &
+                        "\[smie_config_guess]  Try to tweak the indentation rules so the"//LF// &
+                        "buffer indents as it currently is indented."//LF// &
+                        ""//LF// &
+                        ""//LF// &
+                        "\[backward_delete_char_untabify]      Delete backward one position, even if it was a tab."//LF// &
+                        "\[sh_end_of_command]  Go to end of successive commands."//LF// &
+                        "\[sh_beginning_of_command]    Go to beginning of successive commands."//LF// &
+                        "\[sh_set_shell]       Set this buffer's shell, and maybe its magic number."//LF// &
+                        "\[sh_execute_region]  Have optional header and region be executed in a subshell."//LF// &
+                        ""//LF// &
+                        "`sh_electric_here_document_mode' controls whether insertion of two"//LF// &
+                        "unquoted < insert a here document.  You can control this behavior by"//LF// &
+                        "modifying `sh_mode_hook'."//LF// &
+                        ""//LF// &
+                        "If you generally program a shell different from your login shell you can"//LF// &
+                        "set `sh_shell_file' accordingly.  If your shell's file name doesn't correctly"//LF// &
+                        "indicate what shell it is use `sh_alias_alist' to translate."//LF// &
+                        ""//LF// &
+                        "If your shell gives error messages with line numbers, you can use \[executable_interpret]"//LF// &
+                        "with your script for an edit-interpret-debug cycle."
         case ("show_paren__default")
             entry%file = "paren_fm.f90"
             entry%fortran = "call show_paren_default(found, data)"
@@ -8879,7 +9187,7 @@ contains
             entry%fortran = "after_save_hook"
             entry%user_option = .true.
             entry%doc = "Normal hook that is run after a buffer is saved to its file."//LF// &
-                        "Used only by `save_buffer'."
+                        "Only used by `save_buffer'."
         case ("amalgamating_undo_limit")
             entry%file = "undo_fm.f90"
             entry%fortran = "amalgamating_undo_limit"
@@ -9038,6 +9346,20 @@ contains
             entry%file = "simple_fm.f90"
             entry%fortran = "auto_fill_mode_hook"
             entry%doc = "Hook run after entering or leaving `auto_fill_mode'."
+        case ("auto_mode_interpreter_regexp")
+            entry%file = "files_fm.f90"
+            entry%fortran = "auto_mode_interpreter_regexp"
+            if (allocated(auto_mode_interpreter_regexp)) then
+                entry%value = repr(auto_mode_interpreter_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching interpreters, for file mode determination."//LF// &
+                        "This regular expression is matched against the first line of a file"//LF// &
+                        "to determine the file's mode in `set_auto_mode'.  If it matches, the file"//LF// &
+                        "is assumed to be interpreted by the interpreter matched by the second group"//LF// &
+                        "of the regular expression.  The mode is then determined as the mode"//LF// &
+                        "associated with that interpreter in interpreter-mode-alist."
         case ("backward_delete_char_untabify_method")
             entry%file = "simple_fm.f90"
             entry%fortran = "backward_delete_char_untabify_method"
@@ -9088,7 +9410,7 @@ contains
             entry%fortran = "before_save_hook"
             entry%user_option = .true.
             entry%doc = "Normal hook that is run before a buffer is saved to its file."//LF// &
-                        "Used only by `save_buffer'."
+                        "Only used by `save_buffer'."
         case ("blink_matching_delay")
             entry%file = "simple_fm.f90"
             entry%fortran = "blink_matching_delay"
@@ -12120,6 +12442,93 @@ contains
             entry%doc = "If true `display_buffer' will try to even window sizes."//LF// &
                         "Otherwise `display_buffer' will leave the window configuration"//LF// &
                         "alone."
+        case ("executable_chmod")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_chmod"
+            entry%user_option = .true.
+            entry%original = "73"
+            entry%value = repr(executable_chmod)
+            entry%doc = "After saving, if the file is not executable, set this mode."//LF// &
+                        "This mode passed to `set_file_modes' is taken absolutely when negative, or"//LF// &
+                        "relative to the files existing modes.  Do nothing if this is"//LF// &
+                        "`EXECUTABLE_CHMOD_NIL'."//LF// &
+                        "Typical values are 73 (+x) or -493 (rwxr-xr-x)."
+        case ("executable_font_lock_keywords")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_font_lock_keywords"
+            entry%doc = "Rules for highlighting executable scripts' magic number."//LF// &
+                        "This can be included in `font_lock_keywords' by modes that call `executable'."
+        case ("executable_insert")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_insert"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(executable_insert)
+            entry%doc = "True means offer to add a magic number to a file."//LF// &
+                        "This takes effect when you switch to certain major modes,"//LF// &
+                        "including Shell-script mode (`sh_mode')."//LF// &
+                        "When you type \[executable_set_magic], it always offers to add or"//LF// &
+                        "update the magic number."
+        case ("executable_magicless_file_regexp")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_magicless_file_regexp"
+            entry%user_option = .true.
+            if (allocated(executable_magicless_file_regexp)) then
+                entry%value = repr(executable_magicless_file_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "On files with this kind of name no magic is inserted or changed."
+        case ("executable_prefix")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_prefix"
+            entry%user_option = .true.
+            if (allocated(executable_prefix)) then
+                entry%value = repr(executable_prefix)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Interpreter magic number prefix inserted when there was no magic number."//LF// &
+                        "Use of `executable_prefix_env' is preferable to this option."
+        case ("executable_prefix_env")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_prefix_env"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(executable_prefix_env)
+            entry%doc = "If true, use ""/usr/bin/env"" in interpreter magic number."//LF// &
+                        "If this variable is true, the interpreter magic number inserted"//LF// &
+                        "by `executable_set_magic' will be ""#!/usr/bin/env INTERPRETER"","//LF// &
+                        "otherwise it will be ""#!/path/to/INTERPRETER""."
+        case ("executable_query")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_query"
+            entry%user_option = .true.
+            entry%original = "EXECUTABLE_QUERY_FUNCTION"
+            select case (executable_query)
+            case (EXECUTABLE_QUERY_NIL)
+                entry%value = "EXECUTABLE_QUERY_NIL"
+            case (EXECUTABLE_QUERY_FUNCTION)
+                entry%value = "EXECUTABLE_QUERY_FUNCTION"
+            case (EXECUTABLE_QUERY_T)
+                entry%value = "EXECUTABLE_QUERY_T"
+            case default
+                entry%value = repr(executable_query)
+            end select
+            entry%doc = "If true (not `EXECUTABLE_QUERY_NIL'), ask user before changing an"//LF// &
+                        "existing magic number.  When this is `EXECUTABLE_QUERY_FUNCTION',"//LF// &
+                        "only ask when called non-interactively."
+        case ("executable_self_display")
+            entry%file = "executable_fm.f90"
+            entry%fortran = "executable_self_display"
+            entry%user_option = .true.
+            if (allocated(executable_self_display)) then
+                entry%value = repr(executable_self_display)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Command you use with argument `-n+2' to make text files self-display."//LF// &
+                        "Note that the like of `more' doesn't work too well under Emacs \[shell]."
         case ("explicit_bash_args")
             entry%file = "shell_fm.f90"
             entry%fortran = "explicit_bash_args"
@@ -14004,6 +14413,588 @@ contains
                         "This value is used by the function `sentence_end' to construct the"//LF// &
                         "regexp describing the end of a sentence, when the value of the"//LF// &
                         "variable `sentence_end' is unallocated."
+        case ("sh_alias_alist")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_alias_alist"
+            entry%user_option = .true.
+            entry%doc = "Alist for transforming shell names to what they really are."//LF// &
+                        "Use this where the name of the executable doesn't correspond to"//LF// &
+                        "the type of shell it really is.  Keys are regular expressions"//LF// &
+                        "matched against the full path of the interpreter.  (For backward"//LF// &
+                        "compatibility, keys may also be symbols, which are matched"//LF// &
+                        "against the interpreter's basename.  The values are symbols"//LF// &
+                        "naming the shell."
+        case ("sh_ancestor_alist")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_ancestor_alist"
+            entry%user_option = .true.
+            entry%doc = "Alist showing the direct ancestor of various shells."//LF// &
+                        "This is the basis for `sh_feature'.  See also `sh_alias_alist'."//LF// &
+                        "By default we have the following three hierarchies:"//LF// &
+                        ""//LF// &
+                        "csh          C Shell"//LF// &
+                        "  jcsh       C Shell with Job Control"//LF// &
+                        "  tcsh       TENEX C Shell"//LF// &
+                        "    itcsh    Ian's TENEX C Shell"//LF// &
+                        "rc           Plan 9 Shell"//LF// &
+                        "  es         Extensible Shell"//LF// &
+                        "sh           Bourne Shell"//LF// &
+                        "  ash        Almquist Shell"//LF// &
+                        "    dash     Debian Almquist Shell"//LF// &
+                        "  jsh        Bourne Shell with Job Control"//LF// &
+                        "    bash     GNU Bourne Again Shell"//LF// &
+                        "    ksh88    Korn Shell '88"//LF// &
+                        "      ksh    Korn Shell '93"//LF// &
+                        "        dtksh        CDE Desktop Korn Shell"//LF// &
+                        "      pdksh  Public Domain Korn Shell"//LF// &
+                        "        mksh    MirOS BSD Korn Shell"//LF// &
+                        "      wksh   Window Korn Shell"//LF// &
+                        "      zsh    Z Shell"//LF// &
+                        "  oash       SCO OA (curses) Shell"//LF// &
+                        "  posix      IEEE 1003.2 Shell Standard"//LF// &
+                        "  wsh        ? Shell"
+        case ("sh_assignment_regexp")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_assignment_regexp"
+            entry%user_option = .true.
+            entry%doc = "Regexp for the variable name and what may follow in an assignment."//LF// &
+                        "First grouping matches the variable name.  This is up to and including the `='"//LF// &
+                        "sign.  See `sh_feature'."
+        case ("sh_backslash_align")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_backslash_align"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(sh_backslash_align)
+            entry%doc = "If true, `sh_backslash_region' will align backslashes."
+        case ("sh_backslash_column")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_backslash_column"
+            entry%user_option = .true.
+            entry%original = "48"
+            entry%value = repr(sh_backslash_column)
+            entry%doc = "Column in which `sh_backslash_region' inserts backslashes."
+        case ("sh_base_mode_hook")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_base_mode_hook"
+            entry%doc = "Hook run after entering `sh_base_mode'."
+        case ("sh_base_mode_map")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_base_mode_map"
+            entry%doc = "The keymap of `sh_base_mode'."
+        case ("sh_basic_offset")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_basic_offset"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(sh_basic_offset%value)
+            entry%doc = "The default indentation increment."//LF// &
+                        "This value is used for the `+' and `-' symbols in an indentation variable."
+        case ("sh_beginning_of_command")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_beginning_of_command"
+            entry%user_option = .true.
+            if (allocated(sh_beginning_of_command)) then
+                entry%value = repr(sh_beginning_of_command)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to determine the beginning of a shell command."//LF// &
+                        "The actual command starts at the beginning of the second \(grouping\)."
+        case ("sh_builtins")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_builtins"
+            entry%user_option = .true.
+            entry%doc = "List of all shell builtins for completing read and fontification."//LF// &
+                        "Note that on some systems not all builtins are available or some are"//LF// &
+                        "implemented as aliases.  See `sh_feature'."
+        case ("sh_end_of_command")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_end_of_command"
+            entry%user_option = .true.
+            if (allocated(sh_end_of_command)) then
+                entry%value = repr(sh_end_of_command)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp to determine the end of a shell command."//LF// &
+                        "The actual command ends at the end of the first \(grouping\)."
+        case ("sh_font_lock_keywords_var")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_font_lock_keywords_var"
+            entry%doc = "Default expressions to highlight in Shell Script modes.  See `sh_feature'."
+        case ("sh_font_lock_keywords_var_1")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_font_lock_keywords_var_1"
+            entry%doc = "Subdued level highlighting for Shell Script modes."
+        case ("sh_font_lock_keywords_var_2")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_font_lock_keywords_var_2"
+            entry%doc = "Gaudy level highlighting for Shell Script modes."
+        case ("sh_here_document_word")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_here_document_word"
+            entry%user_option = .true.
+            if (allocated(sh_here_document_word)) then
+                entry%value = repr(sh_here_document_word)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Word to delimit here documents."//LF// &
+                        "If the first character of this string is ""-"", this is taken as"//LF// &
+                        "part of the redirection operator, rather than part of the"//LF// &
+                        "word (that is, ""<<-"" instead of ""<<"").  This is a feature"//LF// &
+                        "used by some shells (for example Bash) to indicate that leading"//LF// &
+                        "tabs inside the here document should be ignored.  In this case,"//LF// &
+                        "Emacs indents the initial body and end of the here document with"//LF// &
+                        "tabs, to the same level as the start (note that apart from this"//LF// &
+                        "there is no support for indentation of here documents).  This"//LF// &
+                        "will only work correctly if `sh_basic_offset' is a multiple of"//LF// &
+                        "`tab_width'."//LF// &
+                        ""//LF// &
+                        "Any quote characters or leading whitespace in the word are"//LF// &
+                        "removed when closing the here document."
+        case ("sh_indent_after_case")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_case"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_case%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_case%value)
+            end select
+            entry%doc = "How much to indent a statement relative to the `case' statement."//LF// &
+                        "This is for the rc shell."
+        case ("sh_indent_after_continuation")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_continuation"
+            entry%user_option = .true.
+            entry%original = "SH_CONTINUATION_T"
+            select case (sh_indent_after_continuation)
+            case (SH_CONTINUATION_NIL)
+                entry%value = "SH_CONTINUATION_NIL"
+            case (SH_CONTINUATION_T)
+                entry%value = "SH_CONTINUATION_T"
+            case (SH_CONTINUATION_ALWAYS)
+                entry%value = "SH_CONTINUATION_ALWAYS"
+            case default
+                entry%value = repr(sh_indent_after_continuation)
+            end select
+            entry%doc = "If true, indent relative to the continued line's beginning."//LF// &
+                        "Continued lines can either be indented as ""one long wrapped line"" without"//LF// &
+                        "paying attention to the actual syntactic structure, as in:"//LF// &
+                        ""//LF// &
+                        "   for f \"//LF// &
+                        "       in a; do \"//LF// &
+                        "       toto; \"//LF// &
+                        "       done"//LF// &
+                        ""//LF// &
+                        "or as lines that just don't have implicit semi-colons between them, as in:"//LF// &
+                        ""//LF// &
+                        "   for f \"//LF// &
+                        "   in a; do \"//LF// &
+                        "       toto; \"//LF// &
+                        "   done"//LF// &
+                        ""//LF// &
+                        "With `SH_CONTINUATION_ALWAYS' you get the former behavior whereas with"//LF// &
+                        "`SH_CONTINUATION_NIL' you get the latter.  With `SH_CONTINUATION_T', you"//LF// &
+                        "get the latter as long as that would indent the continuation line"//LF// &
+                        "deeper than the initial line."
+        case ("sh_indent_after_do")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_do"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_do%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_do%value)
+            end select
+            entry%doc = "How much to indent a line after a `do' statement."//LF// &
+                        "This is used when the `do' is the first word of the line."//LF// &
+                        "This is relative to the statement before the `do', typically a"//LF// &
+                        "`while', `until', `for', `repeat' or `select' statement."
+        case ("sh_indent_after_done")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_done"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sh_indent_after_done%value)
+            entry%doc = "How much to indent a statement after a `done' keyword."//LF// &
+                        "Normally this is 0, which aligns the `done' to the matching"//LF// &
+                        "looping construct line."//LF// &
+                        "Setting it non-zero allows you to have the `do' statement on a line"//LF// &
+                        "by itself and align the done under to do."
+        case ("sh_indent_after_else")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_else"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_else%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_else%value)
+            end select
+            entry%doc = "How much to indent a statement after an `else' statement."
+        case ("sh_indent_after_function")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_function"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_function%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_function%value)
+            end select
+            entry%doc = "How much to indent after a function line."
+        case ("sh_indent_after_if")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_if"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_if%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_if%value)
+            end select
+            entry%doc = "How much to indent a statement after an `if' statement."//LF// &
+                        "This includes lines after `else' and `elif' statements, too, but"//LF// &
+                        "does not affect the `else', `elif' or `fi' statements themselves."
+        case ("sh_indent_after_loop_construct")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_loop_construct"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_loop_construct%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_loop_construct%value)
+            end select
+            entry%doc = "How much to indent a statement after a loop construct."//LF// &
+                        ""//LF// &
+                        "This variable is used when the keyword `do' is on the same line as the"//LF// &
+                        "loop statement (e.g., `until', `while' or `for')."//LF// &
+                        "If the `do' is on a line by itself, then `sh_indent_after_do' is used instead."
+        case ("sh_indent_after_open")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_open"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_open%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_open%value)
+            end select
+            entry%doc = "How much to indent after a line with an opening parenthesis or brace."//LF// &
+                        "For an open paren after a function, `sh_indent_after_function' is used."
+        case ("sh_indent_after_switch")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_after_switch"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_after_switch%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_after_switch%value)
+            end select
+            entry%doc = "How much to indent a `case' statement relative to the `switch' statement."//LF// &
+                        "This is for the rc shell."
+        case ("sh_indent_for_case_alt")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_case_alt"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS_PLUS"
+            select case (sh_indent_for_case_alt%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_for_case_alt%value)
+            end select
+            entry%doc = "How much to indent statements after the case label."//LF// &
+                        "This is relative to the line containing the `case' statement."
+        case ("sh_indent_for_case_label")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_case_label"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_for_case_label%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_for_case_label%value)
+            end select
+            entry%doc = "How much to indent a case label statement."//LF// &
+                        "This is relative to the line containing the `case' statement."
+        case ("sh_indent_for_continuation")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_continuation"
+            entry%user_option = .true.
+            entry%original = "SH_PLUS"
+            select case (sh_indent_for_continuation%value)
+            case (SH_PLUS)
+                entry%value = "SH_PLUS"
+            case (SH_MINUS)
+                entry%value = "SH_MINUS"
+            case (SH_PLUS_PLUS)
+                entry%value = "SH_PLUS_PLUS"
+            case (SH_MINUS_MINUS)
+                entry%value = "SH_MINUS_MINUS"
+            case (SH_STAR)
+                entry%value = "SH_STAR"
+            case (SH_SLASH)
+                entry%value = "SH_SLASH"
+            case default
+                entry%value = repr(sh_indent_for_continuation%value)
+            end select
+            entry%doc = "How much to indent for a continuation statement."
+        case ("sh_indent_for_do")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_do"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sh_indent_for_do%value)
+            entry%doc = "How much to indent a `do' statement."//LF// &
+                        "This is relative to the statement before the `do', typically a"//LF// &
+                        "`while', `until', `for', `repeat' or `select' statement."
+        case ("sh_indent_for_done")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_done"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sh_indent_for_done%value)
+            entry%doc = "How much to indent a `done' relative to its matching stmt.  Usually 0."
+        case ("sh_indent_for_fi")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_fi"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sh_indent_for_fi%value)
+            entry%doc = "How much to indent a `fi' relative to its `if'.  Usually 0."
+        case ("sh_indent_for_then")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_for_then"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(sh_indent_for_then%value)
+            entry%doc = "How much to indent a `then' relative to its `if'."
+        case ("sh_indent_statement_after_and")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_statement_after_and"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(sh_indent_statement_after_and)
+            entry%doc = "How to indent statements following && in Shell-Script mode."//LF// &
+                        "If true, indent to align with &&."//LF// &
+                        "If false, indent to align with the previous line's indentation."
+        case ("sh_indent_supported")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_indent_supported"
+            entry%doc = "Indentation rule set to use for each shell type."
+        case ("sh_leading_keywords")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_leading_keywords"
+            entry%user_option = .true.
+            entry%doc = "List of keywords that may be immediately followed by a builtin or keyword."//LF// &
+                        "Given some confusion between keywords and builtins depending on shell and"//LF// &
+                        "system, the distinction here has been based on whether they influence the"//LF// &
+                        "flow of control or syntax.  See `sh_feature'."
+        case ("sh_make_vars_local")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_make_vars_local"
+            entry%original = ".true."
+            entry%value = repr(sh_make_vars_local)
+            entry%doc = "Controls whether indentation variables are local to the buffer."//LF// &
+                        "If true, indentation variables are made local initially."//LF// &
+                        "If false, you can later make the variables local by invoking"//LF// &
+                        "command `sh_make_vars_local'."//LF// &
+                        "The default is true because I assume that in one Emacs session one is"//LF// &
+                        "frequently editing existing scripts with different styles."
+        case ("sh_mode_abbrev_table")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_mode_abbrev_table"
+            entry%doc = "The abbrev table of Shell-script mode."
+        case ("sh_mode_hook")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_mode_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run by `sh_mode'."
+        case ("sh_mode_map")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_mode_map"
+            entry%doc = "Keymap used in Shell-Script mode."
+        case ("sh_mode_syntax_table")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_mode_syntax_table"
+            entry%doc = "The syntax table to use for Shell-Script mode."//LF// &
+                        "This is buffer-local in every such buffer."
+        case ("sh_mode_syntax_table_input")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_mode_syntax_table_input"
+            entry%doc = "Syntax-table used in Shell-Script mode.  See `sh_feature'."
+        case ("sh_other_keywords")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_other_keywords"
+            entry%user_option = .true.
+            entry%doc = "List of keywords not in `sh_leading_keywords'."//LF// &
+                        "See `sh_feature'."
+        case ("sh_remember_variable_min")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_remember_variable_min"
+            entry%user_option = .true.
+            entry%original = "3"
+            entry%value = repr(sh_remember_variable_min)
+            entry%doc = "Don't remember variables less than this length for completing reads."
+        case ("sh_set_shell_hook")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_set_shell_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run by `sh_set_shell'."
+        case ("sh_shell")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_shell"
+            if (allocated(sh_shell%value)) then
+                entry%value = repr(sh_shell%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The shell being programmed.  This is set by \[sh_set_shell]."
+        case ("sh_shell_arg")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_shell_arg"
+            entry%user_option = .true.
+            entry%doc = "Single argument string for the magic number.  See `sh_feature'."
+        case ("sh_shell_file")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_shell_file"
+            entry%user_option = .true.
+            if (allocated(sh_shell_file%value)) then
+                entry%value = repr(sh_shell_file%value)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The executable file name for the shell being programmed."
+        case ("sh_smie_rc_grammar")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_smie_rc_grammar"
+            entry%doc = "The SMIE grammar of rc."
+        case ("sh_smie_sh_grammar")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_smie_sh_grammar"
+            entry%doc = "The SMIE grammar of sh."
+        case ("sh_variables")
+            entry%file = "sh_script_fm.f90"
+            entry%fortran = "sh_variables"
+            entry%doc = "List of all shell variables available for completing read."//LF// &
+                        "See `sh_feature'."
         case ("shell_cd_regexp")
             entry%file = "shell_fm.f90"
             entry%fortran = "shell_cd_regexp"
@@ -15525,6 +16516,20 @@ contains
             setting = .true.
         case ("even_window_sizes")
             kind = OPTION_LOGICAL
+        case ("executable_chmod")
+            kind = OPTION_INTEGER
+        case ("executable_insert")
+            kind = OPTION_LOGICAL
+        case ("executable_magicless_file_regexp")
+            kind = OPTION_STRING
+        case ("executable_prefix")
+            kind = OPTION_STRING
+        case ("executable_prefix_env")
+            kind = OPTION_LOGICAL
+        case ("executable_query")
+            kind = OPTION_CHOICE
+        case ("executable_self_display")
+            kind = OPTION_STRING
         case ("explicit_shell_file_name")
             kind = OPTION_STRING
             setting = .true.
@@ -15728,6 +16733,76 @@ contains
             kind = OPTION_LOGICAL
         case ("sentence_end_without_space")
             kind = OPTION_STRING
+        case ("sh_backslash_align")
+            kind = OPTION_LOGICAL
+        case ("sh_backslash_column")
+            kind = OPTION_INTEGER
+        case ("sh_basic_offset")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_beginning_of_command")
+            kind = OPTION_STRING
+        case ("sh_end_of_command")
+            kind = OPTION_STRING
+        case ("sh_here_document_word")
+            kind = OPTION_STRING
+        case ("sh_indent_after_case")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_continuation")
+            kind = OPTION_CHOICE
+        case ("sh_indent_after_do")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_done")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_indent_after_else")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_function")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_if")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_loop_construct")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_open")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_after_switch")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_for_case_alt")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_for_case_label")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_for_continuation")
+            kind = OPTION_CHOICE
+            setting = .true.
+        case ("sh_indent_for_do")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_indent_for_done")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_indent_for_fi")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_indent_for_then")
+            kind = OPTION_INTEGER
+            setting = .true.
+        case ("sh_indent_statement_after_and")
+            kind = OPTION_LOGICAL
+        case ("sh_remember_variable_min")
+            kind = OPTION_INTEGER
+        case ("sh_shell_file")
+            kind = OPTION_STRING
+            setting = .true.
         case ("shell_cd_regexp")
             kind = OPTION_STRING
             setting = .true.
@@ -16102,6 +17177,10 @@ contains
             enable_recursive_minibuffers = v
         case ("even_window_sizes")
             even_window_sizes = v
+        case ("executable_insert")
+            executable_insert = v
+        case ("executable_prefix_env")
+            executable_prefix_env = v
         case ("f90_beginning_ampersand")
             if (local) then
                 call f90_beginning_ampersand%set_local(v)
@@ -16216,6 +17295,10 @@ contains
             end if
         case ("sentence_end_without_period")
             sentence_end_without_period = v
+        case ("sh_backslash_align")
+            sh_backslash_align = v
+        case ("sh_indent_statement_after_and")
+            sh_indent_statement_after_and = v
         case ("shell_command_prompt_show_cwd")
             if (local) then
                 call shell_command_prompt_show_cwd%set_local(v)
@@ -16404,6 +17487,12 @@ contains
             end if
         case ("dabbrev_limit")
             dabbrev_limit = v
+        case ("executable_chmod")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            executable_chmod = int(v)
         case ("f90_associate_indent")
             if (local) then
                 call f90_associate_indent%set_local(v)
@@ -16502,6 +17591,54 @@ contains
                 return
             end if
             search_ring_max = int(v)
+        case ("sh_backslash_column")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            sh_backslash_column = int(v)
+        case ("sh_basic_offset")
+            if (local) then
+                call sh_basic_offset%set_local(v)
+            else
+                sh_basic_offset = v
+            end if
+        case ("sh_indent_after_done")
+            if (local) then
+                call sh_indent_after_done%set_local(v)
+            else
+                sh_indent_after_done = v
+            end if
+        case ("sh_indent_for_do")
+            if (local) then
+                call sh_indent_for_do%set_local(v)
+            else
+                sh_indent_for_do = v
+            end if
+        case ("sh_indent_for_done")
+            if (local) then
+                call sh_indent_for_done%set_local(v)
+            else
+                sh_indent_for_done = v
+            end if
+        case ("sh_indent_for_fi")
+            if (local) then
+                call sh_indent_for_fi%set_local(v)
+            else
+                sh_indent_for_fi = v
+            end if
+        case ("sh_indent_for_then")
+            if (local) then
+                call sh_indent_for_then%set_local(v)
+            else
+                sh_indent_for_then = v
+            end if
+        case ("sh_remember_variable_min")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            sh_remember_variable_min = int(v)
         case ("show_paren_priority")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -16699,6 +17836,12 @@ contains
             else
                 eol_mnemonic_unix = v
             end if
+        case ("executable_magicless_file_regexp")
+            executable_magicless_file_regexp = v
+        case ("executable_prefix")
+            executable_prefix = v
+        case ("executable_self_display")
+            executable_self_display = v
         case ("explicit_shell_file_name")
             if (local) then
                 call explicit_shell_file_name%set_local(v)
@@ -16769,6 +17912,18 @@ contains
             sentence_end_base = v
         case ("sentence_end_without_space")
             sentence_end_without_space = v
+        case ("sh_beginning_of_command")
+            sh_beginning_of_command = v
+        case ("sh_end_of_command")
+            sh_end_of_command = v
+        case ("sh_here_document_word")
+            sh_here_document_word = v
+        case ("sh_shell_file")
+            if (local) then
+                call sh_shell_file%set_local(v)
+            else
+                sh_shell_file = v
+            end if
         case ("shell_cd_regexp")
             if (local) then
                 call shell_cd_regexp%set_local(v)
@@ -17273,6 +18428,17 @@ contains
             case default
                 ok = .false.
             end select
+        case ("executable_query")
+            select case (constant)
+            case ("EXECUTABLE_QUERY_NIL")
+                executable_query = EXECUTABLE_QUERY_NIL
+            case ("EXECUTABLE_QUERY_FUNCTION")
+                executable_query = EXECUTABLE_QUERY_FUNCTION
+            case ("EXECUTABLE_QUERY_T")
+                executable_query = EXECUTABLE_QUERY_T
+            case default
+                ok = .false.
+            end select
         case ("f90_auto_keyword_case")
             select case (constant)
             case ("F90_KEYWORD_CASE_NIL")
@@ -17441,6 +18607,468 @@ contains
                 search_upper_case = UPPER_CASE_T
             case ("UPPER_CASE_NOT_YANKS")
                 search_upper_case = UPPER_CASE_NOT_YANKS
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_case")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_PLUS)
+                else
+                    sh_indent_after_case = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_MINUS)
+                else
+                    sh_indent_after_case = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_case = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_case = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_STAR)
+                else
+                    sh_indent_after_case = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_case%set_local(SH_SLASH)
+                else
+                    sh_indent_after_case = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_continuation")
+            select case (constant)
+            case ("SH_CONTINUATION_NIL")
+                sh_indent_after_continuation = SH_CONTINUATION_NIL
+            case ("SH_CONTINUATION_T")
+                sh_indent_after_continuation = SH_CONTINUATION_T
+            case ("SH_CONTINUATION_ALWAYS")
+                sh_indent_after_continuation = SH_CONTINUATION_ALWAYS
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_do")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_PLUS)
+                else
+                    sh_indent_after_do = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_MINUS)
+                else
+                    sh_indent_after_do = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_do = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_do = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_STAR)
+                else
+                    sh_indent_after_do = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_do%set_local(SH_SLASH)
+                else
+                    sh_indent_after_do = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_else")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_PLUS)
+                else
+                    sh_indent_after_else = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_MINUS)
+                else
+                    sh_indent_after_else = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_else = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_else = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_STAR)
+                else
+                    sh_indent_after_else = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_else%set_local(SH_SLASH)
+                else
+                    sh_indent_after_else = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_function")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_PLUS)
+                else
+                    sh_indent_after_function = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_MINUS)
+                else
+                    sh_indent_after_function = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_function = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_function = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_STAR)
+                else
+                    sh_indent_after_function = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_function%set_local(SH_SLASH)
+                else
+                    sh_indent_after_function = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_if")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_PLUS)
+                else
+                    sh_indent_after_if = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_MINUS)
+                else
+                    sh_indent_after_if = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_if = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_if = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_STAR)
+                else
+                    sh_indent_after_if = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_if%set_local(SH_SLASH)
+                else
+                    sh_indent_after_if = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_loop_construct")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_PLUS)
+                else
+                    sh_indent_after_loop_construct = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_MINUS)
+                else
+                    sh_indent_after_loop_construct = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_loop_construct = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_loop_construct = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_STAR)
+                else
+                    sh_indent_after_loop_construct = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_loop_construct%set_local(SH_SLASH)
+                else
+                    sh_indent_after_loop_construct = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_open")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_PLUS)
+                else
+                    sh_indent_after_open = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_MINUS)
+                else
+                    sh_indent_after_open = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_open = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_open = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_STAR)
+                else
+                    sh_indent_after_open = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_open%set_local(SH_SLASH)
+                else
+                    sh_indent_after_open = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_after_switch")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_PLUS)
+                else
+                    sh_indent_after_switch = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_MINUS)
+                else
+                    sh_indent_after_switch = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_after_switch = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_after_switch = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_STAR)
+                else
+                    sh_indent_after_switch = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_after_switch%set_local(SH_SLASH)
+                else
+                    sh_indent_after_switch = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_case_alt")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_PLUS)
+                else
+                    sh_indent_for_case_alt = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_MINUS)
+                else
+                    sh_indent_for_case_alt = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_case_alt = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_case_alt = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_STAR)
+                else
+                    sh_indent_for_case_alt = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_case_alt%set_local(SH_SLASH)
+                else
+                    sh_indent_for_case_alt = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_case_label")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_PLUS)
+                else
+                    sh_indent_for_case_label = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_MINUS)
+                else
+                    sh_indent_for_case_label = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_case_label = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_case_label = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_STAR)
+                else
+                    sh_indent_for_case_label = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_case_label%set_local(SH_SLASH)
+                else
+                    sh_indent_for_case_label = SH_SLASH
+                end if
+            case default
+                ok = .false.
+            end select
+        case ("sh_indent_for_continuation")
+            select case (constant)
+            case ("SH_PLUS")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_PLUS)
+                else
+                    sh_indent_for_continuation = SH_PLUS
+                end if
+            case ("SH_MINUS")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_MINUS)
+                else
+                    sh_indent_for_continuation = SH_MINUS
+                end if
+            case ("SH_PLUS_PLUS")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_PLUS_PLUS)
+                else
+                    sh_indent_for_continuation = SH_PLUS_PLUS
+                end if
+            case ("SH_MINUS_MINUS")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_MINUS_MINUS)
+                else
+                    sh_indent_for_continuation = SH_MINUS_MINUS
+                end if
+            case ("SH_STAR")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_STAR)
+                else
+                    sh_indent_for_continuation = SH_STAR
+                end if
+            case ("SH_SLASH")
+                if (local) then
+                    call sh_indent_for_continuation%set_local(SH_SLASH)
+                else
+                    sh_indent_for_continuation = SH_SLASH
+                end if
             case default
                 ok = .false.
             end select

@@ -237,8 +237,11 @@ contains
         character(len=*), intent(in) :: directory
         character(len=:), allocatable :: file
         integer :: n
+        logical :: keep
         n = len(directory)
-        if (.not. (n == 2 .and. directory(1:1) == "/")) then
+        keep = .false.
+        if (n == 2) keep = directory(1:1) == "/"
+        if (.not. keep) then
             do while (n > 1)
                 if (directory(n:n) /= "/") exit
                 n = n - 1

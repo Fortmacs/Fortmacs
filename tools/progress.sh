@@ -37,8 +37,8 @@
 # Usage: tools/progress.sh [--readme | --update-readme | --fetch-packages]
 #   (no option)       print the counts
 #   --readme          print the README's progress block (Markdown)
-#   --update-readme   replace that block in README.md (and redraw its bars,
-#                     docs/progress/*.svg)
+#   --update-readme   replace that block in README.md (and redraw its pies,
+#                     docs/progress/pie.svg and pie-dark.svg)
 #   --fetch-packages  recount the archives' packages into
 #                     tools/package-totals (needs curl and network access)
 # Needs upstream/emacs (see fetch-upstream.sh) except for --fetch-packages.
@@ -140,22 +140,58 @@ melpa_total=$(pkg_total melpa); melpa_done=$(pkg_done melpa)
 p_total=$((gnu_total + nongnu_total + melpa_total))
 p_done=$((gnu_done + nongnu_done + melpa_done))
 
-# Each bar is an SVG image in docs/progress/ (GitHub strips colors from
-# HTML in Markdown, so the bars can't be text): a track with a line every
-# 10%, filled from the bottom; a share too small to see still shows a
-# sliver.  Arguments: NAME COLOR DONE TOTAL.
-bar_svg() {
-    awk -v name="$1" -v color="$2" -v d="$3" -v t="$4" '
-        BEGIN {
-            f = (t > 0) ? d / t : 0
-            h = 116 * f
-            if (d > 0 && h < 2) h = 2
-            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"28\" height=\"120\" viewBox=\"0 0 28 120\">\n"
-            printf "<rect x=\"0.5\" y=\"0.5\" width=\"27\" height=\"119\" rx=\"3\" fill=\"none\" stroke=\"#8c959f\" stroke-opacity=\"0.6\"/>\n"
-            for (k = 1; k <= 9; k++)
-                printf "<line x1=\"1\" x2=\"27\" y1=\"%.1f\" y2=\"%.1f\" stroke=\"#8c959f\" stroke-opacity=\"0.25\"/>\n", 2 + 11.6 * k, 2 + 11.6 * k
-            if (h > 0)
-                printf "<rect x=\"2\" y=\"%.2f\" width=\"24\" height=\"%.2f\" rx=\"2\" fill=\"%s\"/>\n", 118 - h, h, color
+# The pie is an SVG image, docs/progress/NAME.svg (GitHub strips colors
+# from HTML in Markdown): the whole pie is everything to port, each colored
+# slice the ported part of one kind, to scale (a share too small to see
+# still shows a sliver), and the dark gray slice what is still to port.
+# A legend on the right gives each kind's share and count.  The colors are
+# the logo's: purple and blue first, then red, tan and black.  The labels
+# are TEXT and the lines between slices EDGE: gray and cream for GitHub's
+# light theme, cream and black for its dark one.
+# Arguments: NAME TEXT EDGE and lines of LABEL|COLOR|DONE|TOTAL.
+pie_svg() {
+    printf '%s\n' "$4" | awk -F'|' -v text="$2" -v edge="$3" '
+        function commas(n,   s) {
+            s = sprintf("%d", n)
+            while (s ~ /[0-9][0-9][0-9][0-9]/) sub(/[0-9][0-9][0-9]($|,)/, ",&", s)
+            return s
+        }
+        function share(d, t,   p, r) {
+            p = (t > 0) ? 100 * d / t : 0
+            r = int(p * 100 + 0.5) / 100
+            if (d > 0 && r == 0) r = 0.01
+            if (d < t && r == 100) r = 99.99
+            return sprintf("%s%.2f%%", (r == p) ? "" : "≆", r)
+        }
+        # A wedge from A to B (fractions of a turn, clockwise from 12 o clock).
+        function wedge(a, b, fill,   pi, x1, y1, x2, y2) {
+            pi = atan2(0, -1)
+            x1 = 90 + 80 * sin(2 * pi * a); y1 = 90 - 80 * cos(2 * pi * a)
+            x2 = 90 + 80 * sin(2 * pi * b); y2 = 90 - 80 * cos(2 * pi * b)
+            printf "<path d=\"M90 90 L%.2f %.2f A80 80 0 %d 1 %.2f %.2f Z\" fill=\"%s\" stroke=\"%s\" stroke-width=\"1\"/>\n", \
+                x1, y1, (b - a > 0.5) ? 1 : 0, x2, y2, fill, edge
+        }
+        { n++; label[n] = $1; color[n] = $2; d[n] = $3; t[n] = $4; done += $3; total += $4 }
+        END {
+            rest = "#4B423E"
+            printf "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"520\" height=\"180\" viewBox=\"0 0 520 180\" font-family=\"-apple-system, Segoe UI, Helvetica, Arial, sans-serif\" font-size=\"13\">\n"
+            at = 0
+            for (i = 1; i <= n; i++) {
+                if (d[i] == 0) continue
+                f = d[i] / total
+                if (f < 0.004) f = 0.004
+                wedge(at, at + f, color[i])
+                at += f
+            }
+            if (at < 1) wedge(at, 1, rest)
+            label[n + 1] = "Not yet ported"; color[n + 1] = rest; d[n + 1] = total - done; t[n + 1] = total
+            for (i = 1; i <= n + 1; i++) {
+                y = 26 + (i - 1) * 26
+                printf "<text x=\"262\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s</text>\n", y, text, share(d[i], t[i])
+                printf "<rect x=\"272\" y=\"%d\" width=\"14\" height=\"14\" rx=\"2\" fill=\"%s\"/>\n", y - 11, color[i]
+                printf "<text x=\"294\" y=\"%d\" fill=\"%s\">%s</text>\n", y, text, label[i]
+                printf "<text x=\"516\" y=\"%d\" fill=\"%s\" text-anchor=\"end\">%s of %s</text>\n", y, text, commas(d[i]), commas(t[i])
+            }
             printf "</svg>\n"
         }' > "$root/docs/progress/$1.svg"
 }
@@ -181,40 +217,23 @@ figure() {
         }'
 }
 
-# The progress table: columns of NAME LABEL COLOR DONE TOTAL, with
-# grouped headings.
+# The progress block: a status line and the pie.
 readme_block() {
     mkdir -p "$root/docs/progress"
-    cols="total|Total|#063D5F|$((done + p_done))|$((total + p_total))
-emacs|All|#1D638B|$done|$total
-c|C|#4690B9|$c_done|$c_total
-elisp|Elisp|#A6C6D9|$l_done|$l_total
-packages|All|#1D638B|$p_done|$p_total
-gnu-elpa|GNU ELPA|#4690B9|$gnu_done|$gnu_total
-nongnu-elpa|NonGNU ELPA|#A6C6D9|$nongnu_done|$nongnu_total
-melpa|MELPA|#4690B9|$melpa_done|$melpa_total"
-    bars="" counts="" shares=""
-    while IFS='|' read -r name label color d t; do
-        bar_svg "$name" "$color" "$d" "$t"
-        bars="$bars<td align=\"center\"><img src=\"docs/progress/$name.svg\" width=\"28\" height=\"120\" alt=\"$label: $(figure "$d" "$t" share)\"></td>"
-        counts="$counts<td align=\"center\">$(figure "$d" "$t" count)</td>"
-        shares="$shares<td align=\"center\">$(figure "$d" "$t" share)</td>"
-    done <<EOF2
-$cols
-EOF2
+    parts="C|#543A57|$c_done|$c_total
+Elisp|#1F747A|$l_done|$l_total
+GNU ELPA|#963E2C|$gnu_done|$gnu_total
+NonGNU ELPA|#B08866|$nongnu_done|$nongnu_total
+MELPA|#13110B|$melpa_done|$melpa_total"
+    pie_svg pie "#4B423E" "#DFD6D1" "$parts"
+    pie_svg pie-dark "#DFD6D1" "#13110B" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."
     echo
-    echo "<table>"
-    echo '<tr><th rowspan="2">Total</th><th colspan="3">Emacs</th><th colspan="4">Packages</th></tr>'
-    echo "<tr><th>All</th><th>C</th><th>Elisp</th><th>All</th><th>GNU<br>ELPA</th><th>NonGNU<br>ELPA</th><th>MELPA</th></tr>"
-    echo "<tr>$bars</tr>"
-    echo "<tr>$counts</tr>"
-    echo "<tr>$shares</tr>"
-    echo "</table>"
-    echo
-    echo "Total is Emacs (its C functions and Elisp definitions) and the packages"
-    echo "together. A rough estimate from \`tools/progress.sh\`."
+    echo "<picture>"
+    echo "<source media=\"(prefers-color-scheme: dark)\" srcset=\"docs/progress/pie-dark.svg\">"
+    echo "<img src=\"docs/progress/pie.svg\" width=\"520\" height=\"180\" alt=\"Ported: $(figure "$((done + p_done))" "$((total + p_total))" share) of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA\">"
+    echo "</picture>"
 }
 
 case "$mode" in

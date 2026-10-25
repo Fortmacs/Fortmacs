@@ -87,7 +87,7 @@ module sysdep_fm
     public :: sys_string_type, emacs_spawn, wait_for_termination, emacs_pipe, emacs_strsignal, &
               emacs_readlink, emacs_execv, emacs_mkostemp, emacs_directory_entries, sys_symlink, &
               emacs_localtime, emacs_statvfs
-    public :: emacs_get_tty_pgrp, emacs_tty_signal_char
+    public :: emacs_get_tty_pgrp, emacs_tty_signal_char, emacs_environment
     public :: emacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, emacs_umask, &
               sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
@@ -1016,6 +1016,14 @@ contains
             fds = cfds
         end if
     end function emacs_pipe
+
+    !> The editor's environment: its "NAME=VALUE" entries (the
+    !> strings of `process_environment' upstream).
+    function emacs_environment() result(all)
+        type(sys_string_type), allocatable :: all(:)
+        type(sys_string_type) :: none(0)
+        all = environment_with(none)
+    end function emacs_environment
 
     !> The editor's environment with the "NAME=VALUE" entries `env' first,
     !> replacing the variables they name (earlier entries win); an entry
