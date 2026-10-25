@@ -23,6 +23,17 @@ async_shell_command_width
 auto_coding_alist
 auto_coding_regexp_alist
 auto_fill_inhibit_regexp
+auto_revert_avoid_polling
+auto_revert_check_vc_info
+auto_revert_interval
+auto_revert_mode_hook
+auto_revert_mode_text
+auto_revert_notify_exclude_dir_regexp
+auto_revert_remote_files
+auto_revert_stop_on_user_input
+auto_revert_tail_mode_text
+auto_revert_use_notify
+auto_revert_verbose
 backward_delete_char_untabify_method
 before_save_hook
 blink_matching_delay
@@ -200,6 +211,10 @@ find_file_run_dired
 font_lock_global_modes
 font_lock_maximum_decoration
 font_lock_verbose
+global_auto_revert_ignore_modes
+global_auto_revert_mode_hook
+global_auto_revert_mode_text
+global_auto_revert_non_file_buffers
 goal_column
 help_mode_hook
 history_delete_duplicates
@@ -226,6 +241,7 @@ mark_even_if_inactive
 mark_ring_max
 message_log_max
 mode_require_final_newline
+mounted_file_systems
 next_error_hook
 next_error_verbose
 next_screen_context_lines

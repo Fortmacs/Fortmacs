@@ -38,7 +38,7 @@ module files_fm
                         FM_USER_ERROR, FM_FILE_ERROR
     use handle_fm, only: handle_type
     use lisp_fm, only: value_type, make_fixnum, nilp
-    use data_fm, only: integer_setting
+    use data_fm, only: integer_setting, logical_setting
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, resolve_buffer, set_buffer, &
                          get_buffer_create, generate_new_buffer_name, get_file_buffer, &
@@ -93,6 +93,7 @@ module files_fm
     public :: save_some_buffers, save_buffers_kill_emacs, temporary_file_directory
     public :: file_relative_name, locate_dominating_file, executable_find
     public :: set_visited_file_name, write_file
+    public :: buffer_stale_proc, buffer_stale_default_function
     public :: make_directory
     public :: normal_mode, set_auto_mode, add_auto_mode, file_name_sans_versions, auto_mode_spec
     public :: save_some_buffers_proc, add_save_some_buffers_function, save_some_buffers_pred
@@ -787,6 +788,79 @@ module files_fm
     !> Function to use to revert this buffer (see the type).  Port of
     !> files.el revert-buffer-function.
     type(revert_buffer_function_type), public :: revert_buffer_function
+
+    !> Values a `buffer_stale_function' returns: the buffer needs no
+    !> reverting, it needs reverting, or the need was not checked but
+    !> reverting it is fast (upstream's nil, non-nil and `fast').
+    integer, parameter, public :: BUFFER_STALE_NO = 0, BUFFER_STALE_YES = 1, BUFFER_STALE_FAST = 2
+
+    abstract interface
+        !> A `buffer_stale_function': whether the current buffer needs
+        !> reverting (a BUFFER_STALE_* value), NOCONFIRM being true if it
+        !> is going to be reverted without asking the user.
+        recursive integer function buffer_stale_proc(noconfirm)
+            implicit none(type, external)
+            logical, intent(in) :: noconfirm
+        end function buffer_stale_proc
+    end interface
+
+    !> One buffer's `buffer_stale_function'.
+    type :: stale_entry_type
+        integer(int64) :: serial = 0
+        procedure(buffer_stale_proc), pointer, nopass :: fn => null()
+    end type stale_entry_type
+
+    !> Function to check whether a buffer needs reverting.
+    !> This should be a function with one argument NOCONFIRM.
+    !> Auto Revert Mode passes true for NOCONFIRM.  The function should return
+    !> `BUFFER_STALE_YES' if the buffer should be reverted.  A return value of
+    !> `BUFFER_STALE_FAST' means that the need for reverting was not checked,
+    !> but that reverting the buffer is fast.  The buffer is current when
+    !> this function is called.
+    !>
+    !> The idea behind the NOCONFIRM argument is that it should be
+    !> true if the buffer is going to be reverted without asking the
+    !> user.  In such situations, one has to be careful with potentially
+    !> time consuming operations.
+    !>
+    !> For historical reasons, a null value means to use the default function.
+    !> This should not be relied upon.  Port of files.el
+    !> buffer-stale-function (buffer-local values set with `set_local'; the
+    !> default is null, for `buffer_stale_default_function').
+    type, public :: buffer_stale_function_type
+        character(len=48) :: name = "buffer_stale_function"
+        type(stale_entry_type), allocatable :: entries(:)
+    contains
+        !> Make FN the current buffer's function (setq-local).
+        procedure :: set_local => stale_set_local
+        !> The current buffer's function (null for the default).
+        procedure :: get => stale_get
+    end type buffer_stale_function_type
+
+    !> Function to check whether a buffer needs reverting (see the type).
+    !> Port of files.el buffer-stale-function.
+    type(buffer_stale_function_type), public :: buffer_stale_function
+
+    !> Whether a buffer can rely on notification in Auto-Revert mode.
+    !> If true, monitoring changes to the directory of the current
+    !> buffer is sufficient for knowing when that buffer needs to be
+    !> updated in Auto Revert Mode.  Such notification does not include
+    !> changes to files in that directory, only to the directory itself.
+    !>
+    !> This variable applies only to buffers where `buffer_file_name' is
+    !> unset; other buffers are tracked by their files.  Port of files.el
+    !> buffer-auto-revert-by-notification.
+    type(logical_setting), public :: buffer_auto_revert_by_notification = &
+                                     logical_setting(name="buffer_auto_revert_by_notification")
+
+    !> File systems that ought to be mounted.  Port of files.el
+    !> mounted-file-systems.
+    character(len=:), allocatable, public :: mounted_file_systems
+
+    !> Normal hook run just after setting visited file name of current buffer.
+    !> Port of files.el after-set-visited-file-name-hook.
+    type(hook_type), target, public :: after_set_visited_file_name_hook = &
+                                       hook_type(name="after_set_visited_file_name_hook")
 
     !> True within a `revert_buffer'.  Port of files.el
     !> revert-buffer-in-progress.
@@ -1707,6 +1781,7 @@ contains
         logical :: ok, query, along
         type(major_mode_type), pointer :: mode
         type(status_type) :: st
+        logical :: change_mode
         query = .true.
         if (present(no_query)) query = .not. no_query
         along = .false.
@@ -1744,13 +1819,14 @@ contains
         if (allocated(buffers(cur)%filename) .and. .not. along) call restore_buffer_modified_p(.true.)
         ! Update the major mode, if the file name determines it; don't
         ! change the mode if it is special.  Errors are ignored.
-        if (.not. change_major_mode_with_file_name) return
-        mode => null()
-        if (allocated(buffers(cur)%major_mode)) mode => major_mode_named(buffers(cur)%major_mode)
-        if (associated(mode)) then
-            if (mode%special) return
+        if (change_major_mode_with_file_name) then
+            mode => null()
+            if (allocated(buffers(cur)%major_mode)) mode => major_mode_named(buffers(cur)%major_mode)
+            change_mode = .true.
+            if (associated(mode)) change_mode = .not. mode%special
+            if (change_mode) call set_auto_mode(st, .true.)
         end if
-        call set_auto_mode(st, .true.)
+        call after_set_visited_file_name_hook%run(status)
     end subroutine set_visited_file_name
 
     !> Write the current buffer to `filename' and visit it there; a
@@ -1925,6 +2001,66 @@ contains
         end do
     end function revert_get
 
+    subroutine stale_set_local(self, fn)
+        class(buffer_stale_function_type), intent(inout) :: self
+        procedure(buffer_stale_proc) :: fn
+        type(stale_entry_type), allocatable :: grown(:)
+        integer :: i, n
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) then
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        ! Reuse the entry of a dead buffer.
+        do i = 1, size(self%entries)
+            if (.not. serial_live(self%entries(i)%serial)) then
+                self%entries(i)%serial = buffers(cur)%serial
+                self%entries(i)%fn => fn
+                return
+            end if
+        end do
+        n = size(self%entries)
+        allocate (grown(n + 1))
+        grown(1:n) = self%entries
+        grown(n + 1)%serial = buffers(cur)%serial
+        grown(n + 1)%fn => fn
+        call move_alloc(grown, self%entries)
+    end subroutine stale_set_local
+
+    function stale_get(self) result(fn)
+        class(buffer_stale_function_type), intent(in) :: self
+        procedure(buffer_stale_proc), pointer :: fn
+        integer :: i
+        fn => null()
+        if (cur == 0) return
+        if (.not. allocated(self%entries)) return
+        do i = 1, size(self%entries)
+            if (self%entries(i)%serial == buffers(cur)%serial) fn => self%entries(i)%fn
+        end do
+    end function stale_get
+
+    !> Default function to use for `buffer_stale_function'.
+    !> This function ignores its argument.
+    !> This returns `BUFFER_STALE_YES' if the current buffer is visiting a
+    !> readable file whose modification time does not match that of the
+    !> buffer.
+    !>
+    !> This function handles only buffers that are visiting files.
+    !> Non-file buffers need a custom function.  Port of
+    !> files.el:buffer-stale--default-function.
+    recursive integer function buffer_stale_default_function(noconfirm) result(stale)
+        logical, intent(in) :: noconfirm
+        stale = BUFFER_STALE_NO
+        if (noconfirm) continue
+        if (.not. allocated(buffers(cur)%filename)) return
+        if (.not. file_readable_p(buffers(cur)%filename)) return
+        if (buffers(cur)%text%save_modiff < buffers(cur)%text%modiff) return
+        if (.not. verify_visited_file_modtime()) stale = BUFFER_STALE_YES
+    end function buffer_stale_default_function
+
     !> Write current buffer into file FILENAME.
     !> This makes the buffer visit that file, and marks it as not modified.
     !>
@@ -2041,6 +2177,8 @@ contains
             "\`\(?:[\/][\/][^\/]+[\/]\|/\(?:net\|afs\|\.\.\.\)/\)\'"
         if (.not. allocated(directory_listing_before_filename_regexp)) call init_directory_listing_regexp()
         if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
+        if (.not. allocated(mounted_file_systems)) mounted_file_systems = &
+            "^\(?:/\(?:afs/\|m\(?:edia/\|nt\)\|\(?:ne\|tmp_mn\)t/\)\)"
         commands%find_file%run => cmd_find_file
         commands%find_file_other_window%run => cmd_find_file_other_window
         commands%revert_buffer%run => cmd_revert_buffer

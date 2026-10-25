@@ -332,9 +332,9 @@ contains
     !> The `vc_parent_buffer_name' of buffer slot BI, shown in the mode
     !> line while it has a `vc_parent_buffer' (vc.el's minor-mode-alist
     !> entry (vc-parent-buffer vc-parent-buffer-name)).
-    function parent_name_of(bi) result(text)
+    subroutine parent_name_of(bi, text)
         integer(int64), intent(in) :: bi
-        character(len=:), allocatable :: text
+        character(len=:), allocatable, intent(out) :: text
         integer :: k
         text = ""
         if (.not. allocated(parents)) return
@@ -344,7 +344,7 @@ contains
             if (allocated(parents(k)%name)) text = parents(k)%name
             return
         end do
-    end function parent_name_of
+    end subroutine parent_name_of
 
     !> Show `vc_parent_buffer_name' in the mode line of buffers with a
     !> `vc_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).

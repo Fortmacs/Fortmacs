@@ -63,6 +63,7 @@ module bindings_fm
     use vc_git_fm, only: syms_of_vc_git
     use log_view_fm, only: syms_of_log_view
     use vc_dir_fm, only: syms_of_vc_dir
+    use autorevert_fm, only: syms_of_autorevert
     use help_fm, only: syms_of_help, register_keymap_name, help_map
     use mule_fm, only: syms_of_mule
     use isearch_fm, only: isearch_mode_map
@@ -556,6 +557,7 @@ contains
         call syms_of_vc()
         call syms_of_log_view()
         call syms_of_vc_dir()
+        call syms_of_autorevert()
         call syms_of_vc_git()
         call syms_of_view()
         call syms_of_dired_mode(ctl_x_map, ctl_x_4_map)
