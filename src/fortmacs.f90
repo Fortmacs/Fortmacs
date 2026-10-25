@@ -397,6 +397,17 @@ module fortmacs
     use cmds_fm, only: post_self_insert_hook
     use timer_fm, only: run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, timerp, &
                         timer_max_repeats
+    use autorevert_fm, only: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, &
+                             turn_on_auto_revert_mode, turn_on_auto_revert_tail_mode, auto_revert_interval, &
+                             auto_revert_stop_on_user_input, auto_revert_verbose, auto_revert_mode_text, &
+                             auto_revert_tail_mode_text, auto_revert_mode_hook, auto_revert_tail_mode_hook, &
+                             global_auto_revert_mode_text, global_auto_revert_mode_hook, &
+                             global_auto_revert_non_file_buffers, global_auto_revert_ignore_modes, &
+                             auto_revert_check_vc_info, global_auto_revert_ignore_buffer, auto_revert_remote_files, &
+                             auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, auto_revert_avoid_polling
+    use files_fm, only: buffer_stale_function, buffer_stale_proc, BUFFER_STALE_NO, BUFFER_STALE_YES, &
+                        BUFFER_STALE_FAST, buffer_auto_revert_by_notification, mounted_file_systems, &
+                        after_set_visited_file_name_hook
     use paren_fm, only: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, &
                         SHOW_PAREN_EXPRESSION, SHOW_PAREN_MIXED, show_paren_delay, show_paren_priority, &
                         show_paren_ring_bell_on_mismatch, show_paren_when_point_inside_paren, &
@@ -675,6 +686,15 @@ module fortmacs
               set_process_coding_system, process_coding_system
     public :: post_self_insert_hook, run_at_time, run_with_timer, run_with_idle_timer, cancel_timer, free_timer, &
               timerp, timer_max_repeats
+    public :: auto_revert_mode, auto_revert_tail_mode, global_auto_revert_mode, turn_on_auto_revert_mode, &
+              turn_on_auto_revert_tail_mode, auto_revert_interval, auto_revert_stop_on_user_input, auto_revert_verbose, &
+              auto_revert_mode_text, auto_revert_tail_mode_text, auto_revert_mode_hook, auto_revert_tail_mode_hook, &
+              global_auto_revert_mode_text, global_auto_revert_mode_hook, global_auto_revert_non_file_buffers, &
+              global_auto_revert_ignore_modes, auto_revert_check_vc_info, global_auto_revert_ignore_buffer, &
+              auto_revert_remote_files, auto_revert_use_notify, auto_revert_notify_exclude_dir_regexp, &
+              auto_revert_avoid_polling
+    public :: buffer_stale_function, buffer_stale_proc, BUFFER_STALE_NO, BUFFER_STALE_YES, BUFFER_STALE_FAST, &
+              buffer_auto_revert_by_notification, mounted_file_systems, after_set_visited_file_name_hook
     public :: show_paren_mode, show_paren_local_mode, show_paren_style, SHOW_PAREN_PARENTHESIS, SHOW_PAREN_EXPRESSION, &
               SHOW_PAREN_MIXED, show_paren_delay, show_paren_priority, show_paren_ring_bell_on_mismatch, &
               show_paren_when_point_inside_paren, show_paren_when_point_in_periphery, show_paren_highlight_openparen, &
