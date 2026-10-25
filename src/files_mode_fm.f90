@@ -310,6 +310,7 @@ contains
         logical :: found
         mode = ""
         here = point()
+        if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
         call goto_char(point_min())
         found = looking_at(auto_mode_interpreter_regexp, status)
         if (found) call buffer_substring(match_beginning(2, status), match_end(2, status), interp, status)

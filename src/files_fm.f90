@@ -68,7 +68,7 @@ module files_fm
     implicit none(type, external)
     private
 
-    public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file
+    public :: syms_of_files, file_backup_file_names, file_newest_backup, make_temp_file, init_auto_mode_interpreter_regexp
 
     !> Normal hook that is run before a buffer is saved to its file.
     !> Only used by `save_buffer'.  Port of files.el before-save-hook.
@@ -1783,23 +1783,7 @@ contains
         type(status_type) :: status
         if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
         if (.not. allocated(directory_listing_before_filename_regexp)) call init_directory_listing_regexp()
-        if (.not. allocated(auto_mode_interpreter_regexp)) then
-            auto_mode_interpreter_regexp = "#![ "//achar(9)//"]*" &
-                                           ! Optional group 1: env(1) invocation.
-                                           //"\("//"[^ "//achar(9)//achar(10)//"]*/bin/env[ "//achar(9)//"]*" &
-                                           ! Within group 1: possible -S/--split-string and environment
-                                           ! adjustments.
-                                           //"\(?:" &
-                                           ! -S/--split-string
-                                           //"\(?:-[0a-z]*S[ "//achar(9)//"]*\|--split-string=\)" &
-                                           ! More env arguments.
-                                           //"\(?:-[^ "//achar(9)//achar(10)//"]+[ "//achar(9)//"]+\)*" &
-                                           ! Interpreter environment modifications.
-                                           //"\(?:[^ "//achar(9)//achar(10)//"]+=[^ "//achar(9)//achar(10)//"]*[ " &
-                                           //achar(9)//"]+\)*"//"\)?"//"\)?" &
-                                           ! Group 2: interpreter.
-                                           //"\([^ "//achar(9)//achar(10)//"]+\)"
-        end if
+        if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
         commands%find_file%run => cmd_find_file
         commands%find_file_other_window%run => cmd_find_file_other_window
         commands%revert_buffer%run => cmd_revert_buffer
@@ -1834,6 +1818,25 @@ contains
         key(1) = make_fixnum(3_int64)
         call define_key(ctl_x_map, key, sym("save_buffers_kill_terminal"), status)
     end subroutine syms_of_files
+
+    !> Set `auto_mode_interpreter_regexp' to its standard value.
+    subroutine init_auto_mode_interpreter_regexp()
+        auto_mode_interpreter_regexp = "#![ "//achar(9)//"]*" &
+                                       ! Optional group 1: env(1) invocation.
+                                       //"\("//"[^ "//achar(9)//achar(10)//"]*/bin/env[ "//achar(9)//"]*" &
+                                       ! Within group 1: possible -S/--split-string and environment
+                                       ! adjustments.
+                                       //"\(?:" &
+                                       ! -S/--split-string
+                                       //"\(?:-[0a-z]*S[ "//achar(9)//"]*\|--split-string=\)" &
+                                       ! More env arguments.
+                                       //"\(?:-[^ "//achar(9)//achar(10)//"]+[ "//achar(9)//"]+\)*" &
+                                       ! Interpreter environment modifications.
+                                       //"\(?:[^ "//achar(9)//achar(10)//"]+=[^ "//achar(9)//achar(10)//"]*[ " &
+                                       //achar(9)//"]+\)*"//"\)?"//"\)?" &
+                                       ! Group 2: interpreter.
+                                       //"\([^ "//achar(9)//achar(10)//"]+\)"
+    end subroutine init_auto_mode_interpreter_regexp
 
     !> Set `directory_listing_before_filename_regexp' to its standard value.
     subroutine init_directory_listing_regexp()
