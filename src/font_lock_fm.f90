@@ -93,7 +93,7 @@ module font_lock_fm
               font_lock_add_keywords, font_lock_refresh_defaults, font_lock_prepend_text_property, &
               font_lock_append_text_property, font_lock_fillin_text_property, &
               font_lock_remove_face_from_text_property, font_lock_keyword, font_lock_highlight, &
-              font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer
+              font_lock_anchored, font_lock_fontified, font_lock_keywords_of_buffer, set_font_lock_keywords
 
     !> `font_lock_maximum_decoration' for the maximum decoration available
     !> (upstream's t).
@@ -457,6 +457,19 @@ contains
         if (k == 0) return
         if (locals(k)%keywords_set) keywords = locals(k)%keywords
     end function font_lock_keywords_of_buffer
+
+    !> Make KEYWORDS the current buffer's `font_lock_keywords' (setq
+    !> font-lock-keywords).
+    subroutine set_font_lock_keywords(keywords)
+        type(font_lock_keyword_type), intent(in) :: keywords(:)
+        integer :: k
+        k = local_index(.true.)
+        if (k == 0) return
+        if (allocated(locals(k)%keywords)) deallocate (locals(k)%keywords)
+        allocate (locals(k)%keywords(size(keywords)))
+        locals(k)%keywords(:) = keywords(:)
+        locals(k)%keywords_set = .true.
+    end subroutine set_font_lock_keywords
 
     ! ------------------------------------------------------------------
     ! Turning Font Lock on and off

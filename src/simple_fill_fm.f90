@@ -408,8 +408,8 @@ contains
         call auto_fill_function%make_local()
         if (.not. enable) then
             auto_fill_function%value => null()
-        else if (associated(normal_auto_fill_function)) then
-            auto_fill_function%value => normal_auto_fill_function
+        else if (associated(normal_auto_fill_function%value)) then
+            auto_fill_function%value => normal_auto_fill_function%value
         else
             auto_fill_function%value => do_auto_fill
         end if

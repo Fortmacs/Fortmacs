@@ -40,6 +40,7 @@ program tester
     use test_fill_fm, only: collect_fill_fm
     use test_newcomment_fm, only: collect_newcomment_fm
     use test_conf_mode_fm, only: collect_conf_mode_fm
+    use test_f90_fm, only: collect_f90_fm
     use test_error_fm, only: collect_error_fm
     use test_handle_fm, only: collect_handle_fm
     use test_character_fm, only: collect_character_fm
@@ -177,6 +178,7 @@ program tester
                  new_testsuite("fill_fm", collect_fill_fm), &
                  new_testsuite("newcomment_fm", collect_newcomment_fm), &
                  new_testsuite("conf_mode_fm", collect_conf_mode_fm), &
+                 new_testsuite("f90_fm", collect_f90_fm), &
                  new_testsuite("tty_colors_fm", collect_tty_colors_fm), &
                  new_testsuite("faces_fm", collect_faces_fm), &
                  new_testsuite("xfaces_fm", collect_xfaces_fm), &
