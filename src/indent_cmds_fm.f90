@@ -38,7 +38,7 @@ submodule(indent_fm) indent_cmds_fm
     use data_fm, only: value_eq, default_value, add_local_variables_killer
     use lisp_fm, only: value_type, symbolp, xsymbol, symbols, t_value
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
+    use editfns_fm, only: interactive_region, point_min, point_max, bobp, eobp, bolp, eolp, delete_region, buffer_substring, &
                           char_before, widen, narrow_to_region, region_beginning, region_end, line_end_position, &
                           preceding_char, following_char
     use insdel_fm, only: insert
@@ -927,9 +927,8 @@ contains
     subroutine cmd_indent_rigidly(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-        call region_beginning(b, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
-        call region_end(e, status)
         if (nilp(current_prefix_arg)) then
             call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type %k to indent region interactively")
         else
@@ -941,9 +940,8 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in) :: which
         integer(int64) :: b, e
-        call region_beginning(b, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
-        call region_end(e, status)
         call rigidly_pop_undo()
         select case (which)
         case (1)
@@ -999,9 +997,8 @@ contains
     subroutine cmd_indent_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-        call region_beginning(b, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
-        call region_end(e, status)
         if (nilp(current_prefix_arg)) then
             call indent_region(b, e, status)
         else

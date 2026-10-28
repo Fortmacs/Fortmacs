@@ -60,7 +60,7 @@ module editfns_fm
               gap_position, gap_size
     public :: goto_char, goto_char_marker, set_point_from_marker
     public :: point_marker, point_min_marker, point_max_marker
-    public :: mark_marker, mark_position, region_beginning, region_end
+    public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, region_position_proc
     public :: position_bytes, byte_to_position
     public :: following_char, preceding_char, bobp, eobp, bolp, eolp, &
               char_after, char_before
@@ -80,6 +80,24 @@ module editfns_fm
     !> True means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
     logical, public :: inhibit_field_text_motion = .false.
+
+    abstract interface
+        !> A function of no arguments returning a buffer position.
+        recursive subroutine region_position_proc(pos, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(out) :: pos
+            type(status_type), intent(out) :: status
+        end subroutine region_position_proc
+    end interface
+
+    !> What `region_beginning' and `region_end' do: the primitives, or
+    !> the advice around them (rect.el's rectangle--region-beginning and
+    !> rectangle--region-end, which call the primitives outside
+    !> rectangle_mark_mode).  (Ours: upstream's advice-add as a procedure
+    !> pointer.)
+    procedure(region_position_proc), pointer, public :: region_beginning_function => primitive_region_beginning
+    procedure(region_position_proc), pointer, public :: region_end_function => primitive_region_end
 
 contains
 
@@ -231,20 +249,48 @@ contains
     end subroutine region_limit
 
     !> Return the integer value of point or mark, whichever is smaller.
-    !> Port of editfns.c:Fregion_beginning.
-    subroutine region_beginning(pos, status)
+    !> Port of editfns.c:Fregion_beginning (through
+    !> `region_beginning_function', which rectangle_mark_mode advises).
+    recursive subroutine region_beginning(pos, status)
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
-        call region_limit(.true., pos, status)
+        call region_beginning_function(pos, status)
     end subroutine region_beginning
 
     !> Return the integer value of point or mark, whichever is larger.
+    !> Port of editfns.c:Fregion_end (through `region_end_function').
+    recursive subroutine region_end(pos, status)
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        call region_end_function(pos, status)
+    end subroutine region_end
+
+    !> Port of editfns.c:Fregion_beginning.
+    recursive subroutine primitive_region_beginning(pos, status)
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        call region_limit(.true., pos, status)
+    end subroutine primitive_region_beginning
+
     !> Port of editfns.c:Fregion_end.
-    subroutine region_end(pos, status)
+    recursive subroutine primitive_region_end(pos, status)
         integer(int64), intent(out) :: pos
         type(status_type), intent(out) :: status
         call region_limit(.false., pos, status)
-    end subroutine region_end
+    end subroutine primitive_region_end
+
+    !> The region as the arguments of a command whose interactive spec
+    !> has `r': point and the mark, the smaller first.  An inactive mark
+    !> is an error as for `region_beginning', which rectangle_mark_mode's
+    !> advice does not change here.  Port of the `r' code of
+    !> callint.c:Fcall_interactively.
+    subroutine interactive_region(beg, end, status)
+        integer(int64), intent(out) :: beg, end
+        type(status_type), intent(out) :: status
+        end = 0
+        call region_limit(.true., beg, status)
+        if (status%ok()) call region_limit(.false., end, status)
+    end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.
     subroutine point_min_marker(m)

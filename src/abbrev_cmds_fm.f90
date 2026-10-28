@@ -31,7 +31,7 @@ submodule(abbrev_fm) abbrev_cmds_fm
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, erase_buffer, kill_buffer, &
                          restore_buffer_modified_p, generate_new_buffer_name
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: point, point_min, point_max, goto_char, buffer_substring, delete_region, char_after, &
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, buffer_substring, delete_region, char_after, &
                           line_beginning_position, region_beginning, region_end, eobp, point_marker
     use insdel_fm, only: insert, replace_range
     use syntax_fm, only: forward_word, skip_syntax_forward, skip_syntax_backward, syntax_table, set_syntax_table, &
@@ -1468,8 +1468,7 @@ contains
     recursive subroutine cmd_expand_region_abbrevs(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-        call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        call interactive_region(b, e, status)
         if (status%ok()) call expand_region_abbrevs(b, e, status, noquery=.not. nilp(current_prefix_arg))
     end subroutine cmd_expand_region_abbrevs
 

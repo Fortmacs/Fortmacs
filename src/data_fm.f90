@@ -38,7 +38,7 @@ module data_fm
     use error_fm, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, &
                         FM_VOID_VARIABLE, FM_SETTING_CONSTANT
     use lisp_fm, only: fixnump, list, list_elt, list_tail, listp, nil, stringp, symbolp, symbols, &
-                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, v_syntax_table, value_type, &
+                       v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, v_symbol, v_syntax_table, v_window, value_type, &
                        vtag, xsymbol
     use lread_fm, only: ensure_obarray, sym
     use lisp_fm, only: command_proc
@@ -611,7 +611,7 @@ contains
             value_eq = .true.
         case (V_INT, V_SYMBOL)
             value_eq = a%a(1)%i == b%a(1)%i
-        case (V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE)
+        case (V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW)
             value_eq = a%a(1)%h%index == b%a(1)%h%index .and. &
                        a%a(1)%h%generation == b%a(1)%h%generation
         case default

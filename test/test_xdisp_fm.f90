@@ -47,7 +47,8 @@ module test_xdisp_fm
                          reset_sys_modes, emacs_write, emacs_read, input_available, &
                          emacs_tty_type
     use emacs_fm, only: emacs_main
-    use lisp_fm, only: make_string, list, t_value
+    use lisp_fm, only: make_string, list, t_value, value_type, make_window_ref
+    use textprop_fm, only: string_put_text_property
     use lread_fm, only: sym
     use lisp_fm, only: make_fixnum
     use textprop_fm, only: put_text_property
@@ -78,6 +79,7 @@ contains
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("redisplay-split-windows", test_split_redisplay), &
                     new_unittest("overlay-strings", test_overlay_strings), &
+                    new_unittest("overlay-string-properties", test_overlay_string_properties), &
                     new_unittest("invisible-ellipsis", test_invisible_ellipsis), &
                     new_unittest("invisible-text", test_invisible), &
                     new_unittest("invisible-newline", test_invisible_newline), &
@@ -176,6 +178,64 @@ contains
         call free_overlay(ov2)
         call kill_buffer(h, st)
     end subroutine test_overlay_strings
+
+    !> An after-string with text properties: a `(space :align-to N)'
+    !> display spec, its `face' and its `cursor'; and an overlay for
+    !> another window, which is not shown.
+    subroutine test_overlay_string_properties(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, ov, ov2
+        type(status_type) :: st
+        type(value_type) :: str
+        type(glyph_row_type) :: rows(2)
+        type(frame_type) :: f
+        integer(int64) :: bi, end_pos
+        integer(int32) :: region_id
+        character(len=:), allocatable :: text
+        integer :: ccol, crow, r
+        logical :: at_end
+        call buffer_with("*xdisp-ov-props*", "ab"//achar(10)//"cd", h, bi)
+        str = make_string(" ")
+        call string_put_text_property(0_int64, 1_int64, sym("display"), &
+                                      list(sym("space"), sym(":align-to"), make_fixnum(5_int64)), str, st)
+        call make_overlay(ov, 3_int64, 3_int64, st)
+        call overlay_put(ov, "after_string", str, st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, text == "ab   ", text)
+        if (allocated(error)) return
+        call check(error, ccol == 5, "cursor on the newline")
+        if (allocated(error)) return
+        ! A `cursor' property puts the cursor on the string.
+        call string_put_text_property(0_int64, 1_int64, sym("cursor"), make_fixnum(1_int64), str, st)
+        call overlay_put(ov, "after_string", str, st)
+        call layout1(bi, 3_int64, text, ccol)
+        call check(error, ccol == 2, "cursor on the space")
+        if (allocated(error)) return
+        ! Its face.
+        call string_put_text_property(0_int64, 1_int64, sym("face"), sym("region"), str, st)
+        call overlay_put(ov, "after_string", str, st)
+        do r = 1, 2
+            allocate (rows(r)%glyphs(8))
+        end do
+        call init_faces()
+        call init_frame_faces(f, "dumb")
+        call layout_window(bi, 1_int64, 3_int64, 8, rows, crow, ccol, end_pos, at_end, 0_int64, 0_int64, f)
+        region_id = rows(1)%glyphs(3)%face_id
+        call check(error, region_id /= DEFAULT_FACE_ID .and. f%faces(region_id)%tty_reverse_p, "in the region face")
+        if (allocated(error)) return
+        call check(error, all(rows(1)%glyphs(3:5)%face_id == region_id) .and. &
+                   all(rows(1)%glyphs(1:2)%face_id == DEFAULT_FACE_ID), "the space only")
+        if (allocated(error)) return
+        ! An overlay for another window is not shown.
+        call free_overlay(ov)
+        call make_overlay(ov2, 2_int64, 2_int64, st)
+        call overlay_put(ov2, "before_string", make_string("BS"), st)
+        call overlay_put(ov2, "window", make_window_ref(handle_type()), st)
+        call layout1(bi, 1_int64, text, ccol)
+        call check(error, text == "ab", text)
+        call free_overlay(ov2)
+        call kill_buffer(h, st)
+    end subroutine test_overlay_string_properties
 
     !> Invisible text whose spec asks for an ellipsis: the cursor of a
     !> point in it is on the first period.

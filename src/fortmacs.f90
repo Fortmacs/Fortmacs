@@ -143,7 +143,10 @@ module fortmacs
                        rectangle_intersect_p, rectangle_dimensions, delete_rectangle, delete_extract_rectangle, &
                        extract_rectangle, extract_rectangle_bounds, kill_rectangle, copy_rectangle_as_kill, &
                        yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, string_rectangle, &
-                       string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string
+                       string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
+                       rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook
+    use simple_fm, only: deactivate_mark_hook, region_bounds, region_noncontiguous_p
+    use editfns_fm, only: interactive_region
     use register_fm, only: register_type, register_value_type, get_register, set_register, point_to_register, &
                            window_configuration_to_register, jump_to_register, file_to_register, buffer_to_register, &
                            number_to_register, increment_register, view_register, list_registers, insert_register, &
@@ -599,6 +602,8 @@ module fortmacs
               delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, kill_rectangle, &
               copy_rectangle_as_kill, yank_rectangle, insert_rectangle, open_rectangle, delete_whitespace_rectangle, &
               string_rectangle, string_insert_rectangle, clear_rectangle, rectangle_number_lines, spaces_string, &
+              rectangle_mark_mode, rectangle_mark_mode_map, rectangle_mark_mode_hook, deactivate_mark_hook, &
+              region_bounds, region_noncontiguous_p, interactive_region, &
               killed_rectangle, register_type, register_value_type, register_alist, register_separator, get_register, &
               set_register, point_to_register, window_configuration_to_register, jump_to_register, file_to_register, &
               buffer_to_register, number_to_register, increment_register, view_register, list_registers, &

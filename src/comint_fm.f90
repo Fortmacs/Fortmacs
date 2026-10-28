@@ -70,7 +70,7 @@ module comint_fm
     use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
                          detach_marker
     use insdel_fm, only: insert
-    use editfns_fm, only: point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, widen, narrow_to_region, delete_region, &
                           buffer_substring, line_beginning_position, line_end_position, following_char, eobp, &
                           bobp, bolp, field_beginning, field_end, field_string, constrain_to_field, &
                           inhibit_field_text_motion
@@ -3358,12 +3358,9 @@ contains
 
     !> Like `kill_region', but ignore read-only properties, if safe.
     subroutine cmd_comint_kill_region(status)
-        use editfns_fm, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-        call region_beginning(b, status)
-        if (.not. status%ok()) return
-        call region_end(e, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
         call comint_kill_region(b, e, status)
     end subroutine cmd_comint_kill_region

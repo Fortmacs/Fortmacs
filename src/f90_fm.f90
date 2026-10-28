@@ -57,9 +57,9 @@ module f90_fm
     use lread_fm, only: sym
     use syntax_fm, only: make_syntax_table, modify_syntax_entry, syntax_table_live_p, parse_partial_sexp, &
                          parse_state_type, scan_lists, skip_chars_forward, skip_chars_backward, forward_word
-    use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
-                          delete_region, buffer_substring, line_beginning_position, line_end_position, region_beginning, &
-                          region_end
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, &
+                          char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
+                          line_end_position
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command
     use insdel_fm, only: insert
     use marker_fm, only: copy_marker_at, marker_position, free_marker
@@ -2221,8 +2221,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_comment_region_command(b, e, status)
     end subroutine cmd_f90_comment_region
 
@@ -2548,8 +2547,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_indent_region(b, e, status)
     end subroutine cmd_f90_indent_region
 
@@ -2785,8 +2783,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_fill_region(b, e, status)
     end subroutine cmd_f90_fill_region
 
@@ -3139,8 +3136,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        if (status%ok()) call interactive_region(b, e, status)
         if (status%ok()) call f90_change_keywords(change_word, status, b, e)
     end subroutine region_keywords
 

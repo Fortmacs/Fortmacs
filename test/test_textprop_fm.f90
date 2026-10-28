@@ -35,6 +35,8 @@ module test_textprop_fm
     use undo_fm, only: undo_last_kind
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, delete_and_extract_region, point_max
+    use textprop_fm, only: string_put_text_property, string_get_text_property, string_next_single_property_change, &
+                           propertized_substring, propertized_concat, propertize
     use textprop_fm, only: add_text_properties, get_text_property, next_property_change, &
                            next_single_property_change, previous_property_change, &
                            previous_single_property_change, put_text_property, &
@@ -62,7 +64,8 @@ contains
                     new_unittest("odd-plist-and-range-errors", test_errors), &
                     new_unittest("read-only-insertion", test_read_only_insert), &
                     new_unittest("textprop-interval-immutability", test_immutability), &
-                    new_unittest("default-nonsticky", test_default_nonsticky) &
+                    new_unittest("default-nonsticky", test_default_nonsticky), &
+                    new_unittest("string-properties", test_string_properties) &
                     ]
     end subroutine collect_textprop_fm
 
@@ -453,4 +456,48 @@ contains
         call check(error, text_property_stickiness(sym("fill_space"), 2_int64) == 0, "fill_space")
         call leave(h, old)
     end subroutine test_default_nonsticky
+
+    !> Text properties of strings: put, get, propertize, substring,
+    !> concatenation and the next change; `equal' ignores them.
+    subroutine test_string_properties(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(value_type) :: s, part, both
+        type(status_type) :: st
+        integer(int64) :: pos
+        logical :: found
+        s = make_string("abcdef")
+        call string_put_text_property(1_int64, 3_int64, sym("face"), sym("bold"), s, st)
+        call check(error, st%ok(), "put")
+        if (allocated(error)) return
+        call check(error, nilp(string_get_text_property(0_int64, sym("face"), s)) .and. &
+                   value_eq(string_get_text_property(1_int64, sym("face"), s), sym("bold")) .and. &
+                   value_eq(string_get_text_property(2_int64, sym("face"), s), sym("bold")) .and. &
+                   nilp(string_get_text_property(3_int64, sym("face"), s)), "face on bc")
+        if (allocated(error)) return
+        call check(error, value_equal(s, make_string("abcdef")), "equal ignores properties")
+        if (allocated(error)) return
+        call string_next_single_property_change(0_int64, sym("face"), s, pos, found)
+        call check(error, found .and. pos == 1, "next change at 1")
+        if (allocated(error)) return
+        call string_next_single_property_change(1_int64, sym("face"), s, pos, found)
+        call check(error, found .and. pos == 3, "next change at 3")
+        if (allocated(error)) return
+        call string_next_single_property_change(3_int64, sym("face"), s, pos, found)
+        call check(error,.not. found, "no change after 3")
+        if (allocated(error)) return
+        call string_put_text_property(0_int64, 7_int64, sym("face"), sym("bold"), s, st)
+        call check(error,.not. st%ok(), "args-out-of-range")
+        if (allocated(error)) return
+        part = propertized_substring(s, 2_int64, 5_int64)
+        call check(error, value_equal(part, make_string("cde")) .and. &
+                   value_eq(string_get_text_property(0_int64, sym("face"), part), sym("bold")) .and. &
+                   nilp(string_get_text_property(1_int64, sym("face"), part)), "substring keeps c's face")
+        if (allocated(error)) return
+        both = propertized_concat(part, propertize(make_string("xy"), list(sym("cursor"), make_fixnum(1_int64))))
+        call check(error, value_equal(both, make_string("cdexy")) .and. &
+                   value_eq(string_get_text_property(0_int64, sym("face"), both), sym("bold")) .and. &
+                   nilp(string_get_text_property(3_int64, sym("face"), both)) .and. &
+                   value_eq(string_get_text_property(4_int64, sym("cursor"), both), make_fixnum(1_int64)), &
+                   "concat keeps both")
+    end subroutine test_string_properties
 end module test_textprop_fm

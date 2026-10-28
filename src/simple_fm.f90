@@ -46,7 +46,7 @@ module simple_fm
     use lread_fm, only: sym
     use data_fm, only: value_eq, string_setting, logical_setting, integer_setting, function_setting, forward_setting, &
                        add_local_variables_killer
-    use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask
+    use character_fm, only: MAX_CHAR, CHAR_META, char_resolve_modifier_mask, multibyte_chars_in_text
     use casetab_fm, only: downcase
     use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE, buffer_serial_live
     use marker_fm, only: char_to_byte
@@ -64,7 +64,9 @@ module simple_fm
                           delete_region, mark_marker, mark_position, region_beginning, region_end, pos_bol
     use textprop_fm, only: get_text_property, get_char_property, next_char_property_change, &
                            previous_char_property_change, previous_single_char_property_change, &
-                           next_single_property_change, previous_single_property_change
+                           next_single_property_change, previous_single_property_change, &
+                           string_next_single_property_change, propertized_substring, propertized_concat, &
+                           string_get_text_property
     use itree_fm, only: next_overlay_change, previous_overlay_change
     use indent_fm, only: current_column, move_to_column, vertical_motion, screen_column, window_text_width
     use insdel_fm, only: insert, del_range
@@ -100,7 +102,7 @@ module simple_fm
                            real_last_command, last_prefix_arg, read_event, &
                            set_transient_map, last_message, disabled_command_hook, &
                            local_function_key_map, unread_command_events
-    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc
+    use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, redisplay_proc, deactivate_mark_function
     implicit none(type, external)
     private
 
@@ -156,6 +158,8 @@ module simple_fm
               exchange_point_and_mark, mark_whole_buffer
     public :: kill_ring, kill_new, kill_append, current_kill, kill_region, copy_region_as_kill, &
               kill_line, kill_whole_line, yank, yank_pop, rotate_yank_pointer, insert_for_yank, &
+              region_bounds, region_noncontiguous_p, define_yank_handler_function, region_extract_proc, &
+              region_insert_proc, yank_handler_proc, yank_undo_proc, &
               forward_visible_line, count_lines, line_number_at_pos
     public :: backward_word, kill_word, backward_kill_word, mark_word
     public :: indicate_copied_region, region_indistinguishable_p, predicate_proc
@@ -1168,6 +1172,10 @@ module simple_fm
     !> simple.el copy-region-blink-predicate.
     procedure(predicate_proc), pointer, public :: copy_region_blink_predicate => region_indistinguishable_p
 
+    !> Hook run when the mark becomes inactive.  Port of simple.el
+    !> deactivate-mark-hook.
+    type(hook_type), target, public :: deactivate_mark_hook = hook_type(name="deactivate_mark_hook")
+
     !> Maximum length of kill ring before oldest elements are thrown away.
     !> Port of simple.el kill-ring-max.
     integer(int64), public :: kill_ring_max = 120
@@ -1175,6 +1183,126 @@ module simple_fm
     !> index into `kill_ring' (1 for its first element).  Port of simple.el
     !> kill-ring-yank-pointer.
     integer(int64), public :: kill_ring_yank_pointer = 1
+
+    !> The METHODs of `region_extract_function': nil, `delete' (anything
+    !> else upstream), `delete-only' and `bounds'.
+    integer, parameter, public :: REGION_EXTRACT_COPY = 0, REGION_EXTRACT_DELETE = 1, &
+                                  REGION_EXTRACT_DELETE_ONLY = 2, REGION_EXTRACT_BOUNDS = 3
+
+    abstract interface
+        !> A `region_extract_function': with METHOD REGION_EXTRACT_COPY,
+        !> the region's content in STRING; REGION_EXTRACT_DELETE, the same
+        !> and the region deleted; REGION_EXTRACT_DELETE_ONLY, the region
+        !> deleted; REGION_EXTRACT_BOUNDS, the region's pieces
+        !> [STARTS(k), ENDS(k)).
+        recursive subroutine region_extract_proc(method, string, starts, ends, status)
+            import :: int64, value_type, status_type
+            implicit none(type, external)
+            integer, intent(in) :: method
+            type(value_type), intent(out) :: string
+            integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+            type(status_type), intent(out) :: status
+        end subroutine region_extract_proc
+
+        !> A `region_insert_function': insert LINES (a list of strings).
+        recursive subroutine region_insert_proc(lines, status)
+            import :: value_type, status_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: lines
+            type(status_type), intent(out) :: status
+        end subroutine region_insert_proc
+
+        !> The FUNCTION of a yank handler: insert PARAM at point.
+        recursive subroutine yank_handler_proc(param, status)
+            import :: value_type, status_type
+            implicit none(type, external)
+            type(value_type), intent(in) :: param
+            type(status_type), intent(out) :: status
+        end subroutine yank_handler_proc
+
+        !> A `yank_undo_function': delete the yanked text START..END.
+        recursive subroutine yank_undo_proc(start, end, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(status_type), intent(out) :: status
+        end subroutine yank_undo_proc
+    end interface
+
+    !> Function to get the region's content.
+    !> Called with one argument METHOD which can be:
+    !> - REGION_EXTRACT_COPY: return the content as a string.
+    !> - REGION_EXTRACT_DELETE_ONLY: delete the region; the return value
+    !>   is undefined.
+    !> - REGION_EXTRACT_BOUNDS: return the boundaries of the region as
+    !>   one or more pairs START, END.
+    !> - REGION_EXTRACT_DELETE: delete the region and return its content
+    !>   as a string, after filtering it with `filter_buffer_substring'.
+    !> Port of casefiddle.c region-extract-function, as simple.el sets it.
+    !> (Ours: a procedure pointer; METHOD is one of the REGION_EXTRACT_
+    !> constants and a non-contiguous region's content comes as one
+    !> string.)
+    procedure(region_extract_proc), pointer, public :: region_extract_function => default_region_extract
+
+    !> Function to insert the region's content.
+    !> Called with one argument LINES.
+    !> Insert the region's content.  Port of simple.el
+    !> region-insert-function.
+    procedure(region_insert_proc), pointer, public :: region_insert_function => default_region_insert
+
+    !> If associated, function used by `yank_pop' to delete last stretch
+    !> of yanked text.  Function is called with two parameters, START and
+    !> END corresponding to the value of the mark and point; it is
+    !> guaranteed that START <= END.  Normally set from the UNDO element
+    !> of a yank-handler; see `insert_for_yank'.  Port of simple.el
+    !> yank-undo-function.
+    procedure(yank_undo_proc), pointer, public :: yank_undo_function => null()
+
+    !> A function a `yank_handler' property names (upstream's FUNCTION
+    !> symbol; `define_yank_handler_function' names a procedure).
+    type :: yank_handler_function_type
+        character(len=:), allocatable :: name
+        procedure(yank_handler_proc), pointer, nopass :: run => null()
+    end type yank_handler_function_type
+    type(yank_handler_function_type), allocatable :: yank_handler_functions(:)
+
+    !> Make STRING the latest kill in the kill ring.
+    !> Set `kill_ring_yank_pointer' to point to it.
+    !> Optional second argument REPLACE true means that STRING will replace
+    !> the front of the kill ring, rather than being added to the list.
+    !>
+    !> When the yank handler has a non-nil PARAM element, the original
+    !> STRING argument is not used by `insert_for_yank'.  However, since
+    !> code may access and use elements from the kill ring directly, the
+    !> STRING argument should still be a "useful" string for such uses.
+    !> Port of simple.el:kill-new (STRING as text or as a string with
+    !> text properties; no interprogram cut and paste,
+    !> `kill_transform_function' or `kill_do_not_save_duplicates' yet).
+    interface kill_new
+        module procedure kill_new_text, kill_new_string
+    end interface kill_new
+
+    !> Rotate the yanking point by N places, and then return that kill.
+    !> If DO_NOT_MOVE is true, then don't actually move the yanking point;
+    !> just return the Nth kill forward.  Port of simple.el:current-kill
+    !> (the kill as text, or as a string with its text properties; no
+    !> interprogram paste).
+    interface current_kill
+        module procedure current_kill_text, current_kill_string
+    end interface current_kill
+
+    !> Insert STRING at point for the `yank' command.
+    !>
+    !> This function is like `insert', except it honors the
+    !> `yank_handler' text property, in the way that `yank' does.  Port of
+    !> subr.el:insert-for-yank (STRING as text, or a string with text
+    !> properties; inserting a string's text properties, and so
+    !> `yank_excluded_properties' and `yank_handled_properties', the
+    !> UNDO and COMMAND elements of a yank handler, and
+    !> `yank_transform_functions' are Deferred).
+    interface insert_for_yank
+        module procedure insert_for_yank_text, insert_for_yank_string
+    end interface insert_for_yank
     !> Maximum size of mark ring.  Start discarding off end if gets this
     !> big.  Port of simple.el mark-ring-max.
     integer, public :: mark_ring_max = 16
@@ -1422,13 +1550,12 @@ contains
         end if
     end subroutine cmd_delete_backward_char
 
-    !> The default region-extract-function with METHOD `delete_only'.
-    subroutine delete_the_region(status)
+    !> (funcall region-extract-function 'delete-only)
+    recursive subroutine delete_the_region(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: b, e
-        call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
-        if (status%ok()) call delete_region(b, e, status)
+        type(value_type) :: string
+        integer(int64), allocatable :: starts(:), ends(:)
+        call region_extract_function(REGION_EXTRACT_DELETE_ONLY, string, starts, ends, status)
     end subroutine delete_the_region
 
     !> Delete the following N characters (previous if N is negative).
@@ -2620,6 +2747,7 @@ contains
 
     subroutine syms_of_simple()
         call defvar_nil("kill_ring")
+        deactivate_mark_function => deactivate_mark_command_loop
         call forward_setting(normal_auto_fill_function)
         call add_local_variables_killer(kill_local_blink_matching_check_function)
         ! (<up> and <down> run previous/next-line-or-history-element
@@ -3050,13 +3178,21 @@ contains
     !> If Transient Mark mode is disabled, this function normally does
     !> nothing; but if FORCE is true, it deactivates the mark anyway.
     !> Port of simple.el:deactivate-mark (no hooks or selections).
-    subroutine deactivate_mark(force)
+    recursive subroutine deactivate_mark(force)
         logical, intent(in), optional :: force
+        type(status_type) :: st
         logical :: forced
         forced = .false.
         if (present(force)) forced = force
-        if (region_active_p() .or. forced) buffers(cur)%mark_active = .false.
+        if (.not. (region_active_p() .or. forced)) return
+        buffers(cur)%mark_active = .false.
+        call deactivate_mark_hook%run(st)
     end subroutine deactivate_mark
+
+    !> deactivate_mark without FORCE, for the command loop.
+    recursive subroutine deactivate_mark_command_loop()
+        call deactivate_mark()
+    end subroutine deactivate_mark_command_loop
 
     !> Activate the mark.  Port of simple.el:activate-mark.
     subroutine activate_mark()
@@ -3279,53 +3415,73 @@ contains
         if (.not. st%ok()) ring = nil()
     end function kill_ring
 
-    !> Make STRING the latest kill in the kill ring.
-    !> Set `kill_ring_yank_pointer' to point to it.
-    !> REPLACE true means that STRING will replace the front of the kill
-    !> ring, rather than being added to the ring.  Port of simple.el:kill-new
-    !> (no interprogram cut and paste yet).
-    subroutine kill_new(string, replace)
+    !> kill_new for STRING as text.
+    subroutine kill_new_text(string, replace)
         character(len=*), intent(in) :: string
         logical, intent(in), optional :: replace
-        type(value_type), allocatable :: elems(:)
+        call kill_new_string(make_string(string), replace)
+    end subroutine kill_new_text
+
+    !> kill_new for a string with its text properties.
+    subroutine kill_new_string(string, replace)
+        type(value_type), intent(in) :: string
+        logical, intent(in), optional :: replace
+        type(value_type), allocatable :: elems(:), ring(:)
         type(status_type) :: st
-        if (flag(replace) .and. list_length(kill_ring()) > 0) then
-            call list_elements(kill_ring(), elems)
-            elems(1) = make_string(string)
+        integer(int64) :: k, n
+        call list_elements(kill_ring(), elems)
+        if (flag(replace) .and. size(elems) > 0) then
+            elems(1) = string
             call set(sym("kill_ring"), make_list(elems), st)
         else
-            call add_to_history("kill_ring", string, int(kill_ring_max), keep_all=.true.)
+            ! (add-to-history 'kill-ring string kill-ring-max t), with
+            ! history-delete-duplicates nil.
+            n = min(size(elems, kind=int64), max(kill_ring_max - 1, 0_int64))
+            allocate (ring(n + 1))
+            ring(1) = string
+            do k = 1, n
+                ring(k + 1) = elems(k)
+            end do
+            call set(sym("kill_ring"), make_list(ring), st)
         end if
         kill_ring_yank_pointer = 1
-    end subroutine kill_new
+    end subroutine kill_new_string
 
     !> Append STRING to the end of the latest kill in the kill ring.
     !> If BEFORE_P is true, prepend STRING to the kill instead.  Port of
-    !> simple.el:kill-append.
+    !> simple.el:kill-append (the latest kill keeps its text properties).
     subroutine kill_append(string, before_p)
         character(len=*), intent(in) :: string
         logical, intent(in) :: before_p
-        character(len=:), allocatable :: latest
-        latest = ""
-        if (list_length(kill_ring()) > 0) latest = xstring(list_elt(kill_ring(), 1_int64))
+        type(value_type) :: latest
+        latest = make_string("")
+        if (list_length(kill_ring()) > 0) latest = list_elt(kill_ring(), 1_int64)
         if (before_p) then
-            call kill_new(string//latest, .true.)
+            call kill_new_string(propertized_concat(make_string(string), latest), .true.)
         else
-            call kill_new(latest//string, .true.)
+            call kill_new_string(propertized_concat(latest, make_string(string)), .true.)
         end if
     end subroutine kill_append
 
-    !> Rotate the yanking point by N places, and then return that kill.
-    !> If DO_NOT_MOVE is true, then don't actually move the yanking point;
-    !> just return the Nth kill forward.  Port of simple.el:current-kill
-    !> (no interprogram paste).
-    subroutine current_kill(n, text, status, do_not_move)
+    !> current_kill giving the kill as text.
+    subroutine current_kill_text(n, text, status, do_not_move)
         integer(int64), intent(in) :: n
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: do_not_move
+        type(value_type) :: string
+        call current_kill_string(n, string, status, do_not_move)
+        text = xstring(string)
+    end subroutine current_kill_text
+
+    !> current_kill giving the kill with its text properties.
+    subroutine current_kill_string(n, string, status, do_not_move)
+        integer(int64), intent(in) :: n
+        type(value_type), intent(out) :: string
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: do_not_move
         integer(int64) :: length, k
-        text = ""
+        string = make_string("")
         length = list_length(kill_ring())
         if (length == 0) then
             call set_error(status, FM_GENERIC_ERROR, "Kill ring is empty")
@@ -3335,8 +3491,81 @@ contains
         ! (nthcdr (mod (- n (length kill-ring-yank-pointer)) (length kill-ring)) kill-ring)
         k = modulo(n - (length - kill_ring_yank_pointer + 1), length) + 1
         if (.not. flag(do_not_move)) kill_ring_yank_pointer = k
-        text = xstring(list_elt(kill_ring(), k))
-    end subroutine current_kill
+        string = list_elt(kill_ring(), k)
+    end subroutine current_kill_string
+
+    !> The default `region_extract_function'.  Port of the lambda simple.el
+    !> sets region-extract-function to.
+    recursive subroutine default_region_extract(method, string, starts, ends, status)
+        integer, intent(in) :: method
+        type(value_type), intent(out) :: string
+        integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: text
+        integer(int64) :: beg, end
+        allocate (starts(0), ends(0))
+        ! This call either signals an error (if there is no region) or
+        ! returns a number.
+        call region_beginning(beg, status)
+        if (.not. status%ok()) return
+        call region_end(end, status)
+        if (.not. status%ok()) return
+        select case (method)
+        case (REGION_EXTRACT_BOUNDS)
+            starts = [beg]
+            ends = [end]
+        case (REGION_EXTRACT_DELETE_ONLY)
+            call delete_region(beg, end, status)
+        case (REGION_EXTRACT_DELETE)
+            ! (filter-buffer-substring beg end 'delete)
+            call delete_and_extract_region(beg, end, text, status)
+            if (status%ok()) string = make_string(text)
+        case default
+            call buffer_substring(beg, end, text, status)
+            if (status%ok()) string = make_string(text)
+        end select
+    end subroutine default_region_extract
+
+    !> The default `region_insert_function': the strings of LINES, a
+    !> newline between them, each through `insert_for_yank'.  Port of the
+    !> lambda of simple.el region-insert-function.
+    recursive subroutine default_region_insert(lines, status)
+        type(value_type), intent(in) :: lines
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: elems(:)
+        integer :: k
+        status = status_type()
+        call list_elements(lines, elems)
+        do k = 1, size(elems)
+            if (k > 1) call insert(achar(10), status)
+            if (status%ok()) call insert_for_yank_string(elems(k), status)
+            if (.not. status%ok()) return
+        end do
+    end subroutine default_region_insert
+
+    !> Return the boundaries of the region, one or more pairs
+    !> [STARTS(k), ENDS(k)).
+    !> There is more than one pair when the region is non-contiguous, see
+    !> `region_noncontiguous_p' and `extract_rectangle_bounds'.  Port of
+    !> simple.el:region-bounds.
+    recursive subroutine region_bounds(starts, ends, status)
+        integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+        type(status_type), intent(out) :: status
+        type(value_type) :: string
+        call region_extract_function(REGION_EXTRACT_BOUNDS, string, starts, ends, status)
+    end subroutine region_bounds
+
+    !> Return true if the region contains several pieces.
+    !> An example is a rectangular region handled as a list of separate
+    !> contiguous regions for each line.  Port of
+    !> simple.el:region-noncontiguous-p.
+    recursive logical function region_noncontiguous_p() result(noncontiguous)
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(status_type) :: st
+        call region_bounds(starts, ends, st)
+        noncontiguous = .false.
+        if (st%ok()) noncontiguous = size(starts) > 1
+    end function region_noncontiguous_p
 
     !> Kill ("cut") text between BEG and END.
     !> This deletes the text from the buffer and saves it in the kill ring.
@@ -3357,23 +3586,25 @@ contains
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: region, read_only_ok
-        character(len=:), allocatable :: string
-        integer(int64) :: s, e
+        character(len=:), allocatable :: text
+        type(value_type) :: string
+        integer(int64), allocatable :: starts(:), ends(:)
         type(status_type) :: st
-        s = beg
-        e = end
         if (flag(region)) then
-            call region_beginning(s, status)
-            if (status%ok()) call region_end(e, status)
-            if (.not. status%ok()) return
+            call region_extract_function(REGION_EXTRACT_DELETE, string, starts, ends, status)
+        else
+            ! (filter-buffer-substring beg end 'delete)
+            call delete_and_extract_region(beg, end, text, status)
+            if (status%ok()) string = make_string(text)
         end if
-        ! (filter-buffer-substring beg end 'delete)
-        call delete_and_extract_region(s, e, string, status)
         if (status%ok()) then
-            if (value_eq(last_command, sym("kill_region"))) then
-                call kill_append(string, end < beg)
-            else
-                call kill_new(string)
+            ! (STRING is nil if BEG = END.)
+            if (stringp(string)) then
+                if (value_eq(last_command, sym("kill_region"))) then
+                    call kill_append(xstring(string), end < beg)
+                else
+                    call kill_new(string)
+                end if
             end if
             this_command = sym("kill_region")
             vdeactivate_mark = .true.
@@ -3398,19 +3629,18 @@ contains
         integer(int64), intent(in) :: beg, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: region
-        character(len=:), allocatable :: string
-        integer(int64) :: s, e
-        s = beg
-        e = end
+        character(len=:), allocatable :: text
+        type(value_type) :: string
+        integer(int64), allocatable :: starts(:), ends(:)
         if (flag(region)) then
-            call region_beginning(s, status)
-            if (status%ok()) call region_end(e, status)
-            if (.not. status%ok()) return
+            call region_extract_function(REGION_EXTRACT_COPY, string, starts, ends, status)
+        else
+            call buffer_substring(min(beg, end), max(beg, end), text, status)
+            if (status%ok()) string = make_string(text)
         end if
-        call buffer_substring(min(s, e), max(s, e), string, status)
         if (.not. status%ok()) return
         if (value_eq(last_command, sym("kill_region"))) then
-            call kill_append(string, end < beg)
+            call kill_append(xstring(string), end < beg)
         else
             call kill_new(string)
         end if
@@ -3650,7 +3880,7 @@ contains
     subroutine yank(arg, status)
         type(value_type), intent(in) :: arg
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: text
+        type(value_type) :: text
         integer(int64) :: n, m
         this_command = t_value()
         call push_mark()
@@ -3691,7 +3921,7 @@ contains
     subroutine yank_pop(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: text
+        type(value_type) :: text
         integer(int64) :: m, here
         logical :: before
         type(value_type) :: saved
@@ -3707,7 +3937,12 @@ contains
         ! (let ((inhibit-read-only t)) ...)
         saved = inhibit_read_only()
         call set(sym("inhibit_read_only"), t_value(), st)
-        call delete_region(min(here, m), max(here, m), status)
+        if (associated(yank_undo_function)) then
+            call yank_undo_function(min(here, m), max(here, m), status)
+        else
+            call delete_region(min(here, m), max(here, m), status)
+        end if
+        yank_undo_function => null()
         if (status%ok()) then
             call set_marker_here()
             call current_kill(n, text, status)
@@ -3730,14 +3965,92 @@ contains
         call set_marker(m, point(), st)
     end subroutine set_marker_here
 
-    !> Insert STRING at point for the `yank' command.  Port of
-    !> subr.el:insert-for-yank (no yank handlers or excluded properties:
-    !> the kill ring holds plain strings).
-    subroutine insert_for_yank(string, status)
+    !> insert_for_yank for STRING as text.
+    recursive subroutine insert_for_yank_text(string, status)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        call insert(string, status)
-    end subroutine insert_for_yank
+        call insert_for_yank_string(make_string(string), status)
+    end subroutine insert_for_yank_text
+
+    !> insert_for_yank for a string with text properties: each segment
+    !> of STRING with one value of the `yank_handler' property in turn.
+    recursive subroutine insert_for_yank_string(string, status)
+        type(value_type), intent(in) :: string
+        type(status_type), intent(out) :: status
+        type(value_type) :: rest
+        type(status_type) :: st
+        integer(int64) :: to, nchars
+        logical :: found
+        rest = string
+        do
+            call string_next_single_property_change(0_int64, sym("yank_handler"), rest, to, found)
+            if (.not. found) exit
+            call insert_for_yank_1(propertized_substring(rest, 0_int64, to), status)
+            if (.not. status%ok()) return
+            call multibyte_chars_in_text(xstring(rest), nchars, st)
+            rest = propertized_substring(rest, to, nchars)
+        end do
+        call insert_for_yank_1(rest, status)
+    end subroutine insert_for_yank_string
+
+    !> Helper for `insert_for_yank', which see.  Port of
+    !> subr.el:insert-for-yank-1 (no excluded properties: `insert' takes
+    !> no text properties yet).
+    recursive subroutine insert_for_yank_1(string, status)
+        type(value_type), intent(in) :: string
+        type(status_type), intent(out) :: status
+        type(value_type) :: handler, fn, param
+        integer :: k
+        status = status_type()
+        handler = string_get_text_property(0_int64, sym("yank_handler"), string)
+        param = list_elt(handler, 2_int64)
+        if (nilp(param)) param = string
+        ! (FIXME upstream: this throws away any yank-undo-function set by
+        ! previous calls to insert-for-yank-1 within the loop of
+        ! insert-for-yank.)
+        yank_undo_function => null()
+        fn = list_elt(handler, 1_int64)
+        if (symbolp(fn) .and. .not. nilp(fn)) then
+            do k = 1, n_yank_handler_functions()
+                if (yank_handler_functions(k)%name == symbols(xsymbol(fn))%name) then
+                    call yank_handler_functions(k)%run(param, status)
+                    return
+                end if
+            end do
+            call set_error(status, FM_GENERIC_ERROR, "Invalid function: "//symbols(xsymbol(fn))%name)
+            return
+        end if
+        call insert(xstring(param), status)
+    end subroutine insert_for_yank_1
+
+    !> Make NAME, as the FUNCTION of a `yank_handler' property, call
+    !> PROC.  (Ours: upstream names a Lisp function.)
+    subroutine define_yank_handler_function(name, proc)
+        character(len=*), intent(in) :: name
+        procedure(yank_handler_proc) :: proc
+        type(yank_handler_function_type), allocatable :: grown(:)
+        integer :: k, n
+        n = n_yank_handler_functions()
+        do k = 1, n
+            if (yank_handler_functions(k)%name == name) then
+                yank_handler_functions(k)%run => proc
+                return
+            end if
+        end do
+        allocate (grown(n + 1))
+        do k = 1, n
+            grown(k)%name = yank_handler_functions(k)%name
+            grown(k)%run => yank_handler_functions(k)%run
+        end do
+        grown(n + 1)%name = name
+        grown(n + 1)%run => proc
+        call move_alloc(grown, yank_handler_functions)
+    end subroutine define_yank_handler_function
+
+    integer function n_yank_handler_functions() result(n)
+        n = 0
+        if (allocated(yank_handler_functions)) n = size(yank_handler_functions)
+    end function n_yank_handler_functions
 
     !> Rotate the yanking point in the kill ring.
     !> With ARG, rotate that many kills forward (or backward, if negative).

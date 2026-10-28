@@ -30,11 +30,13 @@ module test_rect_fm
     use data_fm, only: set
     use buffer_fm, only: get_buffer_create, set_buffer, kill_buffer, erase_buffer, set_buffer_read_only
     use insdel_fm, only: insert
-    use editfns_fm, only: point, goto_char, buffer_string, mark_position
+    use editfns_fm, only: point, goto_char, buffer_string, mark_position, region_beginning, region_end, interactive_region
     use keyboard_fm, only: kbd_store_bytes, command_loop, discard_input, last_message
     use callint_fm, only: prefix_arg
     use bindings_fm, only: init_bindings
-    use simple_fm, only: deactivate_mark, set_mark, kill_read_only_ok, count_lines, line_number_at_pos
+    use simple_fm, only: deactivate_mark, set_mark, kill_read_only_ok, count_lines, line_number_at_pos, current_kill, &
+                         region_active_p, region_bounds, region_noncontiguous_p
+    use modes_fm, only: minor_modes
     use indent_fm, only: indent_tabs_mode
     use rect_fm, only: rectangle_line_type, killed_rectangle, extract_rectangle, delete_rectangle, &
                        delete_extract_rectangle, kill_rectangle, yank_rectangle, insert_rectangle, open_rectangle, &
@@ -73,7 +75,10 @@ contains
                     new_unittest("delete-whitespace-rectangle", test_delete_whitespace), &
                     new_unittest("rectangle-number-lines", test_number_lines), &
                     new_unittest("rectangle-geometry", test_geometry), &
-                    new_unittest("rectangle-keys", test_keys) &
+                    new_unittest("rectangle-keys", test_keys), &
+                    new_unittest("rectangle-mark-mode-kill-yank", test_mark_mode_kill_yank), &
+                    new_unittest("rectangle-mark-mode-past-eol", test_mark_mode_past_eol), &
+                    new_unittest("rectangle-mark-mode-region", test_mark_mode_region) &
                     ]
     end subroutine collect_rect_fm
 
@@ -501,4 +506,119 @@ contains
         call check(error, buffer_string(), "a   ef"//nl//"g   "//nl//"m   qr")
         call kill_buffer(h, st)
     end subroutine test_keys
+
+    !> C-x SPC, the remapped motion keys, C-w killing the rectangle
+    !> (Rectangle-Mark mode ends with the region) and C-y yanking it back
+    !> as a rectangle (its yank handler).
+    subroutine test_mark_mode_kill_yank(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        call fresh(h, grid)
+        call discard_input()
+        prefix_arg = nil()
+        call init_bindings()
+        call goto_char(2_int64)
+        call kbd_store_bytes(achar(24)//" ")
+        call command_loop(st)
+        call check(error, minor_modes%rectangle_mark_mode%enabled(), "mode on")
+        if (allocated(error)) return
+        call check(error, mark_position() == 2 .and. region_active_p(), "mark set at b")
+        if (allocated(error)) return
+        call check(error, last_message == "Mark set (rectangle mode)", last_message)
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(14)//achar(14)//achar(6)//achar(6))
+        call command_loop(st)
+        call check(error, point() == 18, "at p")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(23))
+        call command_loop(st)
+        call check(error, buffer_string(), "adef"//nl//"gjkl"//nl//"mpqr")
+        if (allocated(error)) return
+        call check(error,.not. minor_modes%rectangle_mark_mode%enabled(), "mode off with the region")
+        if (allocated(error)) return
+        call current_kill(0_int64, text, st)
+        call check(error, text, "bc"//nl//"hi"//nl//"no")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(27)//"<"//achar(25))
+        call command_loop(st)
+        call check(error, buffer_string(), "bcadef"//nl//"higjkl"//nl//"nompqr")
+        call kill_buffer(h, st)
+    end subroutine test_mark_mode_kill_yank
+
+    !> A corner past the end of a short line: point's crutch keeps its
+    !> column, and M-w copies the rectangle padded with spaces.
+    subroutine test_mark_mode_past_eol(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+        call fresh(h, "abcd"//nl//"ab"//nl//"abcd")
+        call discard_input()
+        prefix_arg = nil()
+        call init_bindings()
+        call kbd_store_bytes(achar(24)//" "//achar(6)//achar(6)//achar(6)//achar(14))
+        call command_loop(st)
+        call check(error, point() == 8, "at the end of ab")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(14))
+        call command_loop(st)
+        call check(error, point() == 12, "column 3 again")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(27)//"w")
+        call command_loop(st)
+        call current_kill(0_int64, text, st)
+        call check(error, text, "abc"//nl//"ab "//nl//"abc")
+        if (allocated(error)) return
+        call check(error, buffer_string(), "abcd"//nl//"ab"//nl//"abcd")
+        call kill_buffer(h, st)
+    end subroutine test_mark_mode_past_eol
+
+    !> In Rectangle-Mark mode `region_beginning' and `region_end' are the
+    !> top left and bottom right corners, the region has a piece on each
+    !> line, and C-x C-x cycles through the corners.
+    subroutine test_mark_mode_region(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+        integer(int64) :: b, e
+        integer(int64), allocatable :: starts(:), ends(:)
+        call fresh(h, grid)
+        call discard_input()
+        prefix_arg = nil()
+        call init_bindings()
+        call goto_char(4_int64)
+        call kbd_store_bytes(achar(24)//" "//achar(14)//achar(14)//achar(2)//achar(2))
+        call command_loop(st)
+        call check(error, point() == 16 .and. mark_position() == 4, "d to n")
+        if (allocated(error)) return
+        call region_beginning(b, st)
+        call region_end(e, st)
+        call check(error, b == 2 .and. e == 18, "b and p")
+        if (allocated(error)) return
+        call interactive_region(b, e, st)
+        call check(error, b == 4 .and. e == 16, "point and mark for `r'")
+        if (allocated(error)) return
+        call check(error, region_noncontiguous_p(), "noncontiguous")
+        if (allocated(error)) return
+        call region_bounds(starts, ends, st)
+        call check(error, size(starts) == 3, "three pieces")
+        if (allocated(error)) return
+        call check(error, all(starts == [2_int64, 9_int64, 16_int64]) .and. all(ends == [4_int64, 11_int64, 18_int64]), &
+                   "bc, hi and no")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(24)//achar(24))
+        call command_loop(st)
+        call check(error, point() == 4 .and. mark_position() == 16, "exchanged")
+        if (allocated(error)) return
+        call kbd_store_bytes(achar(24)//achar(24))
+        call command_loop(st)
+        call check(error, point() == 18 .and. mark_position() == 2, "the other corners")
+        if (allocated(error)) return
+        call check(error, minor_modes%rectangle_mark_mode%enabled(), "still on")
+        call deactivate_mark()
+        call check(error,.not. minor_modes%rectangle_mark_mode%enabled(), "off with the region")
+        call kill_buffer(h, st)
+    end subroutine test_mark_mode_region
 end module test_rect_fm

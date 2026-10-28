@@ -48,7 +48,7 @@ module xfaces_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_fm, only: status_type
     use lisp_fm, only: value_type, symbols, nilp, symbolp, stringp, consp, fixnump, xsymbol, xstring, &
-                       xfixnum, list_elements
+                       xfixnum, list_elements, windowp, xhandle
     use lread_fm, only: sym
     use dispextern_fm, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR, &
                              FACE_TTY_DEFAULT_BG_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
@@ -76,7 +76,7 @@ module xfaces_fm
     private
 
     public :: realize_basic_faces, recompute_basic_faces, clear_face_cache, lookup_face, lookup_named_face, &
-              merge_faces, face_at_buffer_position, merge_face_ref, tty_supports_face_attributes_p, &
+              merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, tty_supports_face_attributes_p, &
               init_frame_faces, frame_background_mode
 
     !> Suppress/allow boldness of faces with inverse default colors.
@@ -982,6 +982,28 @@ contains
         id = lookup_face(f, attrs)
     end function merge_faces
 
+    !> The id of the face for a character of a string whose `face'
+    !> property is PROP, shown where the face is BASE_FACE_ID on frame F:
+    !> the base face with PROP merged in (the base face itself if PROP is
+    !> nil).  Port of xfaces.c:face_at_string_position (the string's
+    !> property already looked up; no mouse faces).
+    integer(int32) function face_at_string_position(f, prop, base_face_id) result(id)
+        type(frame_type), intent(inout) :: f
+        type(value_type), intent(in) :: prop
+        integer(int32), intent(in) :: base_face_id
+        type(face_attributes_type) :: attrs
+        logical :: ok
+        id = base_face_id
+        if (nilp(prop)) return
+        if (.not. allocated(f%faces)) call realize_basic_faces(f)
+        if (base_face_id < 0 .or. base_face_id > ubound(f%faces, 1)) return
+        ! Begin with attributes from the base face.
+        attrs = f%faces(base_face_id)%lface
+        ! Merge in attributes specified via text properties.
+        call merge_face_ref(prop, attrs, ok)
+        id = lookup_face(f, attrs)
+    end function face_at_string_position
+
     !> The id of the face for the text at POS in buffer slot BI on frame
     !> F, and in ENDPOS the next position (at most LIMIT and the end of the
     !> accessible text) where a different face may be needed: the default
@@ -991,17 +1013,19 @@ contains
     !> [REGION_START, REGION_END) (the region overlay redisplay makes for
     !> an active region, of priority (nil . 100)).  With EXTEND_ONLY, only
     !> faces that set `extend' are merged (for filling the rest of a
-    !> line).  Port of xfaces.c:face_at_buffer_position (overlays' `window'
-    !> properties are not ported; no mouse faces).
+    !> line).  Overlays whose `window' property is not WINDOW (when given)
+    !> are left out.  Port of xfaces.c:face_at_buffer_position (no mouse
+    !> faces).
     integer(int32) function face_at_buffer_position(f, bi, pos, endpos, limit, region_start, region_end, &
-                                                    extend_only) result(id)
+                                                    extend_only, window) result(id)
         type(frame_type), intent(inout) :: f
         integer(int64), intent(in) :: bi, pos, limit
         integer(int64), intent(out) :: endpos
         integer(int64), intent(in), optional :: region_start, region_end
         logical, intent(in), optional :: extend_only
+        type(handle_type), intent(in), optional :: window
         type(face_attributes_type) :: attrs
-        type(value_type) :: prop
+        type(value_type) :: prop, owner
         type(status_type) :: status
         type(handle_type), allocatable :: overlay_vec(:)
         integer(int64) :: saved, end, next_overlay, oendpos, rbeg, rend, p, s
@@ -1020,6 +1044,7 @@ contains
         if (found) endpos = end
         ! Look at properties from overlays.
         call overlays_at(pos, overlay_vec, next=next_overlay)
+        if (present(window)) call drop_other_windows()
         ! overlays_at can return next_overlay beyond the end of the current
         ! narrowing.  We don't want that to leak into the display code.
         if (next_overlay > buffers(bi)%zv) next_overlay = buffers(bi)%zv
@@ -1069,6 +1094,27 @@ contains
         ! realize a new one.
         id = lookup_face(f, attrs)
     contains
+        !> Remove the overlays for other windows than WINDOW from
+        !> OVERLAY_VEC (their end still limits ENDPOS, as upstream's
+        !> overlays_at did).
+        subroutine drop_other_windows()
+            type(handle_type) :: h
+            integer :: k, n
+            n = 0
+            do k = 1, size(overlay_vec)
+                owner = overlay_get(overlay_vec(k), "window")
+                if (windowp(owner)) then
+                    h = xhandle(owner)
+                    if (h%index /= window%index .or. h%generation /= window%generation) cycle
+                else if (.not. nilp(owner)) then
+                    cycle
+                end if
+                n = n + 1
+                overlay_vec(n) = overlay_vec(k)
+            end do
+            overlay_vec = overlay_vec(1:n)
+        end subroutine drop_other_windows
+
         !> Merge the region overlay's face.
         subroutine merge_region()
             call merge_named_face("region", attrs, 1, filter, ok)

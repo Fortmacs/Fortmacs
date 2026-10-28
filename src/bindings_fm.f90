@@ -394,6 +394,7 @@ contains
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_x_map), status)
         ! bindings.el: ctl-x-r-map (rect.el and register.el; frameset-to-register
         ! on f and the bookmark keys are not ported).
+        call bind(ctl_x_map, "SPC", "rectangle_mark_mode")
         call make_sparse_keymap(ctl_x_r_map)
         call bind(ctl_x_r_map, "c", "clear_rectangle")
         call bind(ctl_x_r_map, "k", "kill_rectangle")

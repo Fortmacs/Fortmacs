@@ -1035,7 +1035,7 @@ contains
         ! subprocess output relocates them while we are in the minibuffer.
         call read_shell_command("Shell command on region: ", string, status)
         if (.not. status%ok()) return
-        call region_bounds(beg, end, status)
+        call shell_region_bounds(beg, end, status)
         if (.not. status%ok()) return
         if (allocated(shell_command_default_error_buffer%value)) then
             call shell_command_on_region(beg, end, string, status, insert_here=prefix, replace=prefix, &
@@ -1048,14 +1048,14 @@ contains
     end subroutine cmd_shell_command_on_region
 
     !> The region's limits, as region-beginning and region-end give them.
-    subroutine region_bounds(beg, end, status)
+    subroutine shell_region_bounds(beg, end, status)
         use editfns_fm, only: region_beginning, region_end
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
         call region_beginning(beg, status)
         if (.not. status%ok()) return
         call region_end(end, status)
-    end subroutine region_bounds
+    end subroutine shell_region_bounds
 
     !> Register the shell commands and build
     !> `minibuffer_local_shell_command_map'.

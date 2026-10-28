@@ -65,7 +65,8 @@ module newcomment_fm
                          generate_new_buffer_name, barf_if_buffer_read_only, fill_column, buffer_serial_live
     use insdel_fm, only: insert, insert_before_markers
     use marker_fm, only: copy_marker_at, marker_position, free_marker
-    use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
+    use editfns_fm, only: interactive_region, &
+                          point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
                           line_beginning_position, line_end_position, delete_region, buffer_substring, &
                           narrow_to_region, widen, region_beginning, region_end
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char
@@ -1815,7 +1816,7 @@ contains
     recursive subroutine cmd_uncomment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-        call region_bounds(beg, end, status)
+        call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, uncomment_region)
     end subroutine cmd_uncomment_region
@@ -1834,7 +1835,7 @@ contains
         end if
     end subroutine with_prefix
 
-    !> The region (point and mark, ordered), as interactive "r" gives it.
+    !> (region-beginning) and (region-end).
     subroutine region_bounds(beg, end, status)
         integer(int64), intent(out) :: beg, end
         type(status_type), intent(out) :: status
@@ -2352,7 +2353,7 @@ contains
     recursive subroutine cmd_comment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-        call region_bounds(beg, end, status)
+        call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, comment_region)
     end subroutine cmd_comment_region
@@ -2531,7 +2532,7 @@ contains
     recursive subroutine cmd_comment_box(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-        call region_bounds(beg, end, status)
+        call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call comment_box(beg, end, prefix_numeric_value(current_prefix_arg), status)
     end subroutine cmd_comment_box
@@ -2576,7 +2577,7 @@ contains
     recursive subroutine cmd_comment_or_uncomment_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beg, end
-        call region_bounds(beg, end, status)
+        call interactive_region(beg, end, status)
         if (.not. status%ok()) return
         call with_prefix(beg, end, status, comment_or_uncomment_region)
     end subroutine cmd_comment_or_uncomment_region
