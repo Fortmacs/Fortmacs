@@ -1482,7 +1482,7 @@ contains
     function propertized_concat(string1, string2) result(v)
         type(value_type), intent(in) :: string1, string2
         type(value_type) :: v
-        integer(int64), allocatable :: s1(:), e1(:), s2(:), e2(:)
+        integer(int64), allocatable :: s1(:), e1(:), s2(:), e2(:), starts(:), ends(:)
         type(value_type), allocatable :: p1(:), p2(:), plists(:)
         type(status_type) :: st
         integer(int64) :: n1
@@ -1491,14 +1491,20 @@ contains
         call string_chars(string1, n1, st)
         call string_intervals(string1, s1, e1, p1)
         call string_intervals(string2, s2, e2, p2)
-        allocate (plists(size(p1) + size(p2)))
+        if (size(p1) + size(p2) == 0) return
+        ! (No array constructors: a zero-size one reallocates to size 0.)
+        allocate (plists(size(p1) + size(p2)), starts(size(p1) + size(p2)), ends(size(p1) + size(p2)))
         do k = 1, size(p1)
             plists(k) = p1(k)
+            starts(k) = s1(k)
+            ends(k) = e1(k)
         end do
         do k = 1, size(p2)
             plists(size(p1) + k) = p2(k)
+            starts(size(p1) + k) = s2(k) + n1
+            ends(size(p1) + k) = e2(k) + n1
         end do
-        call set_string_intervals(v, [s1, s2 + n1], [e1, e2 + n1], plists)
+        call set_string_intervals(v, starts, ends, plists)
     end function propertized_concat
 
     !> The byte (1-based) where character N (0-based) of TEXT starts; one

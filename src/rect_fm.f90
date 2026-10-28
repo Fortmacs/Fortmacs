@@ -1172,11 +1172,15 @@ contains
     subroutine clear_crutch(crutches, owner)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
+        type(crutch_type), allocatable :: kept(:)
         integer :: k
         if (.not. allocated(crutches)) return
         do k = 1, size(crutches)
             if (same_owner(crutches(k)%owner, owner)) then
-                crutches = [crutches(1:k - 1), crutches(k + 1:)]
+                allocate (kept(size(crutches) - 1))
+                kept(1:k - 1) = crutches(1:k - 1)
+                kept(k:) = crutches(k + 1:)
+                call move_alloc(kept, crutches)
                 return
             end if
         end do
