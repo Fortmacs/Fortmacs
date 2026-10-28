@@ -103,7 +103,7 @@ otherwise:
 
 ## Why AI assistance?
 
-The progress block counts tens of thousands of definitions to rewrite, in
+The progress chart covers tens of thousands of definitions to rewrite, in
 Emacs's C as well as its Elisp, plus over 7,000 packages (509 in GNU ELPA,
 293 in NonGNU ELPA, 6,333 in MELPA), every one written in Elisp. Package
 maintainers shouldn't be expected to port their work to an experimental
@@ -112,8 +112,8 @@ it would become an endless race over which packages matter most. Emacs
 already works, so Emacs in Fortran would likely never happen. This is for
 fun. Let's see where it goes.
 
-Fortmacs is written with [Claude Code](https://claude.com/claude-code),
-Anthropic's coding agent, running on one of Claude's most capable models.
+Fortmacs is co-written with Claude Code, Anthropic's coding agent, running
+on one of Claude's most capable models.
 
 Telling an assistant to "rewrite Emacs in Fortran" doesn't produce a working
 program by itself: a faithful port takes constant direction. Left alone, it
