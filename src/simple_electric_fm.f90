@@ -393,25 +393,20 @@ contains
     end subroutine cmd_backward_delete_char_untabify
 
     module procedure backward_delete_char_untabify
-    integer(int64) :: count, col, opoint, oldpt, wh, n, moved, b, e
+    integer(int64) :: count, col, opoint, oldpt, wh, n, moved
+    integer(int64), allocatable :: starts(:), ends(:)
     integer(int32) :: c
     logical :: found, kill
     character(len=:), allocatable :: skip
     type(status_type) :: st
     type(handle_type) :: here
+    type(value_type) :: extracted
     kill = .false.
     if (present(killp)) kill = killp
     if (use_region_p() .and. delete_active_region .and. arg == 1) then
         ! Delete the text of the region and deactivate the mark, in the
         ! same way that `delete_backward_char' does.
-        if (kill) then
-            call delete_backward_char(1_int64, status, kill)
-        else
-            ! The default region-extract-function with METHOD `delete_only'.
-            call region_beginning(b, status)
-            if (status%ok()) call region_end(e, status)
-            if (status%ok()) call delete_region(b, e, status)
-        end if
+        call region_extract_function(REGION_EXTRACT_DELETE_ONLY, extracted, starts, ends, status)
         return
     end if
     if (backward_delete_char_untabify_method == UNTABIFY_METHOD_UNTABIFY) then

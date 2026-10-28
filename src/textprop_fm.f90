@@ -24,8 +24,10 @@
 !> Functions that return nil upstream take a `found' logical.  Changing
 !> properties counts as a modification (buffer modified, read-only text
 !> checked, change hooks run) as upstream.  `get_char_property' and the
-!> char-property-change functions look at overlays too.  Not yet:
-!> properties on strings, undo
+!> char-property-change functions look at overlays too.  Strings keep
+!> their properties as lisp_fm's string intervals: the `string_'
+!> functions and `propertize' work on them (0-based positions, as
+!> upstream).  Not yet: the other functions with a string OBJECT, undo
 !> records, modification hooks (the `modification_hooks'
 !> property and friends), LIMIT t in next-property-change,
 !> add-face-text-property, stickiness for insert-and-inherit, and
@@ -35,9 +37,11 @@
 module textprop_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                        FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY
+                        FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, nilp, &
-                       stringp, value_type, xstring, nil
+                       stringp, value_type, xstring, nil, string_intervals, set_string_intervals, &
+                       make_string
+    use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
     use data_fm, only: value_eq
     use buffer_fm, only: buffers, cur, BEG, inhibit_read_only
@@ -59,6 +63,9 @@ module textprop_fm
               previous_single_char_property_change, get_char_property, get_char_property_and_overlay, &
               next_char_property_change, previous_char_property_change, text_prop_means_invisible, &
               get_pos_property, get_property_and_range
+    public :: string_text_properties_at, string_get_text_property, string_add_text_properties, &
+              string_put_text_property, propertize, string_next_single_property_change, propertized_substring, &
+              propertized_concat
 
     interface
         !> Check that the properties of START..END may change, run the
@@ -1211,4 +1218,313 @@ contains
             end if
         end associate
     end subroutine verify_interval_modification
+    ! ------------------------------------------------------------------
+    ! Properties of strings
+    ! ------------------------------------------------------------------
+
+    !> Property list of the character at POSITION (0-based) of STRING; nil
+    !> at its end or where it has none.  Port of textprop.c:Ftext_properties_at
+    !> with a string OBJECT.
+    function string_text_properties_at(position, string) result(plist)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: string
+        type(value_type) :: plist
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        integer :: k
+        call string_intervals(string, starts, ends, plists)
+        do k = 1, size(starts)
+            if (starts(k) <= position .and. position < ends(k)) then
+                plist = plists(k)
+                return
+            end if
+        end do
+    end function string_text_properties_at
+
+    !> Value of PROP on the character at POSITION (0-based) of STRING (via
+    !> `category' too).  Port of textprop.c:Fget_text_property with a
+    !> string OBJECT.
+    function string_get_text_property(position, prop, string) result(val)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop, string
+        type(value_type) :: val
+        val = textget(string_text_properties_at(position, string), prop)
+    end function string_get_text_property
+
+    !> Add the properties of PROPERTIES (a plist) to the characters START
+    !> to END (0-based, either order) of STRING; CHANGED says whether any
+    !> property changed.  Port of textprop.c:Fadd_text_properties with a
+    !> string OBJECT.
+    subroutine string_add_text_properties(start, end, properties, string, changed, status)
+        integer(int64), intent(in) :: start, end
+        type(value_type), intent(in) :: properties
+        type(value_type), intent(inout) :: string
+        logical, intent(out) :: changed
+        type(status_type), intent(out) :: status
+        integer(int64), allocatable :: starts(:), ends(:), cuts(:)
+        type(value_type), allocatable :: plists(:), pieces(:)
+        type(value_type) :: plist
+        integer(int64) :: s, e, nchars
+        integer :: k, j
+        logical :: piece_changed
+        changed = .false.
+        call string_chars(string, nchars, status)
+        if (.not. status%ok()) return
+        s = min(start, end)
+        e = max(start, end)
+        if (s < 0 .or. e > nchars) then
+            call range_error(status, start, end)
+            return
+        end if
+        call validate_plist(properties, plist, status)
+        if (.not. status%ok()) return
+        if (s == e .or. nilp(plist)) return
+        call string_intervals(string, starts, ends, plists)
+        ! Cut the string where an interval or the range starts or ends,
+        ! and give each piece in the range the properties.
+        cuts = [0_int64, nchars, s, e, starts, ends]
+        call sort_unique(cuts)
+        allocate (pieces(size(cuts) - 1))
+        do j = 1, size(pieces)
+            do k = 1, size(starts)
+                if (starts(k) <= cuts(j) .and. cuts(j) < ends(k)) pieces(j) = plists(k)
+            end do
+            if (s <= cuts(j) .and. cuts(j) < e) then
+                call plist_add(pieces(j), plist, piece_changed)
+                changed = changed .or. piece_changed
+            end if
+        end do
+        if (changed) call set_merged_intervals(string, cuts, pieces)
+    end subroutine string_add_text_properties
+
+    !> Set one property of the characters START to END (0-based) of
+    !> STRING.  Port of textprop.c:Fput_text_property with a string OBJECT.
+    subroutine string_put_text_property(start, end, prop, val, string, status)
+        integer(int64), intent(in) :: start, end
+        type(value_type), intent(in) :: prop, val
+        type(value_type), intent(inout) :: string
+        type(status_type), intent(out) :: status
+        logical :: changed
+        call string_add_text_properties(start, end, list(prop, val), string, changed, status)
+    end subroutine string_put_text_property
+
+    !> A copy of STRING with the properties of PROPERTIES (a plist) on all
+    !> of it, added to those it has.  Port of editfns.c:Fpropertize.
+    function propertize(string, properties) result(v)
+        type(value_type), intent(in) :: string, properties
+        type(value_type) :: v
+        type(status_type) :: st
+        integer(int64) :: nchars
+        logical :: changed
+        v = string
+        call string_chars(v, nchars, st)
+        if (st%ok()) call string_add_text_properties(0_int64, nchars, properties, v, changed, st)
+    end function propertize
+
+    !> The characters of STRING (a wrong-type-argument if not a string).
+    subroutine string_chars(string, nchars, status)
+        type(value_type), intent(in) :: string
+        integer(int64), intent(out) :: nchars
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+        nchars = 0
+        if (.not. stringp(string)) then
+            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp")
+            return
+        end if
+        call multibyte_chars_in_text(xstring(string), nchars, st)
+        if (.not. st%ok()) nchars = len(xstring(string), kind=int64)
+    end subroutine string_chars
+
+    !> Add the pairs of NEW to PLIST, replacing values of properties it
+    !> has (textprop.c:add_properties on a plist).
+    subroutine plist_add(plist, new, changed)
+        type(value_type), intent(inout) :: plist
+        type(value_type), intent(in) :: new
+        logical, intent(out) :: changed
+        type(value_type), allocatable :: pairs(:), old(:), grown(:)
+        integer(int64) :: j, m
+        logical :: found
+        changed = .false.
+        call list_elements(new, pairs)
+        do j = 1, size(pairs, kind=int64) - 1, 2
+            call list_elements(plist, old)
+            found = .false.
+            do m = 1, size(old, kind=int64) - 1, 2
+                if (value_eq(old(m), pairs(j))) then
+                    found = .true.
+                    if (.not. value_eq(old(m + 1), pairs(j + 1))) then
+                        old(m + 1) = pairs(j + 1)
+                        plist = make_list(old)
+                        changed = .true.
+                    end if
+                    exit
+                end if
+            end do
+            if (.not. found) then
+                grown = [pairs(j:j + 1), old]
+                plist = make_list(grown)
+                changed = .true.
+            end if
+        end do
+    end subroutine plist_add
+
+    !> Sort CUTS and drop repeated values.
+    pure subroutine sort_unique(cuts)
+        integer(int64), allocatable, intent(inout) :: cuts(:)
+        integer(int64) :: t
+        integer :: i, j, n
+        do i = 2, size(cuts)
+            t = cuts(i)
+            j = i - 1
+            do while (j >= 1)
+                if (cuts(j) <= t) exit
+                cuts(j + 1) = cuts(j)
+                j = j - 1
+            end do
+            cuts(j + 1) = t
+        end do
+        n = min(1, size(cuts))
+        do i = 2, size(cuts)
+            if (cuts(i) /= cuts(n)) then
+                n = n + 1
+                cuts(n) = cuts(i)
+            end if
+        end do
+        cuts = cuts(1:n)
+    end subroutine sort_unique
+
+    !> Give STRING the pieces [CUTS(j), CUTS(j+1)) with plists PIECES(j),
+    !> adjacent pieces with equal plists as one interval.
+    subroutine set_merged_intervals(string, cuts, pieces)
+        type(value_type), intent(inout) :: string
+        integer(int64), intent(in) :: cuts(:)
+        type(value_type), intent(in) :: pieces(:)
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        integer :: j, n
+        allocate (starts(size(pieces)), ends(size(pieces)), plists(size(pieces)))
+        n = 0
+        do j = 1, size(pieces)
+            if (n > 0) then
+                if (ends(n) == cuts(j) .and. intervals_equal(plists(n), pieces(j))) then
+                    ends(n) = cuts(j + 1)
+                    cycle
+                end if
+            end if
+            n = n + 1
+            starts(n) = cuts(j)
+            ends(n) = cuts(j + 1)
+            plists(n) = pieces(j)
+        end do
+        call set_string_intervals(string, starts(1:n), ends(1:n), plists(1:n))
+    end subroutine set_merged_intervals
+
+    !> The position (0-based) after POSITION of STRING where property PROP
+    !> changes; FOUND is false if it does not change before the end.
+    !> Port of textprop.c:Fnext_single_property_change with a string
+    !> OBJECT (no LIMIT).
+    subroutine string_next_single_property_change(position, prop, string, result, found)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: prop, string
+        integer(int64), intent(out) :: result
+        logical, intent(out) :: found
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        type(value_type) :: here
+        type(status_type) :: st
+        integer(int64) :: nchars, p
+        integer :: k
+        result = 0
+        found = .false.
+        call string_chars(string, nchars, st)
+        if (.not. st%ok()) return
+        call string_intervals(string, starts, ends, plists)
+        here = string_get_text_property(position, prop, string)
+        ! The next interval boundary where PROP's value differs.
+        p = position
+        do
+            result = nchars
+            do k = 1, size(starts)
+                if (starts(k) > p) result = min(result, starts(k))
+                if (ends(k) > p) result = min(result, ends(k))
+            end do
+            if (result >= nchars) return
+            if (.not. value_eq(string_get_text_property(result, prop, string), here)) exit
+            p = result
+        end do
+        found = .true.
+    end subroutine string_next_single_property_change
+
+    !> The characters FROM to TO (0-based, FROM <= TO, within it) of
+    !> STRING with their text properties.  Port of fns.c:Fsubstring (the
+    !> range already checked).
+    function propertized_substring(string, from, to) result(v)
+        type(value_type), intent(in) :: string
+        integer(int64), intent(in) :: from, to
+        type(value_type) :: v
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        character(len=:), allocatable :: text
+        integer(int64) :: first, last
+        text = xstring(string)
+        first = char_byte(text, from)
+        last = char_byte(text, to)
+        v = make_string(text(first:last - 1))
+        call string_intervals(string, starts, ends, plists)
+        starts = min(max(starts, from), to) - from
+        ends = min(max(ends, from), to) - from
+        call set_string_intervals(v, starts, ends, plists)
+    end function propertized_substring
+
+    !> STRING1 followed by STRING2, with the text properties of both.
+    !> Port of fns.c:concat_to_string for two strings.
+    function propertized_concat(string1, string2) result(v)
+        type(value_type), intent(in) :: string1, string2
+        type(value_type) :: v
+        integer(int64), allocatable :: s1(:), e1(:), s2(:), e2(:), starts(:), ends(:)
+        type(value_type), allocatable :: p1(:), p2(:), plists(:)
+        type(status_type) :: st
+        integer(int64) :: n1
+        integer :: k
+        v = make_string(xstring(string1)//xstring(string2))
+        call string_chars(string1, n1, st)
+        call string_intervals(string1, s1, e1, p1)
+        call string_intervals(string2, s2, e2, p2)
+        if (size(p1) + size(p2) == 0) return
+        ! (No array constructors: a zero-size one reallocates to size 0.)
+        allocate (plists(size(p1) + size(p2)), starts(size(p1) + size(p2)), ends(size(p1) + size(p2)))
+        do k = 1, size(p1)
+            plists(k) = p1(k)
+            starts(k) = s1(k)
+            ends(k) = e1(k)
+        end do
+        do k = 1, size(p2)
+            plists(size(p1) + k) = p2(k)
+            starts(size(p1) + k) = s2(k) + n1
+            ends(size(p1) + k) = e2(k) + n1
+        end do
+        call set_string_intervals(v, starts, ends, plists)
+    end function propertized_concat
+
+    !> The byte (1-based) where character N (0-based) of TEXT starts; one
+    !> past the end for N at or past its end.
+    pure integer(int64) function char_byte(text, n) result(byte)
+        character(len=*), intent(in) :: text
+        integer(int64), intent(in) :: n
+        integer(int64) :: count
+        integer :: i
+        byte = len(text) + 1
+        count = 0
+        do i = 1, len(text)
+            if (iand(iachar(text(i:i)), 192) /= 128) then
+                if (count == n) then
+                    byte = i
+                    return
+                end if
+                count = count + 1
+            end if
+        end do
+    end function char_byte
+
 end module textprop_fm

@@ -35,7 +35,8 @@
 !> (skipped, or shown as an ellipsis, as `buffer_invisibility_spec'
 !> says), and text replaced by a `display' string or `(space ...)' spec
 !> (handle_stop); the strings and spaces are in the face of the text
-!> where they are shown.
+!> where they are shown, with an overlay string's own `face' merged in.
+!> Overlays whose `window' property is another window are not shown.
 !>
 !> Faces (xfaces_fm): text in the face of its `face' property, an active
 !> region in the region face (extended to the end of a line where the
@@ -51,7 +52,9 @@
 !> follow a built-in table of wide ranges (no char-width-table), there
 !> are no display tables, display specs other than strings and spaces
 !> (images, margins, `raise', `height' and the like), text properties
-!> in overlay and display strings, faces in echo-area messages, bidi or
+!> in display strings and in overlay strings other than `face',
+!> `cursor' (an integer) and a `(space ...)' `display' spec, faces in
+!> echo-area messages, bidi or
 !> truncate-lines
 !> (truncate-partial-width-windows is Deferred: narrow side-by-side
 !> windows continue lines instead of truncating them, as that needs
@@ -90,19 +93,20 @@ module xdisp_fm
     use eval_fm, only: position_hook_type
     use textprop_fm, only: get_text_property, next_single_property_change, get_char_property, &
                            get_char_property_and_overlay, next_char_property_change, &
-                           next_single_char_property_change, text_prop_means_invisible
+                           next_single_char_property_change, text_prop_means_invisible, propertized_substring
     use itree_fm, only: overlays_in, overlay_start, overlay_end, overlay_get
     use buffer_fm, only: cur, set_buffer_internal
     use buffer_fm, only: buffers, resolve_buffer, current_buffer, buf_fetch_char, &
                          buf_fetch_byte, buf_next_char_len, buffer_modified_p, transient_mark_mode
     use marker_fm, only: buf_charpos_to_bytepos, buf_bytepos_to_charpos, markers
     use character_fm, only: char_byte8_p, char_to_byte8, string_char_and_length, multibyte_length, &
-                            byte8_to_char
+                            byte8_to_char, multibyte_chars_in_text
     use dispextern_fm, only: glyph_type, glyph_row_type, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, &
                              MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, STRETCH_GLYPH, FILLED_BOX_CURSOR
     use font_fm, only: font_type, font_metrics_type
-    use xfaces_fm, only: face_at_buffer_position, merge_faces, realize_basic_faces, TEXT_PROP_DISTANCE_LIMIT
-    use frame_fm, only: frame_type, selected_frame, frame_window_p, frame_lines, frame_cols, window_pixel_left, &
+    use xfaces_fm, only: face_at_buffer_position, face_at_string_position, merge_faces, realize_basic_faces, &
+                         TEXT_PROP_DISTANCE_LIMIT
+    use frame_fm, only: frame_type, selected_frame, selected_window, frame_window_p, frame_lines, frame_cols, window_pixel_left, &
                         window_pixel_top, window_pixel_width, window_pixel_height, window_body_pixel_width
     use window_fm, only: window_type, set_window_buffer, window_start, &
                          set_window_start, window_body_lines, window_point, window_text_cols, windows, &
@@ -110,7 +114,9 @@ module xdisp_fm
                          set_window_point
     use dispnew_fm, only: adjust_frame_glyphs, update_frame, update_window_line, redraw_frame
     use keyboard_fm, only: last_message, minibuffer_message_text, set_minibuffer_message_text
-    use lisp_fm, only: value_type, nilp, stringp, xstring, consp, list_elements, fixnump, xfixnum
+    use lisp_fm, only: value_type, nilp, stringp, xstring, consp, list_elements, fixnump, xfixnum, windowp, xhandle, &
+                       string_intervals
+    use intervals_fm, only: textget
     use lread_fm, only: sym
     use data_fm, only: buffer_local_value, integer_setting, add_local_variables_killer, value_eq
     use coding_fm, only: coding_system_p, coding_system_mnemonic, coding_system_eol_type_mnemonic, syms_of_coding, &
@@ -130,6 +136,46 @@ module xdisp_fm
               mode_line_text, mode_line_mule_info, layout_window, message, glyph_columns, display_line_rows, display_row_of, &
               mode_line_row, recenter_start, mode_line_percent, display_row, line_beginning, invisible_p
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline
+    public :: highlight_region_proc, unhighlight_region_proc
+
+    !> The window redisplay is displaying (it->w); the null handle
+    !> between windows.
+    type(handle_type) :: displayed_window
+
+    abstract interface
+        !> Highlight the region START..END of the current buffer in
+        !> WINDOW, which shows it.  RB and RE are what redisplay paints in
+        !> the `region' face (upstream's region overlay of priority
+        !> (nil . 100)); both 0 when the function shows the region itself.
+        subroutine highlight_region_proc(start, end, window, rb, re)
+            import :: int64, handle_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: start, end
+            type(handle_type), intent(in) :: window
+            integer(int64), intent(out) :: rb, re
+        end subroutine highlight_region_proc
+
+        !> Remove the region highlighting of WINDOW.
+        subroutine unhighlight_region_proc(window)
+            import :: handle_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+        end subroutine unhighlight_region_proc
+    end interface
+
+    !> Function to move the region-highlight overlay.
+    !> This function is called with the parameters START, END and WINDOW;
+    !> it highlights START..END in WINDOW.  Port of
+    !> simple.el:redisplay-highlight-region-function.  (Ours: a procedure
+    !> pointer; the overlay it keeps is its own business, not a window
+    !> parameter.)
+    procedure(highlight_region_proc), pointer, public :: redisplay_highlight_region_function => &
+        redisplay_highlight_overlay_function
+
+    !> Function to remove the region-highlight overlay of a window.  Port
+    !> of simple.el:redisplay-unhighlight-region-function.
+    procedure(unhighlight_region_proc), pointer, public :: redisplay_unhighlight_region_function => &
+        redisplay_unhighlight_overlay_function
 
     !> Values of `invisible_p': hidden, and replaced by an ellipsis.
     integer, parameter, public :: INVISIBLE_HIDDEN = 1, INVISIBLE_ELLIPSIS = 2
@@ -304,6 +350,14 @@ module xdisp_fm
         integer :: kind = ITEM_OVERLAY_STRING
         character(len=:), allocatable :: s
         integer :: width = 0, align_to = -1
+        !> The text properties of an overlay string that redisplay uses:
+        !> its runs of bytes [prop_beg(k), prop_end(k)) with their `face'
+        !> and `cursor' properties (unallocated for none).
+        integer(int64), allocatable :: prop_beg(:), prop_end(:)
+        type(value_type), allocatable :: prop_face(:), prop_cursor(:)
+        !> An ITEM_STRETCH from a `(space ...)' display spec in an overlay
+        !> string (it shows the cursor only through a `cursor' property).
+        logical :: from_overlay = .false.
     end type display_item_type
 
     !> Where a screen row starts: the state of xdisp.c's iterator at the
@@ -358,6 +412,9 @@ module xdisp_fm
         logical :: display = .false.
         !> The first glyph of its display string or space.
         logical :: first = .false.
+        !> The run of its overlay string's text properties it is in (0
+        !> for none).
+        integer :: run = 0
     end type element_type
 
 contains
@@ -717,7 +774,8 @@ contains
     !> of an overlay whose text is invisible), after-strings before
     !> before-strings (of different overlays), after-strings in order of
     !> decreasing priority and before-strings of increasing priority.
-    !> Port of xdisp.c:load_overlay_strings (no `window' property).
+    !> Overlays whose `window' property is another window than the one
+    !> displayed are left out.  Port of xdisp.c:load_overlay_strings.
     subroutine load_overlay_strings(charpos, items)
         integer(int64), intent(in) :: charpos
         type(display_item_type), allocatable, intent(inout) :: items(:)
@@ -726,18 +784,21 @@ contains
         integer(int64), allocatable :: prio(:), ids(:)
         logical, allocatable :: after(:)
         type(display_item_type), allocatable :: entries(:)
+        type(value_type), allocatable :: strings(:)
+        type(value_type) :: tv
         integer(int64) :: start, end, tp, ti
         integer :: k, n, i, j, invis
         logical :: ta
         type(display_item_type) :: te
         call overlays_in(max(charpos - 1, 1_int64), charpos + 1, vec)
-        allocate (entries(2*size(vec)), prio(2*size(vec)), ids(2*size(vec)), after(2*size(vec)))
+        allocate (entries(2*size(vec)), prio(2*size(vec)), ids(2*size(vec)), after(2*size(vec)), strings(2*size(vec)))
         n = 0
         ! (ITREE_FOREACH ... DESCENDING: by decreasing start.)
         do k = size(vec), 1, -1
             start = overlay_start(vec(k))
             end = overlay_end(vec(k))
             if (end /= charpos .and. start /= charpos) cycle
+            if (.not. overlay_for_window(vec(k))) cycle
             invis = text_prop_means_invisible(overlay_get(vec(k), "invisible"))
             if (start == charpos .or. (end == charpos .and. invis /= 0)) then
                 str = overlay_get(vec(k), "before_string")
@@ -751,6 +812,7 @@ contains
         ! Sort entries (stably).
         do i = 2, n
             te = entries(i)
+            tv = strings(i)
             tp = prio(i)
             ti = ids(i)
             ta = after(i)
@@ -758,18 +820,20 @@ contains
             do while (j >= 1)
                 if (compare(ta, tp, ti, after(j), prio(j), ids(j)) >= 0) exit
                 entries(j + 1) = entries(j)
+                strings(j + 1) = strings(j)
                 prio(j + 1) = prio(j)
                 ids(j + 1) = ids(j)
                 after(j + 1) = after(j)
                 j = j - 1
             end do
             entries(j + 1) = te
+            strings(j + 1) = tv
             prio(j + 1) = tp
             ids(j + 1) = ti
             after(j + 1) = ta
         end do
         do k = 1, n
-            call push_item(items, ITEM_OVERLAY_STRING, entries(k)%s)
+            call push_overlay_string(items, strings(k))
         end do
     contains
 
@@ -782,6 +846,7 @@ contains
             if (len(xstring(string)) == 0) return
             n = n + 1
             entries(n)%s = xstring(string)
+            strings(n) = string
             priority = overlay_get(overlay, "priority")
             prio(n) = 0
             if (fixnump(priority)) prio(n) = xfixnum(priority)
@@ -816,6 +881,107 @@ contains
 
     !> Append an item of KIND with string STR (and for a stretch, WIDTH
     !> and ALIGN_TO) to ITEMS.
+    !> Whether OVERLAY applies to the window being displayed: it has no
+    !> `window' property, or that window.  (The test of xdisp.c and
+    !> xfaces.c on an overlay's `window' property.)
+    logical function overlay_for_window(overlay) result(applies)
+        type(handle_type), intent(in) :: overlay
+        type(value_type) :: window
+        window = overlay_get(overlay, "window")
+        applies = .not. windowp(window)
+        if (applies) then
+            applies = nilp(window)
+            return
+        end if
+        applies = same_window(xhandle(window), iterator_window())
+    end function overlay_for_window
+
+    !> The window being displayed (it->w): the one redisplay is at, else
+    !> the selected window.
+    function iterator_window() result(w)
+        type(handle_type) :: w
+        w = displayed_window
+        if (.not. window_valid_p(w)) w = selected_window()
+    end function iterator_window
+
+    !> Append to ITEMS the overlay string STRING: its text, and a stretch
+    !> for each run of characters whose `display' property is a `(space
+    !> ...)' spec (handle_display_prop on an overlay string; other
+    !> display specs in overlay strings are Deferred).
+    subroutine push_overlay_string(items, string)
+        type(display_item_type), allocatable, intent(inout) :: items(:)
+        type(value_type), intent(in) :: string
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        type(status_type) :: st
+        integer(int64) :: pos, nchars
+        integer :: k, width, align_to
+        call string_intervals(string, starts, ends, plists)
+        call multibyte_chars_in_text(xstring(string), nchars, st)
+        pos = 0
+        do k = 1, size(starts)
+            if (.not. space_spec(textget(plists(k), sym("display")), width, align_to)) cycle
+            call push_text(pos, starts(k))
+            call push_item(items, ITEM_STRETCH, "", width, align_to)
+            associate (it => items(size(items)))
+                it%from_overlay = .true.
+                it%prop_beg = [1_int64]
+                it%prop_end = [2_int64]
+                allocate (it%prop_face(1), it%prop_cursor(1))
+                it%prop_face(1) = textget(plists(k), sym("face"))
+                it%prop_cursor(1) = textget(plists(k), sym("cursor"))
+            end associate
+            pos = ends(k)
+        end do
+        call push_text(pos, nchars)
+    contains
+        !> The characters FROM to TO of STRING as an overlay string item.
+        subroutine push_text(from, to)
+            integer(int64), intent(in) :: from, to
+            type(value_type) :: part
+            if (to <= from) return
+            part = propertized_substring(string, from, to)
+            call push_item(items, ITEM_OVERLAY_STRING, xstring(part))
+            call string_display_props(part, items(size(items)))
+        end subroutine push_text
+    end subroutine push_overlay_string
+
+    !> Record in ITEM the runs of overlay string STRING's `face' and
+    !> `cursor' properties, as byte ranges of its text.
+    subroutine string_display_props(string, item)
+        type(value_type), intent(in) :: string
+        type(display_item_type), intent(inout) :: item
+        integer(int64), allocatable :: starts(:), ends(:)
+        type(value_type), allocatable :: plists(:)
+        integer(int64) :: byte, chars
+        integer(int32) :: c
+        integer :: k, n, nb
+        call string_intervals(string, starts, ends, plists)
+        allocate (item%prop_beg(size(starts)), item%prop_end(size(starts)), &
+                  item%prop_face(size(starts)), item%prop_cursor(size(starts)))
+        ! Character positions to bytes, walking the text once.
+        byte = 1
+        chars = 0
+        n = 0
+        do k = 1, size(starts)
+            do while (chars < starts(k) .and. byte <= len(item%s))
+                call string_char_and_length(item%s, byte, c, nb)
+                byte = byte + nb
+                chars = chars + 1
+            end do
+            n = n + 1
+            item%prop_beg(n) = byte
+            do while (chars < ends(k) .and. byte <= len(item%s))
+                call string_char_and_length(item%s, byte, c, nb)
+                byte = byte + nb
+                chars = chars + 1
+            end do
+            item%prop_end(n) = byte
+            item%prop_face(n) = textget(plists(k), sym("face"))
+            item%prop_cursor(n) = textget(plists(k), sym("cursor"))
+        end do
+    end subroutine string_display_props
+
     subroutine push_item(items, kind, str, width, align_to)
         type(display_item_type), allocatable, intent(inout) :: items(:)
         integer, intent(in) :: kind
@@ -914,8 +1080,11 @@ contains
                         end if
                         el%kind = EL_STRETCH
                         el%width = it%width
-                        el%display = .true.
+                        el%display = .not. it%from_overlay
+                        el%overlay_string = it%from_overlay
                         el%first = .true.
+                        el%run = 0
+                        if (it%from_overlay) el%run = 1
                         return
                     end if
                     if (s%ibyte > len(it%s)) then
@@ -930,6 +1099,12 @@ contains
                     el%overlay_string = it%kind == ITEM_OVERLAY_STRING
                     el%display = it%kind == ITEM_DISPLAY_STRING
                     el%first = s%ibyte == 1
+                    el%run = 0
+                    if (allocated(it%prop_beg)) then
+                        do n = 1, size(it%prop_beg)
+                            if (it%prop_beg(n) <= s%ibyte .and. s%ibyte < it%prop_end(n)) el%run = n
+                        end do
+                    end if
                 end associate
                 return
             end if
@@ -983,6 +1158,38 @@ contains
             s%hidden_end = 0
         end if
     end subroutine consume_element
+
+    !> The face of element EL from S shown where the face is FACE_ID: for
+    !> a character of an overlay string with a `face' property, that
+    !> merged in (xdisp.c:handle_face_prop for strings, the underlying
+    !> face as the base face).
+    integer(int32) function string_face(f, s, el, face_id) result(id)
+        type(frame_type), intent(inout) :: f
+        type(row_start_type), intent(in) :: s
+        type(element_type), intent(in) :: el
+        integer(int32), intent(in) :: face_id
+        id = face_id
+        if (.not. el%overlay_string .or. el%run == 0) return
+        id = face_at_string_position(f, s%items(s%item)%prop_face(el%run), face_id)
+    end function string_face
+
+    !> Whether element EL, a character of an overlay string, shows the
+    !> cursor of PT because of its `cursor' property: an integer N, and
+    !> PT is from BPOS_MAX (the last buffer position shown before it on
+    !> the row, or the row's start) to N after it.  (The `cursor' property
+    !> part of xdisp.c:set_cursor_from_row; other values than integers
+    !> are Deferred.)
+    logical function string_cursor_p(s, el, pt, bpos_max) result(here)
+        type(row_start_type), intent(in) :: s
+        type(element_type), intent(in) :: el
+        integer(int64), intent(in) :: pt, bpos_max
+        here = .false.
+        if (.not. el%overlay_string .or. el%run == 0) return
+        associate (cprop => s%items(s%item)%prop_cursor(el%run))
+            if (.not. fixnump(cprop)) return
+            here = bpos_max <= pt .and. pt <= bpos_max + xfixnum(cprop)
+        end associate
+    end function string_cursor_p
 
     !> Whether a glyph of element `el' from `s' shows the cursor of `pt':
     !> a buffer character at `pt'; the first glyph of a display string or
@@ -1048,11 +1255,13 @@ contains
         integer(int64), intent(out), optional :: goal_pos
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
         type(element_type) :: el
-        integer(int64) :: stop, rbeg, rend, endpos, fstop, last_pos, gpos
+        integer(int64) :: stop, rbeg, rend, endpos, fstop, last_pos, gpos, bpos_max
         integer(int32) :: face_id, extend_face_id
         integer :: col, n, first, ncells, k, hpos, asc, desc
-        logical :: faces
+        logical :: faces, cursor_by_prop
         col = 0
+        cursor_by_prop = .false.
+        bpos_max = s%pos
         cursor_col = -1
         gpos = -1
         last_pos = s%pos
@@ -1080,7 +1289,7 @@ contains
         do
             call peek_element(bi, s, el)
             if (el%kind == EL_EOB) then
-                if (cursor_at_element(s, el, pt)) cursor_col = col
+                if (cursor_at_element(s, el, pt) .and. .not. cursor_by_prop) cursor_col = col
                 ends = ROW_ENDS_AT_ZV
                 if (gpos < 0) gpos = s%pos
                 exit
@@ -1089,11 +1298,12 @@ contains
             ! (an item has the face of the text where it is shown).
             if (faces .and. s%pos >= stop) then
                 call handle_fontified_prop(bi, s%pos, s%pos + TEXT_PROP_DISTANCE_LIMIT, fstop)
-                face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend)
+                face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend, &
+                                                  window=iterator_window())
                 stop = min(stop, fstop)
             end if
             if (el%kind == EL_NEWLINE) then
-                if (cursor_at_element(s, el, pt)) cursor_col = col
+                if (cursor_at_element(s, el, pt) .and. .not. cursor_by_prop) cursor_col = col
                 if (gpos < 0) gpos = s%pos
                 if (faces .and. face_id /= DEFAULT_FACE_ID .and. col + 1 <= size(glyphs)) then
                     ! A space for the cursor at the end of the line, in the
@@ -1102,7 +1312,7 @@ contains
                     col = col + 1
                     ! The rest of the row in the face that extends.
                     extend_face_id = face_at_buffer_position(f, bi, s%pos, endpos, s%pos + TEXT_PROP_DISTANCE_LIMIT, &
-                                                             rbeg, rend, extend_only=.true.)
+                                                             rbeg, rend, extend_only=.true., window=iterator_window())
                     if (extend_face_id /= DEFAULT_FACE_ID .and. col < last_x + 1) then
                         glyphs(col + 1:last_x + 1) = glyph_type(face_id=extend_face_id)
                         col = last_x + 1
@@ -1114,7 +1324,7 @@ contains
             end if
             if (el%kind == EL_STRING_NEWLINE) then
                 ! A newline in a string ends the display line.
-                if (cursor_at_element(s, el, pt)) cursor_col = col
+                if (cursor_at_element(s, el, pt) .and. .not. cursor_by_prop) cursor_col = col
                 if (gpos < 0) gpos = s%pos
                 call consume_element(s, el)
                 s%cont = 0
@@ -1132,11 +1342,16 @@ contains
             end if
             if (faces .and. n > 0) then
                 if (el%kind == EL_STRETCH) then
-                    cells(1:n)%face_id = face_id
+                    cells(1:n)%face_id = string_face(f, s, el, face_id)
                 else
-                    cells(1:n)%face_id = char_face(f, el%c, face_id)
+                    cells(1:n)%face_id = char_face(f, el%c, string_face(f, s, el, face_id))
                 end if
             end if
+            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+                cursor_col = col
+                cursor_by_prop = .true.
+            end if
+            if (el%kind == EL_CHAR) bpos_max = max(bpos_max, s%pos)
             ! The rest of a ^X or \ooo begun on the row before (a TAB's
             ! rest follows from the column).
             first = 1
@@ -1160,7 +1375,7 @@ contains
                     k = last_x - col
                     if (k > 0) then
                         if (present(glyphs)) glyphs(col + 1:col + k) = cells(first:first + k - 1)
-                        if (.not. s%mid .and. cursor_at_element(s, el, pt)) cursor_col = col
+                        if (.not. s%mid .and. .not. cursor_by_prop .and. cursor_at_element(s, el, pt)) cursor_col = col
                         s%skip = first - 1 + k
                         s%mid = .true.
                         last_pos = element_pos()
@@ -1180,7 +1395,7 @@ contains
                 k = min(ncells, size(glyphs) - col)
                 if (k > 0) glyphs(col + 1:col + k) = cells(first:first + k - 1)
             end if
-            if (.not. s%mid .and. cursor_at_element(s, el, pt)) cursor_col = col
+            if (.not. s%mid .and. .not. cursor_by_prop .and. cursor_at_element(s, el, pt)) cursor_col = col
             if (ncells > 0 .or. el%kind == EL_CHAR) last_pos = element_pos()
             col = col + ncells
             call consume_element(s, el)
@@ -1223,11 +1438,13 @@ contains
         type(frame_type), intent(inout) :: f
         type(glyph_type) :: cells(MAX_CHAR_CELLS)
         type(element_type) :: el
-        integer(int64) :: stop, fstop
+        integer(int64) :: stop, fstop, bpos_max
         integer(int32) :: face_id
         integer :: x, n, first, k, a, d
-        logical :: shown, continued
+        logical :: shown, continued, cursor_by_prop
         x = 0
+        cursor_by_prop = .false.
+        bpos_max = s%pos
         used = 0
         cursor_x = -1
         cursor_hpos = 0
@@ -1246,7 +1463,8 @@ contains
             ! handle_fontified_prop and handle_face_prop at the next stop.
             if (s%pos >= stop) then
                 call handle_fontified_prop(bi, s%pos, s%pos + TEXT_PROP_DISTANCE_LIMIT, fstop)
-                face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend)
+                face_id = face_at_buffer_position(f, bi, s%pos, stop, s%pos + TEXT_PROP_DISTANCE_LIMIT, rbeg, rend, &
+                                                  window=iterator_window())
                 stop = min(stop, fstop)
             end if
             if (el%kind == EL_NEWLINE .or. el%kind == EL_STRING_NEWLINE) then
@@ -1270,11 +1488,16 @@ contains
             if (el%kind == EL_STRETCH) then
                 n = 1
                 cells(1)%type = STRETCH_GLYPH
-                cells(1)%face_id = face_id
+                cells(1)%face_id = string_face(f, s, el, face_id)
             else
                 call produce_char(el%c, x + s%cont, cells, n, gui=.true.)
-                cells(1:n)%face_id = char_face(f, el%c, face_id)
+                cells(1:n)%face_id = char_face(f, el%c, string_face(f, s, el, face_id))
             end if
+            if (string_cursor_p(s, el, pt, bpos_max) .and. .not. cursor_by_prop) then
+                call set_cursor()
+                cursor_by_prop = .true.
+            end if
+            if (el%kind == EL_CHAR) bpos_max = max(bpos_max, s%pos)
             ! The rest of a display vector begun on the row before.
             first = 1
             if (s%mid .and. el%c /= 9 .and. el%kind /= EL_STRETCH) first = min(n, s%skip + 1)
@@ -1335,6 +1558,7 @@ contains
 
         !> The cursor goes before the next glyph.
         subroutine set_cursor()
+            if (cursor_by_prop) return
             cursor_x = x
             cursor_hpos = used + 1
         end subroutine set_cursor
@@ -1745,6 +1969,24 @@ contains
         end do
     end subroutine put_rows
 
+    !> Highlight START..END in WINDOW with the `region' face, an overlay
+    !> of priority (nil . 100) for WINDOW only (here the range redisplay
+    !> paints, RB..RE).  Port of
+    !> simple.el:redisplay--highlight-overlay-function.
+    subroutine redisplay_highlight_overlay_function(start, end, window, rb, re)
+        integer(int64), intent(in) :: start, end
+        type(handle_type), intent(in) :: window
+        integer(int64), intent(out) :: rb, re
+        rb = start
+        re = end
+    end subroutine redisplay_highlight_overlay_function
+
+    !> Port of simple.el:redisplay--unhighlight-overlay-function (the
+    !> region is painted afresh each redisplay: nothing to remove).
+    subroutine redisplay_unhighlight_overlay_function(window)
+        type(handle_type), intent(in) :: window
+    end subroutine redisplay_unhighlight_overlay_function
+
     !> Display window `w': from its start if that shows point (or the
     !> start is forced), else recentered around point; then its mode line.
     !> `pt' is the window's point; `selected' says whether it is the
@@ -1757,7 +1999,7 @@ contains
         type(glyph_row_type), allocatable :: rows(:)
         type(status_type) :: status
         integer(int64) :: bi, start, end_pos
-        integer(int64) :: rb, re, m
+        integer(int64) :: rb, re, m, saved
         integer :: body, width, cursor_row, cursor_col, r, last_y, nrows, cursor_hpos, left, top, capacity
         integer(int32) :: mode_line_face
         logical :: reached_end, gui
@@ -1784,19 +2026,28 @@ contains
             allocate (rows(r)%glyphs(capacity))
         end do
         ! Transient Mark mode highlights an active region, in the selected
-        ! window only (highlight-nonselected-windows nil).
+        ! window only (highlight-nonselected-windows nil).  Port of
+        ! simple.el:redisplay--update-region-highlight (run by
+        ! pre-redisplay-functions upstream), in the window's buffer.
         rb = 0
         re = 0
+        m = 0
         if (transient_mark_mode%value .and. buffers(bi)%mark_active .and. .not. f%minibuffer_selected .and. &
             .not. w%mini .and. selected) then
             m = buffers(bi)%mark%index
             if (m > 0) then
-                if (markers(m)%buffer == bi) then
-                    rb = min(pt, markers(m)%charpos)
-                    re = max(pt, markers(m)%charpos)
-                end if
+                if (markers(m)%buffer /= bi) m = 0
             end if
         end if
+        saved = cur
+        call set_buffer_internal(bi)
+        if (m > 0) then
+            call redisplay_highlight_region_function(min(pt, markers(m)%charpos), max(pt, markers(m)%charpos), &
+                                                     displayed_window, rb, re)
+        else
+            call redisplay_unhighlight_region_function(displayed_window)
+        end if
+        if (saved /= 0) call set_buffer_internal(saved)
         start = max(buffers(bi)%begv, min(window_start(w), buffers(bi)%zv))
         if (gui) then
             call layout_window(bi, start, pt, width, rows, cursor_row, cursor_col, end_pos, &
@@ -3150,7 +3401,9 @@ contains
                 else
                     pt = window_point(w)
                 end if
+                displayed_window = leaves(k)
                 call redisplay_window(f, w, pt, selected)
+                displayed_window = handle_type()
             end associate
         end do
         status = status_type()

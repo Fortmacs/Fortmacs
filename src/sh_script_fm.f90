@@ -66,9 +66,9 @@ module sh_script_fm
                          forward_comment, forward_word, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
                          skip_syntax_backward, &
                          syntax_descriptor_value, syntax_entry_at, ST_STRING_STYLE
-    use editfns_fm, only: point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, char_after, char_before, &
-                          delete_region, buffer_substring, line_beginning_position, line_end_position, region_beginning, &
-                          region_end, preceding_char
+    use editfns_fm, only: interactive_region, point, point_min, point_max, goto_char, bolp, eolp, bobp, eobp, &
+                          char_after, char_before, delete_region, buffer_substring, line_beginning_position, &
+                          line_end_position, preceding_char
     use cmds_fm, only: forward_line, forward_char, beginning_of_line, end_of_line, delete_char, self_insert_command, &
                        post_self_insert_hook
     use insdel_fm, only: insert
@@ -3353,8 +3353,7 @@ contains
     recursive subroutine cmd_sh_execute_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
-        call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
         if (nilp(current_prefix_arg)) then
             call sh_execute_region(b, e, status)
@@ -3773,8 +3772,7 @@ contains
         type(status_type) :: st
         type(handle_type) :: mark
         integer(int64) :: b, e
-        call region_beginning(b, status)
-        if (status%ok()) call region_end(e, status)
+        call interactive_region(b, e, status)
         if (.not. status%ok()) return
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return

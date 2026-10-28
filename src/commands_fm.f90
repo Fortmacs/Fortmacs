@@ -565,7 +565,15 @@ module commands_fm
         type(command_type) :: recenter
         type(command_type) :: recenter_top_bottom
         type(command_type) :: recompile
+        type(command_type) :: rectangle_backward_char
+        type(command_type) :: rectangle_exchange_point_and_mark
+        type(command_type) :: rectangle_forward_char
+        type(command_type) :: rectangle_left_char
+        type(command_type) :: rectangle_mark_mode
+        type(command_type) :: rectangle_next_line
         type(command_type) :: rectangle_number_lines
+        type(command_type) :: rectangle_previous_line
+        type(command_type) :: rectangle_right_char
         type(command_type) :: reindent_then_newline_and_indent
         type(command_type) :: repeat
         type(command_type) :: repeat_exit
@@ -752,7 +760,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(714) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(722) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1286,7 +1294,15 @@ module commands_fm
                                                                  "recenter", &
                                                                  "recenter_top_bottom", &
                                                                  "recompile", &
+                                                                 "rectangle_backward_char", &
+                                                                 "rectangle_exchange_point_and_mark", &
+                                                                 "rectangle_forward_char", &
+                                                                 "rectangle_left_char", &
+                                                                 "rectangle_mark_mode", &
+                                                                 "rectangle_next_line", &
                                                                  "rectangle_number_lines", &
+                                                                 "rectangle_previous_line", &
+                                                                 "rectangle_right_char", &
                                                                  "reindent_then_newline_and_indent", &
                                                                  "repeat", &
                                                                  "repeat_exit", &
@@ -2543,8 +2559,24 @@ contains
             p => commands%recenter_top_bottom
         case ("recompile")
             p => commands%recompile
+        case ("rectangle_backward_char")
+            p => commands%rectangle_backward_char
+        case ("rectangle_exchange_point_and_mark")
+            p => commands%rectangle_exchange_point_and_mark
+        case ("rectangle_forward_char")
+            p => commands%rectangle_forward_char
+        case ("rectangle_left_char")
+            p => commands%rectangle_left_char
+        case ("rectangle_mark_mode")
+            p => commands%rectangle_mark_mode
+        case ("rectangle_next_line")
+            p => commands%rectangle_next_line
         case ("rectangle_number_lines")
             p => commands%rectangle_number_lines
+        case ("rectangle_previous_line")
+            p => commands%rectangle_previous_line
+        case ("rectangle_right_char")
+            p => commands%rectangle_right_char
         case ("reindent_then_newline_and_indent")
             p => commands%reindent_then_newline_and_indent
         case ("repeat")

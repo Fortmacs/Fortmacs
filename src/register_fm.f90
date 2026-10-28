@@ -55,7 +55,7 @@ module register_fm
     use error_fm, only: status_type, set_error, format_message, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, nilp, make_fixnum, fixnump, xfixnum, symbolp, xsymbol, symbols
+    use lisp_fm, only: value_type, nilp, make_fixnum, fixnump, xfixnum, symbolp, xsymbol, symbols, xstring
     use lread_fm, only: sym
     use data_fm, only: value_eq, kill_all_local_variables
     use character_fm, only: MAX_CHAR, string_char_and_length
@@ -69,7 +69,8 @@ module register_fm
     use editfns_fm, only: point, goto_char, goto_char_marker, point_marker, buffer_substring, delete_region, &
                           delete_and_extract_region, region_beginning, region_end
     use search_fm, only: looking_at, match_beginning, match_end
-    use simple_fm, only: push_mark, insert_for_yank, exchange_point_and_mark, indicate_copied_region
+    use simple_fm, only: push_mark, insert_for_yank, exchange_point_and_mark, indicate_copied_region, &
+                         region_extract_function, REGION_EXTRACT_COPY, REGION_EXTRACT_DELETE
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
     use keyboard_fm, only: last_command
     use subr_fm, only: read_key, y_or_n_p
@@ -1036,19 +1037,6 @@ contains
         if (.not. after) call exchange_point_and_mark(.false., status)
     end subroutine insert_register
 
-    !> The text of START..END, deleted with DELETE_FLAG (filter-buffer-substring).
-    recursive subroutine region_text(start, end, delete_flag, text, status)
-        integer(int64), intent(in) :: start, end
-        logical, intent(in) :: delete_flag
-        character(len=:), allocatable, intent(out) :: text
-        type(status_type), intent(out) :: status
-        if (delete_flag) then
-            call delete_and_extract_region(start, end, text, status)
-        else
-            call buffer_substring(start, end, text, status)
-        end if
-    end subroutine region_text
-
     !> Copy region of text between START and END into REGISTER.
     !> If DELETE_FLAG is true (interactively, prefix arg), delete the region
     !> after copying.
@@ -1065,19 +1053,21 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delete_flag, region
         character(len=:), allocatable :: text
-        integer(int64) :: b, e
+        type(value_type) :: string
+        integer(int64), allocatable :: starts(:), ends(:)
         logical :: del, reg
         del = .false.
         if (present(delete_flag)) del = delete_flag
         reg = .false.
         if (present(region)) reg = region
         if (reg) then
-            ! (funcall region-extract-function delete-flag)
-            call region_beginning(b, status)
-            if (status%ok()) call region_end(e, status)
+            if (del) then
+                call region_extract_function(REGION_EXTRACT_DELETE, string, starts, ends, status)
+            else
+                call region_extract_function(REGION_EXTRACT_COPY, string, starts, ends, status)
+            end if
             if (.not. status%ok()) return
-            call region_text(b, e, del, text, status)
-            if (.not. status%ok()) return
+            text = xstring(string)
         else
             call buffer_substring(start, end, text, status)
             if (.not. status%ok()) return

@@ -261,6 +261,11 @@ module keyboard_fm
     !> module); null in tests.
     procedure(redisplay_proc), pointer, public :: redisplay_hook => null()
 
+    !> simple.el's `deactivate_mark', which the command loop calls when a
+    !> command set `deactivate_mark' (call0 (Qdeactivate_mark)).  Set by
+    !> simple_fm (above this module); null in tests that don't load it.
+    procedure(redisplay_proc), pointer, public :: deactivate_mark_function => null()
+
     !> If true, suppress point adjustment after executing a command.
     !>
     !> After a command is executed, if point moved into a region that has
@@ -1618,7 +1623,11 @@ contains
         ! region in Transient Mark mode (simple.el:deactivate-mark).
         if (cur /= 0) then
             if (buffers(cur)%mark_active .and. vdeactivate_mark .and. transient_mark_mode%value) then
-                buffers(cur)%mark_active = .false.
+                if (associated(deactivate_mark_function)) then
+                    call deactivate_mark_function()
+                else
+                    buffers(cur)%mark_active = .false.
+                end if
             end if
         end if
         ! finalize: point moved into text that should be intangible.

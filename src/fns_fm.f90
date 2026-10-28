@@ -30,7 +30,7 @@ module fns_fm
     use casetab_fm, only: upcase
     use lisp_fm, only: atom_type, list, list_elements, list_elt, list_length, list_tail, listp, &
                        make_list, symbols, v_buffer, v_int, v_keymap, v_list, v_marker, v_nil, &
-                       v_string, v_symbol, v_syntax_table, value_type, vtag, xsymbol
+                       v_string, v_symbol, v_syntax_table, v_window, value_type, vtag, xsymbol
     use lread_fm, only: ensure_obarray
     use data_fm, only: value_eq, check_symbol
     use marker_fm, only: markers, resolve_marker
@@ -101,19 +101,28 @@ contains
     !> (internal_equal, without text properties or floats).
     recursive logical function value_equal(a, b) result(eq)
         type(value_type), intent(in) :: a, b
-        integer(int64) :: k
+        integer(int64) :: i, j
         eq = .false.
         if (vtag(a) /= vtag(b)) return
         if (vtag(a) == V_NIL) then
             eq = .true.
             return
         end if
-        ! Same preorder atoms <=> same tree.
-        if (size(a%a) /= size(b%a)) return
-        do k = 1, size(a%a, kind=int64)
-            if (.not. atom_equal(a%a(k), b%a(k))) return
+        ! Same preorder atoms <=> same tree; a string's text properties
+        ! (its children) don't count.
+        i = 1
+        j = 1
+        do while (i <= size(a%a, kind=int64) .and. j <= size(b%a, kind=int64))
+            if (.not. atom_equal(a%a(i), b%a(j))) return
+            if (a%a(i)%tag == V_STRING) then
+                i = i + a%a(i)%span
+                j = j + b%a(j)%span
+            else
+                i = i + 1
+                j = j + 1
+            end if
         end do
-        eq = .true.
+        eq = i > size(a%a, kind=int64) .and. j > size(b%a, kind=int64)
     end function value_equal
 
     recursive logical function atom_equal(x, y) result(eq)
@@ -130,7 +139,7 @@ contains
         case (V_STRING)
             eq = len(x%s) == len(y%s)
             if (eq) eq = x%s == y%s
-        case (V_BUFFER, V_SYNTAX_TABLE)
+        case (V_BUFFER, V_SYNTAX_TABLE, V_WINDOW)
             eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
         case (V_KEYMAP)
             ! A keymap is a list upstream: compare its contents.

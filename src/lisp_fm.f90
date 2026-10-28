@@ -35,6 +35,12 @@
 !>
 !>     [LIST n=3 span=6] [a] [LIST n=2 span=3] [b] [c] [d]
 !>
+!> A string with text properties keeps them as its children: the
+!> string atom holds the number of property intervals and spans them,
+!> each a list (START END PROP VALUE ...) of 0-based character
+!> positions, sorted and not overlapping, with non-empty plists (the
+!> interval tree upstream keeps for a string).
+!>
 !> A recursive type (a value holding an array of values) would be more
 !> direct, but gfortran 13 and 14 copy such components shallowly, which
 !> breaks value semantics and double-frees.  Code outside this module and
@@ -142,7 +148,7 @@ module lisp_fm
     integer(int32), parameter, public :: V_NIL = 0, V_INT = 1, V_SYMBOL = 2, &
                                          V_STRING = 3, V_LIST = 4, &
                                          V_BUFFER = 5, V_MARKER = 6, V_KEYMAP = 7, &
-                                         V_SYNTAX_TABLE = 8
+                                         V_SYNTAX_TABLE = 8, V_WINDOW = 9
 
     !> Ids of the predefined symbols.
     integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
@@ -150,11 +156,13 @@ module lisp_fm
     !> One node of a value's tree.
     type, public :: atom_type
         integer(int32) :: tag = V_NIL
-        !> V_INT: the integer; V_SYMBOL: the symbol id; V_LIST: element count.
+        !> V_INT: the integer; V_SYMBOL: the symbol id; V_LIST: element count;
+        !> V_STRING: the number of text property intervals.
         integer(int64) :: i = 0
         !> Atoms in this subtree, itself included (1 for scalars).
         integer(int64) :: span = 1
-        !> V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE: the object's handle.
+        !> V_BUFFER, V_MARKER, V_KEYMAP, V_SYNTAX_TABLE, V_WINDOW: the
+        !> object's handle.
         type(handle_type) :: h
         !> V_STRING: text in the internal (multibyte) encoding.
         character(len=:), allocatable :: s
@@ -190,11 +198,11 @@ module lisp_fm
     integer(int64), public :: nsymbols = 0
 
     public :: nil, t_value, make_fixnum, make_string, make_symbol_ref, &
-              make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_list, list, cons
+              make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
     public :: vtag, nilp, fixnump, symbolp, stringp, consp, listp, bufferp, &
-              markerp, keymap_ref_p, syntax_table_ref_p
+              markerp, keymap_ref_p, syntax_table_ref_p, windowp
     public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
-              list_elements, list_tail
+              list_elements, list_tail, string_intervals, set_string_intervals
 
 contains
 
@@ -294,6 +302,16 @@ contains
         atom%h = h
         v = scalar(atom)
     end function make_syntax_table_ref
+
+    !> A value referring to window `h'.
+    pure function make_window_ref(h) result(v)
+        type(handle_type), intent(in) :: h
+        type(value_type) :: v
+        type(atom_type) :: atom
+        atom%tag = V_WINDOW
+        atom%h = h
+        v = scalar(atom)
+    end function make_window_ref
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
     !> V_NIL atom).
@@ -464,6 +482,12 @@ contains
         syntax_table_ref_p = vtag(v) == V_SYNTAX_TABLE
     end function syntax_table_ref_p
 
+    !> Port of lisp.h:WINDOWP.
+    elemental logical function windowp(v)
+        type(value_type), intent(in) :: v
+        windowp = vtag(v) == V_WINDOW
+    end function windowp
+
     !> The integer in `v', unchecked.  Port of lisp.h:XFIXNUM.
     elemental integer(int64) function xfixnum(v)
         type(value_type), intent(in) :: v
@@ -560,6 +584,60 @@ contains
         atoms(1)%span = size(atoms)
         call move_alloc(atoms, tail%a)
     end function list_tail
+
+    !> The text property intervals of string `v': the 0-based character
+    !> positions [STARTS(k), ENDS(k)) and the property list of each (size 0
+    !> for none, or if `v' is not a string).
+    pure subroutine string_intervals(v, starts, ends, plists)
+        type(value_type), intent(in) :: v
+        integer(int64), allocatable, intent(out) :: starts(:), ends(:)
+        type(value_type), allocatable, intent(out) :: plists(:)
+        type(value_type) :: child
+        integer(int64) :: k, p
+        if (vtag(v) /= V_STRING) then
+            allocate (starts(0), ends(0), plists(0))
+            return
+        end if
+        allocate (starts(v%a(1)%i), ends(v%a(1)%i), plists(v%a(1)%i))
+        p = 2
+        do k = 1, v%a(1)%i
+            child%a = v%a(p:p + v%a(p)%span - 1)
+            starts(k) = xfixnum(list_elt(child, 1_int64))
+            ends(k) = xfixnum(list_elt(child, 2_int64))
+            plists(k) = list_tail(child, 2_int64)
+            p = p + v%a(p)%span
+        end do
+    end subroutine string_intervals
+
+    !> Give string `v' the text property intervals [STARTS(k), ENDS(k))
+    !> with property lists PLISTS(k), replacing those it had.  Empty
+    !> intervals and those with an empty plist are left out, and adjacent
+    !> intervals with the same plist are kept apart (no merging here).
+    pure subroutine set_string_intervals(v, starts, ends, plists)
+        type(value_type), intent(inout) :: v
+        integer(int64), intent(in) :: starts(:), ends(:)
+        type(value_type), intent(in) :: plists(:)
+        type(atom_type), allocatable :: atoms(:), part(:)
+        type(value_type) :: child, head
+        integer :: k
+        if (vtag(v) /= V_STRING) return
+        allocate (atoms(1))
+        atoms(1) = v%a(1)
+        atoms(1)%i = 0
+        do k = 1, size(starts)
+            if (ends(k) <= starts(k) .or. nilp(plists(k))) cycle
+            head = list(make_fixnum(starts(k)), make_fixnum(ends(k)))
+            child = head
+            child%a = [head%a, plists(k)%a(2:)]
+            child%a(1)%i = 2 + plists(k)%a(1)%i
+            child%a(1)%span = size(child%a)
+            call element_atoms(child, part)
+            atoms = [atoms, part]
+            atoms(1)%i = atoms(1)%i + 1
+        end do
+        atoms(1)%span = size(atoms)
+        call move_alloc(atoms, v%a)
+    end subroutine set_string_intervals
 
     !> Make command SELF known by its name (replacing an earlier one of
     !> the same name).

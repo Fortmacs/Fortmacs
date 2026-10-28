@@ -257,7 +257,7 @@ module docstrings_fm
     use process_fm, only: delete_exited_processes, process_connection_type
     use prog_mode_fm, only: prog_indentation_context, prog_mode_abbrev_table, prog_mode_hook, &
                             prog_mode_map
-    use rect_fm, only: killed_rectangle
+    use rect_fm, only: killed_rectangle, rectangle_mark_mode_hook, rectangle_mark_mode_map
     use register_fm, only: register_alist, register_separator
     use repeat_fm, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
                          repeat_keep_prefix, repeat_map, repeat_mode_hook, repeat_num_input_keys_at_repeat, &
@@ -307,16 +307,17 @@ module docstrings_fm
                          BLINK_MATCHING_PAREN_JUMP, BLINK_MATCHING_PAREN_JUMP_OFFSCREEN, &
                          blink_matching_paren_distance, blink_matching_paren_dont_ignore_comments, &
                          blink_matching_paren_on_screen, copy_region_blink_delay, cycle_spacing_actions, &
-                         delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, inhibit_auto_fill, &
-                         kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, kill_whole_line_option, &
-                         line_move_ignore_invisible, line_move_visual, mark_ring_max, messages_buffer_mode_hook, &
-                         messages_buffer_mode_map, minibuffer_local_shell_command_map, next_error_hook, &
-                         next_error_last_buffer, next_error_verbose, normal_auto_fill_function, pending_undo_list, &
-                         read_only_mode_hook, read_quoted_char_radix, shell_command_default_error_buffer, &
-                         shell_command_dont_erase_buffer, DONT_ERASE_NIL, DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, &
-                         DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, shell_command_prompt_show_cwd, &
-                         shell_command_switch, special_mode_abbrev_table, special_mode_hook, special_mode_map, &
-                         suggest_key_bindings, transient_mark_mode_hook, undo_in_progress, undo_no_redo
+                         deactivate_mark_hook, delete_active_region, fill_prefix, goal_column, indent_tabs_mode_hook, &
+                         inhibit_auto_fill, kill_read_only_ok, kill_ring_max, kill_ring_yank_pointer, &
+                         kill_whole_line_option, line_move_ignore_invisible, line_move_visual, mark_ring_max, &
+                         messages_buffer_mode_hook, messages_buffer_mode_map, minibuffer_local_shell_command_map, &
+                         next_error_hook, next_error_last_buffer, next_error_verbose, normal_auto_fill_function, &
+                         pending_undo_list, read_only_mode_hook, read_quoted_char_radix, &
+                         shell_command_default_error_buffer, shell_command_dont_erase_buffer, DONT_ERASE_NIL, &
+                         DONT_ERASE_ERASE, DONT_ERASE_BEG_LAST_OUT, DONT_ERASE_END_LAST_OUT, DONT_ERASE_SAVE_POINT, &
+                         shell_command_prompt_show_cwd, shell_command_switch, special_mode_abbrev_table, &
+                         special_mode_hook, special_mode_map, suggest_key_bindings, transient_mark_mode_hook, &
+                         undo_in_progress, undo_no_redo
     use smie_fm, only: smie_blink_matching_inners, smie_blink_matching_triggers, smie_grammar, &
                        smie_indent_basic, smie_indent_functions, smie_rule_separator_outdent
     use startup_fm, only: mail_host_address, user_mail_address
@@ -396,7 +397,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(932) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(943) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -528,7 +529,7 @@ module docstrings_fm
                                                                    "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                     "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "insert", &
                                                           "insert_abbrev_table_description", "insert_abbrevs", "insert_rectangle", &
-                                                                   "insert_register", "internal_default_process_filter", &
+                                                       "insert_register", "interactive_region", "internal_default_process_filter", &
                                                            "internal_default_process_sentinel", "internal_default_signal_process", &
                                                            "interrupt_process", "inverse_add_abbrev", "inverse_add_global_abbrev", &
                                                                    "inverse_add_mode_abbrev", "isearch_abort", "isearch_backward", &
@@ -598,9 +599,12 @@ module docstrings_fm
                                                 "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
                                                 "read_file_name_default", "read_multiple_choice", "read_number", "read_only_mode", &
                                               "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recompile", &
-                                                        "rectangle_dimensions", "rectangle_intersect_p", "rectangle_number_lines", &
-                                                           "rectangle_position_as_coordinates", "regexp_quote", "region_active_p", &
-                                                                   "region_beginning", "region_end", "register_read_with_preview", &
+                                           "rectangle_backward_char", "rectangle_dimensions", "rectangle_exchange_point_and_mark", &
+                                                         "rectangle_forward_char", "rectangle_intersect_p", "rectangle_left_char", &
+                                                           "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
+                                           "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
+                                             "regexp_quote", "region_active_p", "region_beginning", "region_bounds", "region_end", &
+                                                                   "region_noncontiguous_p", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
                                                   "revert_buffer", "revert_buffer_with_coding_system", "right_char", "right_word", &
@@ -666,7 +670,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(782) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(785) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -749,7 +753,7 @@ module docstrings_fm
                                          "dabbrev_check_all_buffers", "dabbrev_check_other_buffers", "dabbrev_eliminate_newlines", &
                                                                    "dabbrev_ignored_buffer_modes", "dabbrev_ignored_buffer_names", &
                                            "dabbrev_ignored_buffer_regexps", "dabbrev_limit", "dabbrev_search_these_buffers_only", &
-                                                                   "dabbrev_upcase_means_case_search", "default_justification", &
+                                              "dabbrev_upcase_means_case_search", "deactivate_mark_hook", "default_justification", &
                                                     "default_process_coding_system", "defining_kbd_macro", "delete_active_region", &
                                                                    "delete_exited_processes", "diff_advance_after_apply_hunk", &
                                                  "diff_ask_before_revert_and_kill_hunk", "diff_command", "diff_default_read_only", &
@@ -858,10 +862,11 @@ module docstrings_fm
                                                                    "query_replace_to_history_variable", "read_answer_short", &
                                                             "read_buffer_completion_ignore_case", "read_char_choice_use_read_key", &
                                                        "read_file_name_completion_ignore_case", "read_minibuffer_restore_windows", &
-                                                        "read_only_mode_hook", "read_quoted_char_radix", "regexp_search_ring_max", &
-                                                    "register_alist", "register_separator", "repeat_check_key", "repeat_exit_key", &
-                                                  "repeat_exit_timeout", "repeat_in_progress", "repeat_keep_prefix", "repeat_map", &
-                                               "repeat_mode_hook", "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
+                                                      "read_only_mode_hook", "read_quoted_char_radix", "rectangle_mark_mode_hook", &
+                                                            "rectangle_mark_mode_map", "regexp_search_ring_max", "register_alist", &
+                                               "register_separator", "repeat_check_key", "repeat_exit_key", "repeat_exit_timeout", &
+                                                     "repeat_in_progress", "repeat_keep_prefix", "repeat_map", "repeat_mode_hook", &
+                                                                   "repeat_num_input_keys_at_repeat", "repeat_on_final_keystroke", &
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
@@ -5132,6 +5137,13 @@ contains
                         "and true otherwise."//LF// &
                         ""//LF// &
                         "Interactively, prompt for REGISTER using `register_read_with_preview'."
+        case ("interactive_region")
+            entry%file = "editfns_fm.f90"
+            entry%fortran = "call interactive_region(beg, end, status)"
+            entry%doc = "The region as the arguments of a command whose interactive spec"//LF// &
+                        "has `r': point and the mark, the smaller first.  An inactive mark"//LF// &
+                        "is an error as for `region_beginning', which rectangle_mark_mode's"//LF// &
+                        "advice does not change here."
         case ("internal_default_process_filter")
             entry%file = "process_fm.f90"
             entry%fortran = "call internal_default_process_filter(proc, text, status)"
@@ -5491,8 +5503,13 @@ contains
             entry%fortran = "call kill_new(string, replace)"
             entry%doc = "Make STRING the latest kill in the kill ring."//LF// &
                         "Set `kill_ring_yank_pointer' to point to it."//LF// &
-                        "REPLACE true means that STRING will replace the front of the kill"//LF// &
-                        "ring, rather than being added to the ring."
+                        "Optional second argument REPLACE true means that STRING will replace"//LF// &
+                        "the front of the kill ring, rather than being added to the list."//LF// &
+                        ""//LF// &
+                        "When the yank handler has a non-nil PARAM element, the original"//LF// &
+                        "STRING argument is not used by `insert_for_yank'.  However, since"//LF// &
+                        "code may access and use elements from the kill ring directly, the"//LF// &
+                        "STRING argument should still be a ""useful"" string for such uses."
         case ("kill_paragraph")
             entry%file = "paragraphs_fm.f90"
             entry%fortran = "call kill_paragraph(arg, status)"
@@ -7350,11 +7367,24 @@ contains
             entry%doc = "The command: recompile, editing the command with a prefix argument."//LF// &
                         ""//LF// &
                         "Re-compile the program including the current buffer."
+        case ("rectangle_backward_char")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `backward_char' but steps into wide chars and moves past EOL."
         case ("rectangle_dimensions")
             entry%file = "rect_fm.f90"
             entry%fortran = "call rectangle_dimensions(start, end, width, height)"
             entry%doc = "Return the dimensions of the rectangle with corners at START and END."//LF// &
                         "The returned values are WIDTH and HEIGHT."
+        case ("rectangle_exchange_point_and_mark")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `exchange_point_and_mark' but cycles through the rectangle's"//LF// &
+                        "corners."
+        case ("rectangle_forward_char")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `forward_char' but steps into wide chars and moves past EOL."
         case ("rectangle_intersect_p")
             entry%file = "rect_fm.f90"
             entry%fortran = "rectangle_intersect_p(pos1, size1, pos2, size2)"
@@ -7363,6 +7393,23 @@ contains
                         "the first and second rectangles as arrays of the form [COLUMN, LINE]."//LF// &
                         "SIZE1 and SIZE2 specify the dimensions of the first and second"//LF// &
                         "rectangles, as arrays of the form [WIDTH, HEIGHT]."
+        case ("rectangle_left_char")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `left_char' but steps into wide chars and moves past EOL."
+        case ("rectangle_mark_mode")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "call rectangle_mark_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Toggle the region as rectangular."//LF// &
+                        ""//LF// &
+                        "Activates the region if it's inactive and Transient Mark mode is"//LF// &
+                        "on.  Only lasts until the region is next deactivated."
+        case ("rectangle_next_line")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `next_line' but steps into wide chars and moves past EOL."//LF// &
+                        "Ignores `line_move_visual'."
         case ("rectangle_number_lines")
             entry%file = "rect_fm.f90"
             entry%fortran = "call rectangle_number_lines(start, end, start_at, status, format)"
@@ -7378,6 +7425,15 @@ contains
             entry%fortran = "call rectangle_position_as_coordinates(position, column, line)"
             entry%doc = "Return the column and line values of POSITION, as COLUMN and LINE."//LF// &
                         "POSITION specifies a position of the current buffer."
+        case ("rectangle_previous_line")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `previous_line' but steps into wide chars and moves past EOL."//LF// &
+                        "Ignores `line_move_visual'."
+        case ("rectangle_right_char")
+            entry%file = "rect_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Like `right_char' but steps into wide chars and moves past EOL."
         case ("regexp_quote")
             entry%file = "search_fm.f90"
             entry%fortran = "regexp_quote(string)"
@@ -7391,10 +7447,23 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_beginning(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is smaller."
+        case ("region_bounds")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "call region_bounds(starts, ends, status)"
+            entry%doc = "Return the boundaries of the region, one or more pairs"//LF// &
+                        "[STARTS(k), ENDS(k))."//LF// &
+                        "There is more than one pair when the region is non-contiguous, see"//LF// &
+                        "`region_noncontiguous_p' and `extract_rectangle_bounds'."
         case ("region_end")
             entry%file = "editfns_fm.f90"
             entry%fortran = "call region_end(pos, status)"
             entry%doc = "Return the integer value of point or mark, whichever is larger."
+        case ("region_noncontiguous_p")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "region_noncontiguous_p()"
+            entry%doc = "Return true if the region contains several pieces."//LF// &
+                        "An example is a rectangular region handled as a list of separate"//LF// &
+                        "contiguous regions for each line."
         case ("register_read_with_preview")
             entry%file = "register_fm.f90"
             entry%fortran = "call register_read_with_preview(prompt, register, status, pred)"
@@ -12205,6 +12274,10 @@ contains
                         ""//LF// &
                         "This variable has an effect only when the value of"//LF// &
                         "`dabbrev_case_fold_search' says to ignore case."
+        case ("deactivate_mark_hook")
+            entry%file = "simple_fm.f90"
+            entry%fortran = "deactivate_mark_hook"
+            entry%doc = "Hook run when the mark becomes inactive."
         case ("default_justification")
             entry%file = "fill_fm.f90"
             entry%fortran = "default_justification"
@@ -15302,6 +15375,14 @@ contains
             entry%value = repr(read_quoted_char_radix)
             entry%doc = "Radix for \[quoted_insert] and other uses of `read_quoted_char'."//LF// &
                         "Supported radix values are 8, 10 and 16."
+        case ("rectangle_mark_mode_hook")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "rectangle_mark_mode_hook"
+            entry%doc = "Hook run after entering or leaving `rectangle_mark_mode'."
+        case ("rectangle_mark_mode_map")
+            entry%file = "rect_fm.f90"
+            entry%fortran = "rectangle_mark_mode_map"
+            entry%doc = "Keymap used while marking a rectangular region."
         case ("regexp_search_ring_max")
             entry%file = "isearch_fm.f90"
             entry%fortran = "regexp_search_ring_max"
