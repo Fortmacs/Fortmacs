@@ -483,9 +483,11 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   cache is stale: delete `build/gfortran_*`. CI always builds clean.
 - Never pass the same variable to two dummies when one is `intent(out)`
   (e.g. `call split(iv, k, len, k)`); use a temporary.
-- Never put a function result inside an array constructor of a type with
-  allocatable components (`[f(x)]`): gfortran leaks it. Use `list(...)`
-  or variables. No recursive allocatable types (gfortran copies them
+- Never put a function result or a structure constructor inside an array
+  constructor of a type with allocatable components (`[f(x)]`,
+  `[t(name="a")]`): gfortran 13 leaks them (checked with valgrind,
+  2026-10-28). Use `list(...)`, variables, element-by-element assignment,
+  a typed `%add`, or fixed-length components. No recursive allocatable types (gfortran copies them
   shallowly). `tools/check.sh --valgrind` (run in CI) catches leaks.
 - Objects are freed explicitly: every `make_marker` needs a `free_marker`.
 - Change hooks run user code in the middle of editing primitives, which
@@ -731,6 +733,29 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   `faces%` under the face's name. Implemented in roadmap step 25
   (tools/gen-faces.sh, src/face_table_fm.f90).
 
+- **Lists in the config API (2026-10-28).** What Elisp writes as lists
+  is written as plain Fortran, never as Lisp data in Fortran (no cons
+  cells, quoting, symbols or name/value pairs):
+  - A list of plain values is an array constructor:
+    `completion_styles = [character(len=24) :: "basic", "emacs22"]`.
+    `add-to-list` is `x = [new, x]` after an `any(x == new)` check.
+  - An alist whose keys are known at compile time (frame parameters and
+    the like) is a derived type with one typed component per key, set by
+    assignment: `default_frame%left_fringe = 0`; a function value is a
+    procedure pointer set with `=>`.
+  - A list of records the user writes out in full is an array of a
+    derived type with fixed-length text components, built with keyword
+    structure constructors: `[server_type(name="work", port=993), ...]`.
+    (Allocatable components leak in an array constructor with gfortran 13;
+    see the conventions.)
+  - A list that packages or the user add to one entry at a time gets a
+    typed procedure: `call text_mode_hook%add(...)`,
+    `call add_auto_mode(regexp, mode)`.
+  - Elisp's sequencing forms need nothing: statements run in order
+    (`let*`), a `block` scopes locals, `let` computes from the old values
+    into temporaries first, and a `let` that rebinds a global is written
+    save, set, run, restore (errors return a status, so the restore runs).
+
 ## Open questions
 
 Decisions the porting work is waiting on, or defaults taken provisionally.
@@ -791,6 +816,7 @@ Each lists the default being used meanwhile.
 ## Session log
 
 - 2026-10-28 — Rectangle-Mark mode (roadmap step 33b, `step33-rect-mark`, based on main): rect_fm's `rectangle_mark_mode` (C-x SPC) with its keymap, the corner crutches, the rectangle motion commands, the advice on `region_beginning`/`region_end` (procedure pointers in editfns_fm), and the rectangular region's extraction, insertion and highlighting.  The foundations it needs: strings with text properties (lisp_fm keeps them as child intervals of the string atom; textprop_fm's `string_` functions, `propertize`, `propertized_substring`, `propertized_concat`; `equal` ignores them), window values and overlays' `window` property, overlay strings with `face`, `cursor` and `(space ...)` display specs in redisplay, `redisplay_highlight_region_function`/`redisplay_unhighlight_region_function`, simple_fm's `region_extract_function`/`region_insert_function`, `region_bounds`, `region_noncontiguous_p`, `deactivate_mark_hook` (the command loop calls `deactivate_mark` through keyboard_fm's `deactivate_mark_function`), a kill ring of propertized strings and `insert_for_yank` with yank handlers, `yank_undo_function`.  Commands whose interactive spec is `r` now use editfns_fm's `interactive_region` (point and mark), so Rectangle-Mark mode's advice reaches only explicit `region_beginning` calls, as upstream.  Own tests: string properties, overlay-string properties, Rectangle-Mark mode.  Next: 33c savehist and saveplace.
+- 2026-10-28 — Design decision "Lists in the config API": arrays, typed components, keyword structure constructors and typed `%add` procedures for what Elisp writes as lists. Valgrind shows gfortran 13 also leaks structure constructors (not only function results) inside an array constructor of a type with allocatable components; the convention and CLAUDE.md now say so.
 - 2026-10-28 — README: the "Why AI assistance?" section speaks of the progress chart (the pie chart that replaced the progress bar), and says Fortmacs is co-written with Claude Code, without the link.
 - 2026-10-25 — Repeat (roadmap step 33a, `step33-repeat`, built on `auto-revert` while #104, #111–#114 wait; step 33 is split into 33a–e): repeat_fm (repeat.el: `repeat` on C-x z and Repeat mode), the repeat properties as `command_type` components (`commands%undo%repeat_map = undo_repeat_map` in init.f90), keymap_fm's `set_repeat_map` for defvar-keymap's `:repeat`, and the repeat maps of the ported commands (with `other_window_backward`).  keyboard_fm's `pre_command_hook` is a hook now (isearch adds its function), with `last_repeatable_command` and `num_input_keys`; `this_command` moves to callint_fm so that `call_interactively` binds `current_minibuffer_command`; subr_fm gains `ignore`.  Hook functions see `current_prefix_arg` as nil: `repeat_pre_hook` reads the command's from eval_fm's `hook_current_prefix_arg`.  Ports repeat-tests.el.  Next: 33b `rectangle-mark-mode`.
 
