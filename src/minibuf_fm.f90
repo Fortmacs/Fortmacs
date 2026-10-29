@@ -905,7 +905,7 @@ contains
         result = nil()
         inner%kind = TABLE_FUNCTION
         inner%fn => table%fn
-        ustring = table%unquote(string)
+        call table%unquote(string, ustring)
         select case (action)
         case (COMPLETE_TEST)
             ! test-completion
@@ -916,7 +916,7 @@ contains
             if (len(qsuffix) == 0) then
                 ufull = ustring
             else
-                ufull = table%unquote(string//qsuffix)
+                call table%unquote(string//qsuffix, ufull)
             end if
             ! If (not (string-prefix-p ustring ufull)) we have a problem:
             ! unquoting the qfull gives something "unrelated" to ustring.
@@ -962,6 +962,8 @@ contains
             if (.not. status%ok()) return
             call inner_boundaries(inner, ustring, "", bstart, bend, predicate)
             call twq_all(table, string, ustring, completion, bstart, result)
+        case default
+            continue
         end select
     end subroutine quoting_table_call
 
@@ -1017,14 +1019,14 @@ contains
         character(len=:), allocatable, intent(out) :: qstring
         integer(int64), intent(out) :: qpoint
         procedure(completion_quote_proc), pointer :: qfun, qfun2
-        character(len=:), allocatable :: prefix, suffix, qstr1, qsuffix, qstr
+        character(len=:), allocatable :: prefix, suffix, qstr1, qsuffix, qstr, uqstring
         integer(int64) :: qpos, q
         prefix = fill_common_string_prefix(ustring, completion)
         suffix = substring(completion, max(point, schars(prefix)))
         call table%requote(schars(prefix), string, qpos, qfun)
         qstr1 = ""
-        if (point > schars(prefix)) qstr1 = qfun(substring(completion, schars(prefix), point))
-        qsuffix = qfun(suffix)
+        if (point > schars(prefix)) call qfun(substring(completion, schars(prefix), point), qstr1)
+        call qfun(suffix, qsuffix)
         qstring = substring(string, 0_int64, qpos)//qstr1//qsuffix
         if (point == 0) then
             qpoint = 0
@@ -1035,11 +1037,12 @@ contains
             qpoint = q
         end if
         ! Make sure `requote' worked.
-        if (table%unquote(qstring) /= completion .or. len(table%unquote(qstring)) /= len(completion)) then
+        call table%unquote(qstring, uqstring)
+        if (uqstring /= completion .or. len(uqstring) /= len(completion)) then
             ! If requote failed (e.g. because sifn-requote did not handle
             ! Tramp's "/foo:/bar//baz -> /foo:/baz" truncation), then at
             ! least try requote properly.
-            qstr = qfun(completion)
+            call qfun(completion, qstr)
             qstring = qstr
             qpoint = schars(qstr)
         end if
@@ -1093,12 +1096,12 @@ contains
         do k = 1, n
             completion = xstring(elems(k))
             new = substring(completion, schars(prefix))
-            qnew = qfun(new)
+            call qfun(new, qnew)
             qp = qprefix
             if (completion_ignore_case%value) then
                 ! Make qprefix inherit the case from `completion'.
                 rest = substring(completion, 0_int64, schars(prefix))
-                qrest = qfun(rest)
+                call qfun(rest, qrest)
                 if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
             end if
             quoted(k) = make_string(qp//qnew)

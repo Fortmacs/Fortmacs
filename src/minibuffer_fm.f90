@@ -24,14 +24,16 @@
 !> submodule minibuffer_styles_fm), TAB, SPC, ? and RET in the completion
 !> maps, `minibuffer_message', the *Completions* list, and completion in
 !> buffers: `completion_at_point' with `completion_at_point_functions',
-!> `completion_in_region' and `completion_in_region_mode'.
+!> `completion_in_region' and `completion_in_region_mode', with the
+!> `:exit_function' of the completion data; tables with quoting
+!> (`completion_table_with_quoting', in minibuf_fm).
 !>
 !> Not ported yet: cycling, completion metadata other than the category
-!> (annotations, groups, sorting functions, `completion_extra_properties',
-!> `:exit-function'), moving through and choosing from *Completions*
-!> (M-<up>, M-<down>, M-RET, mouse), `completion_show_help', completion
-!> tables with quoting, and completion of environment variables and ~USER
-!> in file names.
+!> and identity sorting (annotations, groups, other sorting functions,
+!> the rest of `completion_extra_properties'), moving through and
+!> choosing from *Completions* (M-<up>, M-<down>, M-RET, mouse),
+!> `completion_show_help', and completion of environment variables and
+!> ~USER in file names.
 module minibuffer_fm
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use commands_fm, only: commands
@@ -95,7 +97,7 @@ module minibuffer_fm
     public :: completion_in_region, completion_in_region_default, completion_at_point, completion_help_at_point, &
               completion_at_point_run, &
               cir_predicate_proc, completion_in_region_proc
-    public :: internal_complete_buffer, minibuffer_maybe_quote_filename
+    public :: internal_complete_buffer, minibuffer_maybe_quote_filename, completions_visible
     public :: completing_read, completion_try_completion, completion_all_completions, completion_boundaries, &
               completion_table_with_context, completion_complete_and_exit, completion_do_completion, &
               completion_prompt_end, completion_exit_proc, &
@@ -1908,7 +1910,7 @@ contains
         if (completion_flex_sorting) then
             ! The display-sort-function of completion--flex-adjust-metadata.
             call sort_by_flex_cost(strings)
-        else
+        else if (.not. minibuffer_completion_table%unsorted) then
             ! minibuffer-sort-alphabetically.
             call sort_strings(strings)
         end if

@@ -157,10 +157,13 @@ module commands_fm
         type(command_type) :: comint_bol
         type(command_type) :: comint_bol_or_process_mark
         type(command_type) :: comint_clear_buffer
+        type(command_type) :: comint_complete_input_ring
         type(command_type) :: comint_continue_subjob
         type(command_type) :: comint_copy_old_input
         type(command_type) :: comint_delchar_or_maybe_eof
         type(command_type) :: comint_delete_output
+        type(command_type) :: comint_dynamic_complete_filename
+        type(command_type) :: comint_dynamic_list_filename_completions
         type(command_type) :: comint_forward_matching_input
         type(command_type) :: comint_get_next_from_history
         type(command_type) :: comint_goto_process_mark
@@ -183,6 +186,7 @@ module commands_fm
         type(command_type) :: comint_previous_matching_input_from_input
         type(command_type) :: comint_previous_prompt
         type(command_type) :: comint_quit_subjob
+        type(command_type) :: comint_replace_by_expanded_filename
         type(command_type) :: comint_replace_by_expanded_history
         type(command_type) :: comint_restore_input
         type(command_type) :: comint_run
@@ -1079,7 +1083,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1041) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1045) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1205,10 +1209,13 @@ module commands_fm
                                                                   "comint_bol", &
                                                                   "comint_bol_or_process_mark", &
                                                                   "comint_clear_buffer", &
+                                                                  "comint_complete_input_ring", &
                                                                   "comint_continue_subjob", &
                                                                   "comint_copy_old_input", &
                                                                   "comint_delchar_or_maybe_eof", &
                                                                   "comint_delete_output", &
+                                                                  "comint_dynamic_complete_filename", &
+                                                                  "comint_dynamic_list_filename_completions", &
                                                                   "comint_forward_matching_input", &
                                                                   "comint_get_next_from_history", &
                                                                   "comint_goto_process_mark", &
@@ -1231,6 +1238,7 @@ module commands_fm
                                                                   "comint_previous_matching_input_from_input", &
                                                                   "comint_previous_prompt", &
                                                                   "comint_quit_subjob", &
+                                                                  "comint_replace_by_expanded_filename", &
                                                                   "comint_replace_by_expanded_history", &
                                                                   "comint_restore_input", &
                                                                   "comint_run", &
@@ -2381,6 +2389,8 @@ contains
             p => commands%comint_bol_or_process_mark
         case ("comint_clear_buffer")
             p => commands%comint_clear_buffer
+        case ("comint_complete_input_ring")
+            p => commands%comint_complete_input_ring
         case ("comint_continue_subjob")
             p => commands%comint_continue_subjob
         case ("comint_copy_old_input")
@@ -2389,6 +2399,10 @@ contains
             p => commands%comint_delchar_or_maybe_eof
         case ("comint_delete_output")
             p => commands%comint_delete_output
+        case ("comint_dynamic_complete_filename")
+            p => commands%comint_dynamic_complete_filename
+        case ("comint_dynamic_list_filename_completions")
+            p => commands%comint_dynamic_list_filename_completions
         case ("comint_forward_matching_input")
             p => commands%comint_forward_matching_input
         case ("comint_get_next_from_history")
@@ -2433,6 +2447,8 @@ contains
             p => commands%comint_previous_prompt
         case ("comint_quit_subjob")
             p => commands%comint_quit_subjob
+        case ("comint_replace_by_expanded_filename")
+            p => commands%comint_replace_by_expanded_filename
         case ("comint_replace_by_expanded_history")
             p => commands%comint_replace_by_expanded_history
         case ("comint_restore_input")

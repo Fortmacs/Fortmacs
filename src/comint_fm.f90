@@ -43,11 +43,17 @@
 !> on `comint_output_filter_functions', `comint_password_prompt_regexp')
 !> and answered with `comint_send_invisible'.
 !>
-!> Not ported yet (Deferred): completion
-!> (`comint_completion_at_point', file name completion, the
-!> `comint_dynamic_*' commands, `comint_dynamic_list_input_ring' (C-c C-l),
-!> `comint_complete_input_ring' (C-x <up>)); ANSI colors
-!> (`ansi_color_process_output', also there); the status of a stopped
+!> Completion: `comint_completion_at_point' on
+!> `completion_at_point_functions' runs `comint_dynamic_complete_functions'
+!> (history references, then file names quoted with `\' for
+!> `comint_file_name_quote_list'), `comint_dynamic_complete_filename',
+!> `comint_replace_by_expanded_filename',
+!> `comint_dynamic_list_filename_completions' and
+!> `comint_complete_input_ring' (C-x <up>).
+!>
+!> Not ported yet (Deferred): `comint_dynamic_list_input_ring' (C-c C-l)
+!> and `comint_dynamic_list_completions' (choosing from the list needs
+!> `choose_completion_string'); the status of a stopped
 !> process (process_fm reports none); redirection (`comint_redirect_*'); network
 !> connections and ptys without a program as PROGRAM; `comint_fontify_input_mode'
 !> and indirect buffers; the mouse (`comint_insert_input'), menus and
@@ -123,6 +129,27 @@ module comint_fm
     use regexp_opt_fm, only: regexp_opt, REGEXP_OPT_T
     use character_fm, only: char_string, MAX_MULTIBYTE_LENGTH
     use timer_fm, only: run_at_time
+    use lisp_fm, only: make_string, make_list, stringp, xstring
+    use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_unquote_proc, &
+                                completion_requote_proc, completion_quote_proc, completion_table_with_quoting, &
+                                capf_data_type, COMPLETION_FINISHED, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
+                                completion_list_table, completion_function_table
+    use minibuf_fm, only: completion_ignore_case, quoting_table_call
+    use minibuffer_fm, only: completion_in_region, completion_in_region_mode_predicate, cir_predicate_proc, &
+                             completions_visible, completion_at_point_functions, completion_file_name_table, &
+                             read_file_name_completion_ignore_case, minibuffer_completion_table, &
+                             minibuffer_completion_predicate, minibuffer_completion_help
+    use eval_fm, only: capf_hook_type, capf_entry_type
+    use search_fm, only: set_match_data, match_data
+    use syntax_fm, only: skip_chars_backward
+    use editfns_fm, only: char_after, preceding_char
+    use character_fm, only: string_char_and_length
+    use fns_fm, only: substring, schars
+    use env_fm, only: getenv
+    use fileio_fm, only: file_name_absolute_p
+    use dired_fm, only: completion_ignored_extensions
+    use regexp_opt_fm, only: regexp_opt_charset
+    use itree_fm, only: free_overlay
     implicit none(type, external)
     private
 
@@ -149,7 +176,11 @@ module comint_fm
               comint_replace_by_expanded_history_before_point, comint_magic_space, comint_insert_previous_argument, &
               comint_history_isearch_backward, comint_history_isearch_backward_regexp, comint_history_isearch_setup, &
               comint_history_isearch_end, comint_goto_input, comint_preinput_scroll_to_bottom, comint_stop_subjob, &
-              comint_continue_subjob
+              comint_continue_subjob, comint_complete_input_ring, comint_word, comint_match_partial_filename, &
+              comint_quote_filename, comint_unquote_argument, comint_requote_argument, &
+              comint_completion_file_name_table, comint_file_name_completion_data, comint_filename_completion, &
+              comint_completion_at_point, comint_dynamic_complete_filename, comint_replace_by_expanded_filename, &
+              comint_dynamic_list_filename_completions, set_comint_completion_fignore
     public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc, comint_password_proc
     public :: comint_send_invisible, comint_read_noecho, comint_watch_for_password_prompt, &
               set_comint_password_function, comint_password_prompt_regexp_default
@@ -500,9 +531,8 @@ module comint_fm
     !> See also `comint_preoutput_filter_functions'.
     !>
     !> You can use `add' to add functions to this hook either globally or
-    !> locally.  Port of comint.el comint-output-filter-functions (its
-    !> default value without the Deferred `ansi_color_process_output' and
-    !> `comint_watch_for_password_prompt').
+    !> locally.  Port of comint.el comint-output-filter-functions
+    !> (ansi_color_fm adds `ansi_color_process_output').
     type(string_hook_type), target, public :: comint_output_filter_functions = &
                                               string_hook_type(name="comint_output_filter_functions", &
                                                                permanent_local=.true.)
@@ -583,6 +613,8 @@ module comint_fm
         type(handle_type) :: history_isearch_message_overlay
         !> comint-password-function.
         procedure(comint_password_proc), pointer, nopass :: password_function => null()
+        !> comint-completion-fignore.
+        character(len=8), allocatable :: completion_fignore(:)
     end type comint_buffer_type
 
     !> Regexp matching prompts for passwords in the inferior process.
@@ -625,6 +657,77 @@ module comint_fm
     character(len=*), parameter :: PROMPT_REAR_NONSTICKY(5) = [character(len=31) :: "field", &
                                                                                    "inhibit_line_move_field_capture", "read_only", &
                                                                                           "font_lock_face", "insert_in_front_hooks"]
+
+    !> If true, automatically list possibilities on partial completion.
+    !> This mirrors the optional behavior of tcsh.  Port of comint.el
+    !> comint-completion-autolist.
+    type(logical_setting), target, public :: comint_completion_autolist = &
+                                             logical_setting(name="comint_completion_autolist", value=.false.)
+
+    !> The string FILESUFFIX added to file names on unambiguous or exact
+    !> completion (" " by default; the empty string adds none).
+    !> This mirrors the optional behavior of tcsh.  Port of comint.el
+    !> comint-completion-addsuffix (t is " ", nil is "", and the obsolete
+    !> pair (DIRSUFFIX . FILESUFFIX) is FILESUFFIX).
+    type(string_setting), target, public :: comint_completion_addsuffix = &
+                                            string_setting(name="comint_completion_addsuffix")
+
+    !> If true, use shortest completion if characters cannot be added.
+    !> This mirrors the optional behavior of tcsh.
+    !>
+    !> A true value is useful if `comint_completion_autolist' is true too.
+    !> Port of comint.el comint-completion-recexact.
+    type(logical_setting), target, public :: comint_completion_recexact = &
+                                             logical_setting(name="comint_completion_recexact", value=.false.)
+
+    !> List of suffixes to be disregarded during file completion.
+    !> This mirrors the optional behavior of bash and tcsh.
+    !>
+    !> Note that this applies to `comint_dynamic_complete_filename' only.
+    !> Port of comint.el comint-completion-fignore (at most as many
+    !> suffixes as `completion_ignored_extensions' has entries; a Comint
+    !> buffer's own value is set with `set_comint_completion_fignore').
+    character(len=8), allocatable, public :: comint_completion_fignore(:)
+
+    !> Prefix prepended to absolute file names taken from process input.
+    !> This is used by Comint's and shell's completion functions, and by
+    !> shell's directory tracking functions.  Port of comint.el
+    !> comint-file-name-prefix.
+    type(string_setting), target, public :: comint_file_name_prefix = string_setting(name="comint_file_name_prefix")
+
+    !> String of characters valid in a file name.
+    !> Note that all non-ASCII characters are considered valid in a file
+    !> name regardless of what this variable says.
+    !>
+    !> This is a good thing to set in mode hooks.  Port of comint.el
+    !> comint-file-name-chars.
+    type(string_setting), target, public :: comint_file_name_chars = string_setting(name="comint_file_name_chars")
+
+    !> The characters to quote with `\' when in a file name.
+    !>
+    !> This is a good thing to set in mode hooks.  Port of comint.el
+    !> comint-file-name-quote-list (a string of the characters).
+    type(string_setting), target, public :: comint_file_name_quote_list = &
+                                            string_setting(name="comint_file_name_quote_list")
+
+    !> List of functions called to perform completion.
+    !> Works like `completion_at_point_functions'.
+    !> See also `completion_at_point'.
+    !>
+    !> This is a good thing to set in mode hooks.  Port of comint.el
+    !> comint-dynamic-complete-functions.
+    type(capf_hook_type), target, public :: comint_dynamic_complete_functions = &
+                                            capf_hook_type(name="comint_dynamic_complete_functions")
+
+    !> Function to use for completion of quoted data.
+    !> See `completion_table_with_quoting' and `comint_requote_function'.
+    !> Port of comint.el comint-unquote-function.
+    procedure(completion_unquote_proc), pointer, public :: comint_unquote_function => comint_unquote_argument
+
+    !> Function to use for completion of quoted data.
+    !> See `completion_table_with_quoting' and `comint_unquote_function'.
+    !> Port of comint.el comint-requote-function.
+    procedure(completion_requote_proc), pointer, public :: comint_requote_function => comint_requote_argument
 
 contains
 
@@ -696,6 +799,7 @@ contains
         e%insert_previous_argument_last_start_pos = null_handle()
         e%has_insert_previous_argument_last_index = .false.
         e%history_isearch_message_overlay = null_handle()
+        if (allocated(e%completion_fignore)) deallocate (e%completion_fignore)
         e%password_function => null()
         e%local = .false.
     end subroutine free_locals
@@ -737,6 +841,11 @@ contains
             e%matching_input_from_input_string = ""
             e%get_old_input => comint_get_old_input_default
             e%input_sender => comint_simple_send
+            if (allocated(comint_completion_fignore)) then
+                e%completion_fignore = comint_completion_fignore
+            else
+                allocate (e%completion_fignore(0))
+            end if
             e%input_filter => comint_nonblank_p
             e%local = .true.
         end associate
@@ -1010,7 +1119,12 @@ contains
         end if
         call pre_command_hook%add(comint_preinput_scroll_to_bottom, depth=90, local=.true.)
         call font_lock_defaults%set_local(keywords_only=.true.)
+        call comint_file_name_chars%make_local()
+        call comint_file_name_quote_list%make_local()
+        ! dir tracking on remote files
+        call comint_file_name_prefix%set_local("")
         call isearch_mode_hook%add(comint_history_isearch_setup, local=.true.)
+        call completion_at_point_functions%add(comint_completion_at_point, local=.true.)
     end subroutine comint_mode_body
 
     !> Return true if there is a living process associated with BUFFER.
@@ -4656,6 +4770,494 @@ contains
     end subroutine send_pending_password
 
     ! ------------------------------------------------------------------
+    ! Completion
+    ! ------------------------------------------------------------------
+
+    !> Complete a list of recent inputs entered into the current buffer.
+    !> Like `minibuffer_complete_history' but completes on comint inputs.
+    !> This function makes `comint_dynamic_list_input_ring' obsolete.
+    !> Port of comint.el:comint-complete-input-ring.
+    recursive subroutine comint_complete_input_ring(status)
+        type(status_type), intent(out) :: status
+        type(value_type), allocatable :: elems(:)
+        type(completion_table_type) :: table
+        procedure(cir_predicate_proc), pointer :: saved_pred
+        character(len=:), allocatable :: item
+        type(status_type) :: st
+        integer :: k, i, n
+        logical :: res
+        status = status_type()
+        k = entry_of(cur)
+        n = 0
+        if (k /= 0) then
+            if (comint_buffers(k)%has_ring) n = comint_buffers(k)%input_ring%count()
+        end if
+        if (n == 0) then
+            call set_error(status, FM_USER_ERROR, "No history available")
+            return
+        end if
+        allocate (elems(n))
+        do i = 1, n
+            call comint_buffers(k)%input_ring%ref(i - 1, item, st)
+            elems(i) = make_string(item)
+        end do
+        table = completion_list_table(make_list(elems), "comint_input")
+        table%unsorted = .true.
+        saved_pred => completion_in_region_mode_predicate
+        completion_in_region_mode_predicate => completions_shown
+        res = completion_in_region(comint_line_beginning_position(), point_max(), table)
+        completion_in_region_mode_predicate => saved_pred
+    end subroutine comint_complete_input_ring
+
+    ! Whether *Completions* is shown (minibuffer--completions-visible as
+    ! the `completion_in_region_mode_predicate' of
+    ! `comint_complete_input_ring').
+    recursive logical function completions_shown()
+        type(handle_type) :: window
+        window = completions_visible()
+        completions_shown = window%index /= 0
+    end function completions_shown
+
+    !> Return the word of WORD_CHARS at point as WORD, FOUND false if none
+    !> is found.  Word constituents are considered to be those in
+    !> WORD_CHARS, which is like the inside of a "[...]" (see
+    !> `skip_chars_forward'), plus all non-ASCII characters.  The match
+    !> data is set to match the word.  Port of comint.el:comint-word.
+    recursive subroutine comint_word(word_chars, word, found)
+        character(len=*), intent(in) :: word_chars
+        character(len=:), allocatable, intent(out) :: word
+        logical, intent(out) :: found
+        integer(int64) :: here, startpoint, moved
+        integer(int32) :: c
+        type(status_type) :: st
+        logical :: have, giveup
+        ! FIXME: Need to handle "..." and '...' quoting in shell.el!
+        ! This should be combined with completion parsing somehow.
+        found = .false.
+        word = ""
+        here = point()
+        giveup = .false.
+        do while (.not. giveup)
+            startpoint = point()
+            moved = skip_chars_backward("\\"//word_chars, st)
+            call char_after(c, have, point() - 2)
+            if (have .and. c == iachar("\")) then
+                call char_after(c, have, point() - 1)
+                if (have) then
+                    if (any(quote_chars() == c)) call goto_char(point() - 2)
+                end if
+            end if
+            ! FIXME: This isn't consistent with Bash, at least -- not all
+            ! non-ASCII chars should be word constituents.
+            if (.not. bobp()) then
+                if (preceding_char() >= 128) call goto_char(point() - 1)
+            end if
+            giveup = point() == startpoint
+        end do
+        ! Set match-data to match the entire string.
+        if (point() < here) then
+            call set_match_data([point(), here])
+            call buffer_substring(point(), here, word, st)
+            found = .true.
+        end if
+        call goto_char(here)
+    end subroutine comint_word
+
+    ! The characters of `comint_file_name_quote_list'.
+    function quote_chars() result(chars)
+        integer(int32), allocatable :: chars(:)
+        integer(int32) :: c, n
+        integer(int64) :: i
+        allocate (chars(0))
+        if (.not. allocated(comint_file_name_quote_list%value)) return
+        i = 1
+        do while (i <= len(comint_file_name_quote_list%value))
+            call string_char_and_length(comint_file_name_quote_list%value, i, c, n)
+            chars = [chars, c]
+            i = i + n
+        end do
+    end function quote_chars
+
+    ! Return the filename at point as-is as FILENAME, FOUND false if none
+    ! is found.  See `comint_word'.  Port of
+    ! comint.el:comint--match-partial-filename.
+    recursive subroutine match_partial_filename(filename, found)
+        character(len=:), allocatable, intent(out) :: filename
+        logical, intent(out) :: found
+        call comint_word(comint_file_name_chars%value, filename, found)
+    end subroutine match_partial_filename
+
+    ! QSTR unquoted as USTR, and QUPOS the position in QSTR that
+    ! corresponds to UPOS in USTR (-1 for none).  Port of
+    ! comint.el:comint--unquote&requote-argument.
+    recursive subroutine unquote_requote_argument(qstr, upos_in, ustr, qupos)
+        character(len=*), intent(in) :: qstr
+        integer(int64), intent(in) :: upos_in
+        character(len=:), allocatable, intent(out) :: ustr
+        integer(int64), intent(out) :: qupos
+        character(len=:), allocatable :: re, value
+        integer(int64) :: upos, qpos, match, mend
+        type(status_type) :: st
+        logical :: found
+        upos = upos_in
+        qpos = 0
+        ustr = ""
+        qupos = -1
+        re = "\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
+        if (size(quote_chars()) > 0) re = re//"\|\\\(.\)"
+        do
+            match = string_match(re, qstr, st, start=qpos + 1)
+            if (match == 0) exit
+            match = match - 1
+            mend = match_end(0, st) - 1
+            call push(substring(qstr, qpos, match), match)
+            if (match_beginning(2, st) > 0) then
+                call push(match_string(2, qstr), mend)
+            else if (match_beginning(1, st) > 0) then
+                call getenv(match_string(1, qstr), value, found)
+                if (.not. found) value = ""
+                call push(value, -mend)
+            end if
+            qpos = mend
+        end do
+        call push(substring(qstr, qpos), schars(qstr))
+    contains
+        subroutine push(str, end)
+            character(len=*), intent(in) :: str
+            integer(int64), intent(in) :: end
+            ustr = ustr//str
+            upos = upos - schars(str)
+            if (qupos < 0 .and. upos <= 0) then
+                if (end < 0) then
+                    qupos = -end
+                else
+                    qupos = upos + end
+                end if
+            end if
+        end subroutine push
+    end subroutine unquote_requote_argument
+
+    !> STR with environment variables substituted and quoting `\'
+    !> removed, as USTR (the default `comint_unquote_function').  Port of
+    !> comint.el:comint--unquote-argument.
+    recursive subroutine comint_unquote_argument(str, ustr)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable, intent(out) :: ustr
+        integer(int64) :: qupos
+        call unquote_requote_argument(str, 0_int64, ustr, qupos)
+    end subroutine comint_unquote_argument
+
+    !> The default `comint_requote_function'.  See
+    !> `completion_table_with_quoting'.  Port of
+    !> comint.el:comint--requote-argument.
+    recursive subroutine comint_requote_argument(upos, qstr, qpos, qfun)
+        integer(int64), intent(in) :: upos
+        character(len=*), intent(in) :: qstr
+        integer(int64), intent(out) :: qpos
+        procedure(completion_quote_proc), pointer, intent(out) :: qfun
+        character(len=:), allocatable :: ustr
+        call unquote_requote_argument(qstr, upos, ustr, qpos)
+        qfun => comint_quote_filename
+    end subroutine comint_requote_argument
+
+    !> Return the unquoted&expanded filename at point as FILENAME, FOUND
+    !> false if none is found.  Environment variables are substituted.
+    !> See `comint_word'.  Port of comint.el:comint-match-partial-filename.
+    recursive subroutine comint_match_partial_filename(filename, found)
+        character(len=:), allocatable, intent(out) :: filename
+        logical, intent(out) :: found
+        character(len=:), allocatable :: unquoted
+        call match_partial_filename(filename, found)
+        if (found) then
+            unquoted = filename
+            call comint_unquote_argument(unquoted, filename)
+        end if
+    end subroutine comint_match_partial_filename
+
+    !> Return FILENAME with magic characters quoted, as QUOTED.
+    !> Magic characters are those in `comint_file_name_quote_list'.  Port
+    !> of comint.el:comint-quote-filename.
+    recursive subroutine comint_quote_filename(filename, quoted)
+        character(len=*), intent(in) :: filename
+        character(len=:), allocatable, intent(out) :: quoted
+        character(len=:), allocatable :: regexp, replaced
+        integer(int64) :: i, mend
+        integer(int64), allocatable :: saved(:)
+        type(status_type) :: st
+        quoted = filename
+        if (size(quote_chars()) == 0) return
+        regexp = regexp_opt_charset(quote_chars())
+        saved = match_data()
+        i = 1
+        do while (string_match(regexp, quoted, st, start=i) > 0)
+            mend = match_end(0, st)
+            call replace_match("\\\&", st, string=quoted, result=replaced)
+            quoted = replaced
+            i = mend + 1
+        end do
+        call set_match_data(saved)
+    end subroutine comint_quote_filename
+
+    !> The file name completion table of comint: `completion_file_name_table'
+    !> with `comint_file_name_prefix' before absolute file names.  Port of
+    !> comint.el:comint-completion-file-name-table.
+    recursive subroutine comint_completion_file_name_table(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        type(status_type) :: st
+        if (.not. file_name_absolute_p(string)) then
+            call completion_file_name_table(string, action, result, status, pred, suffix)
+            return
+        end if
+        select case (action)
+        case (COMPLETE_ALL, COMPLETE_TEST)
+            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, pred, suffix)
+        case (COMPLETE_TRY)
+            call completion_file_name_table(comint_file_name_prefix%value//string, action, result, status, pred, suffix)
+            if (stringp(result)) then
+                if (string_match("\`"//regexp_quote(comint_file_name_prefix%value), xstring(result), st) > 0) then
+                    result = make_string(substring(xstring(result), match_end(0, st) - 1))
+                end if
+            end if
+        case default
+            call completion_file_name_table(string, action, result, status, pred, suffix)
+        end select
+    end subroutine comint_completion_file_name_table
+
+    ! The table of `comint_file_name_completion_data': file names quoted
+    ! with `comint_unquote_function' and `comint_requote_function',
+    ! completed with `read_file_name_completion_ignore_case' and
+    ! `comint_completion_fignore' (the lambda of
+    ! comint--complete-file-name-data).
+    recursive subroutine file_name_table(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+        type(completion_table_type) :: table
+        character(len=len(completion_ignored_extensions)) :: saved_extensions(size(completion_ignored_extensions))
+        character(len=8), allocatable :: fignore(:)
+        logical :: saved_case
+        integer :: k, n
+        table = completion_table_with_quoting(comint_completion_file_name_table, comint_unquote_function, &
+                                              comint_requote_function)
+        saved_case = completion_ignore_case%value
+        saved_extensions = completion_ignored_extensions
+        completion_ignore_case%value = read_file_name_completion_ignore_case
+        completion_ignored_extensions = ""
+        k = entry_of(cur)
+        if (k /= 0) then
+            if (allocated(comint_buffers(k)%completion_fignore)) fignore = comint_buffers(k)%completion_fignore
+        end if
+        if (.not. allocated(fignore) .and. allocated(comint_completion_fignore)) fignore = comint_completion_fignore
+        if (allocated(fignore)) then
+            n = min(size(fignore), size(completion_ignored_extensions))
+            completion_ignored_extensions(1:n) = fignore(1:n)
+        end if
+        call quoting_table_call(table, string, action, result, status, pred, suffix)
+        completion_ignore_case%value = saved_case
+        completion_ignored_extensions = saved_extensions
+    end subroutine file_name_table
+
+    !> Give the current buffer its own `comint_completion_fignore',
+    !> SUFFIXES (setq-local comint-completion-fignore).
+    subroutine set_comint_completion_fignore(suffixes)
+        character(len=*), intent(in) :: suffixes(:)
+        integer :: k, i
+        k = local_entry()
+        if (allocated(comint_buffers(k)%completion_fignore)) deallocate (comint_buffers(k)%completion_fignore)
+        allocate (comint_buffers(k)%completion_fignore(size(suffixes)))
+        do i = 1, size(suffixes)
+            comint_buffers(k)%completion_fignore(i) = suffixes(i)
+        end do
+    end subroutine set_comint_completion_fignore
+
+    ! The FILESUFFIX of `comint_completion_addsuffix'.
+    function file_suffix() result(suffix)
+        character(len=:), allocatable :: suffix
+        suffix = ""
+        if (allocated(comint_completion_addsuffix%value)) suffix = comint_completion_addsuffix%value
+    end function file_suffix
+
+    ! The `:exit_function' of `comint_file_name_completion_data': add
+    ! the FILESUFFIX of `comint_completion_addsuffix' (or move over it)
+    ! when completion is finished.
+    recursive subroutine file_suffix_exit(string, finished)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: finished
+        character(len=:), allocatable :: suffix
+        type(status_type) :: st
+        ! (STRING is unused.)
+        if (finished /= COMPLETION_FINISHED) return
+        suffix = file_suffix()
+        if (looking_at(regexp_quote(suffix), st)) then
+            call goto_char(match_end(0, st))
+        else
+            call insert(suffix, st)
+        end if
+    end subroutine file_suffix_exit
+
+    !> Return the completion data for file name at point.  Port of
+    !> comint.el:comint--complete-file-name-data.
+    recursive subroutine comint_file_name_completion_data(data)
+        type(capf_data_type), intent(out) :: data
+        character(len=:), allocatable :: filename
+        type(status_type) :: st
+        logical :: found
+        call match_partial_filename(filename, found)
+        data%found = .true.
+        if (found) then
+            data%start = match_beginning(0, st)
+            data%end = match_end(0, st)
+        else
+            data%start = point()
+            data%end = point()
+        end if
+        data%table = completion_function_table(file_name_table, "file")
+        if (len(file_suffix()) > 0) data%exit_function => file_suffix_exit
+    end subroutine comint_file_name_completion_data
+
+    !> Return completion data for filename at point, if any.  Port of
+    !> comint.el:comint-filename-completion.
+    recursive subroutine comint_filename_completion(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename
+        logical :: found
+        status = status_type()
+        data = capf_data_type()
+        call match_partial_filename(filename, found)
+        if (found) call comint_file_name_completion_data(data)
+    end subroutine comint_filename_completion
+
+    ! `comint_c_a_p_replace_by_expanded_history' on
+    ! `comint_dynamic_complete_functions': the function expanding the
+    ! history references, if there are any.
+    recursive subroutine capf_replace_by_expanded_history(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        status = status_type()
+        data = capf_data_type()
+        if (.not. comint_c_a_p_replace_by_expanded_history()) return
+        data%found = .true.
+        data%perform => perform_expand_history
+    end subroutine capf_replace_by_expanded_history
+
+    ! The function comint-c-a-p-replace-by-expanded-history returns.
+    recursive logical function perform_expand_history() result(changed)
+        integer(int64) :: tick
+        type(status_type) :: st
+        ! Looks like there might be history references in the command.
+        tick = buffers(cur)%text%modiff
+        call comint_replace_by_expanded_history_before_point(status=st)
+        changed = tick /= buffers(cur)%text%modiff
+    end function perform_expand_history
+
+    !> Run `comint_dynamic_complete_functions' until one returns
+    !> completion data (for `completion_at_point_functions').  Port of
+    !> comint.el:comint-completion-at-point.
+    recursive subroutine comint_completion_at_point(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        type(capf_entry_type), allocatable :: fns(:)
+        integer :: k
+        status = status_type()
+        data = capf_data_type()
+        fns = comint_dynamic_complete_functions%functions()
+        do k = 1, size(fns)
+            call fns(k)%fn(data, status)
+            if (.not. status%ok()) return
+            if (data%found) return
+        end do
+    end subroutine comint_completion_at_point
+
+    !> Dynamically complete the filename at point.
+    !> Completes if after a filename.
+    !> This function is similar to `comint_replace_by_expanded_filename',
+    !> except that it won't change parts of the filename already entered
+    !> in the buffer; it just adds completion characters to the end of the
+    !> filename.  A completions listing may be shown in a separate buffer
+    !> if completion is ambiguous.
+    !>
+    !> Completion is dependent on the value of
+    !> `comint_completion_addsuffix', `comint_completion_recexact' and
+    !> `comint_completion_fignore', and the timing of completions listing
+    !> is dependent on the value of `comint_completion_autolist'.
+    !>
+    !> Returns true if successful.  Port of
+    !> comint.el:comint-dynamic-complete-filename.
+    recursive logical function comint_dynamic_complete_filename(status) result(done)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+        character(len=:), allocatable :: filename
+        logical :: found
+        status = status_type()
+        done = .false.
+        call match_partial_filename(filename, found)
+        if (.not. found) return
+        if (.not. selected_frame%minibuffer_selected) call message("Completing file name...")
+        call comint_file_name_completion_data(data)
+        done = completion_in_region(data%start, data%end, data%table)
+    end function comint_dynamic_complete_filename
+
+    subroutine cmd_comint_dynamic_complete_filename(status)
+        type(status_type), intent(out) :: status
+        logical :: done
+        done = comint_dynamic_complete_filename(status)
+    end subroutine cmd_comint_dynamic_complete_filename
+
+    !> Dynamically expand and complete the filename at point.
+    !> Replace the filename with an expanded, canonicalized and completed
+    !> replacement, i.e. substituting environment variables (e.g. $HOME),
+    !> `~'s, `..', and `.', and making the filename absolute.  For
+    !> expansion see `expand_file_name' and `substitute_in_file_name'.
+    !> For completion see `comint_dynamic_complete_filename'.  Port of
+    !> comint.el:comint-replace-by-expanded-filename.
+    recursive subroutine comint_replace_by_expanded_filename(status)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename, expanded
+        logical :: found, done
+        status = status_type()
+        call comint_match_partial_filename(filename, found)
+        if (.not. found) return
+        call expand_file_name(filename, expanded, status)
+        if (.not. status%ok()) return
+        call replace_match(expanded, status, fixedcase=.true., literal=.true.)
+        if (.not. status%ok()) return
+        done = comint_dynamic_complete_filename(status)
+    end subroutine comint_replace_by_expanded_filename
+
+    !> Display a list of possible completions for the filename at point.
+    !> Port of comint.el:comint-dynamic-list-filename-completions.
+    recursive subroutine comint_dynamic_list_filename_completions(status)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+        type(completion_table_type) :: saved_table
+        procedure(completion_predicate), pointer :: saved_pred
+        type(handle_type) :: ol
+        status = status_type()
+        call comint_file_name_completion_data(data)
+        saved_table = minibuffer_completion_table
+        saved_pred => minibuffer_completion_predicate
+        minibuffer_completion_table = data%table
+        minibuffer_completion_predicate => null()
+        call make_overlay(ol, data%start, data%end, status, rear_advance=.true.)
+        if (status%ok()) then
+            call overlay_put(ol, "field", sym("completion"), status)
+            call minibuffer_completion_help()
+            call free_overlay(ol)
+        end if
+        minibuffer_completion_table = saved_table
+        minibuffer_completion_predicate => saved_pred
+    end subroutine comint_dynamic_list_filename_completions
+
+    ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
@@ -4693,6 +5295,15 @@ contains
         call forward_setting(comint_use_prompt_regexp)
         call forward_setting(comint_terminfo_terminal)
         call forward_setting(comint_inhibit_carriage_motion)
+        if (.not. allocated(comint_completion_addsuffix%value)) comint_completion_addsuffix = " "
+        if (.not. allocated(comint_file_name_prefix%value)) comint_file_name_prefix = ""
+        if (.not. allocated(comint_file_name_chars%value)) comint_file_name_chars = "[]~/A-Za-z0-9+@:_.$#%,={}-"
+        if (.not. allocated(comint_file_name_quote_list%value)) comint_file_name_quote_list = ""
+        call forward_setting(comint_file_name_prefix)
+        call forward_setting(comint_file_name_chars)
+        call forward_setting(comint_file_name_quote_list)
+        call comint_dynamic_complete_functions%add(comint_filename_completion)
+        call comint_dynamic_complete_functions%add(capf_replace_by_expanded_history)
         ! (The default value lists comint-postoutput-scroll-to-bottom
         ! before comint-watch-for-password-prompt; `add' puts a function
         ! first.)
@@ -4709,6 +5320,7 @@ contains
         call keymap_set(comint_mode_map, "M-n", "comint_next_input", st)
         call keymap_set(comint_mode_map, "C-<up>", "comint_previous_input", st)
         call keymap_set(comint_mode_map, "C-<down>", "comint_next_input", st)
+        call keymap_set(comint_mode_map, "C-x <up>", "comint_complete_input_ring", st)
         call keymap_set(comint_mode_map, "M-r", "comint_history_isearch_backward_regexp", st)
         call keymap_set(comint_mode_map, "C-c M-r", "comint_previous_matching_input_from_input", st)
         call keymap_set(comint_mode_map, "C-c M-s", "comint_next_matching_input_from_input", st)
@@ -4787,6 +5399,10 @@ contains
         commands%comint_previous_prompt%run => cmd_comint_previous_prompt
         commands%comint_kill_whole_line%run => cmd_comint_kill_whole_line
         commands%comint_kill_region%run => cmd_comint_kill_region
+        commands%comint_complete_input_ring%run => comint_complete_input_ring
+        commands%comint_dynamic_complete_filename%run => cmd_comint_dynamic_complete_filename
+        commands%comint_replace_by_expanded_filename%run => comint_replace_by_expanded_filename
+        commands%comint_dynamic_list_filename_completions%run => comint_dynamic_list_filename_completions
     end subroutine syms_of_comint
 
     !> The faces of comint.el.

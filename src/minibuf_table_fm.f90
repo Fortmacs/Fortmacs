@@ -78,19 +78,21 @@ module minibuf_table_fm
             character(len=*), intent(in), optional :: suffix
         end subroutine completion_function
 
-        !> The UNQUOTE function of a quoting table: STRING unquoted.
-        recursive function completion_unquote_proc(string) result(ustring)
+        !> The UNQUOTE function of a quoting table: STRING unquoted, as
+        !> USTRING.
+        recursive subroutine completion_unquote_proc(string, ustring)
             implicit none(type, external)
             character(len=*), intent(in) :: string
-            character(len=:), allocatable :: ustring
-        end function completion_unquote_proc
+            character(len=:), allocatable, intent(out) :: ustring
+        end subroutine completion_unquote_proc
 
-        !> A QFUN of a quoting table: STRING quoted for its position.
-        recursive function completion_quote_proc(string) result(qstring)
+        !> A QFUN of a quoting table: STRING quoted for its position, as
+        !> QSTRING.
+        recursive subroutine completion_quote_proc(string, qstring)
             implicit none(type, external)
             character(len=*), intent(in) :: string
-            character(len=:), allocatable :: qstring
-        end function completion_quote_proc
+            character(len=:), allocatable, intent(out) :: qstring
+        end subroutine completion_quote_proc
 
         !> An `:exit_function': run after completion of STRING is
         !> performed, FINISHED saying how (a COMPLETION_* value).
@@ -138,6 +140,10 @@ module minibuf_table_fm
         procedure(completion_requote_proc), pointer, nopass :: requote => null()
         !> The completion category (the `category' entry of the table's
         !> metadata), empty for none.
+        !> Whether the table's metadata gives `identity' as its
+        !> `display_sort_function' and `cycle_sort_function': the
+        !> candidates are shown in the table's order.
+        logical :: unsorted = .false.
         character(len=:), allocatable :: category
     end type completion_table_type
 
