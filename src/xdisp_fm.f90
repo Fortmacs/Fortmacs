@@ -760,6 +760,7 @@ contains
 
                     if (len(xstring(disp)) > 0) then
                         call push_item(s%items, ITEM_DISPLAY_STRING, xstring(disp))
+                        call string_display_props(disp, s%items(size(s%items)))
                         call hide(endpos, p + 1)
                     else
                         call hide(endpos)
@@ -1272,9 +1273,9 @@ contains
     end subroutine consume_element
 
     !> The face of element EL from S shown where the face is FACE_ID: for
-    !> a character of an overlay string with a `face' property, that
-    !> merged in (xdisp.c:handle_face_prop for strings, the underlying
-    !> face as the base face).
+    !> a character of an overlay string or a display string with a `face'
+    !> property, that merged in (xdisp.c:handle_face_prop for strings,
+    !> the underlying face as the base face).
     integer(int32) function string_face(f, s, el, face_id) result(id)
         type(frame_type), intent(inout) :: f
         type(row_start_type), intent(in) :: s
@@ -1282,7 +1283,7 @@ contains
         integer(int32), intent(in) :: face_id
 
         id = face_id
-        if (.not. el%overlay_string .or. el%run == 0) return
+        if (.not. (el%overlay_string .or. el%display) .or. el%run == 0) return
         id = face_at_string_position(f, s%items(s%item)%prop_face(el%run), face_id)
     end function string_face
 

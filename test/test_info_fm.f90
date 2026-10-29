@@ -28,7 +28,9 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string
+    use lisp_fm, only: value_type, list, make_string, nilp, stringp, xstring, symbolp, symbols, xsymbol
+    use lread_fm, only: sym
+    use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
     use editfns_fm, only: buffer_string, point, point_min, point_max, goto_char, line_beginning_position
     use search_fm, only: search_forward, SEARCH_NOERROR
@@ -44,7 +46,8 @@ module test_info_fm
                        info_menu, info_nth_menu_item, info_follow_reference, info_forward_node, info_backward_node, &
                        info_top_node, info_final_node, info_directory, info_index_node, info_index_nodes, &
                        info_copy_current_node_name, info_directory_list, info_next_reference, info_prev_reference, &
-                       info_follow_nearest_node, info_extract_pointer, info_build_node_completions
+                       info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
+                       info_history
     implicit none(type, external)
     private
 
@@ -75,7 +78,11 @@ contains
                     new_unittest("info-copy-current-node-name", test_copy_current_node_name), &
                     new_unittest("info-node-completions", test_node_completions), &
                     new_unittest("info-directory", test_directory), &
-                    new_unittest("info-compressed-file", test_compressed_file) &
+                    new_unittest("info-compressed-file", test_compressed_file), &
+                    new_unittest("info-fontify-node", test_fontify_node), &
+                    new_unittest("info-breadcrumbs", test_breadcrumbs), &
+                    new_unittest("info-toc", test_toc), &
+                    new_unittest("info-history-node", test_history_node) &
                     ]
     end subroutine collect_info_fm
 
@@ -628,4 +635,155 @@ contains
         call delete_file(zipped, st)
         call use_resources()
     end subroutine test_compressed_file
+
+    !> The text property PROP at the first occurrence of TEXT in the node
+    !> (FOUND false if TEXT is absent).
+    subroutine property_at(text, prop, val, found)
+        character(len=*), intent(in) :: text, prop
+        type(value_type), intent(out) :: val
+        logical, intent(out) :: found
+        type(status_type) :: st
+        integer(int64) :: pos
+
+        call goto_char(point_min())
+        call search_forward(text, pos, st, noerror=SEARCH_NOERROR)
+        found = pos > 0
+        if (.not. found) return
+        call get_text_property(pos - len(text), sym(prop), val, st)
+    end subroutine property_at
+
+    !> The name of the symbol V, "" if V is not a symbol.
+    function symbol_text(v) result(name)
+        type(value_type), intent(in) :: v
+        character(len=:), allocatable :: name
+
+        name = ""
+        if (symbolp(v)) name = trim(symbols(xsymbol(v))%name)
+    end function symbol_text
+
+    subroutine test_fontify_node(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        type(value_type) :: val
+        logical :: found
+
+        call visit("test", "Top", old, config, error)
+        ! The header line shows the node's pointers.
+        if (.not. allocated(error)) call check(error, allocated(buffers(cur)%header_line_format%segments), &
+                                               "a header line")
+        if (.not. allocated(error)) call check(error, buffers(cur)%header_line_format%segments(1)%text, "Next: ")
+
+        ! "See *note" shows as "See" ("*note" displays as nothing).
+        if (.not. allocated(error)) then
+            call property_at("*note Second", "display", val, found)
+            call check(error, found .and. stringp(val), "a display string on *note")
+        end if
+
+        if (.not. allocated(error)) call check(error, xstring(val), "")
+        ! "*Note" at the start of a sentence shows as "See".
+        call info_goto_node("First Chapter", st)
+
+        if (.not. allocated(error)) then
+            call property_at("*Note Section", "display", val, found)
+            call check(error, found .and. stringp(val), "a display string on *Note")
+        end if
+
+        if (.not. allocated(error)) call check(error, xstring(val), "See ")
+        call info_goto_node("Top", st)
+
+        ! The reference is a link (visited if an earlier test went there,
+        ! `info_history_list' being global).
+        if (.not. allocated(error)) then
+            call property_at("Second Chapter:: for", "font_lock_face", val, found)
+            call check(error, symbol_text(val) == "info_xref" .or. symbol_text(val) == "info_xref_visited", &
+                       "a link: "//symbol_text(val))
+        end if
+
+        ! The third menu item's star is highlighted.
+        if (.not. allocated(error)) then
+            call property_at("* Index::", "font_lock_face", val, found)
+            call check(error, symbol_text(val), "info_menu_star")
+        end if
+
+        ! The menu header.
+        if (.not. allocated(error)) then
+            call property_at("* Menu:", "font_lock_face", val, found)
+            call check(error, symbol_text(val), "info_menu_header")
+        end if
+
+        ! An index node's line numbers are hidden.
+        call info_goto_node("Index", st)
+
+        if (.not. allocated(error)) then
+            call property_at(" (line 6)", "invisible", val, found)
+            call check(error, found .and. .not. nilp(val), "the line number hidden")
+        end if
+
+        call done(old, config)
+    end subroutine test_fontify_node
+
+    subroutine test_breadcrumbs(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(value_type) :: val
+
+        call visit("test", "Section One", old, config, error)
+
+        ! The first line is replaced by the breadcrumbs.
+        if (.not. allocated(error)) then
+            val = get_char_property(point_min(), sym("display"))
+            call check(error, stringp(val), "breadcrumbs on the first line")
+        end if
+
+        if (.not. allocated(error)) call check(error, xstring(val), "(test)Top > First Chapter > Section One"//achar(10))
+        call done(old, config)
+    end subroutine test_breadcrumbs
+
+    subroutine test_toc(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call visit("test", "First Chapter", old, config, error)
+        call info_toc(st)
+        call check_node(error, "*TOC*", st)
+
+        if (.not. allocated(error)) then
+            text = buffer_string()
+            call check(error, index(text, "*Note First Chapter:: ") > 0, "First Chapter listed:"//text)
+        end if
+
+        if (.not. allocated(error)) call check(error, index(text, achar(9)//"*Note Section One:: ") > 0, &
+                                               "Section One indented")
+        ! Point is on the node left.
+        if (.not. allocated(error)) call check(error, index(current_line(), "First Chapter") > 0, &
+                                               "point on First Chapter")
+        call done(old, config)
+    end subroutine test_toc
+
+    subroutine test_history_node(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(status_type) :: st
+        character(len=:), allocatable :: text
+
+        call visit("test", "First Chapter", old, config, error)
+        call info_goto_node("Second Chapter", st)
+        call info_history(st)
+        call check_node(error, "Top", st)
+        if (.not. allocated(error)) call check(error, info_current_file(), "*History*")
+
+        if (.not. allocated(error)) then
+            text = buffer_string()
+            call check(error, index(text, "* Second Chapter: (") > 0, "Second Chapter listed:"//text)
+        end if
+
+        call done(old, config)
+    end subroutine test_history_node
 end module test_info_fm

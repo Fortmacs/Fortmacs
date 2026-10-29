@@ -254,10 +254,16 @@ module docstrings_fm
                           ibuffer_view_ibuffer
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
                          indent_tabs_mode, standard_indent, tab_always_indent, tab_stop_list
-    use info_fm, only: info_additional_directory_list, info_default_directory_list, &
-                       info_directory_list, info_history_skip_intermediate_nodes, info_mode_hook, info_mode_map, &
-                       info_mode_syntax_table, info_scroll_prefer_subnodes, info_selection_hook, &
-                       info_streamline_headings, info_suffix_list, info_url_alist
+    use info_fm, only: info_additional_directory_list, info_breadcrumbs_depth, &
+                       info_default_directory_list, info_directory_list, info_fontify_maximum_menu_size, &
+                       info_fontify_visited_nodes, info_header_node_face, info_header_xref_face, &
+                       info_hide_note_references, INFO_HIDE_NOTE_REFERENCES_NIL, INFO_HIDE_NOTE_REFERENCES_T, &
+                       INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
+                       info_history_skip_intermediate_nodes, info_index_match_face, info_menu_header_face, &
+                       info_menu_star_face, info_mode_hook, info_mode_map, info_mode_syntax_table, info_node_face, &
+                       info_scroll_prefer_subnodes, info_selection_hook, info_streamline_headings, info_suffix_list, &
+                       info_title_1_face, info_title_2_face, info_title_3_face, info_title_4_face, info_url_alist, &
+                       info_use_header_line, info_xref_face, info_xref_visited_face
     use insdel_fm, only: after_change_functions, before_change_functions, first_change_hook, &
                          inhibit_modification_hooks
     use isearch_fm, only: isearch_lax_whitespace, isearch_mode_map, isearch_regexp_lax_whitespace, &
@@ -488,7 +494,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1267) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1269) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -706,11 +712,12 @@ module docstrings_fm
                                                          "indent_to", "info", "info_backward_node", "info_copy_current_node_name", &
                                                        "info_directory", "info_emacs_bug", "info_emacs_manual", "info_final_node", &
                                                          "info_follow_nearest_node", "info_follow_reference", "info_forward_node", &
-                                                       "info_goto_node", "info_help", "info_history_back", "info_history_forward", &
-                                               "info_last_menu_item", "info_last_preorder", "info_menu", "info_mode", "info_next", &
-                                         "info_next_menu_item", "info_next_preorder", "info_next_reference", "info_nth_menu_item", &
-                                                "info_on_current_buffer", "info_other_window", "info_prev", "info_prev_reference", &
-                                          "info_scroll_down", "info_scroll_up", "info_summary", "info_top_node", "info_undefined", &
+                                                               "info_goto_node", "info_help", "info_history", "info_history_back", &
+                                                 "info_history_forward", "info_last_menu_item", "info_last_preorder", "info_menu", &
+                                                            "info_mode", "info_next", "info_next_menu_item", "info_next_preorder", &
+                                                            "info_next_reference", "info_nth_menu_item", "info_on_current_buffer", &
+                                                      "info_other_window", "info_prev", "info_prev_reference", "info_scroll_down", &
+                                                  "info_scroll_up", "info_summary", "info_toc", "info_top_node", "info_undefined", &
                                                          "info_up", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
                                                                     "insert_rectangle", "insert_register", "interactive_region", &
                                                            "internal_default_process_filter", "internal_default_process_sentinel", &
@@ -864,7 +871,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(1008) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(1025) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -1066,11 +1073,15 @@ module docstrings_fm
                                                   "ibuffer_truncate_lines", "ibuffer_use_header_line", "ibuffer_use_other_window", &
                                                          "ibuffer_view_ibuffer", "indent_line_function", "indent_region_function", &
                                                     "indent_tabs_mode", "indent_tabs_mode_hook", "info_additional_directory_list", &
-                                                                    "info_default_directory_list", "info_directory_list", &
-                                                        "info_history_skip_intermediate_nodes", "info_mode_hook", "info_mode_map", &
-                                                   "info_mode_syntax_table", "info_scroll_prefer_subnodes", "info_selection_hook", &
-                                            "info_streamline_headings", "info_suffix_list", "info_url_alist", "inhibit_auto_fill", &
-                                            "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
+                                                   "info_breadcrumbs_depth", "info_default_directory_list", "info_directory_list", &
+                                               "info_fontify_maximum_menu_size", "info_fontify_visited_nodes", "info_header_node", &
+                                          "info_header_xref", "info_hide_note_references", "info_history_skip_intermediate_nodes", &
+                                                       "info_index_match", "info_menu_header", "info_menu_star", "info_mode_hook", &
+                                            "info_mode_map", "info_mode_syntax_table", "info_node", "info_scroll_prefer_subnodes", &
+                                            "info_selection_hook", "info_streamline_headings", "info_suffix_list", "info_title_1", &
+                                         "info_title_2", "info_title_3", "info_title_4", "info_url_alist", "info_use_header_line", &
+                                                  "info_xref", "info_xref_visited", "inhibit_auto_fill", "inhibit_eol_conversion", &
+                                                                    "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
@@ -1214,7 +1225,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(505) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(510) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1514,12 +1525,17 @@ module docstrings_fm
                                                                       "ibuffer_view_ibuffer", &
                                                                       "indent_tabs_mode", &
                                                                       "info_additional_directory_list", &
+                                                                      "info_breadcrumbs_depth", &
                                                                       "info_default_directory_list", &
+                                                                      "info_fontify_maximum_menu_size", &
+                                                                      "info_fontify_visited_nodes", &
+                                                                      "info_hide_note_references", &
                                                                       "info_history_skip_intermediate_nodes", &
                                                                       "info_mode_hook", &
                                                                       "info_scroll_prefer_subnodes", &
                                                                       "info_selection_hook", &
                                                                       "info_url_alist", &
+                                                                      "info_use_header_line", &
                                                                       "inhibit_eol_conversion", &
                                                                       "insert_default_directory", &
                                                                       "insert_directory_program", &
@@ -7327,6 +7343,10 @@ contains
             entry%file = "info_fm.f90"
             entry%interactive = .true.
             entry%doc = "Enter the Info tutorial."
+        case ("info_history")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to a node with a menu of visited nodes."
         case ("info_history_back")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -7379,6 +7399,8 @@ contains
                         "\[info_history_back]        Move back in history to the last node you were at."//LF// &
                         "\[info_history_forward]        Move forward in history to the node you returned from after"// &
                         " using \[info_history_back]."//LF// &
+                        "\[info_history]        Go to menu of visited nodes."//LF// &
+                        "\[info_toc]        Go to table of contents of the current Info file."//LF// &
                         ""//LF// &
                         "Moving within a node:"//LF// &
                         "\[info_scroll_up]        Normally, scroll forward a full screen."//LF// &
@@ -7396,6 +7418,7 @@ contains
                         "\[info_goto_node]        Move to node specified by name."//LF// &
                         "          You may include a filename as well, as (FILENAME)NODENAME."//LF// &
                         "1 .. 9        Pick first ... ninth item in node's menu."//LF// &
+                        "          Every third `*' is highlighted to help pick the right number."//LF// &
                         "\[info_copy_current_node_name]        Put name of current Info node in the kill ring."//LF// &
                         "\[universal_argument] \[info]        Move to new Info file with completion."//LF// &
                         "\[universal_argument] N \[info]        Select Info buffer with prefix number in the name *"// &
@@ -7467,6 +7490,11 @@ contains
             entry%file = "info_fm.f90"
             entry%interactive = .true.
             entry%doc = "Display a brief summary of all Info commands."
+        case ("info_toc")
+            entry%file = "info_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to a node with table of contents of the current Info file."//LF// &
+                        "Table of contents is created from the tree structure of menus."
         case ("info_top_node")
             entry%file = "info_fm.f90"
             entry%interactive = .true.
@@ -18796,6 +18824,14 @@ contains
             entry%doc = "List of additional directories to search for Info documentation"//LF// &
                         "files.  These directories are searched after those in"//LF// &
                         "`info_directory_list'."
+        case ("info_breadcrumbs_depth")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_breadcrumbs_depth"
+            entry%user_option = .true.
+            entry%original = "4"
+            entry%value = repr(info_breadcrumbs_depth)
+            entry%doc = "Depth of breadcrumbs to display.  0 means do not display"//LF// &
+                        "breadcrumbs."
         case ("info_default_directory_list")
             entry%file = "info_fm.f90"
             entry%fortran = "info_default_directory_list"
@@ -18855,6 +18891,59 @@ contains
                         ""//LF// &
                         "If you want to override the order of directories in"//LF// &
                         "`info_default_directory_list', set INFOPATH in the environment."
+        case ("info_fontify_maximum_menu_size")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_fontify_maximum_menu_size"
+            entry%user_option = .true.
+            entry%original = "400000"
+            entry%value = repr(info_fontify_maximum_menu_size)
+            entry%doc = "Maximum size of menu to fontify if `font_lock_mode' is true."//LF// &
+                        "Set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_NIL to disable node"//LF// &
+                        "fontification; set to INFO_FONTIFY_MAXIMUM_MENU_SIZE_T for no"//LF// &
+                        "limit."
+        case ("info_fontify_visited_nodes")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_fontify_visited_nodes"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(info_fontify_visited_nodes%value)
+            entry%doc = "True to fontify references to visited nodes in `info_xref_visited'"//LF// &
+                        "face."
+        case ("info_header_node")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_header_node_face"
+            entry%doc = "Face for Info nodes in a node header."
+        case ("info_header_xref")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_header_xref_face"
+            entry%doc = "Face for Info cross-references in a node header."
+        case ("info_hide_note_references")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_hide_note_references"
+            entry%user_option = .true.
+            entry%original = "INFO_HIDE_NOTE_REFERENCES_T"
+
+            select case (info_hide_note_references)
+            case (INFO_HIDE_NOTE_REFERENCES_NIL)
+                entry%value = "INFO_HIDE_NOTE_REFERENCES_NIL"
+            case (INFO_HIDE_NOTE_REFERENCES_T)
+                entry%value = "INFO_HIDE_NOTE_REFERENCES_T"
+            case (INFO_HIDE_NOTE_REFERENCES_HIDE)
+                entry%value = "INFO_HIDE_NOTE_REFERENCES_HIDE"
+            case (INFO_HIDE_NOTE_REFERENCES_TAG)
+                entry%value = "INFO_HIDE_NOTE_REFERENCES_TAG"
+            case default
+                entry%value = repr(info_hide_note_references)
+            end select
+
+            entry%doc = "If true, hide the tag and section reference in *note and * menu"//LF// &
+                        "items.  If the value is INFO_HIDE_NOTE_REFERENCES_T, the default,"//LF// &
+                        "replace ""*note"" with ""see"".  If the value is"//LF// &
+                        "INFO_HIDE_NOTE_REFERENCES_HIDE, remove ""*note"" without replacing it"//LF// &
+                        "with anything.  If the value is INFO_HIDE_NOTE_REFERENCES_TAG, the"//LF// &
+                        "reference section is still shown.  INFO_HIDE_NOTE_REFERENCES_NIL"//LF// &
+                        "completely disables this feature, leaving the original ""*note"""//LF// &
+                        "visible.  (`info_refill_paragraphs' is Deferred.)"
         case ("info_history_skip_intermediate_nodes")
             entry%file = "info_fm.f90"
             entry%fortran = "info_history_skip_intermediate_nodes"
@@ -18865,6 +18954,20 @@ contains
                         "Intermediate Info nodes are nodes visited by Info internally in the"//LF// &
                         "process of searching the node to display.  Intermediate nodes are"//LF// &
                         "not presented to the user."
+        case ("info_index_match")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_index_match_face"
+            entry%doc = "Face used to highlight matches in an index entry."
+        case ("info_menu_header")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_menu_header_face"
+            entry%doc = "Face for headers in Info menus."
+        case ("info_menu_star")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_menu_star_face"
+            entry%doc = "Face used to emphasize `*' in an Info menu.  The face is assigned"//LF// &
+                        "to the third, sixth, and ninth `*' for easier orientation.  See"//LF// &
+                        "`info_nth_menu_item'."
         case ("info_mode_hook")
             entry%file = "info_fm.f90"
             entry%fortran = "info_mode_hook"
@@ -18878,6 +18981,10 @@ contains
             entry%file = "info_fm.f90"
             entry%fortran = "info_mode_syntax_table"
             entry%doc = "The syntax table of `info_mode'."
+        case ("info_node")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_node_face"
+            entry%doc = "Face for Info node names."
         case ("info_scroll_prefer_subnodes")
             entry%file = "info_fm.f90"
             entry%fortran = "info_scroll_prefer_subnodes"
@@ -18905,6 +19012,22 @@ contains
                         "standard input, with the arguments ARGS.  If PROGRAM is empty, no"//LF// &
                         "decoding is done.  Because the suffixes are tried in order, the"//LF// &
                         "empty string should be last in the list."
+        case ("info_title_1")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_title_1_face"
+            entry%doc = "Face for info titles at level 1."
+        case ("info_title_2")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_title_2_face"
+            entry%doc = "Face for info titles at level 2."
+        case ("info_title_3")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_title_3_face"
+            entry%doc = "Face for info titles at level 3."
+        case ("info_title_4")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_title_4_face"
+            entry%doc = "Face for info titles at level 4."
         case ("info_url_alist")
             entry%file = "info_fm.f90"
             entry%fortran = "info_url_alist"
@@ -18932,6 +19055,23 @@ contains
                         "other words, the content of your local Info node and the associated"//LF// &
                         "online node may differ.  The resource represented by the generated"//LF// &
                         "URL may even be not found by the gnu.org server."
+        case ("info_use_header_line")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_use_header_line"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(info_use_header_line%value)
+            entry%doc = "True means to put the beginning-of-node links in an Emacs"//LF// &
+                        "header-line.  A header-line does not scroll with the rest of the"//LF// &
+                        "buffer."
+        case ("info_xref")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_xref_face"
+            entry%doc = "Face for unvisited Info cross-references."
+        case ("info_xref_visited")
+            entry%file = "info_fm.f90"
+            entry%fortran = "info_xref_visited_face"
+            entry%doc = "Face for visited Info cross-references."
         case ("inhibit_auto_fill")
             entry%file = "simple_fm.f90"
             entry%fortran = "inhibit_auto_fill"
@@ -23857,10 +23997,22 @@ contains
         case ("indent_tabs_mode")
             kind = OPTION_LOGICAL
             setting = .true.
+        case ("info_breadcrumbs_depth")
+            kind = OPTION_INTEGER
+        case ("info_fontify_maximum_menu_size")
+            kind = OPTION_INTEGER
+        case ("info_fontify_visited_nodes")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("info_hide_note_references")
+            kind = OPTION_CHOICE
         case ("info_history_skip_intermediate_nodes")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("info_scroll_prefer_subnodes")
+            kind = OPTION_LOGICAL
+            setting = .true.
+        case ("info_use_header_line")
             kind = OPTION_LOGICAL
             setting = .true.
         case ("inhibit_eol_conversion")
@@ -24581,6 +24733,12 @@ contains
             else
                 indent_tabs_mode = v
             end if
+        case ("info_fontify_visited_nodes")
+            if (local) then
+                call info_fontify_visited_nodes%set_local(v)
+            else
+                info_fontify_visited_nodes = v
+            end if
         case ("info_history_skip_intermediate_nodes")
             if (local) then
                 call info_history_skip_intermediate_nodes%set_local(v)
@@ -24592,6 +24750,12 @@ contains
                 call info_scroll_prefer_subnodes%set_local(v)
             else
                 info_scroll_prefer_subnodes = v
+            end if
+        case ("info_use_header_line")
+            if (local) then
+                call info_use_header_line%set_local(v)
+            else
+                info_use_header_line = v
             end if
         case ("inhibit_eol_conversion")
             if (local) then
@@ -24985,6 +25149,20 @@ contains
             end if
 
             ibuffer_old_time = int(v)
+        case ("info_breadcrumbs_depth")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            info_breadcrumbs_depth = int(v)
+        case ("info_fontify_maximum_menu_size")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+
+            info_fontify_maximum_menu_size = int(v)
         case ("jit_lock_chunk_size")
             jit_lock_chunk_size = v
         case ("kill_ring_max")
@@ -26178,6 +26356,19 @@ contains
                 ibuffer_use_header_line = IBUFFER_HEADER_LINE_T
             case ("IBUFFER_HEADER_LINE_TITLE")
                 ibuffer_use_header_line = IBUFFER_HEADER_LINE_TITLE
+            case default
+                ok = .false.
+            end select
+        case ("info_hide_note_references")
+            select case (constant)
+            case ("INFO_HIDE_NOTE_REFERENCES_NIL")
+                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_NIL
+            case ("INFO_HIDE_NOTE_REFERENCES_T")
+                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_T
+            case ("INFO_HIDE_NOTE_REFERENCES_HIDE")
+                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_HIDE
+            case ("INFO_HIDE_NOTE_REFERENCES_TAG")
+                info_hide_note_references = INFO_HIDE_NOTE_REFERENCES_TAG
             case default
                 ok = .false.
             end select
