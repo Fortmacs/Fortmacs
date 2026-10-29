@@ -116,6 +116,9 @@ program tester
     use test_filenotify_fm, only: collect_filenotify_fm
     use test_autorevert_fm, only: collect_autorevert_fm
     use test_repeat_fm, only: collect_repeat_fm
+    use test_namelist_fm, only: collect_namelist_fm
+    use test_savehist_fm, only: collect_savehist_fm
+    use test_saveplace_fm, only: collect_saveplace_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -215,7 +218,10 @@ program tester
                  new_testsuite("inotify_fm", collect_inotify_fm), &
                  new_testsuite("filenotify_fm", collect_filenotify_fm), &
                  new_testsuite("autorevert_fm", collect_autorevert_fm), &
-                 new_testsuite("repeat_fm", collect_repeat_fm) &
+                 new_testsuite("repeat_fm", collect_repeat_fm), &
+                 new_testsuite("namelist_fm", collect_namelist_fm), &
+                 new_testsuite("savehist_fm", collect_savehist_fm), &
+                 new_testsuite("saveplace_fm", collect_saveplace_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

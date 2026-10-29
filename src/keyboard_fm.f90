@@ -298,6 +298,15 @@ module keyboard_fm
     !> pre-command-hook.
     type(hook_type), target, public :: pre_command_hook = hook_type(name="pre_command_hook")
 
+    !> Hook run when `kill_emacs' is called.
+    !> Since `kill_emacs' may be invoked when the terminal is disconnected
+    !> (or in other similar situations), functions placed on this hook
+    !> should not expect to be able to interact with the user.  To ask for
+    !> confirmation, see `kill_emacs_query_functions' instead.  Port of
+    !> emacs.c kill-emacs-hook (here, below the modules that add to it;
+    !> emacs_fm runs it).
+    type(hook_type), target, public :: kill_emacs_hook = hook_type(name="kill_emacs_hook")
+
     !> Ring the bell of the selected frame's terminal (terminal.c:
     !> ring_bell's FRAME_TERMINAL (f)->ring_bell_hook); set by the
     !> program, null without a terminal.
