@@ -53,7 +53,7 @@ submodule(indent_fm) indent_cmds_fm
     use simple_fm, only: fill_prefix, use_region_p, delete_horizontal_space, back_to_indentation, deactivate_mark
     use keymap_fm, only: overriding_terminal_local_map
     use buffer_fm, only: UE_BOUNDARY
-    use buffer_fm, only: barf_if_buffer_read_only, vdeactivate_mark, left_margin
+    use buffer_fm, only: barf_if_buffer_read_only, deactivate_mark_variable, left_margin
     use minibuf_fm, only: minibuffer_prompt_end, minibuf_level
     use fill_fm, only: adaptive_fill_mode, adaptive_fill_regexp, current_justification, JUSTIFY_CENTER, &
                        JUSTIFY_RIGHT, prefix_at_point, nchars
@@ -388,7 +388,7 @@ contains
     call free_marker(opoint_marker, st)
     ! Keep the active region in transient mode.
     if (overriding_terminal_local_map%index == indent_rigidly_map%index .and. &
-        overriding_terminal_local_map%generation == indent_rigidly_map%generation) vdeactivate_mark = .false.
+        overriding_terminal_local_map%generation == indent_rigidly_map%generation) deactivate_mark_variable = .false.
     end procedure indent_rigidly
 
     !> Indent all lines between BEG and END leftward by one space.  Port of
@@ -684,7 +684,7 @@ contains
     ! In most cases, reindenting modifies the buffer, but it may also
     ! leave it unmodified, in which case we have to deactivate the mark by
     ! hand.
-    vdeactivate_mark = .true.
+    deactivate_mark_variable = .true.
     end procedure indent_region
 
     !> Indent each nonblank line from START to END with

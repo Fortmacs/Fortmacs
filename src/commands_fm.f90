@@ -126,10 +126,10 @@ module commands_fm
         type(command_type) :: buffer_menu_execute
         type(command_type) :: buffer_menu_mark
         type(command_type) :: buffer_menu_mode
-        type(command_type) :: buffer_menu_mode_other_window
         type(command_type) :: buffer_menu_multi_occur
         type(command_type) :: buffer_menu_not_modified
         type(command_type) :: buffer_menu_other_window
+        type(command_type) :: buffer_menu_other_window_command
         type(command_type) :: buffer_menu_save
         type(command_type) :: buffer_menu_select
         type(command_type) :: buffer_menu_switch_other_window
@@ -1144,10 +1144,10 @@ module commands_fm
                                                                   "buffer_menu_execute", &
                                                                   "buffer_menu_mark", &
                                                                   "buffer_menu_mode", &
-                                                                  "buffer_menu_mode_other_window", &
                                                                   "buffer_menu_multi_occur", &
                                                                   "buffer_menu_not_modified", &
                                                                   "buffer_menu_other_window", &
+                                                                  "buffer_menu_other_window_command", &
                                                                   "buffer_menu_save", &
                                                                   "buffer_menu_select", &
                                                                   "buffer_menu_switch_other_window", &
@@ -2259,14 +2259,14 @@ contains
             p => commands%buffer_menu_mark
         case ("buffer_menu_mode")
             p => commands%buffer_menu_mode
-        case ("buffer_menu_mode_other_window")
-            p => commands%buffer_menu_mode_other_window
         case ("buffer_menu_multi_occur")
             p => commands%buffer_menu_multi_occur
         case ("buffer_menu_not_modified")
             p => commands%buffer_menu_not_modified
         case ("buffer_menu_other_window")
             p => commands%buffer_menu_other_window
+        case ("buffer_menu_other_window_command")
+            p => commands%buffer_menu_other_window_command
         case ("buffer_menu_save")
             p => commands%buffer_menu_save
         case ("buffer_menu_select")

@@ -50,7 +50,7 @@ module simple_fm
     use casetab_fm, only: downcase
     use buffer_fm, only: resolve_buffer, buf_bytes, BEG, BEG_BYTE, buffer_serial_live
     use marker_fm, only: char_to_byte
-    use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, vdeactivate_mark, &
+    use buffer_fm, only: barf_if_buffer_read_only, buffers, cur, transient_mark_mode, deactivate_mark_variable, &
                          inhibit_read_only, auto_fill_proc, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
                          UE_POINT, UE_FIRST_CHANGE
     use undo_fm, only: undo_boundary
@@ -3641,7 +3641,7 @@ contains
                 end if
             end if
             this_command = sym("kill_region")
-            vdeactivate_mark = .true.
+            deactivate_mark_variable = .true.
             return
         end if
         if (.not. (condition_matches(status%code, FM_BUFFER_READ_ONLY) .or. &
@@ -3678,7 +3678,7 @@ contains
         else
             call kill_new(string)
         end if
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
     end subroutine copy_region_as_kill
 
     !> Move forward by ARG lines, ignoring currently invisible newlines only.
@@ -4335,7 +4335,7 @@ contains
         character(len=:), allocatable :: prefix
         status = status_type()
         ! Consistently deactivate mark even when no text is changed.
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
         if (present(beg) .and. present(end) .and. .not. arg) then
             ! Region is active.  Go to END, but only if region spans
             ! multiple lines.

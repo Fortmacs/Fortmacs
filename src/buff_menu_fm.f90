@@ -82,7 +82,7 @@ module buff_menu_fm
               buffer_menu_unmark, buffer_menu_unmark_all_buffers, buffer_menu_unmark_all, buffer_menu_backup_unmark, &
               buffer_menu_delete, buffer_menu_delete_backwards, buffer_menu_save, buffer_menu_not_modified, &
               buffer_menu_execute, buffer_menu_select, buffer_menu_marked_buffers, buffer_menu_multi_occur, &
-              buffer_menu_1_window, buffer_menu_this_window, buffer_menu_mode_other_window, &
+              buffer_menu_1_window, buffer_menu_this_window, buffer_menu_other_window_command, &
               buffer_menu_switch_other_window, buffer_menu_2_window, buffer_menu_toggle_read_only, buffer_menu_bury, &
               buffer_menu_view, buffer_menu_view_other_window, buffer_menu_dynamic_name_width, &
               tabulated_list_entry_size_greater, syms_of_buff_menu
@@ -284,7 +284,7 @@ contains
     !> \<buffer_menu_mode_map>
     !> \[quit_window]    Remove the Buffer Menu from the display.
     !> \[buffer_menu_this_window]    Select current line's buffer in place of the buffer menu.
-    !> \[buffer_menu_mode_other_window]    Select that buffer in another window,
+    !> \[buffer_menu_other_window_command]    Select that buffer in another window,
     !>      so the Buffer Menu remains visible in its window.
     !> \[buffer_menu_view]    Select current line's buffer, in `view_mode'.
     !> \[buffer_menu_view_other_window]    Select that buffer in another window, in `view_mode'.
@@ -342,7 +342,7 @@ contains
                                              //"\[buffer_menu_execute], " &
                                              //"\[buffer_menu_unmark]; " &
                                              //"\[buffer_menu_this_window], " &
-                                             //"\[buffer_menu_mode_other_window], " &
+                                             //"\[buffer_menu_other_window_command], " &
                                              //"\[buffer_menu_1_window], " &
                                              //"\[buffer_menu_2_window], " &
                                              //"\[buffer_menu_mark], " &
@@ -942,7 +942,7 @@ contains
     !> Select this line's buffer in other window, leaving buffer menu
     !> visible.  Port of buff-menu.el:Buffer-menu-other-window (renamed: its
     !> name differs only in case from `buffer_menu_other_window').
-    recursive subroutine buffer_menu_mode_other_window(status)
+    recursive subroutine buffer_menu_other_window_command(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buf
         buf = buffer_menu_buffer(status, .true.)
@@ -950,7 +950,7 @@ contains
         ! (display-buffer-overriding-action inhibit-same-window: as
         ! switch-to-buffer-other-window's.)
         call switch_to_buffer_other_window(buf, status)
-    end subroutine buffer_menu_mode_other_window
+    end subroutine buffer_menu_other_window_command
 
     !> Make the other window select this line's buffer.
     !> The current window remains selected.  Port of
@@ -1356,7 +1356,7 @@ contains
         commands%buffer_menu_multi_occur%run => cmd_buffer_menu_multi_occur
         commands%buffer_menu_1_window%run => buffer_menu_1_window
         commands%buffer_menu_this_window%run => buffer_menu_this_window
-        commands%buffer_menu_mode_other_window%run => buffer_menu_mode_other_window
+        commands%buffer_menu_other_window_command%run => buffer_menu_other_window_command
         commands%buffer_menu_switch_other_window%run => buffer_menu_switch_other_window
         commands%buffer_menu_2_window%run => buffer_menu_2_window
         commands%buffer_menu_toggle_read_only%run => buffer_menu_toggle_read_only
@@ -1369,7 +1369,7 @@ contains
         call keymap_set(buffer_menu_mode_map, "f", "buffer_menu_this_window", st)
         call keymap_set(buffer_menu_mode_map, "e", "buffer_menu_this_window", st)
         call keymap_set(buffer_menu_mode_map, "C-m", "buffer_menu_this_window", st)
-        call keymap_set(buffer_menu_mode_map, "o", "buffer_menu_mode_other_window", st)
+        call keymap_set(buffer_menu_mode_map, "o", "buffer_menu_other_window_command", st)
         call keymap_set(buffer_menu_mode_map, "C-o", "buffer_menu_switch_other_window", st)
         call keymap_set(buffer_menu_mode_map, "s", "buffer_menu_save", st)
         call keymap_set(buffer_menu_mode_map, "d", "buffer_menu_delete", st)

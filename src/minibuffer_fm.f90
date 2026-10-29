@@ -38,7 +38,7 @@ module minibuffer_fm
     use error_fm, only: format_message, status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type, null_handle
     use buffer_fm, only: buffers, cur, get_buffer, get_buffer_create, set_buffer, current_buffer, erase_buffer, &
-                         set_buffer_read_only, buffer_list, bury_buffer_internal, vdeactivate_mark
+                         set_buffer_read_only, buffer_list, bury_buffer_internal, deactivate_mark_variable
     use insdel_fm, only: del_range, insert
     use keymap_fm, only: define_key, key_parse, make_sparse_keymap, set_keymap_parent, keymap_live_p, &
                          free_keymap
@@ -422,7 +422,7 @@ contains
         ! If the command that uses this has made modifications in the
         ! minibuffer, we don't want them to cause deactivation of the mark
         ! in the original buffer.
-        vdeactivate_mark = .false.
+        deactivate_mark_variable = .false.
         call throw_exit(.false.)
     end subroutine exit_minibuffer
 
