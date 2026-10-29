@@ -50,7 +50,7 @@ module timer_fm
     use error_fm, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use lisp_fm, only: command_proc
-    use buffer_fm, only: cur, set_buffer_internal, buffer_live_p, buffer_handle, vdeactivate_mark
+    use buffer_fm, only: cur, set_buffer_internal, buffer_live_p, buffer_handle, deactivate_mark_variable
     implicit none(type, external)
     private
 
@@ -708,12 +708,12 @@ contains
             ! If timer is ripe, run it if it hasn't been run.
             if (ripe) then
                 if (.not. timers(chosen%index)%triggered) then
-                    old_deactivate_mark = vdeactivate_mark
+                    old_deactivate_mark = deactivate_mark_variable
                     ! Mark the timer as triggered to prevent problems if
                     ! the code fails to reschedule it right.
                     timers(chosen%index)%triggered = .true.
                     call timer_event_handler(chosen)
-                    vdeactivate_mark = old_deactivate_mark
+                    deactivate_mark_variable = old_deactivate_mark
                     timers_run = timers_run + 1
                 end if
                 wait = 0
