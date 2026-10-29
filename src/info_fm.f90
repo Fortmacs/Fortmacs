@@ -104,7 +104,12 @@ module info_fm
     use coding_fm, only: inhibit_null_byte_detection, buffer_file_coding_system
     use callproc_fm, only: call_process
     use callint_fm, only: current_prefix_arg, prefix_numeric_value, find_command, commandp
-    use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence
+    use keyboard_fm, only: this_command_keys, read_event, unread_command_events, read_key_sequence, sit_for
+    use isearch_fm, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regexp, isearch_nonincremental, &
+                          isearch_lax_whitespace, isearch_regexp_lax_whitespace, search_whitespace_regexp, &
+                          isearch_search_proc, isearch_pop_proc, isearch_search_fun_default, isearch_mode_hook, &
+                          isearch_mode_end_hook, isearch_search_fun_function, isearch_wrap_function, &
+                          isearch_push_state_function, isearch_filter_predicate, set_isearch_wrapped
     use keymap_fm, only: keymap_set, where_is_internal, key_description, key_binding
     use commands_fm, only: commands
     use modes_fm, only: major_modes
@@ -613,6 +618,26 @@ module info_fm
     !> of existing capture groups in unexpected ways.  (Unallocated for
     !> nil.)  Port of info.el Info-search-whitespace-regexp.
     character(len=:), allocatable, public :: info_search_whitespace_regexp
+
+    !> If true, isearch in Info searches through multiple nodes.
+    !> Before leaving the initial Info node, where isearch was started,
+    !> it fails once with the error message [end of node], and with
+    !> subsequent C-s/C-r continues through other nodes without failing
+    !> with this error message in other nodes.  When isearch fails for
+    !> the rest of the manual, it displays the error message [end of
+    !> manual], wraps around the whole manual and restarts the search
+    !> from the top/final node depending on search direction.
+    !>
+    !> Setting this option to false restores the default isearch behavior
+    !> with wrapping around the current Info node.  Port of info.el
+    !> Info-isearch-search.
+    type(logical_setting), public :: info_isearch_search = logical_setting(name="info_isearch_search", value=.true.)
+
+    ! info.el Info-isearch-initial-node (unallocated for nil),
+    ! Info-isearch-initial-history and Info-isearch-initial-history-list.
+    character(len=:), allocatable :: isearch_initial_node
+    type(info_history_entry_type), allocatable :: isearch_initial_history(:)
+    type(info_node_ref_type), allocatable :: isearch_initial_history_list(:)
 
     ! The value of `case_fold_search' from previous `info_search' command
     ! (Info-search-case-fold).
@@ -5789,7 +5814,7 @@ contains
     ! Return true if the text from BEG_FOUND to FOUND is visible and is
     ! not in the header line or a tag table.  Port of
     ! info.el:Info-isearch-filter (`search_invisible' being `open').
-    logical function info_isearch_filter(beg_found, found) result(useful)
+    recursive logical function info_isearch_filter(beg_found, found) result(useful)
         integer(int64), intent(in) :: beg_found, found
         type(status_type) :: st
         integer(int64) :: opoint, r, a, b
@@ -5822,8 +5847,7 @@ contains
 
     !> Search for REGEXP, starting from point, and select node it's found
     !> in.  If BACKWARD is true, search in the reverse direction.  BOUND
-    !> limits the search.  (The Isearch part of upstream's function is
-    !> Deferred with Isearch across nodes.)  Port of info.el:Info-search.
+    !> limits the search.  Port of info.el:Info-search.
     recursive subroutine info_search(regexp, status, bound, backward)
         character(len=*), intent(in) :: regexp
         type(status_type), intent(out) :: status
@@ -5864,8 +5888,17 @@ contains
         found = search_loop(re, bnd, back)
         call restore_restriction(rb, re_m)
         call goto_char(opoint)
+        if (isearch_active .and. info_isearch_search%value .and. .not. allocated(isearch_initial_node) .and. &
+            .not. has_bound .and. .not. (found > opoint_min .and. found < opoint_max)) then
+            call search_failed(status, re, "end of node")
+            return
+        end if
         ! If no subfiles, give error now.
         if (found == 0 .and. osubfile == achar(0)) then
+            if (isearch_active) then
+                call search_failed(status, re, "end of manual")
+                return
+            end if
             call with_spaces(ok)
             if (.not. ok) then
                 call search_failed(status, re)
@@ -5935,7 +5968,11 @@ contains
                 call goto_char(opoint)
                 call info_select_node(st)
                 call set_sel_window_start(ostart, st)
-                call search_failed(status, re)
+                if (isearch_active) then
+                    call search_failed(status, re, "end of manual")
+                else
+                    call search_failed(status, re)
+                end if
                 return
             end if
         end if
@@ -5953,8 +5990,11 @@ contains
         end if
         ! Use string-equal, not equal, to ignore text props.
         if (.not. (onode == current_node_or_empty() .and. ofile == current_file_or_empty())) then
-            k = here()
-            call push_history(locals(k)%history, ofile, onode, opoint)
+            if (.not. (isearch_active .and. isearch_wrapped .and. &
+                       opoint == merge(opoint_min, opoint_max, isearch_forward))) then
+                k = here()
+                call push_history(locals(k)%history, ofile, onode, opoint)
+            end if
         end if
     contains
 
@@ -5985,11 +6025,187 @@ contains
     end subroutine info_search
 
     ! Signal user-search-failed for REGEXP.
-    subroutine search_failed(status, regexp)
+    ! Signal user-search-failed for REGEXP, with the second datum MSG if
+    ! present.
+    subroutine search_failed(status, regexp, msg)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: regexp
-        call set_error(status, FM_USER_SEARCH_FAILED, """"//regexp//"""")
+        character(len=*), intent(in), optional :: msg
+        if (present(msg)) then
+            call set_error(status, FM_USER_SEARCH_FAILED, quoted(regexp)//", "//quoted(msg))
+        else
+            call set_error(status, FM_USER_SEARCH_FAILED, quoted(regexp))
+        end if
+    contains
+        ! STR as prin1 prints it.
+        function quoted(str) result(q)
+            character(len=*), intent(in) :: str
+            character(len=:), allocatable :: q
+            integer :: j
+            q = '"'
+            do j = 1, len(str)
+                if (str(j:j) == '"' .or. str(j:j) == "\") q = q//"\"
+                q = q//str(j:j)
+            end do
+            q = q//'"'
+        end function quoted
     end subroutine search_failed
+
+    ! `isearch_search_fun_function' of Info mode: searching through
+    ! multiple nodes if `info_isearch_search'.  Port of
+    ! info.el:Info-isearch-search.
+    recursive subroutine info_isearch_search_fn(fn)
+        procedure(isearch_search_proc), pointer, intent(out) :: fn
+        if (info_isearch_search%value) then
+            fn => info_isearch_search_nodes
+        else
+            fn => isearch_search_fun_default()
+        end if
+    end subroutine info_isearch_search_fn
+
+    ! The search function `info_isearch_search_fn' returns (its lambda;
+    ! `isearch_regexp_function' is Deferred).
+    recursive subroutine info_isearch_search_nodes(string, bound, noerror, pos, status)
+        character(len=*), intent(in) :: string
+        integer(int64), intent(in) :: bound
+        logical, intent(in) :: noerror
+        integer(int64), intent(out) :: pos
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: saved, re
+        logical :: had
+        had = allocated(info_search_whitespace_regexp)
+        if (had) saved = info_search_whitespace_regexp
+        if (allocated(info_search_whitespace_regexp)) deallocate (info_search_whitespace_regexp)
+        if (merge(isearch_regexp_lax_whitespace, isearch_lax_whitespace, isearch_regexp) .and. &
+            allocated(search_whitespace_regexp)) info_search_whitespace_regexp = search_whitespace_regexp
+        if (isearch_regexp) then
+            re = string
+        else
+            re = regexp_quote(string)
+        end if
+        call info_search(re, status, bound, backward=.not. isearch_forward)
+        if (allocated(info_search_whitespace_regexp)) deallocate (info_search_whitespace_regexp)
+        if (had) info_search_whitespace_regexp = saved
+        pos = 0
+        if (status%ok()) pos = point()
+        if (.false. .and. noerror) pos = 0
+    end subroutine info_isearch_search_nodes
+
+    ! `isearch_wrap_function' of Info mode.  Port of
+    ! info.el:Info-isearch-wrap.
+    recursive subroutine info_isearch_wrap()
+        type(status_type) :: st
+        if (info_isearch_search%value) then
+            if (allocated(isearch_initial_node)) then
+                if (isearch_forward) then
+                    call info_top_node(st)
+                    call goto_char(point_min())
+                else
+                    call info_final_node(st)
+                    call goto_char(point_max())
+                end if
+            else
+                isearch_initial_node = current_node_or_empty()
+                call set_isearch_wrapped(.false.)
+            end if
+        else if (isearch_forward) then
+            call goto_char(point_min())
+        else
+            call goto_char(point_max())
+        end if
+    end subroutine info_isearch_wrap
+
+    ! `isearch_push_state_function' of Info mode: the current file and
+    ! node.  Port of info.el:Info-isearch-push-state.
+    recursive subroutine info_isearch_push_state(data, pop)
+        character(len=:), allocatable, intent(out) :: data
+        procedure(isearch_pop_proc), pointer, intent(out) :: pop
+        character(len=:), allocatable :: file, node
+        file = info_current_file()
+        node = info_current_node()
+        data = merge("1", "0", allocated(file))//merge("1", "0", allocated(node))
+        if (allocated(file)) data = data//file
+        data = data//achar(0)
+        if (allocated(node)) data = data//node
+        pop => info_isearch_pop_state
+    end subroutine info_isearch_push_state
+
+    ! Go back to the file and node of DATA.  Port of
+    ! info.el:Info-isearch-pop-state.
+    recursive subroutine info_isearch_pop_state(data)
+        character(len=*), intent(in) :: data
+        character(len=:), allocatable :: file, node, cfile, cnode
+        type(status_type) :: st
+        integer :: z
+        z = index(data, achar(0))
+        file = data(3:z - 1)
+        node = data(z + 1:)
+        cfile = info_current_file()
+        cnode = info_current_node()
+        if (same(cfile, data(1:1), file) .and. same(cnode, data(2:2), node)) return
+        call info_find_node(file, node, st)
+        call sit_for(0)
+    contains
+        ! (equal CURRENT SAVED), FLAG "0" for a nil SAVED.
+        logical function same(current, flag, saved)
+            character(len=:), allocatable, intent(in) :: current
+            character(len=*), intent(in) :: flag, saved
+            if (flag == "0") then
+                same = .not. allocated(current)
+            else if (allocated(current)) then
+                same = current == saved .and. len(current) == len(saved)
+            else
+                same = .false.
+            end if
+        end function same
+    end subroutine info_isearch_pop_state
+
+    ! `isearch_mode_hook' of Info mode.  Port of
+    ! info.el:Info-isearch-start.
+    recursive subroutine info_isearch_start(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+        status = status_type()
+        ! Don't stop at initial node for nonincremental search.
+        ! Otherwise this variable is set after first search failure.
+        if (allocated(isearch_initial_node)) deallocate (isearch_initial_node)
+        if (isearch_nonincremental) isearch_initial_node = current_node_or_empty()
+        k = here()
+        isearch_initial_history = locals(k)%history
+        if (allocated(info_history_list)) then
+            isearch_initial_history_list = info_history_list
+        else
+            allocate (isearch_initial_history_list(0))
+        end if
+        call isearch_mode_end_hook%add(info_isearch_end, local=.true.)
+    end subroutine info_isearch_start
+
+    ! Remove intermediate nodes (visited while searching) from the
+    ! history.  Add only the last node (where Isearch ended).  Port of
+    ! info.el:Info-isearch-end.
+    recursive subroutine info_isearch_end(status)
+        type(status_type), intent(out) :: status
+        type(info_node_ref_type), allocatable :: list(:)
+        integer :: k, n, m, i
+        status = status_type()
+        k = here()
+        n = size(locals(k)%history)
+        m = 0
+        if (allocated(isearch_initial_history)) m = size(isearch_initial_history)
+        if (n > m) locals(k)%history = locals(k)%history(n - m:n)
+        if (.not. allocated(info_history_list)) allocate (info_history_list(0))
+        m = 0
+        if (allocated(isearch_initial_history_list)) m = size(isearch_initial_history_list)
+        if (size(info_history_list) > m) then
+            allocate (list(m + 1))
+            list(1) = info_history_list(1)
+            do i = 1, m
+                list(i + 1) = isearch_initial_history_list(i)
+            end do
+            call move_alloc(list, info_history_list)
+        end if
+        call isearch_mode_end_hook%remove(info_isearch_end, local=.true.)
+    end subroutine info_isearch_end
 
     ! The most recent element of the minibuffer history NAME (FOUND false
     ! if it is empty).
@@ -8131,6 +8347,7 @@ contains
     !> \[info_search]        Search through this Info file for specified regexp,
     !>           and select the node in which the next occurrence is found.
     !> \[info_search_case_sensitively]        Search through this Info file for specified regexp case-sensitively.
+    !> \[isearch_forward], \[isearch_forward_regexp]        Use Isearch to search through multiple Info nodes.
     !> \[info_index]        Search for a topic in this manual's Index and go to index entry.
     !> \[info_index_next]        (comma) Move to the next match from a previous \<info_mode_map>\[info_index] command.
     !> \[info_virtual_index]        Look for a string and display the index node with results.
@@ -8159,13 +8376,19 @@ contains
         k = here()
         call make_marker(locals(k)%tag_table_marker)
         ! (The display table for terminals that can't show the Unicode
-        ! symbols of Info files, the tool bar, desktop saving, Isearch
-        ! across nodes, the context menu and bookmarks are Deferred.)
+        ! symbols of Info files, the tool bar, desktop saving, the
+        ! context menu, bookmarks and `isearch_fold_quotes_mode' are
+        ! Deferred.)
         ! do not override global header lines
         if (info_use_header_line%value) locals(k)%header_from_property = .true.
         call info_mode_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true., case_fold=.true.)
         call kill_buffer_hook%add(info_kill_buffer, local=.true.)
+        call isearch_mode_hook%add(info_isearch_start, local=.true.)
+        call isearch_search_fun_function%set_local(info_isearch_search_fn)
+        call isearch_wrap_function%set_local(info_isearch_wrap)
+        call isearch_push_state_function%set_local(info_isearch_push_state)
+        call isearch_filter_predicate%set_local(info_isearch_filter)
         call revert_buffer_function%set_local(info_revert_buffer_function)
         call info_set_mode_line()
         call major_modes%info_mode%finish(saved, status)

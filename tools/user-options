@@ -315,6 +315,7 @@ info_fontify_maximum_menu_size
 info_fontify_visited_nodes
 info_hide_note_references
 info_history_skip_intermediate_nodes
+info_isearch_search
 info_mode_hook
 info_scroll_prefer_subnodes
 info_search_whitespace_regexp

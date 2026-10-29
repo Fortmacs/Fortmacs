@@ -28,7 +28,7 @@ module test_info_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_fm, only: status_type, format_error
     use handle_fm, only: handle_type
-    use lisp_fm, only: value_type, list, make_string, nilp, stringp, xstring, symbolp, symbols, xsymbol
+    use lisp_fm, only: value_type, list, make_string, nilp, stringp, xstring, symbolp, symbols, xsymbol, nil
     use lread_fm, only: sym
     use textprop_fm, only: get_text_property, get_char_property
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, kill_buffer, get_buffer, header_line_format_type
@@ -48,7 +48,9 @@ module test_info_fm
                        info_copy_current_node_name, info_directory_list, info_next_reference, info_prev_reference, &
                        info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
                        info_history, info_search, info_search_backward, info_index, info_index_next, &
-                       info_virtual_index
+                       info_virtual_index, info_history_variable, info_history_entry_type
+    use isearch_fm, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, isearch_delete_char, &
+                          isearch_done, isearch_success, isearch_error
     implicit none(type, external)
     private
 
@@ -86,7 +88,8 @@ contains
                     new_unittest("info-search", test_search), &
                     new_unittest("info-search-split", test_search_split), &
                     new_unittest("info-index", test_index), &
-                    new_unittest("info-virtual-index", test_virtual_index) &
+                    new_unittest("info-virtual-index", test_virtual_index), &
+                    new_unittest("info-isearch", test_isearch) &
                     ]
     end subroutine collect_info_fm
 
@@ -791,4 +794,44 @@ contains
         if (.not. allocated(error)) call check(error, index(text, "* section [Index]:") > 0, "the second entry")
         call done(old, config)
     end subroutine test_virtual_index
+
+    subroutine test_isearch(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(window_configuration_type) :: config
+        type(info_history_entry_type), allocatable :: history(:)
+        integer :: h0
+        call visit("test", "Top", old, config, error)
+        call info_history_variable(history)
+        h0 = size(history)
+        call isearch_mode(.true.)
+        call isearch_process_search_string("Some text", "Some text")
+        ! Isearch fails once at the end of the initial node.
+        call check(error,.not. isearch_success, "fails in the initial node")
+        if (.not. allocated(error)) call check(error, allocated(isearch_error), "an error")
+        if (.not. allocated(error)) call check(error, isearch_error, "end of node")
+        call check_node(error, "Top", status_type())
+        ! C-s goes on through the other nodes.
+        if (.not. allocated(error)) then
+            call isearch_repeat_forward(nil())
+            call check(error, isearch_success, "found in another node")
+        end if
+        call check_node(error, "Section One", status_type())
+        ! DEL goes back to the initial node with the state it restores.
+        if (.not. allocated(error)) then
+            call isearch_delete_char()
+            call check_node(error, "Top", status_type())
+        end if
+        if (.not. allocated(error)) then
+            call isearch_repeat_forward(nil())
+            call check_node(error, "Section One", status_type())
+        end if
+        call isearch_done()
+        ! Only the node where Isearch ended is added to the history.
+        if (.not. allocated(error)) then
+            call info_history_variable(history)
+            call check(error, size(history), h0 + 1)
+        end if
+        call done(old, config)
+    end subroutine test_isearch
 end module test_info_fm
