@@ -100,6 +100,7 @@ module bindings_fm
     use recentf_fm, only: syms_of_recentf
     use tabulated_list_fm, only: syms_of_tabulated_list
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
+    use buff_menu_fm, only: syms_of_buff_menu
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -314,6 +315,7 @@ contains
         call syms_of_recentf()
         call syms_of_tabulated_list()
         call syms_of_bookmark()
+        call syms_of_buff_menu()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()
@@ -587,6 +589,7 @@ contains
         call define_key(esc_map, key, make_keymap_ref(search_map), status)
         call bind(global_map, "C-t", "transpose_chars")
         call bind(esc_map, "t", "transpose_words")
+        call bind(ctl_x_map, "C-b", "list_buffers")
         call bind(ctl_x_map, "C-t", "transpose_lines")
         call bind(esc_map, "SPC", "cycle_spacing")
         call bind(esc_map, "\", "delete_horizontal_space")

@@ -116,6 +116,32 @@ module commands_fm
         type(command_type) :: bookmark_set_no_overwrite
         type(command_type) :: bookmark_write
         type(command_type) :: bookmark_yank_word
+        type(command_type) :: buffer_menu
+        type(command_type) :: buffer_menu_1_window
+        type(command_type) :: buffer_menu_2_window
+        type(command_type) :: buffer_menu_backup_unmark
+        type(command_type) :: buffer_menu_bury
+        type(command_type) :: buffer_menu_delete
+        type(command_type) :: buffer_menu_delete_backwards
+        type(command_type) :: buffer_menu_execute
+        type(command_type) :: buffer_menu_mark
+        type(command_type) :: buffer_menu_mode
+        type(command_type) :: buffer_menu_mode_other_window
+        type(command_type) :: buffer_menu_multi_occur
+        type(command_type) :: buffer_menu_not_modified
+        type(command_type) :: buffer_menu_other_window
+        type(command_type) :: buffer_menu_save
+        type(command_type) :: buffer_menu_select
+        type(command_type) :: buffer_menu_switch_other_window
+        type(command_type) :: buffer_menu_this_window
+        type(command_type) :: buffer_menu_toggle_files_only
+        type(command_type) :: buffer_menu_toggle_internal
+        type(command_type) :: buffer_menu_toggle_read_only
+        type(command_type) :: buffer_menu_unmark
+        type(command_type) :: buffer_menu_unmark_all
+        type(command_type) :: buffer_menu_unmark_all_buffers
+        type(command_type) :: buffer_menu_view
+        type(command_type) :: buffer_menu_view_other_window
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
         type(command_type) :: call_last_kbd_macro
@@ -533,6 +559,7 @@ module commands_fm
         type(command_type) :: lgrep
         type(command_type) :: list_abbrevs
         type(command_type) :: list_bookmarks
+        type(command_type) :: list_buffers
         type(command_type) :: list_matching_lines
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
@@ -861,7 +888,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(823) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(850) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -946,6 +973,32 @@ module commands_fm
                                                                  "bookmark_set_no_overwrite", &
                                                                  "bookmark_write", &
                                                                  "bookmark_yank_word", &
+                                                                 "buffer_menu", &
+                                                                 "buffer_menu_1_window", &
+                                                                 "buffer_menu_2_window", &
+                                                                 "buffer_menu_backup_unmark", &
+                                                                 "buffer_menu_bury", &
+                                                                 "buffer_menu_delete", &
+                                                                 "buffer_menu_delete_backwards", &
+                                                                 "buffer_menu_execute", &
+                                                                 "buffer_menu_mark", &
+                                                                 "buffer_menu_mode", &
+                                                                 "buffer_menu_mode_other_window", &
+                                                                 "buffer_menu_multi_occur", &
+                                                                 "buffer_menu_not_modified", &
+                                                                 "buffer_menu_other_window", &
+                                                                 "buffer_menu_save", &
+                                                                 "buffer_menu_select", &
+                                                                 "buffer_menu_switch_other_window", &
+                                                                 "buffer_menu_this_window", &
+                                                                 "buffer_menu_toggle_files_only", &
+                                                                 "buffer_menu_toggle_internal", &
+                                                                 "buffer_menu_toggle_read_only", &
+                                                                 "buffer_menu_unmark", &
+                                                                 "buffer_menu_unmark_all", &
+                                                                 "buffer_menu_unmark_all_buffers", &
+                                                                 "buffer_menu_view", &
+                                                                 "buffer_menu_view_other_window", &
                                                                  "buffer_to_register", &
                                                                  "bury_buffer", &
                                                                  "call_last_kbd_macro", &
@@ -1363,6 +1416,7 @@ module commands_fm
                                                                  "lgrep", &
                                                                  "list_abbrevs", &
                                                                  "list_bookmarks", &
+                                                                 "list_buffers", &
                                                                  "list_matching_lines", &
                                                                  "list_registers", &
                                                                  "log_edit_comment_search_backward", &
@@ -1863,6 +1917,58 @@ contains
             p => commands%bookmark_write
         case ("bookmark_yank_word")
             p => commands%bookmark_yank_word
+        case ("buffer_menu")
+            p => commands%buffer_menu
+        case ("buffer_menu_1_window")
+            p => commands%buffer_menu_1_window
+        case ("buffer_menu_2_window")
+            p => commands%buffer_menu_2_window
+        case ("buffer_menu_backup_unmark")
+            p => commands%buffer_menu_backup_unmark
+        case ("buffer_menu_bury")
+            p => commands%buffer_menu_bury
+        case ("buffer_menu_delete")
+            p => commands%buffer_menu_delete
+        case ("buffer_menu_delete_backwards")
+            p => commands%buffer_menu_delete_backwards
+        case ("buffer_menu_execute")
+            p => commands%buffer_menu_execute
+        case ("buffer_menu_mark")
+            p => commands%buffer_menu_mark
+        case ("buffer_menu_mode")
+            p => commands%buffer_menu_mode
+        case ("buffer_menu_mode_other_window")
+            p => commands%buffer_menu_mode_other_window
+        case ("buffer_menu_multi_occur")
+            p => commands%buffer_menu_multi_occur
+        case ("buffer_menu_not_modified")
+            p => commands%buffer_menu_not_modified
+        case ("buffer_menu_other_window")
+            p => commands%buffer_menu_other_window
+        case ("buffer_menu_save")
+            p => commands%buffer_menu_save
+        case ("buffer_menu_select")
+            p => commands%buffer_menu_select
+        case ("buffer_menu_switch_other_window")
+            p => commands%buffer_menu_switch_other_window
+        case ("buffer_menu_this_window")
+            p => commands%buffer_menu_this_window
+        case ("buffer_menu_toggle_files_only")
+            p => commands%buffer_menu_toggle_files_only
+        case ("buffer_menu_toggle_internal")
+            p => commands%buffer_menu_toggle_internal
+        case ("buffer_menu_toggle_read_only")
+            p => commands%buffer_menu_toggle_read_only
+        case ("buffer_menu_unmark")
+            p => commands%buffer_menu_unmark
+        case ("buffer_menu_unmark_all")
+            p => commands%buffer_menu_unmark_all
+        case ("buffer_menu_unmark_all_buffers")
+            p => commands%buffer_menu_unmark_all_buffers
+        case ("buffer_menu_view")
+            p => commands%buffer_menu_view
+        case ("buffer_menu_view_other_window")
+            p => commands%buffer_menu_view_other_window
         case ("buffer_to_register")
             p => commands%buffer_to_register
         case ("bury_buffer")
@@ -2697,6 +2803,8 @@ contains
             p => commands%list_abbrevs
         case ("list_bookmarks")
             p => commands%list_bookmarks
+        case ("list_buffers")
+            p => commands%list_buffers
         case ("list_matching_lines")
             p => commands%list_matching_lines
         case ("list_registers")

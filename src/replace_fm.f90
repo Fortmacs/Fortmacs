@@ -140,6 +140,7 @@ module replace_fm
     public :: replacement_function, read_regexp, read_regexp_suggestions, query_replace_read_from_suggestions, &
               format_prompt
     public :: keep_lines, kill_matching_lines, copy_matching_lines, how_many, occur, occur_in_region, multi_occur, &
+              occur_read_primary_args, &
               multi_occur_in_matching_buffers, occur_rename_buffer, occur_mode, occur_edit_mode, occur_cease_edit, &
               occur_mode_goto_occurrence, occur_mode_goto_occurrence_other_window, occur_mode_display_occurrence, &
               occur_next, occur_prev, occur_next_error, occur_revert_function, occur_after_change_function, &

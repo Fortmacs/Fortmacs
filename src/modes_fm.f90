@@ -37,6 +37,7 @@ module modes_fm
         type(major_mode_type) :: apropos_mode
         type(major_mode_type) :: bookmark_bmenu_mode
         type(major_mode_type) :: bookmark_edit_annotation_mode
+        type(major_mode_type) :: buffer_menu_mode
         type(major_mode_type) :: change_log_mode
         type(major_mode_type) :: comint_mode
         type(major_mode_type) :: compilation_mode

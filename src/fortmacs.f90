@@ -467,6 +467,11 @@ module fortmacs
                                  tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, &
                                  tabulated_list_mode_map, tabulated_list_mode_hook, tabulated_list_revert_hook
     use mule_util_fm, only: vtruncate_string_ellipsis
+    use buff_menu_fm, only: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, &
+                            buffer_menu_name_width, buffer_menu_name_width_function, buffer_menu_name_width_proc, &
+                            buffer_menu_dynamic_name_width, buffer_menu_size_width, buffer_menu_mode_width, &
+                            buffer_menu_use_frame_buffer_list, buffer_menu_human_readable_sizes, &
+                            buffer_menu_mode_hook, buffer_menu_mode_map
     use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
                          repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                          repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
@@ -795,6 +800,10 @@ module fortmacs
     public :: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
               tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, tabulated_list_mode_map, &
               tabulated_list_mode_hook, tabulated_list_revert_hook, vtruncate_string_ellipsis
+    public :: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, buffer_menu_name_width, &
+              buffer_menu_name_width_function, buffer_menu_name_width_proc, buffer_menu_dynamic_name_width, &
+              buffer_menu_size_width, buffer_menu_mode_width, buffer_menu_use_frame_buffer_list, &
+              buffer_menu_human_readable_sizes, buffer_menu_mode_hook, buffer_menu_mode_map
     public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
               repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &
