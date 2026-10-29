@@ -71,6 +71,33 @@ module commands_fm
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
         type(command_type) :: blink_matching_open
+        type(command_type) :: bookmark_bmenu_1_window
+        type(command_type) :: bookmark_bmenu_2_window
+        type(command_type) :: bookmark_bmenu_backup_unmark
+        type(command_type) :: bookmark_bmenu_delete
+        type(command_type) :: bookmark_bmenu_delete_all
+        type(command_type) :: bookmark_bmenu_delete_backwards
+        type(command_type) :: bookmark_bmenu_edit_annotation
+        type(command_type) :: bookmark_bmenu_execute_deletions
+        type(command_type) :: bookmark_bmenu_list
+        type(command_type) :: bookmark_bmenu_load
+        type(command_type) :: bookmark_bmenu_locate
+        type(command_type) :: bookmark_bmenu_mark
+        type(command_type) :: bookmark_bmenu_mark_all
+        type(command_type) :: bookmark_bmenu_mode
+        type(command_type) :: bookmark_bmenu_other_window
+        type(command_type) :: bookmark_bmenu_relocate
+        type(command_type) :: bookmark_bmenu_rename
+        type(command_type) :: bookmark_bmenu_save
+        type(command_type) :: bookmark_bmenu_search
+        type(command_type) :: bookmark_bmenu_select
+        type(command_type) :: bookmark_bmenu_show_all_annotations
+        type(command_type) :: bookmark_bmenu_show_annotation
+        type(command_type) :: bookmark_bmenu_switch_other_window
+        type(command_type) :: bookmark_bmenu_this_window
+        type(command_type) :: bookmark_bmenu_toggle_filenames
+        type(command_type) :: bookmark_bmenu_unmark
+        type(command_type) :: bookmark_bmenu_unmark_all
         type(command_type) :: bookmark_delete
         type(command_type) :: bookmark_delete_all
         type(command_type) :: bookmark_edit_annotation_cancel
@@ -303,6 +330,7 @@ module commands_fm
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: edit_abbrevs
+        type(command_type) :: edit_bookmarks
         type(command_type) :: electric_indent_just_newline
         type(command_type) :: electric_indent_local_mode
         type(command_type) :: electric_indent_mode
@@ -486,6 +514,7 @@ module commands_fm
         type(command_type) :: left_char
         type(command_type) :: left_word
         type(command_type) :: list_abbrevs
+        type(command_type) :: list_bookmarks
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
         type(command_type) :: log_edit_comment_search_forward
@@ -797,7 +826,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(759) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(788) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -837,6 +866,33 @@ module commands_fm
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
                                                                  "blink_matching_open", &
+                                                                 "bookmark_bmenu_1_window", &
+                                                                 "bookmark_bmenu_2_window", &
+                                                                 "bookmark_bmenu_backup_unmark", &
+                                                                 "bookmark_bmenu_delete", &
+                                                                 "bookmark_bmenu_delete_all", &
+                                                                 "bookmark_bmenu_delete_backwards", &
+                                                                 "bookmark_bmenu_edit_annotation", &
+                                                                 "bookmark_bmenu_execute_deletions", &
+                                                                 "bookmark_bmenu_list", &
+                                                                 "bookmark_bmenu_load", &
+                                                                 "bookmark_bmenu_locate", &
+                                                                 "bookmark_bmenu_mark", &
+                                                                 "bookmark_bmenu_mark_all", &
+                                                                 "bookmark_bmenu_mode", &
+                                                                 "bookmark_bmenu_other_window", &
+                                                                 "bookmark_bmenu_relocate", &
+                                                                 "bookmark_bmenu_rename", &
+                                                                 "bookmark_bmenu_save", &
+                                                                 "bookmark_bmenu_search", &
+                                                                 "bookmark_bmenu_select", &
+                                                                 "bookmark_bmenu_show_all_annotations", &
+                                                                 "bookmark_bmenu_show_annotation", &
+                                                                 "bookmark_bmenu_switch_other_window", &
+                                                                 "bookmark_bmenu_this_window", &
+                                                                 "bookmark_bmenu_toggle_filenames", &
+                                                                 "bookmark_bmenu_unmark", &
+                                                                 "bookmark_bmenu_unmark_all", &
                                                                  "bookmark_delete", &
                                                                  "bookmark_delete_all", &
                                                                  "bookmark_edit_annotation_cancel", &
@@ -1069,6 +1125,7 @@ module commands_fm
                                                                  "downcase_region", &
                                                                  "downcase_word", &
                                                                  "edit_abbrevs", &
+                                                                 "edit_bookmarks", &
                                                                  "electric_indent_just_newline", &
                                                                  "electric_indent_local_mode", &
                                                                  "electric_indent_mode", &
@@ -1252,6 +1309,7 @@ module commands_fm
                                                                  "left_char", &
                                                                  "left_word", &
                                                                  "list_abbrevs", &
+                                                                 "list_bookmarks", &
                                                                  "list_registers", &
                                                                  "log_edit_comment_search_backward", &
                                                                  "log_edit_comment_search_forward", &
@@ -1645,6 +1703,60 @@ contains
             p => commands%beginning_of_line_text
         case ("blink_matching_open")
             p => commands%blink_matching_open
+        case ("bookmark_bmenu_1_window")
+            p => commands%bookmark_bmenu_1_window
+        case ("bookmark_bmenu_2_window")
+            p => commands%bookmark_bmenu_2_window
+        case ("bookmark_bmenu_backup_unmark")
+            p => commands%bookmark_bmenu_backup_unmark
+        case ("bookmark_bmenu_delete")
+            p => commands%bookmark_bmenu_delete
+        case ("bookmark_bmenu_delete_all")
+            p => commands%bookmark_bmenu_delete_all
+        case ("bookmark_bmenu_delete_backwards")
+            p => commands%bookmark_bmenu_delete_backwards
+        case ("bookmark_bmenu_edit_annotation")
+            p => commands%bookmark_bmenu_edit_annotation
+        case ("bookmark_bmenu_execute_deletions")
+            p => commands%bookmark_bmenu_execute_deletions
+        case ("bookmark_bmenu_list")
+            p => commands%bookmark_bmenu_list
+        case ("bookmark_bmenu_load")
+            p => commands%bookmark_bmenu_load
+        case ("bookmark_bmenu_locate")
+            p => commands%bookmark_bmenu_locate
+        case ("bookmark_bmenu_mark")
+            p => commands%bookmark_bmenu_mark
+        case ("bookmark_bmenu_mark_all")
+            p => commands%bookmark_bmenu_mark_all
+        case ("bookmark_bmenu_mode")
+            p => commands%bookmark_bmenu_mode
+        case ("bookmark_bmenu_other_window")
+            p => commands%bookmark_bmenu_other_window
+        case ("bookmark_bmenu_relocate")
+            p => commands%bookmark_bmenu_relocate
+        case ("bookmark_bmenu_rename")
+            p => commands%bookmark_bmenu_rename
+        case ("bookmark_bmenu_save")
+            p => commands%bookmark_bmenu_save
+        case ("bookmark_bmenu_search")
+            p => commands%bookmark_bmenu_search
+        case ("bookmark_bmenu_select")
+            p => commands%bookmark_bmenu_select
+        case ("bookmark_bmenu_show_all_annotations")
+            p => commands%bookmark_bmenu_show_all_annotations
+        case ("bookmark_bmenu_show_annotation")
+            p => commands%bookmark_bmenu_show_annotation
+        case ("bookmark_bmenu_switch_other_window")
+            p => commands%bookmark_bmenu_switch_other_window
+        case ("bookmark_bmenu_this_window")
+            p => commands%bookmark_bmenu_this_window
+        case ("bookmark_bmenu_toggle_filenames")
+            p => commands%bookmark_bmenu_toggle_filenames
+        case ("bookmark_bmenu_unmark")
+            p => commands%bookmark_bmenu_unmark
+        case ("bookmark_bmenu_unmark_all")
+            p => commands%bookmark_bmenu_unmark_all
         case ("bookmark_delete")
             p => commands%bookmark_delete
         case ("bookmark_delete_all")
@@ -2109,6 +2221,8 @@ contains
             p => commands%downcase_word
         case ("edit_abbrevs")
             p => commands%edit_abbrevs
+        case ("edit_bookmarks")
+            p => commands%edit_bookmarks
         case ("electric_indent_just_newline")
             p => commands%electric_indent_just_newline
         case ("electric_indent_local_mode")
@@ -2475,6 +2589,8 @@ contains
             p => commands%left_word
         case ("list_abbrevs")
             p => commands%list_abbrevs
+        case ("list_bookmarks")
+            p => commands%list_bookmarks
         case ("list_registers")
             p => commands%list_registers
         case ("log_edit_comment_search_backward")

@@ -85,6 +85,7 @@ contains
                     new_unittest("invisible-newline", test_invisible_newline), &
                     new_unittest("display-string", test_display_string), &
                     new_unittest("display-space-align-to", test_display_space), &
+                    new_unittest("header-line", test_header_line), &
                     new_unittest("emacs-main-on-a-pty", test_emacs_main) &
                     ]
     end subroutine collect_xdisp_fm
@@ -705,6 +706,49 @@ contains
             end if
         end function line_start
     end subroutine test_redisplay
+
+    !> A header line: the window's first row shows the segments at their
+    !> columns, the text starts on the second row, and the window has one
+    !> text line less.
+    subroutine test_header_line(error)
+        use buffer_fm, only: buffers
+        use window_fm, only: window_body_lines
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: out, row
+        integer(int64) :: bi
+        call buffer_with("*xdisp-header*", "first"//achar(10)//"second"//achar(10), h, bi)
+        call buffers(bi)%header_line_format%add("Name", align_to=2)
+        call buffers(bi)%header_line_format%add("Size", "bold", align_to=10)
+        call builtin_xterm(ti)
+        call init_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call init_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
+        call goto_char(1_int64)
+        call redisplay(f, st)
+        out = tty_take_output(f%tty)
+        steps: block
+            row = row_text(f%current_matrix%rows(0))
+            call check(error, row(1:14), "  Name    Size")
+            if (allocated(error)) exit steps
+            call check(error, row_text(f%current_matrix%rows(1)), "first")
+            if (allocated(error)) exit steps
+            call check(error, f%cursor_vpos == 1 .and. f%cursor_hpos == 0, "cursor below the header line")
+            if (allocated(error)) exit steps
+            call check(error, window_body_lines(windows(f%selected_window%index)) == 21, "21 text lines")
+            if (allocated(error)) exit steps
+            ! No header line without a format.
+            call buffers(bi)%header_line_format%clear()
+            call redisplay(f, st)
+            call check(error, row_text(f%current_matrix%rows(0)), "first")
+        end block steps
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call kill_buffer(h, st)
+    end subroutine test_header_line
 
     !> The echo area shows a message as text is shown: TAB, ^A, wide
     !> characters, its first line only, continued with \.

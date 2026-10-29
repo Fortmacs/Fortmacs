@@ -432,6 +432,7 @@ contains
         call bind(ctl_x_r_map, "b", "bookmark_jump")
         call bind(ctl_x_r_map, "m", "bookmark_set")
         call bind(ctl_x_r_map, "M", "bookmark_set_no_overwrite")
+        call bind(ctl_x_r_map, "l", "bookmark_bmenu_list")
         key(1) = make_fixnum(int(iachar("r"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_r_map), status)
         ! kmacro.el (autoloads): keyboard macros.
