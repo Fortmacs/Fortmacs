@@ -42,10 +42,13 @@
 !>
 !> The last-modified time is seconds and nanoseconds since the epoch.
 !>
-!> Deferred: the bookmark list (`bookmark_bmenu_list', C-x r l, and
-!> Bookmark Menu mode with its commands and options, which need
-!> tabulated-list.el and header lines; `bookmark_edit_annotation' from it
-!> and the rebuilding of the list when bookmarks change come with it);
+!> \[bookmark_bmenu_list] (C-x r l) lists the bookmarks in Bookmark Menu mode
+!> (a Tabulated List mode).
+!>
+!> Deferred: the menu and the mouse command of the bookmark list
+!> (`bookmark_bmenu_other_window_with_mouse'), and its sorting in the locale's
+!> collation order (`string_collate_lessp': names sort case-insensitively
+!> by character code, as in the POSIX locale); `truncate_lines' in it;
 !> bookmarks with a `handler' (Help, VC-Dir and Shell buffers set
 !> `bookmark_make_record_function' to make them; that function is not
 !> buffer-local yet), and with them the `buffer', `location' and other
@@ -59,7 +62,7 @@
 !> ported); `select_safe_coding_system' when saving; the obsolete
 !> variables, format upgrades and `bookmark_load_hook'.
 module bookmark_fm
-    use, intrinsic :: iso_fortran_env, only: int32, int64
+    use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use error_fm, only: status_type, set_error, condition_matches, FM_GENERIC_ERROR, FM_USER_ERROR, &
                         FM_FILE_ERROR, FM_BOOKMARK_ERROR_NO_FILENAME, format_message
     use handle_fm, only: handle_type
@@ -76,14 +79,19 @@ module bookmark_fm
     use editfns_fm, only: point, goto_char, point_min, point_max, buffer_substring, buffer_string, delete_region, &
                           following_char, pos_bol, pos_eol, widen, bolp, eobp, user_full_name, user_login_name, &
                           system_name, current_time_string
-    use cmds_fm, only: forward_line, beginning_of_line, end_of_line, delete_char
+    use cmds_fm, only: forward_line, beginning_of_line, end_of_line, delete_char, forward_char
     use syntax_fm, only: forward_word
     use simple_fm, only: push_mark
     use search_fm, only: search_forward, search_backward, match_beginning, match_end
     use fileio_fm, only: file_readable_p, expand_file_name, file_name_nondirectory, file_name_directory, &
                          directory_file_name, file_attributes
     use sysdep_fm, only: file_stat_type, emacs_clock_realtime
-    use files_fm, only: find_file_noselect, abbreviate_file_name, write_file
+    use files_fm, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
+    use frame_fm, only: selected_frame, frame_window_p, selected_window
+    use tabulated_list_fm, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
+                                 set_tabulated_list_entries, set_tabulated_list_padding, set_tabulated_list_sort_key, &
+                                 clear_tabulated_list_sort_key, tabulated_list_init_header, tabulated_list_print, &
+                                 tabulated_list_get_id, tabulated_list_put_tag, tabulated_list_revert_hook
     use dired_mode_fm, only: dired_directory_of
     use derived_fm, only: derived_mode_p
     use config_fm, only: state_directory
@@ -102,7 +110,7 @@ module bookmark_fm
     use help_fm, only: substitute_command_keys
     use window_fm, only: windows, get_buffer_window, set_window_point, pop_to_buffer, pop_to_buffer_same_window, &
                          switch_to_buffer_other_window, quit_window, window_configuration_type, &
-                         current_window_configuration, set_window_configuration, display_alist_type
+                         current_window_configuration, set_window_configuration, display_alist_type, switch_to_buffer
     use faces_fm, only: named_face_type, face_attrs, display_when, FACE_CLASS_COLOR, FACE_CLASS_GRAYSCALE, &
                         FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use xdisp_fm, only: message
@@ -127,7 +135,19 @@ module bookmark_fm
               bookmark_delete_all, bookmark_time_to_save_p, bookmark_write, bookmark_save, bookmark_write_file, &
               bookmark_import_new_list, bookmark_maybe_rename, bookmark_load, bookmark_show_annotation, &
               bookmark_show_all_annotations, bookmark_exit_hook_internal, bookmark_current_bookmark, &
-              set_bookmark_current_bookmark, syms_of_bookmark
+              set_bookmark_current_bookmark, bookmark_bmenu_surreptitiously_rebuild_list, bookmark_bmenu_get_buffer, &
+              bookmark_bmenu_list, bookmark_bmenu_mode, bookmark_bmenu_name_predicate, bookmark_bmenu_type_predicate, &
+              bookmark_bmenu_file_predicate, bookmark_bmenu_toggle_filenames_command, bookmark_bmenu_show_filenames, &
+              bookmark_bmenu_hide_filenames, bookmark_bmenu_ensure_position, bookmark_bmenu_bookmark, &
+              bookmark_bmenu_mark, bookmark_bmenu_mark_all, bookmark_bmenu_select, bookmark_bmenu_any_marks, &
+              bookmark_bmenu_save, bookmark_bmenu_load, bookmark_bmenu_1_window, bookmark_bmenu_2_window, &
+              bookmark_bmenu_this_window, bookmark_bmenu_other_window, bookmark_bmenu_switch_other_window, &
+              bookmark_bmenu_show_annotation, bookmark_bmenu_show_all_annotations, bookmark_bmenu_edit_annotation, &
+              bookmark_bmenu_unmark, bookmark_bmenu_backup_unmark, bookmark_bmenu_unmark_all, bookmark_bmenu_delete, &
+              bookmark_bmenu_delete_backwards, bookmark_bmenu_delete_all, bookmark_bmenu_execute_deletions, &
+              bookmark_bmenu_rename, bookmark_bmenu_locate, bookmark_bmenu_relocate, &
+              bookmark_bmenu_filter_alist_by_regexp, bookmark_bmenu_search, bookmark_bmenu_goto_bookmark, &
+              syms_of_bookmark
 
     !> A bookmark: its NAME and where it is.  FILENAME names the bookmarked
     !> file; POSITION is the bookmarked buffer position (0 for none);
@@ -400,6 +420,48 @@ module bookmark_fm
     !> Hook run when Fortmacs exits.  Port of bookmark.el
     !> bookmark-exit-hook.
     type(hook_type), target, public :: bookmark_exit_hook = hook_type(name="bookmark_exit_hook")
+
+    !> Name of buffer used for Bookmark List.  Port of bookmark.el
+    !> bookmark-bmenu-buffer.
+    character(len=:), allocatable, public :: bookmark_bmenu_buffer
+
+    !> Number of columns (chars) used for the *Bookmark List* marks column.
+    !> This includes the annotations column.  Port of bookmark.el
+    !> bookmark-bmenu-marks-width.
+    integer, parameter, public :: BOOKMARK_BMENU_MARKS_WIDTH = 2
+
+    !> Column at which to display filenames in a buffer listing bookmarks.
+    !> You can toggle whether files are shown with
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_toggle_filenames].  Port
+    !> of bookmark.el bookmark-bmenu-file-column.
+    integer, public :: bookmark_bmenu_file_column = 30
+
+    !> Column width for bookmark type in a buffer listing bookmarks.  Port
+    !> of bookmark.el bookmark-bmenu-type-column-width.
+    integer, public :: bookmark_bmenu_type_column_width = 8
+
+    !> True means show filenames when listing bookmarks.
+    !> A true value may result in truncated bookmark names.  Port of
+    !> bookmark.el bookmark-bmenu-toggle-filenames.
+    logical, public :: bookmark_bmenu_toggle_filenames = .true.
+
+    !> Face used to highlight bookmark names in bookmark menu buffers.
+    !> Port of bookmark.el bookmark-menu-bookmark.
+    type(named_face_type), target, public :: bookmark_menu_bookmark
+
+    !> Time before `bookmark_bmenu_search' updates the display.  Port of
+    !> bookmark.el bookmark-search-delay.
+    real, public :: bookmark_search_delay = 0.2
+
+    !> Keymap for `bookmark_bmenu_mode'.  Port of bookmark.el
+    !> bookmark-bmenu-mode-map.
+    type(handle_type), public :: bookmark_bmenu_mode_map
+
+    !> Hook run when entering `bookmark_bmenu_mode'.
+    type(hook_type), target, public :: bookmark_bmenu_mode_hook = hook_type(name="bookmark_bmenu_mode_hook")
+
+    !> The idle timer of `bookmark_bmenu_search' and its minibuffer.
+    type(handle_type) :: search_timer, search_minibuffer
 
     !> Values of OVERWRITE_OR_PUSH for `bookmark_set_internal' (nil,
     !> `overwrite' and `push').
@@ -1023,6 +1085,7 @@ contains
         bookmark_alist_modification_count = bookmark_alist_modification_count + 1
         if (bookmark_time_to_save_p()) call bookmark_save(status)
         call set_bookmark_current_bookmark(name)
+        call bookmark_bmenu_surreptitiously_rebuild_list()
     end subroutine bookmark_store
 
     !> Return the record describing the location of a new bookmark.
@@ -1478,13 +1541,28 @@ contains
     end subroutine bookmark_edit_annotation_mode
 
     ! Display bookmark list after editing if appropriate: the end of
-    ! bookmark.el:bookmark-edit-annotation--maybe-display-list (the list
-    ! itself is deferred).
+    ! bookmark.el:bookmark-edit-annotation--maybe-display-list, OLD_BUFFER
+    ! being the annotation buffer.
     recursive subroutine maybe_display_list(old_buffer, status)
         type(handle_type), intent(in) :: old_buffer
         type(status_type), intent(out) :: status
+        type(handle_type) :: list
+        character(len=:), allocatable :: name
+        logical :: from_bookmark_list
+        integer :: k
+        from_bookmark_list = .false.
+        k = local_index(.false.)
+        if (k > 0) from_bookmark_list = locals(k)%annotation_from_bookmark_list
         call quit_window(.false., status)
         if (.not. status%ok()) return
+        call bookmark_bmenu_surreptitiously_rebuild_list()
+        if (from_bookmark_list) then
+            list = get_buffer(bookmark_bmenu_buffer)
+            call pop_to_buffer(list, status)
+            if (.not. status%ok()) return
+            call goto_char(point_min())
+            name = bookmark_bmenu_bookmark()
+        end if
         call kill_buffer(old_buffer, status)
     end subroutine maybe_display_list
 
@@ -1939,6 +2017,7 @@ contains
         call bookmark_update_last_modified(bookmark_name, status)
         bookmark_alist_modification_count = bookmark_alist_modification_count + 1
         if (bookmark_time_to_save_p()) call bookmark_save(status)
+        call bookmark_bmenu_surreptitiously_rebuild_list()
     end subroutine bookmark_relocate
 
     recursive subroutine cmd_bookmark_relocate(status)
@@ -2016,6 +2095,7 @@ contains
         if (.not. status%ok()) return
         call bookmark_update_last_modified(final_new_name, status)
         call set_bookmark_current_bookmark(final_new_name)
+        call bookmark_bmenu_surreptitiously_rebuild_list()
         bookmark_alist_modification_count = bookmark_alist_modification_count + 1
         if (bookmark_time_to_save_p()) call bookmark_save(status)
     end subroutine bookmark_rename
@@ -2071,13 +2151,15 @@ contains
     !> Removes only the first instance of a bookmark with that name.  If
     !> there are one or more other bookmarks with the same name, they will
     !> not be deleted.  Defaults to the "current" bookmark (that is, the one
-    !> most recently used in this file, if any).  Port of
-    !> bookmark.el:bookmark-delete (BATCH, for the bookmark list, comes
-    !> with the list).
-    recursive subroutine bookmark_delete(bookmark_name, status, called_interactively)
+    !> most recently used in this file, if any).
+    !> Optional second arg BATCH means don't update the bookmark list
+    !> buffer, probably because we were called from there.  Port of
+    !> bookmark.el:bookmark-delete.
+    recursive subroutine bookmark_delete(bookmark_name, status, batch, called_interactively)
         character(len=*), intent(in) :: bookmark_name
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: called_interactively
+        logical, intent(in), optional :: batch, called_interactively
+        logical :: rebuild
         type(status_type) :: st
         integer :: k
         call bookmark_maybe_historicize_string(bookmark_name, called_interactively)
@@ -2093,6 +2175,9 @@ contains
         if (bookmark_get_bookmark(bookmark_current_bookmark(), st, noerror=.true.) == 0) then
             call set_bookmark_current_bookmark()
         end if
+        rebuild = .true.
+        if (present(batch)) rebuild = .not. batch
+        if (rebuild) call bookmark_bmenu_surreptitiously_rebuild_list()
         bookmark_alist_modification_count = bookmark_alist_modification_count + 1
         if (bookmark_time_to_save_p()) call bookmark_save(status)
     end subroutine bookmark_delete
@@ -2135,6 +2220,7 @@ contains
         end do
         bookmark_alist_modification_count = bookmark_alist_modification_count + size(bookmark_alist)
         call clear_alist()
+        call bookmark_bmenu_surreptitiously_rebuild_list()
         if (bookmark_time_to_save_p()) call bookmark_save(status)
     end subroutine bookmark_delete_all
 
@@ -2443,6 +2529,7 @@ contains
                 current_default = expand(bookmark_default_file)
             end if
             if (make .or. same(f, current_default)) call set_timestamp(f)
+            call bookmark_bmenu_surreptitiously_rebuild_list()
             if (allocated(buffer_file_coding_system%value)) then
                 bookmark_file_coding_system = buffer_file_coding_system%value
             end if
@@ -2508,7 +2595,6 @@ contains
     !> Display the annotations for all bookmarks in a buffer.  Port of
     !> bookmark.el:bookmark-show-all-annotations.
     recursive subroutine bookmark_show_all_annotations(status)
-        use frame_fm, only: selected_window
         use window_fm, only: select_window, window_live_p
         type(status_type), intent(out) :: status
         type(bookmark_type), allocatable :: sorted(:)
@@ -2557,6 +2643,851 @@ contains
         if (window_live_p(old_window)) call select_window(old_window, st, norecord=.true.)
         call set_buffer(old_buffer, st)
     end subroutine bookmark_show_all_annotations
+
+    ! ------------------------------------------------------------------
+    ! The bookmark list
+    ! ------------------------------------------------------------------
+
+    !> Rebuild the Bookmark List if it exists.
+    !> Don't affect the buffer ring order.  Port of
+    !> bookmark.el:bookmark-bmenu-surreptitiously-rebuild-list.
+    recursive subroutine bookmark_bmenu_surreptitiously_rebuild_list()
+        type(window_configuration_type) :: config
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: pt
+        if (.not. buffer_live_p(get_buffer(bookmark_bmenu_buffer))) return
+        old = current_buffer()
+        pt = point()
+        call current_window_configuration(config)
+        call bookmark_bmenu_list(st)
+        call set_window_configuration(config)
+        call set_buffer(old, st)
+        call goto_char(pt)
+    end subroutine bookmark_bmenu_surreptitiously_rebuild_list
+
+    !> Re-populate `tabulated_list_entries'.  Port of
+    !> bookmark.el:bookmark-bmenu--revert.
+    recursive subroutine bookmark_bmenu_revert(status)
+        type(status_type), intent(out) :: status
+        type(bookmark_type), allocatable :: sorted(:)
+        type(tabulated_list_entry_type), allocatable :: entries(:)
+        integer :: k, n, ncols
+        sorted = bookmark_maybe_sort_alist()
+        n = size(sorted)
+        ncols = 3
+        if (bookmark_bmenu_toggle_filenames) ncols = 4
+        allocate (entries(n))
+        ! (Pushed onto a list upstream: the last record first.)
+        do k = 1, n
+            associate (e => entries(n - k + 1), r => sorted(k))
+                e%id = bookmark_name_from_full_record(r)
+                allocate (e%cols(ncols))
+                e%cols(1)%face = ""
+                e%cols(1)%text = ""
+                if (allocated(r%annotation)) then
+                    if (len(r%annotation) > 0) e%cols(1)%text = "*"
+                end if
+                e%cols(2)%text = bookmark_name_from_full_record(r)
+                e%cols(2)%face = ""
+                ! (display-mouse-p: a window system.)
+                if (frame_window_p(selected_frame)) e%cols(2)%face = "bookmark_menu_bookmark"
+                ! (No handlers: no types.)
+                e%cols(3)%text = ""
+                e%cols(3)%face = ""
+                if (bookmark_bmenu_toggle_filenames) then
+                    e%cols(4)%text = bookmark_location(e%id)
+                    e%cols(4)%face = ""
+                end if
+            end associate
+        end do
+        ! The value of `bookmark_sort_flag' might have changed since the
+        ! last time the buffer contents were generated, so re-check it.
+        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_T) then
+            call set_tabulated_list_sort_key("Bookmark Name")
+            call set_tabulated_list_entries(entries)
+        else
+            call clear_tabulated_list_sort_key()
+            ! And since we're not sorting by bookmark name, show bookmarks
+            ! according to order of creation, with the most recently
+            ! created bookmarks at the top and the least recently created
+            ! at the bottom.
+            call set_tabulated_list_entries(entries(n:1:-1))
+        end if
+        ! Generate the header only after `tabulated_list_sort_key' is
+        ! settled, because if that's true then the sort-direction indicator
+        ! will be shown in the named column, but if it's nil then the
+        ! indicator will not be shown.
+        call tabulated_list_init_header()
+        call tabulated_list_print(status, remember_pos=.true.)
+    end subroutine bookmark_bmenu_revert
+
+    recursive subroutine bmenu_revert_function(ignore_auto, noconfirm, status)
+        logical, intent(in) :: ignore_auto, noconfirm
+        type(status_type), intent(out) :: status
+        if (ignore_auto .and. noconfirm) continue
+        call bookmark_bmenu_revert(status)
+    end subroutine bmenu_revert_function
+
+    recursive subroutine bmenu_revert_hook(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_revert(status)
+    end subroutine bmenu_revert_hook
+
+    !> Return the Bookmark List, building it if it doesn't exists.
+    !> Don't affect the buffer ring order.  Port of
+    !> bookmark.el:bookmark-bmenu-get-buffer.
+    recursive function bookmark_bmenu_get_buffer() result(buf)
+        type(handle_type) :: buf
+        type(window_configuration_type) :: config
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: pt
+        buf = get_buffer(bookmark_bmenu_buffer)
+        if (buf%index /= 0) return
+        old = current_buffer()
+        pt = point()
+        call current_window_configuration(config)
+        call bookmark_bmenu_list(st)
+        buf = get_buffer(bookmark_bmenu_buffer)
+        call set_window_configuration(config)
+        call set_buffer(old, st)
+        call goto_char(pt)
+    end function bookmark_bmenu_get_buffer
+
+    !> Display a list of existing bookmarks.
+    !> The list is displayed in a buffer named `*Bookmark List*'.
+    !> The leftmost column displays a D if the bookmark is flagged for
+    !> deletion, or > if it is flagged for displaying.  Port of
+    !> bookmark.el:bookmark-bmenu-list.
+    recursive subroutine bookmark_bmenu_list(status, called_interactively)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: called_interactively
+        type(handle_type) :: buf
+        logical :: interactive
+        call bookmark_maybe_load_default_file(status)
+        if (.not. status%ok()) return
+        call get_buffer_create(bookmark_bmenu_buffer, buf, status)
+        if (.not. status%ok()) return
+        interactive = .false.
+        if (present(called_interactively)) interactive = called_interactively
+        if (interactive) then
+            call switch_to_buffer(buffers(buf%index)%name, status)
+        else
+            call set_buffer(buf, status)
+        end if
+        if (.not. status%ok()) return
+        call bookmark_bmenu_mode(status)
+        if (.not. status%ok()) return
+        call bookmark_bmenu_revert(status)
+    end subroutine bookmark_bmenu_list
+
+    recursive subroutine cmd_bookmark_bmenu_list(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_list(status, called_interactively=.true.)
+    end subroutine cmd_bookmark_bmenu_list
+
+    !> Major mode for editing a list of bookmarks.
+    !> Each line describes one of the bookmarks in Fortmacs.
+    !> Letters do not insert themselves; instead, they are commands.
+    !> Bookmark names preceded by a "*" have annotations.
+    !>
+    !> If `bookmark_sort_flag' is true, then sort the list by bookmark name
+    !> (case-insensitively, in collation order); the direction of that sort
+    !> can be reversed by using the column sort toggle for the bookmark
+    !> name column.
+    !>
+    !> If `bookmark_sort_flag' is false, then sort the list by bookmark
+    !> creation order, with most recently created bookmarks on top.
+    !> However, the column sort toggle will still activate (and thereafter
+    !> toggle the direction of) lexical sorting by bookmark name.  At any
+    !> time you may use \[revert_buffer] to go back to sorting by creation
+    !> order.
+    !>
+    !> \<bookmark_bmenu_mode_map>
+    !> \[bookmark_bmenu_mark] -- mark bookmark to be displayed.
+    !> \[bookmark_bmenu_mark_all] -- mark all listed bookmarks to be displayed.
+    !> \[bookmark_bmenu_select] -- select bookmark of line point is on.
+    !>   Also show bookmarks marked using m in other windows.
+    !> \[bookmark_bmenu_toggle_filenames] -- toggle displaying of filenames (they may obscure long bookmark names).
+    !> \[bookmark_bmenu_locate] -- display (in minibuffer) location of this bookmark.
+    !> \[bookmark_bmenu_1_window] -- select this bookmark in full-frame window.
+    !> \[bookmark_bmenu_2_window] -- select this bookmark in one window,
+    !>   together with bookmark selected before this one in another window.
+    !> \[bookmark_bmenu_this_window] -- select this bookmark in place of the bookmark menu buffer.
+    !> \[bookmark_bmenu_other_window] -- select this bookmark in another window,
+    !>   so the bookmark menu bookmark remains visible in its window.
+    !> \[bookmark_bmenu_switch_other_window] -- switch the other window to this bookmark.
+    !> \[bookmark_bmenu_rename] -- rename this bookmark (prompts for new name).
+    !> \[bookmark_bmenu_relocate] -- relocate this bookmark's file (prompts for new file).
+    !> \[bookmark_bmenu_delete] -- mark this bookmark to be deleted, and move down.
+    !> \[bookmark_bmenu_delete_backwards] -- mark this bookmark to be deleted, and move up.
+    !> \[bookmark_bmenu_delete_all] -- mark all listed bookmarks as to be deleted.
+    !> \[bookmark_bmenu_execute_deletions] -- delete bookmarks marked with `\[bookmark_bmenu_delete]'
+    !>   or `\[bookmark_bmenu_delete_all]'.
+    !> \[bookmark_bmenu_save] -- save the current bookmark list in the default file.
+    !>   With a prefix arg, prompts for a file to save in.
+    !> \[bookmark_bmenu_load] -- load in a file of bookmarks (prompts for file.)
+    !> \[bookmark_bmenu_unmark] -- remove all kinds of marks from current line.
+    !>   With prefix argument, also move up one line.
+    !> \[bookmark_bmenu_backup_unmark] -- back up a line and remove marks.
+    !> \[bookmark_bmenu_unmark_all] -- remove all kinds of marks from all listed bookmarks.
+    !> \[bookmark_bmenu_show_annotation] -- show the annotation, if it exists, for the current bookmark
+    !>   in another buffer.
+    !> \[bookmark_bmenu_show_all_annotations] -- show the annotations of all bookmarks in another buffer.
+    !> \[bookmark_bmenu_edit_annotation] -- edit the annotation for the current bookmark.
+    !> \[bookmark_bmenu_search] -- incrementally search for bookmarks.
+    !> \[revert_buffer] -- refresh the buffer, and thus refresh the sort order (useful
+    !>   if `bookmark_sort_flag' is false).
+    !>
+    !> Port of bookmark.el:bookmark-bmenu-mode.
+    recursive subroutine bookmark_bmenu_mode(status)
+        type(status_type), intent(out) :: status
+        type(tabulated_list_column_type), allocatable :: format(:)
+        logical :: saved
+        call major_modes%bookmark_bmenu_mode%begin(saved, status)
+        if (.not. status%ok()) return
+        ! (truncate-lines: not ported.)
+        buffers(cur)%read_only = .true.
+        if (bookmark_bmenu_toggle_filenames) then
+            allocate (format(4))
+        else
+            allocate (format(3))
+        end if
+        ! Space to add "*" for bookmark with annotation
+        format(1)%name = ""
+        format(1)%width = 1
+        format(2)%name = "Bookmark Name"
+        format(2)%width = bookmark_bmenu_file_column
+        format(2)%sort = .true.
+        format(2)%predicate => bookmark_bmenu_name_predicate
+        format(3)%name = "Type"
+        format(3)%width = bookmark_bmenu_type_column_width
+        format(3)%sort = .true.
+        format(3)%predicate => bookmark_bmenu_type_predicate
+        if (bookmark_bmenu_toggle_filenames) then
+            format(4)%name = "File"
+            format(4)%width = 0
+            format(4)%sort = .true.
+            format(4)%predicate => bookmark_bmenu_file_predicate
+        end if
+        call set_tabulated_list_format(format)
+        call set_tabulated_list_padding(BOOKMARK_BMENU_MARKS_WIDTH)
+        if (bookmark_sort_flag == BOOKMARK_SORT_FLAG_T) call set_tabulated_list_sort_key("Bookmark Name")
+        call tabulated_list_revert_hook%add(bmenu_revert_hook, local=.true.)
+        call revert_buffer_function%set_local(bmenu_revert_function)
+        call tabulated_list_init_header()
+        call major_modes%bookmark_bmenu_mode%finish(saved, status)
+    end subroutine bookmark_bmenu_mode
+
+    ! string-collate-lessp with IGNORE-CASE: case-insensitive, in the
+    ! POSIX locale's order (by character code).
+    logical function collate_lessp(a, b)
+        use fns_fm, only: compare_strings
+        character(len=*), intent(in) :: a, b
+        collate_lessp = compare_strings(a, b, ignore_case=.true.) < 0
+    end function collate_lessp
+
+    !> Predicate to sort "*Bookmark List*" buffer by the name column.
+    !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
+    !> Port of bookmark.el:bookmark-bmenu--name-predicate.
+    logical function bookmark_bmenu_name_predicate(a, b)
+        type(tabulated_list_entry_type), intent(in) :: a, b
+        bookmark_bmenu_name_predicate = collate_lessp(a%id, b%id)
+    end function bookmark_bmenu_name_predicate
+
+    !> Predicate to sort "*Bookmark List*" buffer by the type column.
+    !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
+    !> Port of bookmark.el:bookmark-bmenu--type-predicate.
+    logical function bookmark_bmenu_type_predicate(a, b)
+        type(tabulated_list_entry_type), intent(in) :: a, b
+        bookmark_bmenu_type_predicate = collate_lessp(a%cols(3)%text, b%cols(3)%text)
+    end function bookmark_bmenu_type_predicate
+
+    !> Predicate to sort "*Bookmark List*" buffer by the file column.
+    !> This is used for `tabulated_list_format' in `bookmark_bmenu_mode'.
+    !> Port of bookmark.el:bookmark-bmenu--file-predicate.
+    logical function bookmark_bmenu_file_predicate(a, b)
+        type(tabulated_list_entry_type), intent(in) :: a, b
+        bookmark_bmenu_file_predicate = collate_lessp(bookmark_location(a%id), bookmark_location(b%id))
+    end function bookmark_bmenu_file_predicate
+
+    !> Toggle whether filenames are shown in the bookmark list.
+    !> Optional argument SHOW means show them unconditionally.  Port of
+    !> bookmark.el:bookmark-bmenu-toggle-filenames.
+    recursive subroutine bookmark_bmenu_toggle_filenames_command(status, show)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: show
+        logical :: s
+        status = status_type()
+        s = .false.
+        if (present(show)) s = show
+        if (s) then
+            bookmark_bmenu_toggle_filenames = .true.
+        else
+            bookmark_bmenu_toggle_filenames = .not. bookmark_bmenu_toggle_filenames
+        end if
+        call bookmark_bmenu_surreptitiously_rebuild_list()
+    end subroutine bookmark_bmenu_toggle_filenames_command
+
+    recursive subroutine cmd_bookmark_bmenu_toggle_filenames(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_toggle_filenames_command(status)
+    end subroutine cmd_bookmark_bmenu_toggle_filenames
+
+    !> In an interactive bookmark list, show filenames along with
+    !> bookmarks.  Port of bookmark.el:bookmark-bmenu-show-filenames.
+    recursive subroutine bookmark_bmenu_show_filenames()
+        bookmark_bmenu_toggle_filenames = .true.
+        call bookmark_bmenu_surreptitiously_rebuild_list()
+    end subroutine bookmark_bmenu_show_filenames
+
+    !> In an interactive bookmark list, hide the filenames of the
+    !> bookmarks.  Port of bookmark.el:bookmark-bmenu-hide-filenames.
+    recursive subroutine bookmark_bmenu_hide_filenames()
+        bookmark_bmenu_toggle_filenames = .false.
+        call bookmark_bmenu_surreptitiously_rebuild_list()
+    end subroutine bookmark_bmenu_hide_filenames
+
+    !> If point is not on a bookmark line, move it to one.
+    !> If after the last full line, move to the last full line.  The return
+    !> value is undefined.  Port of
+    !> bookmark.el:bookmark-bmenu-ensure-position.
+    subroutine bookmark_bmenu_ensure_position()
+        if (bolp() .and. eobp()) call beginning_of_line(0_int64)
+    end subroutine bookmark_bmenu_ensure_position
+
+    !> Return the bookmark for this line in an interactive bookmark list
+    !> buffer ("" for none).  Port of bookmark.el:bookmark-bmenu-bookmark.
+    function bookmark_bmenu_bookmark() result(name)
+        character(len=:), allocatable :: name
+        call bookmark_bmenu_ensure_position()
+        name = tabulated_list_get_id()
+    end function bookmark_bmenu_bookmark
+
+    !> Mark bookmark on this line to be displayed by
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_select].  Port of
+    !> bookmark.el:bookmark-bmenu-mark.
+    recursive subroutine bookmark_bmenu_mark(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_ensure_position()
+        call tabulated_list_put_tag(">", status, .true.)
+    end subroutine bookmark_bmenu_mark
+
+    ! Put TAG on every listed bookmark, point staying.
+    recursive subroutine tag_all(tag, status)
+        character(len=*), intent(in) :: tag
+        type(status_type), intent(out) :: status
+        integer(int64) :: saved
+        saved = point()
+        call goto_char(point_min())
+        call bookmark_bmenu_ensure_position()
+        status = status_type()
+        do while (.not. eobp())
+            call tabulated_list_put_tag(tag, status, .true.)
+            if (.not. status%ok()) exit
+        end do
+        call goto_char(saved)
+    end subroutine tag_all
+
+    !> Mark all listed bookmarks to be displayed by
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_select].  Port of
+    !> bookmark.el:bookmark-bmenu-mark-all.
+    recursive subroutine bookmark_bmenu_mark_all(status)
+        type(status_type), intent(out) :: status
+        call tag_all(">", status)
+    end subroutine bookmark_bmenu_mark_all
+
+    !> Select this line's bookmark; also display bookmarks marked with
+    !> `>'.  You can mark bookmarks with the
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark] or
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark_all] commands.
+    !> Port of bookmark.el:bookmark-bmenu-select.
+    recursive subroutine bookmark_bmenu_select(status)
+        use search_fm, only: re_search_forward
+        use window_fm, only: delete_other_windows, split_window, other_window, bury_buffer
+        use frame_fm, only: frame_lines
+        type(status_type), intent(out) :: status
+        type(minibuffer_string_type), allocatable :: others(:)
+        type(handle_type) :: menu, new
+        character(len=:), allocatable :: bmrk, tem
+        integer(int64) :: found
+        integer :: tem_size, k
+        logical :: ro, dup
+        bmrk = bookmark_bmenu_bookmark()
+        menu = current_buffer()
+        allocate (others(0))
+        call goto_char(point_min())
+        do
+            call re_search_forward("^>", found, status, noerror=1)
+            if (.not. status%ok()) return
+            if (found == 0) exit
+            tem = bookmark_bmenu_bookmark()
+            ro = buffers(cur)%read_only
+            buffers(cur)%read_only = .false.
+            call delete_char(-1_int64, status)
+            if (status%ok()) call insert(" ", status)
+            buffers(cur)%read_only = ro
+            if (.not. status%ok()) return
+            dup = same(tem, bmrk)
+            do k = 1, size(others)
+                if (same(others(k)%s, tem)) dup = .true.
+            end do
+            if (.not. dup) call append_name(others, tem)
+        end do
+        tem_size = (frame_lines(selected_frame) - 1)/(1 + size(others))
+        call delete_other_windows(selected_window(), status)
+        if (.not. status%ok()) return
+        call bookmark_jump(bmrk, status)
+        if (.not. status%ok()) return
+        call bury_buffer(status, menu)
+        if (size(others) > 0) then
+            do k = 1, size(others)
+                call split_window(selected_window(), tem_size, .true., .false., new, status)
+                if (.not. status%ok()) return
+                call other_window(1_int64, status)
+                if (.not. status%ok()) return
+                call bookmark_jump(others(k)%s, status)
+                if (.not. status%ok()) return
+            end do
+        else
+            call other_window(1_int64, status)
+        end if
+    end subroutine bookmark_bmenu_select
+
+    subroutine append_name(names, name)
+        type(minibuffer_string_type), allocatable, intent(inout) :: names(:)
+        character(len=*), intent(in) :: name
+        type(minibuffer_string_type), allocatable :: grown(:)
+        integer :: k, n
+        n = size(names)
+        allocate (grown(n + 1))
+        do k = 1, n
+            call move_alloc(names(k)%s, grown(k)%s)
+        end do
+        grown(n + 1)%s = name
+        call move_alloc(grown, names)
+    end subroutine append_name
+
+    !> Return true if any bookmarks are marked in the marks column.  Port
+    !> of bookmark.el:bookmark-bmenu-any-marks.
+    logical function bookmark_bmenu_any_marks() result(any)
+        use search_fm, only: looking_at
+        integer(int64) :: saved, shortage
+        type(status_type) :: st
+        saved = point()
+        call goto_char(point_min())
+        call bookmark_bmenu_ensure_position()
+        any = .false.
+        do while (.not. eobp())
+            call beginning_of_line()
+            if (looking_at("^\S-", st)) then
+                any = .true.
+                exit
+            end if
+            shortage = forward_line(1_int64)
+        end do
+        call goto_char(saved)
+    end function bookmark_bmenu_any_marks
+
+    !> Save the current list into a bookmark file.
+    !> With a prefix arg, prompt for a file to save them in.
+    !>
+    !> See also the related behaviors of `bookmark_load' and
+    !> `bookmark_bmenu_load'.  Port of bookmark.el:bookmark-bmenu-save.
+    recursive subroutine bookmark_bmenu_save(status)
+        type(status_type), intent(out) :: status
+        type(window_configuration_type) :: config
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: pt
+        old = current_buffer()
+        pt = point()
+        call current_window_configuration(config)
+        call cmd_bookmark_save(status)
+        if (status%ok()) call restore_buffer_modified_p(.false.)
+        call set_window_configuration(config)
+        call set_buffer(old, st)
+        call goto_char(pt)
+    end subroutine bookmark_bmenu_save
+
+    !> Load bookmarks from a file and rebuild the bookmark menu-buffer.
+    !> Prompt for a file, with the default choice being the value of
+    !> `bookmark_default_file'.
+    !>
+    !> With a prefix argument, replace the current ambient bookmarks (i.e.,
+    !> the ones in `bookmark_alist') with the ones from the selected file and
+    !> make that file be the new value of `bookmark_default_file'.  In other
+    !> words, a prefix argument means "switch over to the bookmark universe
+    !> defined in the loaded file".  Without a prefix argument, just add the
+    !> loaded bookmarks into the current ambient set.
+    !>
+    !> See the documentation for `bookmark_load' for more details; see also
+    !> the related behaviors of `bookmark_save' and `bookmark_bmenu_save'.
+    !> Port of bookmark.el:bookmark-bmenu-load.
+    recursive subroutine bookmark_bmenu_load(status)
+        type(status_type), intent(out) :: status
+        type(window_configuration_type) :: config
+        type(handle_type) :: old
+        type(status_type) :: st
+        integer(int64) :: pt
+        call bookmark_bmenu_ensure_position()
+        old = current_buffer()
+        pt = point()
+        call current_window_configuration(config)
+        ! This will call `bookmark_bmenu_list'
+        call cmd_bookmark_load(status)
+        call set_window_configuration(config)
+        call set_buffer(old, st)
+        call goto_char(pt)
+    end subroutine bookmark_bmenu_load
+
+    !> Select this line's bookmark, alone, in full frame.  Port of
+    !> bookmark.el:bookmark-bmenu-1-window.
+    recursive subroutine bookmark_bmenu_1_window(status)
+        use window_fm, only: delete_other_windows, bury_buffer, other_buffer
+        type(status_type), intent(out) :: status
+        call bookmark_jump(bookmark_bmenu_bookmark(), status)
+        if (.not. status%ok()) return
+        call bury_buffer(status, other_buffer(current_buffer()))
+        if (.not. status%ok()) return
+        call delete_other_windows(selected_window(), status)
+    end subroutine bookmark_bmenu_1_window
+
+    !> Select this line's bookmark, with previous buffer in second window.
+    !> Port of bookmark.el:bookmark-bmenu-2-window.
+    recursive subroutine bookmark_bmenu_2_window(status)
+        use window_fm, only: delete_other_windows, bury_buffer, other_buffer
+        type(status_type), intent(out) :: status
+        type(handle_type) :: menu, other
+        character(len=:), allocatable :: bmrk
+        bmrk = bookmark_bmenu_bookmark()
+        menu = current_buffer()
+        call delete_other_windows(selected_window(), status)
+        if (.not. status%ok()) return
+        other = other_buffer(current_buffer())
+        call switch_to_buffer(buffers(other%index)%name, status, force_same_window=.true.)
+        if (.not. status%ok()) return
+        ! (pop-up-windows t: pop_to_buffer splits.)
+        call bookmark_jump_via(bmrk, display_pop_to_buffer, status)
+        if (.not. status%ok()) return
+        call bury_buffer(status, menu)
+    end subroutine bookmark_bmenu_2_window
+
+    recursive subroutine display_pop_to_buffer(buffer, status)
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        call pop_to_buffer(buffer, status)
+    end subroutine display_pop_to_buffer
+
+    !> Select this line's bookmark in this window.  Port of
+    !> bookmark.el:bookmark-bmenu-this-window.
+    recursive subroutine bookmark_bmenu_this_window(status)
+        type(status_type), intent(out) :: status
+        call bookmark_jump(bookmark_bmenu_bookmark(), status)
+    end subroutine bookmark_bmenu_this_window
+
+    !> Select this line's bookmark in other window, leaving bookmark menu
+    !> visible.  Port of bookmark.el:bookmark-bmenu-other-window.
+    recursive subroutine bookmark_bmenu_other_window(status)
+        type(status_type), intent(out) :: status
+        call bookmark_jump_via(bookmark_bmenu_bookmark(), display_other_window, status)
+    end subroutine bookmark_bmenu_other_window
+
+    !> Make the other window select this line's bookmark.
+    !> The current window remains selected.  Port of
+    !> bookmark.el:bookmark-bmenu-switch-other-window.
+    recursive subroutine bookmark_bmenu_switch_other_window(status)
+        type(status_type), intent(out) :: status
+        call bookmark_jump_via(bookmark_bmenu_bookmark(), display_not_this_window, status)
+    end subroutine bookmark_bmenu_switch_other_window
+
+    ! (display-buffer B t): not in the selected window.
+    recursive subroutine display_not_this_window(buffer, status)
+        use window_fm, only: display_buffer
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        type(handle_type) :: window
+        call display_buffer(buffer, window, status, alist=display_alist_type(inhibit_same_window=.true.))
+    end subroutine display_not_this_window
+
+    !> Show the annotation for the current bookmark in another window.
+    !> Port of bookmark.el:bookmark-bmenu-show-annotation.
+    recursive subroutine bookmark_bmenu_show_annotation(status)
+        type(status_type), intent(out) :: status
+        call bookmark_show_annotation(bookmark_bmenu_bookmark(), status)
+    end subroutine bookmark_bmenu_show_annotation
+
+    !> Show the annotation for all bookmarks in another window.  Port of
+    !> bookmark.el:bookmark-bmenu-show-all-annotations.
+    recursive subroutine bookmark_bmenu_show_all_annotations(status)
+        type(status_type), intent(out) :: status
+        call bookmark_show_all_annotations(status)
+    end subroutine bookmark_bmenu_show_all_annotations
+
+    !> Edit the annotation for the current bookmark in another window.
+    !> Port of bookmark.el:bookmark-bmenu-edit-annotation.
+    recursive subroutine bookmark_bmenu_edit_annotation(status)
+        type(status_type), intent(out) :: status
+        call bookmark_edit_annotation(bookmark_bmenu_bookmark(), status, .true.)
+    end subroutine bookmark_bmenu_edit_annotation
+
+    !> Cancel all requested operations on bookmark on this line and move
+    !> down.  Optional BACKUP means move up.  Port of
+    !> bookmark.el:bookmark-bmenu-unmark.
+    recursive subroutine bookmark_bmenu_unmark(status, backup)
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: backup
+        integer(int64) :: shortage
+        logical :: up
+        up = .false.
+        if (present(backup)) up = backup
+        ! any flags to reset according to circumstances?  How about a flag
+        ! indicating whether this bookmark is being visited?  well, we don't
+        ! have this now, so maybe later.
+        call bookmark_bmenu_ensure_position()
+        call tabulated_list_put_tag(" ", status)
+        if (up) then
+            shortage = forward_line(-1_int64)
+        else
+            shortage = forward_line(1_int64)
+        end if
+    end subroutine bookmark_bmenu_unmark
+
+    recursive subroutine cmd_bookmark_bmenu_unmark(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_unmark(status,.not. nilp(current_prefix_arg))
+    end subroutine cmd_bookmark_bmenu_unmark
+
+    !> Move up and cancel all requested operations on bookmark on line
+    !> above.  Port of bookmark.el:bookmark-bmenu-backup-unmark.
+    recursive subroutine bookmark_bmenu_backup_unmark(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: shortage
+        shortage = forward_line(-1_int64)
+        call bookmark_bmenu_ensure_position()
+        call bookmark_bmenu_unmark(status)
+        shortage = forward_line(-1_int64)
+        call bookmark_bmenu_ensure_position()
+    end subroutine bookmark_bmenu_backup_unmark
+
+    !> Cancel all requested operations on all listed bookmarks.  Port of
+    !> bookmark.el:bookmark-bmenu-unmark-all.
+    recursive subroutine bookmark_bmenu_unmark_all(status)
+        type(status_type), intent(out) :: status
+        call tag_all(" ", status)
+    end subroutine bookmark_bmenu_unmark_all
+
+    !> Mark bookmark on this line to be deleted.
+    !> To carry out the deletions that you've marked, use
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions].
+    !> Port of bookmark.el:bookmark-bmenu-delete.
+    recursive subroutine bookmark_bmenu_delete(status)
+        type(status_type), intent(out) :: status
+        call bookmark_bmenu_ensure_position()
+        call tabulated_list_put_tag("D", status, .true.)
+    end subroutine bookmark_bmenu_delete
+
+    !> Mark bookmark on this line to be deleted, then move up one line.
+    !> To carry out the deletions that you've marked, use
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions].
+    !> Port of bookmark.el:bookmark-bmenu-delete-backwards.
+    recursive subroutine bookmark_bmenu_delete_backwards(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: shortage
+        call bookmark_bmenu_delete(status)
+        shortage = forward_line(-2_int64)
+    end subroutine bookmark_bmenu_delete_backwards
+
+    !> Mark all listed bookmarks as to be deleted.
+    !> To remove all deletion marks, use
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_unmark_all].  To carry
+    !> out the deletions that you've marked, use
+    !> \<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions].
+    !> Port of bookmark.el:bookmark-bmenu-delete-all.
+    recursive subroutine bookmark_bmenu_delete_all(status)
+        type(status_type), intent(out) :: status
+        call tag_all("D", status)
+    end subroutine bookmark_bmenu_delete_all
+
+    !> Delete bookmarks flagged `D'.
+    !> If `bookmark_menu_confirm_deletion' is true, prompt for confirmation
+    !> first.  Port of bookmark.el:bookmark-bmenu-execute-deletions.
+    recursive subroutine bookmark_bmenu_execute_deletions(status)
+        use search_fm, only: re_search_forward
+        use indent_fm, only: current_column
+        type(status_type), intent(out) :: status
+        type(progress_reporter_type) :: reporter
+        character(len=:), allocatable :: o_str
+        integer(int64) :: o_point, o_col, found, here
+        logical :: ok, have_str
+        status = status_type()
+        if (bookmark_menu_confirm_deletion) then
+            call yes_or_no_p("Delete selected bookmarks? ", ok, status)
+            if (.not. status%ok()) return
+            if (.not. ok) then
+                call message("Bookmarks not deleted.")
+                return
+            end if
+        end if
+        call make_progress_reporter(reporter, "Deleting bookmarks...")
+        o_point = point()
+        here = pos_bol()
+        have_str = .false.
+        if (here < point_max()) then
+            if (char_at(here) /= iachar("D")) have_str = .true.
+        else
+            have_str = .true.
+        end if
+        if (have_str) call buffer_substring(here, pos_eol(), o_str, status)
+        o_col = current_column()
+        call goto_char(point_min())
+        do
+            call re_search_forward("^D", found, status, bound=point_max(), noerror=1)
+            if (.not. status%ok()) return
+            if (found == 0) exit
+            ! pass BATCH arg
+            call bookmark_delete(bookmark_bmenu_bookmark(), status, batch=.true.)
+            if (.not. status%ok()) return
+        end do
+        call bookmark_bmenu_list(status)
+        if (.not. status%ok()) return
+        if (have_str) then
+            call goto_char(point_min())
+            call search_forward(o_str, found, status)
+            if (.not. status%ok()) return
+            call beginning_of_line()
+            call forward_char(status, o_col)
+        else
+            call goto_char(o_point)
+        end if
+        call beginning_of_line()
+        call progress_reporter_done(reporter)
+    contains
+        integer function char_at(pos)
+            use editfns_fm, only: char_after
+            integer(int64), intent(in) :: pos
+            integer(int32) :: c
+            logical :: found
+            call char_after(c, found, pos)
+            char_at = -1
+            if (found) char_at = c
+        end function char_at
+    end subroutine bookmark_bmenu_execute_deletions
+
+    !> Rename bookmark on current line.  Prompts for a new name.  Port of
+    !> bookmark.el:bookmark-bmenu-rename.
+    recursive subroutine bookmark_bmenu_rename(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: thispoint
+        character(len=:), allocatable :: bmrk
+        bmrk = bookmark_bmenu_bookmark()
+        thispoint = point()
+        call bookmark_rename(bmrk, status)
+        call goto_char(thispoint)
+    end subroutine bookmark_bmenu_rename
+
+    !> Display the location of the bookmark for this line.  Port of
+    !> bookmark.el:bookmark-bmenu-locate.
+    recursive subroutine bookmark_bmenu_locate(status)
+        type(status_type), intent(out) :: status
+        status = status_type()
+        call message(bookmark_location(bookmark_bmenu_bookmark()))
+    end subroutine bookmark_bmenu_locate
+
+    !> Change the absolute file name of the bookmark on the current line.
+    !> Prompt with completion for the new path.  Port of
+    !> bookmark.el:bookmark-bmenu-relocate.
+    recursive subroutine bookmark_bmenu_relocate(status)
+        type(status_type), intent(out) :: status
+        integer(int64) :: thispoint
+        character(len=:), allocatable :: bmrk
+        bmrk = bookmark_bmenu_bookmark()
+        thispoint = point()
+        call bookmark_relocate(bmrk, status)
+        call goto_char(thispoint)
+    end subroutine bookmark_bmenu_relocate
+
+    !> Filter `bookmark_alist' with bookmarks matching REGEXP and rebuild
+    !> list.  Port of bookmark.el:bookmark-bmenu-filter-alist-by-regexp.
+    recursive subroutine bookmark_bmenu_filter_alist_by_regexp(regexp, status)
+        use search_fm, only: string_match
+        character(len=*), intent(in) :: regexp
+        type(status_type), intent(out) :: status
+        type(bookmark_type), allocatable :: saved(:)
+        type(status_type) :: st
+        integer :: k
+        call move_alloc(bookmark_alist, saved)
+        allocate (bookmark_alist(0))
+        do k = 1, size(saved)
+            if (string_match(regexp, bookmark_name_from_full_record(saved(k)), st) > 0) call append_record(saved(k))
+        end do
+        call bookmark_bmenu_list(status)
+        call move_alloc(saved, bookmark_alist)
+    end subroutine bookmark_bmenu_filter_alist_by_regexp
+
+    !> Incremental search of bookmarks, hiding the non-matches as we go.
+    !> Port of bookmark.el:bookmark-bmenu-search.
+    recursive subroutine bookmark_bmenu_search(status)
+        use minibuf_fm, only: read_string, minibuffer_setup_hook
+        use timer_fm, only: timerp, free_timer
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: bmk, pattern
+        type(status_type) :: st
+        bmk = bookmark_bmenu_bookmark()
+        search_timer = handle_type()
+        call minibuffer_setup_hook%add(bmenu_search_setup)
+        call read_string("Pattern: ", pattern, status)
+        call minibuffer_setup_hook%remove(bmenu_search_setup)
+        if (status%ok()) then
+            if (timerp(search_timer)) call free_timer(search_timer)
+            search_timer = handle_type()
+        end if
+        if (timerp(search_timer)) then
+            ! Signaled an error or a `quit'.
+            call free_timer(search_timer)
+            search_timer = handle_type()
+            call bookmark_bmenu_list(st)
+            call bookmark_bmenu_goto_bookmark(bmk)
+        end if
+    end subroutine bookmark_bmenu_search
+
+    ! The setup function of `bookmark_bmenu_search': filter the list by
+    ! the minibuffer's contents every `bookmark_search_delay' seconds of
+    ! idleness.
+    recursive subroutine bmenu_search_setup(status)
+        use minibuf_fm, only: minibuffer_setup_hook
+        use timer_fm, only: run_with_idle_timer
+        type(status_type), intent(out) :: status
+        ! (minibuffer-with-setup-hook: once.)
+        call minibuffer_setup_hook%remove(bmenu_search_setup)
+        search_minibuffer = current_buffer()
+        call run_with_idle_timer(search_timer, real(bookmark_search_delay, real64), .true., bmenu_search_filter, status)
+    end subroutine bmenu_search_setup
+
+    recursive subroutine bmenu_search_filter(status)
+        use minibuf_fm, only: minibuffer_contents
+        type(status_type), intent(out) :: status
+        type(handle_type) :: old
+        type(status_type) :: st
+        old = current_buffer()
+        call set_buffer(search_minibuffer, status)
+        if (.not. status%ok()) return
+        call bookmark_bmenu_filter_alist_by_regexp(minibuffer_contents(), status)
+        call set_buffer(old, st)
+    end subroutine bmenu_search_filter
+
+    !> Move point to bookmark with name NAME.  Port of
+    !> bookmark.el:bookmark-bmenu-goto-bookmark.
+    subroutine bookmark_bmenu_goto_bookmark(name)
+        character(len=*), intent(in) :: name
+        integer(int64) :: shortage
+        call goto_char(point_min())
+        do while (.not. (same(name, bookmark_bmenu_bookmark()) .or. eobp()))
+            shortage = forward_line(1_int64)
+        end do
+        shortage = forward_line(0_int64)
+    end subroutine bookmark_bmenu_goto_bookmark
 
     ! ------------------------------------------------------------------
     ! Fringe mark
@@ -2747,6 +3678,7 @@ contains
         call keymap_set(bookmark_map, "g", "bookmark_jump", st)
         call keymap_set(bookmark_map, "o", "bookmark_jump_other_window", st)
         call keymap_set(bookmark_map, "i", "bookmark_insert", st)
+        call keymap_set(bookmark_map, "e", "edit_bookmarks", st)
         ! "f"ind
         call keymap_set(bookmark_map, "f", "bookmark_insert_location", st)
         call keymap_set(bookmark_map, "r", "bookmark_rename", st)
@@ -2755,6 +3687,75 @@ contains
         call keymap_set(bookmark_map, "l", "bookmark_load", st)
         call keymap_set(bookmark_map, "w", "bookmark_write", st)
         call keymap_set(bookmark_map, "s", "bookmark_save", st)
+        if (.not. allocated(bookmark_bmenu_buffer)) bookmark_bmenu_buffer = "*Bookmark List*"
+        call bookmark_menu_bookmark%define("bookmark_menu_bookmark", &
+                                           "Face used to highlight bookmark names in bookmark menu buffers.")
+        call bookmark_menu_bookmark%spec_entry(display_when(), face_attrs(weight="bold"))
+        call major_modes%bookmark_bmenu_mode%define("bookmark_bmenu_mode", "Bookmark Menu", bookmark_bmenu_mode, &
+                                                    bookmark_bmenu_mode_hook, parent=major_modes%tabulated_list_mode)
+        bookmark_bmenu_mode_map = major_modes%bookmark_bmenu_mode%map
+        commands%bookmark_bmenu_mode%run => bookmark_bmenu_mode
+        commands%bookmark_bmenu_list%run => cmd_bookmark_bmenu_list
+        commands%list_bookmarks%run => cmd_bookmark_bmenu_list
+        commands%edit_bookmarks%run => cmd_bookmark_bmenu_list
+        commands%bookmark_bmenu_select%run => bookmark_bmenu_select
+        commands%bookmark_bmenu_locate%run => bookmark_bmenu_locate
+        commands%bookmark_bmenu_2_window%run => bookmark_bmenu_2_window
+        commands%bookmark_bmenu_1_window%run => bookmark_bmenu_1_window
+        commands%bookmark_bmenu_this_window%run => bookmark_bmenu_this_window
+        commands%bookmark_bmenu_other_window%run => bookmark_bmenu_other_window
+        commands%bookmark_bmenu_switch_other_window%run => bookmark_bmenu_switch_other_window
+        commands%bookmark_bmenu_save%run => bookmark_bmenu_save
+        commands%bookmark_bmenu_delete%run => bookmark_bmenu_delete
+        commands%bookmark_bmenu_delete_backwards%run => bookmark_bmenu_delete_backwards
+        commands%bookmark_bmenu_execute_deletions%run => bookmark_bmenu_execute_deletions
+        commands%bookmark_bmenu_delete_all%run => bookmark_bmenu_delete_all
+        commands%bookmark_bmenu_backup_unmark%run => bookmark_bmenu_backup_unmark
+        commands%bookmark_bmenu_unmark%run => cmd_bookmark_bmenu_unmark
+        commands%bookmark_bmenu_unmark_all%run => bookmark_bmenu_unmark_all
+        commands%bookmark_bmenu_mark%run => bookmark_bmenu_mark
+        commands%bookmark_bmenu_mark_all%run => bookmark_bmenu_mark_all
+        commands%bookmark_bmenu_load%run => bookmark_bmenu_load
+        commands%bookmark_bmenu_rename%run => bookmark_bmenu_rename
+        commands%bookmark_bmenu_relocate%run => bookmark_bmenu_relocate
+        commands%bookmark_bmenu_toggle_filenames%run => cmd_bookmark_bmenu_toggle_filenames
+        commands%bookmark_bmenu_show_annotation%run => bookmark_bmenu_show_annotation
+        commands%bookmark_bmenu_show_all_annotations%run => bookmark_bmenu_show_all_annotations
+        commands%bookmark_bmenu_edit_annotation%run => bookmark_bmenu_edit_annotation
+        commands%bookmark_bmenu_search%run => bookmark_bmenu_search
+        call keymap_set(bookmark_bmenu_mode_map, "v", "bookmark_bmenu_select", st)
+        call keymap_set(bookmark_bmenu_mode_map, "w", "bookmark_bmenu_locate", st)
+        call keymap_set(bookmark_bmenu_mode_map, "2", "bookmark_bmenu_2_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "1", "bookmark_bmenu_1_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "j", "bookmark_bmenu_this_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "C-c C-c", "bookmark_bmenu_this_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "f", "bookmark_bmenu_this_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "C-m", "bookmark_bmenu_this_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "o", "bookmark_bmenu_other_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "C-o", "bookmark_bmenu_switch_other_window", st)
+        call keymap_set(bookmark_bmenu_mode_map, "s", "bookmark_bmenu_save", st)
+        call keymap_set(bookmark_bmenu_mode_map, "C-x C-s", "bookmark_bmenu_save", st)
+        call keymap_set(bookmark_bmenu_mode_map, "k", "bookmark_bmenu_delete", st)
+        call keymap_set(bookmark_bmenu_mode_map, "C-d", "bookmark_bmenu_delete_backwards", st)
+        call keymap_set(bookmark_bmenu_mode_map, "x", "bookmark_bmenu_execute_deletions", st)
+        call keymap_set(bookmark_bmenu_mode_map, "d", "bookmark_bmenu_delete", st)
+        call keymap_set(bookmark_bmenu_mode_map, "D", "bookmark_bmenu_delete_all", st)
+        call keymap_set(bookmark_bmenu_mode_map, "S-SPC", "previous_line", st)
+        call keymap_set(bookmark_bmenu_mode_map, "SPC", "next_line", st)
+        call keymap_set(bookmark_bmenu_mode_map, "DEL", "bookmark_bmenu_backup_unmark", st)
+        call keymap_set(bookmark_bmenu_mode_map, "u", "bookmark_bmenu_unmark", st)
+        call keymap_set(bookmark_bmenu_mode_map, "U", "bookmark_bmenu_unmark_all", st)
+        call keymap_set(bookmark_bmenu_mode_map, "m", "bookmark_bmenu_mark", st)
+        call keymap_set(bookmark_bmenu_mode_map, "M", "bookmark_bmenu_mark_all", st)
+        call keymap_set(bookmark_bmenu_mode_map, "l", "bookmark_bmenu_load", st)
+        call keymap_set(bookmark_bmenu_mode_map, "r", "bookmark_bmenu_rename", st)
+        call keymap_set(bookmark_bmenu_mode_map, "R", "bookmark_bmenu_relocate", st)
+        call keymap_set(bookmark_bmenu_mode_map, "t", "bookmark_bmenu_toggle_filenames", st)
+        call keymap_set(bookmark_bmenu_mode_map, "a", "bookmark_bmenu_show_annotation", st)
+        call keymap_set(bookmark_bmenu_mode_map, "A", "bookmark_bmenu_show_all_annotations", st)
+        call keymap_set(bookmark_bmenu_mode_map, "e", "bookmark_bmenu_edit_annotation", st)
+        call keymap_set(bookmark_bmenu_mode_map, "J", "bookmark_jump", st)
+        call keymap_set(bookmark_bmenu_mode_map, "/", "bookmark_bmenu_search", st)
         call kill_emacs_hook%add(bookmark_exit_hook_internal)
     end subroutine syms_of_bookmark
 end module bookmark_fm

@@ -104,6 +104,30 @@ module buffer_fm
         logical :: cons = .false., ellipsis = .false.
     end type invisibility_entry_type
 
+    !> A part of a header line: TEXT in FACE (empty for the header line's
+    !> own face), starting at column ALIGN_TO of the window's text area if
+    !> ALIGN_TO is not negative (as a `(space :align-to ALIGN_TO)' display
+    !> spec before it would).
+    type, public :: header_line_segment_type
+        character(len=:), allocatable :: text
+        character(len=:), allocatable :: face
+        integer :: align_to = -1
+    end type header_line_segment_type
+
+    !> A header line: its segments in order.  A buffer shows no header line
+    !> while SEGMENTS is unallocated (nil upstream); `add' starts one.
+    !> (The %-constructs, `:eval' and the other mode-line-format elements
+    !> are Deferred, as for the mode line.)
+    type, public :: header_line_format_type
+        type(header_line_segment_type), allocatable :: segments(:)
+    contains
+        !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
+        !> if present.
+        procedure :: add => header_line_add
+        !> No header line (nil).
+        procedure :: clear => header_line_clear
+    end type header_line_format_type
+
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
@@ -183,6 +207,10 @@ module buffer_fm
         integer :: nlocal = 0
         !> BVAR major_mode (`major_mode'): the major mode's command name.
         character(len=:), allocatable :: major_mode
+        !> BVAR header_line_format (`header_line_format'): the header line,
+        !> shown at the top of each window that displays the buffer (see
+        !> `header_line_format_type').
+        type(header_line_format_type) :: header_line_format
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
@@ -326,6 +354,36 @@ module buffer_fm
     public :: buffer_serial_live
 
 contains
+
+    !> Append the segment TEXT, in FACE if present, at column ALIGN_TO if
+    !> present, to header line SELF.
+    subroutine header_line_add(self, text, face, align_to)
+        class(header_line_format_type), intent(inout) :: self
+        character(len=*), intent(in) :: text
+        character(len=*), intent(in), optional :: face
+        integer, intent(in), optional :: align_to
+        type(header_line_segment_type), allocatable :: grown(:)
+        integer :: k, n
+        if (.not. allocated(self%segments)) allocate (self%segments(0))
+        n = size(self%segments)
+        allocate (grown(n + 1))
+        do k = 1, n
+            call move_alloc(self%segments(k)%text, grown(k)%text)
+            call move_alloc(self%segments(k)%face, grown(k)%face)
+            grown(k)%align_to = self%segments(k)%align_to
+        end do
+        grown(n + 1)%text = text
+        grown(n + 1)%face = ""
+        if (present(face)) grown(n + 1)%face = face
+        if (present(align_to)) grown(n + 1)%align_to = align_to
+        call move_alloc(grown, self%segments)
+    end subroutine header_line_add
+
+    !> Make header line SELF nil: no header line.
+    subroutine header_line_clear(self)
+        class(header_line_format_type), intent(inout) :: self
+        if (allocated(self%segments)) deallocate (self%segments)
+    end subroutine header_line_clear
 
     ! ------------------------------------------------------------------
     ! Registry
