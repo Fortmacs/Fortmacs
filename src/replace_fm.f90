@@ -95,7 +95,7 @@ module replace_fm
     use xdisp_fm, only: message
     use dispnew_fm, only: ding
     use handle_fm, only: null_handle
-    use lisp_fm, only: t_value, consp, fixnump, xfixnum, make_fixnum
+    use lisp_fm, only: t_value, consp, fixnump, xfixnum, make_fixnum, list
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, get_buffer, kill_buffer, &
                          buffer_live_p, buffer_list, erase_buffer, rename_buffer, generate_new_buffer_name, &
                          restore_buffer_modified_p
@@ -3387,10 +3387,10 @@ contains
             if (iand(c, 192) == 128) cycle
             if (c < 32) then
                 call put_prop(p, p + 1, "display", propertize(make_string("^"//achar(c + 64)), &
-                                                              make_list([sym("face"), sym("escape_glyph")])))
+                                                              list(sym("face"), sym("escape_glyph"))))
             else if (c == 127) then
                 call put_prop(p, p + 1, "display", propertize(make_string("^?"), &
-                                                              make_list([sym("face"), sym("escape_glyph")])))
+                                                              list(sym("face"), sym("escape_glyph"))))
             end if
             p = p + 1
         end do
@@ -4185,7 +4185,7 @@ contains
                                          "follow_link"]
         end if
         call defvar_nil(OCCUR_COLLECT_HISTORY)
-        call set(sym(OCCUR_COLLECT_HISTORY), make_list([make_string("\1")]), st)
+        call set(sym(OCCUR_COLLECT_HISTORY), list(make_string("\1")), st)
         call occur_mode_hook%add(turn_on_font_lock_hook)
         call major_modes%occur_mode%define("occur_mode", "Occur", occur_mode, occur_mode_hook, &
                                            parent=major_modes%special_mode)

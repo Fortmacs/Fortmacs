@@ -1641,7 +1641,7 @@ contains
         do
             call next_region("compilation_annotation", pos, beg, end, found)
             if (.not. found) exit
-            call add_text_properties(beg, end, make_list([sym("read_only"), t_value(), sym("front_sticky"), t_value()]), &
+            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("front_sticky"), t_value()), &
                                      changed, st)
             pos = end
         end do
@@ -1649,10 +1649,10 @@ contains
         do
             call next_region("compilation_message", pos, beg, end, found)
             if (.not. found) exit
-            call add_text_properties(beg, end, make_list([sym("read_only"), t_value(), sym("occur_prefix"), t_value(), &
-                                                          ! Allow insertion of text right after prefix, but not before.
-                                                          sym("front_sticky"), t_value(), sym("rear_nonsticky"), &
-                                                          t_value()]), changed, st)
+            ! (Allow insertion of text right after prefix, but not before.)
+            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("occur_prefix"), t_value(), &
+                                                    sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value()), &
+                                     changed, st)
             ! Update the markers if necessary.
             call compilation_message_location(beg, target_buffer, location, found, status)
             if (.not. status%ok()) exit
