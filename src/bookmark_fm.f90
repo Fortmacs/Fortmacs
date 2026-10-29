@@ -42,10 +42,13 @@
 !>
 !> The last-modified time is seconds and nanoseconds since the epoch.
 !>
-!> Deferred: the bookmark list (`bookmark_bmenu_list', C-x r l, and
-!> Bookmark Menu mode with its commands and options, which need
-!> tabulated-list.el and header lines; `bookmark_edit_annotation' from it
-!> and the rebuilding of the list when bookmarks change come with it);
+!> \[bookmark_bmenu_list] (C-x r l) lists the bookmarks in Bookmark Menu mode
+!> (a Tabulated List mode).
+!>
+!> Deferred: the menu and the mouse command of the bookmark list
+!> (`bookmark_bmenu_other_window_with_mouse'), and its sorting in the locale's
+!> collation order (`string_collate_lessp': names sort case-insensitively
+!> by character code, as in the POSIX locale); `truncate_lines' in it;
 !> bookmarks with a `handler' (Help, VC-Dir and Shell buffers set
 !> `bookmark_make_record_function' to make them; that function is not
 !> buffer-local yet), and with them the `buffer', `location' and other
@@ -448,7 +451,7 @@ module bookmark_fm
 
     !> Time before `bookmark_bmenu_search' updates the display.  Port of
     !> bookmark.el bookmark-search-delay.
-    real(real64), public :: bookmark_search_delay = 0.2_real64
+    real, public :: bookmark_search_delay = 0.2
 
     !> Keymap for `bookmark_bmenu_mode'.  Port of bookmark.el
     !> bookmark-bmenu-mode-map.
@@ -3459,7 +3462,7 @@ contains
         ! (minibuffer-with-setup-hook: once.)
         call minibuffer_setup_hook%remove(bmenu_search_setup)
         search_minibuffer = current_buffer()
-        call run_with_idle_timer(search_timer, bookmark_search_delay, .true., bmenu_search_filter, status)
+        call run_with_idle_timer(search_timer, real(bookmark_search_delay, real64), .true., bmenu_search_filter, status)
     end subroutine bmenu_search_setup
 
     recursive subroutine bmenu_search_filter(status)
