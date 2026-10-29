@@ -77,6 +77,7 @@ program tester
     use test_process_fm, only: collect_process_fm
     use test_simple_shell_fm, only: collect_simple_shell_fm
     use test_compile_fm, only: collect_compile_fm
+    use test_grep_fm, only: collect_grep_fm
     use test_ring_fm, only: collect_ring_fm
     use test_comint_fm, only: collect_comint_fm
     use test_shell_fm, only: collect_shell_fm
@@ -121,6 +122,8 @@ program tester
     use test_saveplace_fm, only: collect_saveplace_fm
     use test_recentf_fm, only: collect_recentf_fm
     use test_bookmark_fm, only: collect_bookmark_fm
+    use test_mule_util_fm, only: collect_mule_util_fm
+    use test_tabulated_list_fm, only: collect_tabulated_list_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -163,6 +166,7 @@ program tester
                  new_testsuite("process_fm", collect_process_fm), &
                  new_testsuite("simple_shell_fm", collect_simple_shell_fm), &
                  new_testsuite("compile_fm", collect_compile_fm), &
+                 new_testsuite("grep_fm", collect_grep_fm), &
                  new_testsuite("ring_fm", collect_ring_fm), &
                  new_testsuite("comint_fm", collect_comint_fm), &
                  new_testsuite("shell_fm", collect_shell_fm), &
@@ -225,7 +229,9 @@ program tester
                  new_testsuite("savehist_fm", collect_savehist_fm), &
                  new_testsuite("saveplace_fm", collect_saveplace_fm), &
                  new_testsuite("recentf_fm", collect_recentf_fm), &
-                 new_testsuite("bookmark_fm", collect_bookmark_fm) &
+                 new_testsuite("bookmark_fm", collect_bookmark_fm), &
+                 new_testsuite("mule_util_fm", collect_mule_util_fm), &
+                 new_testsuite("tabulated_list_fm", collect_tabulated_list_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

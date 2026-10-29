@@ -49,17 +49,20 @@ module docstrings_fm
                              global_auto_revert_non_file_buffers
     use bookmark_fm, only: bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_alist, &
                            bookmark_alist_modification_count, bookmark_automatically_show_annotations, &
+                           bookmark_bmenu_buffer, bookmark_bmenu_file_column, bookmark_bmenu_mode_hook, &
+                           bookmark_bmenu_mode_map, bookmark_bmenu_toggle_filenames, bookmark_bmenu_type_column_width, &
                            bookmark_bookmarks_timestamp, bookmark_completion_ignore_case, bookmark_current_buffer, &
                            bookmark_default_file, bookmark_edit_annotation_mode_hook, bookmark_edit_annotation_mode_map, &
                            bookmark_exit_hook, bookmark_face, bookmark_file_coding_system, bookmark_fringe_mark, &
-                           bookmark_inhibit_context_functions, bookmark_map, bookmark_menu_confirm_deletion, &
-                           bookmark_minibuffer_read_name_map, bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, &
-                           BOOKMARK_SAVE_FLAG_T, bookmark_search_size, bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, &
-                           BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, &
-                           bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
-                           BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, &
-                           bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NIL, &
-                           BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmark_yank_point
+                           bookmark_inhibit_context_functions, bookmark_map, bookmark_menu_bookmark, &
+                           bookmark_menu_confirm_deletion, bookmark_minibuffer_read_name_map, bookmark_save_flag, &
+                           BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_search_delay, bookmark_search_size, &
+                           bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, BOOKMARK_SORT_FLAG_T, &
+                           BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, bookmark_version_control, &
+                           BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, BOOKMARK_VERSION_CONTROL_NEVER, &
+                           BOOKMARK_VERSION_CONTROL_NOSPECIAL, bookmark_watch_bookmark_file, &
+                           BOOKMARK_WATCH_BOOKMARK_FILE_NIL, BOOKMARK_WATCH_BOOKMARK_FILE_T, &
+                           BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmark_yank_point
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                           mark_even_if_inactive, this_command
@@ -205,6 +208,21 @@ module docstrings_fm
                             font_lock_dont_widen, font_lock_extra_managed_props, font_lock_maximum_decoration, &
                             FONT_LOCK_DECORATION_MAX, font_lock_support_mode, FONT_LOCK_SUPPORT_NONE, &
                             FONT_LOCK_SUPPORT_JIT_LOCK, font_lock_verbose
+    use grep_fm, only: find_name_arg, find_program, grep_command, grep_command_position, &
+                       grep_compilation_transform_finished_rules, grep_context_face, grep_error, grep_error_face, &
+                       grep_error_screen_columns, grep_files_aliases, grep_find_abbreviate, grep_find_command, &
+                       grep_find_command_position, grep_find_ignored_directories, vgrep_find_ignored_files, &
+                       grep_find_template, grep_find_use_xargs, GREP_FIND_USE_XARGS_NIL, GREP_FIND_USE_XARGS_EXEC, &
+                       GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT, &
+                       GREP_FIND_USE_XARGS_OTHER, grep_first_column, grep_heading, grep_heading_regexp, &
+                       grep_highlight_matches, GREP_NIL, GREP_T, GREP_AUTO_DETECT, GREP_ALWAYS, GREP_AUTO, &
+                       grep_hit_face, grep_last_buffer, grep_match_face, grep_match_regexp, &
+                       grep_mode_font_lock_keywords, grep_mode_hook, grep_mode_map, grep_program, &
+                       grep_quoting_style, grep_regexp_alist, grep_save_buffers, GREP_SAVE_BUFFERS_NIL, &
+                       GREP_SAVE_BUFFERS_T, GREP_SAVE_BUFFERS_ASK, grep_scroll_output, grep_setup_hook, &
+                       grep_template, grep_use_headings, grep_use_null_device, GREP_NIL, GREP_T, GREP_AUTO_DETECT, &
+                       GREP_ALWAYS, GREP_AUTO, grep_use_null_filename_separator, GREP_NIL, GREP_T, GREP_AUTO_DETECT, &
+                       GREP_ALWAYS, GREP_AUTO, rgrep_find_ignores_in_f, xargs_program
     use help_fm, only: help_map
     use help_mode_fm, only: help_mode_abbrev_table, help_mode_hook, help_mode_map
     use indent_fm, only: indent_line_function, indent_line_function_name, indent_region_function, &
@@ -247,6 +265,7 @@ module docstrings_fm
                              read_buffer_completion_ignore_case, read_file_name_completion_ignore_case
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
                        mule_keymap, select_safe_coding_system_accept_default_p
+    use mule_util_fm, only: vtruncate_string_ellipsis
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NIL, &
                              COMMENT_EMPTY_LINES_T, COMMENT_EMPTY_LINES_EOL, comment_end, comment_end_skip, &
@@ -282,10 +301,11 @@ module docstrings_fm
     use repeat_fm, only: repeat_check_key, repeat_exit_key, repeat_exit_timeout, repeat_in_progress, &
                          repeat_keep_prefix, repeat_map, repeat_mode_hook, repeat_num_input_keys_at_repeat, &
                          repeat_on_final_keystroke, repeat_previous_repeated_command, repeat_too_dangerous
-    use replace_fm, only: case_replace, query_replace_defaults, query_replace_from_history_variable, &
-                          query_replace_from_to_separator, query_replace_show_replacement, &
-                          query_replace_skip_read_only, query_replace_to_history_variable, replace_count, &
-                          replace_lax_whitespace, replace_regexp_lax_whitespace
+    use replace_fm, only: case_replace, match, query_replace_defaults, &
+                          query_replace_from_history_variable, query_replace_from_to_separator, &
+                          query_replace_show_replacement, query_replace_skip_read_only, &
+                          query_replace_to_history_variable, replace_count, replace_lax_whitespace, &
+                          replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
     use savehist_fm, only: savehist_additional_variables, savehist_autosave_interval, &
                            savehist_coding_system, savehist_file, savehist_file_modes, savehist_ignored_variables, &
@@ -361,6 +381,10 @@ module docstrings_fm
     use syntax_propertize_fm, only: syntax_ppss_max_span, syntax_ppss_table, &
                                     syntax_propertize_chunk_size, syntax_propertize_chunks, &
                                     syntax_propertize_extend_region_functions, syntax_propertize_function, syntax_wholeline_max
+    use tabulated_list_fm, only: tabulated_list_fake_header, tabulated_list_gui_sort_indicator_asc, &
+                                 tabulated_list_gui_sort_indicator_desc, tabulated_list_mode_hook, tabulated_list_mode_map, &
+                                 tabulated_list_revert_hook, tabulated_list_tty_sort_indicator_asc, &
+                                 tabulated_list_tty_sort_indicator_desc
     use term_fm, only: visible_bell
     use text_mode_fm, only: text_mode_abbrev_table, text_mode_hook, text_mode_map, &
                             text_mode_syntax_table, text_mode_variant
@@ -428,9 +452,9 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(976) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1024) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
-                                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", &
+                                                                    "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", &
                                                       "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
                                                  "accept_process_output", "add_auto_mode", "add_global_abbrev", "add_mode_abbrev", &
                                                        "add_name_to_file", "add_save_some_buffers_function", "append_to_register", &
@@ -444,6 +468,16 @@ module docstrings_fm
                                                         "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
                                                              "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
                                                            "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", &
+                                             "bookmark_bmenu_1_window", "bookmark_bmenu_2_window", "bookmark_bmenu_backup_unmark", &
+                                          "bookmark_bmenu_delete", "bookmark_bmenu_delete_all", "bookmark_bmenu_delete_backwards", &
+                                                             "bookmark_bmenu_edit_annotation", "bookmark_bmenu_execute_deletions", &
+                                                            "bookmark_bmenu_list", "bookmark_bmenu_load", "bookmark_bmenu_locate", &
+                                                          "bookmark_bmenu_mark", "bookmark_bmenu_mark_all", "bookmark_bmenu_mode", &
+                                                "bookmark_bmenu_other_window", "bookmark_bmenu_relocate", "bookmark_bmenu_rename", &
+                                                          "bookmark_bmenu_save", "bookmark_bmenu_search", "bookmark_bmenu_select", &
+                                                          "bookmark_bmenu_show_all_annotations", "bookmark_bmenu_show_annotation", &
+                                                               "bookmark_bmenu_switch_other_window", "bookmark_bmenu_this_window", &
+                                          "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_unmark", "bookmark_bmenu_unmark_all", &
                                                       "bookmark_delete", "bookmark_delete_all", "bookmark_edit_annotation_cancel", &
                                            "bookmark_edit_annotation_confirm", "bookmark_edit_annotation_mode", "bookmark_insert", &
                                                         "bookmark_insert_location", "bookmark_jump", "bookmark_jump_other_window", &
@@ -461,7 +495,7 @@ module docstrings_fm
                                                            "comint_delete_output", "comint_exec", "comint_forward_matching_input", &
                                             "comint_get_next_from_history", "comint_goto_process_mark", "comint_interrupt_subjob", &
                                                                   "comint_kill_input", "comint_kill_region", "comint_kill_subjob", &
-                                                                   "comint_kill_whole_line", "comint_mode", "comint_next_input", &
+                                                                    "comint_kill_whole_line", "comint_mode", "comint_next_input", &
                                                             "comint_next_matching_input", "comint_next_matching_input_from_input", &
                                               "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
@@ -473,7 +507,7 @@ module docstrings_fm
                                                             "comment_or_uncomment_region", "comment_region", "comment_set_column", &
                                                         "compilation_display_error", "compilation_minor_mode", "compilation_mode", &
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
-                                                                   "compilation_previous_error", "compilation_previous_file", &
+                                                                    "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
                                                         "compile", "compile_goto_error", "complete_symbol", "completion_at_point", &
                                                 "completion_help_at_point", "completion_in_region_mode", "conf_align_assignments", &
@@ -523,7 +557,7 @@ module docstrings_fm
                                                                "dired_unmark", "dired_unmark_all_files", "dired_unmark_all_marks", &
                                                  "dired_unmark_backward", "dired_up_directory", "dired_upcase", "dired_view_file", &
                                          "dired_why", "disable_command", "display_message_or_buffer", "do_auto_fill", "down_list", &
-                                                                   "downcase", "downcase_region", "downcase_word", "edit_abbrevs", &
+                                                 "downcase", "downcase_region", "downcase_word", "edit_abbrevs", "edit_bookmarks", &
                                              "electric_indent_just_newline", "electric_indent_local_mode", "electric_indent_mode", &
                                                         "electric_newline_and_maybe_indent", "electric_pair_conservative_inhibit", &
                                                                "electric_pair_default_inhibit", "electric_pair_default_skip_self", &
@@ -543,27 +577,29 @@ module docstrings_fm
                                                "f90_indent_subprogram", "f90_insert_end", "f90_join_lines", "f90_mark_subprogram", &
                                                               "f90_match_end", "f90_mode", "f90_next_block", "f90_next_statement", &
                                                             "f90_previous_block", "f90_previous_statement", "f90_upcase_keywords", &
-                                                                   "f90_upcase_region_keywords", "face_box", "face_underline", &
+                                                                    "f90_upcase_region_keywords", "face_box", "face_underline", &
                                                                  "file_modes_number_to_symbolic", "file_modes_symbolic_to_number", &
                                                            "file_name_sans_versions", "file_to_register", "file_truename_handler", &
                                                 "fill_french_nobreak_p", "fill_paragraph", "fill_polish_nobreak_p", "fill_region", &
                                                                    "fill_region_as_paragraph", "fill_region_as_paragraph_default", &
                                                           "fill_single_char_nobreak_p", "fill_single_word_nobreak_p", "find_file", &
                                               "find_file_other_window", "find_file_read_only", "find_file_read_only_other_window", &
-                                                "first_error", "fixup_whitespace", "font_lock_add_keywords", "font_lock_anchored", &
-                                                        "font_lock_change_mode", "font_lock_debug_fontify", "font_lock_defontify", &
-                                                     "font_lock_fontify_block", "font_lock_fontify_buffer", "font_lock_highlight", &
-                                                           "font_lock_keyword", "font_lock_mode", "font_lock_mode_set_explicitly", &
-                                                 "font_lock_refresh_defaults", "font_lock_update", "format_error", "forward_char", &
-                                           "forward_comment", "forward_line", "forward_list", "forward_page", "forward_paragraph", &
-                                                 "forward_sentence", "forward_sexp", "forward_word", "free_process", "free_timer", &
-                                                     "fundamental_mode", "get_buffer_create", "get_buffer_process", "get_process", &
-                                                               "get_register", "global_auto_revert_mode", "global_font_lock_mode", &
-                                         "global_font_lock_mode_enable_in_buffer", "global_set_key", "goto_char", "help_for_help", &
-                                                       "help_form_show", "help_mode", "help_quit", "ignore", "increment_register", &
-                                         "indent_according_to_mode", "indent_for_tab_command", "indent_region", "indent_relative", &
+                                                         "find_grep", "first_error", "fixup_whitespace", "font_lock_add_keywords", &
+                                                         "font_lock_anchored", "font_lock_change_mode", "font_lock_debug_fontify", &
+                                                     "font_lock_defontify", "font_lock_fontify_block", "font_lock_fontify_buffer", &
+                                                                    "font_lock_highlight", "font_lock_keyword", "font_lock_mode", &
+                                                "font_lock_mode_set_explicitly", "font_lock_refresh_defaults", "font_lock_update", &
+                                                "format_error", "forward_char", "forward_comment", "forward_line", "forward_list", &
+                                          "forward_page", "forward_paragraph", "forward_sentence", "forward_sexp", "forward_word", &
+                                                            "free_process", "free_timer", "fundamental_mode", "get_buffer_create", &
+                                                   "get_buffer_process", "get_process", "get_register", "global_auto_revert_mode", &
+                                              "global_font_lock_mode", "global_font_lock_mode_enable_in_buffer", "global_set_key", &
+                                                  "goto_char", "grep", "grep_apply_setting", "grep_compute_defaults", "grep_find", &
+                                                  "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_form_show", &
+                                             "help_mode", "help_quit", "ignore", "increment_register", "indent_according_to_mode", &
+                                                                    "indent_for_tab_command", "indent_region", "indent_relative", &
                                                     "indent_relative_first_indent_point", "indent_rigidly", "indent_rigidly_left", &
-                                                                   "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
+                                                                    "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
                                                     "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "insert", &
                                                           "insert_abbrev_table_description", "insert_abbrevs", "insert_rectangle", &
                                                        "insert_register", "interactive_region", "internal_default_process_filter", &
@@ -579,10 +615,10 @@ module docstrings_fm
                                            "isearch_yank_char", "isearch_yank_kill", "isearch_yank_line", "isearch_yank_pop_only", &
                                                    "isearch_yank_word_or_char", "join_line", "jump_to_register", "just_one_space", &
                                                       "justify_current_line", "key_valid_p", "keyboard_quit", "keymap_global_set", &
-                                                 "keymap_set", "kill_all_abbrevs", "kill_buffer", "kill_compilation", "kill_line", &
-                                                    "kill_new", "kill_paragraph", "kill_process", "kill_rectangle", "kill_region", &
-                                                   "kill_ring_save", "kill_sentence", "kill_sexp", "kill_whole_line", "kill_word", &
-                                                            "kmacro_add_counter", "kmacro_call_macro", "kmacro_call_macro_repeat", &
+                                                 "keymap_set", "kill_all_abbrevs", "kill_buffer", "kill_compilation", "kill_grep", &
+                                                      "kill_line", "kill_new", "kill_paragraph", "kill_process", "kill_rectangle", &
+                                                 "kill_region", "kill_ring_save", "kill_sentence", "kill_sexp", "kill_whole_line", &
+                                               "kill_word", "kmacro_add_counter", "kmacro_call_macro", "kmacro_call_macro_repeat", &
                                                   "kmacro_call_ring_2nd", "kmacro_call_ring_2nd_repeat", "kmacro_cycle_ring_next", &
                                              "kmacro_cycle_ring_previous", "kmacro_delete_ring_head", "kmacro_end_and_call_macro", &
                                                 "kmacro_end_macro", "kmacro_end_or_call_macro", "kmacro_end_or_call_macro_repeat", &
@@ -592,26 +628,26 @@ module docstrings_fm
                                                        "kmacro_reg_load_counter", "kmacro_reg_save_counter", "kmacro_set_counter", &
                                                 "kmacro_set_format", "kmacro_start_macro", "kmacro_start_macro_or_insert_counter", &
                                                               "kmacro_swap_ring", "kmacro_view_macro", "kmacro_view_macro_repeat", &
-                                           "kmacro_view_ring_2nd", "left_char", "left_word", "line_number_at_pos", "list_abbrevs", &
-                                                       "list_registers", "local_abbrev_table", "log_edit_comment_search_backward", &
-                                                      "log_edit_comment_search_forward", "log_edit_diff_fileset", "log_edit_done", &
-                                                                   "log_edit_done_strip_cvs_lines", "log_edit_insert_changelog", &
-                                                                "log_edit_insert_cvs_rcstemplate", "log_edit_insert_cvs_template", &
-                                                       "log_edit_insert_filenames", "log_edit_insert_filenames_without_changelog", &
-                                                      "log_edit_insert_message_template", "log_edit_kill_buffer", "log_edit_mode", &
-                                                       "log_edit_mode_help", "log_edit_next_comment", "log_edit_previous_comment", &
-                                                    "log_edit_show_diff", "log_edit_show_files", "log_view_copy_revision_as_kill", &
-                                                    "log_view_diff", "log_view_diff_changeset", "log_view_display_entry_and_diff", &
-                                                             "log_view_file_next", "log_view_file_prev", "log_view_find_revision", &
-                                                             "log_view_mark_entry", "log_view_mode", "log_view_msg_and_diff_next", &
-                                                           "log_view_msg_and_diff_prev", "log_view_msg_next", "log_view_msg_prev", &
-                                                                   "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
+                                                  "kmacro_view_ring_2nd", "left_char", "left_word", "lgrep", "line_number_at_pos", &
+                                                         "list_abbrevs", "list_bookmarks", "list_registers", "local_abbrev_table", &
+                                                            "log_edit_comment_search_backward", "log_edit_comment_search_forward", &
+                                                        "log_edit_diff_fileset", "log_edit_done", "log_edit_done_strip_cvs_lines", &
+                                                                   "log_edit_insert_changelog", "log_edit_insert_cvs_rcstemplate", &
+                                                                    "log_edit_insert_cvs_template", "log_edit_insert_filenames", &
+                                                "log_edit_insert_filenames_without_changelog", "log_edit_insert_message_template", &
+                                           "log_edit_kill_buffer", "log_edit_mode", "log_edit_mode_help", "log_edit_next_comment", &
+                                                         "log_edit_previous_comment", "log_edit_show_diff", "log_edit_show_files", &
+                                                     "log_view_copy_revision_as_kill", "log_view_diff", "log_view_diff_changeset", &
+                                                    "log_view_display_entry_and_diff", "log_view_file_next", "log_view_file_prev", &
+                                                                 "log_view_find_revision", "log_view_mark_entry", "log_view_mode", &
+                                                  "log_view_msg_and_diff_next", "log_view_msg_and_diff_prev", "log_view_msg_next", &
+                                               "log_view_msg_prev", "log_view_toggle_entry_display", "log_view_toggle_mark_entry", &
                                              "log_view_unmark_all_entries", "log_view_unmark_entry", "looking_at", "looking_at_p", &
                                                        "looking_back", "major_mode_named", "make_comint", "make_comint_in_buffer", &
                                                      "make_empty_file", "make_process", "make_symbolic_link", "make_syntax_table", &
                                                      "map_query_replace_regexp", "mark", "mark_end_of_sentence", "mark_paragraph", &
                                                    "mark_sexp", "mark_whole_buffer", "mark_word", "match_beginning", "match_data", &
-                                                                   "match_end", "match_string", "match_string_no_properties", &
+                                                                    "match_end", "match_string", "match_string_no_properties", &
                                          "match_substitute_replacement", "message", "messages_buffer_mode", "minibuffer_complete", &
                                          "minibuffer_complete_and_exit", "minibuffer_complete_word", "minibuffer_completion_exit", &
                                                                    "minibuffer_completion_help", "minibuffer_recenter_top_bottom", &
@@ -632,7 +668,7 @@ module docstrings_fm
                                                "process_send_region", "process_send_string", "process_status", "process_tty_name", &
                                                  "processp", "prog_mode", "provided_mode_derived_p", "push_mark", "query_replace", &
                                                            "query_replace_regexp", "quit_process", "quit_window", "quoted_insert", &
-                                                                   "re_search_backward", "re_search_forward", "read_buffer", &
+                                                                    "re_search_backward", "re_search_forward", "read_buffer", &
                                                 "read_char_from_minibuffer_insert_char", "read_char_from_minibuffer_insert_other", &
                                                 "read_file_name_default", "read_multiple_choice", "read_number", "read_only_mode", &
                                                 "read_shell_command", "read_string", "recenter", "recenter_top_bottom", "recentf", &
@@ -643,12 +679,12 @@ module docstrings_fm
                                                            "rectangle_mark_mode", "rectangle_next_line", "rectangle_number_lines", &
                                            "rectangle_position_as_coordinates", "rectangle_previous_line", "rectangle_right_char", &
                                              "regexp_quote", "region_active_p", "region_beginning", "region_bounds", "region_end", &
-                                                                   "region_noncontiguous_p", "register_read_with_preview", &
+                                                                    "region_noncontiguous_p", "register_read_with_preview", &
                                                "reindent_then_newline_and_indent", "rename_file", "repeat", "repeat_echo_message", &
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
-                                                  "revert_buffer", "revert_buffer_with_coding_system", "right_char", "right_word", &
+                                         "revert_buffer", "revert_buffer_with_coding_system", "rgrep", "right_char", "right_word", &
                                                     "rotate_yank_pointer", "run_at_time", "run_mode_hooks", "run_with_idle_timer", &
-                                                                   "run_with_timer", "save_buffer", "save_buffers_kill_terminal", &
+                                                          "run_with_timer", "rzgrep", "save_buffer", "save_buffers_kill_terminal", &
                                                  "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
                                                 "save_some_buffers", "savehist_mode", "savehist_save", "scan_lists", "scan_sexps", &
                                           "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
@@ -662,7 +698,7 @@ module docstrings_fm
                                                    "set_register", "set_repeat_map", "set_syntax_table", "set_variable", "sh_add", &
                                                    "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
                                                  "sh_beginning_of_command", "sh_electric_here_document_mode", "sh_end_of_command", &
-                                                                   "sh_execute_region", "sh_make_vars_local", "sh_mode", &
+                                                                    "sh_execute_region", "sh_make_vars_local", "sh_mode", &
                                                                  "sh_reset_indent_vars_to_global_values", "sh_set_shell", "shell", &
                                                                   "shell_backward_command", "shell_command", "shell_command_mode", &
                                           "shell_command_on_region", "shell_dirtrack_mode", "shell_forward_command", "shell_mode", &
@@ -674,44 +710,46 @@ module docstrings_fm
                                                        "special_mode", "split_window", "split_window_below", "split_window_right", &
                                            "standard_syntax_table", "start_kbd_macro", "start_process", "string_insert_rectangle", &
                                                   "string_match", "string_match_p", "string_rectangle", "substitute_command_keys", &
-                                                     "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "text_mode", "timerp", &
-                                              "transient_mark_mode", "transpose_chars", "transpose_lines", "transpose_paragraphs", &
-                                              "transpose_sentences", "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", &
-                                                 "turn_on_auto_revert_mode", "turn_on_auto_revert_tail_mode", "turn_on_font_lock", &
-                                         "turn_on_font_lock_if_desired", "uncomment_region", "undefined", "undo", "undo_boundary", &
-                                            "undo_only", "undo_redo", "unexpand_abbrev", "unfill_paragraph", "universal_argument", &
-                                                       "universal_argument_minus", "universal_argument_more", "up_list", "upcase", &
-                                                      "upcase_initials", "upcase_initials_region", "upcase_region", "upcase_word", &
-                                                      "vc_clear_context", "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", &
-                                                                  "vc_dir_delete_file", "vc_dir_display_file", "vc_dir_find_file", &
-                                                       "vc_dir_find_file_other_window", "vc_dir_hide_up_to_date", "vc_dir_ignore", &
-                                                              "vc_dir_kill_dir_status_process", "vc_dir_kill_line", "vc_dir_mark", &
-                                                 "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", "vc_dir_mark_registered_files", &
-                                                         "vc_dir_mark_unregistered_files", "vc_dir_mode", "vc_dir_next_directory", &
-                                                          "vc_dir_next_line", "vc_dir_previous_directory", "vc_dir_previous_line", &
-                                              "vc_dir_refresh", "vc_dir_root", "vc_dir_root_next_action", "vc_dir_show_fileentry", &
-                                          "vc_dir_unmark", "vc_dir_unmark_all_files", "vc_dir_unmark_file_up", "vc_dir_view_file", &
-                                                                   "vc_git_log_edit_mode", "vc_git_log_edit_toggle_no_verify", &
-                                          "vc_git_log_edit_toggle_signoff", "vc_git_log_view_mode", "vc_ignore", "vc_next_action", &
-                                         "vc_print_log", "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", &
-                                                            "vc_restore", "vc_revert", "vc_revision_other_window", "vc_root_diff", &
-                                                    "vc_root_version_diff", "vc_version_diff", "view_back_to_mark", "view_buffer", &
-                                         "view_buffer_other_window", "view_echo_area_messages", "view_exit", "view_exit_and_edit", &
-                                                     "view_file", "view_file_other_window", "view_goto_line", "view_goto_percent", &
-                                                    "view_kill_and_leave", "view_leave", "view_lossage", "view_mode", "view_quit", &
-                                                               "view_quit_all", "view_register", "view_scroll_half_page_backward", &
-                                         "view_scroll_half_page_forward", "view_scroll_line_backward", "view_scroll_line_forward", &
-                                                           "view_scroll_page_backward", "view_scroll_page_backward_set_page_size", &
-                                                             "view_scroll_page_forward", "view_scroll_page_forward_set_page_size", &
-                                                                  "view_scroll_to_buffer_end", "view_search_last_regexp_backward", &
-                                                                 "view_search_last_regexp_forward", "view_search_regexp_backward", &
-                                                                   "view_search_regexp_forward", "what_line", "where_is", &
+                                                     "switch_to_buffer", "syntax_table", "tab_to_tab_stop", "tabulated_list_mode", &
+                                                             "tabulated_list_narrow_current_column", "tabulated_list_next_column", &
+                                                 "tabulated_list_previous_column", "tabulated_list_revert", "tabulated_list_sort", &
+                                              "tabulated_list_widen_current_column", "text_mode", "timerp", "transient_mark_mode", &
+                                              "transpose_chars", "transpose_lines", "transpose_paragraphs", "transpose_sentences", &
+                                         "transpose_words", "turn_off_auto_fill", "turn_on_auto_fill", "turn_on_auto_revert_mode", &
+                                             "turn_on_auto_revert_tail_mode", "turn_on_font_lock", "turn_on_font_lock_if_desired", &
+                                               "uncomment_region", "undefined", "undo", "undo_boundary", "undo_only", "undo_redo", &
+                                          "unexpand_abbrev", "unfill_paragraph", "universal_argument", "universal_argument_minus", &
+                                                                "universal_argument_more", "up_list", "upcase", "upcase_initials", &
+                                                     "upcase_initials_region", "upcase_region", "upcase_word", "vc_clear_context", &
+                                                    "vc_create_repo", "vc_delete_file", "vc_diff", "vc_dir", "vc_dir_delete_file", &
+                                                       "vc_dir_display_file", "vc_dir_find_file", "vc_dir_find_file_other_window", &
+                                                      "vc_dir_hide_up_to_date", "vc_dir_ignore", "vc_dir_kill_dir_status_process", &
+                                              "vc_dir_kill_line", "vc_dir_mark", "vc_dir_mark_all_files", "vc_dir_mark_by_regexp", &
+                                                  "vc_dir_mark_registered_files", "vc_dir_mark_unregistered_files", "vc_dir_mode", &
+                                                         "vc_dir_next_directory", "vc_dir_next_line", "vc_dir_previous_directory", &
+                                               "vc_dir_previous_line", "vc_dir_refresh", "vc_dir_root", "vc_dir_root_next_action", &
+                                                              "vc_dir_show_fileentry", "vc_dir_unmark", "vc_dir_unmark_all_files", &
+                                                              "vc_dir_unmark_file_up", "vc_dir_view_file", "vc_git_log_edit_mode", &
+                                                             "vc_git_log_edit_toggle_no_verify", "vc_git_log_edit_toggle_signoff", &
+                                                            "vc_git_log_view_mode", "vc_ignore", "vc_next_action", "vc_print_log", &
+                                           "vc_print_root_log", "vc_refresh_state", "vc_register", "vc_rename_file", "vc_restore", &
+                                                  "vc_revert", "vc_revision_other_window", "vc_root_diff", "vc_root_version_diff", &
+                                                "vc_version_diff", "view_back_to_mark", "view_buffer", "view_buffer_other_window", &
+                                                        "view_echo_area_messages", "view_exit", "view_exit_and_edit", "view_file", &
+                                           "view_file_other_window", "view_goto_line", "view_goto_percent", "view_kill_and_leave", &
+                                         "view_leave", "view_lossage", "view_mode", "view_quit", "view_quit_all", "view_register", &
+                                                                "view_scroll_half_page_backward", "view_scroll_half_page_forward", &
+                                             "view_scroll_line_backward", "view_scroll_line_forward", "view_scroll_page_backward", &
+                                                            "view_scroll_page_backward_set_page_size", "view_scroll_page_forward", &
+                                                            "view_scroll_page_forward_set_page_size", "view_scroll_to_buffer_end", &
+                                                            "view_search_last_regexp_backward", "view_search_last_regexp_forward", &
+                                             "view_search_regexp_backward", "view_search_regexp_forward", "what_line", "where_is", &
                                                 "window_configuration_to_register", "write_abbrev_file", "write_file", "y_or_n_p", &
                                             "y_or_n_p_insert_n", "y_or_n_p_insert_other", "y_or_n_p_insert_y", "yank", "yank_pop", &
-                                                                   "yank_rectangle", "yes_or_no_p"]
+                                                                    "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(851) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(909) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -734,15 +772,19 @@ module docstrings_fm
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
                                                                    "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
                                            "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
-                                                        "bookmark_automatically_show_annotations", "bookmark_bookmarks_timestamp", &
-                                            "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
-                                                        "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
-                                                             "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
-                                                     "bookmark_fringe_mark", "bookmark_inhibit_context_functions", "bookmark_map", &
+                                                               "bookmark_automatically_show_annotations", "bookmark_bmenu_buffer", &
+                                              "bookmark_bmenu_file_column", "bookmark_bmenu_mode_hook", "bookmark_bmenu_mode_map", &
+                                                            "bookmark_bmenu_toggle_filenames", "bookmark_bmenu_type_column_width", &
+                                                                "bookmark_bookmarks_timestamp", "bookmark_completion_ignore_case", &
+                                         "bookmark_current_buffer", "bookmark_default_file", "bookmark_edit_annotation_mode_hook", &
+                                                       "bookmark_edit_annotation_mode_map", "bookmark_exit_hook", "bookmark_face", &
+                                                                   "bookmark_file_coding_system", "bookmark_fringe_mark", &
+                                                   "bookmark_inhibit_context_functions", "bookmark_map", "bookmark_menu_bookmark", &
                                                             "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
-                                                               "bookmark_save_flag", "bookmark_search_size", "bookmark_sort_flag", &
-                                           "bookmark_use_annotations", "bookmark_version_control", "bookmark_watch_bookmark_file", &
-                                         "bookmark_yank_point", "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
+                                                            "bookmark_save_flag", "bookmark_search_delay", "bookmark_search_size", &
+                                                     "bookmark_sort_flag", "bookmark_use_annotations", "bookmark_version_control", &
+                                                                   "bookmark_watch_bookmark_file", "bookmark_yank_point", &
+                                                                "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
                                              "buffer_stale_function", "case_fold_search", "case_replace", "case_symbols_as_words", &
                                                        "change_log_date", "change_log_default_name", "change_log_directory_files", &
                                                     "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
@@ -861,26 +903,38 @@ module docstrings_fm
                                                          "fill_column", "fill_indent_according_to_mode", "fill_nobreak_predicate", &
                                                         "fill_paragraph_function", "fill_paragraph_handle_comment", "fill_prefix", &
                                           "fill_separate_heterogeneous_words_with_space", "find_file_hook", "find_file_run_dired", &
-                                                "first_change_hook", "font_lock_comment_end_skip", "font_lock_comment_start_skip", &
-                                                    "font_lock_defaults", "font_lock_dont_widen", "font_lock_extra_managed_props", &
-                                                  "font_lock_global_modes", "font_lock_maximum_decoration", "font_lock_mode_hook", &
-                                                         "font_lock_support_mode", "font_lock_verbose", "fontification_functions", &
-                                                  "forward_sexp_function", "fundamental_mode_abbrev_table", "global_abbrev_table", &
+                                               "find_name_arg", "find_program", "first_change_hook", "font_lock_comment_end_skip", &
+                                                     "font_lock_comment_start_skip", "font_lock_defaults", "font_lock_dont_widen", &
+                                                                   "font_lock_extra_managed_props", "font_lock_global_modes", &
+                                                  "font_lock_maximum_decoration", "font_lock_mode_hook", "font_lock_support_mode", &
+                                                          "font_lock_verbose", "fontification_functions", "forward_sexp_function", &
+                                                                   "fundamental_mode_abbrev_table", "global_abbrev_table", &
                                                             "global_auto_revert_ignore_buffer", "global_auto_revert_ignore_modes", &
                                                                    "global_auto_revert_mode_hook", "global_auto_revert_mode_text", &
                                                          "global_auto_revert_non_file_buffers", "global_disable_point_adjustment", &
-                                                "global_font_lock_mode_hook", "goal_column", "help_map", "help_mode_abbrev_table", &
-                                          "help_mode_hook", "help_mode_map", "history_add_new_input", "history_delete_duplicates", &
-                                           "history_length", "indent_line_function", "indent_region_function", "indent_tabs_mode", &
-                                                           "indent_tabs_mode_hook", "inhibit_auto_fill", "inhibit_eol_conversion", &
-                                                                   "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
-                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
-                                                         "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
-                                             "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
-                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
-                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
-                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
-                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                             "global_font_lock_mode_hook", "goal_column", "grep_command", "grep_command_position", &
+                                                   "grep_compilation_transform_finished_rules", "grep_context_face", "grep_error", &
+                                                             "grep_error_face", "grep_error_screen_columns", "grep_files_aliases", &
+                                                        "grep_find_abbreviate", "grep_find_command", "grep_find_command_position", &
+                                                 "grep_find_ignored_directories", "grep_find_ignored_files", "grep_find_template", &
+                                                "grep_find_use_xargs", "grep_first_column", "grep_heading", "grep_heading_regexp", &
+                                                 "grep_highlight_matches", "grep_hit_face", "grep_last_buffer", "grep_match_face", &
+                                           "grep_match_regexp", "grep_mode_font_lock_keywords", "grep_mode_hook", "grep_mode_map", &
+                                                   "grep_program", "grep_quoting_style", "grep_regexp_alist", "grep_save_buffers", &
+                                                    "grep_scroll_output", "grep_setup_hook", "grep_template", "grep_use_headings", &
+                                                           "grep_use_null_device", "grep_use_null_filename_separator", "help_map", &
+                                             "help_mode_abbrev_table", "help_mode_hook", "help_mode_map", "history_add_new_input", &
+                                                            "history_delete_duplicates", "history_length", "indent_line_function", &
+                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
+                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
+                                                                   "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
+                                            "inhibit_null_byte_detection", "insert_default_directory", "insert_directory_program", &
+                                                    "isearch_lax_whitespace", "isearch_mode_map", "isearch_regexp_lax_whitespace", &
+                                                          "jit_lock_chunk_size", "kbd_macro_termination_hook", "kill_buffer_hook", &
+                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
+                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
+                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
+                                                                   "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -895,8 +949,8 @@ module docstrings_fm
                                                                    "log_edit_require_final_newline", "log_edit_rewrite_fixes", &
                                              "log_edit_rewrite_tiny_change", "log_edit_setup_add_author", "log_edit_setup_invert", &
                                                        "log_edit_strip_single_file_name", "log_edit_summary", "mail_host_address", &
-                                                 "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "message_log_max", &
-                                                                   "messages_buffer_mode_hook", "messages_buffer_mode_map", &
+                                                           "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "match", &
+                                                       "message_log_max", "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                           "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
                                                 "minibuffer_message_timeout", "minibuffer_scroll_window", "minibuffer_setup_hook", &
                                                               "mode_require_final_newline", "mounted_file_systems", "mule_keymap", &
@@ -925,14 +979,15 @@ module docstrings_fm
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
-                                                       "revert_without_query", "save_abbrevs", "save_place_abbreviate_file_names", &
-                                            "save_place_after_find_file_hook", "save_place_alist", "save_place_autosave_interval", &
-                                                                   "save_place_file", "save_place_forget_unreadable_files", &
-                                                        "save_place_ignore_files_regexp", "save_place_limit", "save_place_loaded", &
-                                                "save_place_mode_hook", "save_place_save_skipped", "save_place_skip_check_regexp", &
-                                                                   "save_place_version_control", "save_some_buffers_functions", &
-                                          "savehist_additional_variables", "savehist_autosave_interval", "savehist_coding_system", &
-                                          "savehist_file", "savehist_file_modes", "savehist_ignored_variables", "savehist_loaded", &
+                                                                  "revert_without_query", "rgrep_find_ignores_in", "save_abbrevs", &
+                                                            "save_place_abbreviate_file_names", "save_place_after_find_file_hook", &
+                                                            "save_place_alist", "save_place_autosave_interval", "save_place_file", &
+                                                           "save_place_forget_unreadable_files", "save_place_ignore_files_regexp", &
+                                                                  "save_place_limit", "save_place_loaded", "save_place_mode_hook", &
+                                          "save_place_save_skipped", "save_place_skip_check_regexp", "save_place_version_control", &
+                                                                   "save_some_buffers_functions", "savehist_additional_variables", &
+                                                          "savehist_autosave_interval", "savehist_coding_system", "savehist_file", &
+                                                           "savehist_file_modes", "savehist_ignored_variables", "savehist_loaded", &
                                               "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
                                               "savehist_save_minibuffer_history", "scroll_error_top_bottom", "search_exit_option", &
                                                        "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
@@ -977,9 +1032,13 @@ module docstrings_fm
                                             "syntax_propertize__done", "syntax_propertize_chunk_size", "syntax_propertize_chunks", &
                                                         "syntax_propertize_extend_region_functions", "syntax_propertize_function", &
                                                         "syntax_wholeline_max", "tab_always_indent", "tab_stop_list", "tab_width", &
+                                                            "tabulated_list_fake_header", "tabulated_list_gui_sort_indicator_asc", &
+                                                             "tabulated_list_gui_sort_indicator_desc", "tabulated_list_mode_hook", &
+                                                                   "tabulated_list_mode_map", "tabulated_list_revert_hook", &
+                                                "tabulated_list_tty_sort_indicator_asc", "tabulated_list_tty_sort_indicator_desc", &
                                             "text_mode_abbrev_table", "text_mode_hook", "text_mode_map", "text_mode_syntax_table", &
                                                   "text_mode_variant", "this_command", "timer_max_repeats", "transient_mark_mode", &
-                                                                   "transient_mark_mode_hook", "truncate_partial_width_windows", &
+                                         "transient_mark_mode_hook", "truncate_partial_width_windows", "truncate_string_ellipsis", &
                                                        "undo_auto__this_command_amalgamating", "undo_in_progress", "undo_no_redo", &
                                                 "use_short_answers", "user_init_file", "user_mail_address", "vc_allow_async_diff", &
                                                         "vc_allow_async_revert", "vc_annotate_switches", "vc_before_checkin_hook", &
@@ -1002,11 +1061,11 @@ module docstrings_fm
                                            "vc_use_short_revision", "view_exits_all_viewing_windows", "view_inhibit_help_message", &
                                                    "view_mode_hook", "view_mode_map", "view_no_disable_on_exit", "view_read_only", &
                                                  "view_scroll_auto_exit", "visible_bell", "window_min_height", "window_min_width", &
-                                                    "words_include_escapes", "y_or_n_p_history_variable", "y_or_n_p_use_read_key", &
-                                                                   "yes_or_no_prompt"]
+                                                            "words_include_escapes", "xargs_program", "y_or_n_p_history_variable", &
+                                                                   "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(408) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(436) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1040,12 +1099,16 @@ module docstrings_fm
                                                                       "blink_matching_paren_on_screen", &
                                                                       "bookmark_after_load_file_hook", &
                                                                       "bookmark_automatically_show_annotations", &
+                                                                      "bookmark_bmenu_file_column", &
+                                                                      "bookmark_bmenu_toggle_filenames", &
+                                                                      "bookmark_bmenu_type_column_width", &
                                                                       "bookmark_completion_ignore_case", &
                                                                       "bookmark_default_file", &
                                                                       "bookmark_fringe_mark", &
                                                                       "bookmark_inhibit_context_functions", &
                                                                       "bookmark_menu_confirm_deletion", &
                                                                       "bookmark_save_flag", &
+                                                                      "bookmark_search_delay", &
                                                                       "bookmark_sort_flag", &
                                                                       "bookmark_use_annotations", &
                                                                       "bookmark_version_control", &
@@ -1217,6 +1280,7 @@ module docstrings_fm
                                                                       "fill_separate_heterogeneous_words_with_space", &
                                                                       "find_file_hook", &
                                                                       "find_file_run_dired", &
+                                                                      "find_name_arg", &
                                                                       "font_lock_global_modes", &
                                                                       "font_lock_maximum_decoration", &
                                                                       "font_lock_verbose", &
@@ -1225,6 +1289,25 @@ module docstrings_fm
                                                                       "global_auto_revert_mode_text", &
                                                                       "global_auto_revert_non_file_buffers", &
                                                                       "goal_column", &
+                                                                      "grep_command", &
+                                                                      "grep_command_position", &
+                                                                      "grep_error_screen_columns", &
+                                                                      "grep_files_aliases", &
+                                                                      "grep_find_abbreviate", &
+                                                                      "grep_find_command", &
+                                                                      "grep_find_ignored_directories", &
+                                                                      "grep_find_ignored_files", &
+                                                                      "grep_find_template", &
+                                                                      "grep_find_use_xargs", &
+                                                                      "grep_highlight_matches", &
+                                                                      "grep_match_regexp", &
+                                                                      "grep_save_buffers", &
+                                                                      "grep_scroll_output", &
+                                                                      "grep_setup_hook", &
+                                                                      "grep_template", &
+                                                                      "grep_use_headings", &
+                                                                      "grep_use_null_device", &
+                                                                      "grep_use_null_filename_separator", &
                                                                       "help_mode_hook", &
                                                                       "history_delete_duplicates", &
                                                                       "history_length", &
@@ -1371,6 +1454,10 @@ module docstrings_fm
                                                                       "tab_always_indent", &
                                                                       "tab_stop_list", &
                                                                       "tab_width", &
+                                                                      "tabulated_list_gui_sort_indicator_asc", &
+                                                                      "tabulated_list_gui_sort_indicator_desc", &
+                                                                      "tabulated_list_tty_sort_indicator_asc", &
+                                                                      "tabulated_list_tty_sort_indicator_desc", &
                                                                       "text_mode_hook", &
                                                                       "timer_max_repeats", &
                                                                       "transient_mark_mode", &
@@ -1933,6 +2020,210 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "bolp()"
             entry%doc = "Return true if point is at the beginning of a line."
+        case ("bookmark_bmenu_1_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's bookmark, alone, in full frame."
+        case ("bookmark_bmenu_2_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's bookmark, with previous buffer in second window."
+        case ("bookmark_bmenu_backup_unmark")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Move up and cancel all requested operations on bookmark on line"//LF// &
+                        "above."
+        case ("bookmark_bmenu_delete")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark bookmark on this line to be deleted."//LF// &
+                        "To carry out the deletions that you've marked, use"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
+        case ("bookmark_bmenu_delete_all")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all listed bookmarks as to be deleted."//LF// &
+                        "To remove all deletion marks, use"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_unmark_all].  To carry"//LF// &
+                        "out the deletions that you've marked, use"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
+        case ("bookmark_bmenu_delete_backwards")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark bookmark on this line to be deleted, then move up one line."//LF// &
+                        "To carry out the deletions that you've marked, use"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_execute_deletions]."
+        case ("bookmark_bmenu_edit_annotation")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Edit the annotation for the current bookmark in another window."
+        case ("bookmark_bmenu_execute_deletions")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete bookmarks flagged `D'."//LF// &
+                        "If `bookmark_menu_confirm_deletion' is true, prompt for confirmation"//LF// &
+                        "first."
+        case ("bookmark_bmenu_list")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of existing bookmarks."//LF// &
+                        "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
+                        "The leftmost column displays a D if the bookmark is flagged for"//LF// &
+                        "deletion, or > if it is flagged for displaying."
+        case ("bookmark_bmenu_load")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Load bookmarks from a file and rebuild the bookmark menu-buffer."//LF// &
+                        "Prompt for a file, with the default choice being the value of"//LF// &
+                        "`bookmark_default_file'."//LF// &
+                        ""//LF// &
+                        "With a prefix argument, replace the current ambient bookmarks (i.e.,"//LF// &
+                        "the ones in `bookmark_alist') with the ones from the selected file and"//LF// &
+                        "make that file be the new value of `bookmark_default_file'.  In other"//LF// &
+                        "words, a prefix argument means ""switch over to the bookmark universe"//LF// &
+                        "defined in the loaded file"".  Without a prefix argument, just add the"//LF// &
+                        "loaded bookmarks into the current ambient set."//LF// &
+                        ""//LF// &
+                        "See the documentation for `bookmark_load' for more details; see also"//LF// &
+                        "the related behaviors of `bookmark_save' and `bookmark_bmenu_save'."
+        case ("bookmark_bmenu_locate")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display the location of the bookmark for this line."
+        case ("bookmark_bmenu_mark")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark bookmark on this line to be displayed by"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_select]."
+        case ("bookmark_bmenu_mark_all")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mark all listed bookmarks to be displayed by"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_select]."
+        case ("bookmark_bmenu_mode")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Major mode for editing a list of bookmarks."//LF// &
+                        "Each line describes one of the bookmarks in Fortmacs."//LF// &
+                        "Letters do not insert themselves; instead, they are commands."//LF// &
+                        "Bookmark names preceded by a ""*"" have annotations."//LF// &
+                        ""//LF// &
+                        "If `bookmark_sort_flag' is true, then sort the list by bookmark name"//LF// &
+                        "(case-insensitively, in collation order); the direction of that sort"//LF// &
+                        "can be reversed by using the column sort toggle for the bookmark"//LF// &
+                        "name column."//LF// &
+                        ""//LF// &
+                        "If `bookmark_sort_flag' is false, then sort the list by bookmark"//LF// &
+                        "creation order, with most recently created bookmarks on top."//LF// &
+                        "However, the column sort toggle will still activate (and thereafter"//LF// &
+                        "toggle the direction of) lexical sorting by bookmark name.  At any"//LF// &
+                        "time you may use \[revert_buffer] to go back to sorting by creation"//LF// &
+                        "order."//LF// &
+                        ""//LF// &
+                        "\<bookmark_bmenu_mode_map>"//LF// &
+                        "\[bookmark_bmenu_mark] -- mark bookmark to be displayed."//LF// &
+                        "\[bookmark_bmenu_mark_all] -- mark all listed bookmarks to be displayed."//LF// &
+                        "\[bookmark_bmenu_select] -- select bookmark of line point is on."//LF// &
+                        "  Also show bookmarks marked using m in other windows."//LF// &
+                        "\[bookmark_bmenu_toggle_filenames] -- toggle displaying of filenames (they may obscure lon"// &
+                        "g bookmark names)."//LF// &
+                        "\[bookmark_bmenu_locate] -- display (in minibuffer) location of this bookmark."//LF// &
+                        "\[bookmark_bmenu_1_window] -- select this bookmark in full-frame window."//LF// &
+                        "\[bookmark_bmenu_2_window] -- select this bookmark in one window,"//LF// &
+                        "  together with bookmark selected before this one in another window."//LF// &
+                        "\[bookmark_bmenu_this_window] -- select this bookmark in place of the bookmark menu buffer"// &
+                        "."//LF// &
+                        "\[bookmark_bmenu_other_window] -- select this bookmark in another window,"//LF// &
+                        "  so the bookmark menu bookmark remains visible in its window."//LF// &
+                        "\[bookmark_bmenu_switch_other_window] -- switch the other window to this bookmark."//LF// &
+                        "\[bookmark_bmenu_rename] -- rename this bookmark (prompts for new name)."//LF// &
+                        "\[bookmark_bmenu_relocate] -- relocate this bookmark's file (prompts for new file)."//LF// &
+                        "\[bookmark_bmenu_delete] -- mark this bookmark to be deleted, and move down."//LF// &
+                        "\[bookmark_bmenu_delete_backwards] -- mark this bookmark to be deleted, and move up."//LF// &
+                        "\[bookmark_bmenu_delete_all] -- mark all listed bookmarks as to be deleted."//LF// &
+                        "\[bookmark_bmenu_execute_deletions] -- delete bookmarks marked with `\[bookmark_bmenu_dele"// &
+                        "te]'"//LF// &
+                        "  or `\[bookmark_bmenu_delete_all]'."//LF// &
+                        "\[bookmark_bmenu_save] -- save the current bookmark list in the default file."//LF// &
+                        "  With a prefix arg, prompts for a file to save in."//LF// &
+                        "\[bookmark_bmenu_load] -- load in a file of bookmarks (prompts for file.)"//LF// &
+                        "\[bookmark_bmenu_unmark] -- remove all kinds of marks from current line."//LF// &
+                        "  With prefix argument, also move up one line."//LF// &
+                        "\[bookmark_bmenu_backup_unmark] -- back up a line and remove marks."//LF// &
+                        "\[bookmark_bmenu_unmark_all] -- remove all kinds of marks from all listed bookmarks."//LF// &
+                        "\[bookmark_bmenu_show_annotation] -- show the annotation, if it exists, for the current bo"// &
+                        "okmark"//LF// &
+                        "  in another buffer."//LF// &
+                        "\[bookmark_bmenu_show_all_annotations] -- show the annotations of all bookmarks in another"// &
+                        " buffer."//LF// &
+                        "\[bookmark_bmenu_edit_annotation] -- edit the annotation for the current bookmark."//LF// &
+                        "\[bookmark_bmenu_search] -- incrementally search for bookmarks."//LF// &
+                        "\[revert_buffer] -- refresh the buffer, and thus refresh the sort order (useful"//LF// &
+                        "  if `bookmark_sort_flag' is false)."
+        case ("bookmark_bmenu_other_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's bookmark in other window, leaving bookmark menu"//LF// &
+                        "visible."
+        case ("bookmark_bmenu_relocate")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change the absolute file name of the bookmark on the current line."//LF// &
+                        "Prompt with completion for the new path."
+        case ("bookmark_bmenu_rename")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Rename bookmark on current line.  Prompts for a new name."
+        case ("bookmark_bmenu_save")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save the current list into a bookmark file."//LF// &
+                        "With a prefix arg, prompt for a file to save them in."//LF// &
+                        ""//LF// &
+                        "See also the related behaviors of `bookmark_load' and"//LF// &
+                        "`bookmark_bmenu_load'."
+        case ("bookmark_bmenu_search")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Incremental search of bookmarks, hiding the non-matches as we go."
+        case ("bookmark_bmenu_select")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's bookmark; also display bookmarks marked with"//LF// &
+                        "`>'.  You can mark bookmarks with the"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark] or"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_mark_all] commands."
+        case ("bookmark_bmenu_show_all_annotations")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show the annotation for all bookmarks in another window."
+        case ("bookmark_bmenu_show_annotation")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Show the annotation for the current bookmark in another window."
+        case ("bookmark_bmenu_switch_other_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make the other window select this line's bookmark."//LF// &
+                        "The current window remains selected."
+        case ("bookmark_bmenu_this_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's bookmark in this window."
+        case ("bookmark_bmenu_toggle_filenames")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether filenames are shown in the bookmark list."//LF// &
+                        "Optional argument SHOW means show them unconditionally."
+        case ("bookmark_bmenu_unmark")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cancel all requested operations on bookmark on this line and move"//LF// &
+                        "down.  Optional BACKUP means move up."
+        case ("bookmark_bmenu_unmark_all")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cancel all requested operations on all listed bookmarks."
         case ("bookmark_delete")
             entry%file = "bookmark_fm.f90"
             entry%interactive = .true.
@@ -1941,7 +2232,9 @@ contains
                         "Removes only the first instance of a bookmark with that name.  If"//LF// &
                         "there are one or more other bookmarks with the same name, they will"//LF// &
                         "not be deleted.  Defaults to the ""current"" bookmark (that is, the one"//LF// &
-                        "most recently used in this file, if any)."
+                        "most recently used in this file, if any)."//LF// &
+                        "Optional second arg BATCH means don't update the bookmark list"//LF// &
+                        "buffer, probably because we were called from there."
         case ("bookmark_delete_all")
             entry%file = "bookmark_fm.f90"
             entry%interactive = .true.
@@ -2685,16 +2978,18 @@ contains
                         "keys that don't collide with Shell mode.  See `compilation_mode'."
         case ("compilation_start")
             entry%file = "compile_fm.f90"
-            entry%fortran = "call compilation_start(command, status, comint)"
+            entry%fortran = "call compilation_start(command, status, comint, mode)"
             entry%doc = "Run compilation command COMMAND (low level interface)."//LF// &
                         "If COMMAND starts with a cd command, that becomes the"//LF// &
                         "`default_directory'."//LF// &
                         ""//LF// &
-                        "COMINT true means use `compilation_shell_minor_mode' under"//LF// &
-                        "`comint_mode' (MODE t), else the buffer is in Compilation mode."//LF// &
+                        "MODE is the major mode to set in the compilation buffer"//LF// &
+                        "(`compilation_mode' if absent).  COMINT true means use"//LF// &
+                        "`compilation_shell_minor_mode' under `comint_mode' instead (MODE t)."//LF// &
                         ""//LF// &
-                        "The buffer is the current buffer if it is in Compilation mode, else"//LF// &
-                        "*compilation*."
+                        "The buffer is the current buffer if it has the proper major mode,"//LF// &
+                        "else a buffer with a name based on the major mode (*compilation*,"//LF// &
+                        "*grep*)."
         case ("compile")
             entry%file = "compile_fm.f90"
             entry%fortran = "call compile(command, status, comint)"
@@ -4209,6 +4504,13 @@ contains
                         "where NAME and EXPANSION are strings with quotes,"//LF// &
                         "USECOUNT is an integer, and HOOK is any valid function"//LF// &
                         "that may be omitted (it is usually omitted)."
+        case ("edit_bookmarks")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of existing bookmarks."//LF// &
+                        "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
+                        "The leftmost column displays a D if the bookmark is flagged for"//LF// &
+                        "deletion, or > if it is flagged for displaying."
         case ("electric_indent_just_newline")
             entry%file = "electric_fm.f90"
             entry%fortran = "call electric_indent_just_newline(status)"
@@ -4875,6 +5177,13 @@ contains
                         "If this command needs to split the current window, it by default obeys"//LF// &
                         "the user options `split_height_threshold' and `split_width_threshold',"//LF// &
                         "when it decides whether to split the window horizontally or vertically."
+        case ("find_grep")
+            entry%file = "grep_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
+                        "interactive form of grep.el:grep-find."//LF// &
+                        ""//LF// &
+                        "Run grep via find, with user-specified args."
         case ("first_error")
             entry%file = "simple_next_error_fm.f90"
             entry%interactive = .true.
@@ -4952,7 +5261,8 @@ contains
             entry%doc = "The interactive `font_lock_fontify_buffer'."
         case ("font_lock_highlight")
             entry%file = "font_lock_fm.f90"
-            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties)"
+            entry%fortran = "font_lock_highlight(subexp, face, override, laxmatch, face_function, true_properties, nil_"// &
+                            "properties, display, properties_function)"
             entry%doc = "A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face"//LF// &
                         "FACE (or the face FACE_FUNCTION names), combined with existing"//LF// &
                         "fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),"//LF// &
@@ -5227,6 +5537,49 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "call goto_char(position)"
             entry%doc = "Set point to `position', clipped to the accessible region."
+        case ("grep")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call grep(command_args, status)"
+            entry%interactive = .true.
+            entry%doc = "The command: read the command, then `grep'.  The interactive form of"//LF// &
+                        "grep.el:grep."//LF// &
+                        ""//LF// &
+                        "Run grep, with user-specified args, and collect output in a buffer."
+        case ("grep_apply_setting")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call grep_apply_setting(command, template, use_null_device, find_command, find_command_pos"// &
+                            "ition, find_template, find_use_xargs, use_null_filename_separator, highlight_matches, quot"// &
+                            "ing_style)"
+            entry%doc = "Set the given settings, and update `grep_host_defaults_alist'."//LF// &
+                        "The settings are `grep_command', `grep_template',"//LF// &
+                        "`grep_use_null_device', `grep_find_command', `grep_find_template',"//LF// &
+                        "`grep_find_use_xargs', `grep_use_null_filename_separator',"//LF// &
+                        "`grep_highlight_matches', or `grep_quoting_style'."
+        case ("grep_compute_defaults")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call grep_compute_defaults(status)"
+            entry%doc = "Compute the defaults for the `grep' command."//LF// &
+                        "The value depends on `grep_command', `grep_template',"//LF// &
+                        "`grep_use_null_device', `grep_find_command', `grep_find_template',"//LF// &
+                        "`grep_use_null_filename_separator', `grep_find_use_xargs',"//LF// &
+                        "`grep_highlight_matches', and `grep_quoting_style'."
+        case ("grep_find")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call grep_find(command_args, status)"
+            entry%interactive = .true.
+            entry%doc = "The command: read the find command, then `grep_find'.  The"//LF// &
+                        "interactive form of grep.el:grep-find."//LF// &
+                        ""//LF// &
+                        "Run grep via find, with user-specified args."
+        case ("grep_find_toggle_abbreviation")
+            entry%file = "grep_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Toggle showing the hidden part of rgrep/lgrep/zrgrep command line."
+        case ("grep_mode")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call grep_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Sets `grep_last_buffer' and `compilation_window_height'."
         case ("help_for_help")
             entry%file = "help_fm.f90"
             entry%interactive = .true.
@@ -5785,6 +6138,10 @@ contains
             entry%fortran = "call kill_compilation(status)"
             entry%interactive = .true.
             entry%doc = "Kill the process made by the \[compile] or \[grep] commands."
+        case ("kill_grep")
+            entry%file = "grep_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the process made by the \[compile] or \[grep] commands."
         case ("kill_line")
             entry%file = "simple_fm.f90"
             entry%interactive = .true.
@@ -6149,6 +6506,14 @@ contains
                         "If an edge of the buffer or a field boundary is reached, point is left there."//LF// &
                         "Field boundaries are not noticed if `inhibit_field_text_motion' is"//LF// &
                         "true."
+        case ("lgrep")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call lgrep(regexp, status, files, dir, confirm)"
+            entry%interactive = .true.
+            entry%doc = "The command: read the arguments, then `lgrep'.  The interactive form"//LF// &
+                        "of grep.el:lgrep."//LF// &
+                        ""//LF// &
+                        "User-friendly grep in a directory."
         case ("line_number_at_pos")
             entry%file = "simple_fm.f90"
             entry%fortran = "line_number_at_pos(position, absolute)"
@@ -6168,6 +6533,13 @@ contains
                         "If LOCAL is true (interactively, when invoked with a"//LF// &
                         "prefix arg), display only local, i.e. mode-specific, abbrevs."//LF// &
                         "Otherwise display all the abbrevs."
+        case ("list_bookmarks")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of existing bookmarks."//LF// &
+                        "The list is displayed in a buffer named `*Bookmark List*'."//LF// &
+                        "The leftmost column displays a D if the bookmark is flagged for"//LF// &
+                        "deletion, or > if it is flagged for displaying."
         case ("list_registers")
             entry%file = "register_fm.f90"
             entry%fortran = "call list_registers(status)"
@@ -7508,7 +7880,8 @@ contains
                         "an error message."
         case ("read_file_name_default")
             entry%file = "minibuffer_fm.f90"
-            entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial)"
+            entry%fortran = "call read_file_name(prompt, result, status, dir, default_filename, mustmatch, initial, pre"// &
+                            "dicate)"
             entry%doc = "Read a file name, prompting with PROMPT and completing in directory DIR."//LF// &
                         "Return the file name as a string."//LF// &
                         "The return value is not expanded---you must call `expand_file_name'"//LF// &
@@ -7549,6 +7922,9 @@ contains
                         "interpreted as the trailing part of DEFAULT_FILENAME, so using a"//LF// &
                         "full file name for INITIAL will usually lead to surprising"//LF// &
                         "results."//LF// &
+                        ""//LF// &
+                        "Sixth arg PREDICATE, if present, restricts the completions to the"//LF// &
+                        "file names it accepts."//LF// &
                         ""//LF// &
                         "See also `read_file_name_completion_ignore_case'."
         case ("read_multiple_choice")
@@ -7615,7 +7991,7 @@ contains
         case ("read_shell_command")
             entry%file = "simple_fm.f90"
             entry%fortran = "call read_shell_command(prompt, result, status, initial, history, default, history_positio"// &
-                            "n)"
+                            "n, position)"
             entry%doc = "Read a shell command from the minibuffer, and return it as a"//LF// &
                         "string.  The arguments are the same as the ones of"//LF// &
                         "`read_from_minibuffer', except READ and KEYMAP are missing and"//LF// &
@@ -8038,6 +8414,14 @@ contains
                         "If FORCE is false, get the unspecified aspect (or aspects) from the buffer's"//LF// &
                         "previous `buffer_file_coding_system' value (if it is specified there)."//LF// &
                         "Otherwise, determine it from the file contents as usual for visiting a file."
+        case ("rgrep")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call rgrep(regexp, status, files, dir, confirm)"
+            entry%interactive = .true.
+            entry%doc = "The command: read the arguments, then `rgrep'.  The interactive form"//LF// &
+                        "of grep.el:rgrep."//LF// &
+                        ""//LF// &
+                        "User-friendly recursive grep in directory tree."
         case ("right_char")
             entry%file = "bindings_fm.f90"
             entry%interactive = .true.
@@ -8118,6 +8502,13 @@ contains
                         ""//LF// &
                         "This function returns a timer object which you can use in"//LF// &
                         "`cancel_timer'."
+        case ("rzgrep")
+            entry%file = "grep_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
+                        "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
+                        ""//LF// &
+                        "Recursively grep for a regexp in gzipped files."
         case ("save_buffer")
             entry%file = "files_fm.f90"
             entry%fortran = "call save_buffer(arg, called_interactively, status)"
@@ -9146,6 +9537,73 @@ contains
             entry%doc = "Insert spaces or tabs to next defined tab-stop column."//LF// &
                         "The variable `tab_stop_list' is an array of columns at which there are tab stops."//LF// &
                         "Whether this inserts tabs or spaces depends on `indent_tabs_mode'."
+        case ("tabulated_list_mode")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Generic major mode for browsing a list of items."//LF// &
+                        "This mode is usually not used directly; instead, other major modes"//LF// &
+                        "are derived from it."//LF// &
+                        ""//LF// &
+                        "In this major mode, the buffer is divided into multiple columns,"//LF// &
+                        "which are labeled using the header line.  Each non-empty line belongs"//LF// &
+                        "to one ""entry"", and the entries can be sorted according to their"//LF// &
+                        "column values."//LF// &
+                        ""//LF// &
+                        "An inheriting mode should usually do the following in their body:"//LF// &
+                        ""//LF// &
+                        " - Set `tabulated_list_format', specifying the column format."//LF// &
+                        " - Set `tabulated_list_revert_hook', if the buffer contents need to"//LF// &
+                        "   be specially recomputed prior to `revert_buffer'."//LF// &
+                        " - Maybe set a `tabulated_list_entries' function (see below)."//LF// &
+                        " - Maybe set `tabulated_list_printer' (see below)."//LF// &
+                        " - Maybe set `tabulated_list_padding'."//LF// &
+                        " - Call `tabulated_list_init_header' to initialize"//LF// &
+                        "   `header_line_format' according to `tabulated_list_format'."//LF// &
+                        ""//LF// &
+                        "An inheriting mode is usually accompanied by a ""list-FOO"" command"//LF// &
+                        "(e.g. `list_packages', `list_processes').  This command creates or"//LF// &
+                        "switches to a buffer and enables the major mode in that buffer.  If"//LF// &
+                        "`tabulated_list_entries' is not a function, the command should"//LF// &
+                        "initialize it to a list of entries for displaying.  Finally, it"//LF// &
+                        "should call `tabulated_list_print'."//LF// &
+                        ""//LF// &
+                        "`tabulated_list_print' calls the printer function specified by"//LF// &
+                        "`tabulated_list_printer', once for each entry.  The default printer"//LF// &
+                        "is `tabulated_list_print_entry'."
+        case ("tabulated_list_narrow_current_column")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Narrow the current tabulated list column by N chars."//LF// &
+                        "Interactively, N is the prefix numeric argument, and defaults to 1."
+        case ("tabulated_list_next_column")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the start of the next column after point on the current line."//LF// &
+                        "If ARG is provided, move that many columns."
+        case ("tabulated_list_previous_column")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Go to the start of the column point is in on the current line."//LF// &
+                        "If ARG is provided, move that many columns."
+        case ("tabulated_list_revert")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "The `revert_buffer_function' for `tabulated_list_mode'."//LF// &
+                        "It runs `tabulated_list_revert_hook', then calls"//LF// &
+                        "`tabulated_list_print'."
+        case ("tabulated_list_sort")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Sort Tabulated List entries by the column at point."//LF// &
+                        "With a numeric prefix argument N, sort the Nth column."//LF// &
+                        ""//LF// &
+                        "If the numeric prefix is -1, restore order the list was originally"//LF// &
+                        "displayed in."
+        case ("tabulated_list_widen_current_column")
+            entry%file = "tabulated_list_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Widen the current tabulated-list column by N chars."//LF// &
+                        "Interactively, N is the prefix numeric argument, and defaults to 1."
         case ("text_mode")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "call text_mode(status)"
@@ -10236,6 +10694,14 @@ contains
                         "If the `use_short_answers' variable is true, instead of asking for"//LF// &
                         """yes"" or ""no"", this function will ask for ""y"" or ""n"" (and"//LF// &
                         "ignore the value of `yes_or_no_prompt')."
+        case ("zrgrep")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "call zrgrep(regexp, status, files, dir, confirm, template)"
+            entry%interactive = .true.
+            entry%doc = "The command: compute the zgrep defaults, read the arguments, then"//LF// &
+                        "`zrgrep'.  The interactive form of grep.el:zrgrep."//LF// &
+                        ""//LF// &
+                        "Recursively grep for a regexp in gzipped files."
         case default
             found = .false.
         end select
@@ -10899,6 +11365,47 @@ contains
             entry%original = ".true."
             entry%value = repr(bookmark_automatically_show_annotations)
             entry%doc = "True means show annotations when jumping to a bookmark."
+        case ("bookmark_bmenu_buffer")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_buffer"
+            if (allocated(bookmark_bmenu_buffer)) then
+                entry%value = repr(bookmark_bmenu_buffer)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Name of buffer used for Bookmark List."
+        case ("bookmark_bmenu_file_column")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_file_column"
+            entry%user_option = .true.
+            entry%original = "30"
+            entry%value = repr(bookmark_bmenu_file_column)
+            entry%doc = "Column at which to display filenames in a buffer listing bookmarks."//LF// &
+                        "You can toggle whether files are shown with"//LF// &
+                        "\<bookmark_bmenu_mode_map>\[bookmark_bmenu_toggle_filenames]."
+        case ("bookmark_bmenu_mode_hook")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_mode_hook"
+            entry%doc = "Hook run when entering `bookmark_bmenu_mode'."
+        case ("bookmark_bmenu_mode_map")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_mode_map"
+            entry%doc = "Keymap for `bookmark_bmenu_mode'."
+        case ("bookmark_bmenu_toggle_filenames")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_toggle_filenames"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(bookmark_bmenu_toggle_filenames)
+            entry%doc = "True means show filenames when listing bookmarks."//LF// &
+                        "A true value may result in truncated bookmark names."
+        case ("bookmark_bmenu_type_column_width")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bmenu_type_column_width"
+            entry%user_option = .true.
+            entry%original = "8"
+            entry%value = repr(bookmark_bmenu_type_column_width)
+            entry%doc = "Column width for bookmark type in a buffer listing bookmarks."
         case ("bookmark_bookmarks_timestamp")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_bookmarks_timestamp"
@@ -10982,6 +11489,10 @@ contains
                         "bookmark prefix, just use `keymap_global_set' and bind a key of your"//LF// &
                         "choice to variable `bookmark_map'.  All interactive bookmark"//LF// &
                         "functions have a binding in this keymap."
+        case ("bookmark_menu_bookmark")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_menu_bookmark"
+            entry%doc = "Face used to highlight bookmark names in bookmark menu buffers."
         case ("bookmark_menu_confirm_deletion")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_menu_confirm_deletion"
@@ -11025,6 +11536,13 @@ contains
                         ""//LF// &
                         "To specify the file in which to save them, modify the variable"//LF// &
                         "`bookmark_default_file'."
+        case ("bookmark_search_delay")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_search_delay"
+            entry%user_option = .true.
+            entry%original = "0.2"
+            entry%value = repr(bookmark_search_delay)
+            entry%doc = "Time before `bookmark_bmenu_search' updates the display."
         case ("bookmark_search_size")
             entry%file = "bookmark_fm.f90"
             entry%fortran = "bookmark_search_size"
@@ -14677,6 +15195,27 @@ contains
             entry%value = repr(find_file_run_dired)
             entry%doc = "True means allow `find_file' to visit directories."//LF// &
                         "To visit the directory, `find_file' runs `find_directory_functions'."
+        case ("find_name_arg")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "find_name_arg"
+            entry%user_option = .true.
+            if (allocated(find_name_arg)) then
+                entry%value = repr(find_name_arg)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Option to `find' to match the base name of files."
+        case ("find_program")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "find_program"
+            if (allocated(find_program)) then
+                entry%value = repr(find_program)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default find program."//LF// &
+                        "This is used by commands like `grep_find_command', `find_dired' and"//LF// &
+                        "others."
         case ("first_change_hook")
             entry%file = "insdel_fm.f90"
             entry%fortran = "first_change_hook"
@@ -14876,6 +15415,438 @@ contains
             entry%doc = "Semipermanent goal column for vertical motion, or -1 for none."//LF// &
                         "A setting other than -1 overrides the variable"//LF// &
                         "`line_move_visual', which see."
+        case ("grep_command")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_command"
+            entry%user_option = .true.
+            if (allocated(grep_command)) then
+                entry%value = repr(grep_command)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default grep command for \[grep]."//LF// &
+                        "If the grep program used supports an option to always include file"//LF// &
+                        "names in its output (such as the `-H' option to GNU grep), it's a"//LF// &
+                        "good idea to include it when specifying `grep_command'."//LF// &
+                        ""//LF// &
+                        "In interactive usage, the actual value of this variable is set up"//LF// &
+                        "by `grep_compute_defaults'; to change the default value, use"//LF// &
+                        "\[customize] or call the function `grep_apply_setting'."//LF// &
+                        ""//LF// &
+                        "Also see `grep_command_position'."
+        case ("grep_command_position")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_command_position"
+            entry%user_option = .true.
+            entry%original = "0"
+            entry%value = repr(grep_command_position)
+            entry%doc = "Where to put point when prompting for a grep command."//LF// &
+                        "This controls the placement of point in the minibuffer when Fortmacs"//LF// &
+                        "prompts for the grep command.  If 0, put point at the end of the"//LF// &
+                        "suggested command.  Otherwise, this should be the one-based"//LF// &
+                        "position in the minibuffer where to place point."
+        case ("grep_compilation_transform_finished_rules")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_compilation_transform_finished_rules"
+            entry%doc = "Rules added to `compilation_transform_file_match_alist' in"//LF// &
+                        "`grep_mode'.  These prevent the ""Grep finished"" lines from being"//LF// &
+                        "misinterpreted as matches (bug#77732)."
+        case ("grep_context_face")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_context_face"
+            if (allocated(grep_context_face)) then
+                entry%value = repr(grep_context_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name to use for grep context lines."
+        case ("grep_error")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_error"
+            if (allocated(grep_error)) then
+                entry%value = repr(grep_error)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Message to print when no matches are found."
+        case ("grep_error_face")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_error_face"
+            if (allocated(grep_error_face)) then
+                entry%value = repr(grep_error_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name to use for grep error messages."
+        case ("grep_error_screen_columns")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_error_screen_columns"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(grep_error_screen_columns)
+            entry%doc = "If true, column numbers in grep hits are screen columns."//LF// &
+                        "See `compilation_error_screen_columns'."
+        case ("grep_files_aliases")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_files_aliases"
+            entry%user_option = .true.
+            entry%doc = "Alist of aliases for the FILES argument to `lgrep' and `rgrep'."
+        case ("grep_find_abbreviate")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_abbreviate"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(grep_find_abbreviate)
+            entry%doc = "If true, hide part of rgrep/lgrep/zrgrep command line."//LF// &
+                        "The hidden part contains a list of ignored directories and files."//LF// &
+                        "Clicking on the button-like ellipsis unhides the abbreviated part"//LF// &
+                        "and reveals the entire command line.  The visibility of the"//LF// &
+                        "abbreviated part can also be toggled with"//LF// &
+                        "`grep_find_toggle_abbreviation'."
+        case ("grep_find_command")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_command"
+            entry%user_option = .true.
+            if (allocated(grep_find_command)) then
+                entry%value = repr(grep_find_command)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default find command for \[grep_find]."//LF// &
+                        "In interactive usage, the actual value of this variable is set up"//LF// &
+                        "by `grep_compute_defaults'; to change the default value, use"//LF// &
+                        "\[customize] or call the function `grep_apply_setting'."//LF// &
+                        ""//LF// &
+                        "If `grep_find_command_position' is not 0, point will be placed at"//LF// &
+                        "that position for easier editing (the form (COMMAND . POSITION))."
+        case ("grep_find_command_position")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_command_position"
+            entry%original = "0"
+            entry%value = repr(grep_find_command_position)
+            entry%doc = "The POSITION of `grep_find_command' when it has the form (COMMAND"//LF// &
+                        ". POSITION), 0 for none."
+        case ("grep_find_ignored_directories")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_ignored_directories"
+            entry%user_option = .true.
+            entry%doc = "List of names of sub-directories which `rgrep' shall not recurse"//LF// &
+                        "into.  If an element has a predicate (APPLIES), it is called on the"//LF// &
+                        "search directory to determine whether NAME should not be recursed"//LF// &
+                        "into."//LF// &
+                        ""//LF// &
+                        "The default value is inherited from `vc_directory_exclusion_list'."
+        case ("grep_find_ignored_files")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "vgrep_find_ignored_files"
+            entry%user_option = .true.
+            entry%doc = "List of file names which `rgrep' and `lgrep' shall exclude."//LF// &
+                        "If an element has a predicate (APPLIES), it is called on the search"//LF// &
+                        "directory to determine whether NAME should not be excluded."
+        case ("grep_find_template")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_template"
+            entry%user_option = .true.
+            if (allocated(grep_find_template)) then
+                entry%value = repr(grep_find_template)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default command to run for \[rgrep]."//LF// &
+                        "The following place holders should be present in the string:"//LF// &
+                        " <D> - base directory for find"//LF// &
+                        " <X> - find options to restrict or expand the directory list"//LF// &
+                        " <F> - find options to limit the files matched"//LF// &
+                        " <C> - place to put the grep options like -i and --color"//LF// &
+                        " <R> - the regular expression searched for."//LF// &
+                        "In interactive usage, the actual value of this variable is set up"//LF// &
+                        "by `grep_compute_defaults'; to change the default value, use"//LF// &
+                        "\[customize] or call the function `grep_apply_setting'."
+        case ("grep_find_use_xargs")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_find_use_xargs"
+            entry%user_option = .true.
+            entry%original = "GREP_FIND_USE_XARGS_NIL"
+            select case (grep_find_use_xargs)
+            case (GREP_FIND_USE_XARGS_NIL)
+                entry%value = "GREP_FIND_USE_XARGS_NIL"
+            case (GREP_FIND_USE_XARGS_EXEC)
+                entry%value = "GREP_FIND_USE_XARGS_EXEC"
+            case (GREP_FIND_USE_XARGS_EXEC_PLUS)
+                entry%value = "GREP_FIND_USE_XARGS_EXEC_PLUS"
+            case (GREP_FIND_USE_XARGS_GNU)
+                entry%value = "GREP_FIND_USE_XARGS_GNU"
+            case (GREP_FIND_USE_XARGS_GNU_SORT)
+                entry%value = "GREP_FIND_USE_XARGS_GNU_SORT"
+            case (GREP_FIND_USE_XARGS_OTHER)
+                entry%value = "GREP_FIND_USE_XARGS_OTHER"
+            case default
+                entry%value = repr(grep_find_use_xargs)
+            end select
+            entry%doc = "How to invoke find and grep."//LF// &
+                        "If GREP_FIND_USE_XARGS_EXEC, use `find -exec {} ;'."//LF// &
+                        "If GREP_FIND_USE_XARGS_EXEC_PLUS use `find -exec {} +'."//LF// &
+                        "If GREP_FIND_USE_XARGS_GNU, use `find -print0' and `xargs -0'."//LF// &
+                        "If GREP_FIND_USE_XARGS_GNU_SORT, use `find -print0', `sort -z' and"//LF// &
+                        "`xargs -0'.  GREP_FIND_USE_XARGS_OTHER means to use `find -print'"//LF// &
+                        "and `xargs'."//LF// &
+                        ""//LF// &
+                        "This variable's value takes effect when `grep_compute_defaults' is"//LF// &
+                        "called."
+        case ("grep_first_column")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_first_column"
+            entry%original = "0"
+            entry%value = repr(grep_first_column)
+            entry%doc = "Value to use for `compilation_first_column' in grep buffers."
+        case ("grep_heading")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_heading"
+            entry%doc = "Face of headings when `grep_use_headings' is true."
+        case ("grep_heading_regexp")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_heading_regexp"
+            if (allocated(grep_heading_regexp)) then
+                entry%value = repr(grep_heading_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp used to create headings from grep output lines."//LF// &
+                        "It should be anchored at beginning of line.  The first capture"//LF// &
+                        "group, if present, should match the heading associated to the"//LF// &
+                        "line.  The buffer range of the second capture, if present, is"//LF// &
+                        "made invisible (presumably because displaying it would be"//LF// &
+                        "redundant)."
+        case ("grep_highlight_matches")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_highlight_matches"
+            entry%user_option = .true.
+            entry%original = "GREP_AUTO_DETECT"
+            select case (grep_highlight_matches)
+            case (GREP_NIL)
+                entry%value = "GREP_NIL"
+            case (GREP_T)
+                entry%value = "GREP_T"
+            case (GREP_AUTO_DETECT)
+                entry%value = "GREP_AUTO_DETECT"
+            case (GREP_ALWAYS)
+                entry%value = "GREP_ALWAYS"
+            case (GREP_AUTO)
+                entry%value = "GREP_AUTO"
+            case default
+                entry%value = repr(grep_highlight_matches)
+            end select
+            entry%doc = "Use special markers to highlight grep matches."//LF// &
+                        ""//LF// &
+                        "Some grep programs are able to surround matches with special"//LF// &
+                        "markers in grep output.  Such markers can be used to highlight"//LF// &
+                        "matches in grep mode.  This requires `font_lock_mode' to be active"//LF// &
+                        "in grep buffers, so if you have globally disabled `font_lock_mode',"//LF// &
+                        "you will not get highlighting."//LF// &
+                        ""//LF// &
+                        "This option sets the environment variable GREP_COLORS to specify"//LF// &
+                        "markers for highlighting and adds the --color option in front of"//LF// &
+                        "any explicit grep options before starting the grep."//LF// &
+                        ""//LF// &
+                        "When this option is GREP_AUTO, grep uses `--color=auto' to"//LF// &
+                        "highlight matches only when it outputs to a terminal (when `grep'"//LF// &
+                        "is the last command in the pipe), thus avoiding the use of any"//LF// &
+                        "potentially-harmful escape sequences when standard output goes to a"//LF// &
+                        "file or pipe."//LF// &
+                        ""//LF// &
+                        "To make grep highlight matches even into a pipe, you need the"//LF// &
+                        "option GREP_ALWAYS that forces grep to use `--color=always' to"//LF// &
+                        "unconditionally output escape sequences."//LF// &
+                        ""//LF// &
+                        "If the value is GREP_AUTO_DETECT (the default), `grep' will call"//LF// &
+                        "`grep_compute_defaults' to compute the value.  To change the"//LF// &
+                        "default value, use \[customize] or call the function"//LF// &
+                        "`grep_apply_setting'."
+        case ("grep_hit_face")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_hit_face"
+            if (allocated(grep_hit_face)) then
+                entry%value = repr(grep_hit_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name to use for grep hits."
+        case ("grep_last_buffer")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_last_buffer"
+            entry%doc = "The most recent grep buffer."//LF// &
+                        "A grep buffer becomes most recent when you select Grep mode in it."//LF// &
+                        "Notice that using \[next_error] or \[compile_goto_error] modifies"//LF// &
+                        "`next_error_last_buffer' rather than `grep_last_buffer'."
+        case ("grep_match_face")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_match_face"
+            if (allocated(grep_match_face)) then
+                entry%value = repr(grep_match_face)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Face name to use for grep matches."
+        case ("grep_match_regexp")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_match_regexp"
+            entry%user_option = .true.
+            if (allocated(grep_match_regexp)) then
+                entry%value = repr(grep_match_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regular expression matching grep markers to highlight."//LF// &
+                        "It matches SGR ANSI escape sequences which are emitted by grep to"//LF// &
+                        "color its output.  This variable is used in `grep_filter'."
+        case ("grep_mode_font_lock_keywords")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_mode_font_lock_keywords"
+            entry%doc = "Additional things to highlight in grep output."//LF// &
+                        "This gets tacked on the end of the generated expressions."
+        case ("grep_mode_hook")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_mode_hook"
+            entry%doc = "Hook run after entering Grep mode."
+        case ("grep_mode_map")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_mode_map"
+            entry%doc = "Keymap for grep buffers."//LF// &
+                        "This keymap inherits from `compilation_minor_mode_map'."
+        case ("grep_program")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_program"
+            if (allocated(grep_program)) then
+                entry%value = repr(grep_program)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default grep program for `grep_command' and"//LF// &
+                        "`grep_find_command'.  This variable's value takes effect when"//LF// &
+                        "`grep_compute_defaults' is called."
+        case ("grep_quoting_style")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_quoting_style"
+            entry%original = ".false."
+            entry%value = repr(grep_quoting_style)
+            entry%doc = "Whether to use POSIX-like shell argument quoting."
+        case ("grep_regexp_alist")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_regexp_alist"
+            entry%doc = "Regexp used to match grep hits."//LF// &
+                        "See `compilation_error_regexp_alist' for format details."
+        case ("grep_save_buffers")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_save_buffers"
+            entry%user_option = .true.
+            entry%original = "GREP_SAVE_BUFFERS_ASK"
+            select case (grep_save_buffers)
+            case (GREP_SAVE_BUFFERS_NIL)
+                entry%value = "GREP_SAVE_BUFFERS_NIL"
+            case (GREP_SAVE_BUFFERS_T)
+                entry%value = "GREP_SAVE_BUFFERS_T"
+            case (GREP_SAVE_BUFFERS_ASK)
+                entry%value = "GREP_SAVE_BUFFERS_ASK"
+            case default
+                entry%value = repr(grep_save_buffers)
+            end select
+            entry%doc = "If not GREP_SAVE_BUFFERS_NIL, save buffers before running the grep"//LF// &
+                        "commands.  If GREP_SAVE_BUFFERS_ASK, ask before saving.  If"//LF// &
+                        "`grep_save_buffers_function' is set, call it with no arguments with"//LF// &
+                        "each buffer current, as a predicate to determine whether that buffer"//LF// &
+                        "should be saved or not."
+        case ("grep_scroll_output")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_scroll_output"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(grep_scroll_output)
+            entry%doc = "True to scroll the *grep* buffer window as output appears."//LF// &
+                        ""//LF// &
+                        "Setting it causes the grep commands to put point at the end of their"//LF// &
+                        "output window so that the end of the output is always visible rather"//LF// &
+                        "than the beginning."
+        case ("grep_setup_hook")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_setup_hook"
+            entry%user_option = .true.
+            entry%doc = "List of hook functions run by `grep_process_setup' (see"//LF// &
+                        "`run_hooks')."
+        case ("grep_template")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_template"
+            entry%user_option = .true.
+            if (allocated(grep_template)) then
+                entry%value = repr(grep_template)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default command to run for \[lgrep]."//LF// &
+                        "The following place holders should be present in the string:"//LF// &
+                        " <C> - place to put the options like -i and --color."//LF// &
+                        " <F> - file names and wildcards to search."//LF// &
+                        " <X> - file names and wildcards to exclude."//LF// &
+                        " <R> - the regular expression searched for."//LF// &
+                        " <N> - place to insert `null_device'."//LF// &
+                        ""//LF// &
+                        "In interactive usage, the actual value of this variable is set up"//LF// &
+                        "by `grep_compute_defaults'; to change the default value, use"//LF// &
+                        "\[customize] or call the function `grep_apply_setting'."
+        case ("grep_use_headings")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_use_headings"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(grep_use_headings)
+            entry%doc = "If true, subdivide grep output into sections, one per file."
+        case ("grep_use_null_device")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_use_null_device"
+            entry%user_option = .true.
+            entry%original = "GREP_AUTO_DETECT"
+            select case (grep_use_null_device)
+            case (GREP_NIL)
+                entry%value = "GREP_NIL"
+            case (GREP_T)
+                entry%value = "GREP_T"
+            case (GREP_AUTO_DETECT)
+                entry%value = "GREP_AUTO_DETECT"
+            case (GREP_ALWAYS)
+                entry%value = "GREP_ALWAYS"
+            case (GREP_AUTO)
+                entry%value = "GREP_AUTO"
+            case default
+                entry%value = repr(grep_use_null_device)
+            end select
+            entry%doc = "If GREP_T, append the value of `null_device' to `grep' commands."//LF// &
+                        "This is done to ensure that the output of grep includes the filename"//LF// &
+                        "of any match in the case where only a single file is searched, and"//LF// &
+                        "is not necessary if the grep program used supports the `-H' option."//LF// &
+                        ""//LF// &
+                        "In interactive usage, the actual value of this variable is set up"//LF// &
+                        "by `grep_compute_defaults'; to change the default value, use"//LF// &
+                        "\[customize] or call the function `grep_apply_setting'."
+        case ("grep_use_null_filename_separator")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "grep_use_null_filename_separator"
+            entry%user_option = .true.
+            entry%original = "GREP_AUTO_DETECT"
+            select case (grep_use_null_filename_separator)
+            case (GREP_NIL)
+                entry%value = "GREP_NIL"
+            case (GREP_T)
+                entry%value = "GREP_T"
+            case (GREP_AUTO_DETECT)
+                entry%value = "GREP_AUTO_DETECT"
+            case (GREP_ALWAYS)
+                entry%value = "GREP_ALWAYS"
+            case (GREP_AUTO)
+                entry%value = "GREP_AUTO"
+            case default
+                entry%value = repr(grep_use_null_filename_separator)
+            end select
+            entry%doc = "If true (GREP_T), use `grep''s `--null' option."//LF// &
+                        "This is done to disambiguate file names in `grep''s output."
         case ("help_map")
             entry%file = "help_fm.f90"
             entry%fortran = "help_map"
@@ -15613,6 +16584,10 @@ contains
             entry%value = repr(mark_ring_max)
             entry%doc = "Maximum size of mark ring.  Start discarding off end if gets this"//LF// &
                         "big."
+        case ("match")
+            entry%file = "replace_fm.f90"
+            entry%fortran = "match"
+            entry%doc = "Face used to highlight matches permanently."
         case ("message_log_max")
             entry%file = "xdisp_fm.f90"
             entry%fortran = "message_log_max"
@@ -16406,6 +17381,25 @@ contains
                         "then `revert_buffer' reverts the file without querying"//LF// &
                         "if the file has changed on disk and you have not edited the buffer."//LF// &
                         "(Each is used without its trailing blanks.)"
+        case ("rgrep_find_ignores_in")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "rgrep_find_ignores_in_f"
+            entry%original = ".true."
+            entry%value = repr(rgrep_find_ignores_in_f)
+            entry%doc = "If false, when `rgrep' expands `grep_find_template', file ignores"//LF// &
+                        "go in <X>."//LF// &
+                        ""//LF// &
+                        "By default, the <X> placeholder contains find options for affecting"//LF// &
+                        "the directory list, and the <F> placeholder contains the find"//LF// &
+                        "options which affect which files are matched, both"//LF// &
+                        "`vgrep_find_ignored_files' and the FILES argument to `rgrep'."//LF// &
+                        ""//LF// &
+                        "This separation allows the two sources of file matching in <F> to be"//LF// &
+                        "optimized together into a set of options which are overall faster"//LF// &
+                        "for ""find"" to evaluate."//LF// &
+                        ""//LF// &
+                        "If false, <X> contains ignores both for directories and files, and"//LF// &
+                        "<F> contains only the FILES argument.  This is the old behavior."
         case ("save_abbrevs")
             entry%file = "abbrev_fm.f90"
             entry%fortran = "save_abbrevs"
@@ -18055,6 +19049,71 @@ contains
             entry%doc = "Distance between tab stops (for display of tab characters), in columns."//LF// &
                         "This controls the width of a TAB character on display."//LF// &
                         "The value should be a positive integer."
+        case ("tabulated_list_fake_header")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_fake_header"
+            entry%doc = "Face used on fake header lines."
+        case ("tabulated_list_gui_sort_indicator_asc")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_gui_sort_indicator_asc"
+            entry%user_option = .true.
+            if (allocated(tabulated_list_gui_sort_indicator_asc)) then
+                entry%value = repr(tabulated_list_gui_sort_indicator_asc)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Indicator for columns sorted in ascending order, for GUI frames."//LF// &
+                        "See `tabulated_list_tty_sort_indicator_asc' for the indicator used"//LF// &
+                        "on text-mode frames."
+        case ("tabulated_list_gui_sort_indicator_desc")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_gui_sort_indicator_desc"
+            entry%user_option = .true.
+            if (allocated(tabulated_list_gui_sort_indicator_desc)) then
+                entry%value = repr(tabulated_list_gui_sort_indicator_desc)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Indicator for columns sorted in descending order, for GUI frames."//LF// &
+                        "See `tabulated_list_tty_sort_indicator_desc' for the indicator used"//LF// &
+                        "on text-mode frames."
+        case ("tabulated_list_mode_hook")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_mode_hook"
+            entry%doc = "Hook run when entering Tabulated List mode."
+        case ("tabulated_list_mode_map")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_mode_map"
+            entry%doc = "Local keymap for `tabulated_list_mode' buffers."
+        case ("tabulated_list_revert_hook")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_revert_hook"
+            entry%doc = "Hook run before reverting a Tabulated List buffer."//LF// &
+                        "This is commonly used to recompute `tabulated_list_entries'."
+        case ("tabulated_list_tty_sort_indicator_asc")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_tty_sort_indicator_asc"
+            entry%user_option = .true.
+            if (allocated(tabulated_list_tty_sort_indicator_asc)) then
+                entry%value = repr(tabulated_list_tty_sort_indicator_asc)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Indicator for columns sorted in ascending order, for text-mode"//LF// &
+                        "frames.  See `tabulated_list_gui_sort_indicator_asc' for the"//LF// &
+                        "indicator used on GUI frames."
+        case ("tabulated_list_tty_sort_indicator_desc")
+            entry%file = "tabulated_list_fm.f90"
+            entry%fortran = "tabulated_list_tty_sort_indicator_desc"
+            entry%user_option = .true.
+            if (allocated(tabulated_list_tty_sort_indicator_desc)) then
+                entry%value = repr(tabulated_list_tty_sort_indicator_desc)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Indicator for columns sorted in ascending order, for text-mode"//LF// &
+                        "frames.  See `tabulated_list_gui_sort_indicator_asc' for the"//LF// &
+                        "indicator used on GUI frames."
         case ("text_mode_abbrev_table")
             entry%file = "text_mode_fm.f90"
             entry%fortran = "text_mode_abbrev_table"
@@ -18131,6 +19190,18 @@ contains
                         "not span the full frame width."//LF// &
                         ""//LF// &
                         "A value of 0 means to respect the value of `truncate_lines'."
+        case ("truncate_string_ellipsis")
+            entry%file = "mule_util_fm.f90"
+            entry%fortran = "vtruncate_string_ellipsis"
+            if (allocated(vtruncate_string_ellipsis)) then
+                entry%value = repr(vtruncate_string_ellipsis)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "String to use to indicate truncation (unallocated for the default)."//LF// &
+                        "Serves as default value of ELLIPSIS argument to"//LF// &
+                        "`truncate_string_to_width' returned by the function"//LF// &
+                        "`truncate_string_ellipsis'."
         case ("undo_auto__this_command_amalgamating")
             entry%file = "undo_fm.f90"
             entry%fortran = "this_command_amalgamating"
@@ -18810,6 +19881,18 @@ contains
             entry%original = ".false."
             entry%value = repr(words_include_escapes)
             entry%doc = "True means `forward_word', etc., should treat escape chars part of words."
+        case ("xargs_program")
+            entry%file = "grep_fm.f90"
+            entry%fortran = "xargs_program"
+            if (allocated(xargs_program)) then
+                entry%value = repr(xargs_program)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The default xargs program for `grep_find_command'."//LF// &
+                        "See `grep_find_use_xargs'."//LF// &
+                        "This variable's value takes effect when `grep_compute_defaults' is"//LF// &
+                        "called."
         case ("y_or_n_p_history_variable")
             entry%file = "subr_fm.f90"
             entry%fortran = "y_or_n_p_history_variable"
@@ -18922,6 +20005,12 @@ contains
             kind = OPTION_LOGICAL
         case ("bookmark_automatically_show_annotations")
             kind = OPTION_LOGICAL
+        case ("bookmark_bmenu_file_column")
+            kind = OPTION_INTEGER
+        case ("bookmark_bmenu_toggle_filenames")
+            kind = OPTION_LOGICAL
+        case ("bookmark_bmenu_type_column_width")
+            kind = OPTION_INTEGER
         case ("bookmark_completion_ignore_case")
             kind = OPTION_LOGICAL
         case ("bookmark_default_file")
@@ -18932,6 +20021,8 @@ contains
             kind = OPTION_LOGICAL
         case ("bookmark_save_flag")
             kind = OPTION_CHOICE
+        case ("bookmark_search_delay")
+            kind = OPTION_REAL
         case ("bookmark_sort_flag")
             kind = OPTION_CHOICE
         case ("bookmark_use_annotations")
@@ -19281,6 +20372,8 @@ contains
             kind = OPTION_LOGICAL
         case ("find_file_run_dired")
             kind = OPTION_LOGICAL
+        case ("find_name_arg")
+            kind = OPTION_STRING
         case ("font_lock_maximum_decoration")
             kind = OPTION_CHOICE
         case ("font_lock_verbose")
@@ -19291,6 +20384,36 @@ contains
             kind = OPTION_LOGICAL
         case ("goal_column")
             kind = OPTION_INTEGER
+        case ("grep_command")
+            kind = OPTION_STRING
+        case ("grep_command_position")
+            kind = OPTION_INTEGER
+        case ("grep_error_screen_columns")
+            kind = OPTION_LOGICAL
+        case ("grep_find_abbreviate")
+            kind = OPTION_LOGICAL
+        case ("grep_find_command")
+            kind = OPTION_STRING
+        case ("grep_find_template")
+            kind = OPTION_STRING
+        case ("grep_find_use_xargs")
+            kind = OPTION_CHOICE
+        case ("grep_highlight_matches")
+            kind = OPTION_CHOICE
+        case ("grep_match_regexp")
+            kind = OPTION_STRING
+        case ("grep_save_buffers")
+            kind = OPTION_CHOICE
+        case ("grep_scroll_output")
+            kind = OPTION_LOGICAL
+        case ("grep_template")
+            kind = OPTION_STRING
+        case ("grep_use_headings")
+            kind = OPTION_LOGICAL
+        case ("grep_use_null_device")
+            kind = OPTION_CHOICE
+        case ("grep_use_null_filename_separator")
+            kind = OPTION_CHOICE
         case ("history_delete_duplicates")
             kind = OPTION_LOGICAL
         case ("history_length")
@@ -19602,6 +20725,14 @@ contains
         case ("tab_width")
             kind = OPTION_INTEGER
             setting = .true.
+        case ("tabulated_list_gui_sort_indicator_asc")
+            kind = OPTION_STRING
+        case ("tabulated_list_gui_sort_indicator_desc")
+            kind = OPTION_STRING
+        case ("tabulated_list_tty_sort_indicator_asc")
+            kind = OPTION_STRING
+        case ("tabulated_list_tty_sort_indicator_desc")
+            kind = OPTION_STRING
         case ("timer_max_repeats")
             kind = OPTION_INTEGER
         case ("transient_mark_mode")
@@ -19719,6 +20850,8 @@ contains
             blink_matching_paren_on_screen = v
         case ("bookmark_automatically_show_annotations")
             bookmark_automatically_show_annotations = v
+        case ("bookmark_bmenu_toggle_filenames")
+            bookmark_bmenu_toggle_filenames = v
         case ("bookmark_completion_ignore_case")
             bookmark_completion_ignore_case = v
         case ("bookmark_menu_confirm_deletion")
@@ -19941,6 +21074,14 @@ contains
             font_lock_verbose = v
         case ("global_auto_revert_non_file_buffers")
             global_auto_revert_non_file_buffers = v
+        case ("grep_error_screen_columns")
+            grep_error_screen_columns = v
+        case ("grep_find_abbreviate")
+            grep_find_abbreviate = v
+        case ("grep_scroll_output")
+            grep_scroll_output = v
+        case ("grep_use_headings")
+            grep_use_headings = v
         case ("history_delete_duplicates")
             history_delete_duplicates = v
         case ("indent_tabs_mode")
@@ -20161,6 +21302,18 @@ contains
             end if
         case ("blink_matching_paren_distance")
             blink_matching_paren_distance = v
+        case ("bookmark_bmenu_file_column")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            bookmark_bmenu_file_column = int(v)
+        case ("bookmark_bmenu_type_column_width")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            bookmark_bmenu_type_column_width = int(v)
         case ("comint_buffer_maximum_size")
             if (local) then
                 call comint_buffer_maximum_size%set_local(v)
@@ -20279,6 +21432,12 @@ contains
             end if
         case ("goal_column")
             goal_column = v
+        case ("grep_command_position")
+            if (v < -huge(0) - 1 .or. v > huge(0)) then
+                ok = .false.
+                return
+            end if
+            grep_command_position = int(v)
         case ("history_length")
             if (v < -huge(0) - 1 .or. v > huge(0)) then
                 ok = .false.
@@ -20455,6 +21614,8 @@ contains
             auto_revert_interval = v
         case ("blink_matching_delay")
             blink_matching_delay = v
+        case ("bookmark_search_delay")
+            bookmark_search_delay = v
         case ("copy_region_blink_delay")
             copy_region_blink_delay = v
         case ("repeat_exit_timeout")
@@ -20628,8 +21789,20 @@ contains
             else
                 fill_prefix = v
             end if
+        case ("find_name_arg")
+            find_name_arg = v
         case ("global_auto_revert_mode_text")
             global_auto_revert_mode_text = v
+        case ("grep_command")
+            grep_command = v
+        case ("grep_find_command")
+            grep_find_command = v
+        case ("grep_find_template")
+            grep_find_template = v
+        case ("grep_match_regexp")
+            grep_match_regexp = v
+        case ("grep_template")
+            grep_template = v
         case ("insert_directory_program")
             insert_directory_program = v
         case ("mounted_file_systems")
@@ -20744,6 +21917,14 @@ contains
             else
                 shell_pushd_regexp = v
             end if
+        case ("tabulated_list_gui_sort_indicator_asc")
+            tabulated_list_gui_sort_indicator_asc = v
+        case ("tabulated_list_gui_sort_indicator_desc")
+            tabulated_list_gui_sort_indicator_desc = v
+        case ("tabulated_list_tty_sort_indicator_asc")
+            tabulated_list_tty_sort_indicator_asc = v
+        case ("tabulated_list_tty_sort_indicator_desc")
+            tabulated_list_tty_sort_indicator_desc = v
         case ("vc_git_program")
             vc_git_program = v
         case ("vc_ignore_dir_regexp")
@@ -21299,6 +22480,79 @@ contains
             select case (constant)
             case ("FONT_LOCK_DECORATION_MAX")
                 font_lock_maximum_decoration = FONT_LOCK_DECORATION_MAX
+            case default
+                ok = .false.
+            end select
+        case ("grep_find_use_xargs")
+            select case (constant)
+            case ("GREP_FIND_USE_XARGS_NIL")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_NIL
+            case ("GREP_FIND_USE_XARGS_EXEC")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC
+            case ("GREP_FIND_USE_XARGS_EXEC_PLUS")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_EXEC_PLUS
+            case ("GREP_FIND_USE_XARGS_GNU")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU
+            case ("GREP_FIND_USE_XARGS_GNU_SORT")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_GNU_SORT
+            case ("GREP_FIND_USE_XARGS_OTHER")
+                grep_find_use_xargs = GREP_FIND_USE_XARGS_OTHER
+            case default
+                ok = .false.
+            end select
+        case ("grep_highlight_matches")
+            select case (constant)
+            case ("GREP_NIL")
+                grep_highlight_matches = GREP_NIL
+            case ("GREP_T")
+                grep_highlight_matches = GREP_T
+            case ("GREP_AUTO_DETECT")
+                grep_highlight_matches = GREP_AUTO_DETECT
+            case ("GREP_ALWAYS")
+                grep_highlight_matches = GREP_ALWAYS
+            case ("GREP_AUTO")
+                grep_highlight_matches = GREP_AUTO
+            case default
+                ok = .false.
+            end select
+        case ("grep_save_buffers")
+            select case (constant)
+            case ("GREP_SAVE_BUFFERS_NIL")
+                grep_save_buffers = GREP_SAVE_BUFFERS_NIL
+            case ("GREP_SAVE_BUFFERS_T")
+                grep_save_buffers = GREP_SAVE_BUFFERS_T
+            case ("GREP_SAVE_BUFFERS_ASK")
+                grep_save_buffers = GREP_SAVE_BUFFERS_ASK
+            case default
+                ok = .false.
+            end select
+        case ("grep_use_null_device")
+            select case (constant)
+            case ("GREP_NIL")
+                grep_use_null_device = GREP_NIL
+            case ("GREP_T")
+                grep_use_null_device = GREP_T
+            case ("GREP_AUTO_DETECT")
+                grep_use_null_device = GREP_AUTO_DETECT
+            case ("GREP_ALWAYS")
+                grep_use_null_device = GREP_ALWAYS
+            case ("GREP_AUTO")
+                grep_use_null_device = GREP_AUTO
+            case default
+                ok = .false.
+            end select
+        case ("grep_use_null_filename_separator")
+            select case (constant)
+            case ("GREP_NIL")
+                grep_use_null_filename_separator = GREP_NIL
+            case ("GREP_T")
+                grep_use_null_filename_separator = GREP_T
+            case ("GREP_AUTO_DETECT")
+                grep_use_null_filename_separator = GREP_AUTO_DETECT
+            case ("GREP_ALWAYS")
+                grep_use_null_filename_separator = GREP_ALWAYS
+            case ("GREP_AUTO")
+                grep_use_null_filename_separator = GREP_AUTO
             case default
                 ok = .false.
             end select

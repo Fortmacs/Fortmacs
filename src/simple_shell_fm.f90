@@ -107,10 +107,10 @@ contains
     if (present(default)) then
         defaults(1)%s = default
         call read_from_minibuffer(prompt, result, status, initial=initial, keymap=minibuffer_local_shell_command_map, &
-                                  history=hist, defaults=defaults, history_position=history_position)
+                                  history=hist, defaults=defaults, position=position, history_position=history_position)
     else
         call read_from_minibuffer(prompt, result, status, initial=initial, keymap=minibuffer_local_shell_command_map, &
-                                  history=hist, history_position=history_position)
+                                  history=hist, position=position, history_position=history_position)
     end if
     end procedure read_shell_command
 

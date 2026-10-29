@@ -548,6 +548,99 @@ contains
         end do
     end subroutine truename_1
 
+    pure module function wildcard_to_regexp(wildcard) result(regexp)
+        character(len=*), intent(in) :: wildcard
+        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: result
+        character :: ch
+        integer :: i, j, n
+        n = len(wildcard)
+        ! Copy the initial run of non-special characters.
+        i = scan(wildcard, "[.*+\^$?")
+        if (i == 0) then
+            regexp = "\`"//wildcard//"\'"
+            return
+        end if
+        result = wildcard(:i - 1)
+        do while (i <= n)
+            ch = wildcard(i:i)
+            if (ch == "[" .and. i + 1 <= n) then
+                if (wildcard(i + 1:i + 1) == "]") then
+                    result = result//"\["
+                    i = i + 1
+                    cycle
+                end if
+            end if
+            select case (ch)
+            case ("[")
+                ! [...] maps to regexp char class.
+                i = i + 1
+                if (i > n) then
+                    result = result//"["
+                else if (wildcard(i:i) == "!") then
+                    ! [!...] -> [^...]
+                    i = i + 1
+                    if (i <= n) then
+                        if (wildcard(i:i) == "]") then
+                            i = i + 1
+                            result = result//"[^]"
+                        else
+                            result = result//"[^"
+                        end if
+                    else
+                        result = result//"[^"
+                    end if
+                else if (wildcard(i:i) == "^") then
+                    ! Found "[^".  Insert a NUL character (which cannot
+                    ! happen in a filename) into the character class, so
+                    ! that `^' is not the first character after `[', and
+                    ! thus non-special in a regexp.
+                    i = i + 1
+                    result = result//"["//achar(0)//"^"
+                else if (wildcard(i:i) == "]") then
+                    ! I don't think `]' can appear in a character class in
+                    ! a wildcard, but let's be general here.
+                    i = i + 1
+                    result = result//"[]"
+                else
+                    result = result//"["
+                end if
+                ! Copy everything up to next `]'.
+                j = 0
+                if (i <= n) j = index(wildcard(i:), "]")
+                if (j > 0) then
+                    j = i + j - 1
+                    result = result//wildcard(i:j - 1)
+                    i = j - 1
+                else
+                    if (i <= n) result = result//wildcard(i:)
+                    i = n
+                end if
+            case (".")
+                result = result//"\."
+            case ("*")
+                result = result//"[^"//achar(0)//"]*"
+            case ("+")
+                result = result//"\+"
+            case ("^")
+                result = result//"\^"
+            case ("$")
+                result = result//"\$"
+            case ("\")
+                ! Probably cannot happen...
+                result = result//"\\"
+            case ("?")
+                result = result//"[^"//achar(0)//"]"
+            case default
+                result = result//ch
+            end select
+            i = i + 1
+        end do
+        ! Shell wildcards should match the entire filename, not its part.
+        ! Make the regexp say so.
+        regexp = "\`"//result//"\'"
+    end function wildcard_to_regexp
+
     module subroutine file_name_extension(filename, extension, found, period)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: extension

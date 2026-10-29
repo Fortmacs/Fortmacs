@@ -71,6 +71,33 @@ module commands_fm
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
         type(command_type) :: blink_matching_open
+        type(command_type) :: bookmark_bmenu_1_window
+        type(command_type) :: bookmark_bmenu_2_window
+        type(command_type) :: bookmark_bmenu_backup_unmark
+        type(command_type) :: bookmark_bmenu_delete
+        type(command_type) :: bookmark_bmenu_delete_all
+        type(command_type) :: bookmark_bmenu_delete_backwards
+        type(command_type) :: bookmark_bmenu_edit_annotation
+        type(command_type) :: bookmark_bmenu_execute_deletions
+        type(command_type) :: bookmark_bmenu_list
+        type(command_type) :: bookmark_bmenu_load
+        type(command_type) :: bookmark_bmenu_locate
+        type(command_type) :: bookmark_bmenu_mark
+        type(command_type) :: bookmark_bmenu_mark_all
+        type(command_type) :: bookmark_bmenu_mode
+        type(command_type) :: bookmark_bmenu_other_window
+        type(command_type) :: bookmark_bmenu_relocate
+        type(command_type) :: bookmark_bmenu_rename
+        type(command_type) :: bookmark_bmenu_save
+        type(command_type) :: bookmark_bmenu_search
+        type(command_type) :: bookmark_bmenu_select
+        type(command_type) :: bookmark_bmenu_show_all_annotations
+        type(command_type) :: bookmark_bmenu_show_annotation
+        type(command_type) :: bookmark_bmenu_switch_other_window
+        type(command_type) :: bookmark_bmenu_this_window
+        type(command_type) :: bookmark_bmenu_toggle_filenames
+        type(command_type) :: bookmark_bmenu_unmark
+        type(command_type) :: bookmark_bmenu_unmark_all
         type(command_type) :: bookmark_delete
         type(command_type) :: bookmark_delete_all
         type(command_type) :: bookmark_edit_annotation_cancel
@@ -303,6 +330,7 @@ module commands_fm
         type(command_type) :: downcase_region
         type(command_type) :: downcase_word
         type(command_type) :: edit_abbrevs
+        type(command_type) :: edit_bookmarks
         type(command_type) :: electric_indent_just_newline
         type(command_type) :: electric_indent_local_mode
         type(command_type) :: electric_indent_mode
@@ -365,6 +393,7 @@ module commands_fm
         type(command_type) :: find_file_other_window
         type(command_type) :: find_file_read_only
         type(command_type) :: find_file_read_only_other_window
+        type(command_type) :: find_grep
         type(command_type) :: first_error
         type(command_type) :: fixup_whitespace
         type(command_type) :: font_lock_change_mode
@@ -388,6 +417,10 @@ module commands_fm
         type(command_type) :: global_auto_revert_mode
         type(command_type) :: global_font_lock_mode
         type(command_type) :: global_font_lock_mode_enable_in_buffer
+        type(command_type) :: grep
+        type(command_type) :: grep_find
+        type(command_type) :: grep_find_toggle_abbreviation
+        type(command_type) :: grep_mode
         type(command_type) :: help_for_help
         type(command_type) :: help_form_show
         type(command_type) :: help_mode
@@ -444,6 +477,7 @@ module commands_fm
         type(command_type) :: kill_all_abbrevs
         type(command_type) :: kill_buffer
         type(command_type) :: kill_compilation
+        type(command_type) :: kill_grep
         type(command_type) :: kill_line
         type(command_type) :: kill_paragraph
         type(command_type) :: kill_rectangle
@@ -485,7 +519,9 @@ module commands_fm
         type(command_type) :: kmacro_view_ring_2nd
         type(command_type) :: left_char
         type(command_type) :: left_word
+        type(command_type) :: lgrep
         type(command_type) :: list_abbrevs
+        type(command_type) :: list_bookmarks
         type(command_type) :: list_registers
         type(command_type) :: log_edit_comment_search_backward
         type(command_type) :: log_edit_comment_search_forward
@@ -607,9 +643,11 @@ module commands_fm
         type(command_type) :: replace_string
         type(command_type) :: revert_buffer
         type(command_type) :: revert_buffer_with_coding_system
+        type(command_type) :: rgrep
         type(command_type) :: right_char
         type(command_type) :: right_word
         type(command_type) :: rotate_yank_pointer
+        type(command_type) :: rzgrep
         type(command_type) :: save_buffer
         type(command_type) :: save_buffers_kill_terminal
         type(command_type) :: save_place_forget_unreadable_files
@@ -670,6 +708,13 @@ module commands_fm
         type(command_type) :: string_rectangle
         type(command_type) :: switch_to_buffer
         type(command_type) :: tab_to_tab_stop
+        type(command_type) :: tabulated_list_mode
+        type(command_type) :: tabulated_list_narrow_current_column
+        type(command_type) :: tabulated_list_next_column
+        type(command_type) :: tabulated_list_previous_column
+        type(command_type) :: tabulated_list_revert
+        type(command_type) :: tabulated_list_sort
+        type(command_type) :: tabulated_list_widen_current_column
         type(command_type) :: text_mode
         type(command_type) :: transient_mark_mode
         type(command_type) :: transpose_chars
@@ -784,13 +829,14 @@ module commands_fm
         type(command_type) :: yank
         type(command_type) :: yank_pop
         type(command_type) :: yank_rectangle
+        type(command_type) :: zrgrep
     end type command_table_type
 
     !> The built-in commands.
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(752) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(798) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -830,6 +876,33 @@ module commands_fm
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
                                                                  "blink_matching_open", &
+                                                                 "bookmark_bmenu_1_window", &
+                                                                 "bookmark_bmenu_2_window", &
+                                                                 "bookmark_bmenu_backup_unmark", &
+                                                                 "bookmark_bmenu_delete", &
+                                                                 "bookmark_bmenu_delete_all", &
+                                                                 "bookmark_bmenu_delete_backwards", &
+                                                                 "bookmark_bmenu_edit_annotation", &
+                                                                 "bookmark_bmenu_execute_deletions", &
+                                                                 "bookmark_bmenu_list", &
+                                                                 "bookmark_bmenu_load", &
+                                                                 "bookmark_bmenu_locate", &
+                                                                 "bookmark_bmenu_mark", &
+                                                                 "bookmark_bmenu_mark_all", &
+                                                                 "bookmark_bmenu_mode", &
+                                                                 "bookmark_bmenu_other_window", &
+                                                                 "bookmark_bmenu_relocate", &
+                                                                 "bookmark_bmenu_rename", &
+                                                                 "bookmark_bmenu_save", &
+                                                                 "bookmark_bmenu_search", &
+                                                                 "bookmark_bmenu_select", &
+                                                                 "bookmark_bmenu_show_all_annotations", &
+                                                                 "bookmark_bmenu_show_annotation", &
+                                                                 "bookmark_bmenu_switch_other_window", &
+                                                                 "bookmark_bmenu_this_window", &
+                                                                 "bookmark_bmenu_toggle_filenames", &
+                                                                 "bookmark_bmenu_unmark", &
+                                                                 "bookmark_bmenu_unmark_all", &
                                                                  "bookmark_delete", &
                                                                  "bookmark_delete_all", &
                                                                  "bookmark_edit_annotation_cancel", &
@@ -1062,6 +1135,7 @@ module commands_fm
                                                                  "downcase_region", &
                                                                  "downcase_word", &
                                                                  "edit_abbrevs", &
+                                                                 "edit_bookmarks", &
                                                                  "electric_indent_just_newline", &
                                                                  "electric_indent_local_mode", &
                                                                  "electric_indent_mode", &
@@ -1124,6 +1198,7 @@ module commands_fm
                                                                  "find_file_other_window", &
                                                                  "find_file_read_only", &
                                                                  "find_file_read_only_other_window", &
+                                                                 "find_grep", &
                                                                  "first_error", &
                                                                  "fixup_whitespace", &
                                                                  "font_lock_change_mode", &
@@ -1147,6 +1222,10 @@ module commands_fm
                                                                  "global_auto_revert_mode", &
                                                                  "global_font_lock_mode", &
                                                                  "global_font_lock_mode_enable_in_buffer", &
+                                                                 "grep", &
+                                                                 "grep_find", &
+                                                                 "grep_find_toggle_abbreviation", &
+                                                                 "grep_mode", &
                                                                  "help_for_help", &
                                                                  "help_form_show", &
                                                                  "help_mode", &
@@ -1203,6 +1282,7 @@ module commands_fm
                                                                  "kill_all_abbrevs", &
                                                                  "kill_buffer", &
                                                                  "kill_compilation", &
+                                                                 "kill_grep", &
                                                                  "kill_line", &
                                                                  "kill_paragraph", &
                                                                  "kill_rectangle", &
@@ -1244,7 +1324,9 @@ module commands_fm
                                                                  "kmacro_view_ring_2nd", &
                                                                  "left_char", &
                                                                  "left_word", &
+                                                                 "lgrep", &
                                                                  "list_abbrevs", &
+                                                                 "list_bookmarks", &
                                                                  "list_registers", &
                                                                  "log_edit_comment_search_backward", &
                                                                  "log_edit_comment_search_forward", &
@@ -1366,9 +1448,11 @@ module commands_fm
                                                                  "replace_string", &
                                                                  "revert_buffer", &
                                                                  "revert_buffer_with_coding_system", &
+                                                                 "rgrep", &
                                                                  "right_char", &
                                                                  "right_word", &
                                                                  "rotate_yank_pointer", &
+                                                                 "rzgrep", &
                                                                  "save_buffer", &
                                                                  "save_buffers_kill_terminal", &
                                                                  "save_place_forget_unreadable_files", &
@@ -1429,6 +1513,13 @@ module commands_fm
                                                                  "string_rectangle", &
                                                                  "switch_to_buffer", &
                                                                  "tab_to_tab_stop", &
+                                                                 "tabulated_list_mode", &
+                                                                 "tabulated_list_narrow_current_column", &
+                                                                 "tabulated_list_next_column", &
+                                                                 "tabulated_list_previous_column", &
+                                                                 "tabulated_list_revert", &
+                                                                 "tabulated_list_sort", &
+                                                                 "tabulated_list_widen_current_column", &
                                                                  "text_mode", &
                                                                  "transient_mark_mode", &
                                                                  "transpose_chars", &
@@ -1542,7 +1633,8 @@ module commands_fm
                                                                  "y_or_n_p_insert_y", &
                                                                  "yank", &
                                                                  "yank_pop", &
-                                                                 "yank_rectangle"]
+                                                                 "yank_rectangle", &
+                                                                 "zrgrep"]
 
 contains
 
@@ -1631,6 +1723,60 @@ contains
             p => commands%beginning_of_line_text
         case ("blink_matching_open")
             p => commands%blink_matching_open
+        case ("bookmark_bmenu_1_window")
+            p => commands%bookmark_bmenu_1_window
+        case ("bookmark_bmenu_2_window")
+            p => commands%bookmark_bmenu_2_window
+        case ("bookmark_bmenu_backup_unmark")
+            p => commands%bookmark_bmenu_backup_unmark
+        case ("bookmark_bmenu_delete")
+            p => commands%bookmark_bmenu_delete
+        case ("bookmark_bmenu_delete_all")
+            p => commands%bookmark_bmenu_delete_all
+        case ("bookmark_bmenu_delete_backwards")
+            p => commands%bookmark_bmenu_delete_backwards
+        case ("bookmark_bmenu_edit_annotation")
+            p => commands%bookmark_bmenu_edit_annotation
+        case ("bookmark_bmenu_execute_deletions")
+            p => commands%bookmark_bmenu_execute_deletions
+        case ("bookmark_bmenu_list")
+            p => commands%bookmark_bmenu_list
+        case ("bookmark_bmenu_load")
+            p => commands%bookmark_bmenu_load
+        case ("bookmark_bmenu_locate")
+            p => commands%bookmark_bmenu_locate
+        case ("bookmark_bmenu_mark")
+            p => commands%bookmark_bmenu_mark
+        case ("bookmark_bmenu_mark_all")
+            p => commands%bookmark_bmenu_mark_all
+        case ("bookmark_bmenu_mode")
+            p => commands%bookmark_bmenu_mode
+        case ("bookmark_bmenu_other_window")
+            p => commands%bookmark_bmenu_other_window
+        case ("bookmark_bmenu_relocate")
+            p => commands%bookmark_bmenu_relocate
+        case ("bookmark_bmenu_rename")
+            p => commands%bookmark_bmenu_rename
+        case ("bookmark_bmenu_save")
+            p => commands%bookmark_bmenu_save
+        case ("bookmark_bmenu_search")
+            p => commands%bookmark_bmenu_search
+        case ("bookmark_bmenu_select")
+            p => commands%bookmark_bmenu_select
+        case ("bookmark_bmenu_show_all_annotations")
+            p => commands%bookmark_bmenu_show_all_annotations
+        case ("bookmark_bmenu_show_annotation")
+            p => commands%bookmark_bmenu_show_annotation
+        case ("bookmark_bmenu_switch_other_window")
+            p => commands%bookmark_bmenu_switch_other_window
+        case ("bookmark_bmenu_this_window")
+            p => commands%bookmark_bmenu_this_window
+        case ("bookmark_bmenu_toggle_filenames")
+            p => commands%bookmark_bmenu_toggle_filenames
+        case ("bookmark_bmenu_unmark")
+            p => commands%bookmark_bmenu_unmark
+        case ("bookmark_bmenu_unmark_all")
+            p => commands%bookmark_bmenu_unmark_all
         case ("bookmark_delete")
             p => commands%bookmark_delete
         case ("bookmark_delete_all")
@@ -2095,6 +2241,8 @@ contains
             p => commands%downcase_word
         case ("edit_abbrevs")
             p => commands%edit_abbrevs
+        case ("edit_bookmarks")
+            p => commands%edit_bookmarks
         case ("electric_indent_just_newline")
             p => commands%electric_indent_just_newline
         case ("electric_indent_local_mode")
@@ -2219,6 +2367,8 @@ contains
             p => commands%find_file_read_only
         case ("find_file_read_only_other_window")
             p => commands%find_file_read_only_other_window
+        case ("find_grep")
+            p => commands%find_grep
         case ("first_error")
             p => commands%first_error
         case ("fixup_whitespace")
@@ -2265,6 +2415,14 @@ contains
             p => commands%global_font_lock_mode
         case ("global_font_lock_mode_enable_in_buffer")
             p => commands%global_font_lock_mode_enable_in_buffer
+        case ("grep")
+            p => commands%grep
+        case ("grep_find")
+            p => commands%grep_find
+        case ("grep_find_toggle_abbreviation")
+            p => commands%grep_find_toggle_abbreviation
+        case ("grep_mode")
+            p => commands%grep_mode
         case ("help_for_help")
             p => commands%help_for_help
         case ("help_form_show")
@@ -2377,6 +2535,8 @@ contains
             p => commands%kill_buffer
         case ("kill_compilation")
             p => commands%kill_compilation
+        case ("kill_grep")
+            p => commands%kill_grep
         case ("kill_line")
             p => commands%kill_line
         case ("kill_paragraph")
@@ -2459,8 +2619,12 @@ contains
             p => commands%left_char
         case ("left_word")
             p => commands%left_word
+        case ("lgrep")
+            p => commands%lgrep
         case ("list_abbrevs")
             p => commands%list_abbrevs
+        case ("list_bookmarks")
+            p => commands%list_bookmarks
         case ("list_registers")
             p => commands%list_registers
         case ("log_edit_comment_search_backward")
@@ -2703,12 +2867,16 @@ contains
             p => commands%revert_buffer
         case ("revert_buffer_with_coding_system")
             p => commands%revert_buffer_with_coding_system
+        case ("rgrep")
+            p => commands%rgrep
         case ("right_char")
             p => commands%right_char
         case ("right_word")
             p => commands%right_word
         case ("rotate_yank_pointer")
             p => commands%rotate_yank_pointer
+        case ("rzgrep")
+            p => commands%rzgrep
         case ("save_buffer")
             p => commands%save_buffer
         case ("save_buffers_kill_terminal")
@@ -2829,6 +2997,20 @@ contains
             p => commands%switch_to_buffer
         case ("tab_to_tab_stop")
             p => commands%tab_to_tab_stop
+        case ("tabulated_list_mode")
+            p => commands%tabulated_list_mode
+        case ("tabulated_list_narrow_current_column")
+            p => commands%tabulated_list_narrow_current_column
+        case ("tabulated_list_next_column")
+            p => commands%tabulated_list_next_column
+        case ("tabulated_list_previous_column")
+            p => commands%tabulated_list_previous_column
+        case ("tabulated_list_revert")
+            p => commands%tabulated_list_revert
+        case ("tabulated_list_sort")
+            p => commands%tabulated_list_sort
+        case ("tabulated_list_widen_current_column")
+            p => commands%tabulated_list_widen_current_column
         case ("text_mode")
             p => commands%text_mode
         case ("transient_mark_mode")
@@ -3057,6 +3239,8 @@ contains
             p => commands%yank_pop
         case ("yank_rectangle")
             p => commands%yank_rectangle
+        case ("zrgrep")
+            p => commands%zrgrep
         case default
             return
         end select

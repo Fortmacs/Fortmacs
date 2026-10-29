@@ -28,6 +28,7 @@ module face_table_fm
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
     use bookmark_fm, only: bookmark_face
+    use bookmark_fm, only: bookmark_menu_bookmark
     use faces_fm, only: border
     use add_log_fm, only: change_log_acknowledgment
     use add_log_fm, only: change_log_conditionals
@@ -112,6 +113,7 @@ module face_table_fm
     use font_lock_fm, only: font_lock_warning_face
     use faces_fm, only: fringe
     use faces_fm, only: glyphless_char
+    use grep_fm, only: grep_heading
     use faces_fm, only: header_line
     use faces_fm, only: header_line_active
     use faces_fm, only: header_line_highlight
@@ -136,6 +138,7 @@ module face_table_fm
     use log_view_fm, only: log_view_file_face
     use log_view_fm, only: log_view_message_face
     use faces_fm, only: margin
+    use replace_fm, only: match
     use faces_fm, only: menu
     use faces_fm, only: minibuffer_prompt
     use faces_fm, only: mode_line
@@ -163,6 +166,7 @@ module face_table_fm
     use faces_fm, only: tab_line
     use faces_fm, only: tab_line_active
     use faces_fm, only: tab_line_inactive
+    use tabulated_list_fm, only: tabulated_list_fake_header
     use faces_fm, only: tool_bar
     use faces_fm, only: trailing_whitespace
     use faces_fm, only: tty_menu_disabled_face
@@ -198,6 +202,7 @@ module face_table_fm
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
         type(named_face_type), pointer :: bookmark_face => bookmark_face
+        type(named_face_type), pointer :: bookmark_menu_bookmark => bookmark_menu_bookmark
         type(named_face_type), pointer :: border => border
         type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
         type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals
@@ -282,6 +287,7 @@ module face_table_fm
         type(named_face_type), pointer :: font_lock_warning_face => font_lock_warning_face
         type(named_face_type), pointer :: fringe => fringe
         type(named_face_type), pointer :: glyphless_char => glyphless_char
+        type(named_face_type), pointer :: grep_heading => grep_heading
         type(named_face_type), pointer :: header_line => header_line
         type(named_face_type), pointer :: header_line_active => header_line_active
         type(named_face_type), pointer :: header_line_highlight => header_line_highlight
@@ -306,6 +312,7 @@ module face_table_fm
         type(named_face_type), pointer :: log_view_file => log_view_file_face
         type(named_face_type), pointer :: log_view_message => log_view_message_face
         type(named_face_type), pointer :: margin => margin
+        type(named_face_type), pointer :: match => match
         type(named_face_type), pointer :: menu => menu
         type(named_face_type), pointer :: minibuffer_prompt => minibuffer_prompt
         type(named_face_type), pointer :: mode_line => mode_line
@@ -333,6 +340,7 @@ module face_table_fm
         type(named_face_type), pointer :: tab_line => tab_line
         type(named_face_type), pointer :: tab_line_active => tab_line_active
         type(named_face_type), pointer :: tab_line_inactive => tab_line_inactive
+        type(named_face_type), pointer :: tabulated_list_fake_header => tabulated_list_fake_header
         type(named_face_type), pointer :: tool_bar => tool_bar
         type(named_face_type), pointer :: trailing_whitespace => trailing_whitespace
         type(named_face_type), pointer :: tty_menu_disabled_face => tty_menu_disabled_face

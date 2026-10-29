@@ -35,6 +35,7 @@ module modes_fm
     !> One component per built-in major mode.
     type :: major_mode_table_type
         type(major_mode_type) :: apropos_mode
+        type(major_mode_type) :: bookmark_bmenu_mode
         type(major_mode_type) :: bookmark_edit_annotation_mode
         type(major_mode_type) :: change_log_mode
         type(major_mode_type) :: comint_mode
@@ -55,6 +56,7 @@ module modes_fm
         type(major_mode_type) :: edit_abbrevs_mode
         type(major_mode_type) :: f90_mode
         type(major_mode_type) :: fundamental_mode
+        type(major_mode_type) :: grep_mode
         type(major_mode_type) :: help_mode
         type(major_mode_type) :: log_edit_mode
         type(major_mode_type) :: log_view_mode
@@ -65,6 +67,7 @@ module modes_fm
         type(major_mode_type) :: shell_command_mode
         type(major_mode_type) :: shell_mode
         type(major_mode_type) :: special_mode
+        type(major_mode_type) :: tabulated_list_mode
         type(major_mode_type) :: text_mode
         type(major_mode_type) :: vc_dir_mode
         type(major_mode_type) :: vc_git_log_edit_mode
