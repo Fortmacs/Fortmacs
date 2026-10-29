@@ -363,6 +363,11 @@ module fortmacs
                          COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, comint_password_prompt_regexp, &
                          comint_password_prompt_max_length
     use mule_conf_fm, only: password_word_equivalents, password_colon_equivalents
+    use ansi_color_fm, only: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NIL, &
+                             ANSI_COLOR_FILTER, ANSI_COLOR_T, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, &
+                             ansi_color_normal_colors_vector, ansi_color_bright_colors_vector, &
+                             ansi_color_apply_face_function, ansi_color_face_proc, ansi_color_compilation_filter, &
+                             ansi_color_process_output
     use minibuf_fm, only: read_hide_char
     use shell_fm, only: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
                         shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
@@ -670,6 +675,10 @@ module fortmacs
               COMINT_HISTORY_ISEARCH_NIL, COMINT_HISTORY_ISEARCH_DWIM, COMINT_HISTORY_ISEARCH_T, &
               comint_password_prompt_regexp, comint_password_prompt_max_length
     public :: password_word_equivalents, password_colon_equivalents, read_hide_char
+    public :: ansi_color_for_comint_mode, ansi_color_for_compilation_mode, ANSI_COLOR_NIL, ANSI_COLOR_FILTER, &
+              ANSI_COLOR_T, ansi_color_bold_is_bright, ansi_color_basic_faces_vector, ansi_color_normal_colors_vector, &
+              ansi_color_bright_colors_vector, ansi_color_apply_face_function, ansi_color_face_proc, &
+              ansi_color_compilation_filter, ansi_color_process_output
     public :: shell, shell_mode, shell_dumb_shell_regexp, shell_prompt_pattern, shell_delimiter_argument_list, &
               shell_command_regexp, shell_command_separator_regexp, shell_popd_regexp, shell_pushd_regexp, &
               shell_pushd_tohome, shell_pushd_dextract, shell_pushd_dunique, shell_cd_regexp, shell_dirtrack_verbose, &
