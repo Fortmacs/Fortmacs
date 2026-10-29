@@ -108,6 +108,7 @@ contains
     ! ------------------------------------------------------------------
     ! Visibility and groups
     ! ------------------------------------------------------------------
+
     module procedure ibuffer_ext_visible_p
     type(ibuffer_filter_type), allocatable :: filters(:)
     integer :: k
@@ -190,6 +191,7 @@ contains
     ! ------------------------------------------------------------------
     ! Filters
     ! ------------------------------------------------------------------
+
     module procedure ibuffer_included_in_filters_p
     type(status_type) :: st
     logical :: one
@@ -769,6 +771,7 @@ contains
     ! ------------------------------------------------------------------
     ! Operations
     ! ------------------------------------------------------------------
+
     ! ibuffer--maybe-erase-shell-cmd-output.
     recursive subroutine maybe_erase_shell_cmd_output(status)
         type(status_type), intent(out) :: status
@@ -1130,6 +1133,7 @@ contains
     ! ------------------------------------------------------------------
     ! Sorting
     ! ------------------------------------------------------------------
+
     !> Toggle the current sorting mode.
     !> Default sorting modes are:
     !>  Recency - the last time the buffer was viewed
@@ -1347,6 +1351,7 @@ contains
     ! ------------------------------------------------------------------
     ! Handy functions
     ! ------------------------------------------------------------------
+
     ! Read a string after PROMPT (an "s" interactive argument).
     recursive subroutine read_string_arg(prompt, result, status, initial)
         character(len=*), intent(in) :: prompt
@@ -1856,6 +1861,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
+
     ! Port of ibuf-ext.el:ibuffer-mark-on-buffer: mark the buffers for
     ! which FUNC is true with MARK (`ibuffer_marked_char' by default).
     recursive subroutine ibuffer_mark_on_buffer(func, status, mark, group)
@@ -2363,6 +2369,7 @@ contains
     ! ------------------------------------------------------------------
     ! Filter definitions (define-ibuffer-filter)
     ! ------------------------------------------------------------------
+
     ! The string qualifier of NODE, an error if it has none.
     subroutine string_qualifier(node, s, status)
         type(ibuffer_filter_node_type), intent(in) :: node
@@ -2631,6 +2638,7 @@ contains
     ! ------------------------------------------------------------------
     ! The filter stack
     ! ------------------------------------------------------------------
+
     ! Jump back to BUF after an update (it may have been filtered out).
     recursive subroutine jump_back(buf, status)
         type(handle_type), intent(in) :: buf
@@ -2867,6 +2875,7 @@ contains
     ! ------------------------------------------------------------------
     ! Saved filters
     ! ------------------------------------------------------------------
+
     ! ibuffer-maybe-save-stuff: with `ibuffer_save_with_custom', Customize
     ! saves `ibuffer_saved_filters' and `ibuffer_saved_filter_groups'
     ! (Deferred with Customize, step 26).
@@ -2990,6 +2999,7 @@ contains
     ! ------------------------------------------------------------------
     ! Filter groups
     ! ------------------------------------------------------------------
+
     module procedure ibuffer_filters_to_filter_group
     type(ibuffer_filter_type), allocatable :: filters(:)
     integer :: k
@@ -3373,6 +3383,7 @@ contains
     ! ------------------------------------------------------------------
     ! Filtering commands (define-ibuffer-filter)
     ! ------------------------------------------------------------------
+
     ! The description of the filter NAME.
     function filter_description(name) result(desc)
         character(len=*), intent(in) :: name

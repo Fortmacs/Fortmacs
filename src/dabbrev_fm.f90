@@ -325,6 +325,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> Save the current buffer and point (save-excursion).
     subroutine save_excursion(e)
         type(excursion_type), intent(out) :: e
@@ -485,6 +486,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Return true if case is ignored in searches for ABBREV.  Port of
     !> dabbrev.el:dabbrev--ignore-case-p.
     logical function ignore_case_p(abbrev)

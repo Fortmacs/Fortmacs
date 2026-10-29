@@ -218,6 +218,7 @@ contains
     ! ------------------------------------------------------------------
     ! Finding and reading entries
     ! ------------------------------------------------------------------
+
     function getenv_str(name) result(v)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: v
@@ -599,6 +600,7 @@ contains
     ! ------------------------------------------------------------------
     ! Capabilities by name
     ! ------------------------------------------------------------------
+
     integer function find_name(table, name) result(k)
         character(len=*), intent(in) :: table(:), name
 
@@ -736,6 +738,7 @@ contains
     ! ------------------------------------------------------------------
     ! The built-in fallback
     ! ------------------------------------------------------------------
+
     subroutine set_flag(ti, name)
         type(terminfo_type), intent(inout) :: ti
         character(len=*), intent(in) :: name
@@ -881,6 +884,7 @@ contains
     ! ------------------------------------------------------------------
     ! Parameterized strings
     ! ------------------------------------------------------------------
+
     !> `n' in base `base' (2..16), at least `mindigits' digits.
     function int_digits(n, base, upper, mindigits) result(s)
         integer(int64), intent(in) :: n

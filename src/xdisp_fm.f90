@@ -424,6 +424,7 @@ contains
     ! ------------------------------------------------------------------
     ! Frames, windows and faces
     ! ------------------------------------------------------------------
+
     !> Lay out the frame's windows, making them if need be: the window
     !> tree above (at first one window, selected), the one-line minibuffer
     !> window at the bottom.  The window part of frame.c:make_terminal_frame
@@ -452,6 +453,7 @@ contains
     ! ------------------------------------------------------------------
     ! Producing glyphs
     ! ------------------------------------------------------------------
+
     !> Columns character `c' takes: 2 for East Asian wide and fullwidth
     !> characters and emoji, else 1.  An approximation of
     !> character.c:char_width with characters.el's char-width-table.
@@ -675,6 +677,7 @@ contains
     ! What is shown: buffer text, overlay strings, invisible text,
     ! display strings
     ! ------------------------------------------------------------------
+
     !> True if text properties at POS cause text there to be currently
     !> invisible.  POS is a buffer position; the value of the `invisible'
     !> property at that position in the current buffer is examined.
@@ -2150,6 +2153,7 @@ contains
     ! ------------------------------------------------------------------
     ! Windows, mode line, echo area
     ! ------------------------------------------------------------------
+
     !> Make row `vpos' of the desired matrix a full-width blank row, to be
     !> filled by the windows on it.
     subroutine blank_row(f, vpos)

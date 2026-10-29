@@ -233,6 +233,7 @@ contains
     ! ------------------------------------------------------------------
     ! simple.el's undo-auto
     ! ------------------------------------------------------------------
+
     !> Called after every undoable buffer change.  Port of
     !> simple.el:undo-auto--undoable-change (no boundary timer).
     subroutine undo_auto_undoable_change()

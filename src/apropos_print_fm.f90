@@ -33,6 +33,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     module procedure apropos_command
     type(apropos_item_type), allocatable :: items(:)
     type(doc_entry_type) :: entry
@@ -236,6 +237,7 @@ contains
     ! ------------------------------------------------------------------
     ! Output
     ! ------------------------------------------------------------------
+
     !> Output result of apropos searching into buffer `*Apropos*'.
     !> ITEMS is the list of items to output, sorted alphabetically by
     !> name (by score, if `by_score').  If DO_KEYS, output the key

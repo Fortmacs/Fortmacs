@@ -106,6 +106,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> A list of the strings given.
     function strings(a1, a2, a3, a4) result(list)
         character(len=*), intent(in) :: a1
@@ -248,6 +249,7 @@ contains
     ! ------------------------------------------------------------------
     ! vc-git-tests.el
     ! ------------------------------------------------------------------
+
     subroutine test_version_general(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -287,6 +289,7 @@ contains
     ! ------------------------------------------------------------------
     ! vc-test-misc.el
     ! ------------------------------------------------------------------
+
     !> Run `vc_do_command' of sh -c "echo foo; echo >&2 bar" in a temporary
     !> buffer: synchronously (or with ASYNC), the output in the buffer
     !> (TO_BUFFER), standard error mixed in (STDERR); gives the buffer's
@@ -496,6 +499,7 @@ contains
     ! ------------------------------------------------------------------
     ! vc-tests.el
     ! ------------------------------------------------------------------
+
     !> Create a test repository in `default_directory'.
     subroutine test_create_repo(error)
         type(error_type), allocatable, intent(out) :: error
@@ -897,6 +901,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> A committed file a.txt ("one\ntwo\n") on branch main, visited; its
     !> buffer is current and shown alone.
     subroutine committed_file(h, buf, status)

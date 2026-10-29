@@ -226,6 +226,7 @@ contains
     ! ------------------------------------------------------------------
     ! Internal commands
     ! ------------------------------------------------------------------
+
     !> Append S to LIST.
     subroutine push(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
@@ -609,6 +610,7 @@ contains
     ! ------------------------------------------------------------------
     ! State-querying functions
     ! ------------------------------------------------------------------
+
     !> Check whether FILE is registered with git.  Port of
     !> vc-git.el:vc-git-registered.
     logical function vc_git_registered(file) result(registered)
@@ -843,6 +845,7 @@ contains
     ! ------------------------------------------------------------------
     ! State-changing functions
     ! ------------------------------------------------------------------
+
     !> Create a new Git repository.  Port of vc-git.el:vc-git-create-repo.
     recursive subroutine vc_git_create_repo(status)
         type(status_type), intent(out) :: status
@@ -1005,6 +1008,7 @@ contains
     ! ------------------------------------------------------------------
     ! Diff and revisions
     ! ------------------------------------------------------------------
+
     !> Get a difference report using Git between two revisions of FILES.
     !> Port of vc-git.el:vc-git-diff (`vc_git_diff_switches' not nil; the
     !> difftool path is deferred).
@@ -1252,6 +1256,7 @@ contains
     ! ------------------------------------------------------------------
     ! Checking in
     ! ------------------------------------------------------------------
+
     !> Toggle whether to add the "Signed-off-by" line at the end of commit message.
     !> Port of vc-git.el:vc-git-log-edit-toggle-signoff.
     recursive subroutine vc_git_log_edit_toggle_signoff(status)
@@ -1491,6 +1496,7 @@ contains
     ! ------------------------------------------------------------------
     ! History functions
     ! ------------------------------------------------------------------
+
     ! (ensure-list SWITCHES) appended to FLAGS.
     subroutine append_switches(flags, switches)
         type(vc_string_type), allocatable, intent(inout) :: flags(:)
@@ -1781,6 +1787,7 @@ contains
     ! ------------------------------------------------------------------
     ! VC-Dir
     ! ------------------------------------------------------------------
+
     !> Escape filename NAME if necessary.  Port of
     !> vc-git.el:vc-git-escape-file-name.
     function vc_git_escape_file_name(name) result(escaped)

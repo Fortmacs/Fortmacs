@@ -353,6 +353,7 @@ contains
     ! ------------------------------------------------------------------
     ! Registry
     ! ------------------------------------------------------------------
+
     subroutine new_table(h, parent)
         type(handle_type), intent(out) :: h
         type(handle_type), intent(in) :: parent
@@ -570,6 +571,7 @@ contains
     ! ------------------------------------------------------------------
     ! Entries
     ! ------------------------------------------------------------------
+
     !> Give characters `from' to `to' entry `d' in table slot `t'.
     subroutine set_range(t, from, to, d)
         integer(int64), intent(in) :: t
@@ -727,6 +729,7 @@ contains
     ! ------------------------------------------------------------------
     ! `syntax_table' text properties (syntax.c gl_state)
     ! ------------------------------------------------------------------
+
     !> The raw syntax descriptor that the `syntax_table' property value V
     !> holds, (CODE) or (CODE MATCH) (upstream's (CODE . MATCH)); FOUND
     !> false if V is not one.
@@ -1015,6 +1018,7 @@ contains
     ! ------------------------------------------------------------------
     ! Words
     ! ------------------------------------------------------------------
+
     !> Whether there is a word boundary between the word-constituent
     !> characters `c1' and `c2'.  Port of category.c:word_boundary_p, with
     !> characters.el's `word_combining_categories' ((nil . ^) (^ . nil)
@@ -1190,6 +1194,7 @@ contains
     ! ------------------------------------------------------------------
     ! Skipping characters and syntax classes
     ! ------------------------------------------------------------------
+
     !> Move point forward, stopping before a char not in STRING, or at pos LIM.
     !> STRING is like the inside of a `[...]' in a regular expression
     !> except that `]' is never special and `\' quotes `^', `-' or `\'

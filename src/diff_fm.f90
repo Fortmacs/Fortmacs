@@ -692,6 +692,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     recursive subroutine cmd_diff(status)
         type(status_type), intent(out) :: status
         type(diff_operand_type) :: old, new

@@ -199,6 +199,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values and the file information
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
@@ -377,6 +378,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> Insert TEXT with the face FACE (propertize).
     subroutine insert_with_face(text, face)
         character(len=*), intent(in) :: text, face
@@ -456,6 +458,7 @@ contains
     ! ------------------------------------------------------------------
     ! The buffer
     ! ------------------------------------------------------------------
+
     ! Used to keep the cursor on the file name column.  Port of
     ! vc-dir.el:vc-dir-move-to-goal-column.
     subroutine vc_dir_move_to_goal_column()
@@ -819,6 +822,7 @@ contains
     ! ------------------------------------------------------------------
     ! Motion
     ! ------------------------------------------------------------------
+
     !> Go to the next line.
     !> With prefix argument ARG, move that many lines.  Port of
     !> vc-dir.el:vc-dir-next-line.
@@ -889,6 +893,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
+
     ! Call MARK_UNMARK_FUNCTION on each line of the active region, or once.
     ! Port of vc-dir.el:vc-dir-mark-unmark.
     recursive subroutine vc_dir_mark_unmark(fn, status)
@@ -1472,6 +1477,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands on the files
     ! ------------------------------------------------------------------
+
     !> Like `vc_next_action' but for all files shown in the VC-Dir buffer.
     !> This command ignores VC-Dir marks and the position of point.
     !> When the VC-Dir's root directory is the repository root (as it usually
@@ -1917,6 +1923,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Major mode for VC directory buffers.
     !> Marking/Unmarking key bindings and actions: \<vc_dir_mode_map>
     !> \[vc_dir_mark] - mark a file/directory
@@ -2587,6 +2594,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     integer function count_arg()
         count_arg = int(prefix_numeric_value(current_prefix_arg))
     end function count_arg
@@ -2731,6 +2739,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     subroutine define_faces()
         type(named_face_type), pointer :: f
 

@@ -36,6 +36,7 @@ contains
     ! Helpers of diff_mode_fm (separate module procedures, so that this
     ! submodule can call them too)
     ! ------------------------------------------------------------------
+
     module procedure entry_index
     type(diff_locals_type), allocatable :: grown(:)
     integer :: n

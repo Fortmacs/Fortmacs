@@ -437,6 +437,7 @@ contains
     ! ------------------------------------------------------------------
     ! Change hooks
     ! ------------------------------------------------------------------
+
     !> The decimal text of N.
     function num(n) result(s)
         integer(int64), intent(in) :: n

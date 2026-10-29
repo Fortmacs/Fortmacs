@@ -396,6 +396,7 @@ contains
     ! ------------------------------------------------------------------
     ! font-lock-defaults
     ! ------------------------------------------------------------------
+
     !> The index of the current buffer's entry, made if MAKE (0 if none).
     integer function defaults_index(self, make) result(k)
         class(font_lock_defaults_setting), intent(inout) :: self
@@ -528,6 +529,7 @@ contains
     ! ------------------------------------------------------------------
     ! Font Lock mode
     ! ------------------------------------------------------------------
+
     !> Whether Font Lock mode is on in the current buffer (the variable
     !> `font_lock_mode').
     logical function font_lock_mode_enabled() result(on)
@@ -810,6 +812,7 @@ contains
     ! ------------------------------------------------------------------
     ! Global Font Lock mode (define-globalized-minor-mode)
     ! ------------------------------------------------------------------
+
     !> The index of the current buffer's entry, made if MAKE (0 if none).
     integer function global_index(make) result(k)
         logical, intent(in) :: make

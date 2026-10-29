@@ -563,6 +563,7 @@ contains
     ! ------------------------------------------------------------------
     ! Backends
     ! ------------------------------------------------------------------
+
     !> Make the backend named NAME known to VC (as loading vc-BACKEND.el
     !> does): B is its index in `vc_backends' (0 when it is full), whose operations the
     !> backend module then sets.  A backend of the same name keeps its
@@ -678,6 +679,7 @@ contains
     ! ------------------------------------------------------------------
     ! Per-file properties
     ! ------------------------------------------------------------------
+
     !> The index of FILE's properties in `props', making them with CREATE
     !> (0 if FILE has none).
     integer function prop_index(file, create) result(k)
@@ -901,6 +903,7 @@ contains
     ! ------------------------------------------------------------------
     ! Finding backends, states and revisions
     ! ------------------------------------------------------------------
+
     !> Find the root of a checked out project.
     !> The function walks up the directory tree from FILE looking for WITNESS.
     !> If WITNESS if not found, FOUND is false, otherwise ROOT is the root.
@@ -1270,6 +1273,7 @@ contains
     ! ------------------------------------------------------------------
     ! Version backups
     ! ------------------------------------------------------------------
+
     !> Return a backup file name for REV or the current version of FILE.
     !> If MANUAL is true it means that a name for backups created by
     !> the user should be returned; if REGEXP is true that means to return
@@ -1453,6 +1457,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode line
     ! ------------------------------------------------------------------
+
     !> Set `vc_mode' to display type of version control for FILE.
     !> The value is set in the current buffer, which should be the buffer
     !> visiting FILE.
@@ -1719,6 +1724,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
+
     subroutine define_faces()
         type(named_face_type), pointer :: f
 

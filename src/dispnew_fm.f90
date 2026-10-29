@@ -68,6 +68,7 @@ contains
     ! ------------------------------------------------------------------
     ! Matrices
     ! ------------------------------------------------------------------
+
     subroutine allocate_matrix(m, nrows, ncols)
         type(glyph_matrix_type), intent(inout) :: m
         integer, intent(in) :: nrows, ncols
@@ -174,6 +175,7 @@ contains
     ! ------------------------------------------------------------------
     ! Updating
     ! ------------------------------------------------------------------
+
     !> Clear the screen and forget what it showed.  Port of
     !> dispnew.c:redraw_frame.
     subroutine redraw_frame(f)
@@ -554,6 +556,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer menus
     ! ------------------------------------------------------------------
+
     !> Return true if the frame and buffer state appears to have changed.
     !> STATE is a state object that will be updated to contain all buffers,
     !> aside from buffers whose names start with space, along with the

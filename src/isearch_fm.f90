@@ -208,6 +208,7 @@ contains
     ! ------------------------------------------------------------------
     ! Strings
     ! ------------------------------------------------------------------
+
     !> The characters of UTF-8 `s'.
     subroutine decode(s, chars, n)
         character(len=*), intent(in) :: s
@@ -393,6 +394,7 @@ contains
     ! ------------------------------------------------------------------
     ! The search ring
     ! ------------------------------------------------------------------
+
     !> The name of the search ring for regexp search if `regexp', else of
     !> the ordinary search ring.
     function ring_name(regexp) result(name)
@@ -494,6 +496,7 @@ contains
     ! ------------------------------------------------------------------
     ! States
     ! ------------------------------------------------------------------
+
     !> Port of isearch.el:isearch--get-state.
     function get_state() result(s)
         type(isearch_state) :: s
@@ -569,6 +572,7 @@ contains
     ! ------------------------------------------------------------------
     ! Starting and ending
     ! ------------------------------------------------------------------
+
     !> Do incremental search forward.
     !> With a prefix argument, do an incremental regular expression
     !> search instead.
@@ -829,6 +833,7 @@ contains
     ! ------------------------------------------------------------------
     ! Messages
     ! ------------------------------------------------------------------
+
     !> Generate and print the message string.  Port of
     !> isearch.el:isearch-message (no face on the failing part).
     subroutine isearch_message_show(c_q_hack, ellipsis)
@@ -978,6 +983,7 @@ contains
     ! ------------------------------------------------------------------
     ! Searching
     ! ------------------------------------------------------------------
+
     !> Search for the first occurrence of STRING.  If found, move point
     !> to the end of the occurrence, update the match data, and return
     !> true.  An invalid regexp is an error in `status'.  Port of
@@ -1344,6 +1350,7 @@ contains
     ! ------------------------------------------------------------------
     ! Editing the search string
     ! ------------------------------------------------------------------
+
     !> Undo last input item during a search.
     !> An input item is the result of a command that pushes a new state
     !> of isearch to `isearch_cmds'.  If no input items have been entered
@@ -1883,6 +1890,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands and the keymap
     ! ------------------------------------------------------------------
+
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)
     end function arg_p

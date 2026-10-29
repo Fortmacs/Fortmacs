@@ -131,6 +131,7 @@ contains
     ! ------------------------------------------------------------------
     ! Forwarding
     ! ------------------------------------------------------------------
+
     !> The forwarding table index of symbol ID, or -1.
     integer function resolve(id) result(k)
         integer(int64), intent(in) :: id
@@ -795,6 +796,7 @@ contains
     ! ------------------------------------------------------------------
     ! Current values and the swap
     ! ------------------------------------------------------------------
+
     !> The current value of symbol ID.
     subroutine get_current(id, v, bound)
         integer(int64), intent(in) :: id
@@ -1041,6 +1043,7 @@ contains
     ! ------------------------------------------------------------------
     ! The Lisp-level functions
     ! ------------------------------------------------------------------
+
     module procedure local_in_current
     if (kind_of(id) == K_SLOT) then
         local_in_current = .true.

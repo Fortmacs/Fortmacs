@@ -1070,6 +1070,7 @@ contains
     ! ------------------------------------------------------------------
     ! The window registry and tree
     ! ------------------------------------------------------------------
+
     !> A new window, in no tree and showing no buffer.  Port of
     !> window.c:make_window.
     subroutine make_window(h)

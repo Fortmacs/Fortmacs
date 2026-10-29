@@ -113,6 +113,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     ! Whether BUF passes the filters F1, F2, ... (`last_status' holds the
     ! status).
     logical function incl(buf, f1, f2, f3)
@@ -324,6 +325,7 @@ contains
     ! ------------------------------------------------------------------
     ! Tests
     ! ------------------------------------------------------------------
+
     !> Test for https://debbugs.gnu.org/24997 .
     subroutine test_bug24997(error)
         type(error_type), allocatable, intent(out) :: error

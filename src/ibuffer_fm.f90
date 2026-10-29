@@ -922,6 +922,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if there is none).
     integer function ibuffer_local_index(make) result(k)
@@ -1104,6 +1105,7 @@ contains
     ! ------------------------------------------------------------------
     ! Text properties of the lines
     ! ------------------------------------------------------------------
+
     ! The text property NAME at POS: false outside the accessible text.
     logical function has_prop(pos, name)
         integer(int64), intent(in) :: pos
@@ -1225,6 +1227,7 @@ contains
     ! ------------------------------------------------------------------
     ! Utility functions
     ! ------------------------------------------------------------------
+
     !> Insert NAMES into the current buffer in as many columns as possible.
     !> The maximum number of columns is determined by the current window
     !> width and the longest string in NAMES.  Port of
@@ -1851,6 +1854,7 @@ contains
     ! ------------------------------------------------------------------
     ! Operations
     ! ------------------------------------------------------------------
+
     !> Run the operation OP on the marked buffers (or the buffer on this
     !> line), as a command made by define-ibuffer-op does.  Port of
     !> ibuf-macs.el:define-ibuffer-op (the function it defines).
@@ -2173,6 +2177,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marks
     ! ------------------------------------------------------------------
+
     !> Unmark all buffers with mark MARK (RET means all).  Port of
     !> ibuffer.el:ibuffer-unmark-all.
     recursive subroutine ibuffer_unmark_all(mark, status)
@@ -2575,6 +2580,7 @@ contains
     ! ------------------------------------------------------------------
     ! Formats
     ! ------------------------------------------------------------------
+
     ! ibuffer-current-format: the index of the current format (0-based).
     integer function current_format_index() result(n)
         integer :: k
@@ -3260,6 +3266,7 @@ contains
     ! ------------------------------------------------------------------
     ! Columns
     ! ------------------------------------------------------------------
+
     ! A column cell of TEXT.
     function text_cell(text) result(cell)
         character(len=*), intent(in) :: text
@@ -3875,6 +3882,7 @@ contains
     ! ------------------------------------------------------------------
     ! Display
     ! ------------------------------------------------------------------
+
     ! ibuffer-update-format.
     subroutine ibuffer_update_format(status)
         type(status_type), intent(out) :: status
@@ -4435,6 +4443,7 @@ contains
     ! ------------------------------------------------------------------
     ! Entry points
     ! ------------------------------------------------------------------
+
     !> Display a list of buffers, in another window.
     !> If optional argument FILES_ONLY is true, then add a filter for
     !> buffers which are visiting a file.  Port of
@@ -4884,6 +4893,7 @@ contains
     ! ------------------------------------------------------------------
     ! ibuffer-save-marks
     ! ------------------------------------------------------------------
+
     !> Save the marked status of the buffers (the first half of
     !> ibuf-macs.el:ibuffer-save-marks; `ibuffer_save_marks_end' restores
     !> them).
@@ -4920,6 +4930,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading
     ! ------------------------------------------------------------------
+
     ! Read a character in the echo area after PROMPT (read-char): C-g
     ! quits, other non-characters are an error.
     subroutine read_char(prompt, c, status)
@@ -4952,6 +4963,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fontification forms (the defaults of `ibuffer_fontification_alist')
     ! ------------------------------------------------------------------
+
     recursive logical function form_read_only()
         form_read_only = buffers(cur)%read_only
     end function form_read_only

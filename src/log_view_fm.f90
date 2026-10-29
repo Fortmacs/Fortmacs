@@ -170,6 +170,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
@@ -382,6 +383,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Major mode for browsing CVS log output.  Port of
     !> log-view.el:log-view-mode.
     recursive subroutine log_view_mode(status)
@@ -401,6 +403,7 @@ contains
     ! ------------------------------------------------------------------
     ! Navigation
     ! ------------------------------------------------------------------
+
     !> Go to the next COUNT'th log message.
     !>
     !> Interactively, COUNT is the numeric prefix argument, and defaults to 1.
@@ -506,6 +509,7 @@ contains
     ! ------------------------------------------------------------------
     ! Linkage to PCL-CVS (mostly copied from cvs-status.el)
     ! ------------------------------------------------------------------
+
     !> Return the current file.  Port of log-view.el:log-view-current-file
     !> (without PCL-CVS's directory changes).
     recursive subroutine log_view_current_file(file, status)
@@ -626,6 +630,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
+
     !> Toggle the marked state for the log entry at point.
     !> See `log_view_mark_entry'.  Port of
     !> log-view.el:log-view-toggle-mark-entry.
@@ -881,6 +886,7 @@ contains
     ! ------------------------------------------------------------------
     ! Expanding entries
     ! ------------------------------------------------------------------
+
     !> If possible, expand the current Log View entry.
     !> This calls `log_view_expanded_log_entry_function' to do the work.
     !> See also `log_view_display_entry_and_diff'.  Port of
@@ -989,6 +995,7 @@ contains
     ! ------------------------------------------------------------------
     ! Defun motion
     ! ------------------------------------------------------------------
+
     !> Move backward to the beginning of a Log View entry.
     !> With ARG, do it that many times.  Negative ARG means move forward
     !> to the beginning of the ARGth following entry.
@@ -1091,6 +1098,7 @@ contains
     ! ------------------------------------------------------------------
     ! Revisions
     ! ------------------------------------------------------------------
+
     ! (car log-view-vc-fileset) for the commands that need one file: a
     ! user error if the buffer shows several.
     recursive subroutine single_file(file, status)
@@ -1142,6 +1150,7 @@ contains
     ! ------------------------------------------------------------------
     ! Diff
     ! ------------------------------------------------------------------
+
     !> Get the diff between two revisions.
     !> If the region is inactive or the mark is on the revision at
     !> point, get the diff between the revision at point and its
@@ -1312,6 +1321,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     ! (let ((inhibit-read-only t)) ...): bind it, keeping the old value
     ! in SAVED.
     subroutine bind_inhibit_read_only(saved)
@@ -1438,6 +1448,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     ! Define the faces.
     subroutine define_faces()
         type(named_face_type), pointer :: f

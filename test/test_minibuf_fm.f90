@@ -814,6 +814,7 @@ contains
     ! ------------------------------------------------------------------
     ! Completion primitives (ports of minibuf-tests.el)
     ! ------------------------------------------------------------------
+
     !> The test strings as a collection of kind `kind`: 1 a string list, 2
     !> a symbol list, 3 a symbol alist, 4 a string alist.
     function collection(kind, strings) result(table)
@@ -1196,6 +1197,7 @@ contains
     ! ------------------------------------------------------------------
     ! Completion in the minibuffer (minibuffer-tests.el and own)
     ! ------------------------------------------------------------------
+
     !> Record the minibuffer message and whether *Completions* shows.
     subroutine record_completion_state(status)
         type(status_type), intent(out) :: status

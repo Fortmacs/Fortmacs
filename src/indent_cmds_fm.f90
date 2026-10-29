@@ -1007,6 +1007,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     subroutine cmd_indent_for_tab_command(status)
         type(status_type), intent(out) :: status
 

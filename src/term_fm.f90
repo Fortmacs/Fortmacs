@@ -82,6 +82,7 @@ contains
     ! ------------------------------------------------------------------
     ! Initialization
     ! ------------------------------------------------------------------
+
     !> `dest' = termcap string capability `code', unallocated if absent.
     subroutine getcap(tty, code, dest)
         type(tty_display_info), intent(in) :: tty
@@ -595,6 +596,7 @@ contains
     ! ------------------------------------------------------------------
     ! Modes
     ! ------------------------------------------------------------------
+
     !> Port of term.c:tty_ring_bell.
     subroutine tty_ring_bell(tty)
         type(tty_display_info), intent(inout) :: tty
@@ -772,6 +774,7 @@ contains
     ! ------------------------------------------------------------------
     ! Cursor motion and clearing
     ! ------------------------------------------------------------------
+
     !> Move the cursor to row `vpos', column `hpos' (0-based).  Port of
     !> term.c:tty_cursor_to.
     subroutine tty_cursor_to(tty, vpos, hpos)
@@ -859,6 +862,7 @@ contains
     ! ------------------------------------------------------------------
     ! Glyphs
     ! ------------------------------------------------------------------
+
     !> The bytes that show `glyphs' on a UTF-8 terminal; padding glyphs
     !> (the rest of a wide character) produce nothing.  Port of
     !> term.c:encode_terminal_code for the UTF-8 terminal coding system.

@@ -552,6 +552,7 @@ contains
     ! Files.  Each returns 0 or the errno value, so that fileio.c's ports
     ! can build their messages (report_file_errno) without ISO_C_BINDING.
     ! ------------------------------------------------------------------
+
     !> `name' as a NUL-terminated C string.
     pure function c_path(name) result(p)
         character(len=*), intent(in) :: name
@@ -903,6 +904,7 @@ contains
     ! ------------------------------------------------------------------
     ! Processes.  Like the file calls, each returns 0 or the errno value.
     ! ------------------------------------------------------------------
+
     !> Fill `argv' (which must be a target) from `args'.
     subroutine make_argv(args, argv)
         type(sys_string_type), intent(in) :: args(:)
@@ -2047,6 +2049,7 @@ contains
     ! ------------------------------------------------------------------
     ! inotify
     ! ------------------------------------------------------------------
+
     !> A new inotify instance, non-blocking and close-on-exec, in FD.
     !> The result is 0 or errno.
     integer(int32) function emacs_inotify_init(fd) result(err)

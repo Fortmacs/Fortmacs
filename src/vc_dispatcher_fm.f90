@@ -288,6 +288,7 @@ contains
     ! ------------------------------------------------------------------
     ! The parent buffer
     ! ------------------------------------------------------------------
+
     integer function parent_index(create) result(k)
         logical, intent(in) :: create
         type(vc_parent_type), allocatable :: grown(:)
@@ -364,6 +365,7 @@ contains
     ! ------------------------------------------------------------------
     ! The log entry buffer's variables
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `log_locals', made if
     ! MAKE (0 if none).
     integer function log_local_index(make) result(k)
@@ -502,6 +504,7 @@ contains
     ! ------------------------------------------------------------------
     ! Common command execution logic
     ! ------------------------------------------------------------------
+
     !> An alternative output filter for async process PROC.
     !> One difference with the default filter is that this inserts S after markers.
     !> Another is that undo information is not kept.  Port of
@@ -1023,6 +1026,7 @@ contains
     ! ------------------------------------------------------------------
     ! Keeping the view up to date
     ! ------------------------------------------------------------------
+
     !> Save a bit of the text around POSN in the current buffer.
     !> Used to help us find the corresponding position again later
     !> if markers are destroyed or corrupted.  Port of

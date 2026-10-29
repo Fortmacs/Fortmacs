@@ -89,6 +89,7 @@ contains
     ! ------------------------------------------------------------------
     ! The environment of the tests
     ! ------------------------------------------------------------------
+
     !> The directory of the resources, or its subdirectory SUB.
     function resource_dir(sub) result(dir)
         character(len=*), intent(in), optional :: sub
@@ -207,6 +208,7 @@ contains
     ! ------------------------------------------------------------------
     ! The tests
     ! ------------------------------------------------------------------
+
     subroutine test_info_urls(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st

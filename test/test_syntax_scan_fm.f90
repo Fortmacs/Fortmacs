@@ -155,6 +155,7 @@ contains
     ! ------------------------------------------------------------------
     ! syntax-tests.el
     ! ------------------------------------------------------------------
+
     !> Continue a parse that stopped in the middle of a comment marker.
     !> (Upstream modifies the standard table by mistake, then installs a
     !> table inheriting from it; here the new table gets the entries.)
@@ -245,6 +246,7 @@ contains
     ! ------------------------------------------------------------------
     ! The comment tests over syntax-comments.txt
     ! ------------------------------------------------------------------
+
     !> Visit syntax-comments.txt (in a buffer of its own, with a new
     !> syntax table, as its Local Variables make it) and set up the entries
     !> of comment syntax KIND (the -in functions of syntax-tests.el).
@@ -618,6 +620,7 @@ contains
     ! ------------------------------------------------------------------
     ! lisp-tests.el
     ! ------------------------------------------------------------------
+
     !> lisp-forward-sexp-1-empty-parens, -1-error-mismatch, -1-eobp,
     !> -2-eobp, -2-eobp-and-subsequent; lisp-backward-sexp-1-empty-parens,
     !> -1-error-mismatch, -1-eobp, -2-bobp, -2-bobp-and-subsequent.
@@ -673,6 +676,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> Nested comments (flag n) with two-character delimiters, and a
     !> one-character nested comment pair.
     subroutine test_nested_comments(error)

@@ -618,6 +618,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marked-files prompts
     ! ------------------------------------------------------------------
+
     !> Run BODY (which reads input) after showing which files are marked,
     !> as `dired_mark_pop_up' does for its FUNCTION: the files FILES are
     !> listed in a window showing a buffer named BUFFER_NAME (" *Marked
@@ -940,6 +941,7 @@ contains
     ! ------------------------------------------------------------------
     ! Change file attributes
     ! ------------------------------------------------------------------
+
     !> The program `dired_check_process' runs, logging what it writes:
     !> MSG is displayed, then PROGRAM runs with ARGS; FAILED tells
     !> whether it exited abnormally.  If it did, the command that invoked
@@ -1349,6 +1351,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands that delete or redisplay part of the Dired buffer
     ! ------------------------------------------------------------------
+
     module procedure dired_kill_line
     type(value_type) :: saved_ro
     character(len=:), allocatable :: file
@@ -1497,6 +1500,7 @@ contains
     ! ------------------------------------------------------------------
     ! Compression
     ! ------------------------------------------------------------------
+
     !> Run CMD (with the shell), and check for output.
     !> On error, pop up the log buffer.
     !> RES is the result of `process_file': zero for success (or a signal
@@ -2094,6 +2098,7 @@ contains
     ! ------------------------------------------------------------------
     ! Updating Dired buffers
     ! ------------------------------------------------------------------
+
     module procedure dired_remove_file
     type(handle_type), allocatable :: bufs(:)
     type(handle_type) :: old
@@ -2221,6 +2226,7 @@ contains
     ! ------------------------------------------------------------------
     ! Copy, move/rename, making hard and symbolic links
     ! ------------------------------------------------------------------
+
     !> Save old version of file TO that is to be overwritten.  Port of
     !> dired-aux.el:dired-handle-overwrite: `dired_backup_overwrite' is
     !> not ported (it is false), so nothing is backed up.
@@ -2615,6 +2621,7 @@ contains
     ! ------------------------------------------------------------------
     ! The basic function for half a dozen variations on cp/mv/ln/ln -s
     ! ------------------------------------------------------------------
+
     recursive module subroutine dired_create_files(file_creator, creator_kind, operation, fn_list, name_constructor, &
                                                    marker_char, status)
         procedure(dired_file_creator_proc) :: file_creator
@@ -3193,6 +3200,7 @@ contains
     ! ------------------------------------------------------------------
     ! Operate on files matched by regexp
     ! ------------------------------------------------------------------
+
     !> Replace first match of REGEXP in STRING with NEWTEXT (NEW; FOUND
     !> false if it does not match).  Port of
     !> dired.el:dired-string-replace-match (LITERAL and GLOBAL nil).
@@ -3451,6 +3459,7 @@ contains
     ! ------------------------------------------------------------------
     ! Change case of file names
     ! ------------------------------------------------------------------
+
     !> The name constructor of `dired_create_files_non_directory'.
     recursive subroutine non_directory_constructor(from, to, skip, status)
         character(len=*), intent(in) :: from
@@ -3533,6 +3542,7 @@ contains
     ! ------------------------------------------------------------------
     ! Creating files, viewing them and their types
     ! ------------------------------------------------------------------
+
     module procedure dired_create_empty_file
     character(len=:), allocatable :: expanded, new
     integer(int64) :: pos
@@ -4023,6 +4033,7 @@ contains
     ! Helpers.  Copies of dired_mode_fm's private ones: gfortran drops
     ! private parent procedures that submodules call.
     ! ------------------------------------------------------------------
+
     !> The position N lines after this one's start (line-beginning-position N).
     integer(int64) function aux_bol(n)
         integer(int64), intent(in), optional :: n

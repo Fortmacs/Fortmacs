@@ -413,6 +413,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> Append S to LIST.
     subroutine push(list, s)
         type(vc_string_type), allocatable, intent(inout) :: list(:)
@@ -647,6 +648,7 @@ contains
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
+
     !> Return a list of vc-BACKEND switches for operation OP.
     !> B is the backend.  OP is an operation such as "diff".
     !>
@@ -702,6 +704,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deducing the fileset and backend
     ! ------------------------------------------------------------------
+
     !> Return the root directory for the current VC tree (FOUND false if
     !> the root directory cannot be identified).
     !> B is the VC backend.  Port of vc.el:vc-root-dir.
@@ -1333,6 +1336,7 @@ contains
     ! ------------------------------------------------------------------
     ! C-x v v
     ! ------------------------------------------------------------------
+
     !> Do the next logical version control operation on the current fileset.
     !> This requires that all files in the current VC fileset be in the
     !> sufficiently similar states.  If they are not, signal an error.
@@ -1823,6 +1827,7 @@ contains
     ! ------------------------------------------------------------------
     ! Ignoring
     ! ------------------------------------------------------------------
+
     !> Ignore FILE under the VCS of DIRECTORY.
     !>
     !> Normally, FILE is a wildcard specification that matches the files
@@ -1948,6 +1953,7 @@ contains
     ! ------------------------------------------------------------------
     ! Checking out, resolving
     ! ------------------------------------------------------------------
+
     !> Retrieve a copy of the revision REV of FILE.
     !> REV defaults to the latest revision.
     !>
@@ -2095,6 +2101,7 @@ contains
     ! ------------------------------------------------------------------
     ! Diffs
     ! ------------------------------------------------------------------
+
     !> The end of a diff: say there were no changes (in a buffer the
     !> asynchronous process left empty), set up the Diff buffer type, go
     !> to the start and run `vc_diff_finish_functions'.  Port of
@@ -2715,6 +2722,7 @@ contains
     ! ------------------------------------------------------------------
     ! Other revisions
     ! ------------------------------------------------------------------
+
     !> Visit revision REV of the current file in another window.
     !> If the current file is named `F', the revision is named `F.~REV~'.
     !> If `F.~REV~' already exists, use it instead of checking it out again.
@@ -2830,6 +2838,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
+
     !> Revert working copies of the selected fileset to their repository contents.
     !> This asks for confirmation if the buffer contents are not identical
     !> to the working revision (except for keyword expansion).  Port of
@@ -3106,6 +3115,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting and renaming
     ! ------------------------------------------------------------------
+
     !> Delete file and mark it as such in the version control system.
     !> If called interactively, read FILES, defaulting to the current
     !> buffer's file name if it's under version control.
@@ -3482,6 +3492,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     recursive subroutine cmd_vc_next_action(status)
         type(status_type), intent(out) :: status
 

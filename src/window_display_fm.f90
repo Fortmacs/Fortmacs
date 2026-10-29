@@ -70,6 +70,7 @@ contains
     ! ------------------------------------------------------------------
     ! Window helpers
     ! ------------------------------------------------------------------
+
     !> Whether window `h' is the selected window.
     logical function selected_p(h)
         type(handle_type), intent(in) :: h
@@ -181,6 +182,7 @@ contains
     ! ------------------------------------------------------------------
     ! set-window-buffer and the previous buffers
     ! ------------------------------------------------------------------
+
     !> Make window `h' show `buffer', at the start the buffer had in the
     !> last window that showed it and with the buffer's point.  Port of
     !> window.c:set_window_buffer.
@@ -539,6 +541,7 @@ contains
     ! ------------------------------------------------------------------
     ! Switching to previous and next buffers
     ! ------------------------------------------------------------------
+
     !> Whether `b' is in the list `list'.
     logical function member(list, b)
         type(handle_type), allocatable, intent(in) :: list(:)
@@ -843,6 +846,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting and quitting windows
     ! ------------------------------------------------------------------
+
     !> Whether window `h' can be deleted: not its frame's only window or
     !> the minibuffer window (the frame, Fortmacs's only one, can't be
     !> deleted).  Port of window.el:window-deletable-p.
@@ -1299,6 +1303,7 @@ contains
     ! ------------------------------------------------------------------
     ! display-buffer
     ! ------------------------------------------------------------------
+
     !> Record information for window used by `display_buffer': install
     !> or update the `quit_restore' parameter of WINDOW (or its
     !> `quit_restore_prev' parameter, when WINDOW is reused for another
@@ -2100,6 +2105,7 @@ contains
     ! ------------------------------------------------------------------
     ! Choosing and splitting windows
     ! ------------------------------------------------------------------
+
     !> Return the least recently used window on the frame: a full-width
     !> window if possible, avoiding the selected window if possible (never
     !> it with NOT_SELECTED).  A dedicated window is never a candidate

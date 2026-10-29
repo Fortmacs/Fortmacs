@@ -59,6 +59,7 @@ contains
     ! ------------------------------------------------------------------
     ! Listing directories
     ! ------------------------------------------------------------------
+
     module subroutine make_temp_file(prefix, file, status)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
@@ -489,6 +490,7 @@ contains
     ! ------------------------------------------------------------------
     ! File names
     ! ------------------------------------------------------------------
+
     recursive module subroutine file_truename(filename, truename, status)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: truename
@@ -867,6 +869,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting
     ! ------------------------------------------------------------------
+
     module subroutine delete_file(filename, status)
         character(len=*), intent(in) :: filename
         type(status_type), intent(out) :: status
@@ -952,6 +955,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
+
     recursive module subroutine revert_buffer(status, ignore_auto, noconfirm, preserve_modes)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: ignore_auto, noconfirm, preserve_modes

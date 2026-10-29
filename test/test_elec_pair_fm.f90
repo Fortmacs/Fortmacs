@@ -295,6 +295,7 @@ contains
     ! ------------------------------------------------------------------
     ! Basic pairs and skips
     ! ------------------------------------------------------------------
+
     subroutine test_balanced(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -371,6 +372,7 @@ contains
     ! ------------------------------------------------------------------
     ! Quotes
     ! ------------------------------------------------------------------
+
     subroutine test_quotes(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -390,6 +392,7 @@ contains
     ! ------------------------------------------------------------------
     ! Skipping over whitespace
     ! ------------------------------------------------------------------
+
     subroutine skip_whitespace_t(bind)
         logical, intent(in) :: bind
 
@@ -441,6 +444,7 @@ contains
     ! ------------------------------------------------------------------
     ! Pairing arbitrary characters
     ! ------------------------------------------------------------------
+
     subroutine angle_pairs(bind)
         logical, intent(in) :: bind
 
@@ -467,6 +471,7 @@ contains
     ! ------------------------------------------------------------------
     ! Autowrapping
     ! ------------------------------------------------------------------
+
     !> (electric-pair-mode 1) (mark-sexp 1)
     subroutine mark_forward()
         type(status_type) :: st
@@ -535,6 +540,7 @@ contains
     ! ------------------------------------------------------------------
     ! String pairs
     ! ------------------------------------------------------------------
+
     subroutine test_strings_pairs(error)
         type(error_type), allocatable, intent(out) :: error
 
@@ -586,6 +592,7 @@ contains
     ! ------------------------------------------------------------------
     ! Backspacing, undoing and newlines
     ! ------------------------------------------------------------------
+
     subroutine test_backspace_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h

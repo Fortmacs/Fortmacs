@@ -307,6 +307,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
+
     ! The index in `data' of the current buffer's variables (created).
     integer function data_index() result(k)
         type(ppss_data_type), allocatable :: grown(:)
@@ -481,6 +482,7 @@ contains
     ! ------------------------------------------------------------------
     ! Applying syntax-table properties where needed
     ! ------------------------------------------------------------------
+
     !> Like `line_beginning_position' but obeying `syntax_wholeline_max'.
     !> Port of syntax.el:syntax--lbp.
     integer(int64) function syntax_lbp(arg) result(res)
@@ -1025,6 +1027,7 @@ contains
     ! ------------------------------------------------------------------
     ! Incrementally compute and memoize parser state
     ! ------------------------------------------------------------------
+
     !> The depth in parens of PPSS.  Port of syntax.el:syntax-ppss-depth.
     integer(int64) function syntax_ppss_depth(ppss)
         type(parse_state_type), intent(in) :: ppss

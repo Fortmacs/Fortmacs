@@ -480,6 +480,7 @@ contains
     ! ------------------------------------------------------------------
     ! Filters
     ! ------------------------------------------------------------------
+
     !> A compound filter specification: the logical-and of the filters F1, F2, ... (one or more, up to 16): (and FILTER-SPECS...).
     function ibuffer_and(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16) result(f)
         type(ibuffer_filter_type), intent(in) :: f1

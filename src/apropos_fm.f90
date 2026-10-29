@@ -188,6 +188,7 @@ contains
     ! ------------------------------------------------------------------
     ! Patterns
     ! ------------------------------------------------------------------
+
     !> Return a regexp matching any two of the words in WORDS.
     !> WILD should be a subexpression matching wildcards between matches.
     !> Port of apropos.el:apropos-words-to-regexp.
@@ -462,6 +463,7 @@ contains
     ! ------------------------------------------------------------------
     ! Apropos mode
     ! ------------------------------------------------------------------
+
     !> Major mode for following hyperlinks in output of apropos commands.
     !>
     !> \{apropos_mode_map}  Port of apropos.el:apropos-mode.
@@ -540,6 +542,7 @@ contains
     ! ------------------------------------------------------------------
     ! Interactive commands
     ! ------------------------------------------------------------------
+
     !> Show commands (interactively callable functions) that match PATTERN.
     !> PATTERN can be a word, a list of words (separated by spaces),
     !> or a regexp (using some regexp special characters).  If it is a word,

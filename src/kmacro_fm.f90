@@ -209,6 +209,7 @@ contains
     ! ------------------------------------------------------------------
     ! The macro counter
     ! ------------------------------------------------------------------
+
     !> Give the format variables their standard values ("%d") the first
     !> time.
     subroutine ensure_formats()
@@ -498,6 +499,7 @@ contains
     ! ------------------------------------------------------------------
     ! The macro ring
     ! ------------------------------------------------------------------
+
     !> Create a `kmacro_type' for macro bound to symbol or key.
     !> KEYS is an array of events; COUNTER defaults to 0 and FORMAT to
     !> "%d".  Port of kmacro.el:kmacro (KEYS a vector).
@@ -1021,6 +1023,7 @@ contains
     ! ------------------------------------------------------------------
     ! Traditional bindings
     ! ------------------------------------------------------------------
+
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
     !> Use \[kmacro_end_macro] to finish recording and make the macro available.
@@ -1271,6 +1274,7 @@ contains
     ! ------------------------------------------------------------------
     ! Combined function key bindings
     ! ------------------------------------------------------------------
+
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
     !>
@@ -1368,6 +1372,7 @@ contains
     ! ------------------------------------------------------------------
     ! Viewing the ring
     ! ------------------------------------------------------------------
+
     !> Display the last keyboard macro.
     !> If repeated, it shows previous elements in the macro ring.  Port of
     !> kmacro.el:kmacro-view-macro.
@@ -1460,6 +1465,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> The prefix argument as interactive "N" reads it: its numeric value,
     !> or a number read with PROMPT if there is none.
     subroutine read_n(prompt, n, status)

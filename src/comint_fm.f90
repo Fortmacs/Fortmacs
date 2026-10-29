@@ -491,6 +491,7 @@ contains
     ! ------------------------------------------------------------------
     ! The buffers' own state
     ! ------------------------------------------------------------------
+
     !> The entry of buffer slot BI (0 for none).
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
@@ -738,6 +739,7 @@ contains
     ! ------------------------------------------------------------------
     ! Small helpers
     ! ------------------------------------------------------------------
+
     !> Bind `inhibit_read_only' to true, keeping its value in SAVED.
     subroutine inhibit_read_only_begin(saved)
         type(value_type), intent(out) :: saved
@@ -807,6 +809,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Major mode for interacting with an inferior interpreter.
     !> Interpreter name is same as buffer name, sans the asterisks.
     !> Return at end of buffer sends line as input.
@@ -1164,6 +1167,7 @@ contains
     ! ------------------------------------------------------------------
     ! The input history
     ! ------------------------------------------------------------------
+
     !> Set the buffer's `comint_input_ring' from a history file.
     !> The name of the file is given by the variable
     !> `comint_input_ring_file_name'.
@@ -1923,6 +1927,7 @@ contains
     ! ------------------------------------------------------------------
     ! Sending input
     ! ------------------------------------------------------------------
+
     !> Send input to process.
     !> After the process output mark, sends all text from the process mark
     !> to point as input to the process.  Before the process output mark,
@@ -2256,6 +2261,7 @@ contains
     ! ------------------------------------------------------------------
     ! Output
     ! ------------------------------------------------------------------
+
     !> Interpret carriage control characters in the region from START to
     !> END.  Translate carriage return/linefeed sequences to linefeeds.
     !> Make single carriage returns delete to the beginning of the line.
@@ -2724,6 +2730,7 @@ contains
     ! ------------------------------------------------------------------
     ! Old input
     ! ------------------------------------------------------------------
+
     !> Default for `comint_get_old_input'.
     !> If `comint_use_prompt_regexp' is false, then either return the
     !> current input field, if point is on an input field, or the current
@@ -2867,6 +2874,7 @@ contains
     ! ------------------------------------------------------------------
     ! Output commands
     ! ------------------------------------------------------------------
+
     !> Delete all output from interpreter since last input.
     !> If KILL (interactively, the prefix), save the killed text in the
     !> kill ring.
@@ -3566,6 +3574,7 @@ contains
     ! ------------------------------------------------------------------
     ! The commands' interactive forms
     ! ------------------------------------------------------------------
+
     !> The count of the prefix argument.
     integer function prefix_count()
         prefix_count = int(prefix_numeric_value(current_prefix_arg))
@@ -3694,6 +3703,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
+
     !> Define Comint mode, its map, faces and settings, and register the
     !> commands.
     subroutine syms_of_comint()

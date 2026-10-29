@@ -1723,6 +1723,7 @@ contains
     ! ------------------------------------------------------------------
     ! The commands
     ! ------------------------------------------------------------------
+
     !> Replace some occurrences of FROM_STRING with TO_STRING.
     !> As each match is found, the user must type a character saying
     !> what to do with it.  Type SPC or `y' to replace the match,
@@ -2231,6 +2232,7 @@ contains
     ! ------------------------------------------------------------------
     ! keep-lines and friends
     ! ------------------------------------------------------------------
+
     !> The regexp argument of `keep_lines' and friends: read with PROMPT.
     !> Port of replace.el:keep-lines-read-args.
     recursive subroutine keep_lines_read_args(prompt, regexp, status)
@@ -2667,6 +2669,7 @@ contains
     ! ------------------------------------------------------------------
     ! Occur buffers
     ! ------------------------------------------------------------------
+
     logical function same_buffer_handle(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -2798,6 +2801,7 @@ contains
     ! ------------------------------------------------------------------
     ! Occur mode
     ! ------------------------------------------------------------------
+
     !> Major mode for output from \[occur].
     !> \<occur_mode_map>Move point to one of the items in this buffer,
     !> then use \[occur_mode_goto_occurrence] to go to the occurrence that
@@ -3251,6 +3255,7 @@ contains
     ! ------------------------------------------------------------------
     ! occur
     ! ------------------------------------------------------------------
+
     !> The arguments of `occur' read interactively: the REGEXP, and the
     !> COLLECT regexp with C-u (HAS_COLLECT), else NLINES from a numeric
     !> prefix (HAS_NLINES).  Port of replace.el:occur-read-primary-args.
@@ -3948,6 +3953,7 @@ contains
     ! ------------------------------------------------------------------
     ! The engine
     ! ------------------------------------------------------------------
+
     !> Insert TEXT in the current buffer at point; START and END get where
     !> it went.
     subroutine out_insert(text, start, end)
@@ -4601,6 +4607,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> Define Occur mode and Occur-Edit mode, give the Occur variables
     !> their defaults and register the commands (after Text mode, whose map
     !> Occur-Edit mode's inherits).

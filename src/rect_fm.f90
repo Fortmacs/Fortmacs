@@ -252,6 +252,7 @@ contains
     ! ------------------------------------------------------------------
     ! Rectangle operations
     ! ------------------------------------------------------------------
+
     !> Call ACTION's `line' for each line of rectangle with corners at
     !> START, END.  It is called with two arguments: the start and end
     !> columns of the rectangle (the extra ARGS are ACTION's components).
@@ -930,6 +931,7 @@ contains
     ! ------------------------------------------------------------------
     ! `format' with one integer argument
     ! ------------------------------------------------------------------
+
     !> Format the integer ARG by the format string STRING, as (format
     !> STRING ARG) does.  The part of editfns.c:styled_format that
     !> `rectangle_number_lines' needs: %%, field numbers, the flags - + SPC
@@ -1216,6 +1218,7 @@ contains
     ! Crutches to let rectangle's corners be where point can't be
     ! (e.g. in the middle of a TAB, or past the EOL).
     ! ------------------------------------------------------------------
+
     !> The crutch of OWNER in CRUTCHES: whether it has one, and its
     !> position and column.
     subroutine get_crutch(crutches, owner, found, pos, col)
@@ -1447,6 +1450,7 @@ contains
     ! ------------------------------------------------------------------
     ! Rectangle integration with kill-ring.
     ! ------------------------------------------------------------------
+
     !> Toggle the region as rectangular.
     !>
     !> Activates the region if it's inactive and Transient Mark mode is
@@ -2196,6 +2200,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> The value of the prefix argument as the FILL of a "P" spec.
     logical function prefix_fill()
         prefix_fill = .not. nilp(current_prefix_arg)

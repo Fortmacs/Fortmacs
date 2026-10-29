@@ -61,6 +61,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> The strings of the list V.
     subroutine to_boxes(v, boxes)
         type(value_type), intent(in) :: v
@@ -248,6 +249,7 @@ contains
     ! ------------------------------------------------------------------
     ! Dispatch
     ! ------------------------------------------------------------------
+
     !> The styles to use for TABLE: those its category's
     !> `completion_category_overrides' or `completion_category_defaults'
     !> entry gives first, then `completion_styles', without duplicates.
@@ -383,6 +385,7 @@ contains
     ! ------------------------------------------------------------------
     ! emacs21, emacs22, basic
     ! ------------------------------------------------------------------
+
     !> Port of minibuffer.el:completion-emacs21-try-completion.
     subroutine emacs21_try_completion(string, table, res, pred)
         character(len=*), intent(in) :: string
@@ -548,6 +551,7 @@ contains
     ! ------------------------------------------------------------------
     ! Patterns
     ! ------------------------------------------------------------------
+
     !> Remove the empty strings of P.
     subroutine delete_empty(p)
         type(pat_elt), allocatable, intent(inout) :: p(:)
@@ -1248,6 +1252,7 @@ contains
     ! ------------------------------------------------------------------
     ! partial-completion, substring
     ! ------------------------------------------------------------------
+
     !> Port of minibuffer.el:completion-pcm-try-completion.
     subroutine pcm_try_completion(string, table, point, res, pred)
         character(len=*), intent(in) :: string
@@ -1351,6 +1356,7 @@ contains
     ! ------------------------------------------------------------------
     ! flex
     ! ------------------------------------------------------------------
+
     !> Compute the cost of PAT matching STR using the modified Gotoh
     !> algorithm: COST (lower is better) and MATCHES, where each character
     !> of PAT matched in STR (zero-based); FOUND false if PAT does not
@@ -1596,6 +1602,7 @@ contains
     ! ------------------------------------------------------------------
     ! initials
     ! ------------------------------------------------------------------
+
     !> STR with a delimiter between each of its characters, if it has no
     !> delimiter itself: "lch" becomes "l-c-h", "~/eee" becomes "~/e/e/e";
     !> "" if initials do not apply.  Port of

@@ -303,6 +303,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     !> The index of the current buffer's entry in `locals', made if MAKE
     !> (0 if none).
     integer function local_index(make) result(k)
@@ -445,6 +446,7 @@ contains
     ! ------------------------------------------------------------------
     ! Lists of buffers
     ! ------------------------------------------------------------------
+
     logical function memq(buffer, list)
         type(handle_type), intent(in) :: buffer
         type(handle_type), allocatable, intent(in) :: list(:)
@@ -537,6 +539,7 @@ contains
     ! ------------------------------------------------------------------
     ! The modes
     ! ------------------------------------------------------------------
+
     !> The find-file-hook function: remember the size of the file.  Port
     !> of autorevert.el:auto-revert-find-file-function.
     recursive subroutine auto_revert_find_file_function(status)
@@ -857,6 +860,7 @@ contains
     ! ------------------------------------------------------------------
     ! Polling
     ! ------------------------------------------------------------------
+
     !> Whether buffer slot B is in Auto-Revert Mode, Auto-Revert Tail Mode
     !> or tracked by Global Auto-Revert Mode, and whether it has a watch
     !> descriptor.
@@ -999,6 +1003,7 @@ contains
     ! ------------------------------------------------------------------
     ! Notification
     ! ------------------------------------------------------------------
+
     !> Disable file notification for current buffer's associated file.
     !> Port of autorevert.el:auto-revert-notify-rm-watch.
     recursive subroutine auto_revert_notify_rm_watch()
@@ -1201,6 +1206,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
+
     !> Deactivate auto-reverting of current buffer temporarily.
     !> Run BODY.  Port of autorevert.el:inhibit-auto-revert.
     recursive subroutine inhibit_auto_revert(body, status)

@@ -222,6 +222,7 @@ contains
     ! ------------------------------------------------------------------
     ! Coding systems a file specifies
     ! ------------------------------------------------------------------
+
     !> Return the coding system specified by `auto_coding_alist' for FILENAME.
     !> Port of mule.el:auto-coding-alist-lookup (file names are case
     !> sensitive on Linux).
@@ -653,6 +654,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading coding systems
     ! ------------------------------------------------------------------
+
     !> Every coding system name, as completion candidates
     !> (Vcoding_system_alist).
     function coding_system_alist() result(list)
@@ -812,6 +814,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Set the file coding-system of the current buffer to CODING-SYSTEM.
     !> This means that when you save the buffer, it will be converted
     !> according to CODING-SYSTEM.  For a list of possible values of
@@ -1027,6 +1030,7 @@ contains
     ! ------------------------------------------------------------------
     ! Choosing a coding system that can encode the text
     ! ------------------------------------------------------------------
+
     !> Ask a user to select a safe coding system from candidates.
     !> The candidates of coding systems which can safely encode a text
     !> between FROM and TO are shown in a popup window.  Among them, the most
@@ -1546,6 +1550,7 @@ contains
     ! ------------------------------------------------------------------
     ! Describing coding systems
     ! ------------------------------------------------------------------
+
     !> Print name and mnemonic letter of CODING-SYSTEM, and with DOC its
     !> docstring.  Port of mule-diag.el:print-coding-system-briefly.
     function print_coding_system_briefly(coding_system, doc) result(s)

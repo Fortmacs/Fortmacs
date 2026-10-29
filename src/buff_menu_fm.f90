@@ -1171,6 +1171,7 @@ contains
     ! ------------------------------------------------------------------
     ! Functions for populating the Buffer Menu.
     ! ------------------------------------------------------------------
+
     !> Create and return in BUFFER a Buffer Menu buffer.
     !> This is called by `buffer_menu' and others as a subroutine.
     !>

@@ -604,6 +604,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
@@ -883,6 +884,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     ! Signal a user-error with MESSAGE.
     subroutine user_error(status, message)
         type(status_type), intent(inout) :: status
@@ -1275,6 +1277,7 @@ contains
     ! ------------------------------------------------------------------
     ! Finding and reading Info files
     ! ------------------------------------------------------------------
+
     ! Whether FILENAME exists and is not a directory.  Port of
     ! info.el:info-file-exists-p.
     logical function info_file_exists_p(filename)
@@ -4179,6 +4182,7 @@ contains
     ! ------------------------------------------------------------------
     ! Moving between nodes
     ! ------------------------------------------------------------------
+
     !> Extract the value of the node-pointer named NAME.
     !> If there is none, use ERRORNAME in the error message (NAME if
     !> absent); if NOERROR is true, just return unallocated.  Port of
@@ -5662,6 +5666,7 @@ contains
     ! ------------------------------------------------------------------
     ! Index nodes
     ! ------------------------------------------------------------------
+
     !> Return in NODES the names of all index nodes in Info FILE (the
     !> current Info file if absent).
     !> First look in a list of cached index node names.  Then scan Info
@@ -5925,6 +5930,7 @@ contains
     ! ------------------------------------------------------------------
     ! Help, following the nearest node and copying its name
     ! ------------------------------------------------------------------
+
     !> Make command be undefined in Info.  Port of info.el:Info-undefined.
     recursive subroutine info_undefined(status)
         type(status_type), intent(out) :: status
@@ -6237,6 +6243,7 @@ contains
     ! ------------------------------------------------------------------
     ! The table of contents and the history node
     ! ------------------------------------------------------------------
+
     ! History-specific implementation of `Info-find-node-2'.  Port of
     ! info.el:Info-history-find-node.
     recursive subroutine history_find_node(filename, nodename, no_going_back, status)
@@ -6635,6 +6642,7 @@ contains
     ! ------------------------------------------------------------------
     ! The display of nodes
     ! ------------------------------------------------------------------
+
     ! The breadcrumbs line of the current node: links to its ancestors up
     ! to `info_breadcrumbs_depth' of them, from the Top node, as a string
     ! with faces (empty if none).  Port of info.el:Info-breadcrumbs.
@@ -7495,6 +7503,7 @@ contains
     ! ------------------------------------------------------------------
     ! Info mode
     ! ------------------------------------------------------------------
+
     !> Info mode provides commands for browsing through the Info
     !> documentation tree.  Documentation in Info is divided into "nodes",
     !> each of which discusses one topic and contains references to other

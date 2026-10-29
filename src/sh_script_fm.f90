@@ -589,6 +589,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setting up
     ! ------------------------------------------------------------------
+
     !> Define Shell-script mode: its options, feature tables, faces, syntax
     !> tables, keymap, grammars and commands.
     subroutine syms_of_sh_script()
@@ -1205,6 +1206,7 @@ contains
     ! ------------------------------------------------------------------
     ! Feature tables
     ! ------------------------------------------------------------------
+
     !> The shell whose entry of a feature table with entries for SHELLS
     !> applies to SHELL: SHELL itself, else its successive ancestors (see
     !> `sh_ancestor_alist'), finally sh (0 when there is none).  The lookup
@@ -1463,6 +1465,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     integer function local_index(make) result(k)
         logical, intent(in) :: make
         type(sh_local_type), allocatable :: grown(:)
@@ -1556,6 +1559,7 @@ contains
     ! ------------------------------------------------------------------
     ! Syntax properties
     ! ------------------------------------------------------------------
+
     ! The position of marker M.
     integer(int64) function mpos(m) result(pos)
         type(handle_type), intent(in) :: m
@@ -2129,6 +2133,7 @@ contains
     ! ------------------------------------------------------------------
     ! Indentation and navigation with SMIE
     ! ------------------------------------------------------------------
+
     ! (zerop (length TOK)).
     logical function empty(tok)
         character(len=:), allocatable, intent(in) :: tok
@@ -3147,6 +3152,7 @@ contains
     ! ------------------------------------------------------------------
     ! The modes
     ! ------------------------------------------------------------------
+
     ! Guess the shell used in the current buffer.
     ! Return the name of the shell suitable for `sh_set_shell'.  Port of
     ! sh-script.el:sh--guess-shell.
@@ -3589,6 +3595,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Pass optional header and region to a subshell for noninteractive execution.
     !> The working directory is that of the buffer, and only environment variables
     !> are already set which is why you can mark a header within the script.

@@ -362,6 +362,7 @@ contains
     ! ------------------------------------------------------------------
     ! Entries
     ! ------------------------------------------------------------------
+
     !> Whether A and B are the same function (neither being `t').
     logical function same_function(a, b) result(same)
         type(hook_entry_type), intent(in) :: a, b
@@ -471,6 +472,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffers' own values and depths
     ! ------------------------------------------------------------------
+
     !> The index of the current buffer's own functions in HOOK, or 0.
     integer function local_index(hook) result(k)
         class(hook_base_type), intent(in) :: hook
@@ -656,6 +658,7 @@ contains
     ! ------------------------------------------------------------------
     ! All kinds of hook
     ! ------------------------------------------------------------------
+
     !> Add the function of E to the hook: see `hook_add'.
     !> Port of subr.el:add-hook.
     subroutine hook_add_entry(self, e, depth, local)
@@ -904,6 +907,7 @@ contains
     ! ------------------------------------------------------------------
     ! Normal hooks
     ! ------------------------------------------------------------------
+
     !> Add to the value of HOOK the function FUNCTION.
     !> FUNCTION is not added if already present.
     !>
@@ -972,6 +976,7 @@ contains
     ! ------------------------------------------------------------------
     ! Hooks of change functions
     ! ------------------------------------------------------------------
+
     !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
     subroutine change_hook_add(self, fn, depth, local)
         class(change_hook_type), intent(inout), target :: self
@@ -1063,6 +1068,7 @@ contains
     ! ------------------------------------------------------------------
     ! Position and region hooks
     ! ------------------------------------------------------------------
+
     !> Add FN to the hook, as `hook_add' does.  Port of subr.el:add-hook.
     subroutine position_hook_add(self, fn, depth, local)
         class(position_hook_type), intent(inout), target :: self

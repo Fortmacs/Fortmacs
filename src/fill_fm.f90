@@ -1899,6 +1899,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     integer function prefix_justify() result(how)
         how = JUSTIFY_T
         if (.not. nilp(current_prefix_arg)) how = JUSTIFY_FULL

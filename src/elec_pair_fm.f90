@@ -335,6 +335,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> The character `last_command_event' is, or -1.
     integer function event_char()
         event_char = -1
@@ -446,6 +447,7 @@ contains
     ! ------------------------------------------------------------------
     ! Syntax
     ! ------------------------------------------------------------------
+
     !> Move point forward over whitespace.
     !> But do not move point if doing so crosses comment or string
     !> boundaries.  Port of elec-pair.el:electric-pair--skip-whitespace.
@@ -920,6 +922,7 @@ contains
     ! ------------------------------------------------------------------
     ! post-self-insert-hook
     ! ------------------------------------------------------------------
+
     !> Do main work for `electric_pair_mode'.
     !> This function is added to `post_self_insert_hook' when
     !> `electric_pair_mode' is enabled.
@@ -1161,6 +1164,7 @@ contains
     ! ------------------------------------------------------------------
     ! The modes
     ! ------------------------------------------------------------------
+
     !> Toggle automatic pairing of delimiters (Electric Pair mode).
     !>
     !> Electric Pair mode is a global minor mode.  When enabled, typing an

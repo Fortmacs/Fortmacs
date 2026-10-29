@@ -1549,6 +1549,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Insert a newline, and move to left margin of the new line.
     !> With prefix argument ARG, insert that many newlines.
     !>
@@ -1958,6 +1959,7 @@ contains
     ! ------------------------------------------------------------------
     ! Vertical motion
     ! ------------------------------------------------------------------
+
     !> Whether the last command was next-line or previous-line.
     logical function after_line_move()
         after_line_move = value_eq(last_command, sym("next_line")) .or. &
@@ -2520,6 +2522,7 @@ contains
     ! ------------------------------------------------------------------
     ! Minibuffer history
     ! ------------------------------------------------------------------
+
     !> The current minibuffer history list (minibuffer-history-value).
     function history_value() result(history)
         type(value_type) :: history
@@ -2830,6 +2833,7 @@ contains
     ! ------------------------------------------------------------------
     ! M-x
     ! ------------------------------------------------------------------
+
     !> Read and return name of command to invoke via
     !> `execute_extended_command'.  Port of
     !> simple.el:read-extended-command (with read-extended-command-1; no
@@ -3035,6 +3039,7 @@ contains
     ! ------------------------------------------------------------------
     ! Undo
     ! ------------------------------------------------------------------
+
     !> The undo-equiv-table value of list position `k' in the current
     !> buffer: a list position, or EQUIV_NONE, EQUIV_T or EQUIV_EMPTY.
     integer(int64) function equiv_of(k) result(v)
@@ -3385,6 +3390,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mark and the region
     ! ------------------------------------------------------------------
+
     !> Return this buffer's mark value as integer, or 0 if never set.
     !>
     !> In Transient Mark mode, this function signals an error if
@@ -3684,6 +3690,7 @@ contains
     ! ------------------------------------------------------------------
     ! The kill ring
     ! ------------------------------------------------------------------
+
     !> The kill ring (the value of `kill_ring'), newest first.
     function kill_ring() result(ring)
         type(value_type) :: ring
@@ -4433,6 +4440,7 @@ contains
     ! ------------------------------------------------------------------
     ! Mark and kill commands
     ! ------------------------------------------------------------------
+
     subroutine cmd_set_mark_command(status)
         type(status_type), intent(out) :: status
 
@@ -4554,6 +4562,7 @@ contains
     ! ------------------------------------------------------------------
     ! Words
     ! ------------------------------------------------------------------
+
     !> Move backward until encountering the beginning of a word.
     !> With argument ARG, do this that many times.
     !> If ARG is omitted, move point backward one word.
@@ -4672,6 +4681,7 @@ contains
     ! ------------------------------------------------------------------
     ! Whitespace
     ! ------------------------------------------------------------------
+
     !> Join this line to previous and fix up whitespace at join.
     !> If there is a fill prefix, delete it from the beginning of this
     !> line.
@@ -5092,6 +5102,7 @@ contains
     ! ------------------------------------------------------------------
     ! Transposition
     ! ------------------------------------------------------------------
+
     !> Interchange characters around point, moving forward one character.
     !> With prefix arg ARG, effect is to take character before point
     !> and drag it forward past ARG other characters (backward if ARG negative).

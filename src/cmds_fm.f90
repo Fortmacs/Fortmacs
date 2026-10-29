@@ -358,6 +358,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands (the interactive side of the DEFUNs)
     ! ------------------------------------------------------------------
+
     !> Interactive "p": the numeric prefix argument.
     integer(int64) function arg_p()
         arg_p = prefix_numeric_value(current_prefix_arg)

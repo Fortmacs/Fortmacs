@@ -112,6 +112,7 @@ contains
     ! ------------------------------------------------------------------
     ! The table and the nodes
     ! ------------------------------------------------------------------
+
     ! The index of EWOC in `ewocs' (0 for a stale handle).
     integer function slot(ewoc) result(i)
         type(ewoc_type), intent(in) :: ewoc
@@ -380,6 +381,7 @@ contains
     ! ------------------------------------------------------------------
     ! The public functions
     ! ------------------------------------------------------------------
+
     !> Create an empty ewoc.
     !>
     !> The ewoc will be inserted in the current buffer at the current position.

@@ -119,6 +119,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fixtures
     ! ------------------------------------------------------------------
+
     !> A fresh Fundamental buffer shown alone, no abbrevs, the default
     !> settings.
     subroutine fresh(h)
@@ -230,6 +231,7 @@ contains
     ! ------------------------------------------------------------------
     ! Ported from abbrev-tests.el
     ! ------------------------------------------------------------------
+
     subroutine test_table_symbols(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -575,6 +577,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> In Abbrev mode, a character without word syntax after a word
     !> expands it (cmds.c's self-insert-command); a word character does
     !> not, nor does Abbrev mode off.

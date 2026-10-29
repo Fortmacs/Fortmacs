@@ -193,6 +193,7 @@ contains
     ! ------------------------------------------------------------------
     ! File names
     ! ------------------------------------------------------------------
+
     !> Record the starting directory (emacs.c:main sets emacs_wd).
     subroutine init_fileio()
         emacs_wd = emacs_get_current_dir_name()
@@ -599,6 +600,7 @@ contains
     ! ------------------------------------------------------------------
     ! File predicates and attributes
     ! ------------------------------------------------------------------
+
     !> Expand `filename', quietly giving "" on error (for predicates).
     function expand_quietly(filename) result(absname)
         character(len=*), intent(in) :: filename
@@ -1359,6 +1361,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading and writing
     ! ------------------------------------------------------------------
+
     !> All the bytes of file `absname'.  Errors opening it are reported
     !> with `what' ("Opening input file").
     subroutine read_file(absname, what, data, status, st, opened)

@@ -63,6 +63,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> (with-temp-buffer (insert TEXT)).
     subroutine temp_buffer(text, h)
         character(len=*), intent(in) :: text
@@ -104,6 +105,7 @@ contains
     ! ------------------------------------------------------------------
     ! log-edit-fill-entry
     ! ------------------------------------------------------------------
+
     subroutine test_fill_entry(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -456,6 +458,7 @@ contains
     ! ------------------------------------------------------------------
     ! log-edit-done-strip-cvs-lines
     ! ------------------------------------------------------------------
+
     ! A no-op `log_edit_callback'.
     recursive subroutine no_callback(status)
         type(status_type), intent(out) :: status

@@ -778,6 +778,7 @@ contains
     ! ------------------------------------------------------------------
     ! The rules
     ! ------------------------------------------------------------------
+
     !> Add a rule NAME to `compilation_error_regexp_alist_alist'.
     subroutine add_rule(name, regexp, file, line, end_line, column, end_column, type, warning, info, hyperlink)
         character(len=*), intent(in) :: name, regexp
@@ -1105,6 +1106,7 @@ contains
     ! ------------------------------------------------------------------
     ! Compilation buffers
     ! ------------------------------------------------------------------
+
     logical function same(a, b)
         type(handle_type), intent(in) :: a, b
 
@@ -1339,6 +1341,7 @@ contains
     ! ------------------------------------------------------------------
     ! Messages, locations and file structures
     ! ------------------------------------------------------------------
+
     !> A new message in entry K.
     integer function new_message(k, loc, type, end_loc, rule) result(id)
         integer, intent(in) :: k, loc, type, end_loc
@@ -1838,6 +1841,7 @@ contains
     ! ------------------------------------------------------------------
     ! Parsing
     ! ------------------------------------------------------------------
+
     !> The type of a message whose type depends on which of the
     !> subexpressions WARNING and INFO of the last match matched.  Port of
     !> compile.el:compilation-type.
@@ -2982,6 +2986,7 @@ contains
     ! ------------------------------------------------------------------
     ! Moving between messages
     ! ------------------------------------------------------------------
+
     !> Like next_single_property_change, but parse the text first.  Port of
     !> compile.el:compilation-next-single-property-change.
     recursive subroutine compilation_next_single_property_change(position_in, prop, res, found, limit)
@@ -3922,6 +3927,7 @@ contains
     ! ------------------------------------------------------------------
     ! Compilation mode and the minor modes
     ! ------------------------------------------------------------------
+
     !> Major mode for compilation log buffers.
     !> \<compilation_mode_map>To visit the source for a line-numbered
     !> error, move point to the error message line and type
@@ -4102,6 +4108,7 @@ contains
     ! ------------------------------------------------------------------
     ! Starting
     ! ------------------------------------------------------------------
+
     !> The default value of `compile_command': "make -k -jN ", N being
     !> the number of processors divided by 1.5, rounded up.
     function default_compile_command() result(command)
@@ -4824,6 +4831,7 @@ contains
     ! ------------------------------------------------------------------
     ! Output and exit
     ! ------------------------------------------------------------------
+
     !> Process filter for compilation buffers.
     !> Just inserts the text, handles carriage motion (see
     !> `comint_inhibit_carriage_motion') and runs
@@ -5032,6 +5040,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> The faces of compile.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f

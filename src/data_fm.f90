@@ -447,6 +447,7 @@ contains
     ! ------------------------------------------------------------------
     ! Settings
     ! ------------------------------------------------------------------
+
     subroutine setting_make_local(self)
         class(setting_type), intent(inout) :: self
         type(status_type) :: st
@@ -582,6 +583,7 @@ contains
     ! ------------------------------------------------------------------
     ! Type checks (lisp.h CHECK_*)
     ! ------------------------------------------------------------------
+
     subroutine wrong_type(status, predicate)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: predicate
@@ -624,6 +626,7 @@ contains
     ! ------------------------------------------------------------------
     ! Identity and lists
     ! ------------------------------------------------------------------
+
     !> `eq': same integer, symbol or object handle.  Strings and lists have
     !> no identity once copied, so they are never `eq' (upstream: only the
     !> very same object is).  Port of data.c:Feq.
@@ -698,6 +701,7 @@ contains
     ! ------------------------------------------------------------------
     ! Symbols
     ! ------------------------------------------------------------------
+
     !> Port of data.c:Fsymbol_name.
     subroutine symbol_name(symbol, name, status)
         type(value_type), intent(in) :: symbol

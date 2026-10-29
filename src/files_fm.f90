@@ -963,6 +963,7 @@ contains
     ! ------------------------------------------------------------------
     ! Visiting
     ! ------------------------------------------------------------------
+
     !> Starting at FILE, look up directory hierarchy for directory containing NAME.
     !> FILE can be a file or a directory.  If it's a file, its directory will
     !> serve as the starting point for searching the hierarchy of directories.
@@ -1350,6 +1351,7 @@ contains
     ! ------------------------------------------------------------------
     ! Backups
     ! ------------------------------------------------------------------
+
     !> Return true if FILE is a backup file name (numeric or not).
     !> This is a separate function so you can redefine it for customization.
     !> You may need to redefine `file_name_sans_versions' as well.  Port of
@@ -1485,6 +1487,7 @@ contains
     ! ------------------------------------------------------------------
     ! Saving
     ! ------------------------------------------------------------------
+
     !> Save the current buffer in its visited file if modified.  `arg' is
     !> the numeric prefix: 4 (C-u) backs up the previous version on the
     !> next save, 16 (C-u C-u) now, 64 both; 0 never.
@@ -2110,6 +2113,7 @@ contains
     ! ------------------------------------------------------------------
     ! revert-buffer-function
     ! ------------------------------------------------------------------
+
     !> Whether a live buffer has serial number SERIAL.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
@@ -2275,6 +2279,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Save current buffer in visited file if modified.
     !> Variations are described below.
     !>

@@ -322,6 +322,7 @@ contains
     ! ------------------------------------------------------------------
     ! Building keywords
     ! ------------------------------------------------------------------
+
     !> A MATCH-HIGHLIGHT: give subexpression SUBEXP of the match the face
     !> FACE (or the face FACE_FUNCTION names), combined with existing
     !> fontification as OVERRIDE says (FONT_LOCK_OVERRIDE_NIL by default),
@@ -432,6 +433,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     !> The index of the current buffer's entry in `locals', made if MAKE.
     integer function local_index(make) result(k)
         logical, intent(in) :: make
@@ -514,6 +516,7 @@ contains
     ! ------------------------------------------------------------------
     ! Turning Font Lock on and off
     ! ------------------------------------------------------------------
+
     !> Return true if the current buffer is ready for fontification.
     !> The MODE argument, if true, means Font Lock mode is about to
     !> be enabled.  Port of font-lock.el:font-lock-specified-p.
@@ -944,6 +947,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fontification functions
     ! ------------------------------------------------------------------
+
     !> Fontify the current buffer the way the function `font_lock_mode'
     !> would.  Port of font-lock.el:font-lock-fontify-buffer.
     subroutine font_lock_fontify_buffer(status)
@@ -1338,6 +1342,7 @@ contains
     ! ------------------------------------------------------------------
     ! Additional text property functions
     ! ------------------------------------------------------------------
+
     !> Add an element to a property of the text from START to END.
     !> Arguments PROP and VALUE specify the property and value to add to
     !> the value already in place.  The resulting property values are
@@ -1540,6 +1545,7 @@ contains
     ! ------------------------------------------------------------------
     ! Keyword regexp fontification functions
     ! ------------------------------------------------------------------
+
     !> The value of a highlight's FACE: the name of its face, "" for none.
     function highlight_face(h) result(face)
         type(font_lock_match_highlight_type), intent(in) :: h
@@ -1780,6 +1786,7 @@ contains
     ! ------------------------------------------------------------------
     ! Syntactic fontification
     ! ------------------------------------------------------------------
+
     !> The default `font_lock_syntactic_face_function': strings in
     !> `font_lock_string_face', comments in `font_lock_comment_face'.
     subroutine default_syntactic_face(state, face)
@@ -1943,6 +1950,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> Define the faces, commands and functions of font-lock.el (as
     !> loading it does).
     subroutine syms_of_font_lock()

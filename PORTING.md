@@ -460,7 +460,8 @@ ported. Their keys are unbound, as test_bindings_fm checks:
   columns (stdlib's hard limit) rather than 80.
 - Blank lines as CLAUDE.md sets them (chosen with the user, 2026-10-29):
   in procedure bodies around block constructs and after the declarations,
-  one around `contains` and between procedures; module specification
+  one around `contains`, between procedures and after a section banner
+  between procedures; module specification
   parts, interface blocks and type definitions keep theirs.
   `tools/blank-lines.awk` applies them (also to the generated files), and
   `tools/check.sh` fixes or checks them.

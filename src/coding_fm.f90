@@ -342,6 +342,7 @@ contains
     ! ------------------------------------------------------------------
     ! Defining coding systems
     ! ------------------------------------------------------------------
+
     !> Define the fundamental coding systems and their priorities.  Port of
     !> coding.c:syms_of_coding (no-conversion, undecided), the coding
     !> systems mule-conf.el defines, and reset-language-environment's
@@ -551,6 +552,7 @@ contains
     ! ------------------------------------------------------------------
     ! Looking up coding systems
     ! ------------------------------------------------------------------
+
     !> The id of the coding system called NAME (an alias included), or 0.
     recursive integer function coding_system_id(name) result(id)
         character(len=*), intent(in) :: name
@@ -1141,6 +1143,7 @@ contains
     ! ------------------------------------------------------------------
     ! Source text
     ! ------------------------------------------------------------------
+
     !> The source as coding.c's ONE_MORE_BYTE sees it: a byte (0 to 255),
     !> or, in multibyte text, minus a character that is not a raw byte.
     subroutine source_units(src, multibyte, units)
@@ -1192,6 +1195,7 @@ contains
     ! ------------------------------------------------------------------
     ! Detection
     ! ------------------------------------------------------------------
+
     logical function has(mask, cat)
         integer, intent(in) :: mask, cat
 
@@ -1938,6 +1942,7 @@ contains
     ! ------------------------------------------------------------------
     ! Decoding
     ! ------------------------------------------------------------------
+
     !> Append character C to CHARS(1:N).
     subroutine push(chars, n, c)
         integer, allocatable, intent(inout) :: chars(:)
@@ -2361,6 +2366,7 @@ contains
     ! ------------------------------------------------------------------
     ! Encoding
     ! ------------------------------------------------------------------
+
     !> Append the bytes of BYTES to OUT(1:Q).
     subroutine emit(out, q, bytes)
         character(len=:), allocatable, intent(inout) :: out
@@ -2565,6 +2571,7 @@ contains
     ! ------------------------------------------------------------------
     ! Encodability
     ! ------------------------------------------------------------------
+
     !> Whether coding system CODING can encode character C.  Port of
     !> coding.c:char_encodable_p.
     logical function char_encodable_p(c, coding)
@@ -2731,6 +2738,7 @@ contains
     ! ------------------------------------------------------------------
     ! Strings and regions
     ! ------------------------------------------------------------------
+
     !> Decode STRING (bytes, unless MULTIBYTE) by CODING-SYSTEM into RESULT.
     !> If CODING-SYSTEM is nil, it returns STRING itself.  The value is a
     !> multibyte string.  This function sets `last_coding_system_used' to

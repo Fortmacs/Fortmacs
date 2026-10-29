@@ -492,6 +492,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if there is none).
     integer function local_index(make) result(k)
@@ -578,6 +579,7 @@ contains
     ! ------------------------------------------------------------------
     ! Records
     ! ------------------------------------------------------------------
+
     pure logical function same(a, b)
         character(len=*), intent(in) :: a, b
 
@@ -1233,6 +1235,7 @@ contains
     ! ------------------------------------------------------------------
     ! File format
     ! ------------------------------------------------------------------
+
     !> Return a `bookmark_alist' LIST from the current buffer.
     !> The buffer must of course contain bookmark format information.
     !> Does not care from where in the buffer it is called, and does not
@@ -1390,6 +1393,7 @@ contains
     ! ------------------------------------------------------------------
     ! Core code
     ! ------------------------------------------------------------------
+
     !> Set a bookmark using specified NAME or prompting with PROMPT.
     !> The bookmark is set at the current location.
     !>
@@ -2917,6 +2921,7 @@ contains
     ! ------------------------------------------------------------------
     ! The bookmark list
     ! ------------------------------------------------------------------
+
     !> Rebuild the Bookmark List if it exists.
     !> Don't affect the buffer ring order.  Port of
     !> bookmark.el:bookmark-bmenu-surreptitiously-rebuild-list.
@@ -3856,6 +3861,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fringe mark
     ! ------------------------------------------------------------------
+
     ! Whether overlay OV is a bookmark's mark.
     logical function is_bookmark_overlay(ov)
         use data_fm, only: value_eq
@@ -3952,6 +3958,7 @@ contains
     ! ------------------------------------------------------------------
     ! Exit hook
     ! ------------------------------------------------------------------
+
     !> Save bookmark state, if necessary, at Fortmacs exit time.
     !> This also runs `bookmark_exit_hook'.  Port of
     !> bookmark.el:bookmark-exit-hook-internal.
@@ -3966,6 +3973,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands without arguments
     ! ------------------------------------------------------------------
+
     recursive subroutine cmd_bookmark_write(status)
         type(status_type), intent(out) :: status
 
@@ -3975,6 +3983,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> The faces of bookmark.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f

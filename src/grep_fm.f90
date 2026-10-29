@@ -534,6 +534,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local state
     ! ------------------------------------------------------------------
+
     !> The entry of the current buffer in `locals', made if needed.
     integer function local_entry() result(k)
         type(grep_local_type), allocatable :: grown(:)
@@ -597,6 +598,7 @@ contains
     ! ------------------------------------------------------------------
     ! Settings
     ! ------------------------------------------------------------------
+
     !> Set the given settings, and update `grep_host_defaults_alist'.
     !> The settings are `grep_command', `grep_template',
     !> `grep_use_null_device', `grep_find_command', `grep_find_template',
@@ -712,6 +714,7 @@ contains
     ! ------------------------------------------------------------------
     ! Grep mode
     ! ------------------------------------------------------------------
+
     !> The column (relative to the end of the match) of the first grep
     !> match on a line, from the faces `grep_filter' put there: COL of the
     !> `grep_regexp_alist' rule.
@@ -1228,6 +1231,7 @@ contains
     ! ------------------------------------------------------------------
     ! Defaults
     ! ------------------------------------------------------------------
+
     !> Make a temporary buffer current (with-temp-buffer); OLD is the
     !> buffer to go back to.
     subroutine temp_begin(old, tmp)
@@ -1686,6 +1690,7 @@ contains
     ! ------------------------------------------------------------------
     ! The commands
     ! ------------------------------------------------------------------
+
     !> Run Grep with user-specified COMMAND_ARGS.
     !> The output from the command goes to the "*grep*" buffer.
     !>
@@ -2939,6 +2944,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> Give the variables their defaults, define Grep mode and register
     !> the commands.
     subroutine syms_of_grep()

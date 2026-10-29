@@ -96,6 +96,7 @@ contains
     ! ------------------------------------------------------------------
     ! Syntax flags (syntax.c SYNTAX_FLAGS_*)
     ! ------------------------------------------------------------------
+
     !> The syntax of character C with its flags.  SYNTAX_WITH_FLAGS.
     integer function syntax_with_flags(c)
         integer, intent(in) :: c
@@ -208,6 +209,7 @@ contains
     ! ------------------------------------------------------------------
     ! Positions
     ! ------------------------------------------------------------------
+
     !> The character at byte position POS_BYTE.  FETCH_CHAR_AS_MULTIBYTE.
     integer function fetch(pos_byte)
         integer(int64), intent(in) :: pos_byte
@@ -291,6 +293,7 @@ contains
     ! ------------------------------------------------------------------
     ! The start of a defun
     ! ------------------------------------------------------------------
+
     !> Return a defun-start position before POS and not too far before.
     !> It should be the last one before POS, or nearly the last.
     !>
@@ -377,6 +380,7 @@ contains
     ! ------------------------------------------------------------------
     ! Comments
     ! ------------------------------------------------------------------
+
     !> Return the SYNTAX_COMEND_FIRST of the character before POS,
     !> POS_BYTE.  Port of syntax.c:prev_char_comend_first.
     recursive logical function prev_char_comend_first(pos_in, pos_byte_in)
@@ -1004,6 +1008,7 @@ contains
     ! ------------------------------------------------------------------
     ! Lists and sexps
     ! ------------------------------------------------------------------
+
     !> Port of syntax.c:scan_lists (0 is nil).
     recursive integer(int64) function scan_lists_1(from0, count_in, depth_in, sexpflag, status) result(pos)
         integer(int64), intent(in) :: from0, count_in, depth_in
@@ -1433,6 +1438,7 @@ contains
     ! ------------------------------------------------------------------
     ! Parsing
     ! ------------------------------------------------------------------
+
     !> If the character at FROM_BYTE is the second part of a 2-character
     !> comment opener based on PREV_FROM_SYNTAX, update STATE and return
     !> true.  Port of syntax.c:in_2char_comment_start.

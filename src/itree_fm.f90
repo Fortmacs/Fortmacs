@@ -81,6 +81,7 @@ contains
     ! ------------------------------------------------------------------
     ! Objects
     ! ------------------------------------------------------------------
+
     !> A new overlay, in no buffer (buffer.c:build_overlay).
     subroutine build_overlay(ov, front_advance, rear_advance)
         type(handle_type), intent(out) :: ov
@@ -547,6 +548,7 @@ contains
     ! ------------------------------------------------------------------
     ! Finding overlays
     ! ------------------------------------------------------------------
+
     !> Find all the overlays in the current buffer that overlap the range
     !> BEG-END, or are empty at BEG, or are empty at END provided END
     !> denotes the position at the end of the accessible part of the buffer.
@@ -828,6 +830,7 @@ contains
     ! ------------------------------------------------------------------
     ! Moving with the text
     ! ------------------------------------------------------------------
+
     !> Insert a gap at POS of length LENGTH expanding all intervals
     !> intersecting it, while respecting their rear_advance and
     !> front_advance setting.

@@ -80,6 +80,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fixtures
     ! ------------------------------------------------------------------
+
     !> A fresh buffer NAME shown alone, the other buffers (that earlier
     !> suites left) killed but *scratch* and the minibuffers: dabbrev
     !> searches all buffers, and upstream runs each test file in a new
@@ -217,6 +218,7 @@ contains
     ! ------------------------------------------------------------------
     ! Ported from dabbrev-tests.el
     ! ------------------------------------------------------------------
+
     !> Test for bug#1948.
     !> When `dabbrev_eliminate_newlines' is true (the default),
     !> repeated calls to `dabbrev_expand' can result in the source of
@@ -433,6 +435,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> Repeated M-/ offers the next distinct expansion, then puts the
     !> abbrev back.
     subroutine test_cycling(error)

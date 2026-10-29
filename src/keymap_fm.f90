@@ -187,6 +187,7 @@ contains
     ! ------------------------------------------------------------------
     ! Registry
     ! ------------------------------------------------------------------
+
     subroutine new_keymap(km, full, prompt)
         type(handle_type), intent(out) :: km
         logical, intent(in) :: full
@@ -367,6 +368,7 @@ contains
     ! ------------------------------------------------------------------
     ! Predicates and parents
     ! ------------------------------------------------------------------
+
     !> The symbol `keymap', which marks inherited parts of composites.
     function keymap_marker() result(v)
         type(value_type) :: v
@@ -501,6 +503,7 @@ contains
     ! ------------------------------------------------------------------
     ! Events
     ! ------------------------------------------------------------------
+
     !> "A-C-H-M-S-s-" restricted to the modifiers in `bits'.  The order of
     !> keyboard.c:apply_modifiers_uncached.
     function modifier_prefix(bits) result(s)
@@ -609,6 +612,7 @@ contains
     ! ------------------------------------------------------------------
     ! Lookup
     ! ------------------------------------------------------------------
+
     !> Record binding `val' found during a scan.  The "If we found a
     !> binding" part of keymap.c:access_keymap_1.  `stop' when it shadows
     !> everything after it.
@@ -880,6 +884,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definition
     ! ------------------------------------------------------------------
+
     !> Append entry (ev, def) to keymap slot `i'.
     subroutine append_entry(i, ev, def)
         integer(int64), intent(in) :: i
@@ -1221,6 +1226,7 @@ contains
     ! ------------------------------------------------------------------
     ! Active maps
     ! ------------------------------------------------------------------
+
     !> The global keymap, made (full) on first use.
     !> Port of keymap.c:Fcurrent_global_map.
     function current_global_map() result(km)
@@ -1714,6 +1720,7 @@ contains
     ! ------------------------------------------------------------------
     ! Descriptions
     ! ------------------------------------------------------------------
+
     function int_text(n) result(s)
         integer(int64), intent(in) :: n
         character(len=:), allocatable :: s
@@ -1926,6 +1933,7 @@ contains
     ! ------------------------------------------------------------------
     ! kbd
     ! ------------------------------------------------------------------
+
     logical function is_space(ch)
         character, intent(in) :: ch
 
@@ -2405,6 +2413,7 @@ contains
     ! ------------------------------------------------------------------
     ! where-is
     ! ------------------------------------------------------------------
+
     !> Return 2 if SEQ uses only chars without modifiers other than Meta
     !> (where-is-preferred-modifier nil), 1 if it uses only chars, and 0
     !> otherwise.  Port of keymap.c:preferred_sequence_p.

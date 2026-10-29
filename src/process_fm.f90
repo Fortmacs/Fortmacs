@@ -206,6 +206,7 @@ contains
     ! ------------------------------------------------------------------
     ! The registry
     ! ------------------------------------------------------------------
+
     !> Slot of process `proc', or an error for a freed one.
     subroutine resolve(proc, i, status)
         type(handle_type), intent(in) :: proc
@@ -352,6 +353,7 @@ contains
     ! ------------------------------------------------------------------
     ! Status
     ! ------------------------------------------------------------------
+
     !> Compute p->status from the raw status returned by `wait'.  Port of
     !> process.c:update_status and status_convert (bits/waitstatus.h).
     subroutine update_status(i)
@@ -752,6 +754,7 @@ contains
     ! ------------------------------------------------------------------
     ! Starting processes
     ! ------------------------------------------------------------------
+
     !> Start a program in a subprocess.  Return the process object for it.
     !>
     !> NAME is name for process.  It is modified if necessary to make it
@@ -988,6 +991,7 @@ contains
     ! ------------------------------------------------------------------
     ! Output: taking the workers' messages
     ! ------------------------------------------------------------------
+
     !> Take what the workers have reported and act on it: run the filters
     !> on new output, record exits, then report status changes
     !> (status_notify).  `got' is true if output (or, for `wait_proc' a
@@ -1424,6 +1428,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting and signalling
     ! ------------------------------------------------------------------
+
     !> Delete PROCESS: kill it and forget about it immediately.
     !> PROCESS may be a process, or absent, indicating the current
     !> buffer's process.
@@ -1649,6 +1654,7 @@ contains
     ! ------------------------------------------------------------------
     ! Input
     ! ------------------------------------------------------------------
+
     !> Send PROCESS the contents of STRING as input.
     !> PROCESS may be a process, or absent for the current buffer's
     !> process.  Port of process.c:Fprocess_send_string and send_process.
@@ -1818,6 +1824,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setup and shutdown
     ! ------------------------------------------------------------------
+
     !> Register the commands and hook into kill-buffer.  Port of
     !> process.c:syms_of_process (the part ported).
     subroutine syms_of_process()

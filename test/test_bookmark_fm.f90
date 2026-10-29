@@ -133,6 +133,7 @@ contains
     ! ------------------------------------------------------------------
     ! The environment of the tests
     ! ------------------------------------------------------------------
+
     !> The file NAME of the resources.
     function resource_file(name) result(file)
         character(len=*), intent(in) :: name
@@ -309,6 +310,7 @@ contains
     ! ------------------------------------------------------------------
     ! Tests
     ! ------------------------------------------------------------------
+
     subroutine test_all_names(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
@@ -947,6 +949,7 @@ contains
     ! ------------------------------------------------------------------
     ! The bookmark list
     ! ------------------------------------------------------------------
+
     !> (with-bookmark-bmenu-test): the bookmark list of the cached
     !> bookmark (of the list, with LIST), in "*Bookmark List - Testing*".
     subroutine with_bmenu_test(old, config, list)

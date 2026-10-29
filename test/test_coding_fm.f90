@@ -87,6 +87,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     !> The work directory (coding-tests-workdir), as a directory name.
     function tdir() result(d)
         character(len=:), allocatable :: d
@@ -254,6 +255,7 @@ contains
     ! ------------------------------------------------------------------
     ! coding-tests.el
     ! ------------------------------------------------------------------
+
     subroutine test_bogus(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buf
@@ -532,6 +534,7 @@ contains
     ! ------------------------------------------------------------------
     ! mule-tests.el
     ! ------------------------------------------------------------------
+
     !> Check that Bug#27391 is fixed.
     subroutine test_bug27391(error)
         type(error_type), allocatable, intent(out) :: error
@@ -547,6 +550,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> The coding system detect-coding-string finds first, as GNU Emacs
     !> finds it for the ported coding systems.
     subroutine test_detect(error)

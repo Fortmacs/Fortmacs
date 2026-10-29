@@ -182,6 +182,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading string constants
     ! ------------------------------------------------------------------
+
     !> Read a string constant from TEXT (internal encoding), starting at
     !> byte START, just after the opening double quote: VALUE is the
     !> string read and NEXT the byte after the closing quote.  Escape

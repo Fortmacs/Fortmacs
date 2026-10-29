@@ -1401,6 +1401,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     !> Whether a live buffer has serial number SERIAL.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
@@ -1569,6 +1570,7 @@ contains
     ! ------------------------------------------------------------------
     ! Small helpers
     ! ------------------------------------------------------------------
+
     !> Whether text after point matches REGEXP (looking-at-p).
     logical function looking_at_p(regexp)
         character(len=*), intent(in) :: regexp
@@ -1772,6 +1774,7 @@ contains
     ! ------------------------------------------------------------------
     ! Switches
     ! ------------------------------------------------------------------
+
     !> Return true if the string SWITCHES matches LONG or SHORT format.
     !> Port of dired.el:dired-check-switches.
     logical function dired_check_switches(switches, short, long) result(p)
@@ -1818,6 +1821,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading in a directory
     ! ------------------------------------------------------------------
+
     !> Insert a directory listing of DIR, Dired style.
     !> Use SWITCHES to make the listings.
     !> If FILE_LIST is present, list only those files.
@@ -2457,6 +2461,7 @@ contains
     ! ------------------------------------------------------------------
     ! The subdirectory alist
     ! ------------------------------------------------------------------
+
     !> Build `dired_subdir_alist' by parsing the buffer.
     !> If optional arg SWITCHES is present, use its value instead of
     !> `dired_actual_switches'.  Port of dired.el:dired-build-subdir-alist.
@@ -2744,6 +2749,7 @@ contains
     ! ------------------------------------------------------------------
     ! File names in the buffer
     ! ------------------------------------------------------------------
+
     !> Move to the beginning of the filename on the current line.
     !> Return the position of the beginning of the filename, or 0 if none
     !> found.
@@ -3079,6 +3085,7 @@ contains
     ! ------------------------------------------------------------------
     ! Dired buffers
     ! ------------------------------------------------------------------
+
     !> Is FILE part of the directory tree starting at DIR?  Port of
     !> dired.el:dired-in-this-tree-p.
     logical function dired_in_this_tree_p(file, dir)
@@ -3278,6 +3285,7 @@ contains
     ! ------------------------------------------------------------------
     ! The dired command
     ! ------------------------------------------------------------------
+
     !> Read the directory (and with a prefix argument the switches) for
     !> `dired': "Dired STR(directory): ".  Port of
     !> dired.el:dired-read-dir-and-switches.
@@ -3607,6 +3615,7 @@ contains
     ! ------------------------------------------------------------------
     ! Dired mode
     ! ------------------------------------------------------------------
+
     !> Mode for "editing" directory listings.
     !> In Dired, you are "editing" a list of the files in a directory and
     !>   (optionally) its subdirectories, in the format of `ls -lR'.
@@ -3698,6 +3707,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reverting
     ! ------------------------------------------------------------------
+
     !> Reread the Dired buffer.
     !> Must also be called after `dired_actual_switches' have changed.
     !> Should not fail even on completely garbaged buffers.
@@ -3944,6 +3954,7 @@ contains
     ! ------------------------------------------------------------------
     ! Going to a file
     ! ------------------------------------------------------------------
+
     !> Go to line describing file FILE in this Dired buffer.  Return the
     !> position, or 0.  FILE must be an absolute file name.  Port of
     !> dired.el:dired-goto-file.
@@ -4068,6 +4079,7 @@ contains
     ! ------------------------------------------------------------------
     ! Moving
     ! ------------------------------------------------------------------
+
     !> The prefix argument of a command as a number (1 if none).
     integer(int64) function prefix_n()
         prefix_n = prefix_numeric_value(current_prefix_arg)
@@ -4413,6 +4425,7 @@ contains
     ! ------------------------------------------------------------------
     ! Visiting
     ! ------------------------------------------------------------------
+
     !> Get the current line's file name, with an error if file does not
     !> exist.  Port of dired.el:dired-get-file-for-visit.
     recursive subroutine dired_get_file_for_visit(file_name, status)
@@ -4505,6 +4518,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marked files
     ! ------------------------------------------------------------------
+
     !> Return a string suitable for use in a Dired prompt.
     !> ARG_KIND and ARG_N are normally the prefix argument for the calling
     !> command.  FILES should be a list of file names.
@@ -4846,6 +4860,7 @@ contains
     ! ------------------------------------------------------------------
     ! Marking
     ! ------------------------------------------------------------------
+
     !> Whether Dired marking commands should act on region.  Port of
     !> dired.el:dired-mark--region-use-p.
     logical function dired_mark_region_use_p() result(use_region)
@@ -5930,6 +5945,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deleting files
     ! ------------------------------------------------------------------
+
     !> Delete FILE or directory (possibly recursively if RECURSIVE is
     !> not DIRED_RECURSIVE_NEVER).  RECURSIVE determines what to do with a
     !> non-empty directory.  The effect of its possible values is:
@@ -6409,6 +6425,7 @@ contains
     ! ------------------------------------------------------------------
     ! Logging failures
     ! ------------------------------------------------------------------
+
     !> Log a message (TEXT, usually ending with a newline) in the Dired log
     !> buffer.  Port of dired.el:dired-log (a string).
     subroutine dired_log(text)
@@ -6655,6 +6672,7 @@ contains
     ! ------------------------------------------------------------------
     ! Sorting
     ! ------------------------------------------------------------------
+
     !> Set mode-line according to option `dired_switches_in_mode_line'.
     !> Port of dired.el:dired-sort-set-mode-line.
     subroutine dired_sort_set_mode_line()
@@ -6844,6 +6862,7 @@ contains
     ! ------------------------------------------------------------------
     ! Font Lock
     ! ------------------------------------------------------------------
+
     subroutine face_mark(face)
         character(len=:), allocatable, intent(out) :: face
 
@@ -7148,6 +7167,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands that wrap the functions
     ! ------------------------------------------------------------------
+
     !> Build `dired_subdir_alist' by parsing the buffer.
     !> Returns the new value of `dired_subdir_alist'.
     !> Port of dired.el:dired-build-subdir-alist (interactive).
@@ -7228,6 +7248,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
+
     !> Bind KEYS (key-parse syntax) to COMMAND in `dired_mode_map'.
     subroutine bind(keys, command)
         character(len=*), intent(in) :: keys, command

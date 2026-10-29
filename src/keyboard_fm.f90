@@ -529,6 +529,7 @@ contains
     ! ------------------------------------------------------------------
     ! Input
     ! ------------------------------------------------------------------
+
     !> Port of keyboard.c:Fset_input_meta_mode (META: 0 nil, 1 t, 2
     !> encoded).
     subroutine set_input_meta_mode(mode)
@@ -930,6 +931,7 @@ contains
     ! ------------------------------------------------------------------
     ! Key sequences
     ! ------------------------------------------------------------------
+
     function map_value(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
@@ -1260,6 +1262,7 @@ contains
     ! ------------------------------------------------------------------
     ! The command loop
     ! ------------------------------------------------------------------
+
     !> Set MAP as a temporary keymap taking precedence over other keymaps.
     !> Normally, MAP is used only once, to look up the very next key.
     !> However, if the optional argument KEEP_PRED is true, MAP stays

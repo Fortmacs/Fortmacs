@@ -180,6 +180,7 @@ contains
     ! ------------------------------------------------------------------
     ! Register contents
     ! ------------------------------------------------------------------
+
     !> The index of register REGISTER in `register_alist', 0 if none.
     integer function register_index(register) result(k)
         integer(int64), intent(in) :: register
@@ -299,6 +300,7 @@ contains
     ! ------------------------------------------------------------------
     ! Descriptions and the preview
     ! ------------------------------------------------------------------
+
     !> The decimal digits of N.
     pure function int_text(n) result(s)
         integer(int64), intent(in) :: n
@@ -703,6 +705,7 @@ contains
     ! ------------------------------------------------------------------
     ! Storing positions and configurations, jumping
     ! ------------------------------------------------------------------
+
     !> Store current location of point in REGISTER.
     !> With prefix argument ARG, store current frame configuration (a.k.a.
     !> "frameset").
@@ -904,6 +907,7 @@ contains
     ! ------------------------------------------------------------------
     ! Numbers
     ! ------------------------------------------------------------------
+
     !> The integer at the start of TEXT, after spaces and tabs
     !> (string-to-number in base 10, integers only).
     pure integer(int64) function string_to_number(text) result(n)
@@ -1011,6 +1015,7 @@ contains
     ! ------------------------------------------------------------------
     ! Viewing
     ! ------------------------------------------------------------------
+
     !> Display the description of the contents of REGISTER.
     !> REGISTER is a character, the name of the register.
     !>
@@ -1067,6 +1072,7 @@ contains
     ! ------------------------------------------------------------------
     ! Text and rectangles
     ! ------------------------------------------------------------------
+
     !> Insert contents of REGISTER at point.
     !> REGISTER is a character, the name of the register.
     !> Normally puts point before and mark after the inserted text, but
@@ -1310,6 +1316,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Whether the prefix argument is given (a "P" argument that is not nil).
     logical function prefix_given()
         prefix_given = .not. nilp(current_prefix_arg)

@@ -209,6 +209,7 @@ contains
     ! ------------------------------------------------------------------
     ! Constructors
     ! ------------------------------------------------------------------
+
     !> A value made of one scalar atom.
     pure function scalar(atom) result(v)
         type(atom_type), intent(in) :: atom
@@ -440,6 +441,7 @@ contains
     ! ------------------------------------------------------------------
     ! Predicates and accessors (lisp.h)
     ! ------------------------------------------------------------------
+
     !> Tag of `v' (V_NIL for nil).
     elemental integer(int32) function vtag(v)
         type(value_type), intent(in) :: v

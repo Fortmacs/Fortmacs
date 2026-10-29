@@ -96,6 +96,7 @@ contains
     ! ------------------------------------------------------------------
     ! Fixtures
     ! ------------------------------------------------------------------
+
     !> A clean environment (kmacro-tests-with-kmacro-clean-slate) in a
     !> fresh buffer shown in the selected window.
     subroutine fresh(h)
@@ -239,6 +240,7 @@ contains
     ! ------------------------------------------------------------------
     ! Ported from kmacro-tests.el
     ! ------------------------------------------------------------------
+
     !> `kmacro-insert-counter' adds one to macro counter with nil arg.
     subroutine test_insert_counter_01(error)
         type(error_type), allocatable, intent(out) :: error
@@ -706,6 +708,7 @@ contains
     ! ------------------------------------------------------------------
     ! Own tests
     ! ------------------------------------------------------------------
+
     !> C-x ( records the keys typed until C-x ), C-x e calls the macro
     !> and e repeats it.
     subroutine test_recording(error)

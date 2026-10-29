@@ -201,6 +201,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> Define the Conf modes, their keymap, syntax tables and keywords (as
     !> loading conf-mode.el does).
     subroutine syms_of_conf_mode()
@@ -433,6 +434,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.

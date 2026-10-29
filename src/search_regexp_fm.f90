@@ -325,6 +325,7 @@ contains
     ! ------------------------------------------------------------------
     ! Replacing the match
     ! ------------------------------------------------------------------
+
     module procedure replace_match
     integer, parameter :: NOCHANGE = 0, ALL_CAPS = 1, CAP_INITIAL = 2
     integer :: case_action, sub, num_regs, idx, k
@@ -621,6 +622,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> The search commands read their argument in the minibuffer
     !> (interactive "MSearch: " and "sRE search: ").
     subroutine search_cmd(prompt, re, posix, direction, status)

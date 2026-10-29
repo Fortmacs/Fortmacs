@@ -116,6 +116,7 @@ contains
     ! ------------------------------------------------------------------
     ! The clock
     ! ------------------------------------------------------------------
+
     !> The current time in clock counts (upstream's current-time).
     integer(int64) function now()
         call system_clock(now)
@@ -139,6 +140,7 @@ contains
     ! ------------------------------------------------------------------
     ! Timer objects
     ! ------------------------------------------------------------------
+
     !> Make a new timer, inactive and without a time or function.  Port
     !> of timer.el:timer-create.
     subroutine timer_create(timer)
@@ -647,6 +649,7 @@ contains
     ! ------------------------------------------------------------------
     ! keyboard.c
     ! ------------------------------------------------------------------
+
     !> Record the start of when Emacs is idle, for the sake of running
     !> idle-time timers.  Port of keyboard.c:timer_start_idle.
     subroutine timer_start_idle()

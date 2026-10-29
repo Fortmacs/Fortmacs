@@ -93,6 +93,7 @@ contains
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
+
     function qsym(name) result(v)
         character(len=*), intent(in) :: name
         type(value_type) :: v
@@ -193,6 +194,7 @@ contains
     ! ------------------------------------------------------------------
     ! Per-interval plist edits (textprop.c)
     ! ------------------------------------------------------------------
+
     !> Port of textprop.c:interval_has_all_properties.
     logical function has_all_properties(plist, k)
         type(value_type), intent(in) :: plist
@@ -314,6 +316,7 @@ contains
     ! ------------------------------------------------------------------
     ! Queries
     ! ------------------------------------------------------------------
+
     !> Index of the interval at `pos', or 0 if there is none (no intervals,
     !> empty accessible region, or `pos' at the end of the text).
     integer(int64) function interval_at(pos)
@@ -361,6 +364,7 @@ contains
     ! ------------------------------------------------------------------
     ! Changing properties
     ! ------------------------------------------------------------------
+
     !> Whether interval K, which was at PREV_POS with PREV_LEN characters
     !> among PREV_N intervals in a buffer of PREV_Z, is still as it was:
     !> a before-change function may have changed the intervals behind our
@@ -731,6 +735,7 @@ contains
     ! ------------------------------------------------------------------
     ! Scanning for changes
     ! ------------------------------------------------------------------
+
     subroutine check_position(position, status)
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
@@ -1328,6 +1333,7 @@ contains
     ! ------------------------------------------------------------------
     ! Read-only text
     ! ------------------------------------------------------------------
+
     !> Signal text-read-only (or buffer-read-only) if `start'..`end' may not
     !> be changed because of `read_only' / `inhibit_read_only' properties.
     !> An empty range is an insertion: then the stickiness of `read_only'
@@ -1461,6 +1467,7 @@ contains
     ! ------------------------------------------------------------------
     ! Properties of strings
     ! ------------------------------------------------------------------
+
     !> Property list of the character at POSITION (0-based) of STRING; nil
     !> at its end or where it has none.  Port of textprop.c:Ftext_properties_at
     !> with a string OBJECT.

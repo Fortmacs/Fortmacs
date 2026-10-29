@@ -106,6 +106,7 @@ contains
     ! ------------------------------------------------------------------
     ! Positions
     ! ------------------------------------------------------------------
+
     !> Return value of point, as an integer.
     !> Beginning of buffer is position `point_min()'.  Port of editfns.c:Fpoint.
     integer(int64) function point()
@@ -377,6 +378,7 @@ contains
     ! ------------------------------------------------------------------
     ! Characters around point
     ! ------------------------------------------------------------------
+
     !> Character after point, or 0 at the end of the accessible region.
     !> Port of editfns.c:Ffollowing_char.
     integer(int32) function following_char()
@@ -491,6 +493,7 @@ contains
     ! ------------------------------------------------------------------
     ! Inserting, narrowing, extracting, deleting
     ! ------------------------------------------------------------------
+
     !> Insert `count' copies of character `c' (nothing if count <= 0).
     !> Port of editfns.c:Finsert_char (without INHERIT).
     recursive subroutine insert_char_n(c, count, status)
@@ -589,6 +592,7 @@ contains
     ! ------------------------------------------------------------------
     ! User and system names
     ! ------------------------------------------------------------------
+
     !> Set up the user's names once, as editfns.c:init_editfns does: the
     !> real login name from the passwd entry of the real uid, the login
     !> name from LOGNAME or USER (else the effective uid's entry), and the
@@ -910,6 +914,7 @@ contains
     ! ------------------------------------------------------------------
     ! Line positions
     ! ------------------------------------------------------------------
+
     !> Start of the current line, after moving `n' - 1 lines (default 1);
     !> `count' receives the number of lines scanned (n - 1).
     !> Port of editfns.c:bol.
@@ -975,6 +980,7 @@ contains
     ! Fields: runs of text with the same `field` property (text
     ! properties only, as there are no overlays yet).
     ! ------------------------------------------------------------------
+
     !> The `field' symbol.
     function qfield() result(v)
         type(value_type) :: v

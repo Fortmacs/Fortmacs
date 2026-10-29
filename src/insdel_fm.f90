@@ -131,6 +131,7 @@ contains
     ! ------------------------------------------------------------------
     ! The gap
     ! ------------------------------------------------------------------
+
     !> Move the gap to `bytepos' (also char position `charpos').
     !> Port of insdel.c:move_gap_both.
     subroutine move_gap_both(charpos, bytepos)
@@ -277,6 +278,7 @@ contains
     ! ------------------------------------------------------------------
     ! Insertion
     ! ------------------------------------------------------------------
+
     !> Insert `string' (in the buffer's representation) before point.
     !> Port of insdel.c:insert.
     recursive subroutine insert(string, status)
@@ -474,6 +476,7 @@ contains
     ! ------------------------------------------------------------------
     ! Deletion
     ! ------------------------------------------------------------------
+
     !> Delete characters `from' up to `to', clamped to the accessible
     !> region; nothing if `to <= from'.  Port of insdel.c:del_range.
     recursive subroutine del_range(from, to, status)
@@ -625,6 +628,7 @@ contains
     ! ------------------------------------------------------------------
     ! Replacement
     ! ------------------------------------------------------------------
+
     !> Replace the text from character positions FROM to TO with NEW
     !> (multibyte text).  With `run_mod_hooks', check that the text may be
     !> modified and run the before- and after-change hooks.  With
@@ -891,6 +895,7 @@ contains
     ! ------------------------------------------------------------------
     ! Modification bookkeeping
     ! ------------------------------------------------------------------
+
     !> Announce a change to characters `start'..`end' that does not insert
     !> or delete (e.g. case changes): check that the text may be modified
     !> and run the before-change hooks.  The caller runs the after-change

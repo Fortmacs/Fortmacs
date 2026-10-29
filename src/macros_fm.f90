@@ -309,6 +309,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
     !> Use \[end_kbd_macro] to finish recording and make the macro available.

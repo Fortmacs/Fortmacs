@@ -310,6 +310,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> Define F90 mode: its regexps, syntax table, keymap, abbrevs and
     !> keywords (as loading f90.el does).
     subroutine syms_of_f90()
@@ -857,6 +858,7 @@ contains
     ! ------------------------------------------------------------------
     ! Small helpers
     ! ------------------------------------------------------------------
+
     !> (looking-at RE)
     logical function looking(re)
         character(len=*), intent(in) :: re
@@ -1046,6 +1048,7 @@ contains
     ! ------------------------------------------------------------------
     ! Inline functions
     ! ------------------------------------------------------------------
+
     !> The start of the parse for f90-in-string and f90-in-comment.
     integer(int64) function parse_start()
         parse_start = point_min()
@@ -1596,6 +1599,7 @@ contains
     ! ------------------------------------------------------------------
     ! Indentation
     ! ------------------------------------------------------------------
+
     !> Change keyword case and auto-fill line as operators are inserted.
     !> Port of f90.el:f90-electric-insert.
     recursive subroutine f90_electric_insert(status, arg)
@@ -3354,6 +3358,7 @@ contains
     ! ------------------------------------------------------------------
     ! Abbrevs and keywords
     ! ------------------------------------------------------------------
+
     !> Typing `\[help_command] or `? lists all the F90 abbrevs.
     !> Any other key combination is executed normally.  Port of
     !> f90.el:f90-abbrev-start.
@@ -3559,6 +3564,7 @@ contains
     ! ------------------------------------------------------------------
     ! Highlighting
     ! ------------------------------------------------------------------
+
     !> Search for the start/end of the definition of a derived type, up to LIMIT.
     !> Set the match data so that subexpression 1,2 are the TYPE, and
     !> type-name parts, respectively.  Port of f90.el:f90-typedef-matcher.
@@ -3702,6 +3708,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Major mode for editing Fortran 90,95 code in free format.
     !> For fixed format code, use `fortran_mode'.
     !>

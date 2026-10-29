@@ -409,6 +409,7 @@ contains
     ! ------------------------------------------------------------------
     ! Registry
     ! ------------------------------------------------------------------
+
     !> Slot index of buffer `h', or invalid-handle if it has been killed.
     subroutine resolve_buffer(h, i, status)
         type(handle_type), intent(in) :: h
@@ -914,6 +915,7 @@ contains
     ! ------------------------------------------------------------------
     ! Modification state
     ! ------------------------------------------------------------------
+
     !> Advance modification counter `a' logarithmically in `len'; `old'
     !> receives its previous value.  Port of lisp.h:modiff_incr.
     pure subroutine modiff_incr(a, len, old)
@@ -1057,6 +1059,7 @@ contains
     ! ------------------------------------------------------------------
     ! Text access (buffer.h macros)
     ! ------------------------------------------------------------------
+
     !> String index of byte position `bytepos'.
     !> Port of buffer.h:BUF_BYTE_ADDRESS.
     pure integer(int64) function buf_byte_index(b, bytepos)

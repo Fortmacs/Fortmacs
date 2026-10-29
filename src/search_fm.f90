@@ -386,6 +386,7 @@ contains
     ! ------------------------------------------------------------------
     ! Compiled patterns
     ! ------------------------------------------------------------------
+
     !> The 1-based character index in STR of the byte offset `off'.
     pure integer(int64) function string_offset_to_index(str, off) result(idx)
         character(len=*), intent(in) :: str
@@ -468,6 +469,7 @@ contains
     ! ------------------------------------------------------------------
     ! Matching at point and in strings
     ! ------------------------------------------------------------------
+
     !> Return true if text after point matches regular expression REGEXP.
     !> By default, this function modifies the match data that
     !> `match_beginning', `match_end' and `match_data' access.  If
@@ -562,6 +564,7 @@ contains
     ! ------------------------------------------------------------------
     ! String search
     ! ------------------------------------------------------------------
+
     !> Search forward from point for STRING.
     !> Set point to the end of the occurrence found, and return point
     !> in `found' (0 for none).

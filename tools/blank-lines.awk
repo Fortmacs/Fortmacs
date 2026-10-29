@@ -145,10 +145,16 @@ function blanks(n,    k) {
 }
 
 # Print the pending comments and the statement S, with N blank lines
-# before them.
-function emit(n, s,    k) {
+# before them.  Between procedures, a section banner (a comment between
+# two rules of dashes) keeps a blank line after it.
+function emit(n, s,    k, rules) {
     blanks(n)
-    for (k = 1; k <= ncomments; k++) print comments[k]
+    rules = 0
+    for (k = 1; k <= ncomments; k++) {
+        print comments[k]
+        if (state[depth] == "between" && comments[k] ~ /^[ \t]*! -----+[ \t]*$/ && ++rules % 2 == 0)
+            print ""
+    }
     ncomments = 0
     for (k = ustart[s]; k <= uend[s]; k++) print lines[k]
 }

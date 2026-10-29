@@ -91,6 +91,7 @@ contains
     ! ------------------------------------------------------------------
     ! The test environment
     ! ------------------------------------------------------------------
+
     !> Write TEXT to FILE (write-region ... 'no-message).
     subroutine write_file(file, text)
         character(len=*), intent(in) :: file, text
@@ -276,6 +277,7 @@ contains
     ! ------------------------------------------------------------------
     ! The tests
     ! ------------------------------------------------------------------
+
     !> Test availability of `file_notify'.
     subroutine test00_availability(error)
         type(error_type), allocatable, intent(out) :: error

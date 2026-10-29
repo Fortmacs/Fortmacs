@@ -220,6 +220,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if there is none).
     integer function local_index(make) result(k)
@@ -446,6 +447,7 @@ contains
     ! ------------------------------------------------------------------
     ! Entries at positions
     ! ------------------------------------------------------------------
+
     !> Return the entry ID of the Tabulated List entry at POS ("" for
     !> nil).  POS, if absent, defaults to point.  Port of
     !> tabulated-list.el:tabulated-list-get-id.
@@ -607,6 +609,7 @@ contains
     ! ------------------------------------------------------------------
     ! The header
     ! ------------------------------------------------------------------
+
     !> Set up header line for the Tabulated List buffer.  Port of
     !> tabulated-list.el:tabulated-list-init-header (the header line's
     !> segments; the sort indicator of a text-mode frame is the one its
@@ -871,6 +874,7 @@ contains
     ! ------------------------------------------------------------------
     ! Printing
     ! ------------------------------------------------------------------
+
     !> Populate the current Tabulated List mode buffer.
     !> This sorts the `tabulated_list_entries' list if sorting is specified
     !> by `tabulated_list_sort_key'.  It then erases the buffer and inserts
@@ -1379,6 +1383,7 @@ contains
     ! ------------------------------------------------------------------
     ! Sorting and columns
     ! ------------------------------------------------------------------
+
     !> Sort Tabulated List entries by the column at point.
     !> With a numeric prefix argument N, sort the Nth column.
     !>
@@ -1633,6 +1638,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Generic major mode for browsing a list of items.
     !> This mode is usually not used directly; instead, other major modes
     !> are derived from it.

@@ -971,6 +971,7 @@ contains
     ! ------------------------------------------------------------------
     ! Completion styles
     ! ------------------------------------------------------------------
+
     !> Return the boundaries of text on which COLLECTION will operate.
     !> STRING is the string on which completion will be performed.
     !> SUFFIX is the string after point.  If COLLECTION is a function, it
@@ -1066,6 +1067,7 @@ contains
     ! ------------------------------------------------------------------
     ! Completion commands
     ! ------------------------------------------------------------------
+
     !> Temporarily display MESSAGE at the end of minibuffer text.
     !> This function is designed to be called from the minibuffer, i.e.,
     !> when Emacs prompts the user for some input, and the user types
@@ -1913,6 +1915,7 @@ contains
     ! ------------------------------------------------------------------
     ! The *Completions* buffer
     ! ------------------------------------------------------------------
+
     !> The window showing *Completions*, or the null handle.  Port of
     !> minibuffer.el:minibuffer--completions-visible.
     function completions_visible() result(window)
@@ -2247,6 +2250,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading with completion
     ! ------------------------------------------------------------------
+
     !> Read the name of a buffer and return it as a string.
     !> Prompt with PROMPT, which should be a string ending with a colon and a space.
     !> Provides completion on buffer names the user types.

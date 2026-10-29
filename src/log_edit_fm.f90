@@ -356,6 +356,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
+
     ! The index of the current buffer's entry in `locals', made if MAKE
     ! (0 if none).
     integer function local_index(make) result(k)
@@ -575,6 +576,7 @@ contains
     ! ------------------------------------------------------------------
     ! The comment ring
     ! ------------------------------------------------------------------
+
     !> Return the comment whose index is STRIDE elements away from the current one.
     !> This accesses `log_edit_comment_ring', which stores commit log comments,
     !> i.e. descriptions of changes done by commits.
@@ -695,6 +697,7 @@ contains
     ! ------------------------------------------------------------------
     ! Font Lock
     ! ------------------------------------------------------------------
+
     ! Port of log-edit.el:log-edit-match-to-eoh.
     subroutine log_edit_match_to_eoh(limit, found, status)
         integer(int64), intent(in) :: limit
@@ -904,6 +907,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Setup a buffer to enter a VC commit log message.
     !> The buffer is put in mode MODE, or `log_edit_mode' if MODE is absent.
     !> If SETUP is true, erase the buffer and run `log_edit_hook'.
@@ -1684,6 +1688,7 @@ contains
     ! Functions for getting commit message from ChangeLog a file...
     ! Courtesy Jim Blandy
     ! ------------------------------------------------------------------
+
     !> Narrow to the top page of the current buffer, which visits a ChangeLog file.
     !> Actually, the narrowed region doesn't include the date line.
     !> A "page" in a ChangeLog file is the area between two dates.  Port of
@@ -2185,6 +2190,7 @@ contains
     ! ------------------------------------------------------------------
     ! Headers
     ! ------------------------------------------------------------------
+
     !> Toggle a boolean-type header in the current buffer.
     !> See `log_edit_set_header' for details.  Port of
     !> log-edit.el:log-edit-toggle-header.
@@ -2436,6 +2442,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     recursive subroutine cmd_log_edit_done(status)
         type(status_type), intent(out) :: status
 
@@ -2563,6 +2570,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> The faces of log-edit.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f

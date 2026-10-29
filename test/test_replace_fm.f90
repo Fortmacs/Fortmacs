@@ -481,6 +481,7 @@ contains
     ! ------------------------------------------------------------------
     ! Occur
     ! ------------------------------------------------------------------
+
     !> Port of replace-tests.el replace-occur-test-case: occur REGEXP with
     !> NLINES in " *test-occur*" holding INPUT; the text of *Occur* must be
     !> OUTPUT.

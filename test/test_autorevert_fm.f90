@@ -79,6 +79,7 @@ contains
     ! ------------------------------------------------------------------
     ! The test environment
     ! ------------------------------------------------------------------
+
     !> with-auto-revert-test: short intervals.
     subroutine begin()
         call init_bindings()
@@ -224,6 +225,7 @@ contains
     ! ------------------------------------------------------------------
     ! The tests
     ! ------------------------------------------------------------------
+
     !> Check autorevert for a file.
     subroutine test00_auto_revert_mode(error)
         type(error_type), allocatable, intent(out) :: error

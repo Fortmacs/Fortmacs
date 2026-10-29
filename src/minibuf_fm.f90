@@ -601,6 +601,7 @@ contains
     ! ------------------------------------------------------------------
     ! Completion primitives
     ! ------------------------------------------------------------------
+
     !> The elements of a non-function table: `elts' (the list elements or
     !> symbols, given to the predicate) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or

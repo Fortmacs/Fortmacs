@@ -81,6 +81,7 @@ contains
     ! ------------------------------------------------------------------
     ! Tables
     ! ------------------------------------------------------------------
+
     !> Whether A and B are the same string (Fortran's == ignores
     !> trailing blanks).
     pure logical function same_string(a, b)
@@ -400,6 +401,7 @@ contains
     ! ------------------------------------------------------------------
     ! Local tables (buffer.c's BVAR abbrev_table)
     ! ------------------------------------------------------------------
+
     module procedure local_abbrev_table
     table => fundamental_mode_abbrev_table
     if (cur == 0) return
@@ -453,6 +455,7 @@ contains
     ! ------------------------------------------------------------------
     ! Looking up abbrevs
     ! ------------------------------------------------------------------
+
     !> The list of abbrev tables that are currently active, or TABLE.
     !> Port of abbrev.el:abbrev--active-tables (no minor-mode tables).
     subroutine active_tables(tables, table)
@@ -555,6 +558,7 @@ contains
     ! ------------------------------------------------------------------
     ! Expanding
     ! ------------------------------------------------------------------
+
     !> Forget `abbrev_start_location' (freeing its marker).
     subroutine clear_start_location()
         type(status_type) :: st
@@ -889,6 +893,7 @@ contains
     ! ------------------------------------------------------------------
     ! Describing tables
     ! ------------------------------------------------------------------
+
     !> Describe abbrev K of TABLE.
     !> Print on the current buffer the abbrev, count of use, expansion.
     !> Port of abbrev.el:abbrev--describe (the hook is not shown).
@@ -1127,6 +1132,7 @@ contains
     ! ------------------------------------------------------------------
     ! Saving abbrevs: the init file
     ! ------------------------------------------------------------------
+
     !> `abbrev_file_name', or the init file when it is not set.
     function abbrev_file() result(file)
         character(len=:), allocatable :: file
@@ -1297,6 +1303,7 @@ contains
     ! ------------------------------------------------------------------
     ! Defining abbrevs from the buffer
     ! ------------------------------------------------------------------
+
     !> The table the mode-specific commands define abbrevs in:
     !> `global_abbrev_table' if `only_global_abbrevs', else the local table.
     function mode_table() result(table)
@@ -1569,6 +1576,7 @@ contains
     ! ------------------------------------------------------------------
     ! Edit-Abbrevs mode and the commands
     ! ------------------------------------------------------------------
+
     module procedure edit_abbrevs_mode
     logical :: saved
 

@@ -476,6 +476,7 @@ contains
     ! ------------------------------------------------------------------
     ! Attribute types
     ! ------------------------------------------------------------------
+
     subroutine flag_from_logical(self, value)
         class(face_flag_type), intent(inout) :: self
         logical, intent(in) :: value
@@ -779,6 +780,7 @@ contains
     ! ------------------------------------------------------------------
     ! Faces
     ! ------------------------------------------------------------------
+
     !> Make face SELF known by NAME, with documentation DOC and no spec
     !> yet (`face_spec_entry' adds alternatives).  Port of
     !> faces.el:make-face / custom-declare-face (internal-make-lisp-face).
@@ -1100,6 +1102,7 @@ contains
     ! ------------------------------------------------------------------
     ! The faces of faces.el
     ! ------------------------------------------------------------------
+
     !> Define the faces of faces.el with their specs.
     subroutine init_faces()
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, M = FACE_CLASS_MONO

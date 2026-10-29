@@ -449,6 +449,7 @@ contains
     ! ------------------------------------------------------------------
     ! Building the grammar data
     ! ------------------------------------------------------------------
+
     subroutine bnf_add(self, nt, items)
         class(smie_bnf_type), intent(inout) :: self
         character(len=*), intent(in) :: nt
@@ -1593,6 +1594,7 @@ contains
     ! ------------------------------------------------------------------
     ! Levels
     ! ------------------------------------------------------------------
+
     pure logical function numberp(level)
         type(smie_level_type), intent(in) :: level
 
@@ -1628,6 +1630,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
+
     ! The index in `locals' of the current buffer's (created if MAKE; 0 if
     ! none).
     integer function local_index(make) result(k)
@@ -1838,6 +1841,7 @@ contains
     ! ------------------------------------------------------------------
     ! Parsing using a precedence level table
     ! ------------------------------------------------------------------
+
     ! (buffer-substring-no-properties A B) (either order).
     function substring(a, b) result(text)
         integer(int64), intent(in) :: a, b
@@ -2231,6 +2235,7 @@ contains
     ! ------------------------------------------------------------------
     ! Miscellaneous commands using the precedence parser
     ! ------------------------------------------------------------------
+
     !> Move backward through N logical elements.  Port of
     !> smie.el:smie-backward-sexp-command.
     recursive subroutine smie_backward_sexp_command(n, status)
@@ -3017,6 +3022,7 @@ contains
     ! ------------------------------------------------------------------
     ! The indentation engine
     ! ------------------------------------------------------------------
+
     ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
     ! the default.
     recursive logical function hanging_eolp()
@@ -4344,6 +4350,7 @@ contains
     ! ------------------------------------------------------------------
     ! `smie_indent_functions'
     ! ------------------------------------------------------------------
+
     integer function indent_functions_local_index(self) result(k)
         class(smie_indent_functions_type), intent(in) :: self
 

@@ -263,6 +263,7 @@ contains
     ! ------------------------------------------------------------------
     ! The buffers' own state
     ! ------------------------------------------------------------------
+
     integer function entry_of(bi) result(k)
         integer(int64), intent(in) :: bi
 
@@ -345,6 +346,7 @@ contains
     ! ------------------------------------------------------------------
     ! Old input and arguments
     ! ------------------------------------------------------------------
+
     !> Default for `comint_get_old_input' in `shell_mode'.
     !> If `comint_use_prompt_regexp' is false, then either return the
     !> current input field (if point is on an input field), or the current
@@ -520,6 +522,7 @@ contains
     ! ------------------------------------------------------------------
     ! The modes
     ! ------------------------------------------------------------------
+
     !> Major mode for interacting with an inferior shell.
     !> \<shell_mode_map>
     !> \[comint_send_input] after the end of the process' output sends the
@@ -719,6 +722,7 @@ contains
     ! ------------------------------------------------------------------
     ! M-x shell
     ! ------------------------------------------------------------------
+
     !> Run an inferior shell, with I/O through BUFFER (which defaults to
     !> `*shell*').  Interactively, a prefix arg means to prompt for BUFFER.
     !>
@@ -1073,6 +1077,7 @@ contains
     ! ------------------------------------------------------------------
     ! Directory tracking
     ! ------------------------------------------------------------------
+
     !> Toggle directory tracking in this shell buffer (Shell Dirtrack mode).
     !> This assigns a buffer-local true value to `shell_dirtrack_mode'.
     !> Port of shell.el:shell-dirtrack-mode.
@@ -1399,6 +1404,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> Move forward across ARG shell command(s).  Does not cross lines.
     !> See `shell_command_regexp'.  Port of shell.el:shell-forward-command.
     subroutine shell_forward_command(arg, status)
@@ -1522,6 +1528,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
+
     !> Define Shell mode, Shell Command mode, Shell Dirtrack mode and the
     !> settings, and register the commands.
     subroutine syms_of_shell()

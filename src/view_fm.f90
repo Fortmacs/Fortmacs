@@ -147,6 +147,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local variables
     ! ------------------------------------------------------------------
+
     !> Whether a live buffer has serial number SERIAL.
     logical function serial_live(serial)
         integer(int64), intent(in) :: serial
@@ -244,6 +245,7 @@ contains
     ! ------------------------------------------------------------------
     ! Entering and exiting
     ! ------------------------------------------------------------------
+
     !> Like `kill_buffer', but does nothing if buffer BUF is modified.
     !> Port of view.el:kill-buffer-if-not-modified.
     recursive subroutine kill_buffer_if_not_modified(buf, status)
@@ -908,6 +910,7 @@ contains
     ! ------------------------------------------------------------------
     ! Some help routines
     ! ------------------------------------------------------------------
+
     !> The height of the current window, excluding the mode line.  Port
     !> of view.el:view-window-size.
     integer(int64) function view_window_size()
@@ -991,6 +994,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands for moving around in the buffer
     ! ------------------------------------------------------------------
+
     !> Move to end (or prefix PERCENT) of buffer in View mode.
     !> Display is centered at point.
     !> Also set the mark at the position where point was.  Port of
@@ -1272,6 +1276,7 @@ contains
     ! ------------------------------------------------------------------
     ! Searching
     ! ------------------------------------------------------------------
+
     !> Search forward for first (or prefix Nth) occurrence of REGEXP in View mode.
     !>
     !> Displays line found at center of window.  Sets mark at starting position and
@@ -1512,6 +1517,7 @@ contains
     ! ------------------------------------------------------------------
     ! Initialization
     ! ------------------------------------------------------------------
+
     !> Define View mode, its keymap and commands.
     subroutine syms_of_view()
         type(status_type) :: st

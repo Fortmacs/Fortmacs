@@ -92,6 +92,7 @@ contains
     ! ------------------------------------------------------------------
     ! Building groups
     ! ------------------------------------------------------------------
+
     subroutine item_add_value(self, v)
         class(namelist_item_type), intent(inout) :: self
         type(namelist_value_type), intent(in) :: v
@@ -161,6 +162,7 @@ contains
     ! ------------------------------------------------------------------
     ! Writing
     ! ------------------------------------------------------------------
+
     !> TEXT as a character constant: in double quotes, each double quote
     !> doubled.
     pure function namelist_string_literal(text) result(s)
@@ -252,6 +254,7 @@ contains
     ! ------------------------------------------------------------------
     ! Reading
     ! ------------------------------------------------------------------
+
     !> The groups of TEXT, in order.  A syntax error is an
     !> invalid_read_syntax error naming the line.
     subroutine read_namelist(text, groups, status)

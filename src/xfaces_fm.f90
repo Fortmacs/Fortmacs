@@ -124,6 +124,7 @@ contains
     ! ------------------------------------------------------------------
     ! Setting up a frame's faces
     ! ------------------------------------------------------------------
+
     !> The background mode of a terminal of type TERM_TYPE whose
     !> background color is BG_COLOR ("unspecified-bg" when the terminal
     !> didn't say): light for xterm, rxvt, dtterm and eterm (whose
@@ -481,6 +482,7 @@ contains
     ! ------------------------------------------------------------------
     ! Merging face attributes
     ! ------------------------------------------------------------------
+
     !> Merge the attributes of FROM into TO: first those of the faces FROM
     !> inherits from, then FROM's own, a relative height multiplying TO's.
     !> TO is an absolute face, which inherits from nothing.  Port of
@@ -1001,6 +1003,7 @@ contains
     ! ------------------------------------------------------------------
     ! Looking up faces
     ! ------------------------------------------------------------------
+
     !> The id of the realized face on frame F with attributes ATTRS,
     !> realizing it if there is none.  Port of xfaces.c:lookup_face.
     integer(int32) function lookup_face(f, attrs) result(id)
@@ -1228,6 +1231,7 @@ contains
     ! ------------------------------------------------------------------
     ! Display support for face attributes
     ! ------------------------------------------------------------------
+
     !> Whether the selected frame's terminal can display a face with the
     !> attributes ATTRS so that it differs from the default face and is
     !> close in spirit to what the attributes specify.  Port of

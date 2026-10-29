@@ -255,6 +255,7 @@ contains
     ! The worker side.  Reentrant: no saved locals, shared state only
     ! under the mutex.
     ! ------------------------------------------------------------------
+
     !> The body of a worker thread: read the child's output until it
     !> exits, then the rest of it, then reap it.
     recursive function reader_main(arg) result(ret) bind(C)

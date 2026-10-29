@@ -868,6 +868,7 @@ contains
     ! ------------------------------------------------------------------
     ! Messages and lossage
     ! ------------------------------------------------------------------
+
     !> View the log of recent echo-area messages: the `*Messages*' buffer.
     !> The number of messages retained in that buffer is specified by
     !> the variable `message_log_max'.  Port of
@@ -1218,6 +1219,7 @@ contains
     ! ------------------------------------------------------------------
     ! Help for help
     ! ------------------------------------------------------------------
+
     !> The text of the help-for-help screen, as help.el's help-for-help
     !> makes it.  A command that is not ported yet is listed under the
     !> key upstream's `help_map' gives it (help.el:help-map), which stays
@@ -1483,6 +1485,7 @@ contains
     ! ------------------------------------------------------------------
     ! Key bindings
     ! ------------------------------------------------------------------
+
     !> Display a buffer showing a list of all defined keys, and their
     !> definitions.  The keys are displayed in order of precedence.
     !> Port of help.el:describe-bindings (no PREFIX or BUFFER; Outline

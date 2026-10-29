@@ -395,6 +395,7 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer state
     ! ------------------------------------------------------------------
+
     !> kill-all-local-variables: forget the current buffer's entry.
     subroutine kill_diff_locals()
         logical, allocatable :: keep(:)
@@ -425,6 +426,7 @@ contains
     ! ------------------------------------------------------------------
     ! Hunks and files
     ! ------------------------------------------------------------------
+
     !> The style of the hunk whose header is at point (moving past the
     !> header), else STYLE.  Port of diff-mode.el:diff-hunk-style.
     integer function diff_hunk_style(style) result(s)
@@ -1421,6 +1423,7 @@ contains
     ! ------------------------------------------------------------------
     ! File names
     ! ------------------------------------------------------------------
+
     !> FILE without its first directory (nil, unallocated, if it has
     !> none).  Port of diff-mode.el:diff-filename-drop-dir.
     subroutine diff_filename_drop_dir(file, rest)
@@ -1751,6 +1754,7 @@ contains
     ! ------------------------------------------------------------------
     ! The mode
     ! ------------------------------------------------------------------
+
     !> Try to guess the `diff_buffer_type' from content of current Diff
     !> mode buffer.  (`outline_regexp' is deferred.)  Port of
     !> diff-mode.el:diff-setup-buffer-type.
@@ -1868,6 +1872,7 @@ contains
     ! ------------------------------------------------------------------
     ! Font lock
     ! ------------------------------------------------------------------
+
     !> The start of the hunks of a Git patch (point-min if there is no
     !> "diff --git" line).  Port of diff-mode.el:diff--git-preamble-end
     !> (computed each time, no overlay cache).
@@ -2073,6 +2078,7 @@ contains
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
+
     !> The region if it is active (interactive "R"), else absent.
     subroutine region_args(have, beg, end)
         logical, intent(out) :: have
@@ -2245,6 +2251,7 @@ contains
     ! ------------------------------------------------------------------
     ! Definitions
     ! ------------------------------------------------------------------
+
     !> The faces of diff-mode.el.
     subroutine define_faces()
         type(named_face_type), pointer :: f
