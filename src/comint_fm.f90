@@ -3643,7 +3643,10 @@ contains
                 j = j + 1
             end do
             string_to_int = 0
-            if (j > 0) read (s(1:j), *, iostat=ios) string_to_int
+            if (j > 0) then
+                read (s(1:j), *, iostat=ios) string_to_int
+                if (ios /= 0) string_to_int = 0
+            end if
         end function string_to_int
     end function comint_args
 
@@ -3811,7 +3814,7 @@ contains
                     call goto_char(match_end(0, st))
                     call message("Relative reference exceeds input history size")
                 end if
-            else if (looking_at("!!?:?\([0-9^$*-]+\)", st) .or. looking_at("!!", st)) then
+            else if (looking_at_either("!!?:?\([0-9^$*-]+\)", "!!")) then
                 ! Just a number of args from the previous input line.
                 if (dry) then
                     if (present(kind)) kind = DRY_RUN_EXPAND
@@ -3898,8 +3901,18 @@ contains
             call buffer_substring(b, e, s, st2)
             number_in = 0
             read (s, *, iostat=ios) number_in
+            if (ios /= 0) number_in = 0
         end function number_in
     end subroutine comint_replace_by_expanded_history_before_point
+
+    ! (or (looking-at RE1) (looking-at RE2)), the match data of the one
+    ! that matched.
+    logical function looking_at_either(re1, re2)
+        character(len=*), intent(in) :: re1, re2
+        type(status_type) :: st
+        looking_at_either = looking_at(re1, st)
+        if (.not. looking_at_either) looking_at_either = looking_at(re2, st)
+    end function looking_at_either
 
     ! (search-forward STRING BOUND t): FOUND says whether it matched.
     subroutine search_forward(string, found, status, bound)
