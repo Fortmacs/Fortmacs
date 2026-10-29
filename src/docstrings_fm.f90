@@ -205,8 +205,9 @@ module docstrings_fm
     use jit_lock_fm, only: jit_lock_chunk_size
     use keyboard_fm, only: defining_kbd_macro, DEFINING_KBD_MACRO_NIL, DEFINING_KBD_MACRO_T, &
                            DEFINING_KBD_MACRO_APPEND, disable_point_adjustment, global_disable_point_adjustment, &
-                           kbd_macro_termination_hook, last_input_event, last_kbd_macro, last_repeatable_command, &
-                           minibuffer_message_timeout, num_input_keys, post_command_hook, pre_command_hook
+                           kbd_macro_termination_hook, kill_emacs_hook, last_input_event, last_kbd_macro, &
+                           last_repeatable_command, minibuffer_message_timeout, num_input_keys, post_command_hook, &
+                           pre_command_hook
     use kmacro_fm, only: kmacro_call_repeat_key, KMACRO_CALL_REPEAT_DISABLED, &
                          KMACRO_CALL_REPEAT_LAST_KEY, kmacro_call_repeat_with_arg, kmacro_counter, &
                          kmacro_counter_format, kmacro_counter_format_start, kmacro_counter_value_start, &
@@ -224,7 +225,7 @@ module docstrings_fm
     use map_ynp_fm, only: read_answer_short, READ_ANSWER_SHORT_NIL, READ_ANSWER_SHORT_T, &
                           READ_ANSWER_SHORT_AUTO
     use minibuf_fm, only: completion_ignore_case, enable_recursive_minibuffers, &
-                          history_add_new_input, read_minibuffer_restore_windows
+                          history_add_new_input, minibuffer_setup_hook, read_minibuffer_restore_windows
     use minibuffer_fm, only: completion_at_point_functions, completion_auto_help, &
                              completion_category_defaults, completion_category_overrides, completion_fail_discreetly, &
                              completion_flex_nospace, completion_in_region_mode_map, completion_pcm_leading_wildcard, &
@@ -267,6 +268,17 @@ module docstrings_fm
                           query_replace_skip_read_only, query_replace_to_history_variable, replace_count, &
                           replace_lax_whitespace, replace_regexp_lax_whitespace
     use rmc_fm, only: read_char_choice_use_read_key
+    use savehist_fm, only: savehist_additional_variables, savehist_autosave_interval, &
+                           savehist_coding_system, savehist_file, savehist_file_modes, savehist_ignored_variables, &
+                           savehist_loaded, savehist_minibuffer_history_variables, savehist_mode_hook, &
+                           savehist_save_hook, savehist_save_minibuffer_history
+    use saveplace_fm, only: save_place_abbreviate_file_names, save_place_after_find_file_hook, &
+                            save_place_alist, save_place_autosave_interval, save_place_file, &
+                            save_place_forget_unreadable_files_option, save_place_ignore_files_regexp, save_place_limit, &
+                            save_place_loaded, save_place_mode_hook, save_place_save_skipped, &
+                            save_place_skip_check_regexp, save_place_version_control, SAVE_PLACE_VERSION_CONTROL_T, &
+                            SAVE_PLACE_VERSION_CONTROL_NIL, SAVE_PLACE_VERSION_CONTROL_NEVER, &
+                            SAVE_PLACE_VERSION_CONTROL_NOSPECIAL
     use search_fm, only: case_fold_search, search_spaces_regexp
     use sh_script_fm, only: sh_alias_alist, sh_ancestor_alist, sh_assignment_regexp, &
                             sh_backslash_align, sh_backslash_column, sh_base_mode_hook, sh_base_mode_map, &
@@ -397,7 +409,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(943) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(948) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                   "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", "abort_minibuffers", &
                                             "abort_recursive_edit", "accept_process_output", "add_auto_mode", "add_global_abbrev", &
@@ -609,21 +621,23 @@ module docstrings_fm
                                                 "repeat_exit", "repeat_mode", "replace_match", "replace_regexp", "replace_string", &
                                                   "revert_buffer", "revert_buffer_with_coding_system", "right_char", "right_word", &
                                                     "rotate_yank_pointer", "run_at_time", "run_mode_hooks", "run_with_idle_timer", &
-                                               "run_with_timer", "save_buffer", "save_buffers_kill_terminal", "save_some_buffers", &
-                                          "scan_lists", "scan_sexps", "scroll_down", "scroll_down_command", "scroll_other_window", &
-                                                  "scroll_other_window_down", "scroll_up", "scroll_up_command", "search_backward", &
-                                                      "search_forward", "select_window", "selected_window", "self_insert_command", &
-                                                   "sentence_end", "set_auto_mode", "set_buffer", "set_buffer_file_coding_system", &
-                                               "set_coding_system_priority", "set_command_disabled", "set_default_coding_systems", &
-                                            "set_error", "set_file_modes", "set_file_times", "set_fill_column", "set_fill_prefix", &
-                                                       "set_local_abbrev_table", "set_mark", "set_mark_command", "set_match_data", &
-                                                          "set_process_buffer", "set_process_coding_system", "set_process_filter", &
-                                                         "set_process_query_on_exit_flag", "set_process_sentinel", "set_register", &
-                                                  "set_repeat_map", "set_syntax_table", "set_variable", "sh_add", "sh_assignment", &
-                                         "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", "sh_beginning_of_command", &
-                                                       "sh_electric_here_document_mode", "sh_end_of_command", "sh_execute_region", &
-                                         "sh_make_vars_local", "sh_mode", "sh_reset_indent_vars_to_global_values", "sh_set_shell", &
-                                                         "shell", "shell_backward_command", "shell_command", "shell_command_mode", &
+                                                                   "run_with_timer", "save_buffer", "save_buffers_kill_terminal", &
+                                                 "save_place_forget_unreadable_files", "save_place_local_mode", "save_place_mode", &
+                                                "save_some_buffers", "savehist_mode", "savehist_save", "scan_lists", "scan_sexps", &
+                                          "scroll_down", "scroll_down_command", "scroll_other_window", "scroll_other_window_down", &
+                                           "scroll_up", "scroll_up_command", "search_backward", "search_forward", "select_window", &
+                                          "selected_window", "self_insert_command", "sentence_end", "set_auto_mode", "set_buffer", &
+                                            "set_buffer_file_coding_system", "set_coding_system_priority", "set_command_disabled", &
+                                                    "set_default_coding_systems", "set_error", "set_file_modes", "set_file_times", &
+                                                       "set_fill_column", "set_fill_prefix", "set_local_abbrev_table", "set_mark", &
+                                          "set_mark_command", "set_match_data", "set_process_buffer", "set_process_coding_system", &
+                                                   "set_process_filter", "set_process_query_on_exit_flag", "set_process_sentinel", &
+                                                   "set_register", "set_repeat_map", "set_syntax_table", "set_variable", "sh_add", &
+                                                   "sh_assignment", "sh_backslash_region", "sh_base_mode", "sh_basic_indent_line", &
+                                                 "sh_beginning_of_command", "sh_electric_here_document_mode", "sh_end_of_command", &
+                                                                   "sh_execute_region", "sh_make_vars_local", "sh_mode", &
+                                                                 "sh_reset_indent_vars_to_global_values", "sh_set_shell", "shell", &
+                                                                  "shell_backward_command", "shell_command", "shell_command_mode", &
                                           "shell_command_on_region", "shell_dirtrack_mode", "shell_forward_command", "shell_mode", &
                                                              "shell_narrow_to_prompt", "shell_script_mode", "show_paren__default", &
                                                        "show_paren_default_predicate", "show_paren_local_mode", "show_paren_mode", &
@@ -670,7 +684,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(785) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(811) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -826,10 +840,10 @@ module docstrings_fm
                                           "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
                                                          "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
                                              "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
-                                               "kill_buffer_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
-                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
-                                                                   "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
+                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
+                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -847,16 +861,16 @@ module docstrings_fm
                                                  "make_backup_files", "mark_even_if_inactive", "mark_ring_max", "message_log_max", &
                                                                    "messages_buffer_mode_hook", "messages_buffer_mode_map", &
                                                           "minibuffer_completing_file_name", "minibuffer_local_shell_command_map", &
-                                           "minibuffer_message_timeout", "minibuffer_scroll_window", "mode_require_final_newline", &
-                                           "mounted_file_systems", "mule_keymap", "multibyte_syntax_as_symbol", "next_error_hook", &
-                                                      "next_error_last_buffer", "next_error_verbose", "next_screen_context_lines", &
-                                                             "normal_auto_fill_function", "num_input_keys", "only_global_abbrevs", &
-                                                                   "open_paren_in_column_0_is_defun_start", "page_delimiter", &
-                                                          "paragraph_ignore_fill_prefix", "paragraph_separate", "paragraph_start", &
-                                                "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", "pending_undo_list", &
-                                               "pop_up_windows", "post_command_hook", "post_self_insert_hook", "pre_command_hook", &
-                                                  "process_connection_type", "prog_indentation_context", "prog_mode_abbrev_table", &
-                                                                   "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
+                                                "minibuffer_message_timeout", "minibuffer_scroll_window", "minibuffer_setup_hook", &
+                                                              "mode_require_final_newline", "mounted_file_systems", "mule_keymap", &
+                                                        "multibyte_syntax_as_symbol", "next_error_hook", "next_error_last_buffer", &
+                                                   "next_error_verbose", "next_screen_context_lines", "normal_auto_fill_function", &
+                                                 "num_input_keys", "only_global_abbrevs", "open_paren_in_column_0_is_defun_start", &
+                                                           "page_delimiter", "paragraph_ignore_fill_prefix", "paragraph_separate", &
+                                                  "paragraph_start", "parse_sexp_ignore_comments", "parse_sexp_lookup_properties", &
+                                              "pending_undo_list", "pop_up_windows", "post_command_hook", "post_self_insert_hook", &
+                                                        "pre_command_hook", "process_connection_type", "prog_indentation_context", &
+                                            "prog_mode_abbrev_table", "prog_mode_hook", "prog_mode_map", "query_replace_defaults", &
                                                          "query_replace_from_history_variable", "query_replace_from_to_separator", &
                                                                  "query_replace_show_replacement", "query_replace_skip_read_only", &
                                                                    "query_replace_to_history_variable", "read_answer_short", &
@@ -870,15 +884,24 @@ module docstrings_fm
                                                       "repeat_previous_repeated_command", "repeat_too_dangerous", "replace_count", &
                                                "replace_lax_whitespace", "replace_regexp_lax_whitespace", "require_final_newline", &
                                             "revert_buffer_function", "revert_buffer_in_progress", "revert_buffer_preserve_modes", &
-                                                            "revert_without_query", "save_abbrevs", "save_some_buffers_functions", &
-                                                 "scroll_error_top_bottom", "search_exit_option", "search_nonincremental_instead", &
-                                                                   "search_ring_max", "search_spaces_regexp", "search_upper_case", &
-                                         "search_whitespace_regexp", "select_safe_coding_system_accept_default_p", "sentence_end", &
-                                                  "sentence_end_base", "sentence_end_double_space", "sentence_end_without_period", &
-                                                              "sentence_end_without_space", "sh_alias_alist", "sh_ancestor_alist", &
-                                         "sh_assignment_regexp", "sh_backslash_align", "sh_backslash_column", "sh_base_mode_hook", &
-                                                  "sh_base_mode_map", "sh_basic_offset", "sh_beginning_of_command", "sh_builtins", &
-                                                  "sh_end_of_command", "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
+                                                       "revert_without_query", "save_abbrevs", "save_place_abbreviate_file_names", &
+                                            "save_place_after_find_file_hook", "save_place_alist", "save_place_autosave_interval", &
+                                                                   "save_place_file", "save_place_forget_unreadable_files", &
+                                                        "save_place_ignore_files_regexp", "save_place_limit", "save_place_loaded", &
+                                                "save_place_mode_hook", "save_place_save_skipped", "save_place_skip_check_regexp", &
+                                                                   "save_place_version_control", "save_some_buffers_functions", &
+                                          "savehist_additional_variables", "savehist_autosave_interval", "savehist_coding_system", &
+                                          "savehist_file", "savehist_file_modes", "savehist_ignored_variables", "savehist_loaded", &
+                                              "savehist_minibuffer_history_variables", "savehist_mode_hook", "savehist_save_hook", &
+                                              "savehist_save_minibuffer_history", "scroll_error_top_bottom", "search_exit_option", &
+                                                       "search_nonincremental_instead", "search_ring_max", "search_spaces_regexp", &
+                                                                   "search_upper_case", "search_whitespace_regexp", &
+                                                "select_safe_coding_system_accept_default_p", "sentence_end", "sentence_end_base", &
+                                         "sentence_end_double_space", "sentence_end_without_period", "sentence_end_without_space", &
+                                              "sh_alias_alist", "sh_ancestor_alist", "sh_assignment_regexp", "sh_backslash_align", &
+                                                "sh_backslash_column", "sh_base_mode_hook", "sh_base_mode_map", "sh_basic_offset", &
+                                                                   "sh_beginning_of_command", "sh_builtins", "sh_end_of_command", &
+                                                                   "sh_font_lock_keywords_var", "sh_font_lock_keywords_var_1", &
                                                    "sh_font_lock_keywords_var_2", "sh_here_document_word", "sh_indent_after_case", &
                                                      "sh_indent_after_continuation", "sh_indent_after_do", "sh_indent_after_done", &
                                                          "sh_indent_after_else", "sh_indent_after_function", "sh_indent_after_if", &
@@ -7799,6 +7822,30 @@ contains
             entry%doc = "Offer to save each buffer, then kill Emacs."//LF// &
                         ""//LF// &
                         "With prefix ARG, silently save all file-visiting buffers, then kill."
+        case ("save_place_forget_unreadable_files")
+            entry%file = "saveplace_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove unreadable files from `save_place_alist'."//LF// &
+                        "For each entry in the alist, if `file_readable_p' returns false for"//LF// &
+                        "the filename, remove the entry."
+        case ("save_place_local_mode")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "call save_place_local_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Toggle whether to save your place in this file between sessions."//LF// &
+                        "If this mode is enabled, point is recorded when you kill the buffer"//LF// &
+                        "or exit Fortmacs.  Visiting this file again will go to that"//LF// &
+                        "position, even in a later Fortmacs session."//LF// &
+                        ""//LF// &
+                        "To save places automatically in all files, turn on"//LF// &
+                        "`save_place_mode'."
+        case ("save_place_mode")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "call save_place_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "True means automatically save place in each file."//LF// &
+                        "This means when you visit a file, point goes to the last place"//LF// &
+                        "where it was when you previously visited the same file."
         case ("save_some_buffers")
             entry%file = "files_fm.f90"
             entry%interactive = .true.
@@ -7810,6 +7857,42 @@ contains
                         "the function without saving any more buffers."//LF// &
                         ""//LF// &
                         "A prefix argument means save all with no questions."
+        case ("savehist_mode")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "call savehist_mode(status)"
+            entry%interactive = .true.
+            entry%doc = "Toggle saving of minibuffer history (Savehist mode)."//LF// &
+                        ""//LF// &
+                        "When Savehist mode is enabled, minibuffer history is saved to"//LF// &
+                        "`savehist_file' periodically and when exiting Fortmacs.  When"//LF// &
+                        "Savehist mode is enabled for the first time in a Fortmacs session,"//LF// &
+                        "it loads the previous minibuffer histories from `savehist_file'."//LF// &
+                        "The variable `savehist_autosave_interval' controls the periodicity"//LF// &
+                        "of saving minibuffer histories."//LF// &
+                        ""//LF// &
+                        "If `savehist_save_minibuffer_history' is true (the default), all"//LF// &
+                        "recorded minibuffer histories will be saved.  You can arrange for"//LF// &
+                        "additional history variables to be saved and restored by customizing"//LF// &
+                        "`savehist_additional_variables', which by default is an empty list."//LF// &
+                        ""//LF// &
+                        "Alternatively, you could customize `savehist_save_minibuffer_history'"//LF// &
+                        "to false, and add to `savehist_additional_variables' only those"//LF// &
+                        "history variables you want to save."//LF// &
+                        ""//LF// &
+                        "To ignore some history variables, add their names to the list in"//LF// &
+                        "`savehist_ignored_variables'."//LF// &
+                        ""//LF// &
+                        "This mode should normally be turned on from your init file."//LF// &
+                        "Calling it at any other time replaces your current minibuffer"//LF// &
+                        "histories, which is probably undesirable."
+        case ("savehist_save")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "call savehist_save(status, auto_save, interactive)"
+            entry%interactive = .true.
+            entry%doc = "Save the values of minibuffer history variables."//LF// &
+                        "Unbound variables named in `savehist_additional_variables' are"//LF// &
+                        "ignored.  If AUTO_SAVE is true, compare the saved contents to the"//LF// &
+                        "one last saved, and don't save the buffer if they are the same."
         case ("scan_lists")
             entry%file = "syntax_fm.f90"
             entry%fortran = "scan_lists(from, count, depth, status)"
@@ -14455,6 +14538,14 @@ contains
             entry%doc = "Hook run when a buffer is killed."//LF// &
                         "The buffer being killed is current while the hook is running."//LF// &
                         "See `kill_buffer'."
+        case ("kill_emacs_hook")
+            entry%file = "keyboard_fm.f90"
+            entry%fortran = "kill_emacs_hook"
+            entry%doc = "Hook run when `kill_emacs' is called."//LF// &
+                        "Since `kill_emacs' may be invoked when the terminal is disconnected"//LF// &
+                        "(or in other similar situations), functions placed on this hook"//LF// &
+                        "should not expect to be able to interact with the user.  To ask for"//LF// &
+                        "confirmation, see `kill_emacs_query_functions' instead."
         case ("kill_read_only_ok")
             entry%file = "simple_fm.f90"
             entry%fortran = "kill_read_only_ok"
@@ -14982,6 +15073,10 @@ contains
             entry%doc = "The window to scroll with \[scroll_other_window] from the"//LF// &
                         "minibuffer: the window showing completions (the null handle for"//LF// &
                         "none)."
+        case ("minibuffer_setup_hook")
+            entry%file = "minibuf_fm.f90"
+            entry%fortran = "minibuffer_setup_hook"
+            entry%doc = "Normal hook run just after entry to minibuffer."
         case ("mode_require_final_newline")
             entry%file = "files_fm.f90"
             entry%fortran = "mode_require_final_newline"
@@ -15620,6 +15715,140 @@ contains
             end select
             entry%doc = "True means save word abbrevs too when files are saved."//LF// &
                         "If `SAVE_ABBREVS_SILENTLY', don't ask the user before saving."
+        case ("save_place_abbreviate_file_names")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_abbreviate_file_names"
+            entry%original = ".false."
+            entry%value = repr(save_place_abbreviate_file_names)
+            entry%doc = "If true, abbreviate file names before saving them."//LF// &
+                        "This can simplify sharing the `save_place_file' file across"//LF// &
+                        "different hosts."
+        case ("save_place_after_find_file_hook")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_after_find_file_hook"
+            entry%doc = "Hook run at the end of `save_place_find_file_hook'."
+        case ("save_place_alist")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_alist"
+            entry%doc = "Alist of saved places to go back to when revisiting files."//LF// &
+                        "Each element gives a FILE and a POSITION; visiting file FILE goes"//LF// &
+                        "automatically to position POSITION rather than the beginning of the"//LF// &
+                        "buffer.  An element can also give a DIRED_FILENAME, where FILE is"//LF// &
+                        "the name of a directory ending in a slash, and DIRED_FILENAME is the"//LF// &
+                        "name of a file in that directory.  This form is used for saving"//LF// &
+                        "places in Dired buffers, see the function `save_place_dired_hook';"//LF// &
+                        "the DIRED_FILENAME is the file where point was located in the Dired"//LF// &
+                        "listing of the directory when the place in that buffer was recorded."//LF// &
+                        ""//LF// &
+                        "This alist is saved between Fortmacs sessions."
+        case ("save_place_autosave_interval")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_autosave_interval"
+            entry%original = "0"
+            entry%value = repr(save_place_autosave_interval)
+            entry%doc = "The interval between auto saves of buffer places, in seconds."//LF// &
+                        "If set to 0, disables timer-based auto saving."
+        case ("save_place_file")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_file"
+            if (allocated(save_place_file)) then
+                entry%value = repr(save_place_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Name of the file that records `save_place_alist' value."
+        case ("save_place_forget_unreadable_files")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_forget_unreadable_files_option"
+            entry%original = ".true."
+            entry%value = repr(save_place_forget_unreadable_files_option)
+            entry%doc = "True means forget place in unreadable files."//LF// &
+                        ""//LF// &
+                        "The filenames in `save_place_alist' that do not match"//LF// &
+                        "`save_place_skip_check_regexp' are filtered through"//LF// &
+                        "`file_readable_p'.  If false, their alist entries are removed."//LF// &
+                        ""//LF// &
+                        "You may do this anytime by calling the complementary function,"//LF// &
+                        "`save_place_forget_unreadable_files'.  When this option is turned"//LF// &
+                        "on, this happens automatically before saving `save_place_alist' to"//LF// &
+                        "`save_place_file'."
+        case ("save_place_ignore_files_regexp")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_ignore_files_regexp"
+            if (allocated(save_place_ignore_files_regexp)) then
+                entry%value = repr(save_place_ignore_files_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp matching files whose positions should not be recorded."//LF// &
+                        "Useful to exclude temporary files, such as commit message files"//LF// &
+                        "that are automatically created by VCSes.  If unallocated, this"//LF// &
+                        "feature is disabled, i.e., no files are excluded."
+        case ("save_place_limit")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_limit"
+            entry%original = "400"
+            entry%value = repr(save_place_limit)
+            entry%doc = "Maximum number of entries to retain in the list; SAVE_PLACE_NO_LIMIT"//LF// &
+                        "means no limit."
+        case ("save_place_loaded")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_loaded"
+            entry%original = ".false."
+            entry%value = repr(save_place_loaded)
+            entry%doc = "True means that the `save_place_file' has been loaded."
+        case ("save_place_mode_hook")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_mode_hook"
+            entry%doc = "Hooks of the two modes."
+        case ("save_place_save_skipped")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_save_skipped"
+            entry%original = ".true."
+            entry%value = repr(save_place_save_skipped)
+            entry%doc = "If true, remember files matching `save_place_skip_check_regexp'."//LF// &
+                        ""//LF// &
+                        "When filtering `save_place_alist' for unreadable files, some will"//LF// &
+                        "not be checked, based on said regexp, and instead saved or forgotten"//LF// &
+                        "based on this flag."
+        case ("save_place_skip_check_regexp")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_skip_check_regexp"
+            if (allocated(save_place_skip_check_regexp)) then
+                entry%value = repr(save_place_skip_check_regexp)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Regexp whose file names shall not be checked for readability."//LF// &
+                        ""//LF// &
+                        "When forgetting unreadable files, file names matching this regular"//LF// &
+                        "expression shall not be checked for readability, but instead be"//LF// &
+                        "subject to `save_place_save_skipped'."//LF// &
+                        ""//LF// &
+                        "Files for which such a check may be inconvenient include those on"//LF// &
+                        "removable and network volumes."
+        case ("save_place_version_control")
+            entry%file = "saveplace_fm.f90"
+            entry%fortran = "save_place_version_control"
+            entry%original = "SAVE_PLACE_VERSION_CONTROL_NIL"
+            select case (save_place_version_control)
+            case (SAVE_PLACE_VERSION_CONTROL_T)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_T"
+            case (SAVE_PLACE_VERSION_CONTROL_NIL)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_NIL"
+            case (SAVE_PLACE_VERSION_CONTROL_NEVER)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_NEVER"
+            case (SAVE_PLACE_VERSION_CONTROL_NOSPECIAL)
+                entry%value = "SAVE_PLACE_VERSION_CONTROL_NOSPECIAL"
+            case default
+                entry%value = repr(save_place_version_control)
+            end select
+            entry%doc = "Controls whether to make numbered backups of master `save_place'"//LF// &
+                        "file.  It can have four values: SAVE_PLACE_VERSION_CONTROL_T,"//LF// &
+                        "_NIL, _NEVER, and _NOSPECIAL.  The first three have the same"//LF// &
+                        "meaning that they do for the variable `version_control', and the"//LF// &
+                        "final value _NOSPECIAL means just use the value of"//LF// &
+                        "`version_control'."
         case ("save_some_buffers_functions")
             entry%file = "files_fm.f90"
             entry%fortran = "save_some_buffers_functions"
@@ -15635,6 +15864,118 @@ contains
                         ""//LF// &
                         "The main purpose of these functions is to save stuff that is kept"//LF// &
                         "in variables (rather than in buffers)."
+        case ("savehist_additional_variables")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_additional_variables"
+            entry%doc = "List of additional variables to save."//LF// &
+                        "Each element is a variable that will be persisted across Fortmacs"//LF// &
+                        "sessions that use Savehist."//LF// &
+                        ""//LF// &
+                        "An element names the variable, and may give a MAX_SIZE, which means"//LF// &
+                        "to truncate the variable's value to at most MAX_SIZE elements (if"//LF// &
+                        "the value is a list) before saving the value:"//LF// &
+                        ""//LF// &
+                        "    savehist_additional_variables = [savehist_variable_type(name=""search_ring""), &"//LF// &
+                        "                                     savehist_variable_type(name=""kill_ring"", max_size=20)"// &
+                        "]"//LF// &
+                        ""//LF// &
+                        "The contents of variables should be printable.  You don't need to"//LF// &
+                        "add minibuffer history variables to this list, all minibuffer"//LF// &
+                        "histories will be saved automatically as long as"//LF// &
+                        "`savehist_save_minibuffer_history' is true."//LF// &
+                        ""//LF// &
+                        "User options should be saved with the Customize interface.  This"//LF// &
+                        "list is useful for saving automatically updated variables that are"//LF// &
+                        "not minibuffer histories, such as `compile_command' or `kill_ring'."//LF// &
+                        ""//LF// &
+                        "NOTE: If this variable is not empty, then Fortmacs will not try to"//LF// &
+                        "handle gracefully concurrent modifications to the `savehist_file',"//LF// &
+                        "e.g. by other Fortmacs sessions or other tools like"//LF// &
+                        "file-synchronization systems."
+        case ("savehist_autosave_interval")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_autosave_interval"
+            entry%original = "5*60"
+            entry%value = repr(savehist_autosave_interval)
+            entry%doc = "The interval between autosaves of minibuffer history, in seconds."//LF// &
+                        "If set to 0, disables timer-based autosaving."
+        case ("savehist_coding_system")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_coding_system"
+            if (allocated(savehist_coding_system)) then
+                entry%value = repr(savehist_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The coding system Savehist uses for saving the minibuffer history."//LF// &
+                        "Changing this value while Fortmacs is running is supported, but"//LF// &
+                        "considered unwise, unless you know what you are doing."
+        case ("savehist_file")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_file"
+            if (allocated(savehist_file)) then
+                entry%value = repr(savehist_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "File name where minibuffer history is saved to and loaded from."//LF// &
+                        "The minibuffer history is a namelist read automatically when"//LF// &
+                        "Savehist mode is turned on.  See `savehist_mode' for more details."
+        case ("savehist_file_modes")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_file_modes"
+            entry%original = "384"
+            entry%value = repr(savehist_file_modes)
+            entry%doc = "Default permissions of the history file."//LF// &
+                        "This is decimal, not octal.  The default is 384 (0600 in octal)."//LF// &
+                        "Set to -1 to use the default permissions that Fortmacs uses,"//LF// &
+                        "typically mandated by umask.  The default is a bit more restrictive"//LF// &
+                        "to protect the user's privacy."
+        case ("savehist_ignored_variables")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_ignored_variables"
+            if (allocated(savehist_ignored_variables)) then
+                entry%value = repr(savehist_ignored_variables)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of additional variables not to save."
+        case ("savehist_loaded")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_loaded"
+            entry%original = ".false."
+            entry%value = repr(savehist_loaded)
+            entry%doc = "Whether the history has already been loaded."
+        case ("savehist_minibuffer_history_variables")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_minibuffer_history_variables"
+            if (allocated(savehist_minibuffer_history_variables)) then
+                entry%value = repr(savehist_minibuffer_history_variables)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "List of minibuffer histories."//LF// &
+                        "The contents of this variable is built while Fortmacs is running,"//LF// &
+                        "and saved along with minibuffer history.  You can change its value"//LF// &
+                        "off `savehist_save_hook' to influence which variables are saved."
+        case ("savehist_mode_hook")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_mode_hook"
+            entry%doc = "Hook called when Savehist mode is turned on."
+        case ("savehist_save_hook")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_save_hook"
+            entry%doc = "Hook called by `savehist_save' before saving the variables."//LF// &
+                        "You can use this hook to influence choice and content of variables"//LF// &
+                        "to save."
+        case ("savehist_save_minibuffer_history")
+            entry%file = "savehist_fm.f90"
+            entry%fortran = "savehist_save_minibuffer_history"
+            entry%original = ".true."
+            entry%value = repr(savehist_save_minibuffer_history)
+            entry%doc = "If true, save all recorded minibuffer histories."//LF// &
+                        "If you want to save only specific histories, use `savehist_save_hook'"//LF// &
+                        "to modify the value of `savehist_minibuffer_history_variables'."
         case ("scroll_error_top_bottom")
             entry%file = "window_fm.f90"
             entry%fortran = "scroll_error_top_bottom"

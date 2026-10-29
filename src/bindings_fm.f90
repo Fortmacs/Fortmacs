@@ -94,6 +94,8 @@ module bindings_fm
     use comint_fm, only: syms_of_comint, comint_mode_map
     use shell_fm, only: syms_of_shell, shell_mode_map
     use rect_fm, only: syms_of_rect
+    use savehist_fm, only: syms_of_savehist
+    use saveplace_fm, only: syms_of_saveplace
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -299,6 +301,8 @@ contains
         call syms_of_diff_mode()
         call syms_of_diff()
         call syms_of_rect()
+        call syms_of_savehist()
+        call syms_of_saveplace()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()

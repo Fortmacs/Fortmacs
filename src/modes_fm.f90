@@ -90,6 +90,9 @@ module modes_fm
         type(minor_mode_type) :: read_only_mode
         type(minor_mode_type) :: rectangle_mark_mode
         type(minor_mode_type) :: repeat_mode
+        type(minor_mode_type) :: save_place_local_mode
+        type(minor_mode_type) :: save_place_mode
+        type(minor_mode_type) :: savehist_mode
         type(minor_mode_type) :: sh_electric_here_document_mode
         type(minor_mode_type) :: shell_dirtrack_mode
         type(minor_mode_type) :: show_paren_local_mode

@@ -39,6 +39,7 @@ module minibuf_fm
     use, intrinsic :: iso_fortran_env, only: int64
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
+    use eval_fm, only: hook_type
     use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, &
                        make_symbol_ref, stringp, xstring, symbolp, xsymbol, symbols, nsymbols, V_LIST, vtag
     use lread_fm, only: intern_soft
@@ -105,6 +106,11 @@ module minibuf_fm
     !> history list, so it is possible to do this afterwards by calling
     !> `add_to_history' explicitly.  Port of minibuf.c history-add-new-input.
     logical, public :: history_add_new_input = .true.
+
+    !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
+    !> minibuffer-setup-hook (the function of `minibuffer_with_setup_hook'
+    !> runs first).
+    type(hook_type), target, public :: minibuffer_setup_hook = hook_type(name="minibuffer_setup_hook")
 
     !> Vminibuffer_history_variable: the history list's symbol name.
     character(len=:), allocatable, public :: minibuffer_history_variable
@@ -434,6 +440,7 @@ contains
             minibuffer_setup_function => null()
             call setup()
         end if
+        call minibuffer_setup_hook%run(st)
         call recursive_edit_1(edit_status)
         ! Make the minibuffer contents into a string.
         call set_buffer(minibuffer, st)
