@@ -32,7 +32,8 @@ module minibuf_table_fm
     private
 
     public :: completion_list_table, completion_obarray_table, completion_function_table, completion_predicate, &
-              completion_function
+              completion_function, completion_table_with_quoting, completion_unquote_proc, completion_quote_proc, &
+              completion_requote_proc, completion_exit_function_proc, capf_perform_proc
 
     !> Actions passed to a completion function (programmed completion): as
     !> `try_completion' (nil), `all_completions' (t), `test_completion'
@@ -41,8 +42,16 @@ module minibuf_table_fm
                                   COMPLETE_BOUNDARIES = 3
 
     !> Kinds of completion table: a list (of strings, symbols, or lists
-    !> whose first element is one: an alist), the obarray, or a function.
-    integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2
+    !> whose first element is one: an alist), the obarray, a function, or
+    !> a function operating on quoted text (`completion_table_with_quoting').
+    integer, parameter, public :: TABLE_LIST = 0, TABLE_OBARRAY = 1, TABLE_FUNCTION = 2, TABLE_QUOTING = 3
+
+    !> How a completion finished, as an `:exit_function' is told:
+    !> `exact' (an exact match, maybe not unique), `sole' (the sole
+    !> completion, which may be extended further), `finished' (no further
+    !> completion is possible), or `unknown' (completion--done finds out).
+    integer, parameter, public :: COMPLETION_EXACT = 1, COMPLETION_SOLE = 2, COMPLETION_FINISHED = 3, &
+                                  COMPLETION_UNKNOWN = 4
 
     abstract interface
         !> A completion predicate: whether the element `elt' (the list
@@ -69,6 +78,51 @@ module minibuf_table_fm
             character(len=*), intent(in), optional :: suffix
         end subroutine completion_function
 
+        !> The UNQUOTE function of a quoting table: STRING unquoted.
+        recursive function completion_unquote_proc(string) result(ustring)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            character(len=:), allocatable :: ustring
+        end function completion_unquote_proc
+
+        !> A QFUN of a quoting table: STRING quoted for its position.
+        recursive function completion_quote_proc(string) result(qstring)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            character(len=:), allocatable :: qstring
+        end function completion_quote_proc
+
+        !> An `:exit_function': run after completion of STRING is
+        !> performed, FINISHED saying how (a COMPLETION_* value).
+        recursive subroutine completion_exit_function_proc(string, finished)
+            implicit none(type, external)
+            character(len=*), intent(in) :: string
+            integer, intent(in) :: finished
+        end subroutine completion_exit_function_proc
+
+        !> A function a function of `completion_at_point_functions' may
+        !> return instead of completion data: it performs completion
+        !> itself, returning whether it did anything.
+        recursive logical function capf_perform_proc()
+            implicit none(type, external)
+        end function capf_perform_proc
+    end interface
+
+    abstract interface
+        !> The REQUOTE function of a quoting table: QSTR is a string
+        !> entered by the user (and hence indicating the user's preferred
+        !> form of quoting), and UPOS a position within the unquoted form
+        !> of QSTR; QPOS is the position corresponding to UPOS but in
+        !> QSTR, and QFUN a function returning its argument appropriately
+        !> quoted for use at QPOS.
+        recursive subroutine completion_requote_proc(upos, qstr, qpos, qfun)
+            import :: int64, completion_quote_proc
+            implicit none(type, external)
+            integer(int64), intent(in) :: upos
+            character(len=*), intent(in) :: qstr
+            integer(int64), intent(out) :: qpos
+            procedure(completion_quote_proc), pointer, intent(out) :: qfun
+        end subroutine completion_requote_proc
     end interface
 
     !> A completion table (COLLECTION).
@@ -76,8 +130,12 @@ module minibuf_table_fm
         integer :: kind = TABLE_LIST
         !> TABLE_LIST: the list.
         type(value_type) :: list
-        !> TABLE_FUNCTION: the function.
+        !> TABLE_FUNCTION: the function; TABLE_QUOTING: the function
+        !> operating on the unquoted text.
         procedure(completion_function), pointer, nopass :: fn => null()
+        !> TABLE_QUOTING: the functions unquoting and requoting the text.
+        procedure(completion_unquote_proc), pointer, nopass :: unquote => null()
+        procedure(completion_requote_proc), pointer, nopass :: requote => null()
         !> The completion category (the `category' entry of the table's
         !> metadata), empty for none.
         character(len=:), allocatable :: category
@@ -86,15 +144,20 @@ module minibuf_table_fm
     !> What a function of `completion_at_point_functions' returns: nothing
     !> (`found' false: not applicable at point), or the text from `start'
     !> to `end' to complete with `table' (the list (START END COLLECTION .
-    !> PROPS)).  (Functions that return a function to perform completion,
-    !> or perform it themselves, are not supported; the other properties
-    !> of `completion_extra_properties' are deferred.)
+    !> PROPS)), or a function `perform' that performs completion itself.
+    !> (Functions that perform completion themselves while being called
+    !> are not supported; the other properties of
+    !> `completion_extra_properties' are deferred.)
     type, public :: capf_data_type
         logical :: found = .false.
         integer(int64) :: start = 0, end = 0
         type(completion_table_type) :: table
+        !> The function returned instead of completion data, if associated.
+        procedure(capf_perform_proc), pointer, nopass :: perform => null()
         !> The `:predicate' property: candidates must satisfy it.
         procedure(completion_predicate), pointer, nopass :: predicate => null()
+        !> The `:exit_function' property: run after completion is performed.
+        procedure(completion_exit_function_proc), pointer, nopass :: exit_function => null()
         !> The `:exclusive' property: false (`no') means that if the
         !> table fails to match the text at point, the next function is
         !> tried instead of reporting a completion failure.
@@ -114,6 +177,29 @@ contains
         table%list = list
         if (present(category)) table%category = category
     end function completion_list_table
+
+    !> Return a new completion table operating on quoted text.
+    !> TABLE operates on the unquoted text.  UNQUOTE is a function that
+    !> takes a string and returns a new unquoted string.  REQUOTE is a
+    !> function of 2 args (UPOS QSTR) where QSTR is a string entered by the
+    !> user (and hence indicating the user's preferred form of quoting);
+    !> and UPOS is a position within the unquoted form of QSTR.  REQUOTE
+    !> should return a pair (QPOS . QFUN) such that QPOS is the position
+    !> corresponding to UPOS but in QSTR, and QFUN is a function of one
+    !> argument (a string) which returns that argument appropriately
+    !> quoted for use at QPOS.  Port of
+    !> minibuffer.el:completion-table-with-quoting (TABLE a function; its
+    !> lambda is minibuf_fm's `quoting_table_call').
+    function completion_table_with_quoting(table, unquote, requote) result(qtable)
+        procedure(completion_function) :: table
+        procedure(completion_unquote_proc) :: unquote
+        procedure(completion_requote_proc) :: requote
+        type(completion_table_type) :: qtable
+        qtable%kind = TABLE_QUOTING
+        qtable%fn => table
+        qtable%unquote => unquote
+        qtable%requote => requote
+    end function completion_table_with_quoting
 
     !> A completion table holding the names of all interned symbols, in
     !> completion category `category'.

@@ -35,13 +35,14 @@ module minibuf_fm
     use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_function, &
                                 completion_list_table, completion_obarray_table, completion_function_table, &
                                 COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETE_BOUNDARIES, TABLE_LIST, &
-                                TABLE_OBARRAY, TABLE_FUNCTION
+                                TABLE_OBARRAY, TABLE_FUNCTION, TABLE_QUOTING, completion_quote_proc
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
     use handle_fm, only: handle_type
     use eval_fm, only: hook_type
-    use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, &
-                       make_symbol_ref, stringp, xstring, symbolp, xsymbol, symbols, nsymbols, V_LIST, vtag
+    use lisp_fm, only: value_type, nil, t_value, list, nilp, make_string, make_list, list_elements, make_fixnum, &
+                       list_length, list_elt, fixnump, xfixnum, make_symbol_ref, stringp, xstring, symbolp, &
+                       xsymbol, symbols, nsymbols, V_LIST, vtag
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
     use lread_fm, only: sym
@@ -63,6 +64,7 @@ module minibuf_fm
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
               minibufferp, abort_minibuffers, init_minibuf, minibuffer_innermost_command_loop_p, &
               innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
+    public :: quoting_table_call
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
               completion_function, completion_table_type, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
@@ -673,6 +675,9 @@ contains
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_TRY, result, status, predicate)
             return
+        else if (collection%kind == TABLE_QUOTING) then
+            call quoting_table_call(collection, string, COMPLETE_TRY, result, status, predicate)
+            return
         end if
         call table_elements(collection, elts, names, ok)
         have_best = .false.
@@ -781,6 +786,9 @@ contains
         if (collection%kind == TABLE_FUNCTION) then
             call collection%fn(string, COMPLETE_ALL, result, status, predicate)
             return
+        else if (collection%kind == TABLE_QUOTING) then
+            call quoting_table_call(collection, string, COMPLETE_ALL, result, status, predicate)
+            return
         end if
         call table_elements(collection, elts, names, ok)
         allocate (matches(size(elts)))
@@ -826,6 +834,10 @@ contains
             call collection%fn(string, COMPLETE_TEST, result, status, predicate)
             valid = status%ok() .and. .not. nilp(result)
             return
+        case (TABLE_QUOTING)
+            call quoting_table_call(collection, string, COMPLETE_TEST, result, status, predicate)
+            valid = status%ok() .and. .not. nilp(result)
+            return
         case (TABLE_OBARRAY)
             id = intern_soft(string)
             if (id /= 0) then
@@ -858,4 +870,239 @@ contains
         valid = .true.
         if (present(predicate)) valid = predicate(tem)
     end function test_completion
+
+    ! ------------------------------------------------------------------
+    ! Completion tables operating on quoted text
+    ! ------------------------------------------------------------------
+
+    !> The completion table of `completion_table_with_quoting': ACTION
+    !> for the quoted STRING.  A difficult part of
+    !> completion-with-quoting is to map positions in the quoted string to
+    !> equivalent positions in the unquoted string and vice-versa.  There
+    !> is no efficient and reliable algorithm that works for arbitrary
+    !> quote and unquote functions.  So to map from quoted positions to
+    !> unquoted positions, we simply assume that `concat' and `unquote'
+    !> commute (which tends to be the case).  And we ask `requote' to do
+    !> the work of mapping from unquoted positions back to quoted
+    !> positions.  Port of the lambda of
+    !> minibuffer.el:completion-table-with-quoting (no metadata, and no
+    !> `completion--unquote' action: the completion styles call
+    !> `try_completion' and `all_completions' on the quoted table).
+    recursive subroutine quoting_table_call(table, string, action, result, status, predicate, suffix)
+        type(completion_table_type), intent(in) :: table
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        character(len=*), intent(in), optional :: suffix
+        type(completion_table_type) :: inner
+        procedure(completion_quote_proc), pointer :: qfun
+        type(value_type) :: completion
+        character(len=:), allocatable :: ustring, qsuffix, ufull, usuffix, qstring
+        integer(int64) :: bstart, bend, qlboundary, qrboundary, q, qpoint
+        status = status_type()
+        result = nil()
+        inner%kind = TABLE_FUNCTION
+        inner%fn => table%fn
+        ustring = table%unquote(string)
+        select case (action)
+        case (COMPLETE_TEST)
+            ! test-completion
+            if (test_completion(ustring, inner, predicate)) result = t_value()
+        case (COMPLETE_BOUNDARIES)
+            qsuffix = ""
+            if (present(suffix)) qsuffix = suffix
+            if (len(qsuffix) == 0) then
+                ufull = ustring
+            else
+                ufull = table%unquote(string//qsuffix)
+            end if
+            ! If (not (string-prefix-p ustring ufull)) we have a problem:
+            ! unquoting the qfull gives something "unrelated" to ustring.
+            ! E.g. "~/" and "/" where "~//" gets unquoted to just "/" (see
+            ! bug#47678).  In that case we can't even tell if we're right
+            ! before the "/" or right after it (aka if this "/" is from
+            ! qstring or from qsuffix), thus which usuffix to use is very
+            ! unclear.
+            if (string_prefix_p(ustring, ufull)) then
+                usuffix = substring(ufull, schars(ustring))
+            else
+                usuffix = qsuffix
+            end if
+            call inner_boundaries(inner, ustring, usuffix, bstart, bend, predicate)
+            call table%requote(bstart, string, qlboundary, qfun)
+            if (bend == 0) then
+                ! Common case.
+                qrboundary = 0
+            else
+                call table%requote(bend + schars(ustring), string//qsuffix, q, qfun)
+                qrboundary = q - schars(string)
+            end if
+            result = list(make_fixnum(qlboundary), make_fixnum(qrboundary))
+        case (COMPLETE_TRY)
+            ! try-completion: most forms of quoting allow several ways to
+            ! quote the same string.  So here we could simply requote
+            ! `completion' in a kind of "canonical" quoted form without
+            ! paying attention to the way `string' was quoted.  But since
+            ! we have to solve the more complex problems of "pay attention
+            ! to the original quoting" for all-completions, we may as well
+            ! use it here, since it provides a nicer behavior.
+            call try_completion(ustring, inner, completion, status, predicate)
+            if (.not. status%ok()) return
+            if (.not. stringp(completion)) then
+                result = completion
+            else
+                call twq_try(table, string, ustring, xstring(completion), 0_int64, qstring, qpoint)
+                result = make_string(qstring)
+            end if
+        case (COMPLETE_ALL)
+            ! all-completions
+            call all_completions(ustring, inner, completion, status, predicate)
+            if (.not. status%ok()) return
+            call inner_boundaries(inner, ustring, "", bstart, bend, predicate)
+            call twq_all(table, string, ustring, completion, bstart, result)
+        end select
+    end subroutine quoting_table_call
+
+    ! The boundaries of the function table INNER for STRING and SUFFIX
+    ! (completion-boundaries).
+    recursive subroutine inner_boundaries(inner, string, suffix, bstart, bend, predicate)
+        type(completion_table_type), intent(in) :: inner
+        character(len=*), intent(in) :: string, suffix
+        integer(int64), intent(out) :: bstart, bend
+        procedure(completion_predicate), optional :: predicate
+        type(value_type) :: boundaries
+        type(status_type) :: status
+        bstart = 0
+        bend = schars(suffix)
+        call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, predicate, suffix)
+        if (.not. status%ok() .or. list_length(boundaries) /= 2) return
+        if (fixnump(list_elt(boundaries, 1_int64))) bstart = xfixnum(list_elt(boundaries, 1_int64))
+        if (fixnump(list_elt(boundaries, 2_int64))) bend = xfixnum(list_elt(boundaries, 2_int64))
+    end subroutine inner_boundaries
+
+    ! Whether PREFIX is a prefix of STRING (string-prefix-p).
+    logical function string_prefix_p(prefix, string)
+        character(len=*), intent(in) :: prefix, string
+        string_prefix_p = .false.
+        if (len(prefix) > len(string)) return
+        string_prefix_p = string(1:len(prefix)) == prefix
+    end function string_prefix_p
+
+    ! The longest common prefix of S1 and S2
+    ! (fill-common-string-prefix).
+    function fill_common_string_prefix(s1, s2) result(prefix)
+        character(len=*), intent(in) :: s1, s2
+        character(len=:), allocatable :: prefix
+        integer(int64) :: n, k
+        n = min(schars(s1), schars(s2))
+        do k = 0, n - 1
+            if (substring(s1, k, k + 1) /= substring(s2, k, k + 1)) then
+                prefix = substring(s1, 0_int64, k)
+                return
+            end if
+        end do
+        prefix = substring(s1, 0_int64, n)
+    end function fill_common_string_prefix
+
+    ! Basically two cases: either the new result is
+    ! - commonprefix1 <point> morecommonprefix <qpos> suffix
+    ! - commonprefix <qpos> newprefix <point> suffix
+    ! Port of minibuffer.el:completion--twq-try.
+    recursive subroutine twq_try(table, string, ustring, completion, point, qstring, qpoint)
+        type(completion_table_type), intent(in) :: table
+        character(len=*), intent(in) :: string, ustring, completion
+        integer(int64), intent(in) :: point
+        character(len=:), allocatable, intent(out) :: qstring
+        integer(int64), intent(out) :: qpoint
+        procedure(completion_quote_proc), pointer :: qfun, qfun2
+        character(len=:), allocatable :: prefix, suffix, qstr1, qsuffix, qstr
+        integer(int64) :: qpos, q
+        prefix = fill_common_string_prefix(ustring, completion)
+        suffix = substring(completion, max(point, schars(prefix)))
+        call table%requote(schars(prefix), string, qpos, qfun)
+        qstr1 = ""
+        if (point > schars(prefix)) qstr1 = qfun(substring(completion, schars(prefix), point))
+        qsuffix = qfun(suffix)
+        qstring = substring(string, 0_int64, qpos)//qstr1//qsuffix
+        if (point == 0) then
+            qpoint = 0
+        else if (point > schars(prefix)) then
+            qpoint = qpos + schars(qstr1)
+        else
+            call table%requote(point, string, q, qfun2)
+            qpoint = q
+        end if
+        ! Make sure `requote' worked.
+        if (table%unquote(qstring) /= completion .or. len(table%unquote(qstring)) /= len(completion)) then
+            ! If requote failed (e.g. because sifn-requote did not handle
+            ! Tramp's "/foo:/bar//baz -> /foo:/baz" truncation), then at
+            ! least try requote properly.
+            qstr = qfun(completion)
+            qstring = qstr
+            qpoint = schars(qstr)
+        end if
+    end subroutine twq_try
+
+    ! The COMPLETIONS of the unquoted string USTRING, after BOUNDARY,
+    ! quoted as STRING is.  Port of minibuffer.el:completion--twq-all (no
+    ! `completions-common-part' face on the quoted prefix, no
+    ! `completion--unquoted' property; the base size is the boundary).
+    recursive subroutine twq_all(table, string, ustring, completions, boundary, result)
+        type(completion_table_type), intent(in) :: table
+        character(len=*), intent(in) :: string, ustring
+        type(value_type), intent(in) :: completions
+        integer(int64), intent(in) :: boundary
+        type(value_type), intent(out) :: result
+        type(value_type), allocatable :: elems(:), quoted(:)
+        type(value_type) :: tried
+        type(completion_table_type) :: prefix_table
+        procedure(completion_quote_proc), pointer :: qfun, qfun2
+        type(status_type) :: st
+        character(len=:), allocatable :: prefix, qfullprefix, qprefix, qp, completion, new, qnew, rest, qrest
+        integer(int64) :: qfullpos, qboundary, k, n
+        result = nil()
+        n = list_length(completions)
+        if (n == 0) return
+        call list_elements(completions, elems)
+        ! (try-completion "" (cons (substring ustring boundary) completions))
+        allocate (quoted(n + 1))
+        quoted(1) = make_string(substring(ustring, boundary))
+        do k = 1, n
+            quoted(k + 1) = elems(k)
+        end do
+        prefix_table = completion_list_table(make_list(quoted))
+        call try_completion("", prefix_table, tried, st)
+        if (stringp(tried)) then
+            prefix = xstring(tried)
+        else
+            prefix = substring(ustring, boundary)
+        end if
+        call table%requote(boundary + schars(prefix), string, qfullpos, qfun)
+        qfullprefix = substring(string, 0_int64, qfullpos)
+        call table%requote(boundary, string, qboundary, qfun2)
+        qprefix = substring(qfullprefix, qboundary)
+        ! Here we choose to quote all elements returned, but a better
+        ! option would be to return unquoted elements together with a
+        ! function to requote them, so that *Completions* can show nicer
+        ! unquoted values which only get quoted when needed by
+        ! choose-completion.
+        deallocate (quoted)
+        allocate (quoted(n))
+        do k = 1, n
+            completion = xstring(elems(k))
+            new = substring(completion, schars(prefix))
+            qnew = qfun(new)
+            qp = qprefix
+            if (completion_ignore_case%value) then
+                ! Make qprefix inherit the case from `completion'.
+                rest = substring(completion, 0_int64, schars(prefix))
+                qrest = qfun(rest)
+                if (compare_strings(qprefix, qrest, .true.) == COMPARE_EQUAL) qp = qrest
+            end if
+            quoted(k) = make_string(qp//qnew)
+        end do
+        result = make_list(quoted)
+    end subroutine twq_all
 end module minibuf_fm
