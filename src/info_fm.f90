@@ -414,7 +414,6 @@ module info_fm
     end type file_time_type
     type(file_time_type), allocatable :: file_times(:)
 
-
     type :: index_nodes_type
         character(len=:), allocatable :: file
         type(string_type), allocatable :: nodes(:)
@@ -580,8 +579,6 @@ module info_fm
     type(named_face_type), target, public :: info_index_match_face
     !> Face used for quoted elements.  Port of info.el Info-quoted.
     type(named_face_type), target, public :: info_quoted_face
-
-
 
     ! A cached search of `info_virtual_index': the matches of TOPIC in
     ! FILE.
@@ -6101,9 +6098,10 @@ contains
     ! info.el:info--ensure-not-in-directory-node.
     subroutine ensure_not_in_directory_node(status)
         type(status_type), intent(inout) :: status
-        if (lower(file_name_nondirectory(current_file_or_empty())) == "dir") &
+        if (lower(file_name_nondirectory(current_file_or_empty())) == "dir") then
             call user_error(status, substitute_command_keys("The Info directory node has no index; "// &
                                                             "type `\<info_mode_map>\[info_menu]' to select a manual"))
+        end if
     end subroutine ensure_not_in_directory_node
 
     ! Read an index topic with completion over the entries of the index
@@ -6246,7 +6244,12 @@ contains
             end do
             if (k == 0) exit
             call prepend_match(exact, matches(k))
-            matches = [matches(1:k - 1), matches(k + 1:)]
+            if (size(matches) == 1) then
+                deallocate (matches)
+                allocate (matches(0))
+            else
+                matches = [matches(1:k - 1), matches(k + 1:)]
+            end if
         end do
         if (allocated(ohist_list)) then
             info_history_list = ohist_list
@@ -6255,6 +6258,7 @@ contains
         end if
         k = here()
         ! (nconc exact (nreverse matches))
+        if (allocated(locals(k)%index_alternatives)) deallocate (locals(k)%index_alternatives)
         allocate (locals(k)%index_alternatives(0))
         do i = 1, size(exact)
             call append_match(locals(k)%index_alternatives, exact(i))
@@ -6458,9 +6462,10 @@ contains
         call insert(prefix, st)
         start = point()
         call insert(pad_to(label, width), st)
-        if (e%match_end > e%match_beg) &
+        if (e%match_end > e%match_beg) then
             call put_text_property(start + e%match_beg, start + e%match_end, sym("face"), &
                                    symbol_value_of("info_index_match"), st)
+        end if
     end subroutine insert_entry
 
     ! S padded with spaces to WIDTH characters ((format "%-WIDTHs" S)).
@@ -6653,8 +6658,9 @@ contains
         do while (refwd("\*.*: *(\([^)]+\))"))
             ! Make sure we don't have duplicates in `manuals', so that the
             ! following loop runs faster.
-            if (.not. has_string(manuals, match_string_no_properties(1))) &
+            if (.not. has_string(manuals, match_string_no_properties(1))) then
                 call add_string(manuals, match_string_no_properties(1))
+            end if
         end do
         do i = 1, size(manuals)
             call message("Searching "//manuals(i)%s)
@@ -6751,7 +6757,7 @@ contains
         character(len=:), allocatable :: string
         call read_string("Index apropos: ", string, status)
         if (.not. status%ok()) return
-        call info_apropos(string, status, .not. nilp(current_prefix_arg))
+        call info_apropos(string, status,.not. nilp(current_prefix_arg))
     end subroutine cmd_info_apropos
 
     ! ------------------------------------------------------------------
@@ -6766,9 +6772,9 @@ contains
     ! If COMMAND has none, `info_file_list_for_emacs' defines heuristics
     ! for which Info manual to try.  Port of
     ! info.el:Info-find-emacs-command-nodes.
-    recursive subroutine find_emacs_command_nodes(command, where, status)
+    recursive subroutine find_emacs_command_nodes(command, places, status)
         character(len=*), intent(in) :: command
-        type(info_history_entry_type), allocatable, intent(out) :: where(:)
+        type(info_history_entry_type), allocatable, intent(out) :: places(:)
         type(status_type), intent(out) :: status
         type(command_type), pointer :: cmd
         type(string_type), allocatable :: nodes(:)
@@ -6776,17 +6782,19 @@ contains
         type(info_node_ref_type), allocatable :: saved_history_list(:)
         character(len=:), allocatable :: cmd_desc, info_file, name, digits
         integer(int64) :: line_number
-        logical :: fold, has_line
+        logical :: fold, has_line, found
         integer :: i, k, ios
         status = status_type()
-        allocate (where(0))
+        allocate (places(0))
         cmd_desc = "^\* +"//regexp_quote(command)//"\( <[0-9]+>\)?:\s *\(.*\)\." &
                    //"\(?:[ "//TAB//LF//"]+(line +\([0-9]+\))\)?"
         ! default
         info_file = "emacs"
         ! Determine which Info file this command is documented in.
         cmd => find_command(command)
-        if (associated(cmd) .and. allocated(cmd%info_file)) then
+        found = .false.
+        if (associated(cmd)) found = allocated(cmd%info_file)
+        if (found) then
             info_file = cmd%info_file
         else
             ! If it doesn't say explicitly, test its name against various
@@ -6819,7 +6827,7 @@ contains
         do while (status%ok() .and. size(nodes) > 0)
             call goto_min()
             do while (refwd(cmd_desc))
-                call prepend_entry(where, current_file_or_empty(), match_string_no_properties(2), 0_int64)
+                call prepend_entry(places, current_file_or_empty(), match_string_no_properties(2), 0_int64)
                 has_line = mbeg(3) > 0
                 if (has_line) then
                     digits = match_string_no_properties(3)
@@ -6838,7 +6846,7 @@ contains
         else if (allocated(info_history_list)) then
             deallocate (info_history_list)
         end if
-        if (has_line .and. size(where) > 0) where(1)%pos = line_number
+        if (has_line .and. size(places) > 0) places(1)%pos = line_number
     contains
 
         ! (push (list FILE NODE POS) LIST).
@@ -6858,7 +6866,7 @@ contains
     recursive subroutine info_goto_emacs_command_node(command, status)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
-        type(info_history_entry_type), allocatable :: where(:), saved_history(:)
+        type(info_history_entry_type), allocatable :: places(:), saved_history(:)
         type(info_node_ref_type), allocatable :: saved_history_list(:)
         type(window_configuration_type) :: config
         type(handle_type) :: info_buffer
@@ -6870,13 +6878,13 @@ contains
             call set_error(status, FM_WRONG_TYPE_ARGUMENT, "commandp, "//command)
             return
         end if
-        call find_emacs_command_nodes(command, where, status)
+        call find_emacs_command_nodes(command, places, status)
         if (.not. status%ok()) return
-        if (size(where) == 0) then
+        if (size(places) == 0) then
             call plain_error(status, "Couldn't find documentation for "//command)
             return
         end if
-        num_matches = size(where)
+        num_matches = size(places)
         ! Get Info running, and pop to it in another window.
         call current_window_configuration(config)
         call info(st)
@@ -6897,8 +6905,8 @@ contains
         allocate (locals(k)%history(0))
         if (allocated(info_history_list)) saved_history_list = info_history_list
         if (allocated(info_history_list)) deallocate (info_history_list)
-        line_number = where(1)%pos
-        call info_find_node(where(1)%file, where(1)%node, status)
+        line_number = places(1)%pos
+        call info_find_node(places(1)%file, places(1)%node, status)
         if (status%ok() .and. line_number > 0) call fwd_line(line_number - 1)
         k = here()
         locals(k)%history = saved_history
@@ -6913,7 +6921,7 @@ contains
             ! to another node.  Put the other nodes that were found on the
             ! history.
             do i = num_matches, 2, -1
-                call push_history(locals(k)%history, where(i)%file, where(i)%node, where(i)%pos)
+                call push_history(locals(k)%history, places(i)%file, places(i)%node, places(i)%pos)
             end do
             if (num_matches > 2) then
                 call message("Found "//int_text(int(num_matches - 1, int64))//" other entries.  Use "// &
