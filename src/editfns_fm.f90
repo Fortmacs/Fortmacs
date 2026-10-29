@@ -75,7 +75,9 @@ module editfns_fm
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
     !> Vuser_real_login_name, Vuser_full_name); unallocated until then.
-    character(len=:), allocatable :: vuser_login_name, vuser_real_login_name, vuser_full_name
+    !> Vuser_full_name is the variable `user_full_name', renamed as it has
+    !> the name of the function `user_full_name'.
+    character(len=:), allocatable :: vuser_login_name, vuser_real_login_name, user_full_name_variable
 
     !> True means text motion commands don't notice fields.
     !> Port of editfns.c inhibit-field-text-motion.
@@ -573,16 +575,16 @@ contains
         ! If the user name claimed in the environment vars differs from
         ! the real uid, use the claimed name to find the full name.
         if (vuser_login_name == vuser_real_login_name) then
-            call full_name_of(vuser_login_name, vuser_full_name, found)
+            call full_name_of(vuser_login_name, user_full_name_variable, found)
         else
-            call full_name_of_uid(emacs_geteuid(), vuser_full_name, found)
+            call full_name_of_uid(emacs_geteuid(), user_full_name_variable, found)
         end if
         call get_environment_variable("NAME", length=length, status=stat)
         if (stat == 0) then
-            vuser_full_name = env("NAME")
-            if (.not. allocated(vuser_full_name)) vuser_full_name = ""
+            user_full_name_variable = env("NAME")
+            if (.not. allocated(user_full_name_variable)) user_full_name_variable = ""
         else if (.not. found) then
-            vuser_full_name = "unknown"
+            user_full_name_variable = "unknown"
         end if
     contains
 
@@ -679,7 +681,7 @@ contains
     function user_full_name() result(name)
         character(len=:), allocatable :: name
         call init_user_names()
-        name = vuser_full_name
+        name = user_full_name_variable
     end function user_full_name
 
     !> Return the host name of the machine you are running on, as a string.

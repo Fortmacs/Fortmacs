@@ -68,7 +68,7 @@ module keyboard_fm
                          overriding_terminal_local_map, pushed_terminal_local_map, keymap_events, lookup_key, command_remapping
     use callint_fm, only: call_interactively, funcall, current_prefix_arg, prefix_arg, &
                           prefix_numeric_value, this_command
-    use buffer_fm, only: buffers, cur, vdeactivate_mark, transient_mark_mode
+    use buffer_fm, only: buffers, cur, deactivate_mark_variable, transient_mark_mode
     use undo_fm, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                        buffer_before_last_command_or_undo
     use sysdep_fm, only: emacs_read, input_available, interrupt_pending, inputs_available
@@ -1593,7 +1593,7 @@ contains
             point_before_last_command_or_undo = buffers(cur)%pt
             buffer_before_last_command_or_undo = buffers(cur)%serial
         end if
-        vdeactivate_mark = .false.
+        deactivate_mark_variable = .false.
         if (nilp(cmd)) then
             ! nil means key is undefined.
             call funcall(sym("undefined"), status)
@@ -1631,7 +1631,7 @@ contains
         ! A command that changed the buffer (or asked to) ends an active
         ! region in Transient Mark mode (simple.el:deactivate-mark).
         if (cur /= 0) then
-            if (buffers(cur)%mark_active .and. vdeactivate_mark .and. transient_mark_mode%value) then
+            if (buffers(cur)%mark_active .and. deactivate_mark_variable .and. transient_mark_mode%value) then
                 if (associated(deactivate_mark_function)) then
                     call deactivate_mark_function()
                 else

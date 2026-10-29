@@ -52,7 +52,7 @@ module insdel_fm
     use handle_fm, only: handle_type
     use buffer_fm, only: buffers, cur, BEG, BUF_BYTES_MAX, GAP_BYTES_DFL, &
                          GAP_BYTES_MIN, modiff_incr, buf_compute_unchanged, &
-                         buf_bytes, barf_if_buffer_read_only, vdeactivate_mark, buf_next_char_len
+                         buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len
     use marker_fm, only: char_to_byte, byte_to_char, markers, clear_charpos_cache, copy_marker_at, &
                          marker_position, free_marker
     use undo_fm, only: record_insert, record_delete, record_first_change
@@ -844,7 +844,7 @@ contains
         if (inhibit_modification_hooks%value) return
         call signal_before_change(start, end, status, preserve)
         if (.not. status%ok()) return
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
     end subroutine prepare_to_modify_buffer_1
 
     !> Like `prepare_to_modify_buffer_1', when the buffer text will be

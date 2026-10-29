@@ -243,8 +243,9 @@ module buffer_fm
     !>
     !> Buffer modifications store true in this variable.  Port of keyboard.c
     !> Vdeactivate_mark, the variable `deactivate_mark' (here because
-    !> insdel_fm sets it; the function is simple_fm's `deactivate_mark').
-    logical, public :: vdeactivate_mark = .false.
+    !> insdel_fm sets it; renamed: the function is simple_fm's
+    !> `deactivate_mark').
+    logical, public :: deactivate_mark_variable = .false.
 
     !> Column beyond which automatic line-wrapping should happen.
     !> It is used by filling commands, such as `fill_region' and `fill_paragraph',
