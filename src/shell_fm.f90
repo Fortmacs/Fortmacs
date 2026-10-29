@@ -24,13 +24,19 @@
 !> directory tracking of cd, pushd and popd), and Shell Command mode for
 !> the output of asynchronous shell commands.
 !>
-!> Not ported yet (Deferred): completion (`shell_completion_vars' beyond
-!> the delimiters, `shell_dynamic_complete_*', TAB and M-? in
-!> `shell_mode_map', `shell_command_completion'), `shell_resync_dirs'
+!> Completion: `shell_completion_vars' (TAB is `completion_at_point' with
+!> `shell_dynamic_complete_functions': history references, environment
+!> variables, command names, directory stack references, pcomplete and
+!> file names with shell quoting; M-? lists file names),
+!> `shell_dynamic_complete_command',
+!> `shell_dynamic_complete_environment_variable',
+!> `shell_replace_by_expanded_directory', `shell_input_autoexpand'.
+!>
+!> Not ported yet (Deferred): `shell_dynamic_complete_filename' (upstream
+!> calls `completion_in_region' with the completion properties as extra
+!> arguments), `shell_resync_dirs'
 !> (M-RET, `dirs'), `shell_copy_environment_variable' and
-!> `shell_snarf_envar', the input history expansion of
-!> `shell_input_autoexpand', ANSI colors (`shell_apply_ansi_color',
-!> `shell_reapply_ansi_color'), `comint_fontify_input_mode' and
+!> `shell_snarf_envar', `comint_fontify_input_mode' and
 !> `shell_fontify_input_enable' (the :after-hook), `shell_highlight_undef_mode',
 !> `shell_indirect_setup_hook', the indentation functions of the input
 !> (`comint_indent_input_line_default'), `scroll_conservatively',
@@ -84,11 +90,42 @@ module shell_fm
                          comint_arguments, comint_substitute_in_file_name, comint_input_ring_length, &
                          set_comint_get_old_input, comint_next_prompt, comint_previous_prompt, syms_of_comint
     use compile_fm, only: cd
+    use data_fm, only: integer_setting
+    use error_fm, only: FM_WRONG_TYPE_ARGUMENT
+    use lisp_fm, only: make_string, make_list, list_elements
+    use eval_fm, only: capf_hook_type, capf_entry_type
+    use minibuf_table_fm, only: completion_table_type, completion_predicate, completion_quote_proc, capf_data_type, &
+                                completion_function_table, completion_list_table, COMPLETION_SOLE, COMPLETION_FINISHED
+    use minibuf_fm, only: complete_with_action
+    use minibuffer_fm, only: completion_in_region, completion_file_name_table, completion_at_point_functions
+    use fileio_fm, only: file_executable_p, file_directory_p, file_accessible_directory_p, file_name_as_directory
+    use dired_fm, only: file_name_all_completions
+    use search_fm, only: SEARCH_NOERROR, SEARCH_MOVE, looking_at, regexp_quote, re_search_backward, re_search_forward
+    use subr_fm, only: match_string
+    use fns_fm, only: substring, schars
+    use editfns_fm, only: eolp, char_after, delete_region
+    use frame_fm, only: selected_frame
+    use sysdep_fm, only: sys_string_type, emacs_environment
+    use comint_fm, only: comint_file_name_chars, comint_file_name_quote_list, comint_file_name_prefix, &
+                         comint_dynamic_complete_functions, comint_filename_completion, comint_completion_at_point, &
+                         comint_c_a_p_replace_by_expanded_history, comint_match_partial_filename, comint_quote_filename, &
+                         comint_directory, set_comint_completion_fignore, set_comint_quote_functions, &
+                         comint_completion_addsuffix, comint_input_autoexpand, COMINT_AUTOEXPAND_HISTORY, &
+                         COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, &
+                         comint_completion_fignore, comint_line_beginning_position
+    use pcomplete_fm, only: pcomplete_match, pcomplete_thrown, pcomplete_here, pcomplete_entries, pcomplete_ignore, &
+                            pcomplete_completions_at_point, pcomplete_parse_arguments_function, &
+                            pcomplete_termination_string, pcomplete_command_completion_function, &
+                            pcomplete_default_completion_function, pcomplete_remote_file_ignore
     implicit none(type, external)
     private
 
+    !> The values of `shell_input_autoexpand' (those of
+    !> `comint_input_autoexpand').
+    public :: COMINT_AUTOEXPAND_NIL, COMINT_AUTOEXPAND_T, COMINT_AUTOEXPAND_INPUT, COMINT_AUTOEXPAND_HISTORY
     public :: shell, shell_mode, shell_command_mode, syms_of_shell, shell_get_old_input, shell_directory_tracker, &
-              shell_unquote_argument, shell_process_cd, shell_process_pushd, shell_process_popd, shell_cd, &
+              shell_unquote_argument, shell__unquote_argument, shell_parse_pcomplete_arguments, &
+              shell_process_cd, shell_process_pushd, shell_process_popd, shell_cd, &
               shell_dirstack_message, shell_forward_command, shell_backward_command, shell_narrow_to_prompt, &
               shell_eval_command, shell_filter_ctrl_a_ctrl_b, shell_filter_ring_bell, shell_write_history_on_exit, &
               split_string_shell_command, shell_dirtrack_mode, shell_dirstack
@@ -258,6 +295,64 @@ module shell_fm
 
     !> What `shell_eval_command' collects.
     character(len=:), allocatable :: eval_result
+
+    !> List of suffixes to be disregarded during file/command completion.
+    !> This variable is used to initialize `comint_completion_fignore' in
+    !> the shell buffer.  The default is none, for compatibility with most
+    !> shells.  Some people like ["~", "#", "%"].  Port of shell.el
+    !> shell-completion-fignore.
+    character(len=8), allocatable, public :: shell_completion_fignore(:)
+
+    !> String of characters valid in a file name.
+    !> This variable is used to initialize `comint_file_name_chars' in the
+    !> shell buffer.  The value may depend on the operating system or
+    !> shell.  Port of shell.el shell-file-name-chars.
+    type(string_setting), public :: shell_file_name_chars = string_setting(name="shell_file_name_chars")
+
+    !> The characters to quote when in a file name.
+    !> This variable is used to initialize `comint_file_name_quote_list'
+    !> in the shell buffer.  The value may depend on the operating system
+    !> or shell.  Port of shell.el shell-file-name-quote-list (the
+    !> characters as a string).
+    type(string_setting), public :: shell_file_name_quote_list = string_setting(name="shell_file_name_quote_list")
+
+    !> List of functions called to perform completion.
+    !> This variable is used to initialize
+    !> `comint_dynamic_complete_functions' in the shell buffer.  Port of
+    !> shell.el shell-dynamic-complete-functions.
+    type(capf_hook_type), target, public :: shell_dynamic_complete_functions = &
+                                            capf_hook_type(name="shell_dynamic_complete_functions")
+
+    !> If true, use executable files only for completion candidates.
+    !> This mirrors the optional behavior of tcsh.
+    !>
+    !> Detecting executability of files may slow command completion
+    !> considerably.  Port of shell.el shell-completion-execonly.
+    type(logical_setting), public :: shell_completion_execonly = &
+                                     logical_setting(name="shell_completion_execonly", value=.true.)
+
+    !> If not COMINT_AUTOEXPAND_NIL, expand input command history
+    !> references on completion.  This mirrors the optional behavior of
+    !> tcsh (its autoexpand and histlit).
+    !>
+    !> If the value is COMINT_AUTOEXPAND_INPUT, then the expansion is seen
+    !> on input.  If the value is COMINT_AUTOEXPAND_HISTORY, then the
+    !> expansion is only when inserting into the buffer's input ring.  See
+    !> also `comint_magic_space' and `comint_dynamic_complete_functions'.
+    !>
+    !> This variable supplies a default for `comint_input_autoexpand', for
+    !> Shell mode only.  Port of shell.el shell-input-autoexpand.
+    type(integer_setting), public :: shell_input_autoexpand = &
+                                     integer_setting(name="shell_input_autoexpand", value=COMINT_AUTOEXPAND_HISTORY)
+
+    ! The closures of the completion data: the commands of
+    ! shell--command-completion-data, the suffix of
+    ! `shell_environment_variable_completion' and the expansion of
+    ! `shell_c_a_p_replace_by_expanded_directory'.
+    type(value_type) :: command_completions
+    character(len=:), allocatable :: variable_suffix, directory_replacement
+    integer(int64) :: directory_start = 0, directory_end = 0
+    integer :: directory_index = 0
 
 contains
 
@@ -490,6 +585,660 @@ contains
     end subroutine split_string_shell_command
 
     ! ------------------------------------------------------------------
+    ! Completion
+    ! ------------------------------------------------------------------
+
+    ! QSTR unquoted as USTR, and QUPOS the position in QSTR that
+    ! corresponds to UPOS in USTR (-1 for none).  Port of
+    ! shell.el:shell--unquote&requote-argument.
+    recursive subroutine unquote_requote_argument(qstr, upos_in, ustr, qupos)
+        character(len=*), intent(in) :: qstr
+        integer(int64), intent(in) :: upos_in
+        character(len=:), allocatable, intent(out) :: ustr
+        integer(int64), intent(out) :: qupos
+        character(len=:), allocatable :: re, value, c
+        integer(int64) :: upos, qpos, match, mend, e
+        type(status_type) :: st
+        logical :: found, dquotes
+
+        upos = upos_in
+        qpos = 0
+        ustr = ""
+        qupos = -1
+        dquotes = .false.
+        re = "[""']\|\$\(?:\([[:alpha:]][[:alnum:]]*\)\|{\(?1:[^{}]+\)}\)"
+        if (len(comint_file_name_quote_list%value) > 0) re = re//"\|\\\(.\)"
+
+        do
+            match = string_match(re, qstr, st, start=qpos + 1)
+            if (match == 0) exit
+            match = match - 1
+            mend = match_end(0, st) - 1
+            call push(substring(qstr, qpos, match), match)
+            c = substring(qstr, match, match + 1)
+
+            if (match_beginning(2, st) > 0) then
+                call push(match_string(2, qstr), mend)
+            else if (match_beginning(1, st) > 0) then
+                call getenv(match_string(1, qstr), value, found)
+                if (.not. found) value = ""
+                call push(value, -mend)
+            else if (c == """") then
+                dquotes = .not. dquotes
+            else if (c == "'") then
+                ! Treat single quote as text if inside double quotes.
+                if (dquotes) then
+                    call push("'", mend)
+                else if (match + 1 < schars(qstr)) then
+                    e = string_match("'", qstr, st, start=match + 2)
+
+                    if (e == 0) then
+                        e = schars(qstr)
+                        mend = schars(qstr)
+                    else
+                        e = e - 1
+                        mend = match_end(0, st) - 1
+                    end if
+
+                    call push(substring(qstr, match + 1, e), e)
+                end if
+            end if
+
+            qpos = mend
+        end do
+
+        call push(substring(qstr, qpos), schars(qstr))
+    contains
+
+        subroutine push(str, end)
+            character(len=*), intent(in) :: str
+            integer(int64), intent(in) :: end
+
+            ustr = ustr//str
+            upos = upos - schars(str)
+
+            if (qupos < 0 .and. upos <= 0) then
+                if (end < 0) then
+                    qupos = -end
+                else
+                    qupos = upos + end
+                end if
+            end if
+        end subroutine push
+    end subroutine unquote_requote_argument
+
+    !> STR with environment variables substituted and shell quoting
+    !> removed, as USTR (Shell mode's `comint_unquote_function').  Port of
+    !> shell.el:shell--unquote-argument.
+    recursive subroutine shell__unquote_argument(str, ustr)
+        character(len=*), intent(in) :: str
+        character(len=:), allocatable, intent(out) :: ustr
+        integer(int64) :: qupos
+
+        call unquote_requote_argument(str, 0_int64, ustr, qupos)
+    end subroutine shell__unquote_argument
+
+    !> Shell mode's `comint_requote_function'.  See
+    !> `completion_table_with_quoting'.  Port of
+    !> shell.el:shell--requote-argument.
+    recursive subroutine shell__requote_argument(upos, qstr, qpos, qfun)
+        integer(int64), intent(in) :: upos
+        character(len=*), intent(in) :: qstr
+        integer(int64), intent(out) :: qpos
+        procedure(completion_quote_proc), pointer, intent(out) :: qfun
+        character(len=:), allocatable :: ustr
+
+        call unquote_requote_argument(qstr, upos, ustr, qpos)
+        qfun => comint_quote_filename
+    end subroutine shell__requote_argument
+
+    !> Completion function for shell command names.
+    !> This is the value of `pcomplete_command_completion_function' for
+    !> Shell buffers.  It implements `shell_completion_execonly' for
+    !> `pcomplete' completion.  Port of
+    !> shell.el:shell-command-completion-function.
+    recursive subroutine shell_command_completion_function(status)
+        type(status_type), intent(out) :: status
+        logical :: slash
+
+        status = status_type()
+        slash = pcomplete_match("/")
+        if (pcomplete_thrown()) return
+
+        if (slash) then
+            if (pcomplete_here(executable_entries_form)) continue
+        else
+            if (pcomplete_here(command_names_form)) continue
+        end if
+    end subroutine shell_command_completion_function
+
+    ! (pcomplete-entries nil (if shell-completion-execonly
+    ! #'file-executable-p)) as a FORM.
+    recursive subroutine executable_entries_form(table, found)
+        type(completion_table_type), intent(out) :: table
+        logical, intent(out) :: found
+
+        if (shell_completion_execonly%value) then
+            call pcomplete_entries(table, predicate=executable_p)
+        else
+            call pcomplete_entries(table)
+        end if
+
+        found = .true.
+    end subroutine executable_entries_form
+
+    recursive logical function executable_p(file)
+        character(len=*), intent(in) :: file
+
+        executable_p = file_executable_p(file)
+    end function executable_p
+
+    ! (nth 2 (shell--command-completion-data)) as a FORM.
+    recursive subroutine command_names_form(table, found)
+        type(completion_table_type), intent(out) :: table
+        logical, intent(out) :: found
+        type(capf_data_type) :: data
+
+        call command_completion_data(data)
+        table = data%table
+        found = .true.
+    end subroutine command_names_form
+
+    !> Return the completion data for the command at point, if any.  Port
+    !> of shell.el:shell-command-completion.
+    recursive subroutine shell_command_completion(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: filename
+        type(status_type) :: st
+        integer(int64) :: opoint, command_start
+        logical :: found
+
+        status = status_type()
+        data = capf_data_type()
+        call comint_match_partial_filename(filename, found)
+        if (.not. found) return
+        if (string_match("[~/]", filename, st, inhibit_modify=.true.) > 0) return
+        opoint = point()
+        call shell_backward_command(1_int64, st)
+        command_start = point()
+        call goto_char(opoint)
+        if (match_beginning(0, st) == command_start) call command_completion_data(data)
+    end subroutine shell_command_completion
+
+    ! Return the completion data for the command at point.  Port of
+    ! shell.el:shell--command-completion-data.
+    recursive subroutine command_completion_data(data)
+        type(capf_data_type), intent(out) :: data
+        character(len=:), allocatable :: filename, filenondir, path, cwd, dir, file, ignored, expanded
+        type(process_arg_type), allocatable :: path_dirs(:)
+        type(value_type), allocatable :: comps(:), names(:), kept(:)
+        type(value_type) :: listed
+        type(status_type) :: st
+        integer :: k, j, n, colon
+        logical :: found, dup
+
+        call comint_match_partial_filename(filename, found)
+        if (.not. found) filename = ""
+
+        if (len(filename) == 0) then
+            data%start = point()
+            data%end = point()
+        else
+            data%start = match_beginning(0, st)
+            data%end = match_end(0, st)
+        end if
+
+        filenondir = file_name_nondirectory(filename)
+        ! Ignore `exec-directory', the last entry in `exec-path': the
+        ! directories of PATH, the last first.
+        call getenv("PATH", path, found)
+        allocate (path_dirs(0))
+
+        do while (len(path) > 0 .or. found)
+            found = .false.
+            colon = index(path, ":")
+
+            if (colon == 0) then
+                call push_front(path_dirs, path)
+                exit
+            end if
+
+            call push_front(path_dirs, path(1:colon - 1))
+            path = path(colon + 1:)
+            found = .true.
+        end do
+
+        call expand_file_name(default_directory(), expanded, st)
+        cwd = file_name_as_directory(expanded)
+        ignored = ""
+
+        if (allocated(comint_completion_fignore)) then
+            do k = 1, size(comint_completion_fignore)
+                if (len(ignored) > 0) ignored = ignored//"\|"
+                ignored = ignored//regexp_quote(trim(comint_completion_fignore(k)))//"\'"
+            end do
+        end if
+
+        allocate (kept(0))
+        n = 0
+
+        ! Go thru each dir in the search path, finding completions.
+        do k = 1, size(path_dirs)
+            dir = path_dirs(k)%s
+            if (len(dir) == 0) dir = "."
+            call comint_directory(dir, expanded, st)
+            dir = file_name_as_directory(expanded)
+            if (.not. file_accessible_directory_p(dir)) cycle
+            call file_name_all_completions(filenondir, dir, listed, st)
+            if (.not. st%ok()) cycle
+            call list_elements(listed, comps)
+
+            ! Go thru each completion found, to see whether it should be
+            ! used.
+            do j = 1, size(comps)
+                file = xstring(comps(j))
+                dup = member_string(kept(1:n), file)
+
+                if (.not. dup .and. len(ignored) > 0) then
+                    dup = string_match(ignored, file, st) > 0
+                end if
+
+                if (.not. dup .and. dir /= cwd) dup = file_directory_p(dir//file)
+                if (.not. dup .and. shell_completion_execonly%value) dup = .not. file_executable_p(dir//file)
+                if (dup) cycle
+                n = n + 1
+                if (n > size(kept)) call grow(kept)
+                kept(n) = make_string(file)
+            end do
+        end do
+
+        ! (push FILE completions): the newest first.
+        allocate (names(n))
+
+        do k = 1, n
+            names(k) = kept(n - k + 1)
+        end do
+
+        command_completions = make_list(names)
+        data%found = .true.
+        data%table = completion_function_table(command_table)
+        data%exit_function => command_exit
+    end subroutine command_completion_data
+
+    ! Whether STRING is one of LIST.
+    logical function member_string(list, string)
+        type(value_type), intent(in) :: list(:)
+        character(len=*), intent(in) :: string
+        integer :: k
+
+        member_string = .false.
+
+        do k = 1, size(list)
+            if (xstring(list(k)) == string .and. len(xstring(list(k))) == len(string)) then
+                member_string = .true.
+                return
+            end if
+        end do
+    end function member_string
+
+    ! Double the size of LIST.
+    subroutine grow(list)
+        type(value_type), allocatable, intent(inout) :: list(:)
+        type(value_type), allocatable :: bigger(:)
+        integer :: k
+
+        allocate (bigger(max(16, 2*size(list))))
+
+        do k = 1, size(list)
+            bigger(k) = list(k)
+        end do
+
+        call move_alloc(bigger, list)
+    end subroutine grow
+
+    ! Add S at the start of LIST.
+    subroutine push_front(list, s)
+        type(process_arg_type), allocatable, intent(inout) :: list(:)
+        character(len=*), intent(in) :: s
+        type(process_arg_type), allocatable :: grown(:)
+        integer :: k, n
+
+        n = size(list)
+        allocate (grown(n + 1))
+        grown(1)%s = s
+
+        do k = 1, n
+            call move_alloc(list(k)%s, grown(k + 1)%s)
+        end do
+
+        call move_alloc(grown, list)
+    end subroutine push_front
+
+    ! The table of shell--command-completion-data: file names for a
+    ! string with a slash, else the commands found.
+    recursive subroutine command_table(string, action, result, status, pred, suffix)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: pred
+        character(len=*), intent(in), optional :: suffix
+
+        if (index(string, "/") > 0) then
+            call completion_file_name_table(string, action, result, status, pred, suffix)
+        else
+            call complete_with_action(action, completion_list_table(command_completions), string, result, status, &
+                                      pred, suffix)
+        end if
+    end subroutine command_table
+
+    ! The `:exit_function' of shell--command-completion-data.
+    recursive subroutine command_exit(string, finished)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: finished
+        type(status_type) :: st
+
+        ! (STRING is unused.)
+        if (finished /= COMPLETION_SOLE .and. finished /= COMPLETION_FINISHED) return
+
+        if (looking_at(" ", st)) then
+            call goto_char(match_end(0, st))
+        else
+            call insert(" ", st)
+        end if
+    end subroutine command_exit
+
+    !> Dynamically complete the command at point.
+    !> This function is similar to `comint_dynamic_complete_filename',
+    !> except that it searches `exec_path' (minus trailing
+    !> `exec_directory') for completion candidates.  Note that this may
+    !> not be the same as the shell's idea of the path.
+    !>
+    !> Completion is dependent on the value of `shell_completion_execonly',
+    !> `shell_completion_fignore', plus those that affect file completion.
+    !> See Info node `Shell Options'.
+    !>
+    !> Returns true if successful.  Port of
+    !> shell.el:shell-dynamic-complete-command.
+    recursive logical function shell_dynamic_complete_command(status) result(done)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+
+        done = .false.
+        call shell_command_completion(data, status)
+        if (.not. data%found) return
+        if (.not. selected_frame%minibuffer_selected) call message("Completing command name...")
+        done = completion_in_region(data%start, data%end, data%table)
+    end function shell_dynamic_complete_command
+
+    subroutine cmd_shell_dynamic_complete_command(status)
+        type(status_type), intent(out) :: status
+        logical :: done
+
+        done = shell_dynamic_complete_command(status)
+    end subroutine cmd_shell_dynamic_complete_command
+
+    !> Return the completion data for file name at point, if any.  Port of
+    !> shell.el:shell-filename-completion.
+    recursive subroutine shell_filename_completion(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        type(status_type) :: st
+        integer(int64) :: opoint, beg, found
+        logical :: argument
+
+        status = status_type()
+        data = capf_data_type()
+        opoint = point()
+        beg = comint_line_beginning_position()
+        call re_search_backward("[;|&]", found, st, bound=beg, noerror=SEARCH_NOERROR)
+
+        if (found > 0) then
+            call goto_char(match_end(0, st))
+        else
+            call goto_char(beg)
+        end if
+
+        call re_search_forward("[^ "//achar(9)//"]["//" "//achar(9)//"]", found, st, bound=opoint, &
+                               noerror=SEARCH_NOERROR)
+        argument = found > 0
+        call goto_char(opoint)
+        if (argument) call comint_filename_completion(data, status)
+    end subroutine shell_filename_completion
+
+    !> Return the shell variable at point as VAR, FOUND false if none is
+    !> found.  The match data is that of the variable.  Port of
+    !> shell.el:shell-match-partial-variable.
+    recursive subroutine shell_match_partial_variable(var, found)
+        character(len=:), allocatable, intent(out) :: var
+        logical, intent(out) :: found
+        type(status_type) :: st
+        integer(int64) :: opoint, pos
+
+        var = ""
+        found = .false.
+        opoint = point()
+        call re_search_backward("[^A-Za-z0-9_{(]", pos, st, noerror=SEARCH_MOVE)
+
+        if (pos > 0) then
+            if (.not. looking_at("\$", st)) call goto_char(point() + 1)
+        end if
+
+        if (.not. (eolp() .or. looking_at("[^A-Za-z0-9_{($]", st))) then
+            if (looking_at("\$?[{(]?[A-Za-z0-9_]*[})]?", st)) continue
+            call buffer_substring(match_beginning(0, st), match_end(0, st), var, st)
+            found = .true.
+        end if
+
+        call goto_char(opoint)
+    end subroutine shell_match_partial_variable
+
+    !> Dynamically complete the environment variable at point.
+    !> Completes if after a variable, i.e., if it starts with a "$".
+    !>
+    !> This function is similar to `comint_dynamic_complete_filename',
+    !> except that it searches `process_environment' for completion
+    !> candidates.  Note that this may not be the same as the
+    !> interpreter's idea of variable names.  The main problem with this
+    !> type of completion is that `process_environment' is the
+    !> environment which Emacs started with.  Emacs does not track changes
+    !> to the environment made by the interpreter.  Perhaps it would be
+    !> more accurate if this function was called
+    !> `shell_dynamic_complete_process_environment_variable'.
+    !>
+    !> Returns true if successful.  Port of
+    !> shell.el:shell-dynamic-complete-environment-variable.
+    recursive logical function shell_dynamic_complete_environment_variable(status) result(done)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+
+        done = .false.
+        call shell_environment_variable_completion(data, status)
+        if (.not. data%found) return
+        if (.not. selected_frame%minibuffer_selected) call message("Completing variable name...")
+        done = completion_in_region(data%start, data%end, data%table)
+    end function shell_dynamic_complete_environment_variable
+
+    subroutine cmd_shell_dynamic_complete_environment_variable(status)
+        type(status_type), intent(out) :: status
+        logical :: done
+
+        done = shell_dynamic_complete_environment_variable(status)
+    end subroutine cmd_shell_dynamic_complete_environment_variable
+
+    !> Completion data for an environment variable at point, if any.  Port
+    !> of shell.el:shell-environment-variable-completion.
+    recursive subroutine shell_environment_variable_completion(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        type(sys_string_type), allocatable :: env(:)
+        type(value_type), allocatable :: variables(:)
+        character(len=:), allocatable :: var
+        type(status_type) :: st
+        integer(int64) :: start, end, opoint
+        integer(int32) :: c
+        integer :: k, eq
+        logical :: found, have
+
+        status = status_type()
+        data = capf_data_type()
+        call shell_match_partial_variable(var, found)
+        if (.not. found .or. len(var) == 0) return
+        if (var(1:1) /= "$") return
+        end = match_end(0, st)
+        opoint = point()
+        call goto_char(match_beginning(0, st))
+        if (looking_at("\$?[({]*", st)) continue
+        start = match_end(0, st)
+        call goto_char(opoint)
+        env = emacs_environment()
+        allocate (variables(size(env)))
+
+        do k = 1, size(env)
+            eq = index(env(k)%s, "=")
+
+            if (eq > 0) then
+                variables(k) = make_string(env(k)%s(1:eq - 1))
+            else
+                variables(k) = make_string(env(k)%s)
+            end if
+        end do
+
+        call char_after(c, have, start - 1)
+        variable_suffix = ""
+
+        if (have) then
+            if (c == iachar("{")) variable_suffix = "}"
+            if (c == iachar("(")) variable_suffix = ")"
+        end if
+
+        data%found = .true.
+        data%start = start
+        data%end = end
+        data%table = completion_list_table(make_list(variables))
+        data%exit_function => variable_exit
+    end subroutine shell_environment_variable_completion
+
+    ! The `:exit_function' of `shell_environment_variable_completion'.
+    recursive subroutine variable_exit(string, finished)
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: finished
+        character(len=:), allocatable :: suf, value, dir
+        type(status_type) :: st
+        logical :: found
+
+        if (finished /= COMPLETION_SOLE .and. finished /= COMPLETION_FINISHED) return
+        suf = variable_suffix
+        call getenv(string, value, found)
+
+        if (found) then
+            call comint_directory(value, dir, st)
+            if (st%ok() .and. file_directory_p(dir)) suf = suf//"/"
+        end if
+
+        if (looking_at(regexp_quote(suf), st)) then
+            call goto_char(match_end(0, st))
+        else
+            call insert(suf, st)
+        end if
+    end subroutine variable_exit
+
+    !> Expand directory stack reference before point.
+    !> For use on `completion_at_point_functions'.  Port of
+    !> shell.el:shell-c-a-p-replace-by-expanded-directory.
+    recursive subroutine shell_c_a_p_replace_by_expanded_directory(data, status)
+        type(capf_data_type), intent(out) :: data
+        type(status_type), intent(out) :: status
+        type(process_arg_type), allocatable :: stack(:)
+        character(len=:), allocatable :: filename, digits
+        type(status_type) :: st
+        integer(int64) :: opoint
+        integer :: index, ios
+        logical :: found
+
+        status = status_type()
+        data = capf_data_type()
+        call comint_match_partial_filename(filename, found)
+        if (.not. found) return
+        opoint = point()
+        call goto_char(match_beginning(0, st))
+        call shell_dirstack(stack)
+        index = -1
+
+        if (looking_at("=-/?", st)) then
+            index = size(stack)
+        else if (looking_at("=\([0-9]+\)/?", st)) then
+            call buffer_substring(match_beginning(1, st), match_end(1, st), digits, st)
+            read (digits, *, iostat=ios) index
+            if (ios /= 0) index = 0
+        end if
+
+        if (index >= 0) then
+            directory_start = match_beginning(0, st)
+            directory_end = match_end(0, st)
+            directory_index = index
+
+            ! (file-name-as-directory (nth index stack)), the stack being
+            ! the default directory followed by `shell_dirstack'.
+            if (index == 0) then
+                directory_replacement = file_name_as_directory(default_directory())
+            else if (index <= size(stack)) then
+                directory_replacement = file_name_as_directory(stack(index)%s)
+            else
+                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "stringp, nil")
+                call goto_char(opoint)
+                return
+            end if
+
+            data%found = .true.
+            data%perform => expand_directory
+        end if
+
+        call goto_char(opoint)
+    end subroutine shell_c_a_p_replace_by_expanded_directory
+
+    ! The function shell-c-a-p-replace-by-expanded-directory returns.
+    recursive logical function expand_directory() result(done)
+        type(status_type) :: st
+        integer(int64) :: opoint
+        character(len=20) :: number
+
+        opoint = point()
+        call goto_char(directory_start)
+        call insert(directory_replacement, st)
+        call delete_region(point(), point() + directory_end - directory_start, st)
+        ! (save-excursion keeps point after the text before it.)
+        if (opoint >= directory_end) opoint = opoint + schars(directory_replacement) - (directory_end - directory_start)
+        call goto_char(opoint)
+        write (number, "(i0)") directory_index
+        call message("Directory item: "//trim(number))
+        done = .true.
+    end function expand_directory
+
+    !> Expand directory stack reference before point.
+    !> Directory stack references are of the form "=digit" or "=-".
+    !> See `default_directory' and `shell_dirstack'.
+    !>
+    !> Returns true if successful.  Port of
+    !> shell.el:shell-replace-by-expanded-directory.
+    recursive logical function shell_replace_by_expanded_directory(status) result(done)
+        type(status_type), intent(out) :: status
+        type(capf_data_type) :: data
+
+        done = .false.
+        call shell_c_a_p_replace_by_expanded_directory(data, status)
+        if (data%found) done = data%perform()
+    end function shell_replace_by_expanded_directory
+
+    subroutine cmd_shell_replace_by_expanded_directory(status)
+        type(status_type), intent(out) :: status
+        logical :: done
+
+        done = shell_replace_by_expanded_directory(status)
+    end subroutine cmd_shell_replace_by_expanded_directory
+
+    ! ------------------------------------------------------------------
     ! The modes
     ! ------------------------------------------------------------------
 
@@ -644,10 +1393,50 @@ contains
     end subroutine shell_mode_body
 
     !> Setup completion vars for `shell_mode' and `read_shell_command'.
-    !> Port of shell.el:shell-completion-vars (the delimiters; completion
-    !> is Deferred).
+    !> Port of shell.el:shell-completion-vars.
     subroutine shell_completion_vars()
+        type(capf_entry_type), allocatable :: fns(:)
+        integer :: k
+
+        if (allocated(shell_completion_fignore)) then
+            call set_comint_completion_fignore(shell_completion_fignore)
+        else
+            call set_comint_completion_fignore([character(len=8) ::])
+        end if
+
         call comint_delimiter_argument_list%set_local(shell_delimiter_argument_list%value)
+        call comint_file_name_chars%set_local(shell_file_name_chars%value)
+        call comint_file_name_quote_list%set_local(shell_file_name_quote_list%value)
+        call comint_file_name_prefix%set_local("")
+        ! (setq-local comint-dynamic-complete-functions
+        ! shell-dynamic-complete-functions)
+        fns = shell_dynamic_complete_functions%functions()
+        call comint_dynamic_complete_functions%add(comint_filename_completion, local=.true.)
+        call comint_dynamic_complete_functions%clear()
+
+        do k = size(fns), 1, -1
+            call comint_dynamic_complete_functions%add(fns(k)%fn, local=.true.)
+        end do
+
+        call set_comint_quote_functions(shell__unquote_argument, shell__requote_argument)
+        call pcomplete_parse_arguments_function%set_local(shell_parse_pcomplete_arguments)
+
+        if (allocated(comint_completion_addsuffix%value)) then
+            call pcomplete_termination_string%set_local(comint_completion_addsuffix%value)
+        else
+            call pcomplete_termination_string%set_local("")
+        end if
+
+        call pcomplete_command_completion_function%set_local(shell_command_completion_function)
+        ! Don't use pcomplete's defaulting mechanism, rely on
+        ! `shell_dynamic_complete_functions' instead.
+        call pcomplete_default_completion_function%set_local(pcomplete_ignore)
+        ! Do not expand remote file names.
+        call pcomplete_remote_file_ignore%set_local(.true.)
+        call comint_input_autoexpand%set_local(shell_input_autoexpand%value)
+        ! Not needed in shell-mode because it's inherited from comint-mode,
+        ! but placed here for read-shell-command.
+        call completion_at_point_functions%add(comint_completion_at_point, local=.true.)
     end subroutine shell_completion_vars
 
     !> shell.el shell-font-lock-keywords: additional expressions to
@@ -1460,6 +2249,18 @@ contains
         if (.not. allocated(shell_pushd_regexp%value)) shell_pushd_regexp = "pushd"
         if (.not. allocated(shell_cd_regexp%value)) shell_cd_regexp = "cd"
         if (.not. allocated(shell_dirstack_query)) shell_dirstack_query = "dirs"
+        if (.not. allocated(shell_file_name_chars%value)) shell_file_name_chars = "[]~/A-Za-z0-9+@:_.$#%,={}-"
+        if (.not. allocated(shell_file_name_quote_list%value)) then
+            shell_file_name_quote_list = shell_delimiter_argument_list%value//" $*!""'`#\"
+        end if
+        ! (The default value, in reverse order: `add' puts a function first.)
+        call shell_dynamic_complete_functions%add(comint_filename_completion)
+        call shell_dynamic_complete_functions%add(shell_filename_completion)
+        call shell_dynamic_complete_functions%add(pcomplete_completions_at_point)
+        call shell_dynamic_complete_functions%add(shell_c_a_p_replace_by_expanded_directory)
+        call shell_dynamic_complete_functions%add(shell_command_completion)
+        call shell_dynamic_complete_functions%add(shell_environment_variable_completion)
+        call shell_dynamic_complete_functions%add(comint_c_a_p_replace_by_expanded_history)
         if (.not. allocated(explicit_csh_args)) then
             allocate (explicit_csh_args(1))
             explicit_csh_args(1)%s = "-i"
@@ -1486,6 +2287,8 @@ contains
         call add_local_variables_killer(kill_shell_locals)
         call keymap_set(shell_mode_map, "C-c C-f", "shell_forward_command", st)
         call keymap_set(shell_mode_map, "C-c C-b", "shell_backward_command", st)
+        call keymap_set(shell_mode_map, "TAB", "completion_at_point", st)
+        call keymap_set(shell_mode_map, "M-?", "comint_dynamic_list_filename_completions", st)
         if (.not. keymap_live_p(shell_repeat_map)) then
             call make_sparse_keymap(shell_repeat_map)
             call keymap_set(shell_repeat_map, "C-f", "shell_forward_command", st)
@@ -1501,6 +2304,9 @@ contains
         commands%shell_forward_command%run => cmd_shell_forward_command
         commands%shell_backward_command%run => cmd_shell_backward_command
         commands%shell_narrow_to_prompt%run => shell_narrow_to_prompt
+        commands%shell_dynamic_complete_command%run => cmd_shell_dynamic_complete_command
+        commands%shell_dynamic_complete_environment_variable%run => cmd_shell_dynamic_complete_environment_variable
+        commands%shell_replace_by_expanded_directory%run => cmd_shell_replace_by_expanded_directory
     end subroutine syms_of_shell
 
     !> Add S at the end of LIST.

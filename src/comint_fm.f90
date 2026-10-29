@@ -180,7 +180,8 @@ module comint_fm
               comint_quote_filename, comint_unquote_argument, comint_requote_argument, &
               comint_completion_file_name_table, comint_file_name_completion_data, comint_filename_completion, &
               comint_completion_at_point, comint_dynamic_complete_filename, comint_replace_by_expanded_filename, &
-              comint_dynamic_list_filename_completions, set_comint_completion_fignore
+              comint_dynamic_list_filename_completions, set_comint_completion_fignore, set_comint_quote_functions, &
+              comint_directory
     public :: comint_input_sender_proc, comint_get_old_input_proc, comint_input_filter_proc, comint_password_proc
     public :: comint_send_invisible, comint_read_noecho, comint_watch_for_password_prompt, &
               set_comint_password_function, comint_password_prompt_regexp_default
@@ -615,6 +616,10 @@ module comint_fm
         procedure(comint_password_proc), pointer, nopass :: password_function => null()
         !> comint-completion-fignore.
         character(len=8), allocatable :: completion_fignore(:)
+        !> comint-unquote-function and comint-requote-function (null for the
+        !> default values).
+        procedure(completion_unquote_proc), pointer, nopass :: unquote => null()
+        procedure(completion_requote_proc), pointer, nopass :: requote => null()
     end type comint_buffer_type
 
     !> Regexp matching prompts for passwords in the inferior process.
@@ -800,6 +805,8 @@ contains
         e%has_insert_previous_argument_last_index = .false.
         e%history_isearch_message_overlay = null_handle()
         if (allocated(e%completion_fignore)) deallocate (e%completion_fignore)
+        e%unquote => null()
+        e%requote => null()
         e%password_function => null()
         e%local = .false.
     end subroutine free_locals
@@ -3877,18 +3884,17 @@ contains
         integer(int64) :: tick
         status = status_type()
         done = .false.
-        if (.not. comint_c_a_p_replace_by_expanded_history(silent, start)) return
+        if (.not. history_references_p(silent, start)) return
         ! Looks like there might be history references in the command.
         tick = buffers(cur)%text%modiff
         call comint_replace_by_expanded_history_before_point(silent, status, start)
         done = tick /= buffers(cur)%text%modiff
     end function comint_replace_by_expanded_history
 
-    !> Whether there are input command history references at point to
-    !> expand: for use on `completion_at_point_functions', where upstream
-    !> returns the function doing the expansion.  Port of
-    !> comint.el:comint-c-a-p-replace-by-expanded-history.
-    recursive logical function comint_c_a_p_replace_by_expanded_history(silent, start) result(applies)
+    ! Whether there are input command history references at point to
+    ! expand (comint-c-a-p-replace-by-expanded-history returns the
+    ! function doing the expansion then).
+    recursive logical function history_references_p(silent, start) result(applies)
         logical, intent(in), optional :: silent
         integer(int64), intent(in), optional :: start
         type(value_type) :: field
@@ -3912,7 +3918,7 @@ contains
         if (.not. applies) return
         call comint_replace_by_expanded_history_before_point(silent, st, start, dry_run=.true., kind=kind)
         applies = kind /= DRY_RUN_NONE
-    end function comint_c_a_p_replace_by_expanded_history
+    end function history_references_p
 
     !> Expand directory stack reference before point.
     !> See `comint_replace_by_expanded_history'.
@@ -4818,6 +4824,20 @@ contains
         completions_shown = window%index /= 0
     end function completions_shown
 
+    !> Return expanded DIRECTORY, with `comint_file_name_prefix' if
+    !> absolute: EXPANDED.  Port of comint.el:comint-directory.
+    recursive subroutine comint_directory(directory, expanded, status)
+        character(len=*), intent(in) :: directory
+        character(len=:), allocatable, intent(out) :: expanded
+        type(status_type), intent(out) :: status
+
+        if (file_name_absolute_p(directory)) then
+            call expand_file_name(comint_file_name_prefix%value//directory, expanded, status)
+        else
+            call expand_file_name(directory, expanded, status)
+        end if
+    end subroutine comint_directory
+
     !> Return the word of WORD_CHARS at point as WORD, FOUND false if none
     !> is found.  Word constituents are considered to be those in
     !> WORD_CHARS, which is like the inside of a "[...]" (see
@@ -5042,11 +5062,13 @@ contains
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: table
         character(len=len(completion_ignored_extensions)) :: saved_extensions(size(completion_ignored_extensions))
+        procedure(completion_unquote_proc), pointer :: unquote
+        procedure(completion_requote_proc), pointer :: requote
         character(len=8), allocatable :: fignore(:)
         logical :: saved_case
         integer :: k, n
-        table = completion_table_with_quoting(comint_completion_file_name_table, comint_unquote_function, &
-                                              comint_requote_function)
+        call quote_functions(unquote, requote)
+        table = completion_table_with_quoting(comint_completion_file_name_table, unquote, requote)
         saved_case = completion_ignore_case%value
         saved_extensions = completion_ignored_extensions
         completion_ignore_case%value = read_file_name_completion_ignore_case
@@ -5064,6 +5086,31 @@ contains
         completion_ignore_case%value = saved_case
         completion_ignored_extensions = saved_extensions
     end subroutine file_name_table
+
+    ! The current buffer's `comint_unquote_function' and
+    ! `comint_requote_function'.
+    subroutine quote_functions(unquote, requote)
+        procedure(completion_unquote_proc), pointer, intent(out) :: unquote
+        procedure(completion_requote_proc), pointer, intent(out) :: requote
+        integer :: k
+        unquote => comint_unquote_function
+        requote => comint_requote_function
+        k = entry_of(cur)
+        if (k == 0) return
+        if (associated(comint_buffers(k)%unquote)) unquote => comint_buffers(k)%unquote
+        if (associated(comint_buffers(k)%requote)) requote => comint_buffers(k)%requote
+    end subroutine quote_functions
+
+    !> Give the current buffer its own `comint_unquote_function' and
+    !> `comint_requote_function' (setq-local), UNQUOTE and REQUOTE.
+    subroutine set_comint_quote_functions(unquote, requote)
+        procedure(completion_unquote_proc) :: unquote
+        procedure(completion_requote_proc) :: requote
+        integer :: k
+        k = local_entry()
+        comint_buffers(k)%unquote => unquote
+        comint_buffers(k)%requote => requote
+    end subroutine set_comint_quote_functions
 
     !> Give the current buffer its own `comint_completion_fignore',
     !> SUFFIXES (setq-local comint-completion-fignore).
@@ -5136,18 +5183,20 @@ contains
         if (found) call comint_file_name_completion_data(data)
     end subroutine comint_filename_completion
 
-    ! `comint_c_a_p_replace_by_expanded_history' on
-    ! `comint_dynamic_complete_functions': the function expanding the
-    ! history references, if there are any.
-    recursive subroutine capf_replace_by_expanded_history(data, status)
+    !> Expand input command history at point.
+    !> For use on `completion_at_point_functions': DATA gives the function
+    !> performing the expansion when there are history references.  Port
+    !> of comint.el:comint-c-a-p-replace-by-expanded-history (SILENT and
+    !> START false).
+    recursive subroutine comint_c_a_p_replace_by_expanded_history(data, status)
         type(capf_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         status = status_type()
         data = capf_data_type()
-        if (.not. comint_c_a_p_replace_by_expanded_history()) return
+        if (.not. history_references_p()) return
         data%found = .true.
         data%perform => perform_expand_history
-    end subroutine capf_replace_by_expanded_history
+    end subroutine comint_c_a_p_replace_by_expanded_history
 
     ! The function comint-c-a-p-replace-by-expanded-history returns.
     recursive logical function perform_expand_history() result(changed)
@@ -5303,7 +5352,7 @@ contains
         call forward_setting(comint_file_name_chars)
         call forward_setting(comint_file_name_quote_list)
         call comint_dynamic_complete_functions%add(comint_filename_completion)
-        call comint_dynamic_complete_functions%add(capf_replace_by_expanded_history)
+        call comint_dynamic_complete_functions%add(comint_c_a_p_replace_by_expanded_history)
         ! (The default value lists comint-postoutput-scroll-to-bottom
         ! before comint-watch-for-password-prompt; `add' puts a function
         ! first.)

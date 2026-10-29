@@ -84,7 +84,7 @@ module pcomplete_fm
               pcomplete_parse_arguments, pcomplete_entries, pcomplete_all_entries, pcomplete_dirs, &
               pcomplete_executables, pcomplete_dirs_or_entries, pcomplete_find_completion_function, &
               pcomplete_completions, pcomplete_completions_at_point, pcomplete_default_exit_function, &
-              pcomplete_ignore, syms_of_pcomplete, pcomplete_last, pcomplete_index, pcomplete_stub
+              pcomplete_ignore, syms_of_pcomplete
     public :: pcomplete_function_proc, pcomplete_form_proc, pcomplete_parse_proc, pcomplete_name_proc, &
               pcomplete_norm_proc, pcomplete_file_predicate
 
@@ -146,7 +146,7 @@ module pcomplete_fm
     !> Values of WHICH for `pcomplete_arg' and `pcomplete_begin': an
     !> index relative to the current argument, or the special indices
     !> `first' and `last'.
-    integer, parameter, public :: PCOMPLETE_RELATIVE = 0, PCOMPLETE_FIRST = 1, PCOMPLETE_LAST = 2
+    integer, parameter, public :: PCOMPLETE_ARG_RELATIVE = 0, PCOMPLETE_ARG_FIRST = 1, PCOMPLETE_ARG_LAST = 2
 
     ! What was thrown: nothing, `pcomplete-completions' or `pcompleted'.
     integer, parameter :: THROWN_NONE = 0, THROWN_COMPLETIONS = 1, THROWN_PCOMPLETED = 2
@@ -279,14 +279,6 @@ module pcomplete_fm
     !> pcomplete.el pcomplete-command-name-function.
     procedure(pcomplete_name_proc), pointer, public :: pcomplete_command_name_function => null()
 
-    !> The exit function to call in `pcomplete_completions_at_point'.
-    !>
-    !> This variable is bound in `pcomplete_completions_at_point', so you
-    !> can change it in order to adjust the behavior for a specific
-    !> completion, for example in a `pcomplete_try_first_hook' function.
-    !> Port of pcomplete.el pcomplete-exit-function.
-    procedure(pcomplete_exit_proc), pointer, public :: pcomplete_exit_function => null()
-
     abstract interface
         !> An exit function: run after completion of STRING, FINISHED
         !> saying how (a COMPLETION_* value).
@@ -296,6 +288,25 @@ module pcomplete_fm
             integer, intent(in) :: finished
         end subroutine pcomplete_exit_proc
     end interface
+
+    !> The exit function to call in `pcomplete_completions_at_point'.
+    !>
+    !> This variable is bound in `pcomplete_completions_at_point', so you
+    !> can change it in order to adjust the behavior for a specific
+    !> completion, for example in a `pcomplete_try_first_hook' function.
+    !> Port of pcomplete.el pcomplete-exit-function.
+    procedure(pcomplete_exit_proc), pointer, public :: pcomplete_exit_function => null()
+
+    !> The function unquoting the argument being completed
+    !> (pcomplete-unquote-argument-function).
+    procedure(completion_unquote_proc), pointer, public :: pcomplete_unquote_argument_function => comint_unquote_argument
+
+    !> The function requoting completions for the argument being
+    !> completed (pcomplete-requote-argument-function).
+    procedure(completion_requote_proc), pointer, public :: pcomplete_requote_argument_function => comint_requote_argument
+
+    ! The exit function `pcomplete_completions_at_point' was called with.
+    procedure(pcomplete_exit_proc), pointer :: capf_exit_function => null()
 
     public :: pcomplete_exit_proc
 
@@ -532,12 +543,12 @@ contains
     integer function arg_position(which, index, offset) result(n)
         integer, intent(in), optional :: which, index, offset
         integer :: w
-        w = PCOMPLETE_RELATIVE
+        w = PCOMPLETE_ARG_RELATIVE
         if (present(which)) w = which
         select case (w)
-        case (PCOMPLETE_FIRST)
+        case (PCOMPLETE_ARG_FIRST)
             n = 0
-        case (PCOMPLETE_LAST)
+        case (PCOMPLETE_ARG_LAST)
             n = pcomplete_last
         case default
             n = pcomplete_index
@@ -553,7 +564,7 @@ contains
     !> closer to the last argument.  The default value for INDEX is 0,
     !> meaning the current argument being examined.
     !>
-    !> WHICH PCOMPLETE_FIRST and PCOMPLETE_LAST give the special indices
+    !> WHICH PCOMPLETE_ARG_FIRST and PCOMPLETE_ARG_LAST give the special indices
     !> `first' and `last'.
     !>
     !> The OFFSET argument is added to/taken away from the index that will
@@ -614,7 +625,7 @@ contains
     !> pcomplete.el:pcomplete-command-name.
     recursive subroutine pcomplete_command_name(name)
         character(len=:), allocatable, intent(out) :: name
-        name = file_name_nondirectory(pcomplete_arg(which=PCOMPLETE_FIRST))
+        name = file_name_nondirectory(pcomplete_arg(which=PCOMPLETE_ARG_FIRST))
     end subroutine pcomplete_command_name
 
     !> Like `string_match', but on the current completion argument:
@@ -792,8 +803,8 @@ contains
         call move_alloc(parsed_begins, begins)
         pcomplete_last = size(args) - 1
         pcomplete_index = 0
-        pcomplete_stub = pcomplete_arg(which=PCOMPLETE_LAST)
-        begin = pcomplete_begin(which=PCOMPLETE_LAST)
+        pcomplete_stub = pcomplete_arg(which=PCOMPLETE_ARG_LAST)
+        begin = pcomplete_begin(which=PCOMPLETE_ARG_LAST)
         if (expand_p .and. begin > 0) then
             call delete_region(begin, point(), st)
             call insert(pcomplete_stub, st)
@@ -1354,14 +1365,14 @@ contains
         ! some chars removed by unquoting.
         do
             call buffer_substring(beg, end, tmp, st)
-            call comint_unquote_argument(tmp, buftext)
+            call pcomplete_unquote_argument_function(tmp, buftext)
             if (.not. (beg > argbeg .and. schars(pcomplete_stub) > schars(buftext))) exit
             beg = max(argbeg, beg - (schars(pcomplete_stub) - schars(buftext)))
         end do
         ! Try and improve our guess of `end' in case it's not point.
         do while (schars(buftext) < schars(pcomplete_stub) .and. end < point_max())
             call buffer_substring(beg, end + 1, tmp, st)
-            call comint_unquote_argument(tmp, norm)
+            call pcomplete_unquote_argument_function(tmp, norm)
             if (.not. prefix_of(norm, pcomplete_stub)) exit
             end = end + 1
             buftext = norm
@@ -1414,6 +1425,7 @@ contains
         if (.not. allocated(pcomplete_termination_string%value)) pcomplete_termination_string = " "
         if (.not. allocated(pcomplete_hosts_file%value)) pcomplete_hosts_file = "/etc/hosts"
         call forward_setting(pcomplete_termination_string)
+        call forward_setting(pcomplete_remote_file_ignore)
         pcomplete_command_completion_function%value => default_command_completion
         pcomplete_default_completion_function%value => default_default_completion
         pcomplete_parse_arguments_function%value => pcomplete_parse_buffer_arguments
