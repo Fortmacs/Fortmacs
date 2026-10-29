@@ -224,8 +224,8 @@ readme_block() {
 Elisp|#346A74|$l_done|$l_total
 GNU ELPA|#AB5043|$gnu_done|$gnu_total
 NonGNU ELPA|#BE925E|$nongnu_done|$nongnu_total
-MELPA|#4D4D4A|$melpa_done|$melpa_total"
-    pie_svg pie "#4D4D4A" "#D6D6D3" "$parts"
+MELPA|#D6D6D3|$melpa_done|$melpa_total"
+    pie_svg pie "#1A1A1A" "#1A1A1A" "$parts"
     pie_svg pie-dark "#D6D6D3" "#D6D6D3" "$parts"
     echo "**Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still"
     echo "missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far."

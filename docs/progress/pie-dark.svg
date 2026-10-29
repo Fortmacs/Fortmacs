@@ -19,7 +19,7 @@
 <text x="294" y="104" fill="#D6D6D3">NonGNU ELPA</text>
 <text x="516" y="104" fill="#D6D6D3" text-anchor="end">0 of 293</text>
 <text x="262" y="130" fill="#D6D6D3" text-anchor="end">0.00%</text>
-<rect x="272" y="119" width="14" height="14" rx="2" fill="#4D4D4A" stroke="#D6D6D3" stroke-width="1"/>
+<rect x="272" y="119" width="14" height="14" rx="2" fill="#D6D6D3" stroke="#D6D6D3" stroke-width="1"/>
 <text x="294" y="130" fill="#D6D6D3">MELPA</text>
 <text x="516" y="130" fill="#D6D6D3" text-anchor="end">0 of 6,333</text>
 <text x="262" y="156" fill="#D6D6D3" text-anchor="end">≆96.62%</text>
