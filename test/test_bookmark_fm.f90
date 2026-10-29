@@ -377,7 +377,7 @@ contains
         call symbol_value(sym("bookmark_history"), history, st)
         call check(error, list_length(history) == 1, "one element")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(history, 0_int64)), "foo")
+        call check(error, xstring(list_elt(history, 1_int64)), "foo")
     end subroutine test_maybe_historicize_string
 
     !> The record made at position 3 of the example file.
