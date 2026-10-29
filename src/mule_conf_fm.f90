@@ -57,55 +57,55 @@ contains
     subroutine syms_of_mule_conf()
         if (.not. allocated(password_word_equivalents)) then
             password_word_equivalents = [character(len=48) :: &
-                                        "password", &
-                                        "passcode", &
-                                        "passphrase", &
-                                        "pass phrase", &
-                                        "pin", &
-                                        "decryption key", &
-                                        "encryption key", &  ! From ccrypt.
-                                        "암호", &  ! ko
-                                        "パスワード", &  ! ja
-                                        "ପ୍ରବେଶ ସଙ୍କେତ", &  ! or
-                                        "ពាក្យសម្ងាត់", &  ! km
-                                        "adgangskode", &  ! da
-                                        "contraseña", &  ! es
-                                        "contrasenya", &  ! ca
-                                        "geslo", &  ! sl
-                                        "hasło", &  ! pl
-                                        "heslo", &  ! cs, sk
-                                        "iphasiwedi", &  ! zu
-                                        "jelszó", &  ! hu
-                                        "lösenord", &  ! sv
-                                        "lozinka", &  ! hr, sr
-                                        "mật khẩu", &  ! vi
-                                        "mot de passe", &  ! fr
-                                        "parola", &  ! tr
-                                        "pasahitza", &  ! eu
-                                        "passord", &  ! nb
-                                        "passwort", &  ! de
-                                        "pasvorto", &  ! eo
-                                        "salasana", &  ! fi
-                                        "senha", &  ! pt
-                                        "slaptažodis", &  ! lt
-                                        "wachtwoord", &  ! nl
-                                        "كلمة السر", &  ! ar
-                                        "ססמה", &  ! he
-                                        "лозинка", &  ! sr
-                                        "пароль", &  ! kk, ru, uk
-                                        "गुप्तशब्द", &  ! mr
-                                        "शब्दकूट", &  ! hi
-                                        "પાસવર્ડ", &  ! gu
-                                        "సంకేతపదము", &  ! te
-                                        "ਪਾਸਵਰਡ", &  ! pa
-                                        "ಗುಪ್ತಪದ", &  ! kn
-                                        "கடவுச்சொல்", &  ! ta
-                                        "അടയാളവാക്ക്", &  ! ml
-                                        "গুপ্তশব্দ", &  ! as
-                                        "পাসওয়ার্ড", &  ! bn_IN
-                                        "රහස්පදය", &  ! si
-                                        "密码", &  ! zh_CN
-                                        "密碼"]  ! zh_TW
+                                         "password", &
+                                         "passcode", &
+                                         "passphrase", &
+                                         "pass phrase", &
+                                         "pin", &
+                                         "decryption key", &
+                                         "encryption key", &  ! From ccrypt.
+                                         "암호", &  ! ko
+                                         "パスワード", &  ! ja
+                                         "ପ୍ରବେଶ ସଙ୍କେତ", &  ! or
+                                         "ពាក្យសម្ងាត់", &  ! km
+                                         "adgangskode", &  ! da
+                                         "contraseña", &  ! es
+                                         "contrasenya", &  ! ca
+                                         "geslo", &  ! sl
+                                         "hasło", &  ! pl
+                                         "heslo", &  ! cs, sk
+                                         "iphasiwedi", &  ! zu
+                                         "jelszó", &  ! hu
+                                         "lösenord", &  ! sv
+                                         "lozinka", &  ! hr, sr
+                                         "mật khẩu", &  ! vi
+                                         "mot de passe", &  ! fr
+                                         "parola", &  ! tr
+                                         "pasahitza", &  ! eu
+                                         "passord", &  ! nb
+                                         "passwort", &  ! de
+                                         "pasvorto", &  ! eo
+                                         "salasana", &  ! fi
+                                         "senha", &  ! pt
+                                         "slaptažodis", &  ! lt
+                                         "wachtwoord", &  ! nl
+                                         "كلمة السر", &  ! ar
+                                         "ססמה", &  ! he
+                                         "лозинка", &  ! sr
+                                         "пароль", &  ! kk, ru, uk
+                                         "गुप्तशब्द", &  ! mr
+                                         "शब्दकूट", &  ! hi
+                                         "પાસવર્ડ", &  ! gu
+                                         "సంకేతపదము", &  ! te
+                                         "ਪਾਸਵਰਡ", &  ! pa
+                                         "ಗುಪ್ತಪದ", &  ! kn
+                                         "கடவுச்சொல்", &  ! ta
+                                         "അടയാളവാക്ക്", &  ! ml
+                                         "গুপ্তশব্দ", &  ! as
+                                         "পাসওয়ার্ড", &  ! bn_IN
+                                         "රහස්පදය", &  ! si
+                                         "密码", &  ! zh_CN
+                                         "密碼"]  ! zh_TW
         end if
         if (.not. allocated(password_colon_equivalents)) then
             password_colon_equivalents = [int(z'003a', int32), & ! COLON

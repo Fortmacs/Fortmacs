@@ -32,7 +32,7 @@ module auth_source_fm
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use error_fm, only: status_type, set_error, FM_GENERIC_ERROR
     use handle_fm, only: handle_type
-    use lisp_fm, only: nil, make_string
+    use lisp_fm, only: nil, make_string, list
     use lread_fm, only: sym
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_live_p, erase_buffer
     use editfns_fm, only: buffer_size
@@ -92,7 +92,7 @@ contains
             if (password_hidden) then
                 call put_text_property(i + beg, i + beg + 1, sym("display"), make_string(buf(1:nbytes)), st)
             else
-                call remove_list_of_text_properties(i + beg, i + beg + 1, [sym("display")], changed, st)
+                call remove_list_of_text_properties(i + beg, i + beg + 1, list(sym("display")), changed, st)
             end if
             call put_text_property(i + beg, i + beg + 1, sym("help_echo"), &
                                    make_string("C-u: Clear password"//achar(10)//"TAB: Toggle password visibility"), st)

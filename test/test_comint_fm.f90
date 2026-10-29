@@ -368,8 +368,8 @@ contains
         integer :: k
         call init_bindings()
         do k = 1, size(strings)
-            call check(error, string_match(comint_password_prompt_regexp, strings(k)(1:lengths(k)), st) > 0, &
-                       "matches: "//strings(k)(1:lengths(k)))
+            call check(error, string_match(comint_password_prompt_regexp, strings(k) (1:lengths(k)), st) > 0, &
+                       "matches: "//strings(k) (1:lengths(k)))
             if (allocated(error)) return
         end do
     end subroutine test_password_regexp
@@ -395,7 +395,7 @@ contains
         call show_alone()
         call set_comint_password_function(password_function)
         call discard_input()
-        call kbd_store_bytes("non-nil"//achar(13))
+        call type_text("non-nil"//achar(13))
         call comint_send_invisible(st, "Password: ")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) then
@@ -445,4 +445,17 @@ contains
         password = ""
         found = len(prompt) < 0
     end subroutine ignore_password
+    !> Queue TEXT as input events (for the minibuffer).
+    subroutine type_text(text)
+        use lisp_fm, only: value_type, make_fixnum
+        use keyboard_fm, only: unread_command_events
+        character(len=*), intent(in) :: text
+        type(value_type), allocatable :: evs(:)
+        integer :: i
+        allocate (evs(len(text)))
+        do i = 1, len(text)
+            evs(i) = make_fixnum(int(iachar(text(i:i)), int64))
+        end do
+        call unread_command_events(evs)
+    end subroutine type_text
 end module test_comint_fm

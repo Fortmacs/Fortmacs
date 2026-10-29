@@ -1260,7 +1260,7 @@ module docstrings_fm
                                                                     "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(520) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(523) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1332,6 +1332,7 @@ module docstrings_fm
                                                                       "comint_move_point_for_matching_input", &
                                                                       "comint_move_point_for_output", &
                                                                       "comint_pager", &
+                                                                      "comint_password_prompt_regexp", &
                                                                       "comint_process_echoes", &
                                                                       "comint_prompt_read_only", &
                                                                       "comint_scroll_show_maximum_output", &
@@ -1623,6 +1624,8 @@ module docstrings_fm
                                                                       "paragraph_separate", &
                                                                       "paragraph_start", &
                                                                       "parse_sexp_ignore_comments", &
+                                                                      "password_colon_equivalents", &
+                                                                      "password_word_equivalents", &
                                                                       "pop_up_windows", &
                                                                       "prog_mode_hook", &
                                                                       "query_replace_from_history_variable", &
@@ -14354,6 +14357,7 @@ contains
         case ("comint_password_prompt_regexp")
             entry%file = "comint_fm.f90"
             entry%fortran = "comint_password_prompt_regexp"
+            entry%user_option = .true.
             if (allocated(comint_password_prompt_regexp)) then
                 entry%value = repr(comint_password_prompt_regexp)
             else
@@ -20205,6 +20209,7 @@ contains
         case ("password_colon_equivalents")
             entry%file = "mule_conf_fm.f90"
             entry%fortran = "password_colon_equivalents"
+            entry%user_option = .true.
             if (allocated(password_colon_equivalents)) then
                 entry%value = repr(password_colon_equivalents)
             else
@@ -20215,6 +20220,7 @@ contains
         case ("password_word_equivalents")
             entry%file = "mule_conf_fm.f90"
             entry%fortran = "password_word_equivalents"
+            entry%user_option = .true.
             if (allocated(password_word_equivalents)) then
                 entry%value = repr(password_word_equivalents)
             else
@@ -23502,6 +23508,8 @@ contains
         case ("comint_pager")
             kind = OPTION_STRING
             setting = .true.
+        case ("comint_password_prompt_regexp")
+            kind = OPTION_STRING
         case ("comint_process_echoes")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -25340,6 +25348,8 @@ contains
             else
                 comint_pager = v
             end if
+        case ("comint_password_prompt_regexp")
+            comint_password_prompt_regexp = v
         case ("comint_terminfo_terminal")
             if (local) then
                 call comint_terminfo_terminal%set_local(v)
