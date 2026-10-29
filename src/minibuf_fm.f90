@@ -45,6 +45,7 @@ module minibuf_fm
                        xsymbol, symbols, nsymbols, V_LIST, vtag
     use lread_fm, only: intern_soft
     use fns_fm, only: compare_strings, COMPARE_EQUAL, schars, substring
+    use search_fm, only: string_match, match_end, regexp_quote
     use lread_fm, only: sym
     use data_fm, only: set, symbol_value, kill_all_local_variables, logical_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, get_buffer_create, &
@@ -64,7 +65,7 @@ module minibuf_fm
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
               minibufferp, abort_minibuffers, init_minibuf, minibuffer_innermost_command_loop_p, &
               innermost_minibuffer_p, minibuffer_depth_of, minibuffer_setup_proc
-    public :: quoting_table_call
+    public :: quoting_table_call, complete_with_action, completion_table_subvert, completion_table_with_predicate
     public :: try_completion, all_completions, test_completion, completion_list_table, &
               completion_obarray_table, completion_function_table, completion_predicate, &
               completion_function, completion_table_type, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
@@ -169,6 +170,9 @@ module minibuf_fm
     !> default) to the history list, so that it is the list's first
     !> element (what read-file-name tests with `eq').
     logical, public, protected :: history_added = .false.
+
+    ! The predicates `both_preds' combines (completion_table_with_predicate).
+    procedure(completion_predicate), pointer :: and_pred1 => null(), and_pred2 => null()
 
 contains
 
@@ -1108,4 +1112,184 @@ contains
         end do
         result = make_list(quoted)
     end subroutine twq_all
+
+    !> Perform completion according to ACTION.
+    !> STRING, TABLE and PREDICATE are used as in `try_completion'.
+    !>
+    !> If TABLE is a function, it will be called directly to perform
+    !> completion, no matter what ACTION is.
+    !>
+    !> If ACTION is COMPLETE_BOUNDARIES, return nil (the default
+    !> boundaries) for other tables.  If ACTION is COMPLETE_TRY, this
+    !> works like `try_completion'; if it is COMPLETE_ALL, like
+    !> `all_completions'; and COMPLETE_TEST makes it work like
+    !> `test_completion'.  Port of minibuffer.el:complete-with-action.
+    recursive subroutine complete_with_action(action, table, string, result, status, predicate, suffix)
+        integer, intent(in) :: action
+        type(completion_table_type), intent(in) :: table
+        character(len=*), intent(in) :: string
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        character(len=*), intent(in), optional :: suffix
+        status = status_type()
+        result = nil()
+        if (table%kind == TABLE_FUNCTION) then
+            call table%fn(string, action, result, status, predicate, suffix)
+            return
+        end if
+        if (table%kind == TABLE_QUOTING) then
+            call quoting_table_call(table, string, action, result, status, predicate, suffix)
+            return
+        end if
+        select case (action)
+        case (COMPLETE_TRY)
+            call try_completion(string, table, result, status, predicate)
+        case (COMPLETE_ALL)
+            call all_completions(string, table, result, status, predicate)
+        case (COMPLETE_TEST)
+            if (test_completion(string, table, predicate)) result = t_value()
+        case default
+            continue
+        end select
+    end subroutine complete_with_action
+
+    !> Complete with TABLE, with S1 replaced by S2: strings of the form
+    !> (concat S1 S) complete in the same way as TABLE completes strings
+    !> of the form (concat S2 S).  ACTION, STRING, RESULT, PREDICATE and
+    !> SUFFIX are those of a function table.  Port of the lambda of
+    !> minibuffer.el:completion-table-subvert.
+    recursive subroutine completion_table_subvert(table, s1, s2, string, action, result, status, predicate, suffix)
+        type(completion_table_type), intent(in) :: table
+        character(len=*), intent(in) :: s1, s2, string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        character(len=*), intent(in), optional :: suffix
+        type(value_type) :: res
+        type(value_type), allocatable :: elts(:), kept(:)
+        character(len=:), allocatable :: str, re, c
+        integer(int64) :: beg, bstart, bend, n, k
+        logical :: has_str
+        status = status_type()
+        result = nil()
+        has_str = prefix_p(s1, string, completion_ignore_case%value)
+        res = nil()
+        if (has_str) then
+            str = s2//substring(string, schars(s1))
+            call complete_with_action(action, table, str, res, status, predicate, suffix)
+            if (.not. status%ok()) return
+        end if
+        if (action == COMPLETE_BOUNDARIES) then
+            beg = 0
+            if (list_length(res) == 2) then
+                if (fixnump(list_elt(res, 1_int64))) beg = xfixnum(list_elt(res, 1_int64))
+                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                              list_elt(res, 2_int64))
+            else
+                result = list(make_fixnum(min(schars(string), max(schars(s1), beg + schars(s1) - schars(s2)))), &
+                              nil())
+            end if
+            return
+        end if
+        if (nilp(res)) return
+        if (stringp(res)) then
+            if (prefix_p(s2, xstring(res), completion_ignore_case%value)) then
+                result = make_string(s1//substring(xstring(res), schars(s2)))
+            end if
+        else if (action == COMPLETE_ALL) then
+            call inner_boundaries(table, str, "", bstart, bend, predicate)
+            if (bstart >= schars(s2)) then
+                result = res
+            else
+                re = "\`"//regexp_quote(substring(s2, bstart))
+                call list_elements(res, elts)
+                allocate (kept(size(elts)))
+                n = 0
+                do k = 1, size(elts)
+                    c = xstring(elts(k))
+                    if (string_match(re, c, status) > 0) then
+                        n = n + 1
+                        kept(n) = make_string(substring(c, match_end(0, status) - 1))
+                    end if
+                end do
+                status = status_type()
+                result = make_list(kept(1:n))
+            end if
+        else
+            ! E.g. action=nil and it's the only completion.
+            result = res
+        end if
+    end subroutine completion_table_subvert
+
+    !> Complete with TABLE filtered through PRED1: PRED1 is a function of
+    !> one argument which returns true if and only if the argument is an
+    !> element of TABLE which should be considered for completion.
+    !> STRING, PREDICATE (PRED2) and ACTION are the usual arguments to
+    !> completion tables.  If STRICT is true, the predicate always
+    !> applies; if false it only applies if it does not reduce the set of
+    !> possible completions to nothing.  Note: TABLE needs to be a proper
+    !> completion table which obeys predicates.  Port of
+    !> minibuffer.el:completion-table-with-predicate.
+    recursive subroutine completion_table_with_predicate(table, pred1, strict, string, action, result, status, &
+                                                         predicate, suffix)
+        type(completion_table_type), intent(in) :: table
+        procedure(completion_predicate), optional :: pred1
+        logical, intent(in) :: strict
+        character(len=*), intent(in) :: string
+        integer, intent(in) :: action
+        type(value_type), intent(out) :: result
+        type(status_type), intent(out) :: status
+        procedure(completion_predicate), optional :: predicate
+        character(len=*), intent(in), optional :: suffix
+        procedure(completion_predicate), pointer :: saved1, saved2
+        status = status_type()
+        result = nil()
+        if (.not. strict .and. action == COMPLETE_TEST) then
+            ! Ignore pred1 since it doesn't really have to apply anyway.
+            if (test_completion(string, table, predicate)) result = t_value()
+            return
+        end if
+        if (present(pred1) .and. present(predicate)) then
+            ! Call `pred1' first, so that `pred2' really can't tell that
+            ! `x' is in table.
+            saved1 => and_pred1
+            saved2 => and_pred2
+            and_pred1 => pred1
+            and_pred2 => predicate
+            call complete_with_action(action, table, string, result, status, both_preds, suffix)
+            and_pred1 => saved1
+            and_pred2 => saved2
+        else if (present(pred1)) then
+            call complete_with_action(action, table, string, result, status, pred1, suffix)
+        else
+            call complete_with_action(action, table, string, result, status, predicate, suffix)
+        end if
+        if (.not. status%ok()) return
+        ! If completion failed and we're not applying pred1 strictly, try
+        ! again without pred1.
+        if (nilp(result) .and. .not. strict .and. present(pred1)) then
+            call complete_with_action(action, table, string, result, status, predicate, suffix)
+        end if
+    end subroutine completion_table_with_predicate
+
+    ! Both predicates of `completion_table_with_predicate'.
+    recursive logical function both_preds(elt)
+        type(value_type), intent(in) :: elt
+        procedure(completion_predicate), pointer :: p2
+        p2 => and_pred2
+        both_preds = and_pred1(elt)
+        if (both_preds) both_preds = p2(elt)
+    end function both_preds
+
+    ! Whether PREFIX is a prefix of STRING, ignoring case if IGNORE_CASE
+    ! (string-prefix-p).
+    logical function prefix_p(prefix, string, ignore_case)
+        character(len=*), intent(in) :: prefix, string
+        logical, intent(in) :: ignore_case
+        prefix_p = .false.
+        if (schars(prefix) > schars(string)) return
+        prefix_p = compare_strings(prefix, substring(string, 0_int64, schars(prefix)), ignore_case) == COMPARE_EQUAL
+    end function prefix_p
 end module minibuf_fm
