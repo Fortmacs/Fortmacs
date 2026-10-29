@@ -1,0 +1,20 @@
+! Fortmacs bookmarks -*- coding: utf-8-emacs -*-
+! (The bookmark-resources/test-list.bmk of GNU Emacs's bookmark-tests.el,
+! in namelist syntax.)
+&bookmark
+ bookmark(1)%name = "name-0",
+ bookmark(1)%filename = "/some/file-0",
+ bookmark(1)%front_context_string = "abc",
+ bookmark(1)%rear_context_string = "def",
+ bookmark(1)%position = 3,
+ bookmark(2)%name = "name-1",
+ bookmark(2)%filename = "/some/file-1",
+ bookmark(2)%front_context_string = "abc",
+ bookmark(2)%rear_context_string = "def",
+ bookmark(2)%position = 3,
+ bookmark(3)%name = "name-2",
+ bookmark(3)%filename = "/some/file-2",
+ bookmark(3)%front_context_string = "abc",
+ bookmark(3)%rear_context_string = "def",
+ bookmark(3)%position = 3,
+/

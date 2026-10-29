@@ -58,6 +58,7 @@ module sysdep_fm
                             TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                             TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
                             VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, &
+                            c_clock_gettime, CLOCK_REALTIME, &
                             c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
                             IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
                             IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
@@ -98,6 +99,7 @@ module sysdep_fm
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
     public :: emacs_spawn_async, child_setup_tty, emacs_kill, ignore_sigpipe, emacs_write_nonblock, &
               set_nonblocking, emacs_dup_cloexec, inputs_available, emacs_num_processors, emacs_time, &
+              emacs_clock_realtime, &
               emacs_localtime_wday
     public :: inotify_raw_event_type, emacs_inotify_init, emacs_inotify_add_watch, emacs_inotify_rm_watch, &
               emacs_inotify_read
@@ -1245,6 +1247,21 @@ contains
     integer(int64) function emacs_time()
         emacs_time = c_time(c_null_ptr)
     end function emacs_time
+
+    !> The current time as seconds and nanoseconds since the epoch
+    !> (clock_gettime(2) with CLOCK_REALTIME; gnulib current_timespec).
+    subroutine emacs_clock_realtime(sec, nsec)
+        integer(int64), intent(out) :: sec
+        integer(int32), intent(out) :: nsec
+        type(timespec_type) :: ts
+        if (c_clock_gettime(CLOCK_REALTIME, ts) /= 0) then
+            sec = c_time(c_null_ptr)
+            nsec = 0
+        else
+            sec = ts%tv_sec
+            nsec = int(ts%tv_nsec, int32)
+        end if
+    end subroutine emacs_clock_realtime
 
     !> The local time of `seconds' since the epoch: year, month (1-12),
     !> day, hour, minute, second and weekday (0 for Sunday).

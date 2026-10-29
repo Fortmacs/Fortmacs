@@ -27,6 +27,7 @@ module face_table_fm
     use faces_fm, only: named_face_type
     use faces_fm, only: bold
     use faces_fm, only: bold_italic
+    use bookmark_fm, only: bookmark_face
     use faces_fm, only: border
     use add_log_fm, only: change_log_acknowledgment
     use add_log_fm, only: change_log_conditionals
@@ -196,6 +197,7 @@ module face_table_fm
     type :: face_table_type
         type(named_face_type), pointer :: bold => bold
         type(named_face_type), pointer :: bold_italic => bold_italic
+        type(named_face_type), pointer :: bookmark_face => bookmark_face
         type(named_face_type), pointer :: border => border
         type(named_face_type), pointer :: change_log_acknowledgment => change_log_acknowledgment
         type(named_face_type), pointer :: change_log_conditionals => change_log_conditionals

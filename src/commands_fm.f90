@@ -71,6 +71,24 @@ module commands_fm
         type(command_type) :: beginning_of_line
         type(command_type) :: beginning_of_line_text
         type(command_type) :: blink_matching_open
+        type(command_type) :: bookmark_delete
+        type(command_type) :: bookmark_delete_all
+        type(command_type) :: bookmark_edit_annotation_cancel
+        type(command_type) :: bookmark_edit_annotation_confirm
+        type(command_type) :: bookmark_edit_annotation_mode
+        type(command_type) :: bookmark_insert
+        type(command_type) :: bookmark_insert_location
+        type(command_type) :: bookmark_jump
+        type(command_type) :: bookmark_jump_other_window
+        type(command_type) :: bookmark_load
+        type(command_type) :: bookmark_locate
+        type(command_type) :: bookmark_relocate
+        type(command_type) :: bookmark_rename
+        type(command_type) :: bookmark_save
+        type(command_type) :: bookmark_set
+        type(command_type) :: bookmark_set_no_overwrite
+        type(command_type) :: bookmark_write
+        type(command_type) :: bookmark_yank_word
         type(command_type) :: buffer_to_register
         type(command_type) :: bury_buffer
         type(command_type) :: call_last_kbd_macro
@@ -765,7 +783,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(727) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(745) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -805,6 +823,24 @@ module commands_fm
                                                                  "beginning_of_line", &
                                                                  "beginning_of_line_text", &
                                                                  "blink_matching_open", &
+                                                                 "bookmark_delete", &
+                                                                 "bookmark_delete_all", &
+                                                                 "bookmark_edit_annotation_cancel", &
+                                                                 "bookmark_edit_annotation_confirm", &
+                                                                 "bookmark_edit_annotation_mode", &
+                                                                 "bookmark_insert", &
+                                                                 "bookmark_insert_location", &
+                                                                 "bookmark_jump", &
+                                                                 "bookmark_jump_other_window", &
+                                                                 "bookmark_load", &
+                                                                 "bookmark_locate", &
+                                                                 "bookmark_relocate", &
+                                                                 "bookmark_rename", &
+                                                                 "bookmark_save", &
+                                                                 "bookmark_set", &
+                                                                 "bookmark_set_no_overwrite", &
+                                                                 "bookmark_write", &
+                                                                 "bookmark_yank_word", &
                                                                  "buffer_to_register", &
                                                                  "bury_buffer", &
                                                                  "call_last_kbd_macro", &
@@ -1581,6 +1617,42 @@ contains
             p => commands%beginning_of_line_text
         case ("blink_matching_open")
             p => commands%blink_matching_open
+        case ("bookmark_delete")
+            p => commands%bookmark_delete
+        case ("bookmark_delete_all")
+            p => commands%bookmark_delete_all
+        case ("bookmark_edit_annotation_cancel")
+            p => commands%bookmark_edit_annotation_cancel
+        case ("bookmark_edit_annotation_confirm")
+            p => commands%bookmark_edit_annotation_confirm
+        case ("bookmark_edit_annotation_mode")
+            p => commands%bookmark_edit_annotation_mode
+        case ("bookmark_insert")
+            p => commands%bookmark_insert
+        case ("bookmark_insert_location")
+            p => commands%bookmark_insert_location
+        case ("bookmark_jump")
+            p => commands%bookmark_jump
+        case ("bookmark_jump_other_window")
+            p => commands%bookmark_jump_other_window
+        case ("bookmark_load")
+            p => commands%bookmark_load
+        case ("bookmark_locate")
+            p => commands%bookmark_locate
+        case ("bookmark_relocate")
+            p => commands%bookmark_relocate
+        case ("bookmark_rename")
+            p => commands%bookmark_rename
+        case ("bookmark_save")
+            p => commands%bookmark_save
+        case ("bookmark_set")
+            p => commands%bookmark_set
+        case ("bookmark_set_no_overwrite")
+            p => commands%bookmark_set_no_overwrite
+        case ("bookmark_write")
+            p => commands%bookmark_write
+        case ("bookmark_yank_word")
+            p => commands%bookmark_yank_word
         case ("buffer_to_register")
             p => commands%buffer_to_register
         case ("bury_buffer")

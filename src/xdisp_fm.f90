@@ -50,10 +50,11 @@
 !> expanded by fixed code (no mode-line-format interpretation; coding
 !> systems shown as UUU:, no base-line cache for %l), character widths
 !> follow a built-in table of wide ranges (no char-width-table), there
-!> are no display tables, display specs other than strings and spaces
+!> are no display tables, display specs other than strings, spaces and
+!> fringe specs (whose text a terminal does not show)
 !> (images, margins, `raise', `height' and the like), text properties
 !> in display strings and in overlay strings other than `face',
-!> `cursor' (an integer) and a `(space ...)' `display' spec, faces in
+!> `cursor' (an integer) and `(space ...)' and fringe `display' specs, faces in
 !> echo-area messages, bidi or
 !> truncate-lines
 !> (truncate-partial-width-windows is Deferred: narrow side-by-side
@@ -735,6 +736,11 @@ contains
                     else
                         call hide(endpos)
                     end if
+                else if (fringe_spec(disp)) then
+                    ! A terminal has no fringes: the text is not shown.
+                    endpos = next_single_char_property_change(p, sym("display"), zv)
+                    call load_overlay_strings(p, s%items)
+                    call hide(endpos)
                 else if (space_spec(disp, width, align_to)) then
                     endpos = next_single_char_property_change(p, sym("display"), zv)
                     call load_overlay_strings(p, s%items)
@@ -920,6 +926,12 @@ contains
         call multibyte_chars_in_text(xstring(string), nchars, st)
         pos = 0
         do k = 1, size(starts)
+            if (fringe_spec(textget(plists(k), sym("display")))) then
+                ! Not shown on a terminal, which has no fringes.
+                call push_text(pos, starts(k))
+                pos = ends(k)
+                cycle
+            end if
             if (.not. space_spec(textget(plists(k), sym("display")), width, align_to)) cycle
             call push_text(pos, starts(k))
             call push_item(items, ITEM_STRETCH, "", width, align_to)
@@ -1052,6 +1064,21 @@ contains
             end if
         end function number_of
     end function space_spec
+
+    !> Whether display property value V is a `(left_fringe BITMAP [FACE])'
+    !> or `(right_fringe BITMAP [FACE])' spec.  On a terminal, which has
+    !> no fringes, the text with such a property is not displayed (the
+    !> !FRAME_WINDOW_P case of the fringe part of
+    !> xdisp.c:handle_single_display_spec).
+    logical function fringe_spec(v) result(is_fringe)
+        type(value_type), intent(in) :: v
+        type(value_type), allocatable :: elts(:)
+        is_fringe = .false.
+        if (.not. consp(v)) return
+        call list_elements(v, elts)
+        if (size(elts) < 2) return
+        is_fringe = value_eq(elts(1), sym("left_fringe")) .or. value_eq(elts(1), sym("right_fringe"))
+    end function fringe_spec
 
     !> What comes next from `s' in buffer slot `bi' (without moving
     !> past it), handling the properties at stops on the way.
