@@ -2061,6 +2061,8 @@ contains
         call keymap_set(help_map, "x", "describe_command", status)
         call keymap_set(help_map, "q", "help_quit", status)
         call keymap_set(help_map, "r", "info_emacs_manual", status)
+        call keymap_set(help_map, "R", "info_display_manual", status)
+        call keymap_set(help_map, "S", "info_lookup_symbol", status)
         call key_parse("C-h", key, status)
         call define_key(global_map, key, make_keymap_ref(help_map), status)
         call key_parse("<help>", key, status)

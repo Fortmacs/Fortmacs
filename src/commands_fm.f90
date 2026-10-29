@@ -605,6 +605,7 @@ module commands_fm
         type(command_type) :: info_backward_node
         type(command_type) :: info_copy_current_node_name
         type(command_type) :: info_directory
+        type(command_type) :: info_display_manual
         type(command_type) :: info_emacs_bug
         type(command_type) :: info_emacs_manual
         type(command_type) :: info_final_node
@@ -622,6 +623,9 @@ module commands_fm
         type(command_type) :: info_index_next
         type(command_type) :: info_last_menu_item
         type(command_type) :: info_last_preorder
+        type(command_type) :: info_lookup_file
+        type(command_type) :: info_lookup_reset
+        type(command_type) :: info_lookup_symbol
         type(command_type) :: info_menu
         type(command_type) :: info_mode
         type(command_type) :: info_next
@@ -1059,7 +1063,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1021) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(1025) = [character(len=43) :: &
                                                                   "abbrev_mode", &
                                                                   "abbrev_prefix_mark", &
                                                                   "abort_minibuffers", &
@@ -1633,6 +1637,7 @@ module commands_fm
                                                                   "info_backward_node", &
                                                                   "info_copy_current_node_name", &
                                                                   "info_directory", &
+                                                                  "info_display_manual", &
                                                                   "info_emacs_bug", &
                                                                   "info_emacs_manual", &
                                                                   "info_final_node", &
@@ -1650,6 +1655,9 @@ module commands_fm
                                                                   "info_index_next", &
                                                                   "info_last_menu_item", &
                                                                   "info_last_preorder", &
+                                                                  "info_lookup_file", &
+                                                                  "info_lookup_reset", &
+                                                                  "info_lookup_symbol", &
                                                                   "info_menu", &
                                                                   "info_mode", &
                                                                   "info_next", &
@@ -3237,6 +3245,8 @@ contains
             p => commands%info_copy_current_node_name
         case ("info_directory")
             p => commands%info_directory
+        case ("info_display_manual")
+            p => commands%info_display_manual
         case ("info_emacs_bug")
             p => commands%info_emacs_bug
         case ("info_emacs_manual")
@@ -3271,6 +3281,12 @@ contains
             p => commands%info_last_menu_item
         case ("info_last_preorder")
             p => commands%info_last_preorder
+        case ("info_lookup_file")
+            p => commands%info_lookup_file
+        case ("info_lookup_reset")
+            p => commands%info_lookup_reset
+        case ("info_lookup_symbol")
+            p => commands%info_lookup_symbol
         case ("info_menu")
             p => commands%info_menu
         case ("info_mode")

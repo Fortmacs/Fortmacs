@@ -478,6 +478,10 @@ module fortmacs
                        INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, info_breadcrumbs_depth, &
                        info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
                        info_file_list_for_emacs, info_file_prefix_type
+    use info_look_fm, only: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+                            info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
+                            info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, &
+                            info_lookup_doc_spec_proc
     use ibuffer_fm, only: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
                           ibuffer_human_readable_size, ibuffer_use_other_window, &
                           ibuffer_default_shrink_to_minimum_size, ibuffer_display_summary, ibuffer_truncate_lines, &
@@ -857,6 +861,9 @@ module fortmacs
               INFO_HIDE_NOTE_REFERENCES_T, INFO_HIDE_NOTE_REFERENCES_HIDE, INFO_HIDE_NOTE_REFERENCES_TAG, &
               info_breadcrumbs_depth, info_search_whitespace_regexp, info_warn_on_index_alternatives_wrap, &
               info_file_list_for_emacs, info_file_prefix_type
+    public :: info_lookup_other_window_flag, info_lookup_highlight_face, info_lookup_file_name_alist, &
+              info_lookup_file_name_type, info_lookup_add_help, info_lookup_maybe_add_help, &
+              info_lookup_doc_specs_type, info_lookup_trans_proc, info_lookup_parse_proc, info_lookup_doc_spec_proc
     public :: ibuffer_formats, ibuffer_always_compile_formats, ibuffer_fontification_alist, &
               ibuffer_human_readable_size, ibuffer_use_other_window, ibuffer_default_shrink_to_minimum_size, &
               ibuffer_display_summary, ibuffer_truncate_lines, ibuffer_case_fold_search, &
