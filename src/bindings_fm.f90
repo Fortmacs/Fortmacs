@@ -97,6 +97,7 @@ module bindings_fm
     use savehist_fm, only: syms_of_savehist
     use saveplace_fm, only: syms_of_saveplace
     use recentf_fm, only: syms_of_recentf
+    use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
     use register_fm, only: syms_of_register
     use abbrev_fm, only: syms_of_abbrev, edit_abbrevs_mode_map
     use dabbrev_fm, only: syms_of_dabbrev
@@ -305,6 +306,7 @@ contains
         call syms_of_savehist()
         call syms_of_saveplace()
         call syms_of_recentf()
+        call syms_of_bookmark()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()
@@ -398,8 +400,8 @@ contains
         call bind(ctl_x_x_map, "f", "font_lock_update")
         key(1) = make_fixnum(int(iachar("x"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_x_map), status)
-        ! bindings.el: ctl-x-r-map (rect.el and register.el; frameset-to-register
-        ! on f and the bookmark keys are not ported).
+        ! bindings.el: ctl-x-r-map (rect.el, register.el and bookmark.el;
+        ! frameset-to-register on f is not ported).
         call bind(ctl_x_map, "SPC", "rectangle_mark_mode")
         call make_sparse_keymap(ctl_x_r_map)
         call bind(ctl_x_r_map, "c", "clear_rectangle")
@@ -424,6 +426,10 @@ contains
         call bind(ctl_x_r_map, "w", "window_configuration_to_register")
         call bind(ctl_x_r_map, "F", "file_to_register")
         call bind(ctl_x_r_map, "B", "buffer_to_register")
+        ! bookmark.el (autoloaded bindings).
+        call bind(ctl_x_r_map, "b", "bookmark_jump")
+        call bind(ctl_x_r_map, "m", "bookmark_set")
+        call bind(ctl_x_r_map, "M", "bookmark_set_no_overwrite")
         key(1) = make_fixnum(int(iachar("r"), int64))
         call define_key(ctl_x_map, key, make_keymap_ref(ctl_x_r_map), status)
         ! kmacro.el (autoloads): keyboard macros.
@@ -639,6 +645,8 @@ contains
         call register_keymap_name("abbrev_map", abbrev_map)
         call register_keymap_name("edit_abbrevs_mode_map", edit_abbrevs_mode_map)
         call register_keymap_name("kmacro_keymap", kmacro_keymap)
+        call register_keymap_name("bookmark_map", bookmark_map)
+        call register_keymap_name("bookmark_minibuffer_read_name_map", bookmark_minibuffer_read_name_map)
         call register_keymap_name("isearch_mode_map", isearch_mode_map)
         call register_keymap_name("text_mode_map", text_mode_map)
         call register_keymap_name("prog_mode_map", prog_mode_map)

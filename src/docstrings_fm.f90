@@ -47,6 +47,19 @@ module docstrings_fm
                              global_auto_revert_ignore_buffer, global_auto_revert_ignore_modes, &
                              global_auto_revert_mode_hook, global_auto_revert_mode_text, &
                              global_auto_revert_non_file_buffers
+    use bookmark_fm, only: bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_alist, &
+                           bookmark_alist_modification_count, bookmark_automatically_show_annotations, &
+                           bookmark_bookmarks_timestamp, bookmark_completion_ignore_case, bookmark_current_buffer, &
+                           bookmark_default_file, bookmark_edit_annotation_mode_hook, bookmark_edit_annotation_mode_map, &
+                           bookmark_exit_hook, bookmark_face, bookmark_file_coding_system, bookmark_fringe_mark, &
+                           bookmark_inhibit_context_functions, bookmark_map, bookmark_menu_confirm_deletion, &
+                           bookmark_minibuffer_read_name_map, bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, &
+                           BOOKMARK_SAVE_FLAG_T, bookmark_search_size, bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, &
+                           BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_use_annotations, &
+                           bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
+                           BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, &
+                           bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NIL, &
+                           BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, bookmark_yank_point
     use buffer_fm, only: auto_fill_function, fill_column, left_margin, transient_mark_mode
     use callint_fm, only: command_name_of, current_minibuffer_command, current_prefix_arg, &
                           mark_even_if_inactive, this_command
@@ -415,7 +428,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(958) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(976) = [character(len=50) :: &
                                                      "abbrev__default_expand", "abbrev_expansion", "abbrev_insert", "abbrev_mode", &
                                                                    "abbrev_prefix_mark", "abbrev_symbol", "abbrev_table_name", &
                                                       "abbreviate_file_name_handler", "abort_minibuffers", "abort_recursive_edit", &
@@ -430,22 +443,27 @@ module docstrings_fm
                                                      "backward_kill_word", "backward_list", "backward_page", "backward_paragraph", &
                                                         "backward_sentence", "backward_sexp", "backward_up_list", "backward_word", &
                                                              "beginning_of_buffer", "beginning_of_line", "beginning_of_line_text", &
-                                            "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", "buffer_name", &
-                                                   "buffer_substring", "buffer_to_register", "bury_buffer", "call_last_kbd_macro", &
-                                                    "cancel_timer", "canonically_space_region", "capitalize", "capitalize_region", &
-                                                       "capitalize_word", "char_syntax", "check_coding_system", "clear_rectangle", &
-                                                                   "coding_system_base", "coding_system_change_eol_conversion", &
-                                              "coding_system_change_text_conversion", "coding_system_eol_type", "coding_system_p", &
-                                                         "coding_system_priority_list", "coding_system_type", "comint_accumulate", &
-                                                   "comint_append_output_to_file", "comint_backward_matching_input", "comint_bol", &
-                                                     "comint_bol_or_process_mark", "comint_clear_buffer", "comint_copy_old_input", &
-                                                             "comint_delchar_or_maybe_eof", "comint_delete_output", "comint_exec", &
-                                                                  "comint_forward_matching_input", "comint_get_next_from_history", &
-                                                       "comint_goto_process_mark", "comint_interrupt_subjob", "comint_kill_input", &
-                                              "comint_kill_region", "comint_kill_subjob", "comint_kill_whole_line", "comint_mode", &
-                                                                   "comint_next_input", "comint_next_matching_input", &
-                                                                   "comint_next_matching_input_from_input", "comint_next_prompt", &
-                                                                   "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
+                                                           "blink_matching_check_mismatch", "blink_matching_open", "bobp", "bolp", &
+                                                      "bookmark_delete", "bookmark_delete_all", "bookmark_edit_annotation_cancel", &
+                                           "bookmark_edit_annotation_confirm", "bookmark_edit_annotation_mode", "bookmark_insert", &
+                                                        "bookmark_insert_location", "bookmark_jump", "bookmark_jump_other_window", &
+                                                       "bookmark_load", "bookmark_locate", "bookmark_relocate", "bookmark_rename", &
+                                                   "bookmark_save", "bookmark_set", "bookmark_set_no_overwrite", "bookmark_write", &
+                                                    "bookmark_yank_word", "buffer_name", "buffer_substring", "buffer_to_register", &
+                                                 "bury_buffer", "call_last_kbd_macro", "cancel_timer", "canonically_space_region", &
+                                                              "capitalize", "capitalize_region", "capitalize_word", "char_syntax", &
+                                                                   "check_coding_system", "clear_rectangle", "coding_system_base", &
+                                                    "coding_system_change_eol_conversion", "coding_system_change_text_conversion", &
+                                                       "coding_system_eol_type", "coding_system_p", "coding_system_priority_list", &
+                                                        "coding_system_type", "comint_accumulate", "comint_append_output_to_file", &
+                                                     "comint_backward_matching_input", "comint_bol", "comint_bol_or_process_mark", &
+                                                    "comint_clear_buffer", "comint_copy_old_input", "comint_delchar_or_maybe_eof", &
+                                                           "comint_delete_output", "comint_exec", "comint_forward_matching_input", &
+                                            "comint_get_next_from_history", "comint_goto_process_mark", "comint_interrupt_subjob", &
+                                                                  "comint_kill_input", "comint_kill_region", "comint_kill_subjob", &
+                                                                   "comint_kill_whole_line", "comint_mode", "comint_next_input", &
+                                                            "comint_next_matching_input", "comint_next_matching_input_from_input", &
+                                              "comint_next_prompt", "comint_postoutput_scroll_to_bottom", "comint_previous_input", &
                                                     "comint_previous_matching_input", "comint_previous_matching_input_from_input", &
                                              "comint_previous_prompt", "comint_quit_subjob", "comint_restore_input", "comint_run", &
                                           "comint_send_eof", "comint_send_input", "comint_send_string", "comint_set_process_mark", &
@@ -693,7 +711,7 @@ module docstrings_fm
                                                                    "yank_rectangle", "yes_or_no_p"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(825) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(851) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -714,15 +732,25 @@ module docstrings_fm
                                           "backward_delete_char_untabify_method", "before_change_functions", "before_revert_hook", &
                                                                "before_save_hook", "blink_matching_delay", "blink_matching_paren", &
                                                      "blink_matching_paren_distance", "blink_matching_paren_dont_ignore_comments", &
-                                                           "blink_matching_paren_on_screen", "buffer_auto_revert_by_notification", &
-                                         "buffer_file_coding_system", "buffer_stale_function", "case_fold_search", "case_replace", &
-                                                            "case_symbols_as_words", "change_log_date", "change_log_default_name", &
-                                                      "change_log_directory_files", "change_log_mode_hook", "change_log_mode_map", &
-                                                              "change_log_mode_syntax_table", "change_major_mode_after_body_hook", &
-                                           "change_major_mode_hook", "change_major_mode_with_file_name", "coding_system_for_read", &
-                                                 "coding_system_for_write", "coding_system_require_warning", "colon_double_space", &
-                                             "comint_buffer_maximum_size", "comint_delimiter_argument_list", "comint_eol_on_send", &
-                                                   "comint_exec_hook", "comint_highlight_input", "comint_inhibit_carriage_motion", &
+                                                                   "blink_matching_paren_on_screen", "bookmark_after_jump_hook", &
+                                           "bookmark_after_load_file_hook", "bookmark_alist", "bookmark_alist_modification_count", &
+                                                        "bookmark_automatically_show_annotations", "bookmark_bookmarks_timestamp", &
+                                            "bookmark_completion_ignore_case", "bookmark_current_buffer", "bookmark_default_file", &
+                                                        "bookmark_edit_annotation_mode_hook", "bookmark_edit_annotation_mode_map", &
+                                                             "bookmark_exit_hook", "bookmark_face", "bookmark_file_coding_system", &
+                                                     "bookmark_fringe_mark", "bookmark_inhibit_context_functions", "bookmark_map", &
+                                                            "bookmark_menu_confirm_deletion", "bookmark_minibuffer_read_name_map", &
+                                                               "bookmark_save_flag", "bookmark_search_size", "bookmark_sort_flag", &
+                                           "bookmark_use_annotations", "bookmark_version_control", "bookmark_watch_bookmark_file", &
+                                         "bookmark_yank_point", "buffer_auto_revert_by_notification", "buffer_file_coding_system", &
+                                             "buffer_stale_function", "case_fold_search", "case_replace", "case_symbols_as_words", &
+                                                       "change_log_date", "change_log_default_name", "change_log_directory_files", &
+                                                    "change_log_mode_hook", "change_log_mode_map", "change_log_mode_syntax_table", &
+                                                                   "change_major_mode_after_body_hook", "change_major_mode_hook", &
+                                          "change_major_mode_with_file_name", "coding_system_for_read", "coding_system_for_write", &
+                                              "coding_system_require_warning", "colon_double_space", "comint_buffer_maximum_size", &
+                                                       "comint_delimiter_argument_list", "comint_eol_on_send", "comint_exec_hook", &
+                                                                   "comint_highlight_input", "comint_inhibit_carriage_motion", &
                                                                    "comint_input_filter_functions", "comint_input_history_ignore", &
                                                                    "comint_input_ignoredups", "comint_input_ring_file_name", &
                                          "comint_input_ring_file_prefix", "comint_input_ring_separator", "comint_input_ring_size", &
@@ -978,7 +1006,7 @@ module docstrings_fm
                                                                    "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(396) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(408) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1010,6 +1038,18 @@ module docstrings_fm
                                                                       "blink_matching_paren_distance", &
                                                                       "blink_matching_paren_dont_ignore_comments", &
                                                                       "blink_matching_paren_on_screen", &
+                                                                      "bookmark_after_load_file_hook", &
+                                                                      "bookmark_automatically_show_annotations", &
+                                                                      "bookmark_completion_ignore_case", &
+                                                                      "bookmark_default_file", &
+                                                                      "bookmark_fringe_mark", &
+                                                                      "bookmark_inhibit_context_functions", &
+                                                                      "bookmark_menu_confirm_deletion", &
+                                                                      "bookmark_save_flag", &
+                                                                      "bookmark_sort_flag", &
+                                                                      "bookmark_use_annotations", &
+                                                                      "bookmark_version_control", &
+                                                                      "bookmark_watch_bookmark_file", &
                                                                       "case_fold_search", &
                                                                       "case_replace", &
                                                                       "change_major_mode_with_file_name", &
@@ -1893,6 +1933,216 @@ contains
             entry%file = "editfns_fm.f90"
             entry%fortran = "bolp()"
             entry%doc = "Return true if point is at the beginning of a line."
+        case ("bookmark_delete")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete BOOKMARK_NAME from the bookmark list."//LF// &
+                        ""//LF// &
+                        "Removes only the first instance of a bookmark with that name.  If"//LF// &
+                        "there are one or more other bookmarks with the same name, they will"//LF// &
+                        "not be deleted.  Defaults to the ""current"" bookmark (that is, the one"//LF// &
+                        "most recently used in this file, if any)."
+        case ("bookmark_delete_all")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Permanently delete all bookmarks."//LF// &
+                        "If optional argument NO_CONFIRM is true, don't ask for"//LF// &
+                        "confirmation."
+        case ("bookmark_edit_annotation_cancel")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Cancel the current annotation edit."
+        case ("bookmark_edit_annotation_confirm")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Use buffer contents as annotation for a bookmark."//LF// &
+                        "Lines beginning with `#' are ignored."
+        case ("bookmark_edit_annotation_mode")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Mode for editing the annotation of bookmarks."//LF// &
+                        "\<bookmark_edit_annotation_mode_map>When you have finished"//LF// &
+                        "composing, type \[bookmark_edit_annotation_confirm] or"//LF// &
+                        "\[bookmark_edit_annotation_cancel] to cancel."//LF// &
+                        ""//LF// &
+                        "\{bookmark_edit_annotation_mode_map}"
+        case ("bookmark_insert")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the text of the file pointed to by bookmark BOOKMARK_NAME."//LF// &
+                        "BOOKMARK_NAME is a bookmark name (a string), not a bookmark record."//LF// &
+                        ""//LF// &
+                        "You may have a problem using this function if the value of variable"//LF// &
+                        "`bookmark_alist' is empty.  If that happens, you need to load in"//LF// &
+                        "some bookmarks.  See help on function `bookmark_load' for more about"//LF// &
+                        "this."
+        case ("bookmark_insert_location")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the name of the file associated with BOOKMARK_NAME."//LF// &
+                        ""//LF// &
+                        "Optional second arg NO_HISTORY means don't record this in the"//LF// &
+                        "minibuffer history list `bookmark_history'."
+        case ("bookmark_jump")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Jump to bookmark BOOKMARK (a point in some file)."//LF// &
+                        "You may have a problem using this function if the value of variable"//LF// &
+                        "`bookmark_alist' is empty.  If that happens, you need to load in"//LF// &
+                        "some bookmarks.  See help on function `bookmark_load' for more about"//LF// &
+                        "this."//LF// &
+                        ""//LF// &
+                        "If the file pointed to by BOOKMARK no longer exists, you will be"//LF// &
+                        "asked if you wish to give the bookmark a new location, and"//LF// &
+                        "`bookmark_jump' will then jump to the new location, as well as"//LF// &
+                        "recording it in place of the old one in the permanent bookmark"//LF// &
+                        "record."//LF// &
+                        ""//LF// &
+                        "BOOKMARK is a bookmark name (a string); absent is an error."//LF// &
+                        ""//LF// &
+                        "If DISPLAY_FUNC is present, it is a function to invoke to display"//LF// &
+                        "the bookmark.  It defaults to `pop_to_buffer_same_window'.  A"//LF// &
+                        "typical value for DISPLAY_FUNC would be"//LF// &
+                        "`switch_to_buffer_other_window'."
+        case ("bookmark_jump_other_window")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Jump to BOOKMARK in another window.  See `bookmark_jump' for more."
+        case ("bookmark_load")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Load bookmarks from FILE (which must be in bookmark format)."//LF// &
+                        "Appends loaded bookmarks to the front of the list of bookmarks."//LF// &
+                        "If argument OVERWRITE is true, existing bookmarks are destroyed."//LF// &
+                        "Optional third arg NO_MSG means don't display any messages while"//LF// &
+                        "loading.  If DEFAULT is true make FILE the new bookmark file to"//LF// &
+                        "watch.  Interactively, a prefix arg makes OVERWRITE and DEFAULT"//LF// &
+                        "true."//LF// &
+                        ""//LF// &
+                        "If you load a file that doesn't contain a proper bookmark list, you"//LF// &
+                        "will corrupt Fortmacs's bookmark list.  Generally, you should only"//LF// &
+                        "load in files that were created with the bookmark functions in the"//LF// &
+                        "first place.  Your own personal bookmark file, specified by the"//LF// &
+                        "variable `bookmark_default_file', is maintained automatically by"//LF// &
+                        "Fortmacs; you shouldn't need to load it explicitly."//LF// &
+                        ""//LF// &
+                        "If you load a file containing bookmarks with the same names as"//LF// &
+                        "bookmarks already present in your Fortmacs, the new bookmarks will"//LF// &
+                        "get unique numeric suffixes ""<2>"", ""<3>"", etc."
+        case ("bookmark_locate")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Insert the name of the file associated with BOOKMARK_NAME."//LF// &
+                        ""//LF// &
+                        "Optional second arg NO_HISTORY means don't record this in the"//LF// &
+                        "minibuffer history list `bookmark_history'."
+        case ("bookmark_relocate")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Relocate BOOKMARK_NAME to another file, reading file name with"//LF// &
+                        "minibuffer."//LF// &
+                        ""//LF// &
+                        "This makes an already existing bookmark point to that file, instead"//LF// &
+                        "of the one it used to point at.  Useful when a file has been renamed"//LF// &
+                        "after a bookmark was set in it."
+        case ("bookmark_rename")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Change the name of OLD_NAME bookmark to NEW_NAME name."//LF// &
+                        "If called from keyboard, prompt for OLD_NAME and NEW_NAME."//LF// &
+                        ""//LF// &
+                        "If NEW_NAME is absent, prompt for it.  If called with two strings,"//LF// &
+                        "then no prompting is done."//LF// &
+                        ""//LF// &
+                        "While you are entering the new name, consecutive"//LF// &
+                        "\<bookmark_minibuffer_read_name_map>\[bookmark_yank_word]'s insert"//LF// &
+                        "consecutive words from the text of the buffer into the new bookmark"//LF// &
+                        "name."
+        case ("bookmark_save")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save currently defined bookmarks in FILE."//LF// &
+                        "FILE defaults to `bookmark_default_file'."//LF// &
+                        "With prefix PARG, query user for a file to save in."//LF// &
+                        "If MAKE_DEFAULT is true (interactively with prefix"//LF// &
+                        "\[universal_argument] \[universal_argument]) the file we save in"//LF// &
+                        "becomes the new default in the current Fortmacs session (without"//LF// &
+                        "affecting the value of `bookmark_default_file'.)."//LF// &
+                        ""//LF// &
+                        "When you want to load in the bookmarks from a file, use"//LF// &
+                        "`bookmark_load', \[bookmark_load].  That function will prompt you"//LF// &
+                        "for a file, defaulting to the file defined by variable"//LF// &
+                        "`bookmark_default_file'."
+        case ("bookmark_set")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set a bookmark named NAME at the current location."//LF// &
+                        "If NAME is absent, then prompt the user."//LF// &
+                        ""//LF// &
+                        "With a prefix arg (true NO_OVERWRITE), do not overwrite any existing"//LF// &
+                        "bookmark that has the same name as NAME, but instead push the new"//LF// &
+                        "bookmark onto the bookmark alist.  The most recently set bookmark"//LF// &
+                        "with name NAME is thus the one in effect at any given time, but the"//LF// &
+                        "others are still there, should the user decide to delete the most"//LF// &
+                        "recent one."//LF// &
+                        ""//LF// &
+                        "To yank words from the text of the buffer and use them as part of"//LF// &
+                        "the bookmark name, type \<bookmark_minibuffer_read_name_map>\[bookmark_yank_word]"//LF// &
+                        "while setting a bookmark.  Successive \[bookmark_yank_word]'s yank"//LF// &
+                        "successive words."//LF// &
+                        ""//LF// &
+                        "Typing \[universal_argument] inserts (at the bookmark name prompt)"//LF// &
+                        "the name of the last bookmark used in the document where the new"//LF// &
+                        "bookmark is being set; this helps you use a single bookmark name to"//LF// &
+                        "track progress through a large document.  If there is no prior"//LF// &
+                        "bookmark for this document, then \[universal_argument] inserts an"//LF// &
+                        "appropriate name based on the buffer or file."//LF// &
+                        ""//LF// &
+                        "Use \[bookmark_delete] to remove bookmarks (you give it a name and"//LF// &
+                        "it removes only the first instance of a bookmark with that name from"//LF// &
+                        "the list of bookmarks.)"
+        case ("bookmark_set_no_overwrite")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set a bookmark named NAME at the current location."//LF// &
+                        "If NAME is absent, then prompt the user."//LF// &
+                        ""//LF// &
+                        "If a bookmark named NAME already exists and prefix argument"//LF// &
+                        "PUSH_BOOKMARK is true, then push the new bookmark onto the bookmark"//LF// &
+                        "alist.  Pushing it means that among bookmarks named NAME, this one"//LF// &
+                        "becomes the one in effect, but the others are still there, in order,"//LF// &
+                        "and become effective again if the user ever deletes the most recent"//LF// &
+                        "one."//LF// &
+                        ""//LF// &
+                        "Otherwise, if a bookmark named NAME already exists but"//LF// &
+                        "PUSH_BOOKMARK is false, raise an error."//LF// &
+                        ""//LF// &
+                        "To yank words from the text of the buffer and use them as part of"//LF// &
+                        "the bookmark name, type \<bookmark_minibuffer_read_name_map>\[bookmark_yank_word]"//LF// &
+                        "while setting a bookmark.  Successive \[bookmark_yank_word]'s yank"//LF// &
+                        "successive words."//LF// &
+                        ""//LF// &
+                        "Typing \[universal_argument] inserts (at the bookmark name prompt)"//LF// &
+                        "the name of the last bookmark used in the document where the new"//LF// &
+                        "bookmark is being set; this helps you use a single bookmark name to"//LF// &
+                        "track progress through a large document.  If there is no prior"//LF// &
+                        "bookmark for this document, then \[universal_argument] inserts an"//LF// &
+                        "appropriate name based on the buffer or file."//LF// &
+                        ""//LF// &
+                        "Use \[bookmark_delete] to remove bookmarks (you give it a name and"//LF// &
+                        "it removes only the first instance of a bookmark with that name from"//LF// &
+                        "the list of bookmarks.)"
+        case ("bookmark_write")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Write bookmarks to a file (reading the file name with the"//LF// &
+                        "minibuffer)."
+        case ("bookmark_yank_word")
+            entry%file = "bookmark_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Get the next word from buffer `bookmark_current_buffer' and append"//LF// &
+                        "it to the name of the bookmark currently being set, advancing"//LF// &
+                        "`bookmark_yank_point' by one word."
         case ("buffer_name")
             entry%file = "buffer_fm.f90"
             entry%fortran = "call buffer_name(h, name, status)"
@@ -10613,6 +10863,260 @@ contains
                         "This variable has no effect if `blink_matching_paren' is"//LF// &
                         "`BLINK_MATCHING_PAREN_NIL'.  (In that case, the open-paren is never"//LF// &
                         "shown.)  It is also ignored if `show_paren_mode' is enabled."
+        case ("bookmark_after_jump_hook")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_after_jump_hook"
+            entry%doc = "Hook run after `bookmark_jump' jumps to a bookmark."//LF// &
+                        "Useful for example to unhide text in `outline_mode'."
+        case ("bookmark_after_load_file_hook")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_after_load_file_hook"
+            entry%user_option = .true.
+            entry%doc = "Hook run after a bookmark file is loaded by `bookmark_load'."//LF// &
+                        "This hook can be used, for example, to reconcile `bookmark_alist'"//LF// &
+                        "against bookmark state that you, or a package that you use,"//LF// &
+                        "maintains."
+        case ("bookmark_alist")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_alist"
+            entry%doc = "List of bookmarks and their parameters."//LF// &
+                        "Bookmark functions update the value automatically."//LF// &
+                        "You probably do NOT want to change the value yourself."//LF// &
+                        ""//LF// &
+                        "The list is ordered from most recently created bookmark at the front"//LF// &
+                        "to least recently created bookmark at the end.  See `bookmark_type'"//LF// &
+                        "for the parameters of a bookmark."
+        case ("bookmark_alist_modification_count")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_alist_modification_count"
+            entry%original = "0"
+            entry%value = repr(bookmark_alist_modification_count)
+            entry%doc = "Number of modifications to bookmark list since it was last saved."
+        case ("bookmark_automatically_show_annotations")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_automatically_show_annotations"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(bookmark_automatically_show_annotations)
+            entry%doc = "True means show annotations when jumping to a bookmark."
+        case ("bookmark_bookmarks_timestamp")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_bookmarks_timestamp"
+            entry%doc = "Timestamp of current default bookmark file."//LF// &
+                        "The value is actually the FILE, a bookmark file that defaults to"//LF// &
+                        "`bookmark_default_file', and its modification time."
+        case ("bookmark_completion_ignore_case")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_completion_ignore_case"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(bookmark_completion_ignore_case)
+            entry%doc = "True means bookmark functions ignore case in completion."
+        case ("bookmark_current_buffer")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_current_buffer"
+            entry%doc = "The buffer in which a bookmark is currently being set or renamed."//LF// &
+                        "Functions that insert strings into the minibuffer use this to know"//LF// &
+                        "the source buffer for that information; see `bookmark_yank_word'"//LF// &
+                        "for example."
+        case ("bookmark_default_file")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_default_file"
+            entry%user_option = .true.
+            if (allocated(bookmark_default_file)) then
+                entry%value = repr(bookmark_default_file)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "File in which to save bookmarks by default."
+        case ("bookmark_edit_annotation_mode_hook")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_edit_annotation_mode_hook"
+            entry%doc = "Hook run when entering `bookmark_edit_annotation_mode'."
+        case ("bookmark_edit_annotation_mode_map")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_edit_annotation_mode_map"
+            entry%doc = "Keymap for editing an annotation of a bookmark."
+        case ("bookmark_exit_hook")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_exit_hook"
+            entry%doc = "Hook run when Fortmacs exits."
+        case ("bookmark_face")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_face"
+            entry%doc = "Face used to highlight current line."
+        case ("bookmark_file_coding_system")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_file_coding_system"
+            if (allocated(bookmark_file_coding_system)) then
+                entry%value = repr(bookmark_file_coding_system)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The coding-system of the last loaded or saved bookmark file"//LF// &
+                        "(unallocated for none yet)."
+        case ("bookmark_fringe_mark")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_fringe_mark"
+            entry%user_option = .true.
+            if (allocated(bookmark_fringe_mark)) then
+                entry%value = repr(bookmark_fringe_mark)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "The fringe bitmap to mark bookmarked lines with."//LF// &
+                        "If unallocated, don't display a mark on the fringe."
+        case ("bookmark_inhibit_context_functions")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_inhibit_context_functions"
+            entry%user_option = .true.
+            entry%doc = "List of functions to call before making a bookmark record."//LF// &
+                        "The functions take `buffer_file_name' as argument.  If any of these"//LF// &
+                        "functions returns true, the bookmark does not record context strings"//LF// &
+                        "from the current buffer."
+        case ("bookmark_map")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_map"
+            entry%doc = "Keymap containing bindings to bookmark functions."//LF// &
+                        "It is not bound to any key by default: to bind it so that you have a"//LF// &
+                        "bookmark prefix, just use `keymap_global_set' and bind a key of your"//LF// &
+                        "choice to variable `bookmark_map'.  All interactive bookmark"//LF// &
+                        "functions have a binding in this keymap."
+        case ("bookmark_menu_confirm_deletion")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_menu_confirm_deletion"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(bookmark_menu_confirm_deletion)
+            entry%doc = "True means confirm before deleting bookmarks in a bookmark menu"//LF// &
+                        "buffer.  False means don't prompt for confirmation."
+        case ("bookmark_minibuffer_read_name_map")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_minibuffer_read_name_map"
+            entry%doc = "Keymap of the minibuffer while reading a bookmark name: C-w is"//LF// &
+                        "`bookmark_yank_word'."
+        case ("bookmark_save_flag")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_save_flag"
+            entry%user_option = .true.
+            entry%original = "BOOKMARK_SAVE_FLAG_T"
+            select case (bookmark_save_flag)
+            case (BOOKMARK_SAVE_FLAG_NIL)
+                entry%value = "BOOKMARK_SAVE_FLAG_NIL"
+            case (BOOKMARK_SAVE_FLAG_T)
+                entry%value = "BOOKMARK_SAVE_FLAG_T"
+            case default
+                entry%value = repr(bookmark_save_flag)
+            end select
+            entry%doc = "Controls when Fortmacs saves bookmarks to a file."//LF// &
+                        "--> BOOKMARK_SAVE_FLAG_NIL means never save bookmarks, except when"//LF// &
+                        "    `bookmark_save' is explicitly called (\[bookmark_save])."//LF// &
+                        "--> BOOKMARK_SAVE_FLAG_T means save bookmarks when Fortmacs is"//LF// &
+                        "    killed."//LF// &
+                        "--> Otherwise, it should be a number that is the frequency with which"//LF// &
+                        "    the bookmark list is saved (i.e.: the number of times which"//LF// &
+                        "    Fortmacs's bookmark list may be modified before it is"//LF// &
+                        "    automatically saved.).  If it is a number, Fortmacs will also"//LF// &
+                        "    automatically save bookmarks when it is killed."//LF// &
+                        ""//LF// &
+                        "Therefore, the way to get it to save every time you make or delete a"//LF// &
+                        "bookmark is to set this variable to 1 (or 0, which produces the same"//LF// &
+                        "behavior.)"//LF// &
+                        ""//LF// &
+                        "To specify the file in which to save them, modify the variable"//LF// &
+                        "`bookmark_default_file'."
+        case ("bookmark_search_size")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_search_size"
+            entry%original = "16"
+            entry%value = repr(bookmark_search_size)
+            entry%doc = "Length of the context strings recorded on either side of a"//LF// &
+                        "bookmark."
+        case ("bookmark_sort_flag")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_sort_flag"
+            entry%user_option = .true.
+            entry%original = "BOOKMARK_SORT_FLAG_T"
+            select case (bookmark_sort_flag)
+            case (BOOKMARK_SORT_FLAG_NIL)
+                entry%value = "BOOKMARK_SORT_FLAG_NIL"
+            case (BOOKMARK_SORT_FLAG_T)
+                entry%value = "BOOKMARK_SORT_FLAG_T"
+            case (BOOKMARK_SORT_FLAG_LAST_MODIFIED)
+                entry%value = "BOOKMARK_SORT_FLAG_LAST_MODIFIED"
+            case default
+                entry%value = repr(bookmark_sort_flag)
+            end select
+            entry%doc = "This controls the bookmark display sorting."//LF// &
+                        "BOOKMARK_SORT_FLAG_NIL means they will be displayed in LIFO order"//LF// &
+                        "(that is, most recently created ones come first, oldest ones come"//LF// &
+                        "last)."//LF// &
+                        ""//LF// &
+                        "BOOKMARK_SORT_FLAG_LAST_MODIFIED means that bookmarks will be"//LF// &
+                        "displayed sorted from most recently modified to least recently"//LF// &
+                        "modified."//LF// &
+                        ""//LF// &
+                        "Other values means that bookmarks will be displayed sorted by"//LF// &
+                        "bookmark name."
+        case ("bookmark_use_annotations")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_use_annotations"
+            entry%user_option = .true.
+            entry%original = ".false."
+            entry%value = repr(bookmark_use_annotations)
+            entry%doc = "If true, setting a bookmark queries for an annotation in a buffer."
+        case ("bookmark_version_control")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_version_control"
+            entry%user_option = .true.
+            entry%original = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
+            select case (bookmark_version_control)
+            case (BOOKMARK_VERSION_CONTROL_T)
+                entry%value = "BOOKMARK_VERSION_CONTROL_T"
+            case (BOOKMARK_VERSION_CONTROL_NIL)
+                entry%value = "BOOKMARK_VERSION_CONTROL_NIL"
+            case (BOOKMARK_VERSION_CONTROL_NEVER)
+                entry%value = "BOOKMARK_VERSION_CONTROL_NEVER"
+            case (BOOKMARK_VERSION_CONTROL_NOSPECIAL)
+                entry%value = "BOOKMARK_VERSION_CONTROL_NOSPECIAL"
+            case default
+                entry%value = repr(bookmark_version_control)
+            end select
+            entry%doc = "Whether or not to make numbered backups of the bookmark file."//LF// &
+                        "It can have four values: BOOKMARK_VERSION_CONTROL_T, _NIL, _NEVER,"//LF// &
+                        "or _NOSPECIAL.  The first three have the same meaning that they do"//LF// &
+                        "for the variable `version_control'; the value _NOSPECIAL (the"//LF// &
+                        "default) means just use the value of `version_control'."
+        case ("bookmark_watch_bookmark_file")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_watch_bookmark_file"
+            entry%user_option = .true.
+            entry%original = "BOOKMARK_WATCH_BOOKMARK_FILE_T"
+            select case (bookmark_watch_bookmark_file)
+            case (BOOKMARK_WATCH_BOOKMARK_FILE_NIL)
+                entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_NIL"
+            case (BOOKMARK_WATCH_BOOKMARK_FILE_T)
+                entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_T"
+            case (BOOKMARK_WATCH_BOOKMARK_FILE_SILENT)
+                entry%value = "BOOKMARK_WATCH_BOOKMARK_FILE_SILENT"
+            case default
+                entry%value = repr(bookmark_watch_bookmark_file)
+            end select
+            entry%doc = "If BOOKMARK_WATCH_BOOKMARK_FILE_T, reload the default bookmark file"//LF// &
+                        "if it was changed.  If this file has changed on disk since it was"//LF// &
+                        "last loaded, query the user whether to load it again.  If the value"//LF// &
+                        "is BOOKMARK_WATCH_BOOKMARK_FILE_SILENT reload without querying."//LF// &
+                        "This file defaults to `bookmark_default_file'.  But during a"//LF// &
+                        "Fortmacs session, `bookmark_load' and `bookmark_save' can redefine"//LF// &
+                        "the current default file."
+        case ("bookmark_yank_point")
+            entry%file = "bookmark_fm.f90"
+            entry%fortran = "bookmark_yank_point"
+            entry%original = "0"
+            entry%value = repr(bookmark_yank_point)
+            entry%doc = "The next point from which to pull source text for"//LF// &
+                        "`bookmark_yank_word' (0 for none).  This point is in"//LF// &
+                        "`bookmark_current_buffer'."
         case ("buffer_auto_revert_by_notification")
             entry%file = "files_fm.f90"
             entry%fortran = "buffer_auto_revert_by_notification"
@@ -18416,6 +18920,26 @@ contains
             kind = OPTION_LOGICAL
         case ("blink_matching_paren_on_screen")
             kind = OPTION_LOGICAL
+        case ("bookmark_automatically_show_annotations")
+            kind = OPTION_LOGICAL
+        case ("bookmark_completion_ignore_case")
+            kind = OPTION_LOGICAL
+        case ("bookmark_default_file")
+            kind = OPTION_STRING
+        case ("bookmark_fringe_mark")
+            kind = OPTION_STRING
+        case ("bookmark_menu_confirm_deletion")
+            kind = OPTION_LOGICAL
+        case ("bookmark_save_flag")
+            kind = OPTION_CHOICE
+        case ("bookmark_sort_flag")
+            kind = OPTION_CHOICE
+        case ("bookmark_use_annotations")
+            kind = OPTION_LOGICAL
+        case ("bookmark_version_control")
+            kind = OPTION_CHOICE
+        case ("bookmark_watch_bookmark_file")
+            kind = OPTION_CHOICE
         case ("case_fold_search")
             kind = OPTION_LOGICAL
             setting = .true.
@@ -19193,6 +19717,14 @@ contains
             blink_matching_paren_dont_ignore_comments = v
         case ("blink_matching_paren_on_screen")
             blink_matching_paren_on_screen = v
+        case ("bookmark_automatically_show_annotations")
+            bookmark_automatically_show_annotations = v
+        case ("bookmark_completion_ignore_case")
+            bookmark_completion_ignore_case = v
+        case ("bookmark_menu_confirm_deletion")
+            bookmark_menu_confirm_deletion = v
+        case ("bookmark_use_annotations")
+            bookmark_use_annotations = v
         case ("case_fold_search")
             if (local) then
                 call case_fold_search%set_local(v)
@@ -19958,6 +20490,10 @@ contains
             auto_revert_notify_exclude_dir_regexp = v
         case ("auto_revert_tail_mode_text")
             auto_revert_tail_mode_text = v
+        case ("bookmark_default_file")
+            bookmark_default_file = v
+        case ("bookmark_fringe_mark")
+            bookmark_fringe_mark = v
         case ("comint_input_ring_file_name")
             if (local) then
                 call comint_input_ring_file_name%set_local(v)
@@ -20286,6 +20822,50 @@ contains
                 blink_matching_paren = BLINK_MATCHING_PAREN_JUMP
             case ("BLINK_MATCHING_PAREN_JUMP_OFFSCREEN")
                 blink_matching_paren = BLINK_MATCHING_PAREN_JUMP_OFFSCREEN
+            case default
+                ok = .false.
+            end select
+        case ("bookmark_save_flag")
+            select case (constant)
+            case ("BOOKMARK_SAVE_FLAG_NIL")
+                bookmark_save_flag = BOOKMARK_SAVE_FLAG_NIL
+            case ("BOOKMARK_SAVE_FLAG_T")
+                bookmark_save_flag = BOOKMARK_SAVE_FLAG_T
+            case default
+                ok = .false.
+            end select
+        case ("bookmark_sort_flag")
+            select case (constant)
+            case ("BOOKMARK_SORT_FLAG_NIL")
+                bookmark_sort_flag = BOOKMARK_SORT_FLAG_NIL
+            case ("BOOKMARK_SORT_FLAG_T")
+                bookmark_sort_flag = BOOKMARK_SORT_FLAG_T
+            case ("BOOKMARK_SORT_FLAG_LAST_MODIFIED")
+                bookmark_sort_flag = BOOKMARK_SORT_FLAG_LAST_MODIFIED
+            case default
+                ok = .false.
+            end select
+        case ("bookmark_version_control")
+            select case (constant)
+            case ("BOOKMARK_VERSION_CONTROL_T")
+                bookmark_version_control = BOOKMARK_VERSION_CONTROL_T
+            case ("BOOKMARK_VERSION_CONTROL_NIL")
+                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NIL
+            case ("BOOKMARK_VERSION_CONTROL_NEVER")
+                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NEVER
+            case ("BOOKMARK_VERSION_CONTROL_NOSPECIAL")
+                bookmark_version_control = BOOKMARK_VERSION_CONTROL_NOSPECIAL
+            case default
+                ok = .false.
+            end select
+        case ("bookmark_watch_bookmark_file")
+            select case (constant)
+            case ("BOOKMARK_WATCH_BOOKMARK_FILE_NIL")
+                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_NIL
+            case ("BOOKMARK_WATCH_BOOKMARK_FILE_T")
+                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_T
+            case ("BOOKMARK_WATCH_BOOKMARK_FILE_SILENT")
+                bookmark_watch_bookmark_file = BOOKMARK_WATCH_BOOKMARK_FILE_SILENT
             case default
                 ok = .false.
             end select

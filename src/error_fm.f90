@@ -91,8 +91,13 @@ module error_fm
     !> failed (report_file_notify_error).
     integer(int32), parameter, public :: FM_FILE_NOTIFY_ERROR = 31
 
-    integer(int32), parameter :: last_code = FM_FILE_NOTIFY_ERROR
-    integer, parameter :: name_len = 24, msg_len = 40
+    !> bookmark.el's `bookmark_errors' and `bookmark_error_no_filename' (a
+    !> `bookmark_errors'): a bookmark has no associated file or directory.
+    integer(int32), parameter, public :: FM_BOOKMARK_ERRORS = 32
+    integer(int32), parameter, public :: FM_BOOKMARK_ERROR_NO_FILENAME = 33
+
+    integer(int32), parameter :: last_code = FM_BOOKMARK_ERROR_NO_FILENAME
+    integer, parameter :: name_len = 26, msg_len = 48
 
     !> `error_conditions' symbol names, indexed by code.
     character(len=name_len), parameter :: names(0:last_code) = [character(len=name_len) :: &
@@ -108,7 +113,8 @@ module error_fm
                                                                 "invalid_regexp", "permission_denied", "scan_error", &
                                                                 "file_date_error", "end_of_file", "invalid_read_syntax", &
                                                                 "coding_system_error", "vc_not_supported", &
-                                                                "file_notify_error"]
+                                                                "file_notify_error", "bookmark_errors", &
+                                                                "bookmark_error_no_filename"]
 
     !> `error_message' strings, indexed by code.
     character(len=msg_len), parameter :: messages(0:last_code) = [character(len=msg_len) :: &
@@ -129,7 +135,8 @@ module error_fm
                                                                "Scan error", "Cannot set file date", "End of file during parsing", &
                                                                   "Invalid read syntax", "Invalid coding system", &
                                                                   "VC method not implemented for backend", &
-                                                                  "File notification error"]
+                                                                  "File notification error", "Bookmark error", &
+                                                                  "Bookmark has no associated file (or directory)"]
 
     !> Parent condition of each code (the next element of its
     !> `error_conditions' list); -1 ends the chain.  `quit' is deliberately
@@ -144,7 +151,8 @@ module error_fm
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_FILE_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, &
                                  FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
-                                 FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR]
+                                 FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_GENERIC_ERROR, FM_FILE_ERROR, &
+                                 FM_GENERIC_ERROR, FM_BOOKMARK_ERRORS]
 
     !> Outcome of a fallible operation.  `detail' plays the role of the
     !> signal's DATA (e.g. the offending arguments).

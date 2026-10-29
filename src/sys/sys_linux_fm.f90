@@ -41,6 +41,7 @@
 !>   a 32-bit id, a pointer)
 !> - O_CREAT, O_EXCL, O_TRUNC: asm-generic/fcntl.h;  RENAME_NOREPLACE:
 !>   linux/fs.h;  UTIME_NOW, UTIME_OMIT: linux/stat.h
+!> - CLOCK_REALTIME: linux/time.h
 !> - threads (glibc >= 2.34 has them in libc itself): pthread_t is an
 !>   unsigned long; pthread_mutex_t is 40 bytes on x86-64 and 48 on
 !>   aarch64, so mutexes are 64-byte arrays, and PTHREAD_MUTEX_INITIALIZER
@@ -171,6 +172,8 @@ module sys_linux_fm
     integer(c_int), parameter, public :: STATX_BASIC_STATS = int(z'7FF', c_int)
     ! renameat2 flags (linux/fs.h)
     integer(c_int), parameter, public :: RENAME_NOREPLACE = 1
+    ! clock_gettime clocks (linux/time.h)
+    integer(c_int), parameter, public :: CLOCK_REALTIME = 0
     ! utimensat special nanoseconds (linux/stat.h)
     integer(c_long), parameter, public :: UTIME_NOW = int(z'3FFFFFFF', c_long), &
                                           UTIME_OMIT = int(z'3FFFFFFE', c_long)
@@ -282,7 +285,7 @@ module sys_linux_fm
     public :: c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch
     public :: c_pthread_create, c_pthread_join, c_pthread_self, c_pthread_mutex_lock, &
               c_pthread_mutex_unlock, c_pthread_sigmask, c_kill, c_setsid, c_pidfd_open, c_tcgetpgrp, &
-              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time
+              c_ioctl_int, c_fcntl_int, c_execve, c_sched_getaffinity, c_time, c_clock_gettime
     public :: errno, c_string_to_fortran
 
     interface
@@ -834,6 +837,13 @@ module sys_linux_fm
             implicit none(type, external)
             type(c_ptr), value :: tloc
         end function c_time
+
+        integer(c_int) function c_clock_gettime(clockid, tp) bind(C, name="clock_gettime")
+            import :: c_int, timespec_type
+            implicit none(type, external)
+            integer(c_int), value :: clockid
+            type(timespec_type), intent(out) :: tp
+        end function c_clock_gettime
 
         !> fcntl(fd, cmd, int): variadic, bound like ioctl (module note).
         integer(c_int) function c_fcntl_int(fd, cmd, arg) bind(C, name="fcntl")

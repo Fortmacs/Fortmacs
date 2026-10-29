@@ -426,6 +426,19 @@ module fortmacs
                           recentf_initialize_file_name_history, recentf_filename_handlers, recentf_show_messages, &
                           recentf_autosave_interval, recentf_mode_hook, recentf_mode_map, recentf_keep_default_predicate, &
                           abbreviate_file_name_handler, file_truename_handler
+    use bookmark_fm, only: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, &
+                           bookmark_save_flag, BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, &
+                           bookmark_watch_bookmark_file, BOOKMARK_WATCH_BOOKMARK_FILE_NIL, &
+                           BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
+                           bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
+                           BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, &
+                           bookmark_completion_ignore_case, bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, &
+                           BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, bookmark_menu_confirm_deletion, &
+                           bookmark_automatically_show_annotations, bookmark_fringe_mark, bookmark_map, &
+                           bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
+                           bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, &
+                           bookmark_edit_annotation_mode_hook, bookmark_after_jump_hook, &
+                           bookmark_after_load_file_hook, bookmark_exit_hook
     use repeat_fm, only: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, &
                          repeat_exit_key, repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, &
                          repeat_echo_function, repeat_echo_proc, repeat_echo_message, repeat_exit
@@ -739,6 +752,16 @@ module fortmacs
               RECENTF_AUTO_CLEANUP_NEVER, recentf_auto_cleanup, recentf_initialize_file_name_history, &
               recentf_filename_handlers, recentf_show_messages, recentf_autosave_interval, recentf_mode_hook, &
               recentf_mode_map, recentf_keep_default_predicate, abbreviate_file_name_handler, file_truename_handler
+    public :: bookmark_type, bookmark_inhibit_context_function_type, bookmark_use_annotations, bookmark_save_flag, &
+              BOOKMARK_SAVE_FLAG_NIL, BOOKMARK_SAVE_FLAG_T, bookmark_default_file, bookmark_watch_bookmark_file, &
+              BOOKMARK_WATCH_BOOKMARK_FILE_NIL, BOOKMARK_WATCH_BOOKMARK_FILE_T, BOOKMARK_WATCH_BOOKMARK_FILE_SILENT, &
+              bookmark_version_control, BOOKMARK_VERSION_CONTROL_T, BOOKMARK_VERSION_CONTROL_NIL, &
+              BOOKMARK_VERSION_CONTROL_NEVER, BOOKMARK_VERSION_CONTROL_NOSPECIAL, bookmark_completion_ignore_case, &
+              bookmark_sort_flag, BOOKMARK_SORT_FLAG_NIL, BOOKMARK_SORT_FLAG_T, BOOKMARK_SORT_FLAG_LAST_MODIFIED, &
+              bookmark_menu_confirm_deletion, bookmark_automatically_show_annotations, bookmark_fringe_mark, &
+              bookmark_map, bookmark_search_size, bookmark_make_record_function, bookmark_inhibit_context_functions, &
+              bookmark_edit_annotation_text_func, bookmark_edit_annotation_mode_map, bookmark_edit_annotation_mode_hook, &
+              bookmark_after_jump_hook, bookmark_after_load_file_hook, bookmark_exit_hook
     public :: repeat_mode, repeat_mode_hook, repeat_too_dangerous, repeat_on_final_keystroke, repeat_exit_key, &
               repeat_exit_timeout, repeat_keep_prefix, repeat_check_key, repeat_echo_function, repeat_echo_proc, &
               repeat_echo_message, repeat_exit, PROPERTY_UNSET, PROPERTY_TRUE, PROPERTY_NO, set_repeat_map, &
