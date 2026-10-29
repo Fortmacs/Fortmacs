@@ -494,9 +494,9 @@ contains
         type(value_type), allocatable :: elems(:)
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: text, wrote, dir
+        character(len=:), allocatable :: text, wrote, dir, name
         logical :: auto, bound, ok
-        integer :: k, j, n
+        integer :: k, j, n, m
         status = status_type()
         auto = .false.
         if (present(auto_save)) auto = auto_save
@@ -529,23 +529,25 @@ contains
             end if
             call group%add(item)
             do k = 1, size(savehist_minibuffer_history_variables)
-                associate (name => trim(savehist_minibuffer_history_variables(k)))
-                    call boundp(sym(name), bound, st)
-                    if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
-                    call symbol_value(sym(name), value, st)
-                    ! Don't save empty histories.
-                    if (nilp(value)) cycle
-                    ! Print elements of VALUE one by one, carefully: those
-                    ! that can't be written are left out.
-                    item = namelist_item_type(name=name)
-                    call list_elements(value, elems)
-                    do j = 1, size(elems)
-                        call add_value(item, elems(j), ok)
-                    end do
-                    if (.not. allocated(item%values)) cycle
-                    call subscript(item, size(item%values))
-                    call group%add(item)
-                end associate
+                ! (A variable, not an associate name: with gfortran, `cycle' out
+                ! of an associate block whose selector is an expression frees
+                ! its temporary twice.)
+                name = trim(savehist_minibuffer_history_variables(k))
+                call boundp(sym(name), bound, st)
+                if (.not. bound .or. member(name, savehist_ignored_variables)) cycle
+                call symbol_value(sym(name), value, st)
+                ! Don't save empty histories.
+                if (nilp(value)) cycle
+                ! Print elements of VALUE one by one, carefully: those
+                ! that can't be written are left out.
+                item = namelist_item_type(name=name)
+                call list_elements(value, elems)
+                do j = 1, size(elems)
+                    call add_value(item, elems(j), ok)
+                end do
+                if (.not. allocated(item%values)) cycle
+                call subscript(item, size(item%values))
+                call group%add(item)
             end do
         end if
         ! Save the additional variables.
@@ -560,14 +562,15 @@ contains
                 if (vtag(value) == V_LIST) then
                     ! When we have a max-size, chop off the last elements.
                     call list_elements(value, elems)
-                    if (var%max_size >= 0) elems = elems(1:min(size(elems), var%max_size))
-                    do j = 1, size(elems)
+                    m = size(elems)
+                    if (var%max_size >= 0) m = min(m, var%max_size)
+                    do j = 1, m
                         call add_value(item, elems(j), ok)
                     end do
-                    if (size(elems) == 0) then
+                    if (m == 0) then
                         call item%add_logical(.false.)
                     else
-                        call subscript(item, size(elems))
+                        call subscript(item, m)
                     end if
                 else
                     call add_value(item, value, ok)
