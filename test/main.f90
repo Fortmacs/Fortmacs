@@ -121,6 +121,7 @@ program tester
     use test_saveplace_fm, only: collect_saveplace_fm
     use test_recentf_fm, only: collect_recentf_fm
     use test_bookmark_fm, only: collect_bookmark_fm
+    use test_mule_util_fm, only: collect_mule_util_fm
     implicit none(type, external)
     ! test-drive's interfaces take default integers.
     integer :: stat, is
@@ -225,7 +226,8 @@ program tester
                  new_testsuite("savehist_fm", collect_savehist_fm), &
                  new_testsuite("saveplace_fm", collect_saveplace_fm), &
                  new_testsuite("recentf_fm", collect_recentf_fm), &
-                 new_testsuite("bookmark_fm", collect_bookmark_fm) &
+                 new_testsuite("bookmark_fm", collect_bookmark_fm), &
+                 new_testsuite("mule_util_fm", collect_mule_util_fm) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)
