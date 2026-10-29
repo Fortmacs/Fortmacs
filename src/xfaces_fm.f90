@@ -77,7 +77,7 @@ module xfaces_fm
 
     public :: realize_basic_faces, recompute_basic_faces, clear_face_cache, lookup_face, lookup_named_face, &
               merge_faces, face_at_buffer_position, face_at_string_position, merge_face_ref, tty_supports_face_attributes_p, &
-              init_frame_faces, frame_background_mode
+              init_frame_faces, frame_background_mode, face_differs_from_default_p
 
     !> Suppress/allow boldness of faces with inverse default colors.
     !> If true, bold faces on terminals whose foreground is the default
@@ -1243,4 +1243,102 @@ contains
             if (allocated(b)) same_color_name = a == b .and. len(a) == len(b)
         end function same_color_name
     end function tty_supports_face_attributes_p
+
+    !> Return true if the face NAME displays differently from the default
+    !> face on the selected frame.  Port of
+    !> faces.el:face-differs-from-default-p (here because it merges
+    !> faces as xfaces does).
+    logical function face_differs_from_default_p(name) result(differs)
+        character(len=*), intent(in) :: name
+        type(face_attributes_type) :: attrs, one
+        logical :: ok
+        differs = .false.
+        ! The value of :inherit teaches us nothing about how the face
+        ! looks compared to the default face: the other attributes are
+        ! taken with inheritance (and :extend only matters with them).
+        call merge_named_face(name, attrs, 0, .false., ok)
+        if (.not. ok) return
+        if (allocated(attrs%family)) then
+            one = face_attributes_type()
+            one%family = attrs%family
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%foundry)) then
+            one = face_attributes_type()
+            one%foundry = attrs%foundry
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%width)) then
+            one = face_attributes_type()
+            one%width = attrs%width
+            if (supported(one)) return
+        end if
+        if (attrs%height%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%height = attrs%height
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%weight)) then
+            one = face_attributes_type()
+            one%weight = attrs%weight
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%slant)) then
+            one = face_attributes_type()
+            one%slant = attrs%slant
+            if (supported(one)) return
+        end if
+        if (attrs%underline%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%underline = attrs%underline
+            if (supported(one)) return
+        end if
+        if (attrs%overline%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%overline = attrs%overline
+            if (supported(one)) return
+        end if
+        if (attrs%strike_through%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%strike_through = attrs%strike_through
+            if (supported(one)) return
+        end if
+        if (attrs%box%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%box = attrs%box
+            if (supported(one)) return
+        end if
+        if (attrs%inverse_video%state /= FACE_UNSPECIFIED) then
+            one = face_attributes_type()
+            one%inverse_video = attrs%inverse_video
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%foreground)) then
+            one = face_attributes_type()
+            one%foreground = attrs%foreground
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%distant_foreground)) then
+            one = face_attributes_type()
+            one%distant_foreground = attrs%distant_foreground
+            if (supported(one)) return
+        end if
+        if (allocated(attrs%background)) then
+            one = face_attributes_type()
+            one%background = attrs%background
+            if (supported(one)) return
+        end if
+    contains
+
+        !> display-supports-face-attributes-p for ATTRS; sets DIFFERS.
+        logical function supported(a)
+            type(face_attributes_type), intent(in) :: a
+            if (frame_window_p(selected_frame)) then
+                supported = .true.
+            else
+                supported = tty_supports_face_attributes_p(a)
+            end if
+            differs = supported
+        end function supported
+    end function face_differs_from_default_p
 end module xfaces_fm

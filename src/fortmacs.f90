@@ -222,6 +222,14 @@ module fortmacs
     use simple_fm, only: auto_fill_inhibit_regexp, inhibit_auto_fill, normal_auto_fill_function
     use replace_fm, only: case_replace, replace_lax_whitespace, replace_regexp_lax_whitespace, &
                           query_replace_skip_read_only, query_replace_show_replacement, query_replace_from_to_separator
+    use replace_fm, only: occur, occur_in_region, multi_occur, multi_occur_in_matching_buffers, keep_lines, flush_lines, &
+                          kill_matching_lines, copy_matching_lines, how_many, occur_mode, occur_edit_mode, &
+                          occur_rename_buffer, occur_source_type, list_matching_lines_default_context_lines, &
+                          list_matching_lines_face, list_matching_lines_buffer_name_face, &
+                          list_matching_lines_current_line_face, list_matching_lines_jump_to_current_line, &
+                          list_matching_lines_prefix_face, occur_excluded_properties, occur_excluded_properties_all, &
+                          occur_mode_hook, occur_edit_mode_hook, occur_hook, occur_mode_find_occurrence_hook, &
+                          occur_mode_map, occur_edit_mode_map
     ! Settings, hooks and modes as objects.
     use data_fm, only: setting_type, integer_setting, logical_setting, string_setting, function_setting
     use eval_fm, only: hook_type, change_major_mode_hook, change_hook_type, after_change_hook_type, change_function, &

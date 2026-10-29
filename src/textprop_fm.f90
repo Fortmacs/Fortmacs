@@ -40,7 +40,7 @@ module textprop_fm
                         FM_GENERIC_ERROR, FM_TEXT_READ_ONLY, FM_BUFFER_READ_ONLY, FM_WRONG_TYPE_ARGUMENT
     use lisp_fm, only: consp, list, list_elements, list_length, make_list, make_symbol_ref, nilp, &
                        stringp, value_type, xstring, nil, string_intervals, set_string_intervals, &
-                       make_string
+                       make_string, symbolp, symbols, xsymbol
     use character_fm, only: multibyte_chars_in_text
     use lread_fm, only: intern
     use data_fm, only: value_eq
@@ -58,7 +58,7 @@ module textprop_fm
               remove_list_of_text_properties, next_property_change, &
               next_single_property_change, previous_property_change, &
               previous_single_property_change, text_property_any, &
-              text_property_not_all, verify_interval_modification
+              text_property_not_all, verify_interval_modification, add_face_text_property
     public :: text_property_stickiness, next_single_char_property_change, &
               previous_single_char_property_change, get_char_property, get_char_property_and_overlay, &
               next_char_property_change, previous_char_property_change, text_prop_means_invisible, &
@@ -431,6 +431,76 @@ contains
         logical :: changed
         call add_text_properties(start, end, list(prop, val), changed, status)
     end subroutine put_text_property
+
+    !> Combine FACE with any existing faces from START to END.  FACE is
+    !> combined with the existing `face' properties as a list: in front
+    !> of them, or after them if APPEND is true; text without a face gets
+    !> FACE itself.  Port of textprop.c:Fadd_face_text_property (in the
+    !> current buffer).
+    recursive subroutine add_face_text_property(start, end, face, status, append)
+        integer(int64), intent(in) :: start, end
+        type(value_type), intent(in) :: face
+        type(status_type), intent(out) :: status
+        logical, intent(in), optional :: append
+        type(value_type), allocatable :: prev_items(:), all(:)
+        type(value_type) :: prev, prop
+        integer(int64) :: s, e, next
+        logical :: found, app
+        integer :: n
+        status = status_type()
+        app = .false.
+        if (present(append)) app = append
+        prop = make_symbol_ref(intern("face"))
+        s = min(start, end)
+        e = max(start, end)
+        do while (s < e)
+            call next_single_property_change(s, prop, next, found, status, e)
+            if (.not. status%ok()) return
+            if (.not. found) next = e
+            call get_text_property(s, prop, prev, status)
+            if (.not. status%ok()) return
+            if (nilp(prev)) then
+                call put_text_property(s, next, prop, face, status)
+            else if (consp(prev) .and. .not. keyword_list(prev)) then
+                ! The previous value is a list, so prepend (or append) the
+                ! new value to this list.
+                call list_elements(prev, prev_items)
+                n = size(prev_items)
+                allocate (all(n + 1))
+                if (app) then
+                    all(:n) = prev_items
+                    all(n + 1) = face
+                else
+                    all(1) = face
+                    all(2:) = prev_items
+                end if
+                call put_text_property(s, next, prop, make_list(all), status)
+                deallocate (all)
+            else if (app) then
+                ! The previous value is a single value, so make it into a
+                ! list.
+                call put_text_property(s, next, prop, list(prev, face), status)
+            else
+                call put_text_property(s, next, prop, list(face, prev), status)
+            end if
+            if (.not. status%ok()) return
+            s = next
+        end do
+    contains
+
+        !> Whether V is an anonymous face (a list starting with a keyword).
+        logical function keyword_list(v)
+            type(value_type), intent(in) :: v
+            type(value_type), allocatable :: elts(:)
+            character(len=:), allocatable :: name
+            keyword_list = .false.
+            call list_elements(v, elts)
+            if (size(elts) == 0) return
+            if (.not. symbolp(elts(1))) return
+            name = symbols(xsymbol(elts(1)))%name
+            if (len(name) > 0) keyword_list = name(1:1) == ":"
+        end function keyword_list
+    end subroutine add_face_text_property
 
     !> Replace the properties of the text from `start' to `end' with
     !> `properties'.  The change hooks run.  Port of

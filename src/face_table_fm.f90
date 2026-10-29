@@ -124,6 +124,7 @@ module face_table_fm
     use faces_fm, only: homoglyph
     use faces_fm, only: internal_border
     use faces_fm, only: italic
+    use isearch_fm, only: lazy_highlight
     use faces_fm, only: line_number
     use faces_fm, only: line_number_current_line
     use faces_fm, only: line_number_major_tick
@@ -298,6 +299,7 @@ module face_table_fm
         type(named_face_type), pointer :: homoglyph => homoglyph
         type(named_face_type), pointer :: internal_border => internal_border
         type(named_face_type), pointer :: italic => italic
+        type(named_face_type), pointer :: lazy_highlight => lazy_highlight
         type(named_face_type), pointer :: line_number => line_number
         type(named_face_type), pointer :: line_number_current_line => line_number_current_line
         type(named_face_type), pointer :: line_number_major_tick => line_number_major_tick

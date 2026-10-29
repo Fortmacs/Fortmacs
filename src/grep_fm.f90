@@ -34,8 +34,10 @@
 !> `grep_filter' turns into the `match' face; `grep_use_headings'
 !> groups the matches under a heading per file.
 !>
-!> Not ported yet (Deferred): Grep-Edit mode (e, needs Occur's
-!> `occur_after_change_function', roadmap step 37), C-c C-f
+!> Grep-Edit mode (e) applies edits of the matches to the files, as
+!> Occur-Edit mode does (replace_fm).
+!>
+!> Not ported yet (Deferred): C-c C-f
 !> (`next_error_follow_minor_mode'), the menu and tool bar, the `keymap'
 !> of the abbreviated part of a command (RET and mouse-2 on it; M-x
 !> `grep_find_toggle_abbreviation' works), `kill_transform_function'
@@ -85,7 +87,16 @@ module grep_fm
     use replace_fm, only: read_regexp, format_prompt
     use isearch_fm, only: isearch_no_upper_case_p
     use callint_fm, only: current_prefix_arg, prefix_numeric_value
-    use keymap_fm, only: keymap_set, set_keymap_parent
+    use keymap_fm, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
+    use text_mode_fm, only: text_mode_map
+    use derived_fm, only: derived_mode_p
+    use subr_fm, only: run_mode_hooks
+    use insdel_fm, only: after_change_functions
+    use data_fm, only: set
+    use help_fm, only: substitute_command_keys
+    use buffer_fm, only: restore_buffer_modified_p
+    use textprop_fm, only: text_property_not_all
+    use replace_fm, only: occur_add_target, occur_after_change_function
     use modes_fm, only: major_modes
     use process_fm, only: process_arg_type, get_buffer_process
     use font_core_fm, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
@@ -102,10 +113,12 @@ module grep_fm
                           compilation_error_screen_columns, compilation_disable_input, compilation_filter_hook, &
                           compilation_filter_start, compilation_info_face, compilation_warning_face, &
                           compilation_minor_mode_map, compilation_message_info, compilation_message_info_type, &
-                          kill_compilation, syms_of_compile, COMPILATION_SCROLL_NIL, COMPILATION_SCROLL_T
+                          kill_compilation, syms_of_compile, compilation_message_location, COMPILATION_SCROLL_NIL, &
+                          COMPILATION_SCROLL_T
     implicit none(type, external)
     private
 
+    public :: grep_edit_mode, grep_change_to_grep_edit_mode, grep_edit_save_changes
     public :: grep, grep_find, lgrep, rgrep, zrgrep, grep_mode, grep_compute_defaults, grep_default_command, &
               grep_expand_template, rgrep_default_command, grep_find_toggle_abbreviation, grep_file_at_point, &
               grep_process_setup, grep_exit_message, grep_filter, grep_find_ignored_files, &
@@ -456,6 +469,13 @@ module grep_fm
     !> called.  Port of grep.el grep-find-use-xargs.
     integer, public :: grep_find_use_xargs = GREP_FIND_USE_XARGS_NIL
 
+    !> Keymap for `grep_edit_mode'.  Port of grep.el grep-edit-mode-map.
+    type(handle_type), public :: grep_edit_mode_map
+
+    !> Hooks run when changing to Grep-Edit mode.  Port of grep.el
+    !> grep-edit-mode-hook.
+    type(hook_type), target, public :: grep_edit_mode_hook = hook_type(name="grep_edit_mode_hook")
+
     !> The function giving the default file name of `grep_read_files'.
     procedure(grep_read_files_proc), pointer, public :: grep_read_files_function => null()
 
@@ -495,6 +515,8 @@ module grep_fm
         logical :: has_heading_state = .false.
         type(handle_type) :: heading_limit
         character(len=:), allocatable :: heading
+        ! grep-edit-original-mode-map.
+        type(handle_type) :: edit_original_map
     end type grep_local_type
 
     type(grep_local_type), allocatable :: locals(:)
@@ -1609,6 +1631,147 @@ contains
         call grep(command, status)
     end subroutine cmd_grep
 
+    !> Mark relevant regions read-only, and add relevant occur
+    !> text-properties.  Port of grep.el:grep-edit--prepare-buffer.
+    recursive subroutine grep_edit_prepare_buffer(status)
+        type(status_type), intent(out) :: status
+        type(value_type) :: inhibit
+        type(status_type) :: st
+        type(handle_type) :: target_buffer, old
+        type(handle_type) :: m(1), e(1)
+        integer(int64) :: pos, beg, end, opoint, location, next
+        logical :: found, changed
+        integer :: idx
+        status = status_type()
+        opoint = point()
+        call symbol_value(sym("inhibit_read_only"), inhibit, st)
+        call set(sym("inhibit_read_only"), t_value(), st)
+        pos = point_min()
+        do
+            call next_region("compilation_annotation", pos, beg, end, found)
+            if (.not. found) exit
+            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("front_sticky"), t_value()), &
+                                     changed, st)
+            pos = end
+        end do
+        pos = point_min()
+        do
+            call next_region("compilation_message", pos, beg, end, found)
+            if (.not. found) exit
+            ! (Allow insertion of text right after prefix, but not before.)
+            call add_text_properties(beg, end, list(sym("read_only"), t_value(), sym("occur_prefix"), t_value(), &
+                                                    sym("front_sticky"), t_value(), sym("rear_nonsticky"), t_value()), &
+                                     changed, st)
+            ! Update the markers if necessary.
+            call compilation_message_location(beg, target_buffer, location, found, status)
+            if (.not. status%ok()) exit
+            if (found) then
+                old = current_buffer()
+                call set_buffer(target_buffer, st)
+                call copy_marker_at(location, m(1), .false., st)
+                call copy_marker_at(location, e(1), .false., st)
+                call set_buffer(old, st)
+                idx = occur_add_target(m, e)
+                call next_single_property_change(end, sym("compilation_message"), next, found, st)
+                if (.not. found) then
+                    call goto_char(end)
+                    next = line_end_position() + 1
+                end if
+                call put_text_property(beg, min(next, point_max()), sym("occur_target"), make_fixnum(int(idx, int64)), st)
+            end if
+            pos = end
+        end do
+        call set(sym("inhibit_read_only"), inhibit, st)
+        call goto_char(opoint)
+    contains
+
+        !> The next region from FROM where PROP is not nil, of one value
+        !> (text-property-search-forward).
+        subroutine next_region(prop, from, b, e2, ok)
+            character(len=*), intent(in) :: prop
+            integer(int64), intent(in) :: from
+            integer(int64), intent(out) :: b, e2
+            logical, intent(out) :: ok
+            type(status_type) :: s
+            call text_property_not_all(from, point_max(), sym(prop), nil(), b, ok, s)
+            if (.not. ok) return
+            call next_single_property_change(b, sym(prop), e2, ok, s)
+            if (.not. ok) e2 = point_max()
+            ok = .true.
+        end subroutine next_region
+    end subroutine grep_edit_prepare_buffer
+
+    !> Major mode for editing *grep* buffers.
+    !> In this mode, changes to the *grep* buffer are applied to the
+    !> originating files.
+    !> \<grep_edit_mode_map>
+    !> Type \[grep_edit_save_changes] to exit Grep-Edit mode, return to Grep
+    !> mode.
+    !>
+    !> The only editable texts in a Grep-Edit buffer are the match results.
+    !> Port of grep.el:grep-edit-mode.
+    recursive subroutine grep_edit_mode(status)
+        type(status_type), intent(out) :: status
+        call set_error(status, FM_GENERIC_ERROR, &
+                       "This mode can be enabled only by `grep_change_to_grep_edit_mode'")
+    end subroutine grep_edit_mode
+
+    !> Switch to `grep_edit_mode' to edit *grep* buffer.  Port of
+    !> grep.el:grep-change-to-grep-edit-mode.
+    recursive subroutine grep_change_to_grep_edit_mode(status)
+        type(status_type), intent(out) :: status
+        type(handle_type) :: proc
+        integer :: k
+        status = status_type()
+        if (.not. derived_mode_p(major_modes%grep_mode)) then
+            call set_error(status, FM_GENERIC_ERROR, "Not a Grep buffer")
+            return
+        end if
+        proc = get_buffer_process(current_buffer())
+        if (proc%index /= 0) then
+            call set_error(status, FM_GENERIC_ERROR, "Cannot switch when grep is running")
+            return
+        end if
+        k = local_entry()
+        locals(k)%edit_original_map = current_local_map()
+        call use_local_map(grep_edit_mode_map, status)
+        if (.not. status%ok()) return
+        call grep_edit_prepare_buffer(status)
+        if (.not. status%ok()) return
+        buffers(cur)%read_only = .false.
+        buffers(cur)%major_mode = "grep_edit_mode"
+        buffers(cur)%mode_name = "Grep-Edit"
+        ! buffer-enable-undo.
+        buffers(cur)%undo_enabled = .true.
+        call restore_buffer_modified_p(.false.)
+        if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
+        call after_change_functions%add(occur_after_change_function, local=.true.)
+        call run_mode_hooks(status, grep_edit_mode_hook)
+        if (.not. status%ok()) return
+        call message(substitute_command_keys("Editing: Type \[grep_edit_save_changes] to return to Grep mode"))
+    end subroutine grep_change_to_grep_edit_mode
+
+    !> Switch back to Grep mode.  Port of grep.el:grep-edit-save-changes.
+    recursive subroutine grep_edit_save_changes(status)
+        type(status_type), intent(out) :: status
+        integer :: k
+        status = status_type()
+        if (.not. derived_mode_p("grep_edit_mode")) then
+            call set_error(status, FM_GENERIC_ERROR, "Not a Grep-Edit buffer")
+            return
+        end if
+        call after_change_functions%remove(occur_after_change_function, local=.true.)
+        k = local_entry()
+        call use_local_map(locals(k)%edit_original_map, status)
+        buffers(cur)%read_only = .true.
+        buffers(cur)%major_mode = "grep_mode"
+        buffers(cur)%mode_name = "Grep"
+        ! buffer-disable-undo.
+        buffers(cur)%undo_enabled = .false.
+        if (allocated(buffers(cur)%undo_list)) deallocate (buffers(cur)%undo_list)
+        call message("Switching to Grep mode")
+    end subroutine grep_edit_save_changes
+
     !> Run grep via find, with user-specified args COMMAND_ARGS.
     !> Collect output in the "*grep*" buffer.
     !> While find runs asynchronously, you can use the \[next_error]
@@ -2575,6 +2738,10 @@ contains
         call keymap_set(grep_mode_map, "}", "compilation_next_file", st)
         call keymap_set(grep_mode_map, "TAB", "compilation_next_error", st)
         call keymap_set(grep_mode_map, "<backtab>", "compilation_previous_error", st)
+        call keymap_set(grep_mode_map, "e", "grep_change_to_grep_edit_mode", st)
+        call make_sparse_keymap(grep_edit_mode_map)
+        call set_keymap_parent(grep_edit_mode_map, text_mode_map, st)
+        call keymap_set(grep_edit_mode_map, "C-c C-c", "grep_edit_save_changes", st)
         call defvar_nil("grep_history")
         call defvar_nil("grep_find_history")
         call defvar_nil("grep_regexp_history")
@@ -2589,6 +2756,9 @@ contains
         commands%rzgrep%run => cmd_zrgrep
         commands%kill_grep%run => kill_compilation
         commands%grep_find_toggle_abbreviation%run => grep_find_toggle_abbreviation
+        commands%grep_edit_mode%run => grep_edit_mode
+        commands%grep_change_to_grep_edit_mode%run => grep_change_to_grep_edit_mode
+        commands%grep_edit_save_changes%run => grep_edit_save_changes
         call add_local_variables_killer(kill_grep_locals)
     contains
 
