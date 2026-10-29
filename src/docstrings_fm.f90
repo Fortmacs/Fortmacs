@@ -228,7 +228,7 @@ module docstrings_fm
                        grep_compilation_transform_finished_rules, grep_context_face, grep_edit_mode_hook, &
                        grep_edit_mode_map, grep_error, grep_error_face, grep_error_screen_columns, &
                        grep_files_aliases, grep_find_abbreviate, grep_find_command, grep_find_command_position, &
-                       grep_find_ignored_directories, vgrep_find_ignored_files, grep_find_template, &
+                       grep_find_ignored_directories, grep_find_ignored_files_variable, grep_find_template, &
                        grep_find_use_xargs, GREP_FIND_USE_XARGS_NIL, GREP_FIND_USE_XARGS_EXEC, &
                        GREP_FIND_USE_XARGS_EXEC_PLUS, GREP_FIND_USE_XARGS_GNU, GREP_FIND_USE_XARGS_GNU_SORT, &
                        GREP_FIND_USE_XARGS_OTHER, grep_first_column, grep_heading, grep_heading_regexp, &
@@ -322,7 +322,7 @@ module docstrings_fm
     use mule_conf_fm, only: password_colon_equivalents, password_word_equivalents
     use mule_fm, only: auto_coding_alist, auto_coding_regexp_alist, last_coding_system_specified, &
                        mule_keymap, select_safe_coding_system_accept_default_p
-    use mule_util_fm, only: vtruncate_string_ellipsis
+    use mule_util_fm, only: truncate_string_ellipsis_variable
     use newcomment_fm, only: comment_add, comment_auto_fill_only_comments, comment_column, &
                              comment_combine_change_calls, comment_continue, comment_empty_lines, COMMENT_EMPTY_LINES_NIL, &
                              COMMENT_EMPTY_LINES_T, COMMENT_EMPTY_LINES_EOL, comment_end, comment_end_skip, &
@@ -550,8 +550,8 @@ module docstrings_fm
                                               "bookmark_yank_word", "buffer_menu", "buffer_menu_1_window", "buffer_menu_2_window", &
                                                             "buffer_menu_backup_unmark", "buffer_menu_bury", "buffer_menu_delete", &
                                                         "buffer_menu_delete_backwards", "buffer_menu_execute", "buffer_menu_mark", &
-                                                   "buffer_menu_mode", "buffer_menu_mode_other_window", "buffer_menu_multi_occur", &
-                                                       "buffer_menu_not_modified", "buffer_menu_other_window", "buffer_menu_save", &
+                                                        "buffer_menu_mode", "buffer_menu_multi_occur", "buffer_menu_not_modified", &
+                                               "buffer_menu_other_window", "buffer_menu_other_window_command", "buffer_menu_save", &
                                                "buffer_menu_select", "buffer_menu_switch_other_window", "buffer_menu_this_window", &
                                                                    "buffer_menu_toggle_files_only", "buffer_menu_toggle_internal", &
                                                    "buffer_menu_toggle_read_only", "buffer_menu_unmark", "buffer_menu_unmark_all", &
@@ -2842,7 +2842,7 @@ contains
                         "\<buffer_menu_mode_map>"//LF// &
                         "\[quit_window]    Remove the Buffer Menu from the display."//LF// &
                         "\[buffer_menu_this_window]    Select current line's buffer in place of the buffer menu."//LF// &
-                        "\[buffer_menu_mode_other_window]    Select that buffer in another window,"//LF// &
+                        "\[buffer_menu_other_window_command]    Select that buffer in another window,"//LF// &
                         "     so the Buffer Menu remains visible in its window."//LF// &
                         "\[buffer_menu_view]    Select current line's buffer, in `view_mode'."//LF// &
                         "\[buffer_menu_view_other_window]    Select that buffer in another window, in `view_mode'."//LF// &
@@ -2868,11 +2868,6 @@ contains
                         "\[revert_buffer]    Update the list of buffers."//LF// &
                         "\[buffer_menu_toggle_files_only]    Toggle whether the menu displays only file buffers."//LF// &
                         "\[buffer_menu_bury]    Bury the buffer listed on this line."
-        case ("buffer_menu_mode_other_window")
-            entry%file = "buff_menu_fm.f90"
-            entry%interactive = .true.
-            entry%doc = "Select this line's buffer in other window, leaving buffer menu"//LF// &
-                        "visible."
         case ("buffer_menu_multi_occur")
             entry%file = "buff_menu_fm.f90"
             entry%interactive = .true.
@@ -2890,6 +2885,11 @@ contains
                         "By default, all buffers are listed except those whose names start"//LF// &
                         "with a space (which are for internal use).  With prefix argument"//LF// &
                         "ARG, show only buffers that are visiting files."
+        case ("buffer_menu_other_window_command")
+            entry%file = "buff_menu_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select this line's buffer in other window, leaving buffer menu"//LF// &
+                        "visible."
         case ("buffer_menu_save")
             entry%file = "buff_menu_fm.f90"
             entry%interactive = .true.
@@ -18104,7 +18104,7 @@ contains
                         "The default value is inherited from `vc_directory_exclusion_list'."
         case ("grep_find_ignored_files")
             entry%file = "grep_fm.f90"
-            entry%fortran = "vgrep_find_ignored_files"
+            entry%fortran = "grep_find_ignored_files_variable"
             entry%user_option = .true.
             entry%doc = "List of file names which `rgrep' and `lgrep' shall exclude."//LF// &
                         "If an element has a predicate (APPLIES), it is called on the search"//LF// &
@@ -20993,7 +20993,7 @@ contains
                         "By default, the <X> placeholder contains find options for affecting"//LF// &
                         "the directory list, and the <F> placeholder contains the find"//LF// &
                         "options which affect which files are matched, both"//LF// &
-                        "`vgrep_find_ignored_files' and the FILES argument to `rgrep'."//LF// &
+                        "`grep_find_ignored_files_variable' and the FILES argument to `rgrep'."//LF// &
                         ""//LF// &
                         "This separation allows the two sources of file matching in <F> to be"//LF// &
                         "optimized together into a set of options which are overall faster"//LF// &
@@ -22793,9 +22793,9 @@ contains
                         "A value of 0 means to respect the value of `truncate_lines'."
         case ("truncate_string_ellipsis")
             entry%file = "mule_util_fm.f90"
-            entry%fortran = "vtruncate_string_ellipsis"
-            if (allocated(vtruncate_string_ellipsis)) then
-                entry%value = repr(vtruncate_string_ellipsis)
+            entry%fortran = "truncate_string_ellipsis_variable"
+            if (allocated(truncate_string_ellipsis_variable)) then
+                entry%value = repr(truncate_string_ellipsis_variable)
             else
                 entry%value = "unallocated"
             end if
