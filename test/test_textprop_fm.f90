@@ -31,7 +31,7 @@ module test_textprop_fm
     use fns_fm, only: value_equal, put
     use buffer_fm, only: buffers, cur, get_buffer_create, kill_buffer, set_buffer, &
                          current_buffer, buffer_live_p, set_buffer_read_only, &
-                         erase_buffer, inhibit_read_only, vdeactivate_mark, UE_FIRST_CHANGE
+                         erase_buffer, inhibit_read_only, deactivate_mark_variable, UE_FIRST_CHANGE
     use undo_fm, only: undo_last_kind
     use insdel_fm, only: insert
     use editfns_fm, only: goto_char, delete_and_extract_region, point_max
@@ -303,12 +303,12 @@ contains
         ! unmodified buffer is recorded for undo, and the mark deactivated
         ! (prepare_to_modify_buffer_1).
         buffers(cur)%text%save_modiff = buffers(cur)%text%modiff
-        vdeactivate_mark = .false.
+        deactivate_mark_variable = .false.
         call put_text_property(2_int64, 3_int64, sym("face"), sym("bold"), st)
         call check(error, undo_last_kind() == UE_FIRST_CHANGE, "first change not recorded")
         if (allocated(error)) return
-        call check(error, vdeactivate_mark, "deactivate-mark not set")
-        vdeactivate_mark = .false.
+        call check(error, deactivate_mark_variable, "deactivate-mark not set")
+        deactivate_mark_variable = .false.
         call leave(h, old)
     end subroutine test_modifies
 

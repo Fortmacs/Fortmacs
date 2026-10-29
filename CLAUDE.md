@@ -4,7 +4,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
 - Reference source is upstream emacs-31.1 (tools/fetch-upstream.sh); cite the original file/function when porting. Read-only reference: never propose changes upstream.
 - Behaviour mirrors vanilla Emacs 31.1 exactly: no deviations and no added features. Anything not yet ported is listed as Deferred, never approximated. The only exceptions:
   - The Fortran configuration and generations.
-  - Names use underscores where Emacs uses hyphens (commands, variables, functions, modes, hooks, keymaps, error symbols: `M-x find_file`, `C-h v fill_column`, `text_mode_hook`). Keys and mode-line text are unchanged.
+  - Names use underscores where Emacs uses hyphens (commands, variables, functions, modes, hooks, keymaps, error symbols: `M-x find_file`, `C-h v fill_column`, `text_mode_hook`). When two upstream names become the same Fortran name, the plain Emacs name stays and the other gets a spelled-out suffix: `_variable` for a variable named like a function (`user_full_name_variable`), `_command` for a capitalized name that differs only in case (`buffer_menu_other_window_command`). Keys and mode-line text are unchanged.
   - No run-time Lisp: eval-expression, eval-buffer and ielm are "Not applicable"; *scratch* starts in Fundamental mode with no Lisp message.
   - Customize and other setting-saving commands write Fortran assignments into init.f90.
   - Values are shown as Fortran (.true./.false., integers, strings, named constants); docstrings and messages carry no Lisp terms ("non-nil" becomes "true").

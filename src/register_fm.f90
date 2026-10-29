@@ -63,7 +63,7 @@ module register_fm
     use print_fm, only: fortran_string, marker_repr
     use buffer_fm, only: buffers, cur, current_buffer, buffer_live_p, get_file_buffer, get_buffer_create, &
                          set_buffer, set_buffer_read_only, erase_buffer, kill_buffer, barf_if_buffer_read_only, &
-                         vdeactivate_mark, get_buffer
+                         deactivate_mark_variable, get_buffer
     use marker_fm, only: free_marker, marker_position, marker_buffer
     use insdel_fm, only: insert
     use editfns_fm, only: point, goto_char, goto_char_marker, point_marker, buffer_substring, delete_region, &
@@ -1074,7 +1074,7 @@ contains
             if (del) call delete_region(start, end, status)
         end if
         call set_register(register, text)
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
     end subroutine copy_to_register
 
     !> The text of `register_separator' for `append_to_register' and
@@ -1134,7 +1134,7 @@ contains
             call set_error(status, FM_USER_ERROR, "Register does not contain text")
             return
         end select
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
         if (delete_flag) call delete_region(start, end, status)
     end subroutine collect_to_register
 
@@ -1410,7 +1410,7 @@ contains
         if (.not. status%ok()) return
         call copy_rectangle_to_register(register, start, end, status, del)
         if (status%ok() .and. .not. del) then
-            vdeactivate_mark = .true.
+            deactivate_mark_variable = .true.
             call get_register(register, val)
             if (val%kind == REGISTER_RECTANGLE) then
                 call indicate_copied_region(len_chars(val%rectangle(1)%text))

@@ -2162,7 +2162,7 @@ contains
     !> Put mark at end of F90 subprogram, point at beginning, push mark.
     !> Port of f90.el:f90-mark-subprogram.
     function f90_mark_subprogram() result(program)
-        use buffer_fm, only: vdeactivate_mark
+        use buffer_fm, only: deactivate_mark_variable
         type(f90_block_type) :: program
         type(f90_block_type) :: b
         integer(int64) :: pos
@@ -2172,7 +2172,7 @@ contains
         call goto_char(pos)
         program = f90_beginning_of_subprogram()
         buffers(cur)%mark_active = .true.
-        vdeactivate_mark = .false.
+        deactivate_mark_variable = .false.
     end function f90_mark_subprogram
 
     !> Put mark at end of F90 subprogram, point at beginning, push mark
