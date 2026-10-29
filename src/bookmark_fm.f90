@@ -2820,7 +2820,8 @@ contains
     !> \[bookmark_bmenu_delete] -- mark this bookmark to be deleted, and move down.
     !> \[bookmark_bmenu_delete_backwards] -- mark this bookmark to be deleted, and move up.
     !> \[bookmark_bmenu_delete_all] -- mark all listed bookmarks as to be deleted.
-    !> \[bookmark_bmenu_execute_deletions] -- delete bookmarks marked with `\[bookmark_bmenu_delete]' or `\[bookmark_bmenu_delete_all]'.
+    !> \[bookmark_bmenu_execute_deletions] -- delete bookmarks marked with `\[bookmark_bmenu_delete]'
+    !>   or `\[bookmark_bmenu_delete_all]'.
     !> \[bookmark_bmenu_save] -- save the current bookmark list in the default file.
     !>   With a prefix arg, prompts for a file to save in.
     !> \[bookmark_bmenu_load] -- load in a file of bookmarks (prompts for file.)
