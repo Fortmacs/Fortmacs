@@ -100,6 +100,7 @@ module bindings_fm
     use recentf_fm, only: syms_of_recentf
     use tabulated_list_fm, only: syms_of_tabulated_list
     use bookmark_fm, only: syms_of_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
+    use info_fm, only: syms_of_info
     use buff_menu_fm, only: syms_of_buff_menu
     use ibuffer_fm, only: syms_of_ibuffer
     use crm_fm, only: syms_of_crm
@@ -319,6 +320,7 @@ contains
         call syms_of_bookmark()
         call syms_of_buff_menu()
         call syms_of_ibuffer()
+        call syms_of_info()
         call syms_of_register()
         call syms_of_macros()
         call syms_of_kmacro()

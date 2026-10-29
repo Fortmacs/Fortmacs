@@ -1,0 +1,33 @@
+This is split.info, produced by makeinfo version 7.1 from split.texi.
+
+INFO-DIR-SECTION Testing
+START-INFO-DIR-ENTRY
+* Split: (split).    A test manual.
+END-INFO-DIR-ENTRY
+
+
+File: split.info,  Node: Top,  Next: First Chapter,  Up: (dir)
+
+Test Manual
+***********
+
+This is the top node.  See *note Second Chapter:: for more.
+
+* Menu:
+
+* First Chapter::       The first chapter.
+* Second Chapter::      The second chapter.
+* Index::               The index.
+
+
+File: split.info,  Node: First Chapter,  Next: Second Chapter,  Prev: Top,  Up: Top
+
+1 First Chapter
+***************
+
+Text of the first chapter.  *Note Section One::.
+
+* Menu:
+
+* Section One::         A section.
+
