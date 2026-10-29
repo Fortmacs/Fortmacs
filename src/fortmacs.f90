@@ -338,7 +338,7 @@ module fortmacs
                        grep_match_regexp, grep_scroll_output, grep_command, grep_command_position, grep_template, &
                        grep_use_null_device, grep_use_null_filename_separator, grep_find_command, &
                        grep_find_command_position, grep_find_template, rgrep_find_ignores_in_f, grep_files_aliases, &
-                       grep_find_ignored_directories, vgrep_find_ignored_files, grep_save_buffers, &
+                       grep_find_ignored_directories, grep_find_ignored_files_variable, grep_save_buffers, &
                        grep_save_buffers_function, grep_error_screen_columns, grep_setup_hook, grep_mode_hook, &
                        grep_mode_map, grep_find_abbreviate, grep_use_headings, grep_program, find_program, &
                        xargs_program, grep_find_use_xargs, grep_read_files_function, find_name_arg
@@ -479,7 +479,7 @@ module fortmacs
     use tabulated_list_fm, only: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
                                  tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, &
                                  tabulated_list_mode_map, tabulated_list_mode_hook, tabulated_list_revert_hook
-    use mule_util_fm, only: vtruncate_string_ellipsis
+    use mule_util_fm, only: truncate_string_ellipsis_variable
     use info_fm, only: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
                        info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, &
                        info_selection_hook, info_url_alist, info_url_type, info_suffix_list, info_suffix_type, &
@@ -873,7 +873,7 @@ module fortmacs
               bookmark_search_delay, bookmark_bmenu_mode_map, bookmark_bmenu_mode_hook
     public :: tabulated_list_gui_sort_indicator_asc, tabulated_list_gui_sort_indicator_desc, &
               tabulated_list_tty_sort_indicator_asc, tabulated_list_tty_sort_indicator_desc, tabulated_list_mode_map, &
-              tabulated_list_mode_hook, tabulated_list_revert_hook, vtruncate_string_ellipsis
+              tabulated_list_mode_hook, tabulated_list_revert_hook, truncate_string_ellipsis_variable
     public :: info_history_skip_intermediate_nodes, info_default_directory_list, info_directory_list, &
               info_additional_directory_list, info_scroll_prefer_subnodes, info_mode_hook, info_selection_hook, &
               info_url_alist, info_url_type, info_suffix_list, info_suffix_type, info_streamline_headings, &

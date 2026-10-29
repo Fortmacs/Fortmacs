@@ -50,7 +50,7 @@ module log_view_fm
     use lread_fm, only: sym
     use data_fm, only: symbol_value, set, add_local_variables_killer, value_eq
     use eval_fm, only: hook_type
-    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, buffer_live_p, vdeactivate_mark
+    use buffer_fm, only: buffers, cur, current_buffer, set_buffer, buffer_serial_live, buffer_live_p, deactivate_mark_variable
     use commands_fm, only: commands
     use modes_fm, only: major_modes
     use editfns_fm, only: point, goto_char, point_min, point_max, bobp, eobp, bolp, line_beginning_position, &
@@ -646,7 +646,7 @@ contains
                 if (.not. status%ok()) exit
             end do
             call goto_char(opoint)
-            vdeactivate_mark = .true.
+            deactivate_mark_variable = .true.
         else
             do k = 1, arg
                 call apply()
@@ -856,7 +856,7 @@ contains
             end if
         end if
         call restore_inhibit_read_only(saved)
-        vdeactivate_mark = .false.
+        deactivate_mark_variable = .false.
     end subroutine log_view_toggle_entry_display
 
     ! (add-text-properties BEG END PROPS).
