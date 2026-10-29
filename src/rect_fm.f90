@@ -79,7 +79,7 @@ module rect_fm
     use lread_fm, only: sym
     use data_fm, only: symbol_value
     use character_fm, only: string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH, MAX_CHAR
-    use buffer_fm, only: buffers, cur, barf_if_buffer_read_only, vdeactivate_mark, undo_entry_type, UE_POINT
+    use buffer_fm, only: buffers, cur, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
     use marker_fm, only: copy_marker_at, free_marker, marker_position, char_to_byte
     use undo_fm, only: push_undo_entry
     use insdel_fm, only: insert
@@ -582,7 +582,7 @@ contains
         end if
         if (.not. (condition_matches(status%code, FM_BUFFER_READ_ONLY) .or. &
                    condition_matches(status%code, FM_TEXT_READ_ONLY))) return
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
         call extract_rectangle(start, end, rect, st)
         call move_alloc(rect, killed_rectangle)
         if (kill_read_only_ok) then
@@ -603,7 +603,7 @@ contains
         type(rectangle_line_type), allocatable :: rect(:)
         call extract_rectangle(start, end, rect, status)
         call move_alloc(rect, killed_rectangle)
-        vdeactivate_mark = .true.
+        deactivate_mark_variable = .true.
     end subroutine copy_rectangle_as_kill
 
     !> Yank the last killed rectangle with upper left corner at point.

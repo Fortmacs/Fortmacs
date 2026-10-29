@@ -21,11 +21,11 @@
 
 !> Ports the `mule-util-test-truncate-NN' tests of mule-util-tests.el
 !> (the data of `mule-util-test-truncate-data', with
-!> `vtruncate_string_ellipsis' "...").  The filepos/bufferpos tests are
+!> `truncate_string_ellipsis_variable' "...").  The filepos/bufferpos tests are
 !> deferred with those functions.
 module test_mule_util_fm
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use mule_util_fm, only: truncate_string_to_width, vtruncate_string_ellipsis
+    use mule_util_fm, only: truncate_string_to_width, truncate_string_ellipsis_variable
     implicit none(type, external)
     private
 
@@ -66,7 +66,7 @@ contains
         character(len=*), parameter :: zhong = "中", wen = "文", kor = "kor한e글an", jp = "こhんeにlちlはo", &
                                        yue = "粵語", nihongo = "日本語"
         n = 0
-        vtruncate_string_ellipsis = "..."
+        truncate_string_ellipsis_variable = "..."
         call truncate(error, "", 0, "")
         call truncate(error, "x", 1, "x")
         call truncate(error, "xy", 1, "x")
@@ -105,6 +105,6 @@ contains
         call truncate(error, "foobarbaz", 8, "b"//yue, 3, ellipsis=yue)
         call truncate(error, jp, 14, "xeに"//nihongo, 4, "x", nihongo)
         call truncate(error, jp, 13, "xex"//nihongo, 4, "x", nihongo)
-        deallocate (vtruncate_string_ellipsis)
+        deallocate (truncate_string_ellipsis_variable)
     end subroutine test_truncate
 end module test_mule_util_fm

@@ -68,7 +68,7 @@ module process_fm
     use handle_fm, only: handle_type, slot_table_type, null_handle
     use data_fm, only: logical_setting
     use buffer_fm, only: buffers, cur, current_buffer, set_buffer, set_buffer_internal, buffer_live_p, &
-                         resolve_buffer, kill_buffer_processes_hook, vdeactivate_mark, BEG, buffer_handle
+                         resolve_buffer, kill_buffer_processes_hook, deactivate_mark_variable, BEG, buffer_handle
     use marker_fm, only: make_marker, free_marker, marker_buffer, marker_position, set_marker_both, &
                          set_marker, char_to_byte
     use insdel_fm, only: insert, insert_before_markers
@@ -1015,7 +1015,7 @@ contains
         ! A detected coding system stays the process's.
         if (used /= procs(i)%decode_coding_system) procs(i)%decode_coding_system = used
         last_coding_system_used = used
-        odeactivate = vdeactivate_mark
+        odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
         if (associated(procs(i)%filter)) then
@@ -1030,7 +1030,7 @@ contains
         ! buffer.
         if (buffer_live_p(old)) call set_buffer(old, st)
         ! Handling the process output should not deactivate the mark.
-        vdeactivate_mark = odeactivate
+        deactivate_mark_variable = odeactivate
     end subroutine read_process_output
 
     !> The length of `s' without an incomplete UTF-8 sequence at its end.
@@ -1162,7 +1162,7 @@ contains
         type(handle_type) :: old, proc
         type(status_type) :: st
         logical :: odeactivate
-        odeactivate = vdeactivate_mark
+        odeactivate = deactivate_mark_variable
         old = current_buffer()
         proc = table%handle_of(i)
         if (associated(procs(i)%sentinel)) then
@@ -1172,7 +1172,7 @@ contains
         end if
         if (.not. st%ok()) call message("error in process sentinel: "//format_error(st))
         if (buffer_live_p(old)) call set_buffer(old, st)
-        vdeactivate_mark = odeactivate
+        deactivate_mark_variable = odeactivate
     end subroutine exec_sentinel
 
     !> Function used as default sentinel for processes.
