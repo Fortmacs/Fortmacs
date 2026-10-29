@@ -24,8 +24,9 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> String truncation by display width: `truncate_string_to_width' and
-!> `truncate_string_ellipsis' (its variable is `vtruncate_string_ellipsis', as
-!> editfns_fm names the variables of functions with the same name).
+!> `truncate_string_ellipsis' (its variable is
+!> `truncate_string_ellipsis_variable': a variable named like a function
+!> takes the suffix _variable).
 !>
 !> Deferred: `store_substring', the nested alists, the coding-system
 !> helpers, `with_coding_priority', `detect_coding_with_language_environment',
@@ -46,22 +47,23 @@ module mule_util_fm
     !> Serves as default value of ELLIPSIS argument to
     !> `truncate_string_to_width' returned by the function
     !> `truncate_string_ellipsis'.  Port of mule-util.el
-    !> truncate-string-ellipsis.
-    character(len=:), allocatable, public :: vtruncate_string_ellipsis
+    !> truncate-string-ellipsis (renamed: the function
+    !> `truncate_string_ellipsis' has its name).
+    character(len=:), allocatable, public :: truncate_string_ellipsis_variable
 
 contains
 
     !> Return the string used to indicate truncation.
-    !> Use the value of the variable `vtruncate_string_ellipsis' when
+    !> Use the value of the variable `truncate_string_ellipsis_variable' when
     !> it's allocated.  Otherwise, return the Unicode character U+2026
     !> "HORIZONTAL ELLIPSIS" when it's displayable on the selected frame,
     !> or `...'.  Port of mule-util.el:truncate-string-ellipsis (the variable is
-    !> `vtruncate_string_ellipsis'; the
+    !> `truncate_string_ellipsis_variable'; the
     !> terminal's coding system is UTF-8, so U+2026 is displayable).
     function truncate_string_ellipsis() result(ellipsis)
         character(len=:), allocatable :: ellipsis
-        if (allocated(vtruncate_string_ellipsis)) then
-            ellipsis = vtruncate_string_ellipsis
+        if (allocated(truncate_string_ellipsis_variable)) then
+            ellipsis = truncate_string_ellipsis_variable
         else
             ellipsis = char(226)//char(128)//char(166)
         end if
