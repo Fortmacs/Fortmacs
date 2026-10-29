@@ -2351,14 +2351,16 @@ contains
         if (.not. ok) ok = refwd("[a-zA-Z]+: [a-zA-Z0-9_ *&]+ "//regexp_quote(name)//"\( \|$\)")
         if (.not. ok) ok = sfwd("['`‘]"//name//"['’]")
         if (.not. ok) then
-            if (smatch("\`.*\( (.*)\)\'", name, .true.)) &
+            if (smatch("\`.*\( (.*)\)\'", name, .true.)) then
                 ok = sfwd("['`‘]"//name(1:string_index_to_offset(name, mbeg(1)))//"['’]")
+            end if
         end if
         if (.not. ok) ok = sfwd(name)
         ! Try again without the " <1>" makeinfo can append
         if (.not. ok) then
-            if (smatch("\`\(.*\) <[0-9]+>\'", name, .true.)) &
+            if (smatch("\`\(.*\) <[0-9]+>\'", name, .true.)) then
                 call find_index_name(match_string_no_properties(1, name), ok)
+            end if
         end if
         if (ok) then
             call beginning_of_line(1_int64)
