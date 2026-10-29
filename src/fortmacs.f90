@@ -485,12 +485,24 @@ module fortmacs
                           ibuffer_never_search_content_name, ibuffer_never_search_content_mode, ibuffer_old_time, &
                           ibuffer_show_empty_filter_groups, ibuffer_mode_map, ibuffer_mode_filter_group_map, &
                           ibuffer_columns, ibuffer_sorting_functions, define_ibuffer_column, define_ibuffer_sorter, &
-                          ibuffer_column, ibuffer_text
+                          ibuffer_column, ibuffer_text, ibuffer_saved_filters, ibuffer_saved_filter_groups, &
+                          ibuffer_filtering_alist, ibuffer_filter_format_alist, ibuffer_save_with_custom, &
+                          define_ibuffer_filter, ibuffer_filtering_qualifiers, ibuffer_set_filtering_qualifiers, &
+                          ibuffer_filter_groups, ibuffer_set_filter_groups, ibuffer_switch_to_saved_filter_groups, &
+                          ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p
     use ibuf_macs_fm, only: ibuffer_formats_type, ibuffer_column_spec_type, ibuffer_cell_type, ibuffer_column_proc, &
                             ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, &
                             ibuffer_buffer_predicate_proc, ibuffer_form_proc, ibuffer_show_predicate_type, &
                             ibuffer_fontification_type, ibuffer_directory_abbrev_type, IBUFFER_ALIGN_LEFT, &
-                            IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT
+                            IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT, ibuffer_filter_type, ibuffer_filter_node_type, &
+                            ibuffer_saved_filters_type, ibuffer_saved_filter_groups_type, ibuffer_filter_groups_type, &
+                            ibuffer_filter_formats_type, ibuffer_filter_def_type, ibuffer_filter_test_proc, ibuffer_and, &
+                            ibuffer_or, ibuffer_not, ibuffer_saved, ibuffer_filter, ibuffer_major_mode, ibuffer_used_mode, &
+                            ibuffer_derived_mode, ibuffer_name, ibuffer_process, ibuffer_starred_name, ibuffer_filename, &
+                            ibuffer_basename, ibuffer_file_extension, ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, &
+                            ibuffer_modified, ibuffer_visiting_file, ibuffer_content, ibuffer_predicate
+    use crm_fm, only: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, &
+                      crm_local_must_match_map
     use buff_menu_fm, only: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, &
                             buffer_menu_name_width, buffer_menu_name_width_function, buffer_menu_name_width_proc, &
                             buffer_menu_dynamic_name_width, buffer_menu_size_width, buffer_menu_mode_width, &
@@ -844,6 +856,18 @@ module fortmacs
               ibuffer_summarizer_proc, ibuffer_sorter_proc, ibuffer_size_proc, ibuffer_buffer_predicate_proc, &
               ibuffer_form_proc, ibuffer_show_predicate_type, ibuffer_fontification_type, &
               ibuffer_directory_abbrev_type, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, IBUFFER_ALIGN_RIGHT
+    public :: ibuffer_saved_filters, ibuffer_saved_filter_groups, ibuffer_filtering_alist, ibuffer_filter_format_alist, &
+              ibuffer_save_with_custom, define_ibuffer_filter, ibuffer_filtering_qualifiers, &
+              ibuffer_set_filtering_qualifiers, ibuffer_filter_groups, ibuffer_set_filter_groups, &
+              ibuffer_switch_to_saved_filter_groups, ibuffer_switch_to_saved_filters, ibuffer_included_in_filters_p, &
+              ibuffer_filter_type, ibuffer_filter_node_type, ibuffer_saved_filters_type, &
+              ibuffer_saved_filter_groups_type, ibuffer_filter_groups_type, ibuffer_filter_formats_type, &
+              ibuffer_filter_def_type, ibuffer_filter_test_proc, ibuffer_and, ibuffer_or, ibuffer_not, ibuffer_saved, &
+              ibuffer_filter, ibuffer_major_mode, ibuffer_used_mode, ibuffer_derived_mode, ibuffer_name, &
+              ibuffer_process, ibuffer_starred_name, ibuffer_filename, ibuffer_basename, ibuffer_file_extension, &
+              ibuffer_directory, ibuffer_size_gt, ibuffer_size_lt, ibuffer_modified, ibuffer_visiting_file, &
+              ibuffer_content, ibuffer_predicate
+    public :: completing_read_multiple, crm_separator, crm_prompt, crm_local_completion_map, crm_local_must_match_map
     public :: buffer_menu_marker_char, buffer_menu_del_char, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_function, buffer_menu_name_width_proc, buffer_menu_dynamic_name_width, &
               buffer_menu_size_width, buffer_menu_mode_width, buffer_menu_use_frame_buffer_list, &

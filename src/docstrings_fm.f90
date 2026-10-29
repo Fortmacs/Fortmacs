@@ -114,6 +114,7 @@ module docstrings_fm
                             conf_npmrc_mode_syntax_table, conf_ppd_mode_syntax_table, conf_space_font_lock_keywords, &
                             conf_space_keywords, conf_space_keywords_alist, conf_toml_font_lock_keywords, &
                             conf_toml_mode_syntax_table, conf_unix_mode_syntax_table, conf_xdefaults_mode_syntax_table
+    use crm_fm, only: crm_local_completion_map, crm_local_must_match_map, crm_prompt, crm_separator
     use dabbrev_fm, only: dabbrev_abbrev_char_regexp, dabbrev_abbrev_skip_leading_regexp, &
                           dabbrev_backward_only, dabbrev_case_distinction, DABBREV_OFF, DABBREV_ON, &
                           DABBREV_LIKE_CASE_FOLD_SEARCH, DABBREV_LIKE_CASE_REPLACE, DABBREV_ASK, &
@@ -237,8 +238,8 @@ module docstrings_fm
                           ibuffer_default_display_maybe_show_predicates, ibuffer_default_shrink_to_minimum_size, &
                           ibuffer_default_sorting_mode, ibuffer_default_sorting_reversep, ibuffer_deletion_face_def, &
                           ibuffer_deletion_char, ibuffer_deletion_face, ibuffer_directory_abbrev_alist, &
-                          ibuffer_display_summary, ibuffer_eliding_string, ibuffer_expert, &
-                          ibuffer_filter_group_name_face_def, ibuffer_filter_group_name_face, &
+                          ibuffer_display_summary, ibuffer_eliding_string, ibuffer_expert, ibuffer_filter_format_alist, &
+                          ibuffer_filter_group_name_face_def, ibuffer_filter_group_name_face, ibuffer_filtering_alist, &
                           ibuffer_fontification_alist, ibuffer_formats, ibuffer_help_buffer_modes, ibuffer_hook, &
                           ibuffer_human_readable_size, ibuffer_jump_offer_only_visible_buffers, ibuffer_locked_buffer, &
                           ibuffer_locked_char, ibuffer_marked_face_def, ibuffer_marked_char, ibuffer_marked_face, &
@@ -246,6 +247,7 @@ module docstrings_fm
                           ibuffer_mode_map, ibuffer_modified_char, ibuffer_movement_cycle, &
                           ibuffer_never_search_content_mode, ibuffer_never_search_content_name, &
                           ibuffer_never_show_predicates, ibuffer_old_time, ibuffer_read_only_char, &
+                          ibuffer_save_with_custom, ibuffer_saved_filter_groups, ibuffer_saved_filters, &
                           ibuffer_show_empty_filter_groups, ibuffer_sorting_functions, ibuffer_title_face_def, &
                           ibuffer_title_face, ibuffer_truncate_lines, ibuffer_use_header_line, IBUFFER_HEADER_LINE_NIL, &
                           IBUFFER_HEADER_LINE_T, IBUFFER_HEADER_LINE_TITLE, ibuffer_use_other_window, &
@@ -482,7 +484,7 @@ module docstrings_fm
     end type doc_entry_type
 
     !> The documented functions, sorted.
-    character(len=50), parameter, public :: function_names(1160) = [character(len=50) :: &
+    character(len=50), parameter, public :: function_names(1234) = [character(len=50) :: &
                                                   "Buffer_menu__dynamic_name_width", "abbrev__default_expand", "abbrev_expansion", &
                                                             "abbrev_insert", "abbrev_mode", "abbrev_prefix_mark", "abbrev_symbol", &
                                                          "abbrev_table_name", "abbreviate_file_name_handler", "abort_minibuffers", &
@@ -548,30 +550,31 @@ module docstrings_fm
                                              "compilation_next_error", "compilation_next_error_function", "compilation_next_file", &
                                                                     "compilation_previous_error", "compilation_previous_file", &
                                             "compilation_set_skip_threshold", "compilation_shell_minor_mode", "compilation_start", &
-                                                        "compile", "compile_goto_error", "complete_symbol", "completion_at_point", &
-                                                "completion_help_at_point", "completion_in_region_mode", "conf_align_assignments", &
-                                                        "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", "conf_mode", &
-                                                       "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
+                                                   "compile", "compile_goto_error", "complete_symbol", "completing_read_multiple", &
+                                                   "completion_at_point", "completion_help_at_point", "completion_in_region_mode", &
+                                           "conf_align_assignments", "conf_colon_mode", "conf_desktop_mode", "conf_javaprop_mode", &
+                                          "conf_mode", "conf_mode_maybe", "conf_npmrc_mode", "conf_ppd_mode", "conf_quote_normal", &
                                                      "conf_space_keywords", "conf_space_mode", "conf_toml_mode", "conf_unix_mode", &
                                                 "conf_windows_mode", "conf_xdefaults_mode", "copy_abbrev_table", "copy_directory", &
                                                                     "copy_file", "copy_matching_lines", "copy_rectangle_as_kill", &
                                                          "copy_rectangle_to_register", "copy_region_as_kill", "copy_syntax_table", &
-                                                             "copy_to_register", "count_lines", "count_matches", "current_buffer", &
+                                                               "copy_to_register", "count_lines", "count_matches", "crm_complete", &
+                                            "crm_complete_and_exit", "crm_complete_word", "crm_completion_help", "current_buffer", &
                                                                "current_fill_column", "current_global_map", "current_indentation", &
                                            "current_justification", "current_kill", "cycle_spacing", "dabbrev__same_major_mode_p", &
                                              "dabbrev__select_buffers", "dabbrev_completion", "dabbrev_expand", "deactivate_mark", &
                                                         "decode_coding_region", "decode_coding_string", "default_indent_new_line", &
                                                     "define_coding_system_alias", "define_global_abbrev", "define_ibuffer_column", &
-                                                                "define_ibuffer_sorter", "define_mode_abbrev", "delete_all_space", &
-                                          "delete_backward_char", "delete_blank_lines", "delete_char", "delete_extract_rectangle", &
-                                                           "delete_forward_char", "delete_horizontal_space", "delete_indentation", &
-                                                     "delete_matching_lines", "delete_non_matching_lines", "delete_other_windows", &
-                                             "delete_process", "delete_rectangle", "delete_region", "delete_whitespace_rectangle", &
-                                                 "delete_window", "derived_mode_p", "describe_bindings", "describe_coding_system", &
-                                                        "describe_command", "describe_current_coding_system", "describe_function", &
-                                                       "describe_key", "describe_key_briefly", "describe_mode", "describe_symbol", &
-                                                      "describe_variable", "detect_coding_region", "detect_coding_string", "diff", &
-                                                   "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
+                                                           "define_ibuffer_filter", "define_ibuffer_sorter", "define_mode_abbrev", &
+                                                  "delete_all_space", "delete_backward_char", "delete_blank_lines", "delete_char", &
+                                                     "delete_extract_rectangle", "delete_forward_char", "delete_horizontal_space", &
+                                                       "delete_indentation", "delete_matching_lines", "delete_non_matching_lines", &
+                                                    "delete_other_windows", "delete_process", "delete_rectangle", "delete_region", &
+                                            "delete_whitespace_rectangle", "delete_window", "derived_mode_p", "describe_bindings", &
+                                                   "describe_coding_system", "describe_command", "describe_current_coding_system", &
+                                                     "describe_function", "describe_key", "describe_key_briefly", "describe_mode", &
+                                           "describe_symbol", "describe_variable", "detect_coding_region", "detect_coding_string", &
+                                           "diff", "diff_apply_buffer", "diff_apply_hunk", "diff_backup", "diff_buffer_with_file", &
                                                     "diff_buffers", "diff_delete_other_hunks", "diff_file_kill", "diff_file_next", &
                                                       "diff_file_prev", "diff_fixup_modifs", "diff_goto_source", "diff_hunk_kill", &
                                           "diff_hunk_next", "diff_hunk_prev", "diff_kill_junk", "diff_mode", "diff_restrict_view", &
@@ -638,48 +641,71 @@ module docstrings_fm
                                                        "goto_char", "grep", "grep_apply_setting", "grep_change_to_grep_edit_mode", &
                                                  "grep_compute_defaults", "grep_edit_mode", "grep_edit_save_changes", "grep_find", &
                                                   "grep_find_toggle_abbreviation", "grep_mode", "help_for_help", "help_form_show", &
-                                                       "help_mode", "help_quit", "how_many", "ibuffer", "ibuffer_add_to_tmp_hide", &
-                                                  "ibuffer_add_to_tmp_show", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
-                                                  "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_bury_buffer", &
-                                                                    "ibuffer_change_marks", "ibuffer_copy_buffername_as_kill", &
-                                                   "ibuffer_copy_filename_as_kill", "ibuffer_diff_with_file", "ibuffer_do_delete", &
-                                                 "ibuffer_do_kill_lines", "ibuffer_do_kill_on_deletion_marks", "ibuffer_do_occur", &
-                                                                    "ibuffer_do_query_replace", "ibuffer_do_query_replace_regexp", &
+                                                     "help_mode", "help_quit", "how_many", "ibuffer", "ibuffer_add_saved_filters", &
+                                                              "ibuffer_add_to_tmp_hide", "ibuffer_add_to_tmp_show", "ibuffer_and", &
+                                                       "ibuffer_and_filter", "ibuffer_auto_mode", "ibuffer_backward_filter_group", &
+                                                     "ibuffer_backward_line", "ibuffer_backwards_next_marked", "ibuffer_basename", &
+                                                                "ibuffer_bs_show", "ibuffer_bs_toggle_all", "ibuffer_bury_buffer", &
+                                                         "ibuffer_change_marks", "ibuffer_clear_filter_groups", "ibuffer_content", &
+                                                               "ibuffer_copy_buffername_as_kill", "ibuffer_copy_filename_as_kill", &
+                                                                    "ibuffer_decompose_filter", "ibuffer_decompose_filter_group", &
+                                                             "ibuffer_delete_saved_filter_groups", "ibuffer_delete_saved_filters", &
+                                                            "ibuffer_derived_mode", "ibuffer_diff_with_file", "ibuffer_directory", &
+                                                "ibuffer_do_delete", "ibuffer_do_kill_lines", "ibuffer_do_kill_on_deletion_marks", &
+                                                "ibuffer_do_occur", "ibuffer_do_query_replace", "ibuffer_do_query_replace_regexp", &
                                                    "ibuffer_do_rename_uniquely", "ibuffer_do_replace_regexp", "ibuffer_do_revert", &
                                               "ibuffer_do_save", "ibuffer_do_shell_command_file", "ibuffer_do_shell_command_pipe", &
                                                          "ibuffer_do_shell_command_pipe_replace", "ibuffer_do_sort_by_alphabetic", &
                                                            "ibuffer_do_sort_by_filename_process", "ibuffer_do_sort_by_major_mode", &
                                           "ibuffer_do_sort_by_mode_name", "ibuffer_do_sort_by_recency", "ibuffer_do_sort_by_size", &
                                             "ibuffer_do_toggle_lock", "ibuffer_do_toggle_modified", "ibuffer_do_toggle_read_only", &
-                                                           "ibuffer_do_view", "ibuffer_do_view_horizontally", "ibuffer_find_file", &
-                                            "ibuffer_forward_filter_group", "ibuffer_forward_line", "ibuffer_forward_next_marked", &
-                                                               "ibuffer_invert_sorting", "ibuffer_jump", "ibuffer_jump_to_buffer", &
-                                         "ibuffer_jump_to_filter_group", "ibuffer_list_buffers", "ibuffer_mark_by_content_regexp", &
-                                             "ibuffer_mark_by_file_name_regexp", "ibuffer_mark_by_locked", "ibuffer_mark_by_mode", &
-                                                                    "ibuffer_mark_by_mode_regexp", "ibuffer_mark_by_name_regexp", &
-                                                             "ibuffer_mark_compressed_file_buffers", "ibuffer_mark_dired_buffers", &
-                                                                    "ibuffer_mark_dissociated_buffers", "ibuffer_mark_for_delete", &
-                                         "ibuffer_mark_for_delete_backwards", "ibuffer_mark_forward", "ibuffer_mark_help_buffers", &
-                                                                    "ibuffer_mark_modified_buffers", "ibuffer_mark_old_buffers", &
+                                                    "ibuffer_do_view", "ibuffer_do_view_horizontally", "ibuffer_exchange_filters", &
+                                                                   "ibuffer_file_extension", "ibuffer_filename", "ibuffer_filter", &
+                                                                    "ibuffer_filter_by_basename", "ibuffer_filter_by_content", &
+                                                                  "ibuffer_filter_by_derived_mode", "ibuffer_filter_by_directory", &
+                                                                 "ibuffer_filter_by_file_extension", "ibuffer_filter_by_filename", &
+                                                 "ibuffer_filter_by_mode", "ibuffer_filter_by_modified", "ibuffer_filter_by_name", &
+                                            "ibuffer_filter_by_process", "ibuffer_filter_by_size_gt", "ibuffer_filter_by_size_lt", &
+                                                                  "ibuffer_filter_by_starred_name", "ibuffer_filter_by_used_mode", &
+                                                         "ibuffer_filter_by_visiting_file", "ibuffer_filter_chosen_by_completion", &
+                                                "ibuffer_filter_disable", "ibuffer_filter_groups", "ibuffer_filtering_qualifiers", &
+                                           "ibuffer_filters_to_filter_group", "ibuffer_find_file", "ibuffer_forward_filter_group", &
+                                           "ibuffer_forward_line", "ibuffer_forward_next_marked", "ibuffer_included_in_filters_p", &
+                                                   "ibuffer_interactive_filter_by_mode", "ibuffer_invert_sorting", "ibuffer_jump", &
+                                            "ibuffer_jump_to_buffer", "ibuffer_jump_to_filter_group", "ibuffer_kill_filter_group", &
+                                                                "ibuffer_kill_line", "ibuffer_list_buffers", "ibuffer_major_mode", &
+                                                             "ibuffer_mark_by_content_regexp", "ibuffer_mark_by_file_name_regexp", &
+                                                  "ibuffer_mark_by_locked", "ibuffer_mark_by_mode", "ibuffer_mark_by_mode_regexp", &
+                                                            "ibuffer_mark_by_name_regexp", "ibuffer_mark_compressed_file_buffers", &
+                                                                 "ibuffer_mark_dired_buffers", "ibuffer_mark_dissociated_buffers", &
+                                           "ibuffer_mark_for_delete", "ibuffer_mark_for_delete_backwards", "ibuffer_mark_forward", &
+                                         "ibuffer_mark_help_buffers", "ibuffer_mark_modified_buffers", "ibuffer_mark_old_buffers", &
                                                                  "ibuffer_mark_read_only_buffers", "ibuffer_mark_special_buffers", &
-                                                           "ibuffer_mark_unsaved_buffers", "ibuffer_mode", "ibuffer_other_window", &
-                                                        "ibuffer_recompile_formats", "ibuffer_redisplay", "ibuffer_switch_format", &
-                                             "ibuffer_toggle_filter_group", "ibuffer_toggle_marks", "ibuffer_toggle_sorting_mode", &
-                                                      "ibuffer_unmark_all", "ibuffer_unmark_all_marks", "ibuffer_unmark_backward", &
-                                                               "ibuffer_unmark_forward", "ibuffer_update", "ibuffer_visit_buffer", &
-                                                             "ibuffer_visit_buffer_1_window", "ibuffer_visit_buffer_other_window", &
-                                                     "ibuffer_visit_buffer_other_window_noselect", "ignore", "increment_register", &
-                                         "indent_according_to_mode", "indent_for_tab_command", "indent_region", "indent_relative", &
-                                                    "indent_relative_first_indent_point", "indent_rigidly", "indent_rigidly_left", &
-                                                                    "indent_rigidly_left_to_tab_stop", "indent_rigidly_right", &
-                                                    "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", "indent_to", "insert", &
-                                                          "insert_abbrev_table_description", "insert_abbrevs", "insert_rectangle", &
-                                                       "insert_register", "interactive_region", "internal_default_process_filter", &
-                                                           "internal_default_process_sentinel", "internal_default_signal_process", &
-                                                           "interrupt_process", "inverse_add_abbrev", "inverse_add_global_abbrev", &
-                                                                   "inverse_add_mode_abbrev", "isearch_abort", "isearch_backward", &
-                                                       "isearch_backward_regexp", "isearch_beginning_of_buffer", "isearch_cancel", &
-                                                                 "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
+                                               "ibuffer_mark_unsaved_buffers", "ibuffer_mode", "ibuffer_modified", "ibuffer_name", &
+                                                        "ibuffer_negate_filter", "ibuffer_not", "ibuffer_or", "ibuffer_or_filter", &
+                                                         "ibuffer_other_window", "ibuffer_pop_filter", "ibuffer_pop_filter_group", &
+                                         "ibuffer_predicate", "ibuffer_process", "ibuffer_recompile_formats", "ibuffer_redisplay", &
+                                                            "ibuffer_save_filter_groups", "ibuffer_save_filters", "ibuffer_saved", &
+                                                                 "ibuffer_set_filter_groups", "ibuffer_set_filter_groups_by_mode", &
+                                                         "ibuffer_set_filtering_qualifiers", "ibuffer_size_gt", "ibuffer_size_lt", &
+                                         "ibuffer_starred_name", "ibuffer_switch_format", "ibuffer_switch_to_saved_filter_groups", &
+                                         "ibuffer_switch_to_saved_filters", "ibuffer_toggle_filter_group", "ibuffer_toggle_marks", &
+                                                  "ibuffer_toggle_sorting_mode", "ibuffer_unmark_all", "ibuffer_unmark_all_marks", &
+                                                            "ibuffer_unmark_backward", "ibuffer_unmark_forward", "ibuffer_update", &
+                                                     "ibuffer_used_mode", "ibuffer_visit_buffer", "ibuffer_visit_buffer_1_window", &
+                                                "ibuffer_visit_buffer_other_window", "ibuffer_visit_buffer_other_window_noselect", &
+                                                   "ibuffer_visiting_file", "ibuffer_yank", "ibuffer_yank_filter_group", "ignore", &
+                                                       "increment_register", "indent_according_to_mode", "indent_for_tab_command", &
+                                                         "indent_region", "indent_relative", "indent_relative_first_indent_point", &
+                                                       "indent_rigidly", "indent_rigidly_left", "indent_rigidly_left_to_tab_stop", &
+                                                   "indent_rigidly_right", "indent_rigidly_right_to_tab_stop", "indent_tabs_mode", &
+                                                       "indent_to", "insert", "insert_abbrev_table_description", "insert_abbrevs", &
+                                                                    "insert_rectangle", "insert_register", "interactive_region", &
+                                                           "internal_default_process_filter", "internal_default_process_sentinel", &
+                                                     "internal_default_signal_process", "interrupt_process", "inverse_add_abbrev", &
+                                                          "inverse_add_global_abbrev", "inverse_add_mode_abbrev", "isearch_abort", &
+                                                     "isearch_backward", "isearch_backward_regexp", "isearch_beginning_of_buffer", &
+                                               "isearch_cancel", "isearch_del_char", "isearch_delete_char", "isearch_edit_string", &
                                              "isearch_end_of_buffer", "isearch_exit", "isearch_forward", "isearch_forward_regexp", &
                                                          "isearch_printing_char", "isearch_quote_char", "isearch_repeat_backward", &
                                                          "isearch_repeat_forward", "isearch_ring_advance", "isearch_ring_retreat", &
@@ -826,7 +852,7 @@ module docstrings_fm
                                                                     "yank_rectangle", "yes_or_no_p", "zrgrep"]
 
     !> The documented variables, sorted.
-    character(len=48), parameter, public :: variable_names(987) = [character(len=48) :: &
+    character(len=48), parameter, public :: variable_names(996) = [character(len=48) :: &
                                                     "abbrev_all_caps", "abbrev_file_name", "abbrev_mode", "abbrev_start_location", &
                                                       "abbrev_start_location_buffer", "abbrev_table_name_list", "abbrevs_changed", &
                                                   "adaptive_fill_first_line_regexp", "adaptive_fill_mode", "adaptive_fill_regexp", &
@@ -919,7 +945,8 @@ module docstrings_fm
                                                                    "conf_space_keywords_alist", "conf_toml_font_lock_keywords", &
                                                                    "conf_toml_mode_syntax_table", "conf_unix_mode_syntax_table", &
                                                               "conf_xdefaults_mode_syntax_table", "copy_directory_create_symlink", &
-                                                    "copy_region_blink_delay", "current_minibuffer_command", "current_prefix_arg", &
+                                                "copy_region_blink_delay", "crm_local_completion_map", "crm_local_must_match_map", &
+                                                "crm_prompt", "crm_separator", "current_minibuffer_command", "current_prefix_arg", &
                                                                    "cycle_spacing_actions", "dabbrev_abbrev_char_regexp", &
                                                                    "dabbrev_abbrev_skip_leading_regexp", "dabbrev_backward_only", &
                                                    "dabbrev_case_distinction", "dabbrev_case_fold_search", "dabbrev_case_replace", &
@@ -1012,28 +1039,29 @@ module docstrings_fm
                                                          "ibuffer_default_shrink_to_minimum_size", "ibuffer_default_sorting_mode", &
                                                   "ibuffer_default_sorting_reversep", "ibuffer_deletion", "ibuffer_deletion_char", &
                                              "ibuffer_deletion_face", "ibuffer_directory_abbrev_alist", "ibuffer_display_summary", &
-                                                          "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_group_name", &
-                                               "ibuffer_filter_group_name_face", "ibuffer_fontification_alist", "ibuffer_formats", &
-                                                       "ibuffer_help_buffer_modes", "ibuffer_hook", "ibuffer_human_readable_size", &
-                                                               "ibuffer_jump_offer_only_visible_buffers", "ibuffer_locked_buffer", &
-                                            "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", "ibuffer_marked_face", &
-                                            "ibuffer_maybe_show_predicates", "ibuffer_mode_filter_group_map", "ibuffer_mode_hook", &
-                                                            "ibuffer_mode_map", "ibuffer_modified_char", "ibuffer_movement_cycle", &
-                                                         "ibuffer_never_search_content_mode", "ibuffer_never_search_content_name", &
-                                                    "ibuffer_never_show_predicates", "ibuffer_old_time", "ibuffer_read_only_char", &
-                                           "ibuffer_show_empty_filter_groups", "ibuffer_sorting_functions_alist", "ibuffer_title", &
-                                                        "ibuffer_title_face", "ibuffer_truncate_lines", "ibuffer_use_header_line", &
-                                                       "ibuffer_use_other_window", "ibuffer_view_ibuffer", "indent_line_function", &
-                                                            "indent_region_function", "indent_tabs_mode", "indent_tabs_mode_hook", &
-                                                       "inhibit_auto_fill", "inhibit_eol_conversion", "inhibit_field_text_motion", &
-                                                                   "inhibit_iso_escape_detection", "inhibit_modification_hooks", &
-                                            "inhibit_null_byte_detection", "insert_default_directory", "insert_directory_program", &
-                                                    "isearch_lax_whitespace", "isearch_mode_map", "isearch_regexp_lax_whitespace", &
-                                                          "jit_lock_chunk_size", "kbd_macro_termination_hook", "kill_buffer_hook", &
-                                                "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", "kill_ring_yank_pointer", &
-                                                                  "kill_whole_line", "killed_rectangle", "kmacro_call_repeat_key", &
-                                                         "kmacro_call_repeat_with_arg", "kmacro_counter", "kmacro_counter_format", &
-                                                                   "kmacro_counter_format_start", "kmacro_counter_value_start", &
+                                                        "ibuffer_eliding_string", "ibuffer_expert", "ibuffer_filter_format_alist", &
+                                         "ibuffer_filter_group_name", "ibuffer_filter_group_name_face", "ibuffer_filtering_alist", &
+                                                    "ibuffer_fontification_alist", "ibuffer_formats", "ibuffer_help_buffer_modes", &
+                                         "ibuffer_hook", "ibuffer_human_readable_size", "ibuffer_jump_offer_only_visible_buffers", &
+                                          "ibuffer_locked_buffer", "ibuffer_locked_char", "ibuffer_marked", "ibuffer_marked_char", &
+                                          "ibuffer_marked_face", "ibuffer_maybe_show_predicates", "ibuffer_mode_filter_group_map", &
+                                                                 "ibuffer_mode_hook", "ibuffer_mode_map", "ibuffer_modified_char", &
+                                                                   "ibuffer_movement_cycle", "ibuffer_never_search_content_mode", &
+                                         "ibuffer_never_search_content_name", "ibuffer_never_show_predicates", "ibuffer_old_time", &
+                                              "ibuffer_read_only_char", "ibuffer_save_with_custom", "ibuffer_saved_filter_groups", &
+                                                                   "ibuffer_saved_filters", "ibuffer_show_empty_filter_groups", &
+                                                         "ibuffer_sorting_functions_alist", "ibuffer_title", "ibuffer_title_face", &
+                                                  "ibuffer_truncate_lines", "ibuffer_use_header_line", "ibuffer_use_other_window", &
+                                                         "ibuffer_view_ibuffer", "indent_line_function", "indent_region_function", &
+                                                                 "indent_tabs_mode", "indent_tabs_mode_hook", "inhibit_auto_fill", &
+                                            "inhibit_eol_conversion", "inhibit_field_text_motion", "inhibit_iso_escape_detection", &
+                                          "inhibit_modification_hooks", "inhibit_null_byte_detection", "insert_default_directory", &
+                                                         "insert_directory_program", "isearch_lax_whitespace", "isearch_mode_map", &
+                                             "isearch_regexp_lax_whitespace", "jit_lock_chunk_size", "kbd_macro_termination_hook", &
+                                                      "kill_buffer_hook", "kill_emacs_hook", "kill_read_only_ok", "kill_ring_max", &
+                                                                  "kill_ring_yank_pointer", "kill_whole_line", "killed_rectangle", &
+                                                        "kmacro_call_repeat_key", "kmacro_call_repeat_with_arg", "kmacro_counter", &
+                                             "kmacro_counter_format", "kmacro_counter_format_start", "kmacro_counter_value_start", &
                                                                   "kmacro_default_counter_format", "kmacro_execute_before_append", &
                                                            "kmacro_initial_counter_value", "kmacro_keymap", "kmacro_last_counter", &
                                                        "kmacro_repeat_no_prefix", "kmacro_ring", "kmacro_ring_max", "last_abbrev", &
@@ -1170,7 +1198,7 @@ module docstrings_fm
                                                                    "y_or_n_p_use_read_key", "yes_or_no_prompt"]
 
     !> The user options (tools/user-options), sorted.
-    character(len=48), parameter, public :: user_option_names(493) = [character(len=48) :: &
+    character(len=48), parameter, public :: user_option_names(498) = [character(len=48) :: &
                                                                       "abbrev_all_caps", &
                                                                       "abbrev_file_name", &
                                                                       "abbrev_mode", &
@@ -1283,6 +1311,7 @@ module docstrings_fm
                                                                       "conf_javaprop_assignment_column", &
                                                                       "copy_directory_create_symlink", &
                                                                       "copy_region_blink_delay", &
+                                                                      "crm_prompt", &
                                                                       "cycle_spacing_actions", &
                                                                       "dabbrev_abbrev_char_regexp", &
                                                                       "dabbrev_abbrev_skip_leading_regexp", &
@@ -1438,6 +1467,7 @@ module docstrings_fm
                                                                       "ibuffer_display_summary", &
                                                                       "ibuffer_eliding_string", &
                                                                       "ibuffer_expert", &
+                                                                      "ibuffer_filter_format_alist", &
                                                                       "ibuffer_filter_group_name_face", &
                                                                       "ibuffer_fontification_alist", &
                                                                       "ibuffer_formats", &
@@ -1457,6 +1487,9 @@ module docstrings_fm
                                                                       "ibuffer_never_show_predicates", &
                                                                       "ibuffer_old_time", &
                                                                       "ibuffer_read_only_char", &
+                                                                      "ibuffer_save_with_custom", &
+                                                                      "ibuffer_saved_filter_groups", &
+                                                                      "ibuffer_saved_filters", &
                                                                       "ibuffer_show_empty_filter_groups", &
                                                                       "ibuffer_title_face", &
                                                                       "ibuffer_truncate_lines", &
@@ -3364,6 +3397,27 @@ contains
                         "With a prefix argument, this command does completion within"//LF// &
                         "the collection of symbols listed in the index of the manual for the"//LF// &
                         "language you are using (info_complete_symbol, not ported yet)."
+        case ("completing_read_multiple")
+            entry%file = "crm_fm.f90"
+            entry%fortran = "call completing_read_multiple(prompt, table, results, status, predicate, require_match, in"// &
+                            "itial, history, default)"
+            entry%doc = "Read multiple strings in the minibuffer, with completion."//LF// &
+                        "The arguments are the same as those of `completing_read'."//LF// &
+                        "\<crm_local_completion_map>"//LF// &
+                        "Input multiple strings by separating each one with a string that"//LF// &
+                        "matches the regexp `crm_separator'.  For example, if the separator"//LF// &
+                        "regexp is "","", entering ""alice,bob,eve"" specifies the strings"//LF// &
+                        """alice"", ""bob"", and ""eve""."//LF// &
+                        ""//LF// &
+                        "We refer to contiguous strings of non-separator-characters as"//LF// &
+                        """elements"".  In this example there are three elements."//LF// &
+                        ""//LF// &
+                        "Completion is available on a per-element basis.  For example, if the"//LF// &
+                        "contents of the minibuffer are ""alice,bob,eve"" and point is between"//LF// &
+                        """l"" and ""i"", pressing \[minibuffer_complete] operates on the element ""alice""."//LF// &
+                        ""//LF// &
+                        "This function returns in RESULTS the strings that were read,"//LF// &
+                        "with empty strings removed."
         case ("completion_at_point")
             entry%file = "minibuffer_fm.f90"
             entry%interactive = .true.
@@ -3670,6 +3724,32 @@ contains
                         "form of replace.el:how-many."//LF// &
                         ""//LF// &
                         "Print the number of matches for a regexp following point."
+        case ("crm_complete")
+            entry%file = "crm_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Complete the current element."//LF// &
+                        "If no characters can be completed, display a list of possible"//LF// &
+                        "completions."//LF// &
+                        ""//LF// &
+                        "Return true if the current element is now a valid match; otherwise"//LF// &
+                        "return false."
+        case ("crm_complete_and_exit")
+            entry%file = "crm_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Exit if all of the minibuffer elements are valid completions."//LF// &
+                        "Otherwise, try to complete the minibuffer contents."//LF// &
+                        "This behaves like `minibuffer_complete_and_exit' (which see),"//LF// &
+                        "adjusted for the presence of multiple elements."
+        case ("crm_complete_word")
+            entry%file = "crm_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Complete the current element at most a single word."//LF// &
+                        "Like `minibuffer_complete_word' but for `completing_read_multiple'."
+        case ("crm_completion_help")
+            entry%file = "crm_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Display a list of possible completions of the current minibuffer"//LF// &
+                        "element."
         case ("current_buffer")
             entry%file = "buffer_fm.f90"
             entry%fortran = "current_buffer()"
@@ -3842,6 +3922,16 @@ contains
                         "called with the buffer current, its TITLE (the capitalized NAME by"//LF// &
                         "default) and an optional SUMMARIZER.  A column with the same name is"//LF// &
                         "replaced."
+        case ("define_ibuffer_filter")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call define_ibuffer_filter(name, description, test)"
+            entry%doc = "Define a filter named NAME."//LF// &
+                        "DESCRIPTION is a short string describing the filter."//LF// &
+                        ""//LF// &
+                        "TEST should return whether a particular buffer should be displayed"//LF// &
+                        "or not, given the buffer and the qualifier of the filter"//LF// &
+                        "specification.  (The command `ibuffer_filter_by_NAME' that applies"//LF// &
+                        "it is a separate procedure, made with `ibuffer_filter_by'.)"
         case ("define_ibuffer_sorter")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "call define_ibuffer_sorter(name, description, less)"
@@ -6033,12 +6123,21 @@ contains
                         "All arguments are optional."//LF// &
                         "OTHER_WINDOW_P says to use another window."//LF// &
                         "NAME specifies the name of the buffer (defaults to ""*Ibuffer*"")."//LF// &
+                        "QUALIFIERS is an initial set of filtering qualifiers to use;"//LF// &
+                        "  see `ibuffer_filtering_qualifiers'."//LF// &
                         "NOSELECT means don't select the Ibuffer buffer."//LF// &
                         "SHRINK means shrink the buffer to minimal size.  The special"//LF// &
                         "  value IBUFFER_SHRINK_ONEWINDOW means always use another window."//LF// &
+                        "FILTER_GROUPS is an initial set of filtering groups to use;"//LF// &
+                        "  see `ibuffer_filter_groups'."//LF// &
                         "FORMATS is the value to use for `ibuffer_formats'."//LF// &
                         "  If specified, then the variable `ibuffer_formats' will have"//LF// &
                         "  that value locally in this buffer."
+        case ("ibuffer_add_saved_filters")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Add saved filters from `ibuffer_saved_filters' to this buffer's"//LF// &
+                        "filters."
         case ("ibuffer_add_to_tmp_hide")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6051,6 +6150,17 @@ contains
             entry%doc = "Add REGEXP to `ibuffer_tmp_show_regexps'."//LF// &
                         "This means that buffers whose name matches REGEXP will always be shown"//LF// &
                         "for this Ibuffer session."
+        case ("ibuffer_and")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_and(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)"
+            entry%doc = "A compound filter specification: the logical-and of the filters F1, F2, ... (one or more, "// &
+                        "up to 16): (and FILTER-SPECS...)."
+        case ("ibuffer_and_filter")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Replace the top two filters in this buffer with their logical"//LF// &
+                        "AND.  If optional argument DECOMPOSE is true, instead break the"//LF// &
+                        "top AND filter into parts."
         case ("ibuffer_auto_mode")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6070,6 +6180,18 @@ contains
                         ""//LF// &
                         "If MARK is present, it should be a character denoting the type of"//LF// &
                         "mark to move by.  The default is `ibuffer_marked_char'."
+        case ("ibuffer_basename")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_basename(regexp)"
+            entry%doc = "Buffers whose file basename matches REGEXP (basename . REGEXP)."
+        case ("ibuffer_bs_show")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Emulate `bs_show' from the bs.el package."
+        case ("ibuffer_bs_toggle_all")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Emulate `bs_toggle_show_all' from the bs.el package."
         case ("ibuffer_bury_buffer")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
@@ -6079,6 +6201,14 @@ contains
             entry%interactive = .true.
             entry%doc = "Change all OLD marks to NEW marks."//LF// &
                         "OLD and NEW are both characters used to mark buffers."
+        case ("ibuffer_clear_filter_groups")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove all filter groups."
+        case ("ibuffer_content")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_content(regexp)"
+            entry%doc = "Buffers whose contents match REGEXP (content . REGEXP)."
         case ("ibuffer_copy_buffername_as_kill")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6099,6 +6229,33 @@ contains
                         "to `ibuffer_default_directory' if set, otherwise `default_directory'."//LF// &
                         ""//LF// &
                         "You can then feed the file name(s) to other commands with \[yank]."
+        case ("ibuffer_decompose_filter")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Separate this buffer's top compound filter (AND, OR, NOT, or"//LF// &
+                        "SAVED)."//LF// &
+                        ""//LF// &
+                        "This means that the topmost filter on the filtering stack, which"//LF// &
+                        "must be a complex filter like (OR [name: foo] [mode: bar_mode]),"//LF// &
+                        "will be turned into separate filters, like [name: foo] and [mode:"//LF// &
+                        "bar_mode]."
+        case ("ibuffer_decompose_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Decompose the filter group GROUP into active filters."
+        case ("ibuffer_delete_saved_filter_groups")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete saved filter groups with NAME."//LF// &
+                        "They are removed from `ibuffer_saved_filter_groups'."
+        case ("ibuffer_delete_saved_filters")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Delete saved filters with NAME from `ibuffer_saved_filters'."
+        case ("ibuffer_derived_mode")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_derived_mode(mode)"
+            entry%doc = "Buffers whose major mode derives from MODE (derived-mode . MODE)."
         case ("ibuffer_diff_with_file")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6106,6 +6263,10 @@ contains
                         "files.  If no buffers are marked, use buffer at point."//LF// &
                         "This requires the external program `diff_command' to be in your"//LF// &
                         "`exec_path'."
+        case ("ibuffer_directory")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_directory(regexp)"
+            entry%doc = "Buffers whose directory matches REGEXP (directory . REGEXP)."
         case ("ibuffer_do_delete")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
@@ -6214,6 +6375,164 @@ contains
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "As `ibuffer_do_view', but split windows horizontally."
+        case ("ibuffer_exchange_filters")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Exchange the top two filters on the stack in this buffer."
+        case ("ibuffer_file_extension")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_file_extension(regexp)"
+            entry%doc = "Buffers whose file name extension matches REGEXP (file-extension ."//LF// &
+                        "REGEXP)."
+        case ("ibuffer_filename")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_filename(regexp)"
+            entry%doc = "Buffers whose full file name matches REGEXP (filename . REGEXP)."
+        case ("ibuffer_filter")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_filter(name, qualifier, number, predicate)"
+            entry%doc = "A simple filter specification (SYMBOL . QUALIFIER): the filter NAME"//LF// &
+                        "of `ibuffer_filtering_alist' with the string QUALIFIER, the integer"//LF// &
+                        "NUMBER or the PREDICATE (none for a filter without qualifier)."
+        case ("ibuffer_filter_by_basename")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with file basename matching"//LF// &
+                        "QUALIFIER."//LF// &
+                        ""//LF// &
+                        "For example, for a buffer associated with file `/a/b/c.d', this"//LF// &
+                        "matches against `c.d'."
+        case ("ibuffer_filter_by_content")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers whose contents match QUALIFIER."
+        case ("ibuffer_filter_by_derived_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
+                        "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
+                        " Restrict the view to buffers whose major mode derivates"//LF// &
+                        " from modes specified by QUALIFIER."//LF// &
+                        "Called interactively, accept a comma separated list of mode"//LF// &
+                        "names."
+        case ("ibuffer_filter_by_directory")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with directory matching QUALIFIER."//LF// &
+                        ""//LF// &
+                        "For a buffer associated with file '/a/b/c.d', this matches"//LF// &
+                        "against '/a/b'.  For a buffer not associated with a file, this"//LF// &
+                        "matches against the value of `default_directory' in that buffer."
+        case ("ibuffer_filter_by_file_extension")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with filename extension matching"//LF// &
+                        "QUALIFIER."//LF// &
+                        ""//LF// &
+                        "The separator character (typically `.') is not part of the"//LF// &
+                        "pattern.  For example, for a buffer associated with file"//LF// &
+                        "`/a/b/c.d', this matches against `d'."
+        case ("ibuffer_filter_by_filename")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with full file name matching"//LF// &
+                        "QUALIFIER."//LF// &
+                        ""//LF// &
+                        "For example, for a buffer associated with file '/a/b/c.d', this"//LF// &
+                        "matches against '/a/b/c.d'."
+        case ("ibuffer_filter_by_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
+                        "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
+                        "Called interactively, accept a comma separated list of mode"//LF// &
+                        "names."
+        case ("ibuffer_filter_by_modified")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers that are marked as modified."
+        case ("ibuffer_filter_by_name")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with name matching QUALIFIER."
+        case ("ibuffer_filter_by_process")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers running a process."
+        case ("ibuffer_filter_by_size_gt")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with size greater than QUALIFIER."
+        case ("ibuffer_filter_by_size_lt")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with size less than QUALIFIER."
+        case ("ibuffer_filter_by_starred_name")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with name beginning and ending"//LF// &
+                        "with *, along with an optional suffix of the form digits or"//LF// &
+                        "<digits>."
+        case ("ibuffer_filter_by_used_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers with major mode(s) specified by"//LF// &
+                        "QUALIFIER.  QUALIFIER is the mode name or a list of names."//LF// &
+                        ""//LF// &
+                        "Called interactively, accept a comma separated list of mode names"//LF// &
+                        "currently used by buffers."
+        case ("ibuffer_filter_by_visiting_file")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Limit current view to buffers that are visiting a file."
+        case ("ibuffer_filter_chosen_by_completion")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Select and apply filter chosen by completion against available"//LF// &
+                        "filters.  Indicates corresponding key sequences in echo area after"//LF// &
+                        "filtering."//LF// &
+                        ""//LF// &
+                        "The completion matches against the filter description text of"//LF// &
+                        "each filter in `ibuffer_filtering_alist'."
+        case ("ibuffer_filter_disable")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Disable all filters currently in effect in this buffer."//LF// &
+                        "With optional arg DELETE_FILTER_GROUPS true, delete all filter"//LF// &
+                        "group definitions by setting `ibuffer_filter_groups' to empty."
+        case ("ibuffer_filter_groups")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filter_groups()"
+            entry%doc = "The current Ibuffer buffer's active filter groups (none if empty)."//LF// &
+                        ""//LF// &
+                        "Each group has a label and one or more filter specifications of"//LF// &
+                        "the same form as allowed as elements of"//LF// &
+                        "`ibuffer_filtering_qualifiers'."//LF// &
+                        ""//LF// &
+                        "Each filter group is displayed as a separate section in the"//LF// &
+                        "ibuffer list, headed by LABEL and displaying only the buffers"//LF// &
+                        "that pass through all the filters associated with NAME in this"//LF// &
+                        "list."
+        case ("ibuffer_filtering_qualifiers")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filtering_qualifiers()"
+            entry%doc = "The filters currently acting on the buffer list of the current"//LF// &
+                        "Ibuffer buffer (empty if no filters are in effect): the top of the"//LF// &
+                        "stack first.  All of the specified filters in the list are applied"//LF// &
+                        "successively to the buffer list."//LF// &
+                        ""//LF// &
+                        "Each filter specification can be simple, such as"//LF// &
+                        "`ibuffer_major_mode(""text_mode"")', or compound: `ibuffer_not(F)',"//LF// &
+                        "`ibuffer_and(F1, F2, ...)', `ibuffer_or(F1, F2, ...)' and"//LF// &
+                        "`ibuffer_saved(NAME)' (the filter saved under the string NAME in"//LF// &
+                        "`ibuffer_saved_filters'; it is an error to name a filter that has"//LF// &
+                        "not been saved)."//LF// &
+                        ""//LF// &
+                        "This variable is local to each ibuffer buffer."
+        case ("ibuffer_filters_to_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Make the current filters into a filtering group."
         case ("ibuffer_find_file")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
@@ -6237,6 +6556,17 @@ contains
                         ""//LF// &
                         "If DIRECTION is present, it should be an integer; negative integers"//LF// &
                         "mean move backwards, non-negative integers mean move forwards."
+        case ("ibuffer_included_in_filters_p")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_included_in_filters_p(buf, filters, status)"
+            entry%doc = "Return true if BUF passes all FILTERS."//LF// &
+                        ""//LF// &
+                        "BUF is a buffer, and FILTERS is a list of filter specifications"//LF// &
+                        "with the same structure as `ibuffer_filtering_qualifiers'."
+        case ("ibuffer_interactive_filter_by_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Enable or disable filtering by the major mode at point."
         case ("ibuffer_invert_sorting")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6262,10 +6592,26 @@ contains
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
             entry%doc = "Move point to the filter group whose name is NAME."
+        case ("ibuffer_kill_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the filter group named NAME."//LF// &
+                        "The group will be added to `ibuffer_filter_group_kill_ring'."
+        case ("ibuffer_kill_line")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Kill the filter group at point."//LF// &
+                        "See also `ibuffer_kill_filter_group'."
         case ("ibuffer_list_buffers")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Display a list of buffers, in another window."
+            entry%doc = "Display a list of buffers, in another window."//LF// &
+                        "If optional argument FILES_ONLY is true, then add a filter for"//LF// &
+                        "buffers which are visiting a file."
+        case ("ibuffer_major_mode")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_major_mode(mode)"
+            entry%doc = "Buffers whose major mode is MODE (mode . MODE)."
         case ("ibuffer_mark_by_content_regexp")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6408,6 +6754,44 @@ contains
                         "  \[ibuffer_mark_by_file_name_regexp] - Mark buffers by their filename, using a regexp."//LF// &
                         "  \[ibuffer_mark_by_content_regexp] - Mark buffers by their content, using a regexp."//LF// &
                         ""//LF// &
+                        "Filtering commands:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_filter_chosen_by_completion] - Select and apply filter chosen by completion."//LF// &
+                        "  \[ibuffer_filter_by_mode] - Add a filter by any major mode."//LF// &
+                        "  \[ibuffer_filter_by_used_mode] - Add a filter by a major mode now in use."//LF// &
+                        "  \[ibuffer_filter_by_derived_mode] - Add a filter by derived mode."//LF// &
+                        "  \[ibuffer_filter_by_name] - Add a filter by buffer name."//LF// &
+                        "  \[ibuffer_filter_by_content] - Add a filter by buffer content."//LF// &
+                        "  \[ibuffer_filter_by_basename] - Add a filter by basename."//LF// &
+                        "  \[ibuffer_filter_by_directory] - Add a filter by directory name."//LF// &
+                        "  \[ibuffer_filter_by_filename] - Add a filter by filename."//LF// &
+                        "  \[ibuffer_filter_by_file_extension] - Add a filter by file extension."//LF// &
+                        "  \[ibuffer_filter_by_modified] - Add a filter by modified buffers."//LF// &
+                        "  \[ibuffer_filter_by_size_gt] - Add a filter by buffer size."//LF// &
+                        "  \[ibuffer_filter_by_size_lt] - Add a filter by buffer size."//LF// &
+                        "  \[ibuffer_filter_by_starred_name] - Add a filter by special buffers."//LF// &
+                        "  \[ibuffer_filter_by_visiting_file] - Add a filter by buffers visiting files."//LF// &
+                        "  \[ibuffer_save_filters] - Save the current filters with a name."//LF// &
+                        "  \[ibuffer_switch_to_saved_filters] - Switch to previously saved filters."//LF// &
+                        "  \[ibuffer_add_saved_filters] - Add saved filters to current filters."//LF// &
+                        "  \[ibuffer_and_filter] - Replace the top two filters with their logical AND."//LF// &
+                        "  \[ibuffer_or_filter] - Replace the top two filters with their logical OR."//LF// &
+                        "  \[ibuffer_pop_filter] - Remove the top filter."//LF// &
+                        "  \[ibuffer_negate_filter] - Invert the logical sense of the top filter."//LF// &
+                        "  \[ibuffer_decompose_filter] - Break down the topmost filter."//LF// &
+                        "  \[ibuffer_filter_disable] - Remove all filtering currently in effect."//LF// &
+                        ""//LF// &
+                        "Filter group commands:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_filters_to_filter_group] - Create filter group from filters."//LF// &
+                        "  \[ibuffer_pop_filter_group] - Remove top filter group."//LF// &
+                        "  \[ibuffer_forward_filter_group] - Move to the next filter group."//LF// &
+                        "  \[ibuffer_backward_filter_group] - Move to the previous filter group."//LF// &
+                        "  \[ibuffer_clear_filter_groups] - Remove all active filter groups."//LF// &
+                        "  \[ibuffer_save_filter_groups] - Save the current groups with a name."//LF// &
+                        "  \[ibuffer_switch_to_saved_filter_groups] - Restore previously saved groups."//LF// &
+                        "  \[ibuffer_delete_saved_filter_groups] - Delete previously saved groups."//LF// &
+                        ""//LF// &
                         "Sorting commands:"//LF// &
                         ""//LF// &
                         "  \[ibuffer_toggle_sorting_mode] - Rotate between the various sorting modes."//LF// &
@@ -6435,11 +6819,118 @@ contains
                         "  \[ibuffer_visit_buffer_other_window] - As above, but in another window."//LF// &
                         "  \[ibuffer_visit_buffer_other_window_noselect] - As both above, but don't select"//LF// &
                         "        the new window."//LF// &
-                        "  \[ibuffer_bury_buffer] - Bury (not kill!) the buffer on this line."
+                        "  \[ibuffer_bury_buffer] - Bury (not kill!) the buffer on this line."//LF// &
+                        ""//LF// &
+                        "** Information on Filtering:"//LF// &
+                        ""//LF// &
+                        "You can filter your Ibuffer view via different criteria.  Each Ibuffer"//LF// &
+                        "buffer has its own stack of active filters.  For example, suppose you"//LF// &
+                        "are working on an Emacs Lisp project.  You can create an Ibuffer"//LF// &
+                        "buffer displaying only `emacs_lisp_mode' buffers via"//LF// &
+                        "`\[ibuffer_filter_by_mode] emacs_lisp_mode RET'.  In this case, there"//LF// &
+                        "is just one entry on the filtering stack."//LF// &
+                        ""//LF// &
+                        "You can also combine filters.  The various filtering commands push a"//LF// &
+                        "new filter onto the stack, and the filters combine to show just"//LF// &
+                        "buffers which satisfy ALL criteria on the stack.  For example, suppose"//LF// &
+                        "you only want to see buffers in `emacs_lisp_mode', whose names begin"//LF// &
+                        "with ""gnus"".  You can accomplish this via:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_filter_by_mode] emacs_lisp_mode RET"//LF// &
+                        "  \[ibuffer_filter_by_name] ^gnus RET"//LF// &
+                        ""//LF// &
+                        "Additionally, you can OR the top two filters together with"//LF// &
+                        "\[ibuffer_or_filters].  To see all buffers in either"//LF// &
+                        "`emacs_lisp_mode' or `lisp_interaction_mode', type:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_filter_by_mode] emacs_lisp_mode RET"//LF// &
+                        "  \[ibuffer_filter_by_mode] lisp_interaction_mode RET"//LF// &
+                        "  \[ibuffer_or_filters]"//LF// &
+                        ""//LF// &
+                        "Filters can also be saved and restored using mnemonic names: see the"//LF// &
+                        "functions `ibuffer_save_filters' and `ibuffer_switch_to_saved_filters'."//LF// &
+                        ""//LF// &
+                        "To remove the top filter on the stack, use \[ibuffer_pop_filter], and"//LF// &
+                        "to disable all filtering currently in effect, use"//LF// &
+                        "\[ibuffer_filter_disable]."//LF// &
+                        ""//LF// &
+                        "** Filter Groups:"//LF// &
+                        ""//LF// &
+                        "Once one has mastered filters, the next logical step up is ""filter"//LF// &
+                        "groups"".  A filter group is basically a named group of buffers which"//LF// &
+                        "match a filter, which are displayed together in an Ibuffer buffer.  To"//LF// &
+                        "create a filter group, simply use the regular functions to create a"//LF// &
+                        "filter, and then type \[ibuffer_filters_to_filter_group]."//LF// &
+                        ""//LF// &
+                        "A quick example will make things clearer.  Suppose that one wants to"//LF// &
+                        "group all of one's Emacs Lisp buffers together.  To do this, type:"//LF// &
+                        ""//LF// &
+                        "  \[ibuffer_filter_by_mode] emacs_lisp_mode RET"//LF// &
+                        "  \[ibuffer_filters_to_filter_group] emacs lisp buffers RET"//LF// &
+                        ""//LF// &
+                        "You may, of course, name the group whatever you want; it doesn't have"//LF// &
+                        "to be ""emacs lisp buffers"".  Filter groups may be composed of any"//LF// &
+                        "arbitrary combination of filters."//LF// &
+                        ""//LF// &
+                        "Just like filters themselves, filter groups act as a stack.  Buffers"//LF// &
+                        "will not be displayed multiple times if they would be included in"//LF// &
+                        "multiple filter groups; instead, the first filter group is used.  The"//LF// &
+                        "filter groups are displayed in this order of precedence."//LF// &
+                        ""//LF// &
+                        "You may rearrange filter groups by using the usual pair"//LF// &
+                        "\[ibuffer_kill_line] and \[ibuffer_yank].  Yanked groups"//LF// &
+                        "will be inserted before the group at point."
+        case ("ibuffer_modified")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_modified()"
+            entry%doc = "Modified buffers (modified)."
+        case ("ibuffer_name")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_name(regexp)"
+            entry%doc = "Buffers whose name matches REGEXP (name . REGEXP)."
+        case ("ibuffer_negate_filter")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Negate the sense of the top filter in the current buffer."
+        case ("ibuffer_not")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_not(f1)"
+            entry%doc = "A compound filter specification: the logical complement of F"//LF// &
+                        "(not FILTER-SPEC)."
+        case ("ibuffer_or")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_or(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16)"
+            entry%doc = "A compound filter specification: the logical-or of the filters F1, F2, ... (one or more, u"// &
+                        "p to 16): (or FILTER-SPECS...)."
+        case ("ibuffer_or_filter")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Replace the top two filters in this buffer with their logical"//LF// &
+                        "OR.  If optional argument DECOMPOSE is true, instead break the"//LF// &
+                        "top OR filter into parts."
         case ("ibuffer_other_window")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
-            entry%doc = "Like `ibuffer', but displayed in another window by default."
+            entry%doc = "Like `ibuffer', but displayed in another window by default."//LF// &
+                        "If optional argument FILES_ONLY is true, then add a filter for"//LF// &
+                        "buffers which are visiting a file."
+        case ("ibuffer_pop_filter")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove the top filter in this buffer."
+        case ("ibuffer_pop_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Remove the first filter group."
+        case ("ibuffer_predicate")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_predicate(predicate)"
+            entry%doc = "Buffers for which PREDICATE, called with the buffer current, returns"//LF// &
+                        "true (predicate . FORM)."
+        case ("ibuffer_process")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_process()"
+            entry%doc = "Buffers running a process (process)."
         case ("ibuffer_recompile_formats")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
@@ -6452,10 +6943,65 @@ contains
                         "This does not show new buffers; use `ibuffer_update' for that."//LF// &
                         ""//LF// &
                         "If optional arg SILENT is true, do not display progress messages."
+        case ("ibuffer_save_filter_groups")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save all active filter groups GROUPS as NAME."//LF// &
+                        "They are added to `ibuffer_saved_filter_groups'.  Interactively,"//LF// &
+                        "prompt for NAME, and use the current filters."
+        case ("ibuffer_save_filters")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Save FILTERS in this buffer with name NAME in"//LF// &
+                        "`ibuffer_saved_filters'.  Interactively, prompt for NAME, and use"//LF// &
+                        "the current filters."
+        case ("ibuffer_saved")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_saved(name)"
+            entry%doc = "The filter saved under the string NAME in `ibuffer_saved_filters'"//LF// &
+                        "(saved . ""NAME"")."
+        case ("ibuffer_set_filter_groups")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call ibuffer_set_filter_groups(groups)"
+            entry%doc = "Set `ibuffer_filter_groups' of the current Ibuffer buffer to"//LF// &
+                        "GROUPS."
+        case ("ibuffer_set_filter_groups_by_mode")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Set the current filter groups to filter by mode."
+        case ("ibuffer_set_filtering_qualifiers")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call ibuffer_set_filtering_qualifiers(filters)"
+            entry%doc = "Set `ibuffer_filtering_qualifiers' of the current Ibuffer buffer to"//LF// &
+                        "FILTERS."
+        case ("ibuffer_size_gt")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_size_gt(size)"
+            entry%doc = "Buffers bigger than SIZE (size-gt . SIZE)."
+        case ("ibuffer_size_lt")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_size_lt(size)"
+            entry%doc = "Buffers smaller than SIZE (size-lt . SIZE)."
+        case ("ibuffer_starred_name")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_starred_name()"
+            entry%doc = "Buffers whose name begins and ends with * (starred-name)."
         case ("ibuffer_switch_format")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
             entry%doc = "Switch the current display format."
+        case ("ibuffer_switch_to_saved_filter_groups")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call ibuffer_switch_to_saved_filter_groups(name, status)"
+            entry%interactive = .true.
+            entry%doc = "Set this buffer's filter groups to saved version with NAME."//LF// &
+                        "The value from `ibuffer_saved_filter_groups' is used."
+        case ("ibuffer_switch_to_saved_filters")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "call ibuffer_switch_to_saved_filters(name, status)"
+            entry%interactive = .true.
+            entry%doc = "Set this buffer's filters to filters with NAME from"//LF// &
+                        "`ibuffer_saved_filters'."
         case ("ibuffer_toggle_filter_group")
             entry%file = "ibuf_ext_fm.f90"
             entry%interactive = .true.
@@ -6504,6 +7050,10 @@ contains
                         "`ibuffer_maybe_show_predicates' should be displayed."//LF// &
                         ""//LF// &
                         "If optional arg SILENT is true, do not display progress messages."
+        case ("ibuffer_used_mode")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_used_mode(mode)"
+            entry%doc = "Buffers whose major mode, one in use, is MODE (used-mode . MODE)."
         case ("ibuffer_visit_buffer")
             entry%file = "ibuffer_fm.f90"
             entry%interactive = .true.
@@ -6523,6 +7073,18 @@ contains
             entry%interactive = .true.
             entry%doc = "Visit the buffer on this line in another window, but don't select"//LF// &
                         "it."
+        case ("ibuffer_visiting_file")
+            entry%file = "ibuf_macs_fm.f90"
+            entry%fortran = "ibuffer_visiting_file()"
+            entry%doc = "Buffers visiting a file (visiting-file)."
+        case ("ibuffer_yank")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Yank the last killed filter group before group at point."
+        case ("ibuffer_yank_filter_group")
+            entry%file = "ibuf_ext_fm.f90"
+            entry%interactive = .true.
+            entry%doc = "Yank the last killed filter group before group named NAME."
         case ("ignore")
             entry%file = "subr_read_fm.f90"
             entry%interactive = .true.
@@ -14271,6 +14833,43 @@ contains
                         "It's used by the command `kill_ring_save' and the function"//LF// &
                         "`indicate_copied_region' to blink the cursor between point and mark."//LF// &
                         "The value 0 disables blinking."
+        case ("crm_local_completion_map")
+            entry%file = "crm_fm.f90"
+            entry%fortran = "crm_local_completion_map"
+            entry%doc = "Local keymap for minibuffer multiple input with completion."//LF// &
+                        "Analog of `minibuffer_local_completion_map'."
+        case ("crm_local_must_match_map")
+            entry%file = "crm_fm.f90"
+            entry%fortran = "crm_local_must_match_map"
+            entry%doc = "Local keymap for minibuffer multiple input with exact match"//LF// &
+                        "completion.  Analog of `minibuffer_local_must_match_map' for crm."
+        case ("crm_prompt")
+            entry%file = "crm_fm.f90"
+            entry%fortran = "crm_prompt"
+            entry%user_option = .true.
+            if (allocated(crm_prompt)) then
+                entry%value = repr(crm_prompt)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Prompt format for `completing_read_multiple'."//LF// &
+                        "The prompt is formatted with the keys %d, %s and %p standing for the"//LF// &
+                        "separator description, the separator itself and the original prompt"//LF// &
+                        "respectively."
+        case ("crm_separator")
+            entry%file = "crm_fm.f90"
+            entry%fortran = "crm_separator"
+            if (allocated(crm_separator)) then
+                entry%value = repr(crm_separator)
+            else
+                entry%value = "unallocated"
+            end if
+            entry%doc = "Separator regexp used for separating strings in"//LF// &
+                        "`completing_read_multiple'.  It should be a regexp that does not"//LF// &
+                        "match the list of completion candidates.  Its `separator' and"//LF// &
+                        "`description' (`crm_separator_string' and"//LF// &
+                        "`crm_separator_description') are shown as part of the prompt.  See"//LF// &
+                        "the user option `crm_prompt'."
         case ("current_minibuffer_command")
             entry%file = "callint_fm.f90"
             entry%fortran = "current_minibuffer_command"
@@ -17187,6 +17786,18 @@ contains
             entry%original = ".false."
             entry%value = repr(ibuffer_expert)
             entry%doc = "If true, don't ask for confirmation of ""dangerous"" operations."
+        case ("ibuffer_filter_format_alist")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filter_format_alist"
+            entry%user_option = .true.
+            entry%doc = "Special formats used when a filter is active."//LF// &
+                        ""//LF// &
+                        "For example, suppose that when you add a filter for buffers whose"//LF// &
+                        "major mode is `text_mode', you only want to see the mark and the"//LF// &
+                        "name of the buffer.  You could accomplish that by adding"//LF// &
+                        "`call fmts%add([ibuffer_column(""mark""), ibuffer_text("" ""),"//LF// &
+                        "ibuffer_column(""name"")])' and `call"//LF// &
+                        "ibuffer_filter_format_alist%add(""mode"", fmts)'."
         case ("ibuffer_filter_group_name")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_filter_group_name_face_def"
@@ -17201,6 +17812,13 @@ contains
                 entry%value = "unallocated"
             end if
             entry%doc = "Face used for displaying filtering group names."
+        case ("ibuffer_filtering_alist")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_filtering_alist"
+            entry%doc = "The filters: each a name, a description, and the test of a buffer."//LF// &
+                        ""//LF// &
+                        "You most likely do not want to modify this variable directly; see"//LF// &
+                        "`define_ibuffer_filter'."
         case ("ibuffer_fontification_alist")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_fontification_alist"
@@ -17409,6 +18027,42 @@ contains
             entry%original = """%"""
             entry%value = repr(ibuffer_read_only_char)
             entry%doc = "The character to display for read-only buffers."
+        case ("ibuffer_save_with_custom")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_save_with_custom"
+            entry%user_option = .true.
+            entry%original = ".true."
+            entry%value = repr(ibuffer_save_with_custom)
+            entry%doc = "If true, then use Custom to save interactively changed variables."//LF// &
+                        "Currently, this only applies to `ibuffer_saved_filters' and"//LF// &
+                        "`ibuffer_saved_filter_groups'."
+        case ("ibuffer_saved_filter_groups")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_saved_filter_groups"
+            entry%user_option = .true.
+            entry%doc = "The saved sets of filter groups to switch between: each a unique"//LF// &
+                        "but arbitrary name and filter groups with the same structure as"//LF// &
+                        "`ibuffer_filter_groups'."//LF// &
+                        ""//LF// &
+                        "See also the functions `ibuffer_save_filter_groups' and"//LF// &
+                        "`ibuffer_switch_to_saved_filter_groups' for saving and switching"//LF// &
+                        "between sets of filter groups, and the variable"//LF// &
+                        "`ibuffer_save_with_custom' that affects how this information is"//LF// &
+                        "saved."
+        case ("ibuffer_saved_filters")
+            entry%file = "ibuffer_fm.f90"
+            entry%fortran = "ibuffer_saved_filters"
+            entry%user_option = .true.
+            entry%doc = "The saved filters: each a name and filter specifications."//LF// &
+                        ""//LF// &
+                        "The filters defined here are joined with an implicit logical `and'"//LF// &
+                        "and associated with NAME.  The combined specification can be used"//LF// &
+                        "by name in other filter specifications via `ibuffer_saved'.  They"//LF// &
+                        "can also be switched to by name (see the functions"//LF// &
+                        "`ibuffer_switch_to_saved_filters' and `ibuffer_save_filters').  The"//LF// &
+                        "variable `ibuffer_save_with_custom' affects how this information is"//LF// &
+                        "saved for future sessions.  Add one with"//LF// &
+                        "`ibuffer_saved_filters%add(NAME, F1, F2, ...)'."
         case ("ibuffer_show_empty_filter_groups")
             entry%file = "ibuffer_fm.f90"
             entry%fortran = "ibuffer_show_empty_filter_groups"
@@ -21893,6 +22547,8 @@ contains
             kind = OPTION_LOGICAL
         case ("copy_region_blink_delay")
             kind = OPTION_REAL
+        case ("crm_prompt")
+            kind = OPTION_STRING
         case ("dabbrev_abbrev_char_regexp")
             kind = OPTION_STRING
         case ("dabbrev_abbrev_skip_leading_regexp")
@@ -22188,6 +22844,8 @@ contains
             kind = OPTION_INTEGER
         case ("ibuffer_read_only_char")
             kind = OPTION_STRING
+        case ("ibuffer_save_with_custom")
+            kind = OPTION_LOGICAL
         case ("ibuffer_show_empty_filter_groups")
             kind = OPTION_LOGICAL
         case ("ibuffer_title_face")
@@ -22904,6 +23562,8 @@ contains
             ibuffer_jump_offer_only_visible_buffers = v
         case ("ibuffer_movement_cycle")
             ibuffer_movement_cycle = v
+        case ("ibuffer_save_with_custom")
+            ibuffer_save_with_custom = v
         case ("ibuffer_show_empty_filter_groups")
             ibuffer_show_empty_filter_groups = v
         case ("ibuffer_truncate_lines")
@@ -23553,6 +24213,8 @@ contains
             end if
         case ("completion_pcm_word_delimiters")
             completion_pcm_word_delimiters = v
+        case ("crm_prompt")
+            crm_prompt = v
         case ("dabbrev_abbrev_char_regexp")
             dabbrev_abbrev_char_regexp = v
         case ("dabbrev_abbrev_skip_leading_regexp")

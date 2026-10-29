@@ -231,6 +231,10 @@ module commands_fm
         type(command_type) :: copy_region_as_kill
         type(command_type) :: copy_to_register
         type(command_type) :: count_matches
+        type(command_type) :: crm_complete
+        type(command_type) :: crm_complete_and_exit
+        type(command_type) :: crm_complete_word
+        type(command_type) :: crm_completion_help
         type(command_type) :: cycle_spacing
         type(command_type) :: dabbrev_completion
         type(command_type) :: dabbrev_expand
@@ -461,16 +465,25 @@ module commands_fm
         type(command_type) :: help_quit
         type(command_type) :: how_many
         type(command_type) :: ibuffer
+        type(command_type) :: ibuffer_add_saved_filters
         type(command_type) :: ibuffer_add_to_tmp_hide
         type(command_type) :: ibuffer_add_to_tmp_show
+        type(command_type) :: ibuffer_and_filter
         type(command_type) :: ibuffer_auto_mode
         type(command_type) :: ibuffer_backward_filter_group
         type(command_type) :: ibuffer_backward_line
         type(command_type) :: ibuffer_backwards_next_marked
+        type(command_type) :: ibuffer_bs_show
+        type(command_type) :: ibuffer_bs_toggle_all
         type(command_type) :: ibuffer_bury_buffer
         type(command_type) :: ibuffer_change_marks
+        type(command_type) :: ibuffer_clear_filter_groups
         type(command_type) :: ibuffer_copy_buffername_as_kill
         type(command_type) :: ibuffer_copy_filename_as_kill
+        type(command_type) :: ibuffer_decompose_filter
+        type(command_type) :: ibuffer_decompose_filter_group
+        type(command_type) :: ibuffer_delete_saved_filter_groups
+        type(command_type) :: ibuffer_delete_saved_filters
         type(command_type) :: ibuffer_diff_with_file
         type(command_type) :: ibuffer_do_delete
         type(command_type) :: ibuffer_do_kill_lines
@@ -496,14 +509,36 @@ module commands_fm
         type(command_type) :: ibuffer_do_toggle_read_only
         type(command_type) :: ibuffer_do_view
         type(command_type) :: ibuffer_do_view_horizontally
+        type(command_type) :: ibuffer_exchange_filters
+        type(command_type) :: ibuffer_filter_by_basename
+        type(command_type) :: ibuffer_filter_by_content
+        type(command_type) :: ibuffer_filter_by_derived_mode
+        type(command_type) :: ibuffer_filter_by_directory
+        type(command_type) :: ibuffer_filter_by_file_extension
+        type(command_type) :: ibuffer_filter_by_filename
+        type(command_type) :: ibuffer_filter_by_mode
+        type(command_type) :: ibuffer_filter_by_modified
+        type(command_type) :: ibuffer_filter_by_name
+        type(command_type) :: ibuffer_filter_by_process
+        type(command_type) :: ibuffer_filter_by_size_gt
+        type(command_type) :: ibuffer_filter_by_size_lt
+        type(command_type) :: ibuffer_filter_by_starred_name
+        type(command_type) :: ibuffer_filter_by_used_mode
+        type(command_type) :: ibuffer_filter_by_visiting_file
+        type(command_type) :: ibuffer_filter_chosen_by_completion
+        type(command_type) :: ibuffer_filter_disable
+        type(command_type) :: ibuffer_filters_to_filter_group
         type(command_type) :: ibuffer_find_file
         type(command_type) :: ibuffer_forward_filter_group
         type(command_type) :: ibuffer_forward_line
         type(command_type) :: ibuffer_forward_next_marked
+        type(command_type) :: ibuffer_interactive_filter_by_mode
         type(command_type) :: ibuffer_invert_sorting
         type(command_type) :: ibuffer_jump
         type(command_type) :: ibuffer_jump_to_buffer
         type(command_type) :: ibuffer_jump_to_filter_group
+        type(command_type) :: ibuffer_kill_filter_group
+        type(command_type) :: ibuffer_kill_line
         type(command_type) :: ibuffer_list_buffers
         type(command_type) :: ibuffer_mark_by_content_regexp
         type(command_type) :: ibuffer_mark_by_file_name_regexp
@@ -524,10 +559,19 @@ module commands_fm
         type(command_type) :: ibuffer_mark_special_buffers
         type(command_type) :: ibuffer_mark_unsaved_buffers
         type(command_type) :: ibuffer_mode
+        type(command_type) :: ibuffer_negate_filter
+        type(command_type) :: ibuffer_or_filter
         type(command_type) :: ibuffer_other_window
+        type(command_type) :: ibuffer_pop_filter
+        type(command_type) :: ibuffer_pop_filter_group
         type(command_type) :: ibuffer_recompile_formats
         type(command_type) :: ibuffer_redisplay
+        type(command_type) :: ibuffer_save_filter_groups
+        type(command_type) :: ibuffer_save_filters
+        type(command_type) :: ibuffer_set_filter_groups_by_mode
         type(command_type) :: ibuffer_switch_format
+        type(command_type) :: ibuffer_switch_to_saved_filter_groups
+        type(command_type) :: ibuffer_switch_to_saved_filters
         type(command_type) :: ibuffer_toggle_filter_group
         type(command_type) :: ibuffer_toggle_marks
         type(command_type) :: ibuffer_toggle_sorting_mode
@@ -540,6 +584,8 @@ module commands_fm
         type(command_type) :: ibuffer_visit_buffer_1_window
         type(command_type) :: ibuffer_visit_buffer_other_window
         type(command_type) :: ibuffer_visit_buffer_other_window_noselect
+        type(command_type) :: ibuffer_yank
+        type(command_type) :: ibuffer_yank_filter_group
         type(command_type) :: ignore
         type(command_type) :: increment_register
         type(command_type) :: indent_according_to_mode
@@ -968,7 +1014,7 @@ module commands_fm
     type(command_table_type), target :: commands
 
     !> The names of the built-in commands.
-    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(930) = [character(len=43) :: &
+    character(len=*), parameter :: BUILTIN_COMMAND_NAMES(976) = [character(len=43) :: &
                                                                  "abbrev_mode", &
                                                                  "abbrev_prefix_mark", &
                                                                  "abort_minibuffers", &
@@ -1168,6 +1214,10 @@ module commands_fm
                                                                  "copy_region_as_kill", &
                                                                  "copy_to_register", &
                                                                  "count_matches", &
+                                                                 "crm_complete", &
+                                                                 "crm_complete_and_exit", &
+                                                                 "crm_complete_word", &
+                                                                 "crm_completion_help", &
                                                                  "cycle_spacing", &
                                                                  "dabbrev_completion", &
                                                                  "dabbrev_expand", &
@@ -1398,16 +1448,25 @@ module commands_fm
                                                                  "help_quit", &
                                                                  "how_many", &
                                                                  "ibuffer", &
+                                                                 "ibuffer_add_saved_filters", &
                                                                  "ibuffer_add_to_tmp_hide", &
                                                                  "ibuffer_add_to_tmp_show", &
+                                                                 "ibuffer_and_filter", &
                                                                  "ibuffer_auto_mode", &
                                                                  "ibuffer_backward_filter_group", &
                                                                  "ibuffer_backward_line", &
                                                                  "ibuffer_backwards_next_marked", &
+                                                                 "ibuffer_bs_show", &
+                                                                 "ibuffer_bs_toggle_all", &
                                                                  "ibuffer_bury_buffer", &
                                                                  "ibuffer_change_marks", &
+                                                                 "ibuffer_clear_filter_groups", &
                                                                  "ibuffer_copy_buffername_as_kill", &
                                                                  "ibuffer_copy_filename_as_kill", &
+                                                                 "ibuffer_decompose_filter", &
+                                                                 "ibuffer_decompose_filter_group", &
+                                                                 "ibuffer_delete_saved_filter_groups", &
+                                                                 "ibuffer_delete_saved_filters", &
                                                                  "ibuffer_diff_with_file", &
                                                                  "ibuffer_do_delete", &
                                                                  "ibuffer_do_kill_lines", &
@@ -1433,14 +1492,36 @@ module commands_fm
                                                                  "ibuffer_do_toggle_read_only", &
                                                                  "ibuffer_do_view", &
                                                                  "ibuffer_do_view_horizontally", &
+                                                                 "ibuffer_exchange_filters", &
+                                                                 "ibuffer_filter_by_basename", &
+                                                                 "ibuffer_filter_by_content", &
+                                                                 "ibuffer_filter_by_derived_mode", &
+                                                                 "ibuffer_filter_by_directory", &
+                                                                 "ibuffer_filter_by_file_extension", &
+                                                                 "ibuffer_filter_by_filename", &
+                                                                 "ibuffer_filter_by_mode", &
+                                                                 "ibuffer_filter_by_modified", &
+                                                                 "ibuffer_filter_by_name", &
+                                                                 "ibuffer_filter_by_process", &
+                                                                 "ibuffer_filter_by_size_gt", &
+                                                                 "ibuffer_filter_by_size_lt", &
+                                                                 "ibuffer_filter_by_starred_name", &
+                                                                 "ibuffer_filter_by_used_mode", &
+                                                                 "ibuffer_filter_by_visiting_file", &
+                                                                 "ibuffer_filter_chosen_by_completion", &
+                                                                 "ibuffer_filter_disable", &
+                                                                 "ibuffer_filters_to_filter_group", &
                                                                  "ibuffer_find_file", &
                                                                  "ibuffer_forward_filter_group", &
                                                                  "ibuffer_forward_line", &
                                                                  "ibuffer_forward_next_marked", &
+                                                                 "ibuffer_interactive_filter_by_mode", &
                                                                  "ibuffer_invert_sorting", &
                                                                  "ibuffer_jump", &
                                                                  "ibuffer_jump_to_buffer", &
                                                                  "ibuffer_jump_to_filter_group", &
+                                                                 "ibuffer_kill_filter_group", &
+                                                                 "ibuffer_kill_line", &
                                                                  "ibuffer_list_buffers", &
                                                                  "ibuffer_mark_by_content_regexp", &
                                                                  "ibuffer_mark_by_file_name_regexp", &
@@ -1461,10 +1542,19 @@ module commands_fm
                                                                  "ibuffer_mark_special_buffers", &
                                                                  "ibuffer_mark_unsaved_buffers", &
                                                                  "ibuffer_mode", &
+                                                                 "ibuffer_negate_filter", &
+                                                                 "ibuffer_or_filter", &
                                                                  "ibuffer_other_window", &
+                                                                 "ibuffer_pop_filter", &
+                                                                 "ibuffer_pop_filter_group", &
                                                                  "ibuffer_recompile_formats", &
                                                                  "ibuffer_redisplay", &
+                                                                 "ibuffer_save_filter_groups", &
+                                                                 "ibuffer_save_filters", &
+                                                                 "ibuffer_set_filter_groups_by_mode", &
                                                                  "ibuffer_switch_format", &
+                                                                 "ibuffer_switch_to_saved_filter_groups", &
+                                                                 "ibuffer_switch_to_saved_filters", &
                                                                  "ibuffer_toggle_filter_group", &
                                                                  "ibuffer_toggle_marks", &
                                                                  "ibuffer_toggle_sorting_mode", &
@@ -1477,6 +1567,8 @@ module commands_fm
                                                                  "ibuffer_visit_buffer_1_window", &
                                                                  "ibuffer_visit_buffer_other_window", &
                                                                  "ibuffer_visit_buffer_other_window_noselect", &
+                                                                 "ibuffer_yank", &
+                                                                 "ibuffer_yank_filter_group", &
                                                                  "ignore", &
                                                                  "increment_register", &
                                                                  "indent_according_to_mode", &
@@ -2307,6 +2399,14 @@ contains
             p => commands%copy_to_register
         case ("count_matches")
             p => commands%count_matches
+        case ("crm_complete")
+            p => commands%crm_complete
+        case ("crm_complete_and_exit")
+            p => commands%crm_complete_and_exit
+        case ("crm_complete_word")
+            p => commands%crm_complete_word
+        case ("crm_completion_help")
+            p => commands%crm_completion_help
         case ("cycle_spacing")
             p => commands%cycle_spacing
         case ("dabbrev_completion")
@@ -2767,10 +2867,14 @@ contains
             p => commands%how_many
         case ("ibuffer")
             p => commands%ibuffer
+        case ("ibuffer_add_saved_filters")
+            p => commands%ibuffer_add_saved_filters
         case ("ibuffer_add_to_tmp_hide")
             p => commands%ibuffer_add_to_tmp_hide
         case ("ibuffer_add_to_tmp_show")
             p => commands%ibuffer_add_to_tmp_show
+        case ("ibuffer_and_filter")
+            p => commands%ibuffer_and_filter
         case ("ibuffer_auto_mode")
             p => commands%ibuffer_auto_mode
         case ("ibuffer_backward_filter_group")
@@ -2779,14 +2883,28 @@ contains
             p => commands%ibuffer_backward_line
         case ("ibuffer_backwards_next_marked")
             p => commands%ibuffer_backwards_next_marked
+        case ("ibuffer_bs_show")
+            p => commands%ibuffer_bs_show
+        case ("ibuffer_bs_toggle_all")
+            p => commands%ibuffer_bs_toggle_all
         case ("ibuffer_bury_buffer")
             p => commands%ibuffer_bury_buffer
         case ("ibuffer_change_marks")
             p => commands%ibuffer_change_marks
+        case ("ibuffer_clear_filter_groups")
+            p => commands%ibuffer_clear_filter_groups
         case ("ibuffer_copy_buffername_as_kill")
             p => commands%ibuffer_copy_buffername_as_kill
         case ("ibuffer_copy_filename_as_kill")
             p => commands%ibuffer_copy_filename_as_kill
+        case ("ibuffer_decompose_filter")
+            p => commands%ibuffer_decompose_filter
+        case ("ibuffer_decompose_filter_group")
+            p => commands%ibuffer_decompose_filter_group
+        case ("ibuffer_delete_saved_filter_groups")
+            p => commands%ibuffer_delete_saved_filter_groups
+        case ("ibuffer_delete_saved_filters")
+            p => commands%ibuffer_delete_saved_filters
         case ("ibuffer_diff_with_file")
             p => commands%ibuffer_diff_with_file
         case ("ibuffer_do_delete")
@@ -2837,6 +2955,44 @@ contains
             p => commands%ibuffer_do_view
         case ("ibuffer_do_view_horizontally")
             p => commands%ibuffer_do_view_horizontally
+        case ("ibuffer_exchange_filters")
+            p => commands%ibuffer_exchange_filters
+        case ("ibuffer_filter_by_basename")
+            p => commands%ibuffer_filter_by_basename
+        case ("ibuffer_filter_by_content")
+            p => commands%ibuffer_filter_by_content
+        case ("ibuffer_filter_by_derived_mode")
+            p => commands%ibuffer_filter_by_derived_mode
+        case ("ibuffer_filter_by_directory")
+            p => commands%ibuffer_filter_by_directory
+        case ("ibuffer_filter_by_file_extension")
+            p => commands%ibuffer_filter_by_file_extension
+        case ("ibuffer_filter_by_filename")
+            p => commands%ibuffer_filter_by_filename
+        case ("ibuffer_filter_by_mode")
+            p => commands%ibuffer_filter_by_mode
+        case ("ibuffer_filter_by_modified")
+            p => commands%ibuffer_filter_by_modified
+        case ("ibuffer_filter_by_name")
+            p => commands%ibuffer_filter_by_name
+        case ("ibuffer_filter_by_process")
+            p => commands%ibuffer_filter_by_process
+        case ("ibuffer_filter_by_size_gt")
+            p => commands%ibuffer_filter_by_size_gt
+        case ("ibuffer_filter_by_size_lt")
+            p => commands%ibuffer_filter_by_size_lt
+        case ("ibuffer_filter_by_starred_name")
+            p => commands%ibuffer_filter_by_starred_name
+        case ("ibuffer_filter_by_used_mode")
+            p => commands%ibuffer_filter_by_used_mode
+        case ("ibuffer_filter_by_visiting_file")
+            p => commands%ibuffer_filter_by_visiting_file
+        case ("ibuffer_filter_chosen_by_completion")
+            p => commands%ibuffer_filter_chosen_by_completion
+        case ("ibuffer_filter_disable")
+            p => commands%ibuffer_filter_disable
+        case ("ibuffer_filters_to_filter_group")
+            p => commands%ibuffer_filters_to_filter_group
         case ("ibuffer_find_file")
             p => commands%ibuffer_find_file
         case ("ibuffer_forward_filter_group")
@@ -2845,6 +3001,8 @@ contains
             p => commands%ibuffer_forward_line
         case ("ibuffer_forward_next_marked")
             p => commands%ibuffer_forward_next_marked
+        case ("ibuffer_interactive_filter_by_mode")
+            p => commands%ibuffer_interactive_filter_by_mode
         case ("ibuffer_invert_sorting")
             p => commands%ibuffer_invert_sorting
         case ("ibuffer_jump")
@@ -2853,6 +3011,10 @@ contains
             p => commands%ibuffer_jump_to_buffer
         case ("ibuffer_jump_to_filter_group")
             p => commands%ibuffer_jump_to_filter_group
+        case ("ibuffer_kill_filter_group")
+            p => commands%ibuffer_kill_filter_group
+        case ("ibuffer_kill_line")
+            p => commands%ibuffer_kill_line
         case ("ibuffer_list_buffers")
             p => commands%ibuffer_list_buffers
         case ("ibuffer_mark_by_content_regexp")
@@ -2893,14 +3055,32 @@ contains
             p => commands%ibuffer_mark_unsaved_buffers
         case ("ibuffer_mode")
             p => commands%ibuffer_mode
+        case ("ibuffer_negate_filter")
+            p => commands%ibuffer_negate_filter
+        case ("ibuffer_or_filter")
+            p => commands%ibuffer_or_filter
         case ("ibuffer_other_window")
             p => commands%ibuffer_other_window
+        case ("ibuffer_pop_filter")
+            p => commands%ibuffer_pop_filter
+        case ("ibuffer_pop_filter_group")
+            p => commands%ibuffer_pop_filter_group
         case ("ibuffer_recompile_formats")
             p => commands%ibuffer_recompile_formats
         case ("ibuffer_redisplay")
             p => commands%ibuffer_redisplay
+        case ("ibuffer_save_filter_groups")
+            p => commands%ibuffer_save_filter_groups
+        case ("ibuffer_save_filters")
+            p => commands%ibuffer_save_filters
+        case ("ibuffer_set_filter_groups_by_mode")
+            p => commands%ibuffer_set_filter_groups_by_mode
         case ("ibuffer_switch_format")
             p => commands%ibuffer_switch_format
+        case ("ibuffer_switch_to_saved_filter_groups")
+            p => commands%ibuffer_switch_to_saved_filter_groups
+        case ("ibuffer_switch_to_saved_filters")
+            p => commands%ibuffer_switch_to_saved_filters
         case ("ibuffer_toggle_filter_group")
             p => commands%ibuffer_toggle_filter_group
         case ("ibuffer_toggle_marks")
@@ -2925,6 +3105,10 @@ contains
             p => commands%ibuffer_visit_buffer_other_window
         case ("ibuffer_visit_buffer_other_window_noselect")
             p => commands%ibuffer_visit_buffer_other_window_noselect
+        case ("ibuffer_yank")
+            p => commands%ibuffer_yank
+        case ("ibuffer_yank_filter_group")
+            p => commands%ibuffer_yank_filter_group
         case ("ignore")
             p => commands%ignore
         case ("increment_register")
